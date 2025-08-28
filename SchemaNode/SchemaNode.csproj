@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <RootNamespace>SchemaNode</RootNamespace>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="Api\" />
+      <Folder Include="Attribute\" />
+      <Folder Include="Context\" />
+      <Folder Include="Function\" />
+      <Folder Include="Node\" />
+      <Folder Include="Provider\" />
+      <Folder Include="Utility\" />
+    </ItemGroup>
+
+</Project>
