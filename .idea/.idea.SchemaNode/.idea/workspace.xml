@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="" />
+    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IEnumConfig.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/ArraySchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/FunctionSchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -16,6 +25,7 @@
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
+  <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 4
 }</component>
@@ -53,13 +63,36 @@
       <workItem from="1756373636988" duration="40000" />
       <workItem from="1756373720106" duration="117000" />
       <workItem from="1756374130320" duration="43000" />
+      <workItem from="1756454457407" duration="4143000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="UnityCheckinConfiguration" checkUnsavedScenes="true" />
   <component name="UnityProjectConfiguration" hasMinimizedUI="false" />
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="OPEN_GENERIC_TABS">
+      <map>
+        <entry key="8eef9159-dc30-4351-bbea-10c7188c7417" value="TOOL_WINDOW" />
+      </map>
+    </option>
+    <option name="TAB_STATES">
+      <map>
+        <entry key="8eef9159-dc30-4351-bbea-10c7188c7417">
+          <value>
+            <State />
+          </value>
+        </entry>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
