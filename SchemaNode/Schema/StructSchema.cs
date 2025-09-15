@@ -50,6 +50,13 @@ public interface IStructEnumFieldConfig : IStructFieldConfig, IEnumConfig
 }
 
 /// <summary>
+/// The struct array field config
+/// </summary>
+public interface IStructArrayFieldConfig : IStructFieldConfig, IArrayConfig
+{
+}
+
+/// <summary>
 /// The relation between fields
 /// </summary>
 public class StructFieldRelation

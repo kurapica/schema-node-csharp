@@ -19,9 +19,9 @@ public class NodeSchema
     public SchemaType Type { get; set; } = SchemaType.Namespace;
 
     /// <summary>
-    /// The schema description
+    /// The schema display
     /// </summary>
-    public string? Desc { get; set; }
+    public string? Display { get; set; }
 
     /// <summary>
     /// The scalar schema if type is scalar

@@ -74,4 +74,9 @@ public enum RelationType
     /// Single flag value for enum
     /// </summary>
     SingleFlag,
+    
+    /// <summary>
+    /// Union validation
+    /// </summary>
+    Validation,
 }

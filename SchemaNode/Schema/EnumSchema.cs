@@ -53,3 +53,24 @@ public class EnumValueInfo
     /// </summary>
     public EnumValueInfo[]? SubList { get; set; }
 }
+
+/// <summary>
+/// The enum value access info
+/// </summary>
+public class EnumValueAccess
+{
+    /// <summary>
+    /// The cascade name
+    /// </summary>
+    public string? Name { get; set; }
+    
+    /// <summary>
+    /// The enum value of the cascade
+    /// </summary>
+    public string Value { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The sublist of the enum value
+    /// </summary>
+    public EnumValueInfo[]? SubList { get; set; }
+}

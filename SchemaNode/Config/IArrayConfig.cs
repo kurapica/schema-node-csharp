@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace SchemaNode.Config;
 
 /// <summary>
@@ -8,12 +10,17 @@ public interface IArrayConfig: ISchemaConfig
     /// <summary>
     /// The array data is increase update, only usable within application
     /// </summary>
-    public bool? IsIncrUpdate { get; set; }
+    public bool? IncrUpdate { get; set; }
 
     /// <summary>
     /// The page count
     /// </summary>
-    public int? PageCount { get; set; }
+    public int? Count { get; set; }
+    
+    /// <summary>
+    /// The query offset
+    /// </summary>
+    public int? Offset { get; set; }
 
     /// <summary>
     /// The data total count

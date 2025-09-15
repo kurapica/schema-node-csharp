@@ -19,6 +19,11 @@ public interface ISchemaConfig
     /// The description of the node.
     /// </summary>
     public string? Desc { get; set; }
+    
+    /// <summary>
+    /// The error message if validation failed.
+    /// </summary>
+    public string? Error { get; set; }
 
     /// <summary>
     /// The node data is required.

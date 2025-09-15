@@ -5,14 +5,29 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IEnumConfig.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/ArraySchema.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/FunctionSchema.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/DI/SchemaContextConfig.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/AppNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/AppSchema.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/DataCombineType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/DataCombineType.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/ScalarSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/ScalarSchema.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,6 +39,8 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4e977b4a10fa419fcc7efedb881f7b209fa140b1e3d0f4b371bb4ba17a173bf/JsonNode.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/b2e81feaa1a753a129436e86d63f443b1b2d6314d40d9a0711c6bdf11dde/JsonObject.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
   <component name="ProjectColorInfo">{
@@ -41,7 +58,7 @@
   &quot;keyToString&quot;: {
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -64,6 +81,8 @@
       <workItem from="1756373720106" duration="117000" />
       <workItem from="1756374130320" duration="43000" />
       <workItem from="1756454457407" duration="4143000" />
+      <workItem from="1757914651439" duration="7027000" />
+      <workItem from="1757921708946" duration="2189000" />
     </task>
     <servers />
   </component>

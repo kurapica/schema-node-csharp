@@ -9,6 +9,11 @@ public enum DataCombineType
     /// Assign
     /// </summary>
     Assign,
+    
+    /// <summary>
+    /// Init
+    /// </summary>
+    Init,
 
     /// <summary>
     /// Sum

@@ -36,12 +36,12 @@ public class ScalarSchema
     public string? Regex  { get; set; }
 
     /// <summary>
-    /// The eval function to validate the scalar value
+    /// The function to validate the scalar value in frontend
     /// </summary>
-    public string? Valid  { get; set; }
+    public string? PreValid  { get; set; }
 
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
-    public string? Conv  { get; set; }
+    public string? PostValid  { get; set; }
 }

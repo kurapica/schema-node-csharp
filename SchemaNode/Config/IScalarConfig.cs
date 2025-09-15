@@ -38,5 +38,5 @@ public interface IScalarConfig: ISchemaConfig
     /// <summary>
     /// When calculating the up limit, use the original value.
     /// </summary>
-    public bool? UseOriginForUplimit { get; set; }
+    public bool? UseOriginForUpLimit { get; set; }
 }
