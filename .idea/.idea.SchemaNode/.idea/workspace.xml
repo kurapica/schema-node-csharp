@@ -4,31 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/DI/SchemaContextConfig.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/AppNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Schema/AppSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/IArrayConfig.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/IScalarConfig.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/DataCombineType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/DataCombineType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/ScalarSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/ScalarSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/StructSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" afterDir="false" />
-    </list>
+    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -82,7 +58,7 @@
       <workItem from="1756374130320" duration="43000" />
       <workItem from="1756454457407" duration="4143000" />
       <workItem from="1757914651439" duration="7027000" />
-      <workItem from="1757921708946" duration="2189000" />
+      <workItem from="1757921708946" duration="2806000" />
     </task>
     <servers />
   </component>
