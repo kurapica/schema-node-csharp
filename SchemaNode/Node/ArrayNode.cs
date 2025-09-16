@@ -5,5 +5,5 @@ namespace SchemaNode.Node;
 /// </summary>
 public class ArrayNode: NamespaceNode
 {
-    
+    public NamespaceNode Element { get; set; }
 }

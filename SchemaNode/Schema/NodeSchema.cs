@@ -47,6 +47,11 @@ public class NodeSchema
     /// The function schema if type is function
     /// </summary>
     public FunctionSchema? Func { get; set; }
+    
+    /// <summary>
+    /// The load state
+    /// </summary>
+    public SchemaLoadState? LoadState { get; set; }
 
     /// <summary>
     /// The sub schemas of the namespace

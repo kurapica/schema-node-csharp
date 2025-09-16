@@ -13,14 +13,14 @@ public interface ISchemaProvider
     /// </summary>
     /// <param name="schemaName">The schema name</param>
     /// <returns>The schema</returns>
-    Task<NodeSchema?> LoadSchema(string schemaName);
+    Task<NodeSchema?> LoadSchemaAsync(string schemaName);
 
     /// <summary>
     /// Load the application schema information
     /// </summary>
     /// <param name="app">The application name</param>
     /// <returns>The application schema</returns>
-    Task<AppSchema?> LoadAppSchema(string app);
+    Task<AppSchema?> LoadAppSchemaAsync(string app);
 
     /// <summary>
     /// Load the enum value sub list
@@ -29,7 +29,7 @@ public interface ISchemaProvider
     /// <param name="value">The root enum value, optional</param>
     /// <param name="fullList">Whether load the full list</param>
     /// <returns></returns>
-    Task<EnumValueInfo[]> LoadEnumSubList(string schemaName, string? value, bool? fullList);
+    Task<EnumValueInfo[]> LoadEnumSubListAsync(string schemaName, string? value, bool? fullList);
     
     /// <summary>
     /// Load the enum value access list from the server
@@ -38,7 +38,7 @@ public interface ISchemaProvider
     /// <param name="value">The enum value for access</param>
     /// <param name="noSubList">no sub list should be loaded</param>
     /// <returns></returns>
-    Task<EnumValueAccess[]> LoadEnumAccessList(string schemaName, string value, bool? noSubList);
+    Task<EnumValueAccess[]> LoadEnumAccessListAsync(string schemaName, string value, bool? noSubList);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -47,5 +47,5 @@ public interface ISchemaProvider
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
     /// <returns>The result</returns>
-    Task<JsonNode> CallFunction(string schemaName, JsonArray args, string[]? generic);
+    Task<JsonNode> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic);
 }

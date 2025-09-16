@@ -3,12 +3,12 @@ namespace SchemaNode.Config;
 /// <summary>
 /// The config of the schema node.
 /// </summary>
-public interface ISchemaConfig
+public abstract class SchemaConfig
 {
     /// <summary>
     /// The type name of the node.
     /// </summary>
-    public string Type { get; set; }
+    public string Type { get; set; } = string.Empty;
 
     /// <summary>
     /// The label of the node.
