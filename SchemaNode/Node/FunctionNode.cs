@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using static SchemaNode.Utility.Constant;
+using System.Text.RegularExpressions;
 
 namespace SchemaNode.Node;
 
@@ -121,29 +122,40 @@ public class FunctionNode: NamespaceNode
             Status = SchemaNodeStatus.NoDefinition;
             return;
         }
-        
+
+        // Generic check
+        NamespaceNode?[] genericNodes = new NamespaceNode[Generic?.Length ?? 0];
+        if (Generic?.Length > 0)
+        {
+            for(int i = 0; i < Generic.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(Generic[i]) && !Regex.IsMatch(Generic[i], @"^[tT]\d*$"))
+                {
+                    genericNodes[i] = await context.GetSchemaNodeAsync(Generic[i]);
+                }
+            }
+        }
+
         // Gets return type
-        if (!string.IsNullOrWhiteSpace(Return))
+        if (string.IsNullOrWhiteSpace(Return))
+        {
+            Status = SchemaNodeStatus.FunctionWrongReturnType;
+        }
+        else if (Regex.IsMatch(Return, @"^[tT]\d*$"))
+        {
+            // Generic type
+            int index = Return.Length > 1 && int.TryParse(Return[1..], out int i) ? i : 1;
+            ReturnNode = new GenericTypeNode
+            {
+                GenericIndex = index,
+                BaseNode = genericNodes.Length >= index ? genericNodes[index - 1] : null
+            };
+        }
+        else
         {
             ReturnNode = await context.GetSchemaNodeAsync(Return);
-            if (ReturnNode == null)
-                Status = SchemaNodeStatus.FunctionWrongReturnType;
+            if (ReturnNode == null) Status = SchemaNodeStatus.FunctionWrongReturnType;
         }
-        else if (UseArgType.HasValue)
-        {
-            ReturnNode = new RefArgTypeNode(UseArgType.Value);
-        }
-        else if (!IsSystemDefined)
-        {
-            // Skip the system defined functions
-            Status = TypeNodeStatus.FunctionWrongReturnType;
-        }
-
-        // Gets Args
-        Args = entity.Args?.Select(a => (FunctionNodeArgument)a).ToList() ?? new List<FunctionNodeArgument>();
-
-        // Gets Expressions
-        Exps = entity.Exps?.Select(e => (FunctionNodeExpression)e).ToList();
 
         // Check if server or client only
         IsServerOnly = !DataDictContext.IsPublicService && Exps is { Count: 0 } && !staticMethodMap.ContainsKey(Name) && Name.StartsWith($"{NS_SYSTEM}.");
@@ -2079,4 +2091,18 @@ public class SchemaFuncInfo
     /// The generic instances
     /// </summary>
     public ConcurrentDictionary<string, MethodInfo> GenericMethods { get; } = new();
+}
+
+
+public class GenericTypeNode: NamespaceNode
+{
+    /// <summary>
+    /// Possible base type
+    /// </summary>
+    public NamespaceNode? BaseNode { get; set; }
+
+    /// <summary>
+    /// The index in generic array
+    /// </summary>
+    public int GenericIndex { get; set; }
 }

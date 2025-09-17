@@ -13,11 +13,11 @@ namespace SchemaNode.Node;
 public class NamespaceNode
 {
     #region Data
-    
+
     /// <summary>
     /// The namespace
     /// </summary>
-    public required string Name { get; init; }
+    public string Name { get; init; } = string.Empty;
 
     /// <summary>
     /// The schema display
