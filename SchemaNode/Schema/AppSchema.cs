@@ -15,12 +15,12 @@ public class AppSchema
     /// <summary>
     /// The display name
     /// </summary>
-    public string? Display { get; set; }
+    public LocaleString? Display { get; set; }
     
     /// <summary>
     /// The description
     /// </summary>
-    public string? Desc { get; set; }
+    public LocaleString? Desc { get; set; }
     
     /// <summary>
     /// The main application
@@ -76,12 +76,12 @@ public class AppFieldSchema
     /// <summary>
     /// The field display name
     /// </summary>
-    public string? Display { get; set; }
+    public LocaleString? Display { get; set; }
     
     /// <summary>
     /// The field description
     /// </summary>
-    public string? Desc { get; set; }
+    public LocaleString? Desc { get; set; }
     
     /// <summary>
     /// The source application

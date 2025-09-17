@@ -1,5 +1,6 @@
-using SchemaNode.Config;
+using System.Text.Json.Serialization;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 
 namespace SchemaNode.Schema;
 
@@ -27,24 +28,79 @@ public class StructSchema
 /// <summary>
 /// The struct field config
 /// </summary>
-public class StructFieldConfig: SchemaConfig
+public class StructFieldConfig
 {
     /// <summary>
     /// The field name
     /// </summary>
-    public string Name { get; set; }
-
-    #region Scalar
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The type name of the node.
+    /// </summary>
+    public string Type { get; set; } = string.Empty;
 
     /// <summary>
-    /// The white list
+    /// The label of the node.
     /// </summary>
-    public string[]? WhiteList { get; set; }
+    public LocaleString? Display { get; set; }
+
+    /// <summary>
+    /// The description of the node.
+    /// </summary>
+    public LocaleString? Desc { get; set; }
+    
+    /// <summary>
+    /// The error message if validation failed.
+    /// </summary>
+    public LocaleString? Error { get; set; }
+
+    /// <summary>
+    /// The node data is required.
+    /// </summary>
+    public bool? Require { get; set; }
+
+    /// <summary>
+    /// The node data is immutable, un-changeable if init-ed.
+    /// </summary>
+    public bool? Immutable { get; set; }
+
+    /// <summary>
+    /// The node data is readonly.
+    /// </summary>
+    public bool? Readonly { get; set; }
+
+    /// <summary>
+    /// The node should be invisible.
+    /// </summary>
+    public bool? Invisible { get; set; }
+
+    /// <summary>
+    /// The node should be display only, won't be submitted.
+    /// </summary>
+    public bool? DisplayOnly { get; set; }
+
+    /// <summary>
+    /// The unit of the node data like 'm/s', '%', '°C'.
+    /// </summary>
+    public LocaleString? Unit { get; set; }
+
+    /// <summary>
+    /// The default value of the node.
+    /// </summary>
+    public string? Default { get; set; }
+    
+    #region Scalar
 
     /// <summary>
     /// The root value, for special scalar type values
     /// </summary>
     public string? Root { get; set; }
+    
+    /// <summary>
+    /// The white list
+    /// </summary>
+    public string[]? WhiteList { get; set; }
     
     /// <summary>
     /// The black list
@@ -120,6 +176,16 @@ public class StructFieldConfig: SchemaConfig
     public bool? Descend { get; set; }
 
     #endregion
+    
+    #region Ref
+    
+    /// <summary>
+    /// The type node ref
+    /// </summary>
+    [JsonIgnore]
+    public NamespaceNode? TypeNode { get; set; }
+    
+    #endregion
 }
 
 /// <summary>
@@ -146,4 +212,10 @@ public class StructFieldRelation
     /// The relationType type
     /// </summary>
     public RelationType Type { get; set; } = RelationType.Default;
+    
+    /// <summary>
+    /// The function node ref
+    /// </summary>
+    [JsonIgnore]
+    public FunctionNode? FuncNode { get; set; }
 }

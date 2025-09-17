@@ -12,6 +12,9 @@ namespace SchemaNode.Node;
 /// </summary>
 public class EnumNode: NamespaceNode
 {
+    // ReSharper disable once InconsistentNaming
+    private const int MAX_SUBLIST_LEVEL = 3;
+    
     #region Data
     
     /// <summary>
@@ -25,9 +28,9 @@ public class EnumNode: NamespaceNode
     public string[]? Cascade { get; set; }
     
     /// <summary>
-    /// The enum values
+    /// The root for all enum values
     /// </summary>
-    public EnumValueInfo[]? Values { get; set; }
+    public EnumValueInfo Root { get; set; } = new ();
 
     #endregion
     
@@ -35,6 +38,11 @@ public class EnumNode: NamespaceNode
 
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Enum;
+    
+    /// <summary>
+    /// The max flags value
+    /// </summary>
+    public long MaxFlags { get; set; }
 
     #endregion
     
@@ -48,22 +56,151 @@ public class EnumNode: NamespaceNode
         // Data
         ValueType = @enum?.Type ?? EnumValueType.String;
         Cascade = @enum?.Cascade;
-        Values = @enum?.Values;
+        Root = new EnumValueInfo
+        {
+            SubList = @enum?.Values
+        };
+        Root.CheckFullyLoadedStatus();
+        UpdateMaxFlags();
         
         // Status
         if (@enum == null) Status = SchemaNodeStatus.NoDefinition;
-
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Load the enum value access path
+    /// </summary>
+    public async Task<EnumValueInfo[]> LoadEnumValueAccessAsync(SchemaContext context, string? value)
+    {
+        // check existed
+        EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
+        if (accesses == null)
+        {
+            EnumValueAccess[] accessList = await context.SchemaProvider.LoadEnumAccessListAsync(Name, value!, false, true);
+            if (accessList.Length == 0) return []; // not exist
+            
+            // combine the access list
+            lock (this)
+            {
+                Root.CombineAccessList(accessList);
+                Root.CheckFullyLoadedStatus();
+            }
+            
+            // re check
+            accesses = Root.GetEnumAccesses(value);
+        }
+        return accesses ?? [];
+    }
+
+    /// <summary>
+    /// Load the enum value sub list
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="value">The root enum value, optional</param>
+    /// <param name="fullList">Whether try to load the full list</param>
+    /// <returns></returns>
+    public async Task<EnumValueInfo[]> LoadEnumSubListAsync(SchemaContext context, string? value, bool? fullList)
+    {
+        EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueInfo access = accesses.Last();
+        if (!(access.HasSubList ?? false)) return [];
+        
+        // load sub list
+        int chkLvl = 1;
+        if (fullList ?? false)
+        {
+            chkLvl = Math.Min((Cascade?.Length ?? 1) - accesses.Length + 1, MAX_SUBLIST_LEVEL);
+        }
+            
+        // full-filled
+        if (access.CheckFullyLoadedStatus(chkLvl))
+            return access.Clone(chkLvl).SubList ?? [];
+            
+        // load sub list
+        EnumValueInfo[] subList = await context.SchemaProvider.LoadEnumSubListAsync(Name, value!, true);
+        lock (this)
+        {
+            access.SubList = subList;
+            access.CheckFullyLoadedStatus();
+        }
+        return access.Clone(chkLvl).SubList ?? [];
+
+    }
+
+    /// <summary>
+    /// Load the enum value access list from the server
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="value">The enum value for access</param>
+    /// <param name="noSubList">no sub list should be loaded</param>
+    /// <returns></returns>
+    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList)
+    {
+        EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueAccess[] result = new EnumValueAccess[accesses.Length - 1];
+        for (int i = 0; i < accesses.Length - 1; i++)
+        {
+            result[i] = new EnumValueAccess
+            {
+                Value = accesses[i + 1].Value,
+                Name = Cascade?[i],
+                SubList = (noSubList ?? false) ? null : accesses[i].SubList?.Select(a => a.Clone()).ToArray()
+            };
+        }
+        
+        return result;
     }
 
     /// <inheritdoc />
     public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
-        await Task.Yield();
         if (value is not JsonValue val || val.IsEmpty())
             return (value, TYPE_VALUE_NOT_VALID);
+
+        // Combine value
+        if (ValueType == EnumValueType.Flags)
+        {
+            try
+            {
+                long total = val.GetValue<long>();
+                if (total < 0) return (value, TYPE_VALUE_NOT_VALID);
+
+                if (!Root.IsFullyLoaded)
+                {
+                    EnumValueInfo[] infos = await context.SchemaProvider.LoadEnumSubListAsync(Name, null);
+                    lock (this)
+                    {
+                        Root.SubList = infos;
+                        Root.CheckFullyLoadedStatus();
+                        UpdateMaxFlags();
+                    }
+                }    
+                return MaxFlags > total ? (total, null) : (value, TYPE_VALUE_NOT_VALID);
+            }
+            catch
+            {
+                return (value, TYPE_VALUE_NOT_VALID);
+            }
+        }
         
-        
+        EnumValueInfo[] access = await LoadEnumValueAccessAsync(context, value.ToString());
+        if (access.Length > 0)
+        {
+            return (ValueType switch
+            {
+                EnumValueType.String => val.GetValue<string>(),
+                EnumValueType.Int => val.GetValue<int>(),
+                EnumValueType.Float => val.GetValue<float>(),
+                EnumValueType.Double => val.GetValue<double>(),
+                EnumValueType.Flags => val.GetValue<int>(),
+                _ => throw new ArgumentOutOfRangeException()
+            }, null);
+        }
+        else
+        {
+            return (value, TYPE_VALUE_NOT_VALID);
+        }
     }
 
     /// <inheritdoc />
@@ -85,6 +222,32 @@ public class EnumNode: NamespaceNode
 
     /// <inheritdoc />
     public override bool IsIndexable => ValueType is EnumValueType.String or EnumValueType.Int or EnumValueType.Float;
+
+    #endregion
+    
+    #region Utility
+
+    void UpdateMaxFlags()
+    {
+        if (ValueType != EnumValueType.Flags || Root.SubList == null || Root.SubList.Length == 0) return;
+        long max = 0;
+        try
+        {
+            foreach (EnumValueInfo info in Root.SubList)
+            {
+                if (long.TryParse(info.Value, out long val))
+                {
+                    max = Math.Max(max, val);
+                }
+            }
+        }
+        catch
+        {
+            // pass
+        }
+
+        MaxFlags = max * 2;
+    }
     
     #endregion
 }

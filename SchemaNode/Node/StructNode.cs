@@ -1,3 +1,10 @@
+using System.Text.Json.Nodes;
+using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Node;
 
 /// <summary>
@@ -5,5 +12,174 @@ namespace SchemaNode.Node;
 /// </summary>
 public class StructNode: NamespaceNode
 {
+    #region Data
     
+    /// <summary>
+    /// The base struct type to be inherited from.
+    /// </summary>
+    public string? Base { get; set; }
+
+    /// <summary>
+    /// The struct fields
+    /// </summary>
+    public StructFieldConfig[] Fields { get; set; } = [];
+    
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    public StructFieldRelation[]? Relations { get; set; }
+    
+    #endregion
+    
+    #region State
+    
+    /// <inheritdoc />
+    public override SchemaType Type => SchemaType.Struct;
+    
+    #endregion
+    
+    #region Ref
+    
+    /// <summary>
+    /// The base struct node
+    /// </summary>
+    public StructNode? BaseNode { get; set; }
+    
+    #endregion
+    
+    #region Methods
+
+    /// <inheritdoc />
+    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    {
+        StructSchema? @struct = schema.Struct;
+        
+        // Data
+        Base = @struct?.Base;
+        Fields = @struct?.Fields ?? [];
+        Relations = @struct?.Relations ?? [];
+        
+        // Status
+        if (@struct == null) Status = SchemaNodeStatus.NoDefinition;
+        
+        // Ref
+        if (!string.IsNullOrWhiteSpace(Base))
+        {
+            NamespaceNode? baseNode = await context.GetSchemaNodeAsync(Base, preload);
+            if (baseNode is not StructNode node)
+                Status = SchemaNodeStatus.StructWrongBase;
+            else
+            {
+                BaseNode = node;
+                node.AddRef(this);
+            }
+        }
+        
+        // Load Fields
+        foreach (StructFieldConfig field in Fields)
+        {
+            NamespaceNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload);
+            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Function)
+            {
+                Status = SchemaNodeStatus.StructMemberWrongType;
+                continue;
+            }
+            field.TypeNode = typeNode;
+            typeNode.AddRef(this);
+        }
+        
+        // Load Relation
+        if (Relations != null)
+        {
+            foreach (StructFieldRelation relation in Relations)
+            {
+                NamespaceNode? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload);
+                if (funcNode is not FunctionNode node)
+                {
+                    Status = SchemaNodeStatus.StructRelationshipWrongFunc;
+                    continue;
+                }
+                relation.FuncNode = node;
+                node.AddRef(this);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public override void Release()
+    {
+        BaseNode?.RemoveRef(this);
+        BaseNode = null;
+        foreach (StructFieldConfig config in Fields)
+        {
+            config.TypeNode?.RemoveRef(this);
+            config.TypeNode = null;
+        }
+
+        if (Relations != null)
+        {
+            foreach (StructFieldRelation relation in Relations)
+            {
+                relation.FuncNode?.RemoveRef(this);
+                relation.FuncNode = null;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    {
+        if (value is not JsonObject jobject)
+            return (value, TYPE_VALUE_NOT_VALID);
+        
+        // validate fields
+        JsonObject result = new();
+        JsonObject? error = null;
+        foreach (StructFieldConfig field in Fields)
+        {
+            if (field.DisplayOnly ?? false) continue;
+            if (field.TypeNode is null) continue;
+
+            if (jobject.ContainsKey(field.Name) && !jobject[field.Name].IsEmpty())
+            {
+                (JsonNode? v, JsonNode? e) = await field.TypeNode.ValidateValueAsync(context, jobject[field.Name]!);
+                if (e != null && !e.IsEmpty())
+                {
+                    error ??= new JsonObject();
+                    error[field.Name] = e;
+                }
+                else
+                {
+                    result[field.Name] = v;
+                }
+            }
+            else if (field.Require ?? false)
+            {
+                error ??= new JsonObject();
+                error[field.Name] = TYPE_VALUE_STRUCT_MEMBER_REQUIRE;
+            }
+        }
+        
+        // @TODO: Union validation
+        
+        return (result, error);
+    }
+
+    /// <inheritdoc />
+    public override bool CanBeUseAs(NamespaceNode other)
+    {
+        if (this == other || Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT)) return true;
+        if (other is not StructNode @struct) return false;
+        StructNode? baseNode = BaseNode;
+        while (baseNode != null && baseNode != @struct) baseNode = baseNode.BaseNode;
+        return baseNode == @struct || 
+               @struct.Fields.Any(v => Fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
+               && @struct.Fields.All(v =>
+               {
+                   StructFieldConfig? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
+                   return match?.TypeNode == null ? !(v.Require ?? false) : v.TypeNode != null && match.TypeNode.CanBeUseAs(v.TypeNode);
+               });
+    }
+
+    #endregion
 }

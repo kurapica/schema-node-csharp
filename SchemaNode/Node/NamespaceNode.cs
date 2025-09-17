@@ -22,7 +22,7 @@ public class NamespaceNode
     /// <summary>
     /// The schema display
     /// </summary>
-    public string? Display { get; set; }
+    public LocaleString? Display { get; set; }
 
     #endregion
     
@@ -104,8 +104,8 @@ public class NamespaceNode
     /// </summary>
     public void AddRef(NamespaceNode node)
     {
-        _usedBy ??= new ConcurrentDictionary<NamespaceNode, bool>();
-        _usedBy.TryAdd(node, true);
+        UsedBy ??= new ConcurrentDictionary<NamespaceNode, bool>();
+        UsedBy.TryAdd(node, true);
     }
 
     /// <summary>
@@ -113,7 +113,7 @@ public class NamespaceNode
     /// </summary>
     public void RemoveRef(NamespaceNode node)
     {
-        _usedBy?.TryRemove(node, out _);
+        UsedBy?.TryRemove(node, out _);
     }
 
     /// <summary>
@@ -134,8 +134,8 @@ public class NamespaceNode
     /// Gets the array node that use this node as element
     /// </summary>
     public virtual ArrayNode? GetArrayNode(bool exactly = false) =>
-        _usedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.Element == this) as ArrayNode
-        ?? (!exactly ? _usedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && CanBeUseAs(array.Element)) as ArrayNode : null); 
+        UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.ElementNode == this) as ArrayNode
+        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && CanBeUseAs(array.ElementNode)) as ArrayNode : null); 
     
     /// <summary>
     /// Whether the type can be used as data index
@@ -172,7 +172,7 @@ public class NamespaceNode
     /// <summary>
     /// Used by other types
     /// </summary>
-    private ConcurrentDictionary<NamespaceNode, bool>? _usedBy;
+    protected ConcurrentDictionary<NamespaceNode, bool>? UsedBy;
 
     #endregion
 }

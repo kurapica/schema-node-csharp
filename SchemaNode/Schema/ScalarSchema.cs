@@ -13,7 +13,7 @@ public class ScalarSchema
     /// <summary>
     /// The default unit of the scalar value
     /// </summary>
-    public string? Unit { get; set; }
+    public LocaleString? Unit { get; set; }
 
     /// <summary>
     /// The default low limit of the scalar value
@@ -28,7 +28,7 @@ public class ScalarSchema
     /// <summary>
     /// The default error message of the scalar value
     /// </summary>
-    public string? Error  { get; set; }
+    public LocaleString? Error  { get; set; }
 
     /// <summary>
     /// The regex of the scalar value

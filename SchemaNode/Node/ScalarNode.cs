@@ -22,7 +22,7 @@ public class ScalarNode: NamespaceNode
      /// <summary>
      /// The default unit of the scalar value
      /// </summary>
-     public string? Unit { get; private set; }
+     public LocaleString? Unit { get; private set; }
      
      /// <summary>
      /// The default low limit of the scalar value
@@ -37,7 +37,7 @@ public class ScalarNode: NamespaceNode
      /// <summary>
      /// The default error message
      /// </summary>
-     public string? Error { get; private set; }
+     public LocaleString? Error { get; private set; }
      
      /// <summary>
      /// The regex of the scalar value
@@ -118,7 +118,7 @@ public class ScalarNode: NamespaceNode
      
      #endregion
      
-     #region Relationship
+     #region Ref
      
      /// <summary>
      /// The base node

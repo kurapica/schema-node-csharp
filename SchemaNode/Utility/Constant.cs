@@ -30,12 +30,19 @@ public static class Constant
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
     public const string NS_SYSTEM_INTS = "system.ints";
     
+    public const int FUNC_SIGN_CONTEXT = 1;
+    public const int FUNC_SIGN_ASYNC = 2;
+    public const int FUNC_SIGN_GENERIC = 4;
+    public const int FUNC_SIGN_IMMUTABLE = 8;
+    public const int FUNC_SIGN_SERVERCALL = 16;
+
     #endregion
     
     #region Message
 
     public const string TYPE_VALUE_NOT_VALID = "TYPE_VALUE_NOT_VALID";
     public const string TYPE_NAMESPACE_NOT_DATA_TYPE = "TYPE_NAMESPACE_NOT_DATA_TYPE";
+    public const string TYPE_VALUE_STRUCT_MEMBER_REQUIRE = "TYPE_VALUE_STRUCT_MEMBER_REQUIRE";
     
     #endregion
 }

@@ -21,7 +21,7 @@ public class NodeSchema
     /// <summary>
     /// The schema display
     /// </summary>
-    public string? Display { get; set; }
+    public LocaleString? Display { get; set; }
 
     /// <summary>
     /// The scalar schema if type is scalar
@@ -57,4 +57,47 @@ public class NodeSchema
     /// The sub schemas of the namespace
     /// </summary>
     public NodeSchema[]? Schemas  { get; set; }
+}
+
+/// <summary>
+/// The locale translate
+/// </summary>
+/// <param name="Lang">Language</param>
+/// <param name="Tran">Translate</param>
+public record LocaleTran(string Lang, string Tran);
+
+/// <summary>
+/// The locale string
+/// </summary>
+public class LocaleString: ICloneable
+{
+    /// <summary>
+    /// The default key
+    /// </summary>
+    public string Key { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The translations
+    /// </summary>
+    public LocaleTran[]? Trans { get; set; }
+
+    /// <summary>
+    /// Convert string to locale string
+    /// </summary>
+    public static implicit operator LocaleString(string? value)
+    {
+        return new LocaleString
+        {
+            Key = value ?? string.Empty,
+        };
+    }
+
+    public object Clone()
+    {
+        return new LocaleString
+        {
+            Key = Key,
+            Trans = Trans?.ToArray(),
+        };
+    }
 }
