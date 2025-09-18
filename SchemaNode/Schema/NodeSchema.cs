@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using SchemaNode.Enum;
+using SchemaNode.Provider;
 
 namespace SchemaNode.Schema;
 
@@ -47,16 +49,51 @@ public class NodeSchema
     /// The function schema if type is function
     /// </summary>
     public FunctionSchema? Func { get; set; }
-    
+
     /// <summary>
     /// The load state
     /// </summary>
-    public SchemaLoadState? LoadState { get; set; }
+    public SchemaLoadState? LoadState
+    {
+        get => _schemaLoadState;
+        set
+        {
+            _schemaLoadState = value;
+            if (Schemas == null) return;
+            foreach (NodeSchema schema in Schemas)
+            {
+                schema.LoadState = value;
+            }
+        }
+    }
 
     /// <summary>
     /// The sub schemas of the namespace
     /// </summary>
     public NodeSchema[]? Schemas  { get; set; }
+
+    /// <summary>
+    /// The schema provider used to fetch the node schema
+    /// </summary>
+    [JsonIgnore]
+    public ISchemaProvider? SchemaProvider
+    {
+        get => _schemaProvider;
+        set
+        {
+            _schemaProvider = value;
+            if (Schemas == null) return;
+            foreach (NodeSchema schema in Schemas)
+                schema.SchemaProvider = value;
+        }
+    }
+
+    #region Utility
+
+    private SchemaLoadState? _schemaLoadState;
+    private ISchemaProvider? _schemaProvider;
+
+    #endregion
 }
 
 /// <summary>

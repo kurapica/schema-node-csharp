@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Provider;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -42,6 +43,11 @@ public class NamespaceNode
     /// The schema node status
     /// </summary>
     public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    
+    /// <summary>
+    /// The scheme provider used to load the node
+    /// </summary>
+    public ISchemaProvider? SchemaProvider { get; set; } = null;
     
     /// <summary>
     /// The Sub namespaces
@@ -122,7 +128,7 @@ public class NamespaceNode
     public virtual async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
         await Task.Yield();
-        return (value: value, error: TYPE_NAMESPACE_NOT_DATA_TYPE);
+        return (value, TYPE_NAMESPACE_NOT_DATA_TYPE);
     }
 
     /// <summary>
@@ -135,7 +141,7 @@ public class NamespaceNode
     /// </summary>
     public virtual ArrayNode? GetArrayNode(bool exactly = false) =>
         UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.ElementNode == this) as ArrayNode
-        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && CanBeUseAs(array.ElementNode)) as ArrayNode : null); 
+        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.ElementNode != null && CanBeUseAs(array.ElementNode)) as ArrayNode : null); 
     
     /// <summary>
     /// Whether the type can be used as data index
@@ -155,12 +161,12 @@ public class NamespaceNode
         if (schema == null) return null;
         return schema.Type switch
         {
-            SchemaType.Namespace => new NamespaceNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Scalar => new ScalarNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Enum => new EnumNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Struct => new StructNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Array => new ArrayNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Function => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
+            SchemaType.Namespace => new NamespaceNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Scalar => new ScalarNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Enum => new EnumNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Struct => new StructNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Array => new ArrayNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Function => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             _ => throw new ArgumentOutOfRangeException()
         };
     }

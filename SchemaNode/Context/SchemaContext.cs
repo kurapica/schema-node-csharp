@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.DI;
@@ -26,9 +27,9 @@ public class SchemaContext
         };
     }
     
-    public SchemaContext(IServiceProvider serviceProvider, ISchemaProvider schemaProvider)
+    public SchemaContext(IServiceProvider serviceProvider)
     {
-        SchemaProvider = schemaProvider;
+        ServiceProvider = serviceProvider;
         _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
     }
     
@@ -45,13 +46,156 @@ public class SchemaContext
     /// <summary>
     /// The schema provider
     /// </summary>
-    public ISchemaProvider SchemaProvider { get; }
+    protected IServiceProvider ServiceProvider { get; }
     
     /// <summary>
     /// Gets the logger
     /// </summary>
     public ILogger Logger => _loggerThunk.Value;
 
+    #endregion
+    
+    #region Schema Provider Apis
+    
+    /// <summary>
+    /// Load the schema information
+    /// </summary>
+    /// <param name="schemaName">The schema name</param>
+    /// <returns>The schema</returns>
+    public async Task<NodeSchema?> LoadSchemaAsync(string schemaName)
+    {
+        NodeSchema? schema = GetSystemNodeSchema(schemaName);
+        if (schema != null)
+        {
+            schema.LoadState = SchemaLoadState.System;
+            if (schema.Type != SchemaType.Namespace) return schema;
+        }
+        
+        foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
+        {
+            try
+            {
+                NodeSchema? loadSchema = await provider.LoadSchemaAsync(schemaName);
+                if (loadSchema == null) continue;
+                
+                // load provider & state
+                loadSchema.SchemaProvider = provider;
+                if (loadSchema.LoadState == null && provider.DefaultLoadState != null)
+                    loadSchema.LoadState = provider.DefaultLoadState;
+                
+                // check && combine
+                if (schema == null)
+                {
+                    schema = loadSchema;
+                }
+                else if (loadSchema is { Type: SchemaType.Namespace, Schemas: not null } && loadSchema.Schemas.Length != 0)
+                {
+                    // combine
+                    schema.Schemas = schema.Schemas == null || schema.Schemas?.Length == 0
+                        ? loadSchema.Schemas
+                        :schema.Schemas!.Concat(loadSchema.Schemas.Where(s => !schema.Schemas!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
+                }
+                if (schema.Type != SchemaType.Namespace) return schema;
+            }
+            catch
+            {
+                //pass
+            }
+        }
+        return schema;
+    }
+    
+    /// <summary>
+    /// Load the enum value sub list
+    /// </summary>
+    /// <param name="node">The enum schema node</param>
+    /// <param name="value">The root enum value, optional</param>
+    /// <param name="fullList">Whether load the full list</param>
+    /// <returns></returns>
+    public async Task<EnumValueInfo[]> LoadEnumSubListAsync(EnumNode node, string? value, bool? fullList = null)
+    {
+        if (node.SchemaProvider != null)
+        {
+            return await node.SchemaProvider.LoadEnumSubListAsync(node.Name, value, fullList);
+        }
+        foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
+        {
+            try
+            {
+                EnumValueInfo[] result = await provider.LoadEnumSubListAsync(node.Name, value, fullList);
+                node.SchemaProvider = provider;
+                return result;
+            }
+            catch
+            {
+                //pass
+            }
+        }
+        return [];
+    }
+
+    /// <summary>
+    /// Load the enum value access list from the server
+    /// </summary>
+    /// <param name="node">The enum schema node</param>
+    /// <param name="value">The enum value for access</param>
+    /// <param name="noSubList">no sub list should be loaded</param>
+    /// <param name="withSubList">with the value's sub list if existed</param>
+    /// <returns></returns>
+    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(EnumNode node, string value, bool? noSubList = null, bool? withSubList = null)
+    {
+        if (node.SchemaProvider != null)
+        {
+            return await node.SchemaProvider.LoadEnumAccessListAsync(node.Name, value, noSubList, withSubList);
+        }
+        foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
+        {
+            try
+            {
+                EnumValueAccess[] result = await provider.LoadEnumAccessListAsync(node.Name, value, noSubList, withSubList);
+                node.SchemaProvider = provider;
+                return result;
+            }
+            catch
+            {
+                // pass
+            }
+        }
+        return [];
+    }
+
+    /// <summary>
+    /// Call the function with arguments and given generic type
+    /// </summary>
+    /// <param name="node">The function schema node</param>
+    /// <param name="args">The arguments</param>
+    /// <param name="generic">The generic types</param>
+    /// <returns>The result</returns>
+    public async Task<JsonNode?> CallFunctionAsync(FunctionNode node, JsonArray args, string[]? generic = null)
+    {
+        if (node.SchemaProvider != null)
+        {
+            return await node.SchemaProvider.CallFunctionAsync(node.Name, args, generic);
+        }
+        else
+        {
+            foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
+            {
+                try
+                {
+                    JsonNode? result = await provider.CallFunctionAsync(node.Name, args, generic);
+                    node.SchemaProvider = provider;
+                    return result;
+                }
+                catch
+                {
+                    //pass
+                }
+            }
+        }
+        return null;
+    }
+    
     #endregion
     
     #region Schema Methods
@@ -80,7 +224,7 @@ public class SchemaContext
             if (Config.PreLoad && !preload) return null;
 
             // system schema first
-            NodeSchema? schema = await GetNodeSchemaAsync(fullPath);
+            NodeSchema? schema = await LoadSchemaAsync(fullPath);
             node = schema;
             if (node is null) return null;
             
@@ -103,7 +247,7 @@ public class SchemaContext
         if (!reload) return node;
         
         // reload the node
-        NodeSchema? newSchema = await GetNodeSchemaAsync(fullPath);
+        NodeSchema? newSchema = await LoadSchemaAsync(fullPath);
         if (newSchema != null)
         {
             node.Display = newSchema.Display;
@@ -118,24 +262,6 @@ public class SchemaContext
     
     #region Utility
 
-    async Task<NodeSchema?> GetNodeSchemaAsync(string fullPath)
-    {
-        NodeSchema? schema = GetSystemNodeSchema(fullPath);
-        if (schema == null) return await SchemaProvider.LoadSchemaAsync(fullPath);
-
-        if (schema.Type == SchemaType.Namespace)
-        {
-            // make sure don't change schema from system
-            NodeSchema? server = await SchemaProvider.LoadSchemaAsync(fullPath);
-            if (server?.Schemas == null) return schema;
-            if (schema.Schemas is { Length: > 0 })
-            {
-                server.Schemas = server.Schemas.Concat(schema.Schemas.Where(s => !server.Schemas.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
-            }
-            schema = server;
-        }
-        return schema;
-    }
 
     private readonly Lazy<ILogger> _loggerThunk;
     

@@ -26,7 +26,7 @@ public static class Injection
     /// </summary>
     public static IServiceCollection UseSchemaProvider<T>(this IServiceCollection services) where T : class, ISchemaProvider
     {
-        services.TryAdd(ServiceDescriptor.Singleton<ISchemaProvider, T>());
+        services.AddSingleton<ISchemaProvider, T>();
         return services;
     }
 }

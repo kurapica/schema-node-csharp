@@ -119,6 +119,11 @@ public enum SchemaNodeStatus
     /// The function expression call wrong function
     /// </summary>
     FunctionExpWrongFunc,
+    
+    /// <summary>
+    /// The function expression call a invalid function
+    /// </summary>
+    FunctionExpInValidFunc,
 
     /// <summary>
     /// The function expression use wrong arguments
@@ -134,6 +139,26 @@ public enum SchemaNodeStatus
     /// The function expression use duplicated name
     /// </summary>
     FunctionExpDuplicateName,
+    
+    /// <summary>
+    /// The function expression use wrong func for reduce
+    /// </summary>
+    FunctionExpWrongFuncForReduce,
+    
+    /// <summary>
+    /// The function expression use wrong func for first
+    /// </summary>
+    FunctionExpWrongFuncForFirst,
+    
+    /// <summary>
+    /// The function expression use wrong func for last
+    /// </summary>
+    FunctionExpWrongFuncForLast,
+    
+    /// <summary>
+    /// The function expression use wrong func for filter
+    /// </summary>
+    FunctionExpWrongFuncForFilter,
 
     /// <summary>
     /// The function expression haven't pass the complier

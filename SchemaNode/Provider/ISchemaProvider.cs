@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using SchemaNode.Enum;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Provider;
@@ -48,5 +49,10 @@ public interface ISchemaProvider
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
     /// <returns>The result</returns>
-    Task<JsonNode> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null);
+    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null);
+    
+    /// <summary>
+    /// The default load state
+    /// </summary>
+    SchemaLoadState? DefaultLoadState { get; }
 }

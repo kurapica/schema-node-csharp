@@ -77,7 +77,7 @@ public class EnumNode: NamespaceNode
         EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
         if (accesses == null)
         {
-            EnumValueAccess[] accessList = await context.SchemaProvider.LoadEnumAccessListAsync(Name, value!, false, true);
+            EnumValueAccess[] accessList = await context.LoadEnumAccessListAsync(this, value!, false, true);
             if (accessList.Length == 0) return []; // not exist
             
             // combine the access list
@@ -118,7 +118,7 @@ public class EnumNode: NamespaceNode
             return access.Clone(chkLvl).SubList ?? [];
             
         // load sub list
-        EnumValueInfo[] subList = await context.SchemaProvider.LoadEnumSubListAsync(Name, value!, true);
+        EnumValueInfo[] subList = await context.LoadEnumSubListAsync(this, value!, true);
         lock (this)
         {
             access.SubList = subList;
@@ -168,7 +168,7 @@ public class EnumNode: NamespaceNode
 
                 if (!Root.IsFullyLoaded)
                 {
-                    EnumValueInfo[] infos = await context.SchemaProvider.LoadEnumSubListAsync(Name, null);
+                    EnumValueInfo[] infos = await context.LoadEnumSubListAsync(this, null);
                     lock (this)
                     {
                         Root.SubList = infos;

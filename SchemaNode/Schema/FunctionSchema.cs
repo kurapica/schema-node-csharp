@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Enum;
 using SchemaNode.Node;
@@ -60,12 +61,6 @@ public class FunctionArgumentInfo
     /// Whether the argument is nullable
     /// </summary>
     public bool? Nullable { get; set; }
-    
-    /// <summary>
-    /// The type node
-    /// </summary>
-    [JsonIgnore]
-    public NamespaceNode? TypeNode { get; set; }
 }
 
 /// <summary>
@@ -96,18 +91,6 @@ public class FunctionExpression {
     /// The argument list, should be exp name or argument name.
     /// </summary>
     public FunctionCallArgument[] Args { get; set; } = [];
-    
-    /// <summary>
-    /// The function node
-    /// </summary>
-    [JsonIgnore]
-    public FunctionNode? FuncNode { get; set; }
-    
-    /// <summary>
-    /// The exp return type node
-    /// </summary>
-    [JsonIgnore]
-    public NamespaceNode? TypeNode { get; set; }
 }
   
 /// <summary>
@@ -122,5 +105,11 @@ public class FunctionCallArgument {
     /// <summary>
     /// The const value
     /// </summary>
-    public string? Value { get; set; }
+    public JsonNode? Value { get; set; }
+    
+    /// <summary>
+    /// The value type
+    /// </summary>
+    [JsonIgnore]
+    public NamespaceNode? TypeNode { get; set; }
 }
