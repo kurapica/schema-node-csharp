@@ -81,7 +81,7 @@ public class FunctionNode: NamespaceNode
     /// <summary>
     /// Whether the function is defined as system, direct call
     /// </summary>
-    public bool IsDirectOnly { get; set; }
+    public bool IsSystemCall { get; set; }
     
     /// <summary>
     /// The function info
@@ -139,7 +139,7 @@ public class FunctionNode: NamespaceNode
 
         // Check if server or direct call
         IsRemoteCall = (LoadState & SchemaLoadState.Root) > 0;
-        IsDirectOnly = (LoadState & SchemaLoadState.System) > 0;
+        IsSystemCall = (LoadState & SchemaLoadState.System) > 0;
         RequireRemoteCall = IsRemoteCall;
 
         // Gets return type
@@ -150,7 +150,7 @@ public class FunctionNode: NamespaceNode
         else if (Regex.IsMatch(Return, @"^[tT]\d*$"))
         {
             // Only system function can be generic
-            if (!IsDirectOnly)
+            if (!IsSystemCall)
             {
                 Status = SchemaNodeStatus.FunctionWrongReturnType;
             }
@@ -169,13 +169,13 @@ public class FunctionNode: NamespaceNode
         else
         {
             ReturnNode = await context.GetSchemaNodeAsync(Return);
-            if (ReturnNode == null) Status = SchemaNodeStatus.FunctionWrongReturnType;
+            if (ReturnNode == null || ReturnNode!.IsValueType) Status = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
         // Generate the exp trees
         if (Status == SchemaNodeStatus.Ready)
         {
-            (List<FunctionNodeExpTree> trees, JsonObject? error) = await BuildExpTrees(context);
+            (List<FunctionNodeExpTree> trees, string? error) = await BuildExpTrees(context);
             if (error != null)
                 Status = SchemaNodeStatus.FunctionExpsHasCompileError;
             else
@@ -186,8 +186,8 @@ public class FunctionNode: NamespaceNode
             {
                 foreach (FunctionNodeExpression exp in Exps.Where(e => e.FuncNode != null))
                 {
-                    if (exp.FuncNode!.IsDirectOnly)
-                        IsDirectOnly = true;
+                    if (exp.FuncNode!.IsSystemCall)
+                        IsSystemCall = true;
                     if (exp.FuncNode.RequireRemoteCall)
                         RequireRemoteCall = true;
                 }
@@ -271,13 +271,11 @@ public class FunctionNode: NamespaceNode
         List<FunctionNodeExpTree> trees = new();
         Dictionary<string, FunctionNodeExpTree> treeMap = new();
         
-        // system func has no exp
-        bool isSystemDefined = (LoadState & SchemaLoadState.System) > 0;
-
         // Validate the arguments and reset the states
         foreach(FunctionNodeArgument arg in Args)
         {
             arg.Used = 0;
+            arg.Status = SchemaNodeStatus.Ready;
             
             // Check argument name
             if (string.IsNullOrWhiteSpace(arg.Name))
@@ -285,7 +283,7 @@ public class FunctionNode: NamespaceNode
                 arg.Status = SchemaNodeStatus.FunctionArgumentNoName;
                 return (trees, TYPE_FUNC_ARG_NAME_REQUIRED);
             }
-            if (treeMap.ContainsKey(arg.Name))
+            else if (treeMap.ContainsKey(arg.Name))
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentDuplicateName;
                 return (trees, TYPE_FUNC_ARG_NAME_DUPLICATE);
@@ -300,7 +298,7 @@ public class FunctionNode: NamespaceNode
             else if (Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
             {
                 // Only system defined can have generic types
-                if (!isSystemDefined)
+                if (!IsSystemCall)
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentNoType;
                     return (trees, TYPE_FUNC_ARG_NO_TYPE);
@@ -319,7 +317,7 @@ public class FunctionNode: NamespaceNode
             else
             {
                 NamespaceNode? node = await context.GetSchemaNodeAsync(arg.Type);
-                if (node == null || node.Type is SchemaType.Namespace or SchemaType.Function)
+                if (node == null || !node.IsValueType)
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
                     return (trees, TYPE_FUNC_ARG_TYPE_NOT_VALID);
@@ -333,22 +331,16 @@ public class FunctionNode: NamespaceNode
         }
 
         // The system provide expression has no expression body
-        if (isSystemDefined) return (trees, null);
+        if (IsSystemCall) return (trees, null);
         if (Exps.Length == 0) return (trees, TYPE_FUNC_NEED_EXPS);
 
         // Validate the expressions and build the tree
         foreach (FunctionNodeExpression exp in Exps)
-        {
-            List<FunctionNodeExpTree> leafNodes = []; // leaf nodes
-            
+        {            
             int arrayArg = -1; // the array argument index
             bool isMapReduce = exp.Type != ExpressionType.Call;
-            HashSet<FunctionCallArgument> isInfers = []; // The type inferred from the value
-            HashSet<FunctionCallArgument> upgradeArg = []; // Whether the call argument type can be downgrade
-            Dictionary<FunctionCallArgument, NamespaceNode> baseTypeOfUpgradeArg = new(); // The base type of the upgraded type
 
             // reset
-            exp.LeafNodes = leafNodes;
             exp.Used = 0;
             exp.Status = SchemaNodeStatus.Ready;
 
@@ -409,8 +401,6 @@ public class FunctionNode: NamespaceNode
             }
 
             // Gets the function info of the function node, only need static method info for generic types
-            bool isGenericFunc = funcNode.IsGeneric;
-            int[] genericMap = funcNode.GetGenericMap();
             NamespaceNode?[] genericTypes = funcNode.Generic.ToArray();
             
             // Gets the return type
@@ -422,7 +412,7 @@ public class FunctionNode: NamespaceNode
             else
             {
                 NamespaceNode? node = await context.GetSchemaNodeAsync(exp.Return);
-                if (node == null || node.Type is SchemaType.Namespace or SchemaType.Function)
+                if (node == null || !node.IsValueType)
                 {
                     exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                     return (trees, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
@@ -442,6 +432,9 @@ public class FunctionNode: NamespaceNode
                 }
             }
 
+            // exp leaf
+            exp.LeafNodes = new FunctionNodeExpTree[funcNode.Args.Length];
+
             // Check function call arguments and gets the return type
             // Also bind the type node to the expression call arguments, before compile
             if (funcNode.Args is { Length: > 0 })
@@ -456,6 +449,13 @@ public class FunctionNode: NamespaceNode
                 {
                     FunctionCallArgument callArg = exp.Args[i];
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
+
+                    FunctionNodeArgument funcArg = funcNode.Args[i];
+                    NamespaceNode? funcArgType = funcArg.TypeNode;
+                    if (funcArgType is GenericTypeNode g)
+                    {
+                        funcArgType = genericTypes[g.GenericIndex - 1];
+                    }
                     
                     if (treeMap.TryGetValue(callArg.Name, out FunctionNodeExpTree? value))
                     {
@@ -464,7 +464,7 @@ public class FunctionNode: NamespaceNode
                         switch (value)
                         {
                             case FunctionNodeArgument rarg:
-                                leafNodes.Add(rarg); // Add to leaf
+                                exp.LeafNodes[i] = rarg; // Add to leaf
                                 argTypeNode = rarg.TypeNode;
                                 if (argTypeNode is GenericTypeNode generic)
                                 {
@@ -478,7 +478,7 @@ public class FunctionNode: NamespaceNode
                                 break;
                             
                             case FunctionNodeExpression rexp:
-                                leafNodes.Add(rexp); // Add to leaf
+                                exp.LeafNodes[i] = rexp; // Add to leaf
                                 argTypeNode = rexp.TypeNode; // always exist
                                 break;
                             
@@ -488,55 +488,24 @@ public class FunctionNode: NamespaceNode
                         }
 
                         // Check if used as array type
-                        if (isMapReduce && arrayArg < 0 && argTypeNode is ArrayNode { ElementNode: { } } array && refArg.TypeNode is not ArrayNode)
+                        if (isMapReduce && arrayArg < 0 && argTypeNode is ArrayNode { ElementNode: { } } array && funcArgType is not ArrayNode)
                         {
                             arrayArg = i;
-                            //leafNodes.Last().UseAsArray = true;
-                            argTypeNode = array.BaseNode;
+                            argTypeNode = array.ElementNode;
                         }
 
                         // Match the type
-                        if (refArg.TypeNode != null)
+                        if (funcArgType != null)
                         {
-                            if (refArg.TypeNode == argTypeNode) continue;
-
-                            // Upgrade check
-                            if (argTypeNode.CanBeUseAs(refArg.TypeNode))
-                            {
-                                // Upgrade the type to real type like number -> int
-                                if ((isInfers.Contains(refArg) || isGeneric) && !upgradeArg.Contains(refArg))
-                                {
-                                    if (isInfers.Contains(refArg))
-                                        isInfers.Remove(refArg);
-                                    else
-                                        baseTypeOfUpgradeArg[refArg] = refArg.TypeNode; // Record the base type, can't downgrade the type to lower
-                                    refArg.TypeNode = argTypeNode;
-                                    upgradeArg.Add(refArg);
-                                }
-                                continue;
-                            }
-
-                            // Downgrade check
-                            if (refArg.TypeNode.CanBeUseAs(argTypeNode) &&
-                                (isInfers.Contains(refArg) || (upgradeArg.Contains(refArg) &&
-                                  (!baseTypeOfUpgradeArg.ContainsKey(refArg) || refArg.TypeNode.CanBeUseAs(baseTypeOfUpgradeArg[refArg]))
-                                 )))
-                            {
-                                if (isInfers.Contains(refArg)) isInfers.Remove(refArg);
-                                refArg.TypeNode = argTypeNode; // downgrade like int -> number
-                                upgradeArg.Add(refArg);
-                                continue;
-                            }
+                            if (argTypeNode!.CanBeUseAs(funcArgType)) continue;
 
                             // Error
                             exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                            return (trees, string.Format(TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL, exp.Name, argName));
+                            return (trees, TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL);
                         }
-                        else
+                        else if (funcArg.TypeNode is GenericTypeNode g)
                         {
-                            // Any Type
-                            refArg.TypeNode = argTypeNode;
-                            upgradeArg.Add(refArg);
+                            genericTypes[g.GenericIndex - 1] = argTypeNode;
                         }
                     }
                     else
@@ -546,21 +515,21 @@ public class FunctionNode: NamespaceNode
                     }
                 }
                 
-                // Check arguments
+                // Check constant value arguments
                 for (int i = 0; i < funcNode.Args.Length; i++)
                 {
                     FunctionCallArgument callArg = exp.Args[i];
-                    callArg.TypeNode = funcNode.Args[i].TypeNode; // Use function argument as default
+                    if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     // Check nullable
-                    if ((callArg.Value == null || callArg.Value.IsEmpty()) && string.IsNullOrWhiteSpace(callArg.Name))
+                    if (callArg.Value == null || callArg.Value.IsEmpty())
                     {
                         if ((funcNode.Args[i].Nullable ?? true) || (exp.Type == ExpressionType.Reduce && i == 1)) // Nullable or Reduce
                         {
-                            leafNodes.Add(new ConstantExpNode
+                            exp.LeafNodes[i] = new ConstantExpNode
                             {
                                 Value = null
-                            });
+                            };
                         }
                         else
                         {
@@ -570,70 +539,63 @@ public class FunctionNode: NamespaceNode
                     }
                     else
                     {
-                        // Gets the reference arg
-                        FunctionCallArgument refArg = callArg;
-                        bool isGeneric = isGenericFunc && genericMap.Contains(i + 1);
-                        while (refArg.TypeNode is GenericTypeNode n)
+                        FunctionNodeArgument funcArg = funcNode.Args[i];
+                        NamespaceNode? funcArgType = funcArg.TypeNode;
+                        if (funcArgType is GenericTypeNode g)
                         {
-                            refArg = exp.Args[n.UseArgType - 1];
-                            if (isGenericFunc && genericMap.Contains(n.UseArgType))
-                                isGeneric = true;
+                            funcArgType = genericTypes[g.GenericIndex - 1];
                         }
 
                         // Check the value
-                        if (string.IsNullOrWhiteSpace(callArg.Name))
+                        
+                        int token = refArg.TypeNode?.Token ?? 0;
+                        if (token == System_Enum_Token)
                         {
-                            // Calc the arg type based on the const value
-                            int token = refArg.TypeNode?.Token ?? 0;
-                            if (token == System_Enum_Token)
+                            token = ((EnumNode)refArg.TypeNode).ValueType switch
                             {
-                                token = ((EnumNode)refArg.TypeNode).ValueType switch
-                                {
-                                    EnumValueType.String => System_String_Token,
-                                    EnumValueType.Int => System_Int_Token,
-                                    EnumValueType.Float => System_Float_Token,
-                                    EnumValueType.Double => System_Double_Token,
-                                    EnumValueType.Flags => System_Int_Token,
-                                    _ => throw new ArgumentOutOfRangeException()
-                                };
-                            }
-                            (object res, bool pass, string atype) = GetScalarTypeValue(token, callArg.Value);
-                            if (!pass || res == null)
+                                EnumValueType.String => System_String_Token,
+                                EnumValueType.Int => System_Int_Token,
+                                EnumValueType.Float => System_Float_Token,
+                                EnumValueType.Double => System_Double_Token,
+                                EnumValueType.Flags => System_Int_Token,
+                                _ => throw new ArgumentOutOfRangeException()
+                            };
+                        }
+                        (object res, bool pass, string atype) = GetScalarTypeValue(token, callArg.Value);
+                        if (!pass || res == null)
+                        {
+                            exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                            return (trees, TYPE_FUNC_CALL_ARG_NOT_EXIST);
+                        }
+                        callArg.Value = res switch
+                        {
+                            JsonObject obj => obj,
+                            JsonArray arr => arr,
+                            _ => JsonValue.Create(res)
+                        };
+
+                        // Validate the value
+                        if (refArg.TypeNode != null)
+                        {
+                            (_, JsonNode? error) = await refArg.TypeNode.ValidateValueAsync(context, callArg.Value!);
+                            if (!error.IsEmpty())
                             {
                                 exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                                 return (trees, TYPE_FUNC_CALL_ARG_NOT_EXIST);
                             }
-                            callArg.Value = res switch
-                            {
-                                JsonObject obj => obj,
-                                JsonArray arr => arr,
-                                _ => JsonValue.Create(res)
-                            };
-
-                            // Validate the value
-                            if (refArg.TypeNode != null)
-                            {
-                                (_, JsonNode? error) = await refArg.TypeNode.ValidateValueAsync(context, callArg.Value!);
-                                if (!error.IsEmpty())
-                                {
-                                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                                    return (trees, TYPE_FUNC_CALL_ARG_NOT_EXIST);
-                                }
-                            }
-                            else
-                            {
-                                // Any Type
-                                refArg.TypeNode = await context.GetSchemaNodeAsync(atype);
-                                isInfers.Add(refArg);
-                            }
-
-                            // Add to leafes
-                            leafNodes.Add(new ConstantExpNode
-                            {
-                                Value = res
-                            });
                         }
-                         
+                        else
+                        {
+                            // Any Type
+                            refArg.TypeNode = await context.GetSchemaNodeAsync(atype);
+                            isInfers.Add(refArg);
+                        }
+
+                        // Add to leafes
+                        leafNodes.Add(new ConstantExpNode
+                        {
+                            Value = res
+                        });
                     }
                 }
             }
@@ -1912,7 +1874,7 @@ public class FunctionNodeExpTree
     /// <summary>
     /// The leaf nodes as sub expressions
     /// </summary>
-    public List<FunctionNodeExpTree> LeafNodes { get; set; } = [];
+    public FunctionNodeExpTree[] LeafNodes { get; set; } = [];
 
     /// <summary>
     /// The type node

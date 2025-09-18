@@ -35,6 +35,11 @@ public class NamespaceNode
     public virtual SchemaType Type => SchemaType.Namespace;
 
     /// <summary>
+    /// Is value type
+    /// </summary>
+    public virtual bool IsValueType => Type is not SchemaType.Namespace or SchemaType.Function;
+
+    /// <summary>
     /// The load state
     /// </summary>
     public SchemaLoadState LoadState { get; init; } = SchemaLoadState.Server;
