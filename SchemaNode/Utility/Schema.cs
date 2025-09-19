@@ -1,7 +1,12 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Utility;
 
@@ -34,7 +39,7 @@ public static class Schema
     /// Save the node schema as system, should only be used to save all system define functions
     /// When server init, so no lock will be used for simple
     /// </summary>
-    public static void SaveSystemNodeSchema(NodeSchema schema)
+    public static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
         schema.LoadState = SchemaLoadState.System;
         
@@ -82,8 +87,206 @@ public static class Schema
         {
             root.Schemas = root.Schemas != null ? root.Schemas.Concat([schema]).ToArray() : [schema];
         }
+        
+        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
+        
+        // Register the type map
+        if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
+        {
+            if (schema.Type != SchemaType.Array)
+            {
+                _systemTypes[schemaName] = type;
+                _typeNames[type] = schemaName;
+            }
+            else
+            {
+                _typeArrNames[type] = schemaName;
+            }
+        }
     }
 
+    /// <summary>
+    /// Try register assembly type as schema and return its name
+    /// </summary>
+    /// <param name="type">The type</param>
+    /// <param name="autoConv">Whether auto convert the type no matter the attribute existed</param>
+    /// <returns>The schema name be registered</returns>
+    public static string? GetSchemaType(this Type type, bool autoConv = false)
+    {
+        // array & list check
+        bool isArray = false;
+        string? typeName;
+        
+        // Generic check
+        while (type.IsGenericType || type.IsArray)
+        {
+            if (type.IsArray)
+            {
+                if (!type.IsSZArray) return null; // not support multi dimension array
+                Type? elementType = type.GetElementType();
+                if (elementType == null) return null;
+                type = elementType;
+                isArray = true;
+            }
+            else if (type.IsSubclassOfGenericType(typeof(List<>)))
+            {
+                type = type.GetGenericArguments()[0];
+                isArray = true;
+            }
+            else if (type.IsSubclassOfGenericType(typeof(Nullable<>)))
+            {
+                type = type.GetGenericArguments()[0];
+            }
+            else
+            {
+                // not support other complex generic types
+                return null;
+            }
+        }
+
+        // Already registered
+        if (isArray ? _typeArrNames.TryGetValue(type, out typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
+        
+        // Basic value check
+        if (!type.IsEnum)
+        {
+            if (type == typeof(Guid))
+            {
+                typeName = NS_SYSTEM_GUID;
+            }
+            else if (type == typeof(DateTimeOffset))
+            {
+                typeName = NS_SYSTEM_DATE;
+            }
+            else
+            {
+                switch (Type.GetTypeCode(type))
+                {
+                    case TypeCode.Boolean:
+                        typeName = NS_SYSTEM_BOOL;
+                        break;
+                    case TypeCode.SByte:
+                    case TypeCode.Byte:
+                    case TypeCode.Int16:
+                    case TypeCode.UInt16:
+                    case TypeCode.Int32:
+                    case TypeCode.UInt32:
+                    case TypeCode.Int64:
+                    case TypeCode.UInt64:
+                        return isArray ? NS_SYSTEM_INTS : NS_SYSTEM_INT;
+                    case TypeCode.Single:
+                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_FLOAT;
+                    case TypeCode.Double:
+                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_DOUBLE;
+                    case TypeCode.Decimal:
+                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_NUMBER;
+                    case TypeCode.DateTime:
+                        typeName = NS_SYSTEM_DATE;
+                        break;
+                    case TypeCode.Char:
+                    case TypeCode.String:
+                        return isArray ? NS_SYSTEM_STRINGS : NS_SYSTEM_STRING;
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(typeName) && !_typeNames.TryGetValue(type, out typeName))
+        {
+            // try generate
+            NodeSchema[]? schemas = null;
+            if (type.IsClass)
+            {
+                if (type.IsAbstract)
+                {
+                    if (type.IsSealed)
+                    {
+                        // static class as method container
+                        SchemaNameSpaceAttribute? funcNsAttr = type.GetCustomAttribute<SchemaNameSpaceAttribute>() ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>();
+                        List<NodeSchema>? funcNs = null;
+                        foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
+                        {
+                            NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr?.Name);
+                            if (func == null) continue;
+                            funcNs ??= [];
+                            funcNs.Add(func);
+                        }
+                        if (funcNs != null) schemas = funcNs.ToArray();
+                    }
+                }
+                else
+                {
+                    if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
+                        schemas = StructNode.GenerateSystemStruct(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                }
+            }
+            else if (type.IsValueType)
+            {
+                if (type.IsEnum)
+                {
+                    if (autoConv || type.GetCustomAttribute<SchemaEnumAttribute>() != null) 
+                        schemas = EnumNode.GenerateSystemEnum(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                }
+                else if (!type.IsPrimitiveLike())
+                {
+                    // struct
+                    if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
+                        schemas = StructNode.GenerateSystemStruct(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                }
+            }
+
+            if (schemas is not { Length: > 0 }) return null;
+            foreach (NodeSchema schema in schemas)
+            {
+                schema.LoadState = SchemaLoadState.System;
+                SaveSystemNodeSchema(schema, type);
+            }
+            typeName = schemas[0].Name;
+        }
+        
+        if (!isArray) return typeName;
+        
+        // auto-build array schema
+        NodeSchema? arraySchema = GetSystemNodeSchema($"{typeName}s");
+        if (arraySchema != null) return arraySchema.Name;
+        arraySchema = new NodeSchema
+        {
+            Name = $"{typeName}s",
+            Type = SchemaType.Array,
+            LoadState = SchemaLoadState.System,
+            Display = $"[Array]{typeName}",
+            Array = new ArraySchema
+            {
+                Element = typeName
+            }
+        };
+        SaveSystemNodeSchema(arraySchema, type);
+        return arraySchema.Name;
+    }
+
+    /// <summary>
+    /// Gets the C# type by schema name
+    /// </summary>
+    public static Type? ToCSharpType(this NamespaceNode node)
+    {
+        bool isArray = false;
+        Type? type = null;
+        if (node is ArrayNode array)
+        {
+            if (array.ElementNode == null) return null;
+            isArray = true;
+            node = array.ElementNode;
+            if (_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type)) return type;
+        }
+        
+        if (_systemArrTypes.TryGetValue(node.Name.ToLowerInvariant(), out type) && !isArray) return type;
+        
+        if (node is ScalarNode scalar)
+        {
+            
+        }
+        if (!isArray || type == null) return type;
+    }
+    
     /// <summary>
     /// Gets the system scalar value type
     /// </summary>
@@ -102,6 +305,7 @@ public static class Schema
             NS_SYSTEM_STRING => ScalarValueType.String,
             NS_SYSTEM_YEAR => ScalarValueType.Year | ScalarValueType.Integer | ScalarValueType.Number,
             NS_SYSTEM_YEARMONTH => ScalarValueType.YearMonth | ScalarValueType.Date,
+            NS_SYSTEM_GUID => ScalarValueType.Guid | ScalarValueType.String,
             _ => null
         };
     }
@@ -136,6 +340,12 @@ public static class Schema
     #endregion
     
     #region System
+    
+    // System type maps
+    private static ConcurrentDictionary<string, Type> _systemTypes { get; } = new();
+    private static ConcurrentDictionary<string, Type> _systemArrTypes { get; } = new();
+    private static ConcurrentDictionary<Type, string> _typeNames { get; } = new();
+    private static ConcurrentDictionary<Type, string> _typeArrNames { get; } = new();
     
     // System Nodes
     private static NodeSchema[] _nodes = [
@@ -196,7 +406,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_NUMBER,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_NUMBER,
                     Scalar = new ScalarSchema {
@@ -207,7 +417,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_DOUBLE,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_DOUBLE,
                     Scalar = new ScalarSchema 
@@ -220,7 +430,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_FLOAT,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_FLOAT,
                     Scalar = new ScalarSchema {
@@ -232,7 +442,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_PERCENT,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_PERCENT,
                     Scalar = new ScalarSchema {
@@ -246,7 +456,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_FULLDATE,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_FULLDATE,
                     Scalar = new ScalarSchema 
@@ -258,7 +468,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_INT,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_INT,
                     Scalar = new ScalarSchema {
@@ -278,7 +488,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_YEAR,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_YEAR,
                     Scalar = new ScalarSchema 
@@ -292,7 +502,7 @@ public static class Schema
                 new NodeSchema
                 {
                     Name = NS_SYSTEM_YEARMONTH,
-                    Type =SchemaType.Scalar,
+                    Type = SchemaType.Scalar,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_YEARMONTH,
                     Scalar = new ScalarSchema 
@@ -300,11 +510,25 @@ public static class Schema
                         Base = NS_SYSTEM_DATE,
                     },
                 },
+                new NodeSchema
+                {
+                    Name = NS_SYSTEM_GUID,
+                    Type = SchemaType.Scalar,
+                    LoadState = SchemaLoadState.System,
+                    Display = NS_SYSTEM_GUID,
+                    Scalar = new ScalarSchema
+                    {
+                        Base = NS_SYSTEM_STRING,
+                        LowLimit = 36,
+                        UpLimit = 36,
+                        Regex = @"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$",
+                    }
+                },
                 
                 // struct
                 new NodeSchema
                 {
-                    Name = NS_SYSTEM_RANGEDATE,
+                Name = NS_SYSTEM_RANGEDATE,
                     Type = SchemaType.Struct,
                     LoadState = SchemaLoadState.System,
                     Display = NS_SYSTEM_RANGEDATE,

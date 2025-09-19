@@ -17,6 +17,7 @@ public enum ScalarValueType
     Year = 128,
     FullDate = 256,
     YearMonth = 512,
+    Guid = 1024,
     
-    Indexable = Integer | Boolean | Date | Year | FullDate | YearMonth
+    Indexable = Integer | Boolean | Date | Year | FullDate | YearMonth | Guid,
 }

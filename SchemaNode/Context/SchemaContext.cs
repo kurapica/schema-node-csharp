@@ -46,7 +46,7 @@ public class SchemaContext
     /// <summary>
     /// The schema provider
     /// </summary>
-    protected IServiceProvider ServiceProvider { get; }
+    public IServiceProvider ServiceProvider { get; }
     
     /// <summary>
     /// Gets the logger

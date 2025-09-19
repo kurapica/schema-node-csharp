@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <Folder Include="Api\" />
-      <Folder Include="Attribute\" />
       <Folder Include="Function\" />
     </ItemGroup>
 

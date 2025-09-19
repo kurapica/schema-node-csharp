@@ -11,7 +11,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public class NamespaceNode
+public class NamespaceNode: IDisposable
 {
     #region Data
 
@@ -37,7 +37,7 @@ public class NamespaceNode
     /// <summary>
     /// Is value type
     /// </summary>
-    public virtual bool IsValueType => Type is not SchemaType.Namespace or SchemaType.Function;
+    public virtual bool IsValueType => Type != SchemaType.Namespace && Type != SchemaType.Function;
 
     /// <summary>
     /// The load state
@@ -152,7 +152,12 @@ public class NamespaceNode
     /// Whether the type can be used as data index
     /// </summary>
     public virtual bool IsIndexable => false;
-    
+
+    public void Dispose()
+    {
+        Release();
+    }
+
     #endregion
     
     #region Conversion

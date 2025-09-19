@@ -129,6 +129,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong arguments
     /// </summary>
     FunctionExpWrongFuncArgs,
+    
+    /// <summary>
+    /// The function has no expressions
+    /// </summary>
+    FunctionNoExps,
 
     /// <summary>
     /// The function expression has no name
@@ -159,6 +164,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong func for filter
     /// </summary>
     FunctionExpWrongFuncForFilter,
+    
+    /// <summary>
+    /// The function return struct member type not valid
+    /// </summary>
+    FunctionReturnMemberNotValid,
 
     /// <summary>
     /// The function expression haven't pass the complier

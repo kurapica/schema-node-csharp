@@ -4,7 +4,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The constant
 /// </summary>
-                            public static class Constant
+public static class Constant
 {
     #region Schema
 
@@ -22,6 +22,7 @@ namespace SchemaNode.Utility;
     public const string NS_SYSTEM_STRING = "system.string";
     public const string NS_SYSTEM_YEAR = "system.year";
     public const string NS_SYSTEM_YEARMONTH = "system.yearmonth";
+    public const string NS_SYSTEM_GUID = "system.guid";
     public const string NS_SYSTEM_RANGEDATE = "system.rangedate";
     public const string NS_SYSTEM_RANGEFULLDATE = "system.rangefulldate";
     public const string NS_SYSTEM_RANGEMONTH = "system.rangemonth";
@@ -50,6 +51,8 @@ namespace SchemaNode.Utility;
     public const string TYPE_FUNC_ARG_TYPE_NOT_VALID = "TYPE_FUNC_ARG_TYPE_NOT_VALID";
     public const string TYPE_FUNC_ARG_NO_TYPE = "TYPE_FUNC_ARG_NO_TYPE";
     public const string TYPE_FUNC_NEED_EXPS = "TYPE_FUNC_NEED_EXPS";
+    public const string TYPE_FUNC_RETURN_NOT_VALID = "TYPE_FUNC_RETURN_NOT_VALID";
+    public const string TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID = "TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID";
 
     public const string TYPE_FUNC_EXP_NAME_REQUIRED = "TYPE_FUNC_EXP_NAME_REQUIRED";
     public const string TYPE_FUNC_EXP_NAME_CONFLICT_ARG = "TYPE_FUNC_EXP_NAME_CONFLICT_ARG";
@@ -57,6 +60,9 @@ namespace SchemaNode.Utility;
     public const string TYPE_FUNC_EXP_CALL_FUNC_NOT_EXIST = "TYPE_FUNC_EXP_CALL_FUNC_NOT_EXIST";
     public const string TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID = "TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID";
     public const string TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID = "TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID";
+    public const string TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALID = "TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALD";
+    public const string TYPE_FUNC_EXP_ARGS_NOT_VALID = "TYPE_FUNC_EXP_ARGS_NOT_VALID";
+    public const string TYPE_FUNC_EXP_CALL_NO_ARRAY = "TYPE_FUNC_EXP_CALL_NO_ARRAY";
     public const string TYPE_FUNC_CANT_USE_AS_REDUCE = "TYPE_FUNC_CANT_USE_AS_REDUCE";
     public const string TYPE_FUNC_CANT_USE_AS_FIRST = "TYPE_FUNC_CANT_USE_AS_FIRST";
     public const string TYPE_FUNC_CANT_USE_AS_LAST = "TYPE_FUNC_CANT_USE_AS_LAST";

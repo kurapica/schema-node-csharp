@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Text.Json.Nodes;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -222,6 +224,56 @@ public class EnumNode: NamespaceNode
 
     /// <inheritdoc />
     public override bool IsIndexable => ValueType is EnumValueType.String or EnumValueType.Int or EnumValueType.Float;
+
+    #endregion
+
+    #region Static Feature
+
+    /// <summary>
+    /// Generate system enum
+    /// </summary>
+    public static NodeSchema[] GenerateSystemEnum(Type type, string? ns = null)
+    {
+        SchemaEnumAttribute? attr = type.GetCustomAttribute<SchemaEnumAttribute>();
+        if (!type.IsEnum) return [];
+
+        EnumValueType valueType = attr?.ValueType ?? EnumValueType.Int;
+        NodeSchema enumSchema = new NodeSchema
+        {
+            Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Type = SchemaType.Enum,
+            Display = attr?.Display ?? type.Name,
+            Enum = new EnumSchema
+            {
+                Type = valueType,
+                Values = System.Enum.GetValues(type).Cast<object>().Select(t =>
+                {
+                    string name = System.Enum.GetName(type, t)!;
+                    return new EnumValueInfo
+                    {
+                        Name = name,
+                        Value = valueType switch
+                        {
+                            EnumValueType.String => name,
+                            _ => $"{t}"
+                        },
+                        HasSubList = false,
+                    };
+                }).ToArray(),
+            }
+        };
+        
+        return (attr?.Array ?? false) ? [ enumSchema, new NodeSchema
+        {
+            Name = $"{enumSchema.Name}s",
+            Type = SchemaType.Array,
+            Display = $"[Array]{enumSchema.Display.Key}",
+            Array = new ArraySchema
+            {
+                Element = enumSchema.Name
+            }
+        } ] : [ enumSchema ];
+    }
 
     #endregion
     

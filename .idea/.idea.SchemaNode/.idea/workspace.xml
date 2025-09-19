@@ -5,18 +5,27 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaEnumAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaFuncArgAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaFuncAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaNameSpaceAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaStructAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Attribute/SchemaStructMemAttribute.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Properties/AssemblyInfo.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/SchemaLoadState.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/SchemaLoadState.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/ScalarValueType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/ScalarValueType.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/SchemaNodeStatus.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/SchemaNodeStatus.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/FunctionSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/FunctionSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Utility/Constant.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Utility/Constant.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Utility/JsonHelper.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Utility/Extension.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Utility/Schema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Utility/Schema.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,7 +36,8 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/SchemaNode/Config/ISchemaConfig.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/1b4d58039305476fac8d2a391a3edde5f83200/13/de3819d3/TypeCode.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/1b4d58039305476fac8d2a391a3edde5f83200/6b/e5a0e9dc/IDisposable.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4e977b4a10fa419fcc7efedb881f7b209fa140b1e3d0f4b371bb4ba17a173bf/JsonNode.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/b2e81feaa1a753a129436e86d63f443b1b2d6314d40d9a0711c6bdf11dde/JsonObject.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
@@ -75,7 +85,8 @@
       <workItem from="1757988438870" duration="19531000" />
       <workItem from="1758078529763" duration="21991000" />
       <workItem from="1758157404818" duration="3204000" />
-      <workItem from="1758161467999" duration="11454000" />
+      <workItem from="1758161467999" duration="24587000" />
+      <workItem from="1758243824959" duration="31024000" />
     </task>
     <servers />
   </component>

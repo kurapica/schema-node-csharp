@@ -1,4 +1,7 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -179,6 +182,64 @@ public class StructNode: NamespaceNode
                    StructFieldConfig? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
                    return match?.TypeNode == null ? !(v.Require ?? false) : v.TypeNode != null && match.TypeNode.CanBeUseAs(v.TypeNode);
                });
+    }
+
+    #endregion
+    
+    #region Static Feature
+
+    /// <summary>
+    /// Generate system enum
+    /// </summary>
+    public static NodeSchema[] GenerateSystemStruct(Type type, string? ns = null)
+    {
+        SchemaStructAttribute? attr = type.GetCustomAttribute<SchemaStructAttribute>();
+        if (type is { IsClass: false, IsValueType: false } || 
+            type is { IsClass: true, IsAbstract: true } ||
+            (type.IsValueType && type.IsPrimitiveLike())) return [];
+        
+        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => 
+            p.GetCustomAttribute<SchemaStructMemIgnoreAttribute>() == null &&
+            p is { CanRead: true, CanWrite: true } && 
+            !string.IsNullOrWhiteSpace(p.PropertyType.GetSchemaType(true))
+        ).ToArray();
+        if (properties.Length == 0) return [];
+
+        NodeSchema structSchema = new NodeSchema
+        {
+            Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Type = SchemaType.Struct,
+            Display = attr?.Display ?? type.Name,
+            Struct = new StructSchema
+            {
+                Fields = properties.Select(p =>
+                {
+                    SchemaStructMemAttribute? memAttr = p.GetCustomAttribute<SchemaStructMemAttribute>();
+                    return new StructFieldConfig
+                    {
+                        Name = p.Name,
+                        Type = p.PropertyType.GetSchemaType()!,
+                        Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
+                        Display = memAttr?.Display ?? p.Name,
+                        Desc = memAttr?.Desc,
+                    };
+                }).ToArray()
+            }
+        };
+        
+        if (attr?.Primary == null) return [structSchema];
+        NodeSchema arraySchema = new NodeSchema
+        {
+            Name = $"{structSchema.Name}s",
+            Type = SchemaType.Array,
+            Display = $"[Array]{structSchema.Display.Key}",
+            Array = new ArraySchema
+            {
+                Element = structSchema.Name,
+                Primary = attr.Primary.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray()
+            }
+        };
+        return [structSchema, arraySchema];
     }
 
     #endregion
