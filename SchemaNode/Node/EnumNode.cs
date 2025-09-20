@@ -81,9 +81,9 @@ public class EnumNode: NamespaceNode
         {
             EnumValueAccess[] accessList = await context.LoadEnumAccessListAsync(this, value!, false, true);
             if (accessList.Length == 0) return []; // not exist
-            
+
             // combine the access list
-            lock (this)
+            lock (_lock)
             {
                 Root.CombineAccessList(accessList);
                 Root.CheckFullyLoadedStatus();
@@ -121,7 +121,7 @@ public class EnumNode: NamespaceNode
             
         // load sub list
         EnumValueInfo[] subList = await context.LoadEnumSubListAsync(this, value!, true);
-        lock (this)
+        lock (_lock)
         {
             access.SubList = subList;
             access.CheckFullyLoadedStatus();
@@ -171,7 +171,7 @@ public class EnumNode: NamespaceNode
                 if (!Root.IsFullyLoaded)
                 {
                     EnumValueInfo[] infos = await context.LoadEnumSubListAsync(this, null);
-                    lock (this)
+                    lock (_lock)
                     {
                         Root.SubList = infos;
                         Root.CheckFullyLoadedStatus();
@@ -193,8 +193,6 @@ public class EnumNode: NamespaceNode
             {
                 EnumValueType.String => val.GetValue<string>(),
                 EnumValueType.Int => val.GetValue<int>(),
-                EnumValueType.Float => val.GetValue<float>(),
-                EnumValueType.Double => val.GetValue<double>(),
                 EnumValueType.Flags => val.GetValue<int>(),
                 _ => throw new ArgumentOutOfRangeException()
             }, null);
@@ -214,8 +212,6 @@ public class EnumNode: NamespaceNode
             {
                 EnumValueType.String => scalar.IsString,
                 EnumValueType.Int => scalar.IsInt,
-                EnumValueType.Float => scalar.IsNumber,
-                EnumValueType.Double => scalar.IsNumber,
                 EnumValueType.Flags => scalar.IsInt,
                 _ => false
             },
@@ -223,7 +219,7 @@ public class EnumNode: NamespaceNode
         };
 
     /// <inheritdoc />
-    public override bool IsIndexable => ValueType is EnumValueType.String or EnumValueType.Int or EnumValueType.Float;
+    public override bool IsIndexable => ValueType is EnumValueType.String or EnumValueType.Int or EnumValueType.Flags;
 
     #endregion
 
@@ -263,16 +259,7 @@ public class EnumNode: NamespaceNode
             }
         };
         
-        return (attr?.Array ?? false) ? [ enumSchema, new NodeSchema
-        {
-            Name = $"{enumSchema.Name}s",
-            Type = SchemaType.Array,
-            Display = $"[Array]{enumSchema.Display.Key}",
-            Array = new ArraySchema
-            {
-                Element = enumSchema.Name
-            }
-        } ] : [ enumSchema ];
+        return [ enumSchema ];
     }
 
     #endregion
@@ -300,6 +287,8 @@ public class EnumNode: NamespaceNode
 
         MaxFlags = max * 2;
     }
+
+    private readonly Lock _lock = new();
     
     #endregion
 }

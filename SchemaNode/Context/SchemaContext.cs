@@ -9,6 +9,7 @@ using SchemaNode.Provider;
 using SchemaNode.Schema;
 using Microsoft.Extensions.Logging;
 using static SchemaNode.Utility.Schema;
+using SchemaNode.Attribute;
 
 namespace SchemaNode.Context;
 
@@ -195,9 +196,23 @@ public class SchemaContext
         }
         return null;
     }
-    
+
+    /// <summary>
+    /// Call the function with arguments and given generic type
+    /// </summary>
+    /// <param name="node">The function schema node</param>
+    /// <param name="args">The arguments</param>
+    /// <param name="generic">The generic types</param>
+    /// <returns>The result</returns>
+    public async Task<JsonNode?> CallFunctionAsync(string name, JsonArray args, string[]? generic = null)
+    {
+        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        if (node is FunctionNode funcNode) return await CallFunctionAsync(funcNode, args, generic);
+        return null;
+    }
+
     #endregion
-    
+
     #region Schema Methods
 
     /// <summary>

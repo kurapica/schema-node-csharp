@@ -1,4 +1,5 @@
 using SchemaNode.Enum;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Attribute;
 
@@ -11,7 +12,7 @@ public class SchemaEnumAttribute: System.Attribute
     /// <summary>
     /// The description of the enum
     /// </summary>
-    public string? Display { get; }
+    public LocaleString? Display { get; }
     
     /// <summary>
     /// The enum value type
@@ -22,20 +23,15 @@ public class SchemaEnumAttribute: System.Attribute
     /// The data dict type
     /// </summary>
     public string? Type { get; }
-    
-    /// <summary>
-    /// Whether generate the array type
-    /// </summary>
-    public bool? Array { get; }
+   
 
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaEnumAttribute(string? display = null, EnumValueType? valueType = null, string? type = null, bool? array = null)
+    public SchemaEnumAttribute(string? display = null, EnumValueType? valueType = null, string? type = null)
     {
         Display = display;
         ValueType = valueType;
         Type = type;
-        Array = array;
     }
 }

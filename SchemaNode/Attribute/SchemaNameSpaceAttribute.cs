@@ -1,3 +1,5 @@
+using SchemaNode.Schema;
+
 namespace SchemaNode.Attribute;
 
 /// <summary>
@@ -14,14 +16,14 @@ public class SchemaNameSpaceAttribute: System.Attribute
     /// <summary>
     /// The display
     /// </summary>
-    public string? Display { get; }
+    public LocaleString? Display { get; }
 
     /// <summary>
     /// The constructor
     /// </summary>
     /// <param name="name">The namespace</param>
     /// <param name="display">The display</param>
-    public SchemaNameSpaceAttribute(string name, string? display = null)
+    public SchemaNameSpaceAttribute(string name, LocaleString? display = null)
     {
         Name = name;
         Display = display;

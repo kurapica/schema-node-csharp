@@ -20,6 +20,17 @@ public static class Extension
             _ => true
         };
     }
+
+    /// <summary>
+    /// Add range
+    /// </summary>
+    public static void AddRange(this JsonArray a, JsonArray b)
+    {
+        foreach (var item in b)
+        {
+            a.Add(item);
+        }
+    }
     
     #endregion
     
@@ -37,7 +48,10 @@ public static class Extension
             _ => false
         };
     }
-    
+
+    // Checks if the type is nullable
+    public static bool IsNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>));
+
     /// <summary>
     /// Gets a specific generic base type.
     /// </summary>
@@ -86,6 +100,26 @@ public static class Extension
     /// Checks whether a type is a subclass of a specific generic type.
     /// </summary>
     public static bool IsSubclassOfGenericType<T>(this Type type) => IsSubclassOfGenericType(type, typeof(T));
+
+    /// <summary>
+    /// Unpack the nullable type
+    /// </summary>
+    public static (Type type, bool nullable) UnpackNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? (type.GetGenericArguments()[0], true) : (type, false);
+
+    /// <summary>
+    /// Gets the not null type
+    /// </summary>
+    public static Type GetNotNullType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type.GetGenericArguments()[0] : type;
+
+    /// <summary>
+    /// Gets the nullable type
+    /// </summary>
+    public static Type GetNullableType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
+
+    /// <summary>
+    /// The type is simple array type
+    /// </summary>
+    public static bool IsArrayType(this Type type) => type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>));
 
     #endregion
 }

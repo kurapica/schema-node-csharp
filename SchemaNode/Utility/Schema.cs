@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
@@ -122,7 +123,7 @@ public static class Schema
         {
             if (type.IsArray)
             {
-                if (!type.IsSZArray) return null; // not support multi dimension array
+                if (isArray || !type.IsSZArray) return null; // not support multi dimension array
                 Type? elementType = type.GetElementType();
                 if (elementType == null) return null;
                 type = elementType;
@@ -130,6 +131,7 @@ public static class Schema
             }
             else if (type.IsSubclassOfGenericType(typeof(List<>)))
             {
+                if (isArray) return null;
                 type = type.GetGenericArguments()[0];
                 isArray = true;
             }
@@ -201,16 +203,19 @@ public static class Schema
                     if (type.IsSealed)
                     {
                         // static class as method container
-                        SchemaNameSpaceAttribute? funcNsAttr = type.GetCustomAttribute<SchemaNameSpaceAttribute>() ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>();
-                        List<NodeSchema>? funcNs = null;
-                        foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
+                        SchemaNameSpaceAttribute? funcNsAttr = type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>();
+                        if (funcNsAttr != null)
                         {
-                            NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr?.Name);
-                            if (func == null) continue;
-                            funcNs ??= [];
-                            funcNs.Add(func);
+                            List<NodeSchema>? funcNs = null;
+                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
+                            {
+                                NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr?.Name);
+                                if (func == null) continue;
+                                funcNs ??= [];
+                                funcNs.Add(func);
+                            }
+                            if (funcNs != null) schemas = funcNs.ToArray();
                         }
-                        if (funcNs != null) schemas = funcNs.ToArray();
                     }
                 }
                 else
@@ -266,50 +271,75 @@ public static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    public static Type? ToCSharpType(this NamespaceNode node)
+    public static Type ToCSharpType(this NamespaceNode node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type = null;
         if (node is ArrayNode array)
         {
-            if (array.ElementNode == null) return null;
+            if (array.ElementNode == null) return typeof(JsonArray);
             isArray = true;
             node = array.ElementNode;
-            if (_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type)) return type;
         }
-        
-        if (_systemArrTypes.TryGetValue(node.Name.ToLowerInvariant(), out type) && !isArray) return type;
-        
-        if (node is ScalarNode scalar)
+        if (!_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
         {
-            
+            if (node is EnumNode enumNode)
+            {
+                type = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(int);
+            }
+            else if (node is ScalarNode scalar)
+            {
+                if (scalar.IsBool)
+                {
+                    type = typeof(bool);
+                }
+                else if (scalar.IsInt)
+                {
+                    type = typeof(long);
+                }
+                else if(scalar.IsSingle)
+                {
+                    type = typeof(float);
+                }
+                else if(scalar.IsDouble)
+                {
+                    type = typeof(double);
+                }
+                else if(scalar.IsNumber)
+                {
+                    type = typeof(decimal);
+                }
+                else if (scalar.IsString)
+                {
+                    type = typeof(string);
+                }
+                else if (scalar.IsDate)
+                {
+                    type = typeof(DateTime);
+                }
+                else
+                {
+                    return isArray ? typeof(JsonArray) : typeof(JsonValue);
+                }
+            }
+            else if(node is StructNode)
+            {
+                return isArray ? typeof(JsonArray) : typeof(JsonObject);
+            }
         }
-        if (!isArray || type == null) return type;
-    }
-    
-    /// <summary>
-    /// Gets the system scalar value type
-    /// </summary>
-    public static ScalarValueType? GetSystemScalarValueType(string schemaName)
-    {
-        return schemaName.ToLowerInvariant() switch
+
+        if (type == null) return isArray ? typeof(JsonArray) : typeof(JsonValue);
+        if (isArray)
         {
-            NS_SYSTEM_BOOL => ScalarValueType.Boolean,
-            NS_SYSTEM_DATE => ScalarValueType.Date,
-            NS_SYSTEM_NUMBER => ScalarValueType.Number,
-            NS_SYSTEM_DOUBLE => ScalarValueType.Double | ScalarValueType.Number,
-            NS_SYSTEM_FLOAT => ScalarValueType.Single | ScalarValueType.Number,
-            NS_SYSTEM_PERCENT => ScalarValueType.Single | ScalarValueType.Number,
-            NS_SYSTEM_INT => ScalarValueType.Integer | ScalarValueType.Number,
-            NS_SYSTEM_FULLDATE => ScalarValueType.FullDate | ScalarValueType.Date,
-            NS_SYSTEM_STRING => ScalarValueType.String,
-            NS_SYSTEM_YEAR => ScalarValueType.Year | ScalarValueType.Integer | ScalarValueType.Number,
-            NS_SYSTEM_YEARMONTH => ScalarValueType.YearMonth | ScalarValueType.Date,
-            NS_SYSTEM_GUID => ScalarValueType.Guid | ScalarValueType.String,
-            _ => null
-        };
+            type = typeof(List<>).MakeGenericType(type);
+        }
+        if (nullable ?? false)
+        {
+            type = typeof(Nullable<>).MakeGenericType(type);
+        }
+        return type;
     }
-    
+        
     /// <summary>
     /// Try parse bool value from string
     /// </summary>
@@ -343,7 +373,6 @@ public static class Schema
     
     // System type maps
     private static ConcurrentDictionary<string, Type> _systemTypes { get; } = new();
-    private static ConcurrentDictionary<string, Type> _systemArrTypes { get; } = new();
     private static ConcurrentDictionary<Type, string> _typeNames { get; } = new();
     private static ConcurrentDictionary<Type, string> _typeArrNames { get; } = new();
     

@@ -129,63 +129,78 @@ public class ScalarNode: NamespaceNode
      /// The post validation function node
      /// </summary>
      public FunctionNode? PostValidNode { get; private set; }
-     
-     #endregion
-     
-     #region Method
 
-     /// <inheritdoc />
-     public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
-     {
-          ScalarSchema? scalar = schema.Scalar;
+    #endregion
 
-          // Data
-          Base = scalar?.Base;
-          Unit = scalar?.Unit;
-          LowLimit = scalar?.LowLimit;
-          UpLimit = scalar?.UpLimit;
-          Error = scalar?.Error;
-          Regex = scalar?.Regex;
-          PreValid = scalar?.PreValid;
-          PostValid = scalar?.PostValid;
-          
-          // Status
-          if (scalar == null) Status = SchemaNodeStatus.NoDefinition;
-          
-          // Relationship
-          if (!string.IsNullOrWhiteSpace(Base))
-          {
-               NamespaceNode? node = await context.GetSchemaNodeAsync(Base, preload: preload);
-               if (node != null && node is ScalarNode snode)
-               {
-                    BaseNode = snode;
-                    snode.AddRef(this);
-               }
-               else
-               {
-                    BaseNode = null;
-                    Status = SchemaNodeStatus.ScalarHasWrongBase;
-               }
-          }
+    #region Method
 
-          if (!string.IsNullOrWhiteSpace(PostValid))
-          {
-               NamespaceNode? node = await context.GetSchemaNodeAsync(PostValid, preload: preload);
-               if (node != null && node is FunctionNode fnode)
-               {
-                    PostValidNode = fnode;
-                    fnode.AddRef(this);
-               }
-               else
-               {
-                    PostValidNode = null;
-                    Status = SchemaNodeStatus.ScalarHasWrongPostValid;
-               }
-          }
-          
-          // Value Type
-          ValueType = Utility.Schema.GetSystemScalarValueType(schema.Name) ?? BaseNode?.ValueType ?? ScalarValueType.None;
-     }
+    /// <inheritdoc />
+    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    {
+        ScalarSchema? scalar = schema.Scalar;
+
+        // Data
+        Base = scalar?.Base;
+        Unit = scalar?.Unit;
+        LowLimit = scalar?.LowLimit;
+        UpLimit = scalar?.UpLimit;
+        Error = scalar?.Error;
+        Regex = scalar?.Regex;
+        PreValid = scalar?.PreValid;
+        PostValid = scalar?.PostValid;
+
+        // Status
+        if (scalar == null) Status = SchemaNodeStatus.NoDefinition;
+
+        // Relationship
+        if (!string.IsNullOrWhiteSpace(Base))
+        {
+            NamespaceNode? node = await context.GetSchemaNodeAsync(Base, preload: preload);
+            if (node != null && node is ScalarNode snode)
+            {
+                BaseNode = snode;
+                snode.AddRef(this);
+            }
+            else
+            {
+                BaseNode = null;
+                Status = SchemaNodeStatus.ScalarHasWrongBase;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(PostValid))
+        {
+            NamespaceNode? node = await context.GetSchemaNodeAsync(PostValid, preload: preload);
+            if (node != null && node is FunctionNode fnode)
+            {
+                PostValidNode = fnode;
+                fnode.AddRef(this);
+            }
+            else
+            {
+                PostValidNode = null;
+                Status = SchemaNodeStatus.ScalarHasWrongPostValid;
+            }
+        }
+
+        // Value Type
+        ValueType = schema.Name.ToLowerInvariant() switch
+        {
+            NS_SYSTEM_BOOL => ScalarValueType.Boolean,
+            NS_SYSTEM_DATE => ScalarValueType.Date,
+            NS_SYSTEM_NUMBER => ScalarValueType.Number,
+            NS_SYSTEM_DOUBLE => ScalarValueType.Double | ScalarValueType.Number,
+            NS_SYSTEM_FLOAT => ScalarValueType.Single | ScalarValueType.Number,
+            NS_SYSTEM_PERCENT => ScalarValueType.Single | ScalarValueType.Number,
+            NS_SYSTEM_INT => ScalarValueType.Integer | ScalarValueType.Number,
+            NS_SYSTEM_FULLDATE => ScalarValueType.FullDate | ScalarValueType.Date,
+            NS_SYSTEM_STRING => ScalarValueType.String,
+            NS_SYSTEM_YEAR => ScalarValueType.Year | ScalarValueType.Integer | ScalarValueType.Number,
+            NS_SYSTEM_YEARMONTH => ScalarValueType.YearMonth | ScalarValueType.Date,
+            NS_SYSTEM_GUID => ScalarValueType.Guid | ScalarValueType.String,
+            _ => BaseNode?.ValueType ?? ScalarValueType.None
+        };
+    }
 
      /// <inheritdoc />
      public override void Release()
@@ -312,8 +327,6 @@ public class ScalarNode: NamespaceNode
                {
                     EnumValueType.String => IsSingle,
                     EnumValueType.Int => IsInt,
-                    EnumValueType.Float => IsNumber,
-                    EnumValueType.Double => IsNumber,
                     EnumValueType.Flags => IsInt,
                     _ => false
                },
