@@ -1,4 +1,4 @@
-namespace SchemaNode.DI;
+namespace SchemaNode;
 
 /// <summary>
 /// The schema context global config

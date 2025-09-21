@@ -12,7 +12,7 @@ public class SchemaEnumAttribute: System.Attribute
     /// <summary>
     /// The description of the enum
     /// </summary>
-    public LocaleString? Display { get; }
+    public string? Display { get; }
     
     /// <summary>
     /// The enum value type

@@ -11,7 +11,7 @@ public class SchemaFuncAttribute: System.Attribute
     /// <summary>
     /// The description of the function
     /// </summary>
-    public LocaleString? Display { get; }
+    public string? Display { get; }
     
     /// <summary>
     /// The data dict type
@@ -21,7 +21,7 @@ public class SchemaFuncAttribute: System.Attribute
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaFuncAttribute(LocaleString? display = null, string? type = null)
+    public SchemaFuncAttribute(string? display = null, string? type = null)
     {
         Display = display;
         Type = type;

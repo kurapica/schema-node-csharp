@@ -10,7 +10,7 @@ using SchemaNode.Provider;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Schema;
 
-namespace SchemaNode.DI;
+namespace SchemaNode;
 
 public static class Injection
 {

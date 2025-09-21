@@ -3,20 +3,14 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 using static SchemaNode.Utility.Constant;
 using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Utility;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
-using System.Reflection.Metadata;
 
 namespace SchemaNode.Node;
 
@@ -1514,7 +1508,7 @@ public class FunctionNode: NamespaceNode
         }
         else
         {
-            return GenDynamicCallExp(callMethod.ReturnType, callFuncInfo.DynamicMethod, callArgs);
+            return GenDynamicCallExp(callMethod.ReturnType, callFuncInfo.DynamicMethod!, callArgs);
         }
     }
 
@@ -1542,158 +1536,158 @@ public class FunctionNode: NamespaceNode
     #region CallDynamicFunc
 
     // Call dynamic function
-    static TR CallDynamicFunc1<TR, T1>(Delegate method, T1 arg1)
+    static TR? CallDynamicFunc1<TR, T1>(Delegate method, T1 arg1)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc2<TR, T1, T2>(Delegate method, T1 arg1, T2 arg2)
+    static TR? CallDynamicFunc2<TR, T1, T2>(Delegate method, T1 arg1, T2 arg2)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc3<TR, T1, T2, T3>(Delegate method, T1 arg1, T2 arg2, T3 arg3)
+    static TR? CallDynamicFunc3<TR, T1, T2, T3>(Delegate method, T1 arg1, T2 arg2, T3 arg3)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc4<TR, T1, T2, T3, T4>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
+    static TR? CallDynamicFunc4<TR, T1, T2, T3, T4>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc5<TR, T1, T2, T3, T4, T5>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
+    static TR? CallDynamicFunc5<TR, T1, T2, T3, T4, T5>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc6<TR, T1, T2, T3, T4, T5, T6>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
+    static TR? CallDynamicFunc6<TR, T1, T2, T3, T4, T5, T6>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc7<TR, T1, T2, T3, T4, T5, T6, T7>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
+    static TR? CallDynamicFunc7<TR, T1, T2, T3, T4, T5, T6, T7>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
+    static TR? CallDynamicFunc8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
+    static TR? CallDynamicFunc9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
+    static TR? CallDynamicFunc10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11)
+    static TR? CallDynamicFunc11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12)
+    static TR? CallDynamicFunc12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
+    static TR? CallDynamicFunc13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
+    static TR? CallDynamicFunc14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
+    static TR? CallDynamicFunc15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
+    static TR? CallDynamicFunc16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16! });
         return result == null ? default : (TR)result;
     }
-    static TR CallDynamicFunc17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, T17 arg17)
+    static TR? CallDynamicFunc17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, T17 arg17)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17 });
+        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!, arg17! });
         return result == null ? default : (TR)result;
     }
     #endregion
 
     #region Call Server Func
 
-    static TR GetResult<TR>(JsonNode token)
+    static TR? GetResult<TR>(JsonNode? token)
     {
         Type tr = typeof(TR);
         bool isNullable = tr.IsSubclassOfGenericType(typeof(Nullable<>));
         tr = isNullable ? tr.GetGenericArguments()[0] : tr;
         if (tr == typeof(JsonArray))
         {
-            return token is JsonArray arr ? (TR)(object)arr : isNullable ? (TR)(object)null : default;
+            return token is JsonArray arr ? (TR)(object)arr : isNullable ? (TR?)(object?)null : default;
         }
         else if (tr == typeof(JsonObject))
         {
-            return token is JsonObject obj ? (TR) (object) obj : isNullable ? (TR)(object)null : default;
+            return token is JsonObject obj ? (TR) (object) obj : isNullable ? (TR?)(object?)null : default;
         }
         else if (token is JsonValue val)
         {
             return tr == typeof(JsonValue) ? (TR)(object)val : val.GetValue<TR>();
         }
-        return isNullable ? (TR)(object)null : default;
+        return isNullable ? (TR?)(object?)null : default;
     }
     
     /// <summary>
     /// Call the data dict function with arguments
     /// </summary>
-    static async Task<TR> CallServerFunction0<TR>(SchemaContext context, string name, string retType) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), [retType]));
-    static async Task<TR> CallServerFunction1<TR, T1>(SchemaContext context, string name, string retType, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, [retType]));
-    static async Task<TR> CallServerFunction2<TR, T1, T2>(SchemaContext context, string name, string retType, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, [retType]));
-    static async Task<TR> CallServerFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, [retType]));
-    static async Task<TR> CallServerFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, [retType]));
-    static async Task<TR> CallServerFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, [retType]));
-    static async Task<TR> CallServerFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, [retType]));
-    static async Task<TR> CallServerFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, [retType]));
-    static async Task<TR> CallServerFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, [retType]));
-    static async Task<TR> CallServerFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, [retType]));
-    static async Task<TR> CallServerFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, [retType]));
-    static async Task<TR> CallServerFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, [retType]));
-    static async Task<TR> CallServerFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, [retType]));
-    static async Task<TR> CallServerFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, [retType]));
-    static async Task<TR> CallServerFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, [retType]));
-    static async Task<TR> CallServerFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, [retType]));
-    static async Task<TR> CallServerFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, [retType]));
-    static async Task<TR> CallServerFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, [retType]));
+    static async Task<TR?> CallServerFunction0<TR>(SchemaContext context, string name, string retType) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), [retType]));
+    static async Task<TR?> CallServerFunction1<TR, T1>(SchemaContext context, string name, string retType, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, [retType]));
+    static async Task<TR?> CallServerFunction2<TR, T1, T2>(SchemaContext context, string name, string retType, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, [retType]));
+    static async Task<TR?> CallServerFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, [retType]));
+    static async Task<TR?> CallServerFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, [retType]));
+    static async Task<TR?> CallServerFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, [retType]));
+    static async Task<TR?> CallServerFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, [retType]));
+    static async Task<TR?> CallServerFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, [retType]));
+    static async Task<TR?> CallServerFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, [retType]));
+    static async Task<TR?> CallServerFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, [retType]));
+    static async Task<TR?> CallServerFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, [retType]));
+    static async Task<TR?> CallServerFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, [retType]));
+    static async Task<TR?> CallServerFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, [retType]));
+    static async Task<TR?> CallServerFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, [retType]));
+    static async Task<TR?> CallServerFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, [retType]));
+    static async Task<TR?> CallServerFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, [retType]));
+    static async Task<TR?> CallServerFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, [retType]));
+    static async Task<TR?> CallServerFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, [retType]));
     
     #endregion
 
     // Nullable exp conversion
-    static T1 ConvertNullableExp<T1, T2>(T2 input)
+    static T1? ConvertNullableExp<T1, T2>(T2 input)
     {
         if (input == null) return default;
         Type retType = typeof(T1).GetNotNullType();
@@ -1730,7 +1724,7 @@ public class FunctionNode: NamespaceNode
             return FuncInfo;
 
         // Check is static
-        if (StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo result) && (result.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
+        if (StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) && (result.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
         {
             result.FunctionNode = this;
             FuncInfo = result;
@@ -1748,7 +1742,7 @@ public class FunctionNode: NamespaceNode
     // Gets the call dynamic func
     static MethodInfo GetCallDynamicFunc(Type ret, params Type[] inputs)
     {
-        MethodInfo method = typeof(FunctionNode).GetMethod($"CallDynamicFunc{inputs.Length}", BindingFlags.Static | BindingFlags.NonPublic);
+        MethodInfo method = typeof(FunctionNode).GetMethod($"CallDynamicFunc{inputs.Length}", BindingFlags.Static | BindingFlags.NonPublic)!;
         return method!.MakeGenericMethod(inputs.Prepend(ret).ToArray());
     }
 

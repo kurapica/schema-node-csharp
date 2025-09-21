@@ -11,7 +11,7 @@ public class SchemaStructAttribute: System.Attribute
     /// <summary>
     /// The description of the enum
     /// </summary>
-    public LocaleString? Display { get; }
+    public string? Display { get; }
     
     /// <summary>
     /// The data dict type
@@ -26,7 +26,7 @@ public class SchemaStructAttribute: System.Attribute
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaStructAttribute(LocaleString? display = null, string? type = null, string[]? primary = null)
+    public SchemaStructAttribute(string? display = null, string? type = null, string[]? primary = null)
     {
         Display = display;
         Type = type;

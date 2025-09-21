@@ -16,14 +16,14 @@ public class SchemaNameSpaceAttribute: System.Attribute
     /// <summary>
     /// The display
     /// </summary>
-    public LocaleString? Display { get; }
+    public string? Display { get; }
 
     /// <summary>
     /// The constructor
     /// </summary>
     /// <param name="name">The namespace</param>
     /// <param name="display">The display</param>
-    public SchemaNameSpaceAttribute(string name, LocaleString? display = null)
+    public SchemaNameSpaceAttribute(string name, string? display = null)
     {
         Name = name;
         Display = display;

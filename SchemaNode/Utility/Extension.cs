@@ -1,10 +1,144 @@
+using System;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace SchemaNode.Utility;
 
 public static class Extension
 {
+    #region Casing
+
+    /// <summary>
+    /// Returns the camel case of this string.
+    /// </summary>
+    /// <param name="s">This string.</param>
+    /// <returns>The camel case of this string.</returns>
+    public static string ToCamelCase(this string s)
+    {
+        string result = s;
+        if (result.Length > 0)
+        {
+            result = string.Concat(result[..1].ToLowerInvariant(), result.AsSpan(1));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Returns the camel case of this string.
+    /// </summary>
+    /// <param name="s">This string.</param>
+    /// <returns>The camel case of this string.</returns>
+    public static string ToPascalCase(this string s)
+    {
+        string result = s;
+        if (result.Length > 0)
+        {
+            result = string.Concat(result[..1].ToUpperInvariant(), result.AsSpan(1));
+        }
+        return result;
+    }
+
+    #endregion
+
     #region JSON
+
+    class JsonDateTimeIsoConverter : JsonConverter<DateTime>
+    {
+        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+
+        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return DateTime.Parse(reader.GetString() ?? "", null, System.Globalization.DateTimeStyles.RoundtripKind);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
+        }
+    }
+
+    class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
+    {
+        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+
+        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return DateTimeOffset.Parse(reader.GetString() ?? "", null, System.Globalization.DateTimeStyles.RoundtripKind);
+        }
+
+        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
+        }
+    }
+
+    /// <summary>
+    /// Serializes a .NET value to JSON string.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="value">The value.</param>
+    /// <param name="options">The serialization options.</param>
+    public static string ToJson<T>(this T value, bool indent = false)
+    {
+        // Generate the JSON string.
+        return JsonSerializer.Serialize<T>(value, new JsonSerializerOptions
+        {
+            WriteIndented = indent,
+            Converters =
+            {
+                new JsonStringEnumConverter(),
+                new JsonDateTimeIsoConverter(),
+                new JsonDateTimeOffetIsoConverter(),
+            },
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        });
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to a .NET value.
+    /// </summary>
+    /// <typeparam name="T">The type of the value.</typeparam>
+    /// <param name="value">The value.</param>
+    public static T? FromJson<T>(this string value)
+    {
+        return JsonSerializer.Deserialize<T>(value, new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonStringEnumConverter(),
+                new JsonDateTimeIsoConverter(),
+                new JsonDateTimeOffetIsoConverter(),
+            },
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to a .NET value.
+    /// </summary>
+    public static object? FromJson(this string value, Type type)
+    {
+        if (type == typeof(string))
+            return value;
+        if (type == typeof(DateTimeOffset))
+            return DateTimeOffset.Parse(value);
+        if (type == typeof(DateTime))
+            return DateTime.Parse(value);
+
+        return JsonSerializer.Deserialize(value, type, new JsonSerializerOptions
+        {
+            Converters =
+            {
+                new JsonStringEnumConverter(),
+                new JsonDateTimeIsoConverter(),
+                new JsonDateTimeOffetIsoConverter(),
+            },
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+    }
 
     /// <summary>
     /// Whether the json node is empty
@@ -120,6 +254,20 @@ public static class Extension
     /// The type is simple array type
     /// </summary>
     public static bool IsArrayType(this Type type) => type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>));
+
+    #endregion
+
+    #region Exception
+
+    /// <summary>
+    /// Gets the innermost exception.
+    /// </summary>
+    public static Exception GetInnermostException(this Exception exception)
+    {
+        while (exception.InnerException != null)
+            exception = exception.InnerException;
+        return exception;
+    }
 
     #endregion
 }

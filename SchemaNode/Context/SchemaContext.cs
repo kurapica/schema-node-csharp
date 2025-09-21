@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.DI;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Provider;

@@ -1,0 +1,46 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SchemaNode.Example</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Microservice\Components\PostgreSql\**" />
+    <Content Remove="Microservice\Components\PostgreSql\**" />
+    <EmbeddedResource Remove="Microservice\Components\PostgreSql\**" />
+    <None Remove="Microservice\Components\PostgreSql\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Microservice\Api\Swagger\favicon-16x16.png" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\favicon-32x32.png" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\index.css" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\index.html" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\oauth2-redirect.html" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\oauth2-redirect.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-initializer.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-bundle.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-es-bundle-core.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-es-bundle.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-standalone-preset.js" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui.css" />
+    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui.js" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cszy.DistributedLock.Medallion" Version="0.0.195" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.3.2" />
+    <PackageReference Include="Npgsql" Version="9.0.3" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Npgsql.Json.NET" Version="9.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
+  </ItemGroup>
+
+</Project>
