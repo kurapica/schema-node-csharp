@@ -34,6 +34,8 @@ public static class Constant
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
+    
+    public const string NS_SYSTEM_SCHEMA = "system.schema";
 
     public const int FUNC_SIGN_CONTEXT = 1;
     public const int FUNC_SIGN_ASYNC = 2;

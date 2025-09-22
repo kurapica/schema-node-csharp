@@ -26,7 +26,16 @@ public class SchemaStructAttribute: System.Attribute
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaStructAttribute(string? display = null, string? type = null, string[]? primary = null)
+    public SchemaStructAttribute(string? display = null, string? type = null)
+    {
+        Display = display;
+        Type = type;
+    }
+    
+    /// <summary>
+    /// The constructor
+    /// </summary>
+    public SchemaStructAttribute(string[] primary, string? display = null, string? type = null )
     {
         Display = display;
         Type = type;

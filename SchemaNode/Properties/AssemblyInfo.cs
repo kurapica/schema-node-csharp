@@ -1,4 +1,4 @@
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
 
-[assembly: SchemaNameSpace(NS_SYSTEM)]
+[assembly: SchemaNameSpace(NS_SYSTEM_SCHEMA)]

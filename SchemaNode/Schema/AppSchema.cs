@@ -23,6 +23,11 @@ public class AppSchema
     public LocaleString? Desc { get; set; }
     
     /// <summary>
+    /// Standalone
+    /// </summary>
+    public bool? Standalone { get; set; }
+    
+    /// <summary>
     /// The main application
     /// </summary>
     public string? Main { get; set; }

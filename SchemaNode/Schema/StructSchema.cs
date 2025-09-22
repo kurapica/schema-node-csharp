@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 
@@ -15,7 +16,7 @@ public class StructSchema
     public string? Base { get; set; }
     
     /// <summary>
-    /// The struct fields
+    /// The struct fieldsalp
     /// </summary>
     public StructFieldConfig[] Fields { get; set; } = [];
     
@@ -183,6 +184,7 @@ public class StructFieldConfig
     /// The type node ref
     /// </summary>
     [JsonIgnore]
+    [SchemaStructMemIgnore]
     public NamespaceNode? TypeNode { get; set; }
     
     #endregion
@@ -217,5 +219,6 @@ public class StructFieldRelation
     /// The function node ref
     /// </summary>
     [JsonIgnore]
+    [SchemaStructMemIgnore]
     public FunctionNode? FuncNode { get; set; }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 
 namespace SchemaNode.Schema;
@@ -30,6 +31,11 @@ public class EnumSchema
 public class EnumValueInfo
 {
     /// <summary>
+    /// The root value
+    /// </summary>
+    public string? Root { get; set; }
+    
+    /// <summary>
     /// The value
     /// </summary>
     public string Value { get; set; } = string.Empty;
@@ -47,17 +53,20 @@ public class EnumValueInfo
     /// <summary>
     /// Whether the enum value has sub enum values
     /// </summary>
+    [SchemaStructMemIgnore]
     public bool? HasSubList { get; set; }
     
     /// <summary>
     /// The sub enum values
     /// </summary>
+    [SchemaStructMemIgnore]
     public EnumValueInfo[]? SubList { get; set; }
 
     /// <summary>
     /// Whether the enum value is fully loaded
     /// </summary>
     [JsonIgnore]
+    [SchemaStructMemIgnore]
     public bool IsFullyLoaded { get; set; } = false;
 
     /// <summary>

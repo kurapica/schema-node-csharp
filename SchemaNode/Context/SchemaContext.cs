@@ -37,7 +37,15 @@ public class SchemaContext
     
     #region Static Properties
 
-    public static SchemaContextConfig Config { get; set; } = new();
+    /// <summary>
+    /// The schema context config
+    /// </summary>
+    public static SchemaContextConfig Config { get; } = new();
+    
+    /// <summary>
+    /// The schema api config
+    /// </summary>
+    public static SchemaApiConfig ApiConfig { get; } = new();
 
     #endregion
     
@@ -220,11 +228,12 @@ public class SchemaContext
     public async Task<NamespaceNode?> GetSchemaNodeAsync(string schemaName, bool reload = false, bool preload = false)
     {
         NamespaceNode? node = RootNamespace;
-        if (string.IsNullOrWhiteSpace(schemaName)) return node;
+        if (string.IsNullOrWhiteSpace(schemaName) && !preload) return node;
         
         // gets the node
         string fullPath = "";
-        foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+"))
+        foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
+                     .Where(s => !string.IsNullOrWhiteSpace(s)))
         {
             NamespaceNode parent = node;
             if (parent.Type != SchemaType.Namespace) return null;
@@ -258,7 +267,7 @@ public class SchemaContext
                 reload = false;
             }
         }
-        if (!reload) return node;
+        if (!reload && !preload) return node;
         
         // reload the node
         NodeSchema? newSchema = await LoadSchemaAsync(fullPath);

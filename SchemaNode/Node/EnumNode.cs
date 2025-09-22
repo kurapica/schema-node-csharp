@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
@@ -242,16 +243,16 @@ public class EnumNode: NamespaceNode
             Enum = new EnumSchema
             {
                 Type = valueType,
-                Values = System.Enum.GetValues(type).Cast<object>().Select(t =>
+                Values = type.GetFields(BindingFlags.Public | BindingFlags.Static).Select(f =>
                 {
-                    string name = System.Enum.GetName(type, t)!;
+                    string name = f.Name;
                     return new EnumValueInfo
                     {
                         Name = name,
                         Value = valueType switch
                         {
-                            EnumValueType.String => name,
-                            _ => $"{t}"
+                            EnumValueType.String => f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? name,
+                            _ => $"{f.GetValue(null)}"
                         },
                         HasSubList = false,
                     };

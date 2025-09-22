@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 
@@ -110,6 +111,7 @@ public class FunctionCallArgument {
     /// <summary>
     /// The value type
     /// </summary>
+    [SchemaStructMemIgnore]
     [JsonIgnore]
     public NamespaceNode? TypeNode { get; set; }
 }

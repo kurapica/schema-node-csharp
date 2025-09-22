@@ -1,8 +1,11 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The expression call type
 /// </summary>
+[SchemaEnum(EnumValueType.String)]
 public enum ExpressionType
 {
     /// <summary>

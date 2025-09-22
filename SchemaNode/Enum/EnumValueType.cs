@@ -1,8 +1,11 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The value type of the enum.
 /// </summary>
+[SchemaEnum(EnumValueType.String)]
 public enum EnumValueType
 {
     /// <summary>

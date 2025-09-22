@@ -28,7 +28,16 @@ public class SchemaEnumAttribute: System.Attribute
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaEnumAttribute(string? display = null, EnumValueType? valueType = null, string? type = null)
+    public SchemaEnumAttribute(string? display = null, string? type = null)
+    {
+        Display = display;
+        Type = type;
+    }
+    
+    /// <summary>
+    /// The constructor
+    /// </summary>
+    public SchemaEnumAttribute(EnumValueType valueType, string? display = null, string? type = null)
     {
         Display = display;
         ValueType = valueType;

@@ -1,10 +1,12 @@
 using System.Runtime.Serialization;
+using SchemaNode.Attribute;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// Schema types.
 /// </summary>
+[SchemaEnum(EnumValueType.String)]
 public enum SchemaType
 {
     /// <summary>

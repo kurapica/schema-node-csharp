@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Provider;
 
@@ -8,6 +9,7 @@ namespace SchemaNode.Schema;
 /// The data node schema
 /// The schema is used to describe the data node
 /// </summary>
+[SchemaStruct(["name"])]
 public class NodeSchema
 {
     /// <summary>
@@ -70,12 +72,14 @@ public class NodeSchema
     /// <summary>
     /// The sub schemas of the namespace
     /// </summary>
+    [SchemaStructMemIgnore]
     public NodeSchema[]? Schemas  { get; set; }
 
     /// <summary>
     /// The schema provider used to fetch the node schema
     /// </summary>
     [JsonIgnore]
+    [SchemaStructMemIgnore]
     public ISchemaProvider? SchemaProvider
     {
         get => _schemaProvider;

@@ -34,6 +34,16 @@ public class ScalarSchema
     /// The regex of the scalar value
     /// </summary>
     public string? Regex  { get; set; }
+    
+    /// <summary>
+    /// The white list function
+    /// </summary>
+    public string? WhiteList { get; set; }
+    
+    /// <summary>
+    /// As suggest
+    /// </summary>
+    public bool? AsSuggest { get; set; }
 
     /// <summary>
     /// The function to validate the scalar value in frontend

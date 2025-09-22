@@ -1,8 +1,11 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The node relation type
 /// </summary>
+[SchemaEnum(EnumValueType.String)]
 public enum RelationType
 {
     /// <summary>

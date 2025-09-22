@@ -45,6 +45,16 @@ public class ScalarNode: NamespaceNode
      public string? Regex { get; private set; }
      
      /// <summary>
+     /// The white list function
+     /// </summary>
+     public string? WhiteList { get; set; }
+    
+     /// <summary>
+     /// As suggest
+     /// </summary>
+     public bool? AsSuggest { get; set; }
+     
+     /// <summary>
      /// The function to validate the scalar value in frontend
      /// </summary>
      public string? PreValid { get; private set; }
@@ -146,6 +156,8 @@ public class ScalarNode: NamespaceNode
         UpLimit = scalar?.UpLimit;
         Error = scalar?.Error;
         Regex = scalar?.Regex;
+        WhiteList = scalar?.WhiteList;
+        AsSuggest = scalar?.AsSuggest;
         PreValid = scalar?.PreValid;
         PostValid = scalar?.PostValid;
 
