@@ -56,6 +56,14 @@ public abstract class SchemaApi<TRequest, TResponse>
     #endregion
 
     #region Main
+    
+    /// <summary>
+    /// Process the request
+    /// </summary>
+    /// <param name="request"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    public virtual Task<TResponse?> ProcessAsync(TRequest request, CancellationToken cancellationToken) => Task.FromResult(default(TResponse));
 
     /// <summary>
     /// Execute the request
