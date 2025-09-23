@@ -1,17 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using SchemaNode.Http;
 
 namespace SchemaNode.Example.Api;
 
 /// <summary>
 /// The Hello api
 /// </summary>
-[MicroserviceApiCategory("bd.user.test", nameof(HelloApi))]
-public class HelloApi : MicroserviceApi<HelloRequest, HelloResponse>
+public class HelloApi : SchemaApi<HelloRequest, HelloResponse>
 {
     #region Constructors
 
@@ -27,7 +21,7 @@ public class HelloApi : MicroserviceApi<HelloRequest, HelloResponse>
     /// <inheritdoc />
     protected override async Task<HelloResponse> MainAsync(HelloRequest request)
     {
-        Components.Logger.LogDebug("[Api]{api} [Request]{request}", nameof(HelloApi), request);
+        Logger.LogDebug("[Api]{api} [Request]{request}", nameof(HelloApi), request);
 
         await Task.Yield();
 

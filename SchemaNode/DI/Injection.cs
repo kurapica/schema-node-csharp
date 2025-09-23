@@ -30,7 +30,8 @@ public static class Injection
         services.AddTransient<SchemaContext>();
         
         // system.schema types
-        return services.AddSchemaSystemTypes<SchemaContext>();
+        services.AddSchemaSystemTypes<SchemaContext>();
+        return services.AddSchemaSystemTypes(Assembly.GetExecutingAssembly());
     }
     
     /// <summary>
@@ -78,15 +79,5 @@ public static class Injection
         foreach (var type in assembly.GetTypes())
             type.GetSchemaType();
         return services;
-    }
-
-    /// <summary>
-    /// Enable the schema apis
-    /// </summary>
-    public static WebApplication UseSchemaApis(this WebApplication app, Action<SchemaApiConfig> config)
-    {
-        config.Invoke(SchemaContext.ApiConfig);
-        _ = Task.Run(() => app.Services.GetRequiredService<SchemaContext>().GetSchemaNodeAsync("", preload: true));
-        return app;
     }
 }

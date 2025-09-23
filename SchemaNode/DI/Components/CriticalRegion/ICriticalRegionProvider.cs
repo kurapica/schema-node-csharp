@@ -1,7 +1,7 @@
-﻿namespace SchemaNode.Example;
+﻿namespace SchemaNode.DI;
 
 /// <summary>
-/// Defines the contract of a <see cref="CriticalRegion" /> provider.
+/// Defines the contract of a <see cref="ICriticalRegion" /> provider.
 /// </summary>
 public interface ICriticalRegionProvider
 {

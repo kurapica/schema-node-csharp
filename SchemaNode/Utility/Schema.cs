@@ -366,7 +366,7 @@ public static class Schema
     
     #region System
 
-    private static NodeSchema _root = new NodeSchema
+    static readonly NodeSchema _root = new NodeSchema
     {
         Name = "",
         Type = SchemaType.Namespace,

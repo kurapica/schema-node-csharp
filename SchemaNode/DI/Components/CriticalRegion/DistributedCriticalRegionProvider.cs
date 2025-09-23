@@ -2,7 +2,7 @@
 using Medallion.Threading.Redis;
 using StackExchange.Redis;
 
-namespace SchemaNode.Example;
+namespace SchemaNode.DI;
 
 /// <summary>
 /// Represents a distributed <see cref="CriticalRegion" /> provider.
@@ -35,8 +35,8 @@ public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDispo
     /// </summary>
     public DistributedCriticalRegionProvider(ConfigurationOptions options)
     {
-        redisConnection = ConnectionMultiplexer.Connect(options);
-        distributedLockProvider = new RedisDistributedSynchronizationProvider(redisConnection.GetDatabase());
+        _redisConnection = ConnectionMultiplexer.Connect(options);
+        _distributedLockProvider = new RedisDistributedSynchronizationProvider(_redisConnection.GetDatabase());
     }
 
     #endregion
@@ -46,7 +46,7 @@ public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDispo
     /// <inheritdoc />
     public ICriticalRegion Acquire(string name, TimeSpan? timeout = null)
     {
-        IDistributedLock distributedLock = distributedLockProvider.CreateLock(GetLockKey(name));
+        IDistributedLock distributedLock = _distributedLockProvider.CreateLock(GetLockKey(name));
         IDistributedSynchronizationHandle distributedSynchronizationHandle = distributedLock.Acquire(timeout);
         return new CriticalRegion(distributedSynchronizationHandle);
     }
@@ -54,7 +54,7 @@ public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDispo
     /// <inheritdoc />
     public async Task<ICriticalRegion> AcquireAsync(string name, TimeSpan? timeout = null)
     {
-        IDistributedLock distributedLock = distributedLockProvider.CreateLock(GetLockKey(name));
+        IDistributedLock distributedLock = _distributedLockProvider.CreateLock(GetLockKey(name));
         IDistributedSynchronizationHandle distributedSynchronizationHandle = await distributedLock.AcquireAsync(timeout);
         return new CriticalRegion(distributedSynchronizationHandle);
     }
@@ -67,11 +67,11 @@ public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDispo
 
     public void Dispose()
     {
-        redisConnection.Dispose();
+        _redisConnection.Dispose();
     }
 
-    readonly ConnectionMultiplexer redisConnection;
-    readonly IDistributedLockProvider distributedLockProvider;
+    readonly ConnectionMultiplexer _redisConnection;
+    readonly IDistributedLockProvider _distributedLockProvider;
 
     #endregion
 }

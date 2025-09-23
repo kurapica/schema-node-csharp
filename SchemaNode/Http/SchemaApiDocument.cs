@@ -1,121 +1,70 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi;
+﻿using Microsoft.OpenApi;
 using SchemaNode.Utility;
 using System.ComponentModel.DataAnnotations;
-using System.Net;
 using System.Reflection;
-using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
-using static SchemaNode.Example.MicroserviceApiExtension;
 
-namespace SchemaNode.Example;
+namespace SchemaNode.Http;
 
 /// <summary>
 /// Provides a swagger document for all APIs in the microservice.
 /// </summary>
-public class MicroserviceApiDocument : Controller
+public static class SchemaApiDocument
 {
-    #region Constructors
-
-    /// <summary>
-    /// The constructor
-    /// </summary>
-    public MicroserviceApiDocument(IServiceProvider serviceProvider)
-    {
-    }
-
-    #endregion
-
-    #region Execute
-
     /// <summary>
     /// Generate the document
     /// </summary>
-    /// <returns></returns>
-    [HttpGet]
-    public IActionResult Execute()
+    public static OpenApiDocument Generate(OpenApiDocument? document = null)
     {
         // Create swagger model.
-        IDictionary<string, IOpenApiSchema> schemas = new Dictionary<string, IOpenApiSchema>();
-        OpenApiDocument document = new()
+        document ??= new OpenApiDocument
         {
             Info = new OpenApiInfo
             {
                 Version = "1.0",
-                Description = "",
-                Title = "Schema Node Example"
+                Description = "The Schema API",
+                Title = "Schema Apis"
             },
-            Servers = new List<OpenApiServer>
-            {
-            },
-            Components = new OpenApiComponents
-            {
-                Schemas = schemas
-            }
         };
+        document.Components ??= new OpenApiComponents();
+        document.Components.Schemas ??= new Dictionary<string, IOpenApiSchema>();
+        IDictionary<string, IOpenApiSchema> schemas = document.Components!.Schemas;
 
         // Add each API.
-        document.Paths = new OpenApiPaths();
-        foreach (MicroserviceApiType registeredApiType in GetApis())
+        document.Paths ??= new OpenApiPaths();
+        foreach (var (api, url) in SchemaApiExtension.GetSchemaApis())
         {
             // Add document paths.
             AddDocumentPath(
                 schemas,
                 document.Paths,
-                registeredApiType.Api,
-                registeredApiType.Request,
-                registeredApiType.Response
+                api.Api,
+                api.Request,
+                api.Response,
+                url
             );
         }
 
-        // Serialize the document.
-        StringBuilder resultBuilder = new();
-        TextWriter documentTextWriter = new StringWriter(resultBuilder);
-        IOpenApiWriter documentWriter = new OpenApiJsonWriter(documentTextWriter);
-        document.SerializeAsV31(documentWriter);
-
-        // Finish.
-        return new ContentResult
-        {
-            Content = resultBuilder.ToString().Replace("$dynamicRef", "$ref"),
-            ContentType = "application/json",
-            StatusCode = (int)HttpStatusCode.OK
-        };
+        return document;
     }
-
-    /// <summary>
-    /// The document url
-    /// </summary>
-    public const string URL = "document.json";
-
-    #endregion
 
     #region Implementations
 
     /// <summary>
     /// Add the paths object to OpenAPI document.
     /// </summary>
-    /// <param name="schemas"></param>
-    /// <param name="paths"></param>
-    /// <param name="apiType"></param>
-    /// <param name="requestType"></param>
-    /// <param name="responseType"></param>
-    /// <exception cref="InvalidOperationException"></exception>
-    void AddDocumentPath(IDictionary<string, IOpenApiSchema> schemas, OpenApiPaths paths, Type apiType, Type requestType, Type responseType)
+    static void AddDocumentPath(IDictionary<string, IOpenApiSchema> schemas, OpenApiPaths paths, Type apiType, Type requestType, Type responseType, string url)
     {
         // Get the URL.
-        string url = MicroserviceApiExtension.GetRequestUrl(requestType);
         if (string.IsNullOrEmpty(url))
         {
             throw new InvalidOperationException();
         }
 
         //Get category from attribute
-        string category = string.Empty;
-        var attr = apiType.GetCustomAttribute<MicroserviceApiCategoryAttribute>();
-        if (attr != null) category = attr.Category;
+        string category = "";
 
         // Get category from namespace
         if (string.IsNullOrEmpty(category) || !category.Contains('.'))
@@ -123,13 +72,13 @@ public class MicroserviceApiDocument : Controller
             string[] assemblyNames = apiType.Assembly.FullName?.Split(",")[0].Split(".") ?? [];
             string[] typeNames = apiType.FullName?.Split(",")[0].Split(".") ?? [];
             if (!string.IsNullOrEmpty(category))
-                typeNames![^1] = category;
+                typeNames[^1] = category;
             int i = 0;
-            for (; i < assemblyNames!.Length; i++)
+            for (; i < assemblyNames.Length; i++)
             {
-                if (i >= typeNames!.Length || assemblyNames[i] != typeNames[i]) break;
+                if (i >= typeNames.Length || assemblyNames[i] != typeNames[i]) break;
             }
-            category = string.Join(".", typeNames!.Skip(i).Select(s => s.ToLower()).ToArray());
+            category = string.Join(".", typeNames.Skip(i).Select(s => s.ToLower()).ToArray());
         }
         
         // Create the operation.
@@ -209,7 +158,7 @@ public class MicroserviceApiDocument : Controller
                                             ["code"] = new OpenApiSchema
                                             {
                                                 Type = JsonSchemaType.String,
-                                                Enum = System.Enum.GetNames<MicroserviceApiResponseErrorCode>().Select(s => (JsonNode)JsonValue.Create(GetRegularStrFormat(s, true))).ToList()
+                                                Enum = System.Enum.GetNames<SchemaApiResponseErrorCode>().Select(s => (JsonNode)JsonValue.Create(GetRegularStrFormat(s, true))).ToList()
                                             }
                                         },
                                     },
@@ -237,7 +186,7 @@ public class MicroserviceApiDocument : Controller
     /// <summary>
     /// Register the scheams object to OpenAPI document.
     /// </summary>
-    OpenApiSchema GetTypeSchema(IDictionary<string, IOpenApiSchema> schemas, Type type)
+    static OpenApiSchema GetTypeSchema(IDictionary<string, IOpenApiSchema> schemas, Type type)
     {
         #region Nullable<>
 
@@ -252,12 +201,12 @@ public class MicroserviceApiDocument : Controller
 
         #region Value Type: string, int, float, bool ...
 
-        if (typeMapping.ContainsKey(type))
+        if (TypeMapping.ContainsKey(type))
         {
             return new OpenApiSchema
             {
-                Type = typeMapping[type].Type,
-                Format = typeMapping[type].Format
+                Type = TypeMapping[type].Type,
+                Format = TypeMapping[type].Format
             };
         }
 
@@ -288,9 +237,9 @@ public class MicroserviceApiDocument : Controller
 
         string typeKey = GetRegularStrFormat(type.Name, true);
 
-        if (!handledTypes.Contains(typeKey))
+        if (!HandledTypes.Contains(typeKey))
         {
-            handledTypes.Add(typeKey);
+            HandledTypes.Add(typeKey);
 
             // default value holder
             object? defaultHolder = null;
@@ -417,7 +366,7 @@ public class MicroserviceApiDocument : Controller
     /// <summary>
     /// Define the mapping of type to format string.
     /// </summary>
-    static readonly Dictionary<Type, TypeFormat> typeMapping = new()
+    static readonly Dictionary<Type, TypeFormat> TypeMapping = new()
     {
         { typeof(int), new TypeFormat(JsonSchemaType.Integer, null) },
         { typeof(short), new TypeFormat(JsonSchemaType.Integer, "int16") },
@@ -453,24 +402,22 @@ public class MicroserviceApiDocument : Controller
     /// <summary>
     /// Get summary contents from XML document.
     /// </summary>
-    string GetSummaryFromXmlDoc(Type type, string preFix, PropertyInfo? prop = null)
+    static string GetSummaryFromXmlDoc(Type type, string preFix, PropertyInfo? prop = null)
     {
         string typeName = prop != null ? prop.DeclaringType!.Name : type.Name;
         string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
         string propertyName = prop != null ? prop.Name : string.Empty;
 
-        if (!System.IO.File.Exists(xmlPath))
-        {
-            return string.Empty;
-        }
-        else if (!xmlFiles.ContainsKey(xmlPath))
+        if (!File.Exists(xmlPath)) return string.Empty;
+        
+        if (!XmlFiles.ContainsKey(xmlPath))
         {
             XmlDocument document = new();
             document.Load(xmlPath);
-            xmlFiles[xmlPath] = document;
+            XmlFiles[xmlPath] = document;
         }
         string xPath = "/doc/members";
-        XmlNode? nodeList = xmlFiles[xmlPath].SelectSingleNode(xPath);
+        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
         foreach (XmlElement node in nodeList!)
         {
             if (node.HasChildNodes && node.Attributes.Count > 0)
@@ -504,8 +451,8 @@ public class MicroserviceApiDocument : Controller
 
     #region Private
 
-    readonly Dictionary<string, XmlDocument> xmlFiles = new();
-    readonly HashSet<string> handledTypes = new();
+    static readonly Dictionary<string, XmlDocument> XmlFiles = new();
+    static readonly HashSet<string> HandledTypes = new();
 
     #endregion
 

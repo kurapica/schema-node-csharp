@@ -11,23 +11,20 @@
     <Compile Remove="Microservice\Components\PostgreSql\**" />
     <Content Remove="Microservice\Components\PostgreSql\**" />
     <EmbeddedResource Remove="Microservice\Components\PostgreSql\**" />
+    <EmbeddedResource Include="Swagger\favicon-16x16.png" />
+    <EmbeddedResource Include="Swagger\favicon-32x32.png" />
+    <EmbeddedResource Include="Swagger\index.css" />
+    <EmbeddedResource Include="Swagger\index.html" />
+    <EmbeddedResource Include="Swagger\oauth2-redirect.html" />
+    <EmbeddedResource Include="Swagger\oauth2-redirect.js" />
+    <EmbeddedResource Include="Swagger\swagger-initializer.js" />
+    <EmbeddedResource Include="Swagger\swagger-ui-bundle.js" />
+    <EmbeddedResource Include="Swagger\swagger-ui-es-bundle-core.js" />
+    <EmbeddedResource Include="Swagger\swagger-ui-es-bundle.js" />
+    <EmbeddedResource Include="Swagger\swagger-ui-standalone-preset.js" />
+    <EmbeddedResource Include="Swagger\swagger-ui.css" />
+    <EmbeddedResource Include="Swagger\swagger-ui.js" />
     <None Remove="Microservice\Components\PostgreSql\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Microservice\Api\Swagger\favicon-16x16.png" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\favicon-32x32.png" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\index.css" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\index.html" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\oauth2-redirect.html" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\oauth2-redirect.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-initializer.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-bundle.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-es-bundle-core.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-es-bundle.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui-standalone-preset.js" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui.css" />
-    <EmbeddedResource Include="Microservice\Api\Swagger\swagger-ui.js" />
   </ItemGroup>
 
   <ItemGroup>

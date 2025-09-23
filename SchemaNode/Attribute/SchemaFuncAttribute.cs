@@ -1,3 +1,4 @@
+using System.Numerics;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Attribute;

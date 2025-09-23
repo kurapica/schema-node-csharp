@@ -1,9 +1,9 @@
 ﻿using System.Collections.Concurrent;
 
-namespace SchemaNode.Example;
+namespace SchemaNode.DI;
 
 /// <summary>
-/// Represents an local <see cref="CriticalRegion" /> provider.
+/// Represents a local <see cref="CriticalRegion" /> provider.
 /// </summary>
 public class LocalCriticalRegionProvider : ICriticalRegionProvider
 {
@@ -29,7 +29,7 @@ public class LocalCriticalRegionProvider : ICriticalRegionProvider
     /// <inheritdoc />
     public ICriticalRegion Acquire(string name, TimeSpan? timeout = null)
     {
-        SemaphoreSlim semaphore = semaphores.GetOrAdd(name, _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim semaphore = Semaphores.GetOrAdd(name, _ => new SemaphoreSlim(1, 1));
         if (timeout != null)
         {
             if (!semaphore.Wait(timeout.Value))
@@ -47,7 +47,7 @@ public class LocalCriticalRegionProvider : ICriticalRegionProvider
     /// <inheritdoc />
     public async Task<ICriticalRegion> AcquireAsync(string name, TimeSpan? timeout = null)
     {
-        SemaphoreSlim semaphore = semaphores.GetOrAdd(name, _ => new SemaphoreSlim(1, 1));
+        SemaphoreSlim semaphore = Semaphores.GetOrAdd(name, _ => new SemaphoreSlim(1, 1));
         if (timeout != null)
         {
             if (!await semaphore.WaitAsync(timeout.Value))
@@ -62,5 +62,5 @@ public class LocalCriticalRegionProvider : ICriticalRegionProvider
         return new CriticalRegion(semaphore);
     }
 
-    static readonly ConcurrentDictionary<string, SemaphoreSlim> semaphores = new();
+    static readonly ConcurrentDictionary<string, SemaphoreSlim> Semaphores = new();
 }
