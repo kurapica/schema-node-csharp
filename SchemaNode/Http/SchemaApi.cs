@@ -45,7 +45,7 @@ public abstract class SchemaApi<TRequest, TResponse>
     /// <summary>
     /// The logger.
     /// </summary>
-    protected ILogger Logger { get; }
+    protected ILogger Logger { get; set; }
 
     /// <summary>
     /// Gets the <see cref="ICriticalRegion" /> provider.
@@ -64,99 +64,6 @@ public abstract class SchemaApi<TRequest, TResponse>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
     public virtual Task<TResponse?> ProcessAsync(TRequest request, CancellationToken cancellationToken) => Task.FromResult(default(TResponse));
-
-    /// <summary>
-    /// Execute the request
-    /// </summary>
-    [HttpPost]
-    public async Task<IActionResult> ExecuteAsync()
-    {
-        // Parse request.
-        Logger.LogDebug("API is being executed ...");
-        Request.EnableBuffering();
-        string requestBody;
-        try
-        {
-            Request.Body.Position = 0;
-            requestBody = await new StreamReader(Request.Body).ReadToEndAsync();
-        }
-        catch
-        {
-            string errorMessage = "Failed to read the request data.";
-            Logger.LogDebug(errorMessage);
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.ParseError, errorMessage);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-        SchemaApiRequestMessage<TRequest> requestMessage;
-        try
-        {
-            requestMessage = requestBody.FromJson<SchemaApiRequestMessage<TRequest>>() ?? throw new Exception();
-            RequestId = requestMessage.Id;
-        }
-        catch
-        {
-            string errorMessage = "Failed to parse the request data.";
-            Logger.LogDebug(errorMessage);
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.InvalidRequest, errorMessage);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-        try
-        {
-            if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
-            {
-                throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug(ex.Message);
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.InvalidRequest, ex.Message);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-        TRequest request = requestMessage.Params;
-
-        // Validate request.
-        try
-        {
-            List<ValidationResult> results = new();
-            if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
-            {
-                SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: GetValidationErrors(results));
-                return GenerateResponseResult(errorResponseMessage);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug($"An unknown error occurred: {ex.GetInnermostException()}");
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-
-        // Call main.
-        TResponse response;
-        try
-        {
-            request.CancellationToken = Request.HttpContext.RequestAborted;
-            response = await MainAsync(request);
-        }
-        catch (SchemaApiException ex)
-        {
-            Logger.LogDebug($"A business logic error occurred: {ex.Message}");
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(ex.Code, ex.Message, ex.MessageKey, ex.AdditionalData);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogDebug($"An unknown error occurred: {ex.GetInnermostException()}");
-            SchemaApiResponseMessage<TResponse> errorResponseMessage = GenerateErrorResponseMessage(SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message);
-            return GenerateResponseResult(errorResponseMessage);
-        }
-
-        // Generate response.
-        Logger.LogDebug("API is executed.");
-        SchemaApiResponseMessage<TResponse> responseMessage = GenerateSuccessResponseMessage(response);
-        return GenerateResponseResult(responseMessage);
-    }
 
     /// <summary>
     /// Called to handle request and generate response.
@@ -185,21 +92,6 @@ public abstract class SchemaApi<TRequest, TResponse>
         });
     }
 
-    /// <summary>
-    /// Get validation errors
-    /// </summary>
-    protected Dictionary<string, object> GetValidationErrors(IEnumerable<ValidationResult> results)
-    {
-        Dictionary<string, object> errors = new();
-        foreach (ValidationResult r in results)
-        {
-            string key = r.MemberNames.First();
-            if (errors.ContainsKey(key))
-                continue;
-            errors.Add(key, r.ErrorMessage ?? "");
-        }
-        return errors;
-    }
 
     #endregion
 
@@ -213,60 +105,6 @@ public abstract class SchemaApi<TRequest, TResponse>
     #endregion
 
     #region Implementations
-
-    SchemaApiResponseMessage<TResponse> GenerateSuccessResponseMessage(TResponse response)
-    {
-        return new SchemaApiResponseMessage<TResponse>
-        {
-            Jsonrpc = "2.0",
-            Result = response,
-            Id = RequestId
-        };
-    }
-
-    SchemaApiResponseMessage<TResponse> GenerateErrorResponseMessage(SchemaApiResponseErrorCode code, string? message = null, string? messageKey = null, IDictionary<string, object>? data = null)
-    {
-        return new SchemaApiResponseMessage<TResponse>
-        {
-            Jsonrpc = "2.0",
-            Error = new SchemaApiResponseError
-            {
-                Code = code,
-                Message = message,
-                MessageKey = messageKey,
-                Data = data
-            },
-            Id = RequestId
-        };
-    }
-
-    IActionResult GenerateResponseResult(SchemaApiResponseMessage<TResponse> responseMessage)
-    {
-        // Stream
-        if (responseMessage.Result?.Output?.Stream != null)
-        {
-            string extension = Path.GetExtension(responseMessage.Result.Output.Name);
-            if (string.IsNullOrWhiteSpace(extension)) extension = responseMessage.Result.Output.Extension;
-            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.')) extension = $".{extension}";
-            if (string.IsNullOrWhiteSpace(extension) || !new FileExtensionContentTypeProvider().TryGetContentType(extension, out string? contentType))
-                contentType = "text/plain";
-            FileStreamResult result = new(responseMessage.Result.Output.Stream, contentType);
-            if (!string.IsNullOrWhiteSpace(responseMessage.Result.Output.Name))
-            {
-                result.FileDownloadName = responseMessage.Result.Output.Name;
-            }
-            Response.Headers.AccessControlExposeHeaders = new StringValues("Content-Disposition");
-            return result;
-        }
-        
-        string responseBody = responseMessage.ToJson();
-        return new ContentResult
-        {
-            Content = responseBody,
-            ContentType = "application/json",
-            StatusCode = (int)HttpStatusCode.OK
-        };
-    }
 
     #endregion
 
@@ -294,15 +132,11 @@ public abstract class SchemaApi<TRequest, TResponse>
 /// </summary>
 public abstract class SchemaApiRequest
 {
-    #region Cancel Token
-
     /// <summary>
-    /// Cancel token
+    /// The http context
     /// </summary>
     [JsonIgnore]
-    public CancellationToken CancellationToken { get; set; }
-
-    #endregion
+    public HttpContext? Context { get; set; }
 }
 
 public abstract class SchemaApiResponse
@@ -559,17 +393,15 @@ public static class SchemaApiExtension
                 Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
                 Type requestType = apiBaseType.GetGenericArguments()[0];
                 Type responseType = apiBaseType.GetGenericArguments()[1];
+
                 ApiTypes.Push(new SchemaApiType(type, requestType, responseType));
-                app.MapControllerRoute(type.Name, GetRequestUrl(requestType), new
-                {
-                    controller = type.Name,
-                    action = "Execute"
-                });
+
+                var task = typeof(SchemaApiExtension).GetMethod(nameof(ProcessHttpContextAsync))!.MakeGenericMethod(type, requestType, responseType);
+
                 app.MapPost(GetRequestUrl(requestType),  async (HttpContext ctx) =>
                 {
-                    await Task.Yield();
-                    ctx.Request.EnableBuffering();
-                    return Results.Ok("hi");
+                    var taskObj = (Task<IResult>)task.Invoke(null, new object[] { ctx })!;
+                    return await taskObj;
                 });
                 Console.WriteLine($"<{type.Name}> is now listening.");
             }
@@ -579,6 +411,143 @@ public static class SchemaApiExtension
 
 
     #region Utility
+    static async Task<IResult> ProcessHttpContextAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
+        where TApi: SchemaApi<TRequest, TResponse>
+        where TRequest: SchemaApiRequest
+        where TResponse: SchemaApiResponse
+    {
+        var provider = ctx.RequestServices;
+        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
+
+        // Parse request.
+        logger.LogDebug("API is being executed ...");
+        ctx.Request.EnableBuffering();
+        string requestBody;
+        string requestId = string.Empty;
+        try
+        {
+            ctx.Request.Body.Position = 0;
+            requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+        }
+        catch
+        {
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.ParseError, "Failed to read the request data."));
+        }
+        SchemaApiRequestMessage<TRequest> requestMessage;
+        try
+        {
+            requestMessage = requestBody.FromJson<SchemaApiRequestMessage<TRequest>>() ?? throw new Exception();
+            requestId = requestMessage.Id;
+        }
+        catch
+        {
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, "Failed to parse the request data."));
+        }
+        try
+        {
+            if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
+            {
+                throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
+            }
+        }
+        catch (Exception ex)
+        {
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, ex.Message));
+        }
+        TRequest request = requestMessage.Params;
+
+        // Validate request.
+        try
+        {
+            List<ValidationResult> results = new();
+            if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
+            {
+                return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: GetValidationErrors(results)));
+            }
+        }
+        catch (Exception ex)
+        {
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message));
+        }
+
+        // Call main.
+        TResponse? response;
+        try
+        {
+            TApi api = ActivatorUtilities.CreateInstance<TApi>(provider);
+            request.Context = ctx;
+            response = await api.ProcessAsync(request, ctx.RequestAborted);
+        }
+        catch (SchemaApiException ex)
+        {
+            logger.LogDebug($"A business logic error occurred: {ex.Message}");
+            return Results.Json(GenErrorResponseMessage(requestId, ex.Code, ex.Message, data: ex.AdditionalData));
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug($"An unknown error occurred: {ex.GetInnermostException()}");
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message));
+        }
+
+        // Generate response.
+        logger.LogDebug("API is executed.");
+
+        // Stream
+        if (response?.Output?.Stream != null)
+        {
+            string extension = Path.GetExtension(response.Output.Name);
+            if (string.IsNullOrWhiteSpace(extension)) extension = response.Output.Extension;
+            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.')) extension = $".{extension}";
+            if (string.IsNullOrWhiteSpace(extension) || !new FileExtensionContentTypeProvider().TryGetContentType(extension, out string? contentType))
+                contentType = "text/plain";
+            FileStreamResult result = new(response.Output.Stream, contentType);
+            if (!string.IsNullOrWhiteSpace(response.Output.Name))
+            {
+                result.FileDownloadName = response.Output.Name;
+            }
+            ctx.Response.Headers.AccessControlExposeHeaders = new StringValues("Content-Disposition");
+            return Results.File(response.Output.Stream);
+        }
+
+        return Results.Json(new SchemaApiResponseMessage<TResponse>
+        {
+            Jsonrpc = "2.0",
+            Result = response,
+            Id = requestId
+        });
+    }
+
+    /// <summary>
+    /// Get validation errors
+    /// </summary>
+    static Dictionary<string, object> GetValidationErrors(IEnumerable<ValidationResult> results)
+    {
+        Dictionary<string, object> errors = new();
+        foreach (ValidationResult r in results)
+        {
+            string key = r.MemberNames.First();
+            if (errors.ContainsKey(key))
+                continue;
+            errors.Add(key, r.ErrorMessage ?? "");
+        }
+        return errors;
+    }
+
+    static SchemaApiResponseMessage<SchemaApiResponse> GenErrorResponseMessage(string id, SchemaApiResponseErrorCode code, string? message = null, string? messageKey = null, IDictionary<string, object>? data = null)
+    {
+        return new SchemaApiResponseMessage<SchemaApiResponse>
+        {
+            Jsonrpc = "2.0",
+            Error = new SchemaApiResponseError
+            {
+                Code = code,
+                Message = message,
+                MessageKey = messageKey,
+                Data = data
+            },
+            Id = id
+        };
+    }
 
     /// <summary>
     /// Gets all apis
@@ -625,12 +594,12 @@ public static class SchemaApiExtension
     /// <summary>
     /// Url prefix
     /// </summary>
-    public static string UrlPrefix { get; set; } = "";
+    static string UrlPrefix { get; set; } = "";
 
     /// <summary>
     /// Url suffix
     /// </summary>
-    public static string UrlSuffix { get; set; } = "";
+    static string UrlSuffix { get; set; } = "";
 
     static readonly ConcurrentBag<Assembly> RegisterAssemblys = new();
     static readonly ConcurrentStack<SchemaApiType> ApiTypes = new();
