@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Provider;
+using SchemaNode.Components.Provider;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -58,6 +58,11 @@ public class NamespaceNode: IDisposable
     /// The Sub namespaces
     /// </summary>
     public ConcurrentDictionary<string, NamespaceNode>? Schemas { get; set; }
+    
+    /// <summary>
+    /// Whether the node is used
+    /// </summary>
+    public bool IsUsed => UsedBy is { IsEmpty: false };
 
     #endregion
     
@@ -178,6 +183,21 @@ public class NamespaceNode: IDisposable
             SchemaType.Array => new ArrayNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Function => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(NamespaceNode? schema)
+    {
+        if (schema == null) return null;
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            LoadState = schema.LoadState,
         };
     }
     

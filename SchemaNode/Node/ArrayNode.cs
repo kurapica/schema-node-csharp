@@ -165,4 +165,31 @@ public class ArrayNode: NamespaceNode
     public override ArrayNode? GetArrayNode(bool exactly = false) => null;
 
     #endregion
+
+    #region Conversion
+    
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(ArrayNode? schema)
+    {
+        if (schema == null) return null;
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            LoadState = schema.LoadState,
+            Array = new ArraySchema
+            {
+                Element = schema.Element,
+                Single = schema.Single,
+                Primary = schema.Primary,
+                Combine = schema.Combine,
+                Relations = schema.Relations,
+            }
+        };
+    }
+    
+    #endregion
 }

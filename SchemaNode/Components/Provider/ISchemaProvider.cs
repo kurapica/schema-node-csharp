@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 
-namespace SchemaNode.Provider;
+namespace SchemaNode.Components.Provider;
 
 /// <summary>
 /// The schema provider, used to load schema from storages, network or other resources
@@ -12,9 +12,9 @@ public interface ISchemaProvider
     /// <summary>
     /// Load the schema information
     /// </summary>
-    /// <param name="schemaName">The schema name</param>
+    /// <param name="names">The schema names</param>
     /// <returns>The schema</returns>
-    Task<NodeSchema?> LoadSchemaAsync(string schemaName);
+    Task<NodeSchema[]> LoadSchemaAsync(string[] names);
 
     /// <summary>
     /// Load the application schema information

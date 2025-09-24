@@ -14,12 +14,11 @@
   </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Api\" />
+      <Folder Include="Api\Application\" />
       <Folder Include="Function\" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="DistributedLock" Version="2.7.0" />
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.1.25451.107" />
       <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-rc.1.25451.107" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.1.25451.107" />

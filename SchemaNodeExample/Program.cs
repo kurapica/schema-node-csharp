@@ -1,8 +1,8 @@
-using System.Reflection;
+using System.Text;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.OpenApi;
 using SchemaNode;
-using SchemaNode.DI;
-using SchemaNode.Example;
+using SchemaNode.Components;
 using SchemaNode.Http;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,13 +10,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddSingleton<ILoggerFactory, LoggerFactory>();
 builder.Services.AddTransient(typeof(ILogger<>), typeof(Logger<>));
 builder.Services.AddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
-builder.Services.AddControllers().AddSchemaApis();
 
 // schema
-builder.Services.AddSchemaContext(config => config.PreLoad = true);
+builder.Services.AddSchemaNode(config => config.PreLoad = true);
 
 var app = builder.Build();
 app.UseSchemaApis();
+app.PreLoadSchemaNodes();
 
 // swagger
 EmbeddedFileProvider fileProvider = new(typeof(Program).Assembly, "SchemaNode.Example.Swagger");
@@ -32,10 +32,18 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = fileProvider
 });
-app.MapControllerRoute(nameof(Document), Document.URL, new
+app.MapGet("document.json", () =>
 {
-    controller = nameof(Document),
-    action = nameof(Document.Execute)
+    OpenApiDocument document = SchemaApiDocument.Generate();
+
+    // Serialize the document.
+    StringBuilder resultBuilder = new();
+    TextWriter documentTextWriter = new StringWriter(resultBuilder);
+    IOpenApiWriter documentWriter = new OpenApiJsonWriter(documentTextWriter);
+    document.SerializeAsV31(documentWriter);
+
+    // Finish.
+    return Results.Content(resultBuilder.ToString().Replace("$dynamicRef", "$ref"));
 });
 
 app.Run();

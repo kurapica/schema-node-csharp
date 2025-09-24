@@ -142,11 +142,11 @@ public class ScalarNode: NamespaceNode
 
     #endregion
 
-    #region Method
+     #region Method
 
-    /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
-    {
+     /// <inheritdoc />
+     public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+     {
         ScalarSchema? scalar = schema.Scalar;
 
         // Data
@@ -349,5 +349,37 @@ public class ScalarNode: NamespaceNode
      public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
                                          || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= 128;
 
+     #endregion
+     
+     #region Conversion
+     
+     /// <summary>
+     /// Convert the node to schema
+     /// </summary>
+     public static implicit operator NodeSchema?(ScalarNode? schema)
+     {
+          if (schema == null) return null;
+          return new NodeSchema
+          {
+               Name = schema.Name,
+               Type = schema.Type,
+               Display = schema.Display,
+               LoadState = schema.LoadState,
+               Scalar = new ScalarSchema
+               {
+                    Base = schema.Base,
+                    Unit = schema.Unit,
+                    LowLimit = schema.LowLimit,
+                    UpLimit = schema.UpLimit,
+                    Error = schema.Error,
+                    Regex = schema.Regex,
+                    WhiteList = schema.WhiteList,
+                    AsSuggest = schema.AsSuggest,
+                    PreValid = schema.PreValid,
+                    PostValid = schema.PostValid,
+               }
+          };
+     }
+     
      #endregion
 }

@@ -4,11 +4,11 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Provider;
+using SchemaNode.Components.Provider;
 using SchemaNode.Schema;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
 using static SchemaNode.Utility.Schema;
-using SchemaNode.Attribute;
 
 namespace SchemaNode.Context;
 
@@ -83,8 +83,9 @@ public class SchemaContext
         {
             try
             {
-                NodeSchema? loadSchema = await provider.LoadSchemaAsync(schemaName);
-                if (loadSchema == null) continue;
+                NodeSchema[] loadSchemas = await provider.LoadSchemaAsync([schemaName]);
+                if (loadSchemas.Length == 0) continue;
+                NodeSchema loadSchema = loadSchemas[0];
                 
                 // load provider & state
                 loadSchema.SchemaProvider = provider;
@@ -207,7 +208,7 @@ public class SchemaContext
     /// <summary>
     /// Call the function with arguments and given generic type
     /// </summary>
-    /// <param name="node">The function schema node</param>
+    /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
     /// <returns>The result</returns>
@@ -220,6 +221,107 @@ public class SchemaContext
 
     #endregion
 
+    #region Schema Storage Apis
+
+    /// <summary>
+    /// Save the schema to the storage
+    /// </summary>
+    /// <param name="schema">The schema</param>
+    /// <returns>true if saved</returns>
+    public async Task<bool> SaveSchemaAsync(NodeSchema schema)
+    {
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        bool res = await provider.SaveSchemaAsync(schema);
+        if (res)
+        {
+            await GetSchemaNodeAsync(schema.Name, reload: true); // force reload
+            await this.PublishMessageAsync(new SchemaChangeMessage
+            {
+                Schemas = [schema.Name]
+            });
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Delete the schema from the storage
+    /// </summary>
+    /// <param name="name">The schema</param>
+    /// <returns>true if deleted</returns>
+    public async Task<bool> DeleteSchemaAsync(string name)
+    {
+        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        if (node == null || node.IsUsed) return false;
+        
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        bool res = await provider.DeleteSchemaAsync(name);
+        if (res)
+        {
+            RemoveSchemaNode(name);
+            await this.PublishMessageAsync(new SchemaChangeMessage
+            {
+                DeleteSchemas = [name]
+            });
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Save the sub list for an enum value
+    /// </summary>
+    /// <param name="name">The schema name</param>
+    /// <param name="value">The enum value</param>
+    /// <param name="values">The enum sub list</param>
+    /// <param name="append">Whether append the sub list not replace</param>
+    /// <returns>true if saved</returns>
+    public async Task<bool> SaveEnumSubListAsync(string name, string? value, EnumValueInfo[] values, bool? append)
+    {
+        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        if (node is not EnumNode @enum) return false;
+        
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        bool res = await provider.SaveEnumSubListAsync(node.Name, value, values, append);
+        if (res)
+        {
+            @enum.ResetEnumValueList(value);
+            await this.PublishMessageAsync(new SchemaChangeMessage
+            {
+                Schemas = [name]
+            });
+        }
+        return res;
+    }
+
+    /// <summary>
+    /// Delete the sub list for an enum value
+    /// </summary>
+    /// <param name="name">The schema name</param>
+    /// <param name="value">The enum value</param>
+    /// <returns>true if deleted</returns>
+    public async Task<bool> DeleteEnumSubListAsync(string name, string value)
+    {
+        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        if (node is not EnumNode @enum) return false;
+        
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        bool res = await provider.DeleteEnumSubListAsync(node.Name, value);
+        if (res)
+        {
+            @enum.ResetEnumValueList(value, true);
+            await this.PublishMessageAsync(new SchemaChangeMessage
+            {
+                Schemas = [name]
+            });
+        }
+        return res;
+    }
+
+    #endregion
+    
     #region Schema Methods
 
     /// <summary>
@@ -276,9 +378,36 @@ public class SchemaContext
             node.Display = newSchema.Display;
             node.Release();
             node.Status = SchemaNodeStatus.Ready;
-            await node.LoadAsync(this, newSchema!, preload);
+            await node.LoadAsync(this, newSchema, preload);
         }
         return node;
+    }
+
+    /// <summary>
+    /// Remove a node from cache
+    /// </summary>
+    public bool RemoveSchemaNode(string schemaName)
+    {
+        NamespaceNode node = RootNamespace;
+        if (string.IsNullOrWhiteSpace(schemaName)) return false;
+        
+        // gets the node
+        foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
+                     .Where(s => !string.IsNullOrWhiteSpace(s)))
+        {
+            if (node.Type != SchemaType.Namespace || node.Schemas == null) return false;
+            
+            // Gets the sub node
+            if (!node.Schemas.TryGetValue(path, out NamespaceNode? child)) return false;
+
+            if (child.Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (child.IsUsed) return false;
+                return node.Schemas?.TryRemove(path, out child) ?? false;
+            }
+        }
+
+        return false;
     }
     
     #endregion

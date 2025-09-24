@@ -33,7 +33,6 @@ public static class SchemaApiDocument
         IDictionary<string, IOpenApiSchema> schemas = document.Components!.Schemas;
 
         // Add each API.
-        document.Paths ??= new OpenApiPaths();
         foreach (var (api, url) in SchemaApiExtension.GetSchemaApis())
         {
             // Add document paths.
@@ -78,7 +77,7 @@ public static class SchemaApiDocument
             {
                 if (i >= typeNames.Length || assemblyNames[i] != typeNames[i]) break;
             }
-            category = string.Join(".", typeNames.Skip(i).Select(s => s.ToLower()).ToArray());
+            category = string.Join(".", typeNames.Skip(i).SkipLast(1).Select(s => s.ToLower()).ToArray());
         }
         
         // Create the operation.

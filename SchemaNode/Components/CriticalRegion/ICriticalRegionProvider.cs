@@ -1,4 +1,4 @@
-﻿namespace SchemaNode.DI;
+﻿namespace SchemaNode.Components;
 
 /// <summary>
 /// Defines the contract of a <see cref="ICriticalRegion" /> provider.

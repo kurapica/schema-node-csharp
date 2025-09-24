@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace SchemaNode.DI;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// Represents a local <see cref="CriticalRegion" /> provider.

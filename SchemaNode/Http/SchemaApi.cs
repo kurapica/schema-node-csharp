@@ -1,17 +1,20 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
-using System.Net;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
-using SchemaNode.DI;
+using SchemaNode.Context;
+using SchemaNode.Components;
+using SchemaNode.Components.Provider;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Http;
@@ -20,42 +23,19 @@ public abstract class SchemaApi<TRequest, TResponse>
     where TRequest : SchemaApiRequest
     where TResponse : SchemaApiResponse
 {
-    
-    #region Constructors
+    #region Execute
 
     /// <summary>
-    /// Constructor
+    /// Execute the request, don't override or use it
     /// </summary>
-    protected SchemaApi(IServiceProvider serviceProvider)
+    public async Task<TResponse?> _ExecuteAsync(TRequest request, ILogger logger)
     {
-        ServiceProvider = serviceProvider;
-        Logger = serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(this.GetType());
-        _criticalRegionProviderThunk = new Lazy<ICriticalRegionProvider>(serviceProvider.GetRequiredService<ICriticalRegionProvider>);
+        Services = request.Context!.RequestServices;
+        Logger = logger;
+        _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(Services.GetRequiredService<ICriticalRegionProvider>);
+        _schemaContext = new Lazy<SchemaContext>(Services.GetRequiredService<SchemaContext>);
+        return await ExecuteAsync(request, request.Context.RequestAborted);
     }
-
-    #endregion
-
-    #region Metadata
-
-    /// <summary>
-    /// The service provider.
-    /// </summary>
-    protected IServiceProvider ServiceProvider { get; }
-    
-    /// <summary>
-    /// The logger.
-    /// </summary>
-    protected ILogger Logger { get; set; }
-
-    /// <summary>
-    /// Gets the <see cref="ICriticalRegion" /> provider.
-    /// </summary>
-    protected ICriticalRegionProvider CriticalRegionProvider => _criticalRegionProviderThunk.Value;
-    readonly Lazy<ICriticalRegionProvider> _criticalRegionProviderThunk;
-
-    #endregion
-
-    #region Main
     
     /// <summary>
     /// Process the request
@@ -63,64 +43,48 @@ public abstract class SchemaApi<TRequest, TResponse>
     /// <param name="request"></param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    public virtual Task<TResponse?> ProcessAsync(TRequest request, CancellationToken cancellationToken) => Task.FromResult(default(TResponse));
-
-    /// <summary>
-    /// Called to handle request and generate response.
-    /// </summary>
-    protected abstract Task<TResponse> MainAsync(TRequest request);
-
-    /// <summary>
-    /// Creates an exception that represents a parameter error.
-    /// </summary>
-    [DebuggerHidden]
-    protected SchemaApiException CreateParameterException(IDictionary<string, string> errorMessages)
-    {
-        IDictionary<string, object> errorData = errorMessages.ToDictionary(keyValuePair => keyValuePair.Key, keyValuePair => (object)keyValuePair.Value);
-        return new SchemaApiException(SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: errorData);
-    }
-
-    /// <summary>
-    /// Creates an exception that represents a parameter error.
-    /// </summary>
-    [DebuggerHidden]
-    protected SchemaApiException CreateParameterException(string field, string message)
-    {
-        return new SchemaApiException(SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: new Dictionary<string, object>
-        {
-            { field, message }
-        });
-    }
-
-
+    protected virtual Task<TResponse?> ExecuteAsync(TRequest request, CancellationToken cancellationToken) => Task.FromResult(default(TResponse));
+    
     #endregion
-
-    #region States
+    
+    #region Metadata
+    
+    /// <summary>
+    /// The logger.
+    /// </summary>
+    protected ILogger Logger { get; private set; } = null!;
 
     /// <summary>
-    /// Gets the request ID.
+    /// The service provider.
     /// </summary>
-    protected string RequestId { get; private set; } = string.Empty;
+    protected IServiceProvider Services { get; private set; } = null!;
 
+    /// <summary>
+    /// The schema context
+    /// </summary>
+    protected SchemaContext SchemaContext => _schemaContext.Value;
+    private Lazy<SchemaContext> _schemaContext = null!;
+    
     #endregion
-
-    #region Implementations
-
-    #endregion
-
+    
     #region Lock
 
     /// <summary>
     /// Lock by key
     /// </summary>
     protected Task<ICriticalRegion> GetLockAsync(string lockKey, params object[] args)
-        => CriticalRegionProvider.AcquireAsync(string.Format(lockKey, args));
+        => _criticalRegionProvider.Value.AcquireAsync(string.Format(lockKey, args));
 
     /// <summary>
     /// Lock by key with timeout
     /// </summary>
     protected Task<ICriticalRegion> GetLockAsync(string lockKey, TimeSpan timeout, params object[] args)
-        => CriticalRegionProvider.AcquireAsync(string.Format(lockKey, args), timeout);
+        => _criticalRegionProvider.Value.AcquireAsync(string.Format(lockKey, args), timeout);
+
+    /// <summary>
+    /// The critical region provider
+    /// </summary>
+    private Lazy<ICriticalRegionProvider> _criticalRegionProvider = null!;
 
     #endregion
 }
@@ -128,7 +92,7 @@ public abstract class SchemaApi<TRequest, TResponse>
 #region Inner Types
 
 /// <summary>
-/// Contains the base implementation of a microservice API request.
+/// Contains the base implementation api request.
 /// </summary>
 public abstract class SchemaApiRequest
 {
@@ -137,8 +101,17 @@ public abstract class SchemaApiRequest
     /// </summary>
     [JsonIgnore]
     public HttpContext? Context { get; set; }
+    
+    /// <summary>
+    /// The upload files
+    /// </summary>
+    [JsonIgnore]
+    public IFormFileCollection? Files { get; set; }
 }
 
+/// <summary>
+/// Contains the base implementation api response.
+/// </summary>
 public abstract class SchemaApiResponse
 {
     /// <summary>
@@ -221,6 +194,11 @@ public class SchemaApiResponseMessage<TResponse>
     /// It MUST be the same as the value of the id member in the Request Object. If there was an error in detecting the id in the Request object (e.g. Parse error/Invalid Request), it MUST be Null.
     /// </summary>
     public string? Id { get; set; }
+    
+    /// <summary>
+    /// The api execute time(in ms)
+    /// </summary>
+    public long? ExecuteTime { get; set; }
 }
 
 /// <summary>
@@ -349,29 +327,22 @@ public class SchemaApiException : Exception
 public static class SchemaApiExtension
 {
     /// <summary>
-    /// Add SchemaApis
+    /// Add schema apis in an Assembly of the given type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="builder"></param>
-    /// <returns></returns>
-    public static IMvcBuilder AddSchemaApis<T>(this IMvcBuilder builder)
+    public static WebApplication AddSchemaApis<T>(this WebApplication app)
     {
-        return AddSchemaApis(builder, typeof(T).Assembly);
+        return AddSchemaApis(app, typeof(T).Assembly);
     }
 
-    public static IMvcBuilder AddSchemaApis(this IMvcBuilder builder, Assembly? aseembly = null)
+    /// <summary>
+    /// Add schema apis in an assembly, the entry assembly and SchemaNode will be added automatically
+    /// </summary>
+    public static WebApplication AddSchemaApis(this WebApplication app, Assembly? assembly = null)
     {
-        aseembly ??= Assembly.GetEntryAssembly();
-        if (RegisterAssemblys.Contains(aseembly)) return builder;
-        RegisterAssemblys.Add(aseembly!);
-        
-        // register default schema apis
-        AddSchemaApis(builder, typeof(SchemaApiExtension).Assembly);
-        
-        if (builder.PartManager.ApplicationParts.All(p => p.Name != aseembly!.GetName().Name))
-            builder.AddApplicationPart(aseembly!);
-
-        return builder;
+        assembly ??= Assembly.GetEntryAssembly();
+        if (RegisterAssemblys.Contains(assembly)) return app;
+        RegisterAssemblys.Add(assembly!);
+        return app;
     }
 
     /// <summary>
@@ -381,27 +352,45 @@ public static class SchemaApiExtension
     /// <param name="prefix"></param>
     /// <param name="suffix"></param>
     /// <returns></returns>
-    public static WebApplication UseSchemaApis(this WebApplication app, string prefix = "", string suffix = "")
+    public static IEndpointRouteBuilder UseSchemaApis(this IEndpointRouteBuilder app, string prefix = "", string suffix = "")
     {
         UrlPrefix = prefix;
         UrlSuffix = suffix;
+        
+        // add default Assembly
+        Assembly schemaAssembly = typeof(SchemaApiExtension).Assembly;
+        if (!RegisterAssemblys.Contains(schemaAssembly)) RegisterAssemblys.Add(schemaAssembly);
+        Assembly? assembly = Assembly.GetEntryAssembly();
+        if (!RegisterAssemblys.Contains(assembly)) RegisterAssemblys.Add(assembly!);
 
-        while (RegisterAssemblys.TryTake(out Assembly? assembly))
+        IServiceProviderIsService service = app.ServiceProvider.GetRequiredService<IServiceProviderIsService>();
+        bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
+
+        while (RegisterAssemblys.TryTake(out assembly))
         {
             foreach (Type type in assembly.GetTypes().Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
             {
+                // Register schema apis based on services
+                if (assembly == schemaAssembly)
+                {
+                    // no storage no edit
+                    if (type.FullName!.Contains(nameof(SchemaNode.Api.Schema.Edit)))
+                    {
+                        if (!hasSchemaStorage) continue;
+                    }
+                }
+                
                 Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
                 Type requestType = apiBaseType.GetGenericArguments()[0];
                 Type responseType = apiBaseType.GetGenericArguments()[1];
 
                 ApiTypes.Push(new SchemaApiType(type, requestType, responseType));
 
-                var task = typeof(SchemaApiExtension).GetMethod(nameof(ProcessHttpContextAsync))!.MakeGenericMethod(type, requestType, responseType);
-
-                app.MapPost(GetRequestUrl(requestType),  async (HttpContext ctx) =>
+                MethodInfo task = typeof(SchemaApiExtension).GetMethod(nameof(ProcessSchemaApiAsync),BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(type, requestType, responseType);
+                app.MapPost(GetRequestUrl(requestType), async (HttpContext ctx) =>
                 {
-                    var taskObj = (Task<IResult>)task.Invoke(null, new object[] { ctx })!;
-                    return await taskObj;
+                    Task<IResult> res = (Task<IResult>)task.Invoke(null, [ctx])!;
+                    return await res;
                 });
                 Console.WriteLine($"<{type.Name}> is now listening.");
             }
@@ -411,23 +400,44 @@ public static class SchemaApiExtension
 
 
     #region Utility
-    static async Task<IResult> ProcessHttpContextAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
+    
+    static readonly AsyncLocal<Stopwatch> StopWatch = new ();
+    
+    static async Task<IResult> ProcessSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
         where TApi: SchemaApi<TRequest, TResponse>
         where TRequest: SchemaApiRequest
         where TResponse: SchemaApiResponse
     {
+        StopWatch.Value ??= new Stopwatch();
+        StopWatch.Value.Start();
+        
         var provider = ctx.RequestServices;
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
 
         // Parse request.
-        logger.LogDebug("API is being executed ...");
+        logger.LogDebug("{0} API is being executed ...", typeof(TApi).Name);
         ctx.Request.EnableBuffering();
-        string requestBody;
+        string requestBody = "";
         string requestId = string.Empty;
+        IFormFileCollection? files = null;
         try
         {
-            ctx.Request.Body.Position = 0;
-            requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+            if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Request.Body.Position = 0;
+                requestBody = await new StreamReader(ctx.Request.Body).ReadToEndAsync();
+            }
+            else if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("multipart/form-data", StringComparison.OrdinalIgnoreCase))
+            {
+                files = ctx.Request.Form.Files;
+                JsonObject result = new ();
+                foreach (KeyValuePair<string, StringValues> item in ctx.Request.Form)
+                {
+                    if (!string.IsNullOrEmpty(item.Value))
+                        result.Add(item.Key, item.Key.Equals("Params", StringComparison.OrdinalIgnoreCase) ? JsonNode.Parse(item.Value!) : JsonValue.Create(item.Value));
+                }
+                requestBody = result.ToString();
+            }
         }
         catch
         {
@@ -476,7 +486,8 @@ public static class SchemaApiExtension
         {
             TApi api = ActivatorUtilities.CreateInstance<TApi>(provider);
             request.Context = ctx;
-            response = await api.ProcessAsync(request, ctx.RequestAborted);
+            request.Files = files;
+            response = await api._ExecuteAsync(request, logger);
         }
         catch (SchemaApiException ex)
         {
@@ -490,8 +501,9 @@ public static class SchemaApiExtension
         }
 
         // Generate response.
-        logger.LogDebug("API is executed.");
-
+        StopWatch.Value?.Stop();
+        logger.LogDebug("{0} API is executed, cost {1}.", typeof(TApi).Name, StopWatch.Value?.ElapsedMilliseconds);
+        
         // Stream
         if (response?.Output?.Stream != null)
         {
@@ -513,7 +525,8 @@ public static class SchemaApiExtension
         {
             Jsonrpc = "2.0",
             Result = response,
-            Id = requestId
+            Id = requestId,
+            ExecuteTime = StopWatch.Value?.ElapsedMilliseconds
         });
     }
 
@@ -535,6 +548,7 @@ public static class SchemaApiExtension
 
     static SchemaApiResponseMessage<SchemaApiResponse> GenErrorResponseMessage(string id, SchemaApiResponseErrorCode code, string? message = null, string? messageKey = null, IDictionary<string, object>? data = null)
     {
+        StopWatch.Value?.Stop();
         return new SchemaApiResponseMessage<SchemaApiResponse>
         {
             Jsonrpc = "2.0",
@@ -543,9 +557,10 @@ public static class SchemaApiExtension
                 Code = code,
                 Message = message,
                 MessageKey = messageKey,
-                Data = data
+                Data = data,
             },
-            Id = id
+            Id = id,
+            ExecuteTime = StopWatch.Value?.ElapsedMilliseconds
         };
     }
 
@@ -559,14 +574,6 @@ public static class SchemaApiExtension
         {
             yield return (api, GetRequestUrl(api.Request));
         }
-    }
-
-    /// <summary>
-    /// Gets the request url
-    /// </summary>
-    public static string GetRequestUrl<T>() where T : SchemaApiRequest
-    {
-        return GetRequestUrl(typeof(T));
     }
 
     public static string GetRequestUrl(Type type)

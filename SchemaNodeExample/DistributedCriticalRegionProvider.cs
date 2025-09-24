@@ -1,11 +1,12 @@
 ﻿using Medallion.Threading;
 using Medallion.Threading.Redis;
 using StackExchange.Redis;
+using SchemaNode.Components;
 
-namespace SchemaNode.DI;
+namespace SchemaNode.Example;
 
 /// <summary>
-/// Represents a distributed <see cref="CriticalRegion" /> provider.
+/// Represents a distributed <see cref="ICriticalRegion" /> provider.
 /// </summary>
 public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDisposable
 {

@@ -243,4 +243,29 @@ public class StructNode: NamespaceNode
     }
 
     #endregion
+    
+    #region Conversion
+    
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(StructNode? schema)
+    {
+        if (schema == null) return null;
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            LoadState = schema.LoadState,
+            Struct = new StructSchema
+            {
+                Base = schema.Base,
+                Relations = schema.Relations,
+                Fields = schema.Fields,
+            }
+        };
+    }
+    
+    #endregion
 }

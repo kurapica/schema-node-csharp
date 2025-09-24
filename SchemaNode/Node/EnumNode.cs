@@ -137,11 +137,15 @@ public class EnumNode: NamespaceNode
     /// <param name="context">The schema context</param>
     /// <param name="value">The enum value for access</param>
     /// <param name="noSubList">no sub list should be loaded</param>
+    /// <param name="withSubList">with the value's sub list</param>
     /// <returns></returns>
-    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList)
+    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList, bool? withSubList)
     {
         EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
-        EnumValueAccess[] result = new EnumValueAccess[accesses.Length - 1];
+        if (accesses.Length == 0) return [];
+        
+        withSubList = (withSubList ?? false) && accesses.Length < (Cascade?.Length ?? 1) && accesses.Last().SubList is { Length: > 0};
+        EnumValueAccess[] result = new EnumValueAccess[withSubList.Value ? accesses.Length : (accesses.Length - 1)];
         for (int i = 0; i < accesses.Length - 1; i++)
         {
             result[i] = new EnumValueAccess
@@ -151,8 +155,33 @@ public class EnumNode: NamespaceNode
                 SubList = (noSubList ?? false) ? null : accesses[i].SubList?.Select(a => a.Clone()).ToArray()
             };
         }
+
+        if (withSubList.Value)
+        {
+            result[accesses.Length - 1] = new EnumValueAccess
+            {
+                Value = "",
+                Name = Cascade?[accesses.Length - 1],
+                SubList = accesses.Last().SubList?.Select(a => a.Clone()).ToArray()
+            };
+        }
         
         return result;
+    }
+
+    /// <summary>
+    /// Reset enum value sub list
+    /// </summary>
+    /// <param name="value"></param>
+    public void ResetEnumValueList(string value, bool drop = false)
+    {
+        // check existed
+        EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
+        if (accesses is { Length: > 0 })
+        {
+            accesses.Last().SubList = null;
+            if (drop) accesses.Last().HasSubList = false;
+        }
     }
 
     /// <inheritdoc />
@@ -290,6 +319,31 @@ public class EnumNode: NamespaceNode
     }
 
     private readonly Lock _lock = new();
+    
+    #endregion
+    
+    #region Conversion
+    
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(EnumNode? schema)
+    {
+        if (schema == null) return null;
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            LoadState = schema.LoadState,
+            Enum = new EnumSchema
+            {
+                Type = schema.ValueType,
+                Cascade = schema.Cascade,
+                Values = schema.Root.SubList?.Select(a => a.Clone()).ToArray() ?? []
+            }
+        };
+    }
     
     #endregion
 }

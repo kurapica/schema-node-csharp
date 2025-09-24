@@ -7,7 +7,43 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="" />
+    <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/DeleteEnumSubList.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/DeleteSchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveEnumSubList.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/CallFunction.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadEnumAccessList.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadEnumSubList.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadSchema.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Message/IMessageHandler.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/IAppSchemaDataProvider.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/ISchemaStorageProvider.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaChangeMessage.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/DistributedCriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/DistributedCriticalRegionProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/ICriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/CriticalRegion/ICriticalRegionProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/LocalCriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/CriticalRegion/LocalCriticalRegionProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Http/SchemaApiDocument.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApiDocument.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/ISchemaProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloApi.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/Api/HelloApi.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloRequest.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloResponse.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -21,11 +57,24 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/1b4d58039305476fac8d2a391a3edde5f83200/13/de3819d3/TypeCode.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/1b4d58039305476fac8d2a391a3edde5f83200/6b/e5a0e9dc/IDisposable.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/137e6cca078ed7a8d6c7f926c8bbbb06b863be4cdba0503daf305e606d131c/EndpointRouteBuilderExtensions.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/47c5b075d224daf3dd991dbdde5597e170483a5c76d48550a760962b93d5a2/DefaultHttpContext.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/4e977b4a10fa419fcc7efedb881f7b209fa140b1e3d0f4b371bb4ba17a173bf/JsonNode.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/5094e71058416d72278f32a6913f67a9c664bd46c296c5cce3ee63993dde3f/Type.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/5ef9e37e2f99ef2688a1586afed1cff6eef912a11aa9b20a56943a255a6e6b/RuntimeHelpers.CoreCLR.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/7e333a9f3297ba553cccfd3b7c3f1f96125b23d09f883e4d6e66d531559a4c/Type.CoreCLR.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/94b799f3ea3fd61ef4d99dc13b8bdcdacd3852900b5c8ac36aad5d76cf18b/MethodBaseInvoker.CoreCLR.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/9f9efacb2d7225c3beafa7bbeb82ba652aacc3e0faf1a1d8a6a9e8146c6eb240/ServiceProviderServiceExtensions.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/a1486c8dbbbc2d8a8acfa6de27abf918d3f654c3e71f3a10c2c369f1c76f6b6/MvcServiceCollectionExtensions.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/a6d7c3abd4bb25b143ddc7a36ea5f74afd9a85471a3df5ea5d0653fea102b/ControllerEndpointRouteBuilderExtensions.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/b2e81feaa1a753a129436e86d63f443b1b2d6314d40d9a0711c6bdf11dde/JsonObject.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/c05785bcebd2c944852db620e6681c606cd57f85b59fc5ddfcfbe9a68d634f/MemoryMarshal.CoreCLR.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/d6b757e154dd7f8c23e0e785431c97a76e4b9c6bdae38b978238421dbab55d/MethodBaseInvoker.cs" root0="FORCE_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/f0c16cda8a141e194c9151fd8f6acd0f93ef39e54a2a250baf2e5b2fa1fac6/WebApplication.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="MetaFilesCheckinStateConfiguration" checkMetaFiles="true" />
@@ -40,20 +89,21 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;.NET 启动设置配置文件.SchemaNodeExample: http.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;dev&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    ".NET 启动设置配置文件.SchemaNodeExample: http.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "dev",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "RiderCSharpFileTemplatesSettingsId",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RunManager">
     <configuration name="SchemaNodeExample: http" type="LaunchSettings" factoryName=".NET Launch Settings Profile">
       <option name="LAUNCH_PROFILE_PROJECT_FILE_PATH" value="$PROJECT_DIR$/SchemaNodeExample/SchemaNodeExample.csproj" />
@@ -93,6 +143,8 @@
       <workItem from="1758161467999" duration="24587000" />
       <workItem from="1758243824959" duration="31024000" />
       <workItem from="1758506045617" duration="13211000" />
+      <workItem from="1758597787941" duration="13508000" />
+      <workItem from="1758675991628" duration="27541000" />
     </task>
     <servers />
   </component>
@@ -126,22 +178,14 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
   <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <breakpoints>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs</url>
-          <line>229</line>
-          <properties documentPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" containingFunctionPresentation="方法 'GetSchemaNodeAsync'">
-            <startOffsets>
-              <option value="7509" />
-            </startOffsets>
-            <endOffsets>
-              <option value="7545" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="11" />
-        </line-breakpoint>
-      </breakpoints>
-    </breakpoint-manager>
+    <watches-manager>
+      <configuration name="LaunchSettings">
+        <watch expression="typeof(SchemaApiExtension).GetMethods()" language="C#" />
+      </configuration>
+    </watches-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>

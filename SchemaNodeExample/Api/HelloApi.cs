@@ -7,19 +7,8 @@ namespace SchemaNode.Example.Api;
 /// </summary>
 public class HelloApi : SchemaApi<HelloRequest, HelloResponse>
 {
-    #region Constructors
-
     /// <inheritdoc />
-    public HelloApi(IServiceProvider serviceProvider) : base(serviceProvider)
-    {
-    }
-
-    #endregion
-
-    #region Main
-
-    /// <inheritdoc />
-    protected override async Task<HelloResponse> MainAsync(HelloRequest request)
+    protected override async Task<HelloResponse?> ExecuteAsync(HelloRequest request, CancellationToken cancellationToken)
     {
         Logger.LogDebug("[Api]{api} [Request]{request}", nameof(HelloApi), request);
 
@@ -31,6 +20,20 @@ public class HelloApi : SchemaApi<HelloRequest, HelloResponse>
             Response = $"Hi, {request.Name}"
         };
     }
+}
 
-    #endregion
+/// <summary>
+/// The Hello request data
+/// </summary>
+public class HelloRequest : SchemaApiRequest
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// The Hello response data
+/// </summary>
+public class HelloResponse: SchemaApiResponse
+{
+    public required string Response { get; set; } 
 }

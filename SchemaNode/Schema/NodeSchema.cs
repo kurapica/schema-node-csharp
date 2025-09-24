@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Provider;
+using SchemaNode.Components.Provider;
 
 namespace SchemaNode.Schema;
 

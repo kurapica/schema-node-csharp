@@ -1770,6 +1770,46 @@ public class FunctionNode: NamespaceNode
     }
 
     #endregion
+    
+    #region Conversion
+    
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(FunctionNode? schema)
+    {
+        if (schema == null) return null;
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            LoadState = schema.LoadState,
+            Func = new FunctionSchema
+            {
+                Return = schema.Return,
+                Args = schema.Args.Select(a => new FunctionArgumentInfo
+                {
+                    Name = a.Name,
+                    Type = a.Type,
+                    Nullable = a.Nullable
+                }).ToArray(),
+                Exps = schema.Exps.Select(e => new FunctionExpression
+                {
+                    Name = e.Name,
+                    Func = e.Func,
+                    Type = e.Type ?? ExpressionType.Call,
+                    Return = e.Return,
+                    Args = e.Args
+                }).ToArray(),
+                Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
+                Server = schema.Server,
+                Nocache = schema.Nocache,
+            }
+        };
+    }
+    
+    #endregion
 }
 
 /// <summary>
