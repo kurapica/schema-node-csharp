@@ -1,13 +1,14 @@
-using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Attribute;
+using SchemaNode.Components;
+using SchemaNode.Components.Provider;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Components.Provider;
 using SchemaNode.Schema;
+using System.Reflection;
 using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode;
@@ -28,6 +29,9 @@ public static class Injection
         // message handlers
         Components.SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers<SchemaContext>(services);
         Components.SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers(services, Assembly.GetEntryAssembly());
+
+        // critical region
+        services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
 
         // The schema context
         services.AddScoped<SchemaContext>();

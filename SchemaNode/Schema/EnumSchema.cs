@@ -105,29 +105,24 @@ public class EnumValueInfo
         if (accesses.Length == 0) return;
         EnumValueAccess current = accesses[0];
 
-        if (current.SubList is not null && current.SubList.Length > 0)
+        if (current.SubList is not null)
         {
-            if (SubList is null || SubList.Length != current.SubList.Length)
-            {
-                // replace with new
-                if (SubList is not null && SubList.Length > 0) {
-                    foreach (EnumValueInfo v in current.SubList)
-                    {
-                        EnumValueInfo? match = SubList!.FirstOrDefault(x => x.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase));
-                        if (match is not null) v.SubList = match.SubList;
-                    }
+            // replace with new
+            if (SubList is not null && SubList.Length > 0) {
+                foreach (EnumValueInfo v in current.SubList)
+                {
+                    EnumValueInfo? match = SubList!.FirstOrDefault(x => x.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase));
+                    if (match is not null) v.SubList = match.SubList;
                 }
-
-                SubList = current.SubList;
             }
+
+            SubList = current.SubList;
 
             if (accesses.Length > 1)
             {
                 EnumValueInfo? match = SubList!.FirstOrDefault(x => x.Value.Equals(current.Value, StringComparison.OrdinalIgnoreCase));
                 if (match is not null)
-                {
                     match.CombineAccessList(accesses.Skip(1).ToArray());
-                }
             }
         }
     }

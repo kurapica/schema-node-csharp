@@ -1,7 +1,6 @@
-using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 
@@ -143,15 +142,19 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public async Task<bool> SaveEnumSubListAsync(string schema, string? value, EnumValueInfo[] values, bool? append)
+    public async Task<bool> SaveEnumSubListAsync(EnumNode @enum, string? value, EnumValueInfo[] values, bool? append)
     {
-        throw new NotImplementedException();
+        @enum.SaveEnumSubListAsync(value, values); // do it directly for simple @TODO 
+        await SaveSchemaAsync(@enum.ToNodeSchema(99));
+        return true;
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteEnumSubListAsync(string schema, string value)
+    public async Task<bool> DeleteEnumSubListAsync(EnumNode @enum, string value)
     {
-        throw new NotImplementedException();
+        @enum.DeleteEnumSubListAsync(value); // do it directly for simple @TODO 
+        await SaveSchemaAsync(@enum.ToNodeSchema(99));
+        return true;
     }
     
     public SchemaLoadState? DefaultLoadState { get; } = SchemaLoadState.Server;

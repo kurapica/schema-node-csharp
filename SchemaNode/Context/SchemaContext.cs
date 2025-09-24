@@ -283,10 +283,10 @@ public class SchemaContext
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
-        bool res = await provider.SaveEnumSubListAsync(node.Name, value, values, append);
+        bool res = await provider.SaveEnumSubListAsync(@enum, value, values, append);
         if (res)
         {
-            @enum.ResetEnumValueList(value);
+            @enum.SaveEnumSubListAsync(value, values);
             await this.PublishMessageAsync(new SchemaChangeMessage
             {
                 Schemas = [name]
@@ -308,10 +308,10 @@ public class SchemaContext
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
-        bool res = await provider.DeleteEnumSubListAsync(node.Name, value);
+        bool res = await provider.DeleteEnumSubListAsync(@enum, value);
         if (res)
         {
-            @enum.ResetEnumValueList(value, true);
+            @enum.DeleteEnumSubListAsync(value);
             await this.PublishMessageAsync(new SchemaChangeMessage
             {
                 Schemas = [name]

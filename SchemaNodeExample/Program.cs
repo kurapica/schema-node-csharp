@@ -2,20 +2,25 @@ using System.Text;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi;
 using SchemaNode;
-using SchemaNode.Components;
+using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 
 var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddSingleton<ILoggerFactory, LoggerFactory>();
-builder.Services.AddTransient(typeof(ILogger<>), typeof(Logger<>));
-builder.Services.AddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // schema
-builder.Services.AddSchemaNode(config => config.PreLoad = true);
+builder.Services.AddSchemaNode(config => config.PreLoad = true).AddSchemaStorageProvider<JsonSchemaStorageProvider>();
 
 var app = builder.Build();
-app.UseSchemaApis();
+app.UseSchemaApis("schema");
 app.PreLoadSchemaNodes();
 
 // swagger
@@ -32,6 +37,7 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = fileProvider
 });
+
 app.MapGet("document.json", () =>
 {
     OpenApiDocument document = SchemaApiDocument.Generate();

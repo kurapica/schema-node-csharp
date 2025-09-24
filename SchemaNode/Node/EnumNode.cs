@@ -170,17 +170,32 @@ public class EnumNode: NamespaceNode
     }
 
     /// <summary>
-    /// Reset enum value sub list
+    /// Save enum value sub list
     /// </summary>
-    /// <param name="value"></param>
-    public void ResetEnumValueList(string value, bool drop = false)
+    public void SaveEnumSubListAsync(string? value, EnumValueInfo[] values)
     {
         // check existed
         EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
         if (accesses is { Length: > 0 })
         {
-            accesses.Last().SubList = null;
-            if (drop) accesses.Last().HasSubList = false;
+            accesses.Last().CombineAccessList([ new EnumValueAccess
+            {
+                Value = "",
+                SubList = values
+            } ]);
+        }
+    }
+
+    public void DeleteEnumSubListAsync(string? value)
+    {
+        // check existed
+        EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
+        if (accesses is { Length: > 0 })
+        {
+            EnumValueInfo last = accesses.Last();
+            last.SubList = null;
+            last.HasSubList = false;
+            last.IsFullyLoaded = true;
         }
     }
 
@@ -250,6 +265,26 @@ public class EnumNode: NamespaceNode
 
     /// <inheritdoc />
     public override bool IsIndexable => ValueType is EnumValueType.String or EnumValueType.Int or EnumValueType.Flags;
+
+    /// <summary>
+    /// Convert to node schema
+    /// </summary>
+    public NodeSchema ToNodeSchema(int limitLevel = 0)
+    {
+        return new NodeSchema
+        {
+            Name = Name,
+            Type = Type,
+            Display = Display,
+            LoadState = LoadState,
+            Enum = new EnumSchema
+            {
+                Type = ValueType,
+                Cascade = Cascade,
+                Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? []
+            }
+        };
+    }
 
     #endregion
 
@@ -329,20 +364,7 @@ public class EnumNode: NamespaceNode
     /// </summary>
     public static implicit operator NodeSchema?(EnumNode? schema)
     {
-        if (schema == null) return null;
-        return new NodeSchema
-        {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Enum = new EnumSchema
-            {
-                Type = schema.ValueType,
-                Cascade = schema.Cascade,
-                Values = schema.Root.SubList?.Select(a => a.Clone()).ToArray() ?? []
-            }
-        };
+        return schema?.ToNodeSchema();
     }
     
     #endregion
