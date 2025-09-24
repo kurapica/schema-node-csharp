@@ -122,7 +122,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             };
             await WriteSchemaFile(Path.Combine(folder, $"{paths.Last()}.{type}.json"), schema);
         }
-        
+        return true;
     }
 
     /// <inheritdoc />
@@ -138,6 +138,8 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         {
             File.Delete(res!.Value.file);
         }
+
+        return true;
     }
 
     /// <inheritdoc />
