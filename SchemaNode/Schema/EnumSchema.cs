@@ -17,7 +17,7 @@ public class EnumSchema
     /// <summary>
     /// The cascades of the enum value
     /// </summary>
-    public string[]? Cascade { get; set; }
+    public LocaleString[]? Cascade { get; set; }
 
     /// <summary>
     /// The enum values
@@ -173,7 +173,7 @@ public class EnumValueAccess
     /// <summary>
     /// The cascade name
     /// </summary>
-    public string? Name { get; set; }
+    public LocaleString? Name { get; set; }
     
     /// <summary>
     /// The enum value of the cascade

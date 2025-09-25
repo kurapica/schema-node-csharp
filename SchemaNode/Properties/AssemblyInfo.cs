@@ -1,4 +1,4 @@
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
 
-[assembly: SchemaNameSpace(NS_SYSTEM_SCHEMA)]
+[assembly: SchemaNameSpace(NS_SYSTEM_SCHEMA, "System Types")]

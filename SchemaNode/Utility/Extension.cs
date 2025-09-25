@@ -44,7 +44,7 @@ public static class Extension
 
     #region JSON
 
-    class JsonDateTimeIsoConverter : JsonConverter<DateTime>
+    public class JsonDateTimeIsoConverter : JsonConverter<DateTime>
     {
         private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
@@ -59,7 +59,7 @@ public static class Extension
         }
     }
 
-    class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
+    public class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
     {
         private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
@@ -79,22 +79,11 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    /// <param name="options">The serialization options.</param>
+    /// <param name="indent">Whether use indent</param>
     public static string ToJson<T>(this T value, bool indent = false)
     {
         // Generate the JSON string.
-        return JsonSerializer.Serialize<T>(value, new JsonSerializerOptions
-        {
-            WriteIndented = indent,
-            Converters =
-            {
-                new JsonStringEnumConverter(),
-                new JsonDateTimeIsoConverter(),
-                new JsonDateTimeOffetIsoConverter(),
-            },
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        });
+        return JsonSerializer.Serialize<T>(value, indent ? IndentJsonOption : NoIndentJsonOption);
     }
 
     /// <summary>
@@ -104,16 +93,7 @@ public static class Extension
     /// <param name="value">The value.</param>
     public static T? FromJson<T>(this string value)
     {
-        return JsonSerializer.Deserialize<T>(value, new JsonSerializerOptions
-        {
-            Converters =
-            {
-                new JsonStringEnumConverter(),
-                new JsonDateTimeIsoConverter(),
-                new JsonDateTimeOffetIsoConverter(),
-            },
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        return JsonSerializer.Deserialize<T>(value, NoIndentJsonOption);
     }
 
     /// <summary>
@@ -128,16 +108,7 @@ public static class Extension
         if (type == typeof(DateTime))
             return DateTime.Parse(value);
 
-        return JsonSerializer.Deserialize(value, type, new JsonSerializerOptions
-        {
-            Converters =
-            {
-                new JsonStringEnumConverter(),
-                new JsonDateTimeIsoConverter(),
-                new JsonDateTimeOffetIsoConverter(),
-            },
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+        return JsonSerializer.Deserialize(value, type, NoIndentJsonOption);
     }
 
     /// <summary>
@@ -165,6 +136,32 @@ public static class Extension
             a.Add(item);
         }
     }
+
+    private static JsonSerializerOptions IndentJsonOption = new()
+    {
+        WriteIndented = true,
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+            new JsonDateTimeIsoConverter(),
+            new JsonDateTimeOffetIsoConverter(),
+        },
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+    
+    private static JsonSerializerOptions NoIndentJsonOption = new()
+    {
+        WriteIndented = false,
+        Converters =
+        {
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+            new JsonDateTimeIsoConverter(),
+            new JsonDateTimeOffetIsoConverter(),
+        },
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
     
     #endregion
     

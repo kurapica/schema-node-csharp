@@ -19,6 +19,11 @@ public enum RelationType
     Invisible,
 
     /// <summary>
+    /// Visible
+    /// </summary>
+    Visible,
+    
+    /// <summary>
     /// Disable
     /// </summary>
     Disable,

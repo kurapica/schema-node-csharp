@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Schema;
 
@@ -32,7 +33,7 @@ public class SaveSchemaRequest : SchemaApiRequest
     /// The new schema
     /// </summary>
     [Required]
-    public NodeSchema Schema { get; set; } = null!;
+    public NodeSchemaData Schema { get; set; } = null!;
 }
 
 /// <summary>
@@ -44,4 +45,67 @@ public class SaveSchemaResponse : SchemaApiResponse
     /// The result
     /// </summary>
     public bool Result { get; set; }
+}
+
+public class NodeSchemaData
+{
+    /// <summary>
+    /// The schema name
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The schema type
+    /// </summary>
+    public SchemaType Type { get; set; } = SchemaType.Namespace;
+
+    /// <summary>
+    /// The schema display
+    /// </summary>
+    public LocaleString? Display { get; set; }
+
+    /// <summary>
+    /// The scalar schema if type is scalar
+    /// </summary>
+    public ScalarSchema? Scalar { get; set; }
+
+    /// <summary>
+    /// The enum schema if type is enum
+    /// </summary>
+    public EnumSchema? Enum  { get; set; }
+
+    /// <summary>
+    /// The struct schema if type is struct
+    /// </summary>
+    public StructSchema? Struct { get; set; }
+
+    /// <summary>
+    /// The array schema if type is array
+    /// </summary>
+    public ArraySchema? Array  { get; set; }
+
+    /// <summary>
+    /// The function schema if type is function
+    /// </summary>
+    public FunctionSchema? Func { get; set; }
+
+    #region Conversion
+
+    public static implicit operator NodeSchema(NodeSchemaData schema)
+    {
+        return new NodeSchema
+        {
+            Name = schema.Name,
+            Type = schema.Type,
+            Display = schema.Display,
+            Scalar = schema.Type == SchemaType.Scalar ? schema.Scalar : null,
+            Enum = schema.Type == SchemaType.Enum ? schema.Enum : null,
+            Struct = schema.Type == SchemaType.Struct ? schema.Struct : null,
+            Array = schema.Type == SchemaType.Array ? schema.Array : null,
+            Func = schema.Type == SchemaType.Function ? schema.Func : null,
+            LoadState = SchemaLoadState.Server
+        };
+    }
+
+    #endregion
 }

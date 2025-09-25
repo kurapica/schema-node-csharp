@@ -8,40 +8,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/DeleteEnumSubList.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/DeleteSchema.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveEnumSubList.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/CallFunction.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadEnumAccessList.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadEnumSubList.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Info/LoadSchema.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Message/IMessageHandler.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/IAppSchemaDataProvider.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/ISchemaStorageProvider.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaChangeMessage.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode.sln.DotSettings.user" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/DistributedCriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/DistributedCriticalRegionProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/ICriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/CriticalRegion/ICriticalRegionProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Components/CriticalRegion/LocalCriticalRegionProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/CriticalRegion/LocalCriticalRegionProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/DI/Injection.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Http/SchemaApiDocument.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApiDocument.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/ArrayNode.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/FunctionNode.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/ScalarNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/StructNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Provider/ISchemaProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/ISchemaProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/NodeSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/SchemaNode.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloApi.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/Api/HelloApi.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloRequest.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Api/Hello/HelloResponse.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Properties/AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Properties/AssemblyInfo.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/SchemaNode/Utility/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Utility/Extension.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -91,7 +68,7 @@
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    ".NET 启动设置配置文件.SchemaNodeExample: http.executor": "Run",
+    ".NET 启动设置配置文件.SchemaNodeExample: http.executor": "Debug",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "dev",
@@ -144,7 +121,8 @@
       <workItem from="1758243824959" duration="31024000" />
       <workItem from="1758506045617" duration="13211000" />
       <workItem from="1758597787941" duration="13508000" />
-      <workItem from="1758675991628" duration="27541000" />
+      <workItem from="1758675991628" duration="27592000" />
+      <workItem from="1758762475345" duration="11085000" />
     </task>
     <servers />
   </component>

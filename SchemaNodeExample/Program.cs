@@ -6,6 +6,8 @@ using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// for test
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -20,10 +22,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddSchemaNode(config => config.PreLoad = true).AddSchemaStorageProvider<JsonSchemaStorageProvider>();
 
 var app = builder.Build();
-app.UseSchemaApis("schema");
+app.UseCors("AllowAll");
+app.UseSchemaApis();
 app.PreLoadSchemaNodes();
 
-// swagger
+#region Swagger
+
 EmbeddedFileProvider fileProvider = new(typeof(Program).Assembly, "SchemaNode.Example.Swagger");
 app.UseDefaultFiles(new DefaultFilesOptions
 {
@@ -51,5 +55,7 @@ app.MapGet("document.json", () =>
     // Finish.
     return Results.Content(resultBuilder.ToString().Replace("$dynamicRef", "$ref"));
 });
+
+#endregion swagger
 
 app.Run();

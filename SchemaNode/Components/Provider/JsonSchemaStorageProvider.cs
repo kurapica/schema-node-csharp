@@ -30,6 +30,15 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 
                 // load sub schemas
                 List<NodeSchema> nodes = [];
+                foreach (string d in Directory.GetDirectories(res.Value.file, "*", SearchOption.TopDirectoryOnly))
+                {
+                    nodes.Add(await LoadSchemaFile(Path.Combine(res.Value.file, d, "__ns.json")) ?? new NodeSchema
+                    {
+                        Name = name,
+                        Type = SchemaType.Namespace,
+                        Display = name
+                    });
+                }
                 foreach (string f in Directory.GetFiles(res.Value.file, "*.json", SearchOption.TopDirectoryOnly))
                 {
                     string[] path = f.Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();

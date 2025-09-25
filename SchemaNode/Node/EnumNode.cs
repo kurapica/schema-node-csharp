@@ -28,7 +28,7 @@ public class EnumNode: NamespaceNode
     /// <summary>
     /// The cascade list
     /// </summary>
-    public string[]? Cascade { get; set; }
+    public LocaleString[]? Cascade { get; set; }
     
     /// <summary>
     /// The root for all enum values
@@ -315,7 +315,7 @@ public class EnumNode: NamespaceNode
                         Name = name,
                         Value = valueType switch
                         {
-                            EnumValueType.String => f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? name,
+                            EnumValueType.String => (f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? name).ToCamelCase(),
                             _ => $"{f.GetValue(null)}"
                         },
                         HasSubList = false,
@@ -364,7 +364,7 @@ public class EnumNode: NamespaceNode
     /// </summary>
     public static implicit operator NodeSchema?(EnumNode? schema)
     {
-        return schema?.ToNodeSchema();
+        return schema?.ToNodeSchema(MAX_SUBLIST_LEVEL);
     }
     
     #endregion

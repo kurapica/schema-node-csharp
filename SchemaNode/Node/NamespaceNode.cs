@@ -192,12 +192,20 @@ public class NamespaceNode: IDisposable
     public static implicit operator NodeSchema?(NamespaceNode? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        return schema.Type switch
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
+            SchemaType.Scalar => (NodeSchema)(schema as ScalarNode)!,
+            SchemaType.Enum => (NodeSchema)(schema as EnumNode)!,
+            SchemaType.Struct => (NodeSchema)(schema as StructNode)!,
+            SchemaType.Array => (NodeSchema)(schema as ArrayNode)!,
+            SchemaType.Function => (NodeSchema)(schema as FunctionNode)!,
+            _ => new NodeSchema
+            {
+                Name = schema.Name,
+                Type = schema.Type,
+                Display = schema.Display,
+                LoadState = schema.LoadState,
+            }
         };
     }
     

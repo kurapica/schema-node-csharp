@@ -75,7 +75,6 @@ public class SchemaContext
         NodeSchema? schema = GetSystemNodeSchema(schemaName);
         if (schema != null)
         {
-            schema.LoadState = SchemaLoadState.System;
             if (schema.Type != SchemaType.Namespace) return schema;
         }
         
@@ -346,7 +345,7 @@ public class SchemaContext
                 continue;
             
             // All should be preloaded
-            if (Config.PreLoad && !preload) return null;
+            if (Config.PreLoad && !preload && !reload) return null;
 
             // system schema first
             NodeSchema? schema = await LoadSchemaAsync(fullPath);
