@@ -19,10 +19,13 @@ builder.Services.AddCors(options =>
 });
 
 // schema
-builder.Services.AddSchemaNode(config => config.PreLoad = true).AddSchemaStorageProvider<JsonSchemaStorageProvider>();
+builder.Services
+    .AddSchemaNode()
+    .AddSchemaStorageProvider<JsonSchemaStorageProvider>();
 
 var app = builder.Build();
 app.UseCors("AllowAll");
+
 app.UseSchemaApis();
 app.PreLoadSchemaNodes();
 

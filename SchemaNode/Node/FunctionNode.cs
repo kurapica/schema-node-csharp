@@ -17,7 +17,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public class FunctionNode: NamespaceNode
+public class FunctionNode: AnySchemaNode
 {
     #region Data
     
@@ -40,7 +40,7 @@ public class FunctionNode: NamespaceNode
     /// The basic type of generic types, provided to T(single generic type),
     /// T1, T2(for multi generic type)
     /// </summary>
-    public NamespaceNode?[] Generic { get; set; } = [];
+    public AnySchemaNode?[] Generic { get; set; } = [];
 
     /// <summary>
     /// Call server if server provided
@@ -91,7 +91,7 @@ public class FunctionNode: NamespaceNode
     /// <summary>
     /// The return type node
     /// </summary>
-    public NamespaceNode? ReturnNode { get; set; }
+    public AnySchemaNode? ReturnNode { get; set; }
 
     /// <summary>
     /// The root expression trees
@@ -111,7 +111,7 @@ public class FunctionNode: NamespaceNode
         Return = func?.Return ?? string.Empty;
         Args = func?.Args.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
         Exps = func?.Exps.Select(e => (FunctionNodeExpression)e).ToArray() ?? [];
-        Generic = func?.Generic != null ? new NamespaceNode?[func.Generic.Length] : [];
+        Generic = func?.Generic != null ? new AnySchemaNode?[func.Generic.Length] : [];
         Server = func?.Server;
         Nocache = func?.Nocache;
 
@@ -237,7 +237,7 @@ public class FunctionNode: NamespaceNode
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(NamespaceNode other) => false;
+    public override bool CanBeUseAs(AnySchemaNode other) => false;
 
     /// <inheritdoc />
     public override ArrayNode? GetArrayNode(bool exactly = false) => null;
@@ -247,7 +247,7 @@ public class FunctionNode: NamespaceNode
     {
         FuncInfo = null;
         if (UsedBy == null || UsedBy.IsEmpty) return;
-        foreach ((NamespaceNode other, _) in UsedBy)
+        foreach ((AnySchemaNode other, _) in UsedBy)
         {
             if (other is FunctionNode func)
                 func.ClearFunctionInfo();
@@ -315,7 +315,7 @@ public class FunctionNode: NamespaceNode
             }
             else
             {
-                NamespaceNode? node = await context.GetSchemaNodeAsync(arg.Type);
+                AnySchemaNode? node = await context.GetSchemaNodeAsync(arg.Type);
                 if (node == null || !node.IsValueType)
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
@@ -342,7 +342,7 @@ public class FunctionNode: NamespaceNode
         foreach (FunctionNodeExpression exp in Exps)
         {            
             int arrayArg = -1; // the array argument index
-            NamespaceNode? arrayRequireEle = null;
+            AnySchemaNode? arrayRequireEle = null;
             bool isMapReduce = exp.Type != ExpressionType.Call;
 
             // reset
@@ -415,7 +415,7 @@ public class FunctionNode: NamespaceNode
             }
 
             // Gets the function info of the function node, only need static method info for generic types
-            NamespaceNode?[] genericTypes = funcNode.Generic.ToArray();
+            AnySchemaNode?[] genericTypes = funcNode.Generic.ToArray();
             
             // Gets the return type
             if (string.IsNullOrWhiteSpace(exp.Return))
@@ -426,7 +426,7 @@ public class FunctionNode: NamespaceNode
             }
             else
             {
-                NamespaceNode? node = await context.GetSchemaNodeAsync(exp.Return);
+                AnySchemaNode? node = await context.GetSchemaNodeAsync(exp.Return);
                 if (node is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
@@ -502,13 +502,13 @@ public class FunctionNode: NamespaceNode
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args[i];
-                    NamespaceNode? funcArgType = funcArg.TypeNode;
+                    AnySchemaNode? funcArgType = funcArg.TypeNode;
                     if (funcArgType is GenericTypeNode gn) funcArgType = genericTypes[gn.GenericIndex - 1];
                     
                     // Gets the arg/exp
                     if (treeMap.TryGetValue(callArg.Name, out FunctionNodeExpTree? value))
                     {
-                        NamespaceNode? argTypeNode;
+                        AnySchemaNode? argTypeNode;
                         switch (value)
                         {
                             case FunctionNodeArgument rArg:
@@ -579,7 +579,7 @@ public class FunctionNode: NamespaceNode
                     if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args[i];
-                    NamespaceNode? funcArgType = funcArg.TypeNode;
+                    AnySchemaNode? funcArgType = funcArg.TypeNode;
                     if (funcArgType is GenericTypeNode g)
                     {
                         funcArgType = genericTypes[g.GenericIndex - 1];
@@ -1763,7 +1763,7 @@ public class FunctionNode: NamespaceNode
     void ResizeGeneric(int count)
     {
         if (Generic.Length >= count) return;
-        NamespaceNode?[] generic = new NamespaceNode?[count];
+        AnySchemaNode?[] generic = new AnySchemaNode?[count];
         for(int i = 0; i < Math.Min(count, Generic.Length); i++)
             generic[i] = Generic[i];
         Generic = generic;
@@ -1825,7 +1825,7 @@ public class FunctionNodeExpTree
     /// <summary>
     /// The type node
     /// </summary>
-    public NamespaceNode? TypeNode { get; set; }
+    public AnySchemaNode? TypeNode { get; set; }
 
     /// <summary>
     /// The used by count, could be used to improve the dynamic complier
@@ -2020,12 +2020,12 @@ public class SchemaFuncInfo
 }
 
 
-public class GenericTypeNode: NamespaceNode
+public class GenericTypeNode: AnySchemaNode
 {
     /// <summary>
     /// Possible base type
     /// </summary>
-    public NamespaceNode? BaseNode { get; set; }
+    public AnySchemaNode? BaseNode { get; set; }
 
     /// <summary>
     /// The index in generic array

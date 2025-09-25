@@ -113,5 +113,5 @@ public class FunctionCallArgument {
     /// </summary>
     [SchemaStructMemIgnore]
     [JsonIgnore]
-    public NamespaceNode? TypeNode { get; set; }
+    public AnySchemaNode? TypeNode { get; set; }
 }

@@ -22,18 +22,19 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            NamespaceNode? node = await SchemaContext.GetSchemaNodeAsync(t);
+            AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(t);
             if (node == null) continue;
             NodeSchema schema = node!;
-            if (node is { Type: SchemaType.Namespace, Schemas: not null })
+            if (node is NamespaceNode @ns)
             {
                 // add one level sub nodes
-                List<NodeSchema> sublist = new();
-                foreach ((_, NamespaceNode value) in node.Schemas)
+                schema.Schemas = ns.Schemas.Select(s => new NodeSchema
                 {
-                    sublist.Add(value!);
-                }
-                schema.Schemas = sublist.ToArray();
+                    Name = s.Name,
+                    Type = s.Type,
+                    Display = s.Display,
+                    LoadState = s.LoadState,
+                }).ToArray();
             }
             schemas.Add(schema);
         }

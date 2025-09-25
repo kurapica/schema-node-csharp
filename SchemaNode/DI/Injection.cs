@@ -18,10 +18,8 @@ public static class Injection
     /// <summary>
     /// Use the schema context with config
     /// </summary>
-    public static IServiceCollection AddSchemaNode(this IServiceCollection services, Action<SchemaContextConfig> config)
-    {
-        config.Invoke(SchemaContext.Config);
-        
+    public static IServiceCollection AddSchemaNode(this IServiceCollection services)
+    {        
         // default logger
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
         services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));

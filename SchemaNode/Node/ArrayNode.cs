@@ -10,7 +10,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public class ArrayNode: NamespaceNode
+public class ArrayNode: AnySchemaNode
 {
     #region Data
     
@@ -54,7 +54,7 @@ public class ArrayNode: NamespaceNode
     /// <summary>
     /// The element type node
     /// </summary>
-    public NamespaceNode? ElementNode { get; set; }
+    public AnySchemaNode? ElementNode { get; set; }
     
     #endregion
     
@@ -78,7 +78,7 @@ public class ArrayNode: NamespaceNode
         // Ref
         if (!string.IsNullOrWhiteSpace(Element))
         {
-            NamespaceNode? node = await context.GetSchemaNodeAsync(Element, preload);
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(Element, preload);
             if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Function)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
@@ -95,7 +95,7 @@ public class ArrayNode: NamespaceNode
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                NamespaceNode? node = await context.GetSchemaNodeAsync(relation.Func, preload);
+                AnySchemaNode? node = await context.GetSchemaNodeAsync(relation.Func, preload);
                 if (node is not FunctionNode funcNode)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -155,7 +155,7 @@ public class ArrayNode: NamespaceNode
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(NamespaceNode other) => 
+    public override bool CanBeUseAs(AnySchemaNode other) => 
         this == other 
         || Name.Equals(NS_SYSTEM_ARRAY) 
         || other.Name.Equals(NS_SYSTEM_ARRAY) 

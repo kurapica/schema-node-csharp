@@ -3,7 +3,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public class AppNode: NamespaceNode
+public class AppNode: AnySchemaNode
 {
     
 }
@@ -11,7 +11,7 @@ public class AppNode: NamespaceNode
 /// <summary>
 /// The in-memory application field schema representation
 /// </summary>
-public class AppFieldNode : NamespaceNode
+public class AppFieldNode : AnySchemaNode
 {
     
 }

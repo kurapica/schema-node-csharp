@@ -13,7 +13,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public class StructNode: NamespaceNode
+public class StructNode: AnySchemaNode
 {
     #region Data
     
@@ -68,7 +68,7 @@ public class StructNode: NamespaceNode
         // Ref
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            NamespaceNode? baseNode = await context.GetSchemaNodeAsync(Base, preload);
+            AnySchemaNode? baseNode = await context.GetSchemaNodeAsync(Base, preload);
             if (baseNode is not StructNode node)
                 Status = SchemaNodeStatus.StructWrongBase;
             else
@@ -81,7 +81,7 @@ public class StructNode: NamespaceNode
         // Load Fields
         foreach (StructFieldConfig field in Fields)
         {
-            NamespaceNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload);
+            AnySchemaNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload);
             if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Function)
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
@@ -96,7 +96,7 @@ public class StructNode: NamespaceNode
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                NamespaceNode? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload);
+                AnySchemaNode? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload);
                 if (funcNode is not FunctionNode node)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -169,7 +169,7 @@ public class StructNode: NamespaceNode
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(NamespaceNode other)
+    public override bool CanBeUseAs(AnySchemaNode other)
     {
         if (this == other || Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT)) return true;
         if (other is not StructNode @struct) return false;

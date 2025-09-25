@@ -51,11 +51,6 @@ public class EnumValueInfo
     public bool? Disable  { get; set; }
     
     /// <summary>
-    /// The enum value color
-    /// </summary>
-    public string? Color { get; set; }
-
-    /// <summary>
     /// Whether the enum value has sub enum values
     /// </summary>
     [SchemaStructMemIgnore]

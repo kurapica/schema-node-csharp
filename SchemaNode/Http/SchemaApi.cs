@@ -412,10 +412,10 @@ public static class SchemaApiExtension
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new Extension.JsonDateTimeIsoConverter(),
             new Extension.JsonDateTimeOffetIsoConverter(),
+            new Extension.ForceStringConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     static async Task<IResult> ProcessSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 

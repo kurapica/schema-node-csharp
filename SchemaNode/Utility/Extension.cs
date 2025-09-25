@@ -58,6 +58,25 @@ public static class Extension
             writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
         }
     }
+    public class ForceStringConverter : JsonConverter<string>
+    {
+        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.TokenType switch
+            {
+                JsonTokenType.Number => reader.GetDecimal().ToString(),
+                JsonTokenType.True => "true",
+                JsonTokenType.False => "false",
+                JsonTokenType.Null => null,
+                _ => reader.GetString()
+            } ?? "";
+        }
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+        {
+            writer.WriteStringValue(value);
+        }
+    }
 
     public class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
     {
@@ -145,10 +164,10 @@ public static class Extension
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffetIsoConverter(),
+            new ForceStringConverter()
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     private static JsonSerializerOptions NoIndentJsonOption = new()
@@ -159,10 +178,10 @@ public static class Extension
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffetIsoConverter(),
+            new ForceStringConverter()
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     #endregion

@@ -10,7 +10,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory scalar schema representation
 /// </summary>
-public class ScalarNode: NamespaceNode
+public class ScalarNode: AnySchemaNode
 {
      #region Data
      
@@ -167,7 +167,7 @@ public class ScalarNode: NamespaceNode
         // Relationship
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            NamespaceNode? node = await context.GetSchemaNodeAsync(Base, preload: preload);
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(Base, preload: preload);
             if (node != null && node is ScalarNode snode)
             {
                 BaseNode = snode;
@@ -182,7 +182,7 @@ public class ScalarNode: NamespaceNode
 
         if (!string.IsNullOrWhiteSpace(PostValid))
         {
-            NamespaceNode? node = await context.GetSchemaNodeAsync(PostValid, preload: preload);
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(PostValid, preload: preload);
             if (node != null && node is FunctionNode fnode)
             {
                 PostValidNode = fnode;
@@ -325,7 +325,7 @@ public class ScalarNode: NamespaceNode
      }
 
      /// <inheritdoc />
-     public override bool CanBeUseAs(NamespaceNode other) =>
+     public override bool CanBeUseAs(AnySchemaNode other) =>
           base.CanBeUseAs(other) ||
           other switch
           {

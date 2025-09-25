@@ -17,7 +17,7 @@ public class LoadEnumAccessListApi : SchemaApi<LoadEnumAccessListRequest, LoadEn
     {
         Logger.LogDebug("[Api]LoadEnumAccessList [Request]{request}", request);
 
-        NamespaceNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
 
         return new LoadEnumAccessListResponse
         {
@@ -61,5 +61,5 @@ public class LoadEnumAccessListResponse : SchemaApiResponse
     /// <summary>
     /// The enum value access list
     /// </summary>
-    public EnumValueAccess[] Access { get; set; }
+    public EnumValueAccess[] Access { get; set; } = [];
 }

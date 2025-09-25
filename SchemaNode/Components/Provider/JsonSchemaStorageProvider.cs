@@ -32,7 +32,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 List<NodeSchema> nodes = [];
                 foreach (string d in Directory.GetDirectories(res.Value.file, "*", SearchOption.TopDirectoryOnly))
                 {
-                    nodes.Add(await LoadSchemaFile(Path.Combine(res.Value.file, d, "__ns.json")) ?? new NodeSchema
+                    nodes.Add(await LoadSchemaFile(Path.Combine(d, "__ns.json")) ?? new NodeSchema
                     {
                         Name = name,
                         Type = SchemaType.Namespace,
@@ -41,7 +41,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 }
                 foreach (string f in Directory.GetFiles(res.Value.file, "*.json", SearchOption.TopDirectoryOnly))
                 {
-                    string[] path = f.Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+                    string[] path = Path.GetFileName(f).Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
                     if (path.Length == 3)
                     {
                         SchemaType? type = path[1] switch
@@ -75,7 +75,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public async Task<AppSchema?> LoadAppSchemaAsync(string app)
+    public Task<AppSchema?> LoadAppSchemaAsync(string app)
     {
         throw new NotImplementedException();
     }
@@ -136,6 +136,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     /// <inheritdoc />
     public async Task<bool> DeleteSchemaAsync(string schema)
     {
+        await Task.Yield();
         (string file, SchemaType schemaType)? res = CheckSchemaFile(schema);
         if (string.IsNullOrEmpty(res?.file)) return false;
         if (res?.schemaType == SchemaType.Namespace)
@@ -186,14 +187,14 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             return (folder, SchemaType.Namespace);
         
         // sub types
-        folder = Path.Combine(paths.SkipLast(1).Append(root).ToArray());
+        folder = Path.Combine(paths.SkipLast(1).Prepend(root).ToArray());
         if (Directory.Exists(folder))
         {
-            string? find = Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
-                .FirstOrDefault(s => s.StartsWith($"{name}.", StringComparison.OrdinalIgnoreCase));
+            string? find = Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly).Select(Path.GetFileName)
+                .FirstOrDefault(s => s.StartsWith($"{paths.Last()}.", StringComparison.OrdinalIgnoreCase));
             if (find is not null)
             {
-                string type = find[(name.Length + 1)..^5];
+                string type = find[(paths.Last().Length + 1)..^5];
                 SchemaType? schemaType = type.ToLower() switch
                 {
                     "ns" => SchemaType.Namespace,

@@ -13,7 +13,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The in-memory enum schema representation
 /// </summary>
-public class EnumNode: NamespaceNode
+public class EnumNode: AnySchemaNode
 {
     // ReSharper disable once InconsistentNaming
     private const int MAX_SUBLIST_LEVEL = 3;
@@ -249,7 +249,7 @@ public class EnumNode: NamespaceNode
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(NamespaceNode other) => 
+    public override bool CanBeUseAs(AnySchemaNode other) => 
         base.CanBeUseAs(other) ||
         other switch
         {

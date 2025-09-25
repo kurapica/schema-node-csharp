@@ -42,6 +42,7 @@ public static class Schema
     public static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
         schema.LoadState = SchemaLoadState.System;
+        Console.WriteLine("save", schema.Name);
         
         string schemaName = schema.Name.ToLowerInvariant();
         NodeSchema root = _root;
@@ -257,7 +258,7 @@ public static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    public static Type ToCSharpType(this NamespaceNode node, bool? nullable = false)
+    public static Type ToCSharpType(this AnySchemaNode node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type;

@@ -1,13 +1,14 @@
-using System.Collections.Concurrent;
-using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Enum;
-using SchemaNode.Node;
-using SchemaNode.Components.Provider;
-using SchemaNode.Schema;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
+using SchemaNode.Components.Provider;
+using SchemaNode.Enum;
+using SchemaNode.Node;
+using SchemaNode.Schema;
+using System.Collections.Concurrent;
+using System.IO;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode.Context;
@@ -34,21 +35,7 @@ public class SchemaContext
     }
     
     #endregion
-    
-    #region Static Properties
-
-    /// <summary>
-    /// The schema context config
-    /// </summary>
-    public static SchemaContextConfig Config { get; } = new();
-    
-    /// <summary>
-    /// The schema api config
-    /// </summary>
-    public static SchemaApiConfig ApiConfig { get; } = new();
-
-    #endregion
-    
+        
     #region Properties
     
     /// <summary>
@@ -99,9 +86,10 @@ public class SchemaContext
                 else if (loadSchema is { Type: SchemaType.Namespace, Schemas: not null } && loadSchema.Schemas.Length != 0)
                 {
                     // combine
-                    schema.Schemas = schema.Schemas == null || schema.Schemas?.Length == 0
+                    loadSchema.Schemas = schema.Schemas == null || schema.Schemas?.Length == 0
                         ? loadSchema.Schemas
                         :schema.Schemas!.Concat(loadSchema.Schemas.Where(s => !schema.Schemas!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
+                    schema = loadSchema;
                 }
                 if (schema.Type != SchemaType.Namespace) return schema;
             }
@@ -213,7 +201,7 @@ public class SchemaContext
     /// <returns>The result</returns>
     public async Task<JsonNode?> CallFunctionAsync(string name, JsonArray args, string[]? generic = null)
     {
-        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        AnySchemaNode? node = await GetSchemaNodeAsync(name);
         if (node is FunctionNode funcNode) return await CallFunctionAsync(funcNode, args, generic);
         return null;
     }
@@ -250,7 +238,7 @@ public class SchemaContext
     /// <returns>true if deleted</returns>
     public async Task<bool> DeleteSchemaAsync(string name)
     {
-        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        AnySchemaNode? node = await GetSchemaNodeAsync(name);
         if (node == null || node.IsUsed) return false;
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
@@ -277,7 +265,7 @@ public class SchemaContext
     /// <returns>true if saved</returns>
     public async Task<bool> SaveEnumSubListAsync(string name, string? value, EnumValueInfo[] values, bool? append)
     {
-        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        AnySchemaNode? node = await GetSchemaNodeAsync(name);
         if (node is not EnumNode @enum) return false;
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
@@ -302,7 +290,7 @@ public class SchemaContext
     /// <returns>true if deleted</returns>
     public async Task<bool> DeleteEnumSubListAsync(string name, string value)
     {
-        NamespaceNode? node = await GetSchemaNodeAsync(name);
+        AnySchemaNode? node = await GetSchemaNodeAsync(name);
         if (node is not EnumNode @enum) return false;
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
@@ -326,9 +314,9 @@ public class SchemaContext
     /// <summary>
     /// Gets the schema node
     /// </summary>
-    public async Task<NamespaceNode?> GetSchemaNodeAsync(string schemaName, bool reload = false, bool preload = false)
+    public async Task<AnySchemaNode?> GetSchemaNodeAsync(string schemaName, bool reload = false, bool preload = false)
     {
-        NamespaceNode? node = RootNamespace;
+        AnySchemaNode? node = RootNamespace;
         if (string.IsNullOrWhiteSpace(schemaName) && !preload) return node;
         
         // gets the node
@@ -336,24 +324,18 @@ public class SchemaContext
         foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
                      .Where(s => !string.IsNullOrWhiteSpace(s)))
         {
-            NamespaceNode parent = node;
-            if (parent.Type != SchemaType.Namespace) return null;
+            if (node is not NamespaceNode parent) return null;
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             
             // Gets the sub node
-            if (parent.Schemas != null && parent.Schemas.TryGetValue(path, out node))
-                continue;
+            if (parent.SchemaNodes.TryGetValue(path, out node)) continue;
             
-            // All should be preloaded
-            if (Config.PreLoad && !preload && !reload) return null;
-
             // system schema first
             NodeSchema? schema = await LoadSchemaAsync(fullPath);
             node = schema;
             if (node is null) return null;
             
-            parent.Schemas ??= new ConcurrentDictionary<string, NamespaceNode>();
-            if (parent.Schemas.TryAdd(path, node))
+            if (parent.SchemaNodes.TryAdd(path, node))
             {
                 Logger.LogInformation($"Schema '{fullPath}' Loading.");
                 node.Release();
@@ -364,7 +346,7 @@ public class SchemaContext
             }
             else
             {
-                node = parent.Schemas[path];
+                node = parent.SchemaNodes[path];
                 reload = false;
             }
         }
@@ -387,23 +369,26 @@ public class SchemaContext
     /// </summary>
     public bool RemoveSchemaNode(string schemaName)
     {
-        NamespaceNode node = RootNamespace;
+        AnySchemaNode? node = RootNamespace;
         if (string.IsNullOrWhiteSpace(schemaName)) return false;
         
         // gets the node
-        foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
-                     .Where(s => !string.IsNullOrWhiteSpace(s)))
+        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        foreach (string path in paths.SkipLast(1))
         {
-            if (node.Type != SchemaType.Namespace || node.Schemas == null) return false;
-            
             // Gets the sub node
-            if (!node.Schemas.TryGetValue(path, out NamespaceNode? child)) return false;
+            if (node is not NamespaceNode parent || !parent.SchemaNodes.TryGetValue(path, out node)) return false;
+        }
 
-            if (child.Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
+        if (node is NamespaceNode ns)
+        {
+            if (ns.SchemaNodes.TryGetValue(paths.Last(), out AnySchemaNode? child))
             {
                 if (child.IsUsed) return false;
-                return node.Schemas?.TryRemove(path, out child) ?? false;
+                ns.SchemaNodes.TryRemove(paths.Last(), out child);
             }
+            ns.Schemas = ns.Schemas.Where(s => !s.Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase)).ToArray();
+            return true;
         }
 
         return false;
@@ -416,7 +401,7 @@ public class SchemaContext
 
     private readonly Lazy<ILogger> _loggerThunk;
     
-    static readonly NamespaceNode RootNamespace;
+    static readonly AnySchemaNode RootNamespace;
     
     #endregion
 }

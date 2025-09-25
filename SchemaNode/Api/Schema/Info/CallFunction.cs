@@ -17,7 +17,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
     {
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
-        NamespaceNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
         
         return new CallFunctionResponse
         {
