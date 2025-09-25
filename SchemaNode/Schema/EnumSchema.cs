@@ -13,7 +13,7 @@ public class EnumSchema
     /// The enum value type
     /// </summary>
     public EnumValueType Type { get; set; }
-
+    
     /// <summary>
     /// The cascades of the enum value
     /// </summary>
@@ -49,6 +49,11 @@ public class EnumValueInfo
     /// Whether the enum value is disabled
     /// </summary>
     public bool? Disable  { get; set; }
+    
+    /// <summary>
+    /// The enum value color
+    /// </summary>
+    public string? Color { get; set; }
 
     /// <summary>
     /// Whether the enum value has sub enum values

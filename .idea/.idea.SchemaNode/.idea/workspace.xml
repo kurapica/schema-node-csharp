@@ -9,17 +9,8 @@
   <component name="ChangeListManager">
     <list default="true" id="7b32f78b-7650-43e3-8c8b-5de48cb37986" name="更改" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.SchemaNode/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Api/Schema/Edit/SaveSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Components/Provider/JsonSchemaStorageProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Context/SchemaContext.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Enum/RelationType.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/EnumNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Node/NamespaceNode.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Properties/AssemblyInfo.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Properties/AssemblyInfo.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Schema/EnumSchema.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNode/Utility/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNode/Utility/Extension.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SchemaNodeExample/Program.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -122,7 +113,7 @@
       <workItem from="1758506045617" duration="13211000" />
       <workItem from="1758597787941" duration="13508000" />
       <workItem from="1758675991628" duration="27592000" />
-      <workItem from="1758762475345" duration="11085000" />
+      <workItem from="1758762475345" duration="14495000" />
     </task>
     <servers />
   </component>
@@ -156,6 +147,36 @@
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
   </component>
   <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs</url>
+          <line>435</line>
+          <properties documentPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" containingFunctionPresentation="方法 'ProcessSchemaApiAsync'">
+            <startOffsets>
+              <option value="13359" />
+            </startOffsets>
+            <endOffsets>
+              <option value="13393" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="12" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs</url>
+          <line>467</line>
+          <properties documentPath="$PROJECT_DIR$/SchemaNode/Http/SchemaApi.cs" containingFunctionPresentation="方法 'ProcessSchemaApiAsync'">
+            <startOffsets>
+              <option value="14887" />
+            </startOffsets>
+            <endOffsets>
+              <option value="15075" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="14" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
     <watches-manager>
       <configuration name="LaunchSettings">
         <watch expression="typeof(SchemaApiExtension).GetMethods()" language="C#" />

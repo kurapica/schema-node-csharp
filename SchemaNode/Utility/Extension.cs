@@ -147,7 +147,8 @@ public static class Extension
             new JsonDateTimeOffetIsoConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     private static JsonSerializerOptions NoIndentJsonOption = new()
@@ -160,7 +161,8 @@ public static class Extension
             new JsonDateTimeOffetIsoConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     #endregion

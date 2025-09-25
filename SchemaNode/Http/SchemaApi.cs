@@ -414,7 +414,8 @@ public static class SchemaApiExtension
             new Extension.JsonDateTimeOffetIsoConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString
     };
     
     static async Task<IResult> ProcessSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
@@ -463,9 +464,9 @@ public static class SchemaApiExtension
             requestMessage = requestBody.FromJson<SchemaApiRequestMessage<TRequest>>() ?? throw new Exception();
             requestId = requestMessage.Id;
         }
-        catch
+        catch(Exception ex)
         {
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, "Failed to parse the request data."), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, $"Failed to parse the request data - {ex.GetInnermostException().Message}"), JsonOptions);
         }
         try
         {
