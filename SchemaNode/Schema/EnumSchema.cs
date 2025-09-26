@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
@@ -23,6 +24,12 @@ public class EnumSchema
     /// The enum values
     /// </summary>
     public EnumValueInfo[] Values { get; set; } = [];
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 /// <summary>
@@ -49,6 +56,12 @@ public class EnumValueInfo
     /// Whether the enum value is disabled
     /// </summary>
     public bool? Disable  { get; set; }
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
     
     /// <summary>
     /// Whether the enum value has sub enum values
@@ -160,7 +173,8 @@ public class EnumValueInfo
             HasSubList = HasSubList,
             SubList = (HasSubList ?? false) && SubList is { Length: > 0 } && limitLevel > 0 
                 ? SubList.Select(e => e.Clone(limitLevel - 1)).ToArray()
-                : null
+                : null,
+            Additional = Additional,
         };
     }
 }

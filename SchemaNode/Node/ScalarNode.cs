@@ -1,4 +1,7 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using System.Xml.Schema;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -63,6 +66,12 @@ public class ScalarNode: AnySchemaNode
      /// The function to validate the scalar value in backend
      /// </summary>
      public string? PostValid { get; private set; }
+     
+     /// <summary>
+     /// The additional data
+     /// </summary>
+     [JsonExtensionData]
+     public Dictionary<string, JsonElement>? Additional { get; set; }
      
      #endregion
      
@@ -160,6 +169,7 @@ public class ScalarNode: AnySchemaNode
         AsSuggest = scalar?.AsSuggest;
         PreValid = scalar?.PreValid;
         PostValid = scalar?.PostValid;
+        Additional = scalar?.Additional;
 
         // Status
         if (scalar == null) Status = SchemaNodeStatus.NoDefinition;
@@ -377,6 +387,7 @@ public class ScalarNode: AnySchemaNode
                     AsSuggest = schema.AsSuggest,
                     PreValid = schema.PreValid,
                     PostValid = schema.PostValid,
+                    Additional = schema.Additional,
                }
           };
      }

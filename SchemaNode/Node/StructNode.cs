@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -32,6 +34,12 @@ public class StructNode: AnySchemaNode
     /// </summary>
     public StructFieldRelation[]? Relations { get; set; }
     
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+    
     #endregion
     
     #region State
@@ -61,6 +69,7 @@ public class StructNode: AnySchemaNode
         Base = @struct?.Base;
         Fields = @struct?.Fields ?? [];
         Relations = @struct?.Relations ?? [];
+        Additional = @struct?.Additional;
         
         // Status
         if (@struct == null) Status = SchemaNodeStatus.NoDefinition;
@@ -263,6 +272,7 @@ public class StructNode: AnySchemaNode
                 Base = schema.Base,
                 Relations = schema.Relations,
                 Fields = schema.Fields,
+                Additional = schema.Additional,
             }
         };
     }

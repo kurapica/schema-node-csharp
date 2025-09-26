@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using SchemaNode.Enum;
 
 namespace SchemaNode.Schema;
@@ -32,6 +34,12 @@ public class ArraySchema
     /// The realtions between the fields
     /// </summary>
     public StructFieldRelation[]? Relations { get; set; }
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 /// <summary>

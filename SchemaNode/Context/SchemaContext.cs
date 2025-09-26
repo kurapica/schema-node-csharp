@@ -5,8 +5,6 @@ using SchemaNode.Components.Provider;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
-using System.Collections.Concurrent;
-using System.IO;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Schema;
@@ -35,7 +33,7 @@ public class SchemaContext
     }
     
     #endregion
-        
+    
     #region Properties
     
     /// <summary>

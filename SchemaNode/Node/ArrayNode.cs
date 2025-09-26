@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -40,6 +41,11 @@ public class ArrayNode: AnySchemaNode
     /// </summary>
     public StructFieldRelation[]? Relations { get; set; }
     
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+    
     #endregion
     
     #region Status
@@ -71,6 +77,7 @@ public class ArrayNode: AnySchemaNode
         Primary = array?.Primary;
         Combine = array?.Combine;
         Relations = array?.Relations;
+        Additional = array?.Additional;
         
         // Status
         if (array == null) Status = SchemaNodeStatus.NoDefinition;
@@ -187,6 +194,7 @@ public class ArrayNode: AnySchemaNode
                 Primary = schema.Primary,
                 Combine = schema.Combine,
                 Relations = schema.Relations,
+                Additional = schema.Additional,
             }
         };
     }

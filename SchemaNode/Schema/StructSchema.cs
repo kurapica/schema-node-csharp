@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
@@ -24,6 +25,12 @@ public class StructSchema
     /// The relations between the fields
     /// </summary>
     public StructFieldRelation[]? Relations { get; set; }
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 /// <summary>
@@ -90,6 +97,12 @@ public class StructFieldConfig
     /// The default value of the node.
     /// </summary>
     public string? Default { get; set; }
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
     
     #region Scalar
 

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Serialization;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
@@ -34,6 +35,11 @@ public class EnumNode: AnySchemaNode
     /// The root for all enum values
     /// </summary>
     public EnumValueInfo Root { get; set; } = new ();
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 
     #endregion
     
@@ -63,6 +69,7 @@ public class EnumNode: AnySchemaNode
         {
             SubList = @enum?.Values
         };
+        Additional = @enum?.Additional;
         Root.CheckFullyLoadedStatus();
         UpdateMaxFlags();
         
@@ -281,7 +288,8 @@ public class EnumNode: AnySchemaNode
             {
                 Type = ValueType,
                 Cascade = Cascade,
-                Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? []
+                Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? [],
+                Additional = Additional,
             }
         };
     }

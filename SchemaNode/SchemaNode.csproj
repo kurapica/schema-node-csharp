@@ -15,7 +15,6 @@
 
     <ItemGroup>
       <Folder Include="Api\Application\" />
-      <Folder Include="Function\" />
     </ItemGroup>
 
     <ItemGroup>

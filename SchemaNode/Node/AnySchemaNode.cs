@@ -52,7 +52,7 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public ISchemaProvider? SchemaProvider { get; set; } = null;
+    public ISchemaProvider? SchemaProvider { get; set; }
     
     /// <summary>
     /// Whether the node is used
@@ -74,9 +74,7 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// Release the refs
     /// </summary>
-    public virtual void Release()
-    {
-    }
+    public virtual void Release() { }
 
     /// <summary>
     /// Used by another node
@@ -120,11 +118,16 @@ public abstract class AnySchemaNode: IDisposable
     /// Whether the type can be used as data index
     /// </summary>
     public virtual bool IsIndexable => false;
+    
+    /// <summary>
+    /// Whether the new schema is valid for updating
+    /// </summary>
+    public virtual bool IsUpdatable(AnySchemaNode other) => Type == other.Type;
 
-    public void Dispose()
-    {
-        Release();
-    }
+    /// <summary>
+    /// Release ref
+    /// </summary>
+    public void Dispose() => Release();
 
     #endregion
     
@@ -157,12 +160,12 @@ public abstract class AnySchemaNode: IDisposable
         if (schema == null) return null;
         return schema.Type switch
         {
-            SchemaType.Scalar => (NodeSchema)(schema as ScalarNode)!,
-            SchemaType.Enum => (NodeSchema)(schema as EnumNode)!,
-            SchemaType.Struct => (NodeSchema)(schema as StructNode)!,
-            SchemaType.Array => (NodeSchema)(schema as ArrayNode)!,
-            SchemaType.Function => (NodeSchema)(schema as FunctionNode)!,
-            _ => (NodeSchema)(schema as NamespaceNode)!
+            SchemaType.Scalar => (schema as ScalarNode),
+            SchemaType.Enum => (schema as EnumNode),
+            SchemaType.Struct => (schema as StructNode),
+            SchemaType.Array => (schema as ArrayNode),
+            SchemaType.Function => (schema as FunctionNode),
+            _ => (schema as NamespaceNode)
         };
     }
     

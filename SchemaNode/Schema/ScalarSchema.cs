@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace SchemaNode.Schema;
 
 /**
@@ -53,5 +56,11 @@ public class ScalarSchema
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
-    public string? PostValid  { get; set; }
+    public string? PostValid  { get; set; }// 用来存放额外的字段
+    
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }

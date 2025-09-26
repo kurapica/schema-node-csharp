@@ -83,7 +83,6 @@ public class NamespaceNode: AnySchemaNode
 
     #endregion
 
-
     #region Conversion
 
     /// <summary>

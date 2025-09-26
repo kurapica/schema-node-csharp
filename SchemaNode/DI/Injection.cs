@@ -9,6 +9,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Reflection;
+using SchemaNode.Function;
 using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode;
@@ -18,15 +19,25 @@ public static class Injection
     /// <summary>
     /// Use the schema context with config
     /// </summary>
-    public static IServiceCollection AddSchemaNode(this IServiceCollection services)
-    {        
+    public static IServiceCollection AddSchemaNode(this IServiceCollection services, Action<SchemaNodeConfig>? config = null)
+    {
+        if (config != null)
+        {
+            SchemaNodeConfig nodeConfig = new SchemaNodeConfig();
+            config.Invoke(nodeConfig);
+            services.AddSingleton(nodeConfig);
+            
+            if (!string.IsNullOrWhiteSpace(nodeConfig.TimeZone))
+                SystemDate.SetTimeZone(nodeConfig.TimeZone);
+        }
+        
         // default logger
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
         services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
         
         // message handlers
-        Components.SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers<SchemaContext>(services);
-        Components.SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers(services, Assembly.GetEntryAssembly());
+        SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers<SchemaContext>(services);
+        SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers(services, Assembly.GetEntryAssembly());
 
         // critical region
         services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
