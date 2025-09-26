@@ -217,11 +217,18 @@ public class SchemaContext
     /// <returns>true if saved</returns>
     public async Task<bool> SaveSchemaAsync(NodeSchema schema)
     {
+        AnySchemaNode? node = await GetSchemaNodeAsync(schema.Name);
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         bool res = await provider.SaveSchemaAsync(schema);
         if (res)
         {
+            if (node == null)
+            {
+                AnySchemaNode? parentNode = await GetSchemaNodeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
+                if (parentNode is NamespaceNode ns)
+                    ns.Schemas = ns.Schemas.Concat([schema]).ToArray();
+            }
             await GetSchemaNodeAsync(schema.Name, reload: true); // force reload
             await this.PublishMessageAsync(new SchemaChangeMessage
             {
