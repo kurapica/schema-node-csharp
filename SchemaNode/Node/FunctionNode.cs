@@ -10,7 +10,9 @@ using static SchemaNode.Utility.Constant;
 using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Schema;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
+// ReSharper disable UnusedMember.Local
 
 namespace SchemaNode.Node;
 
@@ -716,7 +718,7 @@ public class FunctionNode: AnySchemaNode
     #region Register System Functions
 
     /// <summary>
-    /// Register all datadict function and its namespace
+    /// Register all schema function and its namespace
     /// </summary>
     public static NodeSchema? GenerateSystemFunction(MethodInfo method, string? ns = null)
     {
@@ -724,16 +726,16 @@ public class FunctionNode: AnySchemaNode
         SchemaFuncAttribute? funcAttr = method.GetCustomAttribute<SchemaFuncAttribute>();
         if (funcAttr == null) return null;
 
-        int sign = FUNC_SIGN_IMMUTABLE; // The system method won't be changed
+        int sign = FUNC_SIGN_IMMUTABLE; // The system method won't be changed and already compiled
         
         // Generate the arguments and result type
         Type[] genTypes = method.GetGenericArguments();
         ParameterInfo[] parameters = method.GetParameters();
-        int[] genMap = new int[genTypes.Length]; // The generic type map to the arguments
-
+        SchemaParamTypeInfo?[] genTypeInfos = genTypes.Select(g => g.GetSchemaTypeInfo(true)).ToArray(); // The generic type infos
 
         // The schema context must be the first if used
-        if (parameters.Length > 0 && (parameters[0].ParameterType == typeof(SchemaContext) || parameters[0].ParameterType.IsSubclassOf(typeof(SchemaContext))))
+        if (parameters.Length > 0 && (parameters[0].ParameterType == typeof(SchemaContext) || 
+                                      parameters[0].ParameterType.IsSubclassOf(typeof(SchemaContext))))
         {
             sign |= FUNC_SIGN_CONTEXT;
             parameters = parameters.Skip(1).ToArray();
@@ -750,79 +752,80 @@ public class FunctionNode: AnySchemaNode
                 Return = string.Empty,
                 Args = new FunctionArgumentInfo[parameters.Length],
                 Exps = [],
-                Generic = [],
+                Generic = genTypeInfos.Select(g =>
+                {
+                    if (g != null && (g.Kind & (ParameterTypeKind.Enumerable | ParameterTypeKind.Array | ParameterTypeKind.List)) == 0 
+                                  && (g.Kind & (ParameterTypeKind.Number | ParameterTypeKind.Float)) > 0)
+                    {
+                        return NS_SYSTEM_NUMBER;
+                    }
+                    return "";
+                }).ToArray(),
             }
         };
 
         // Check if return type is Task
-        Type retType = method.ReturnType;
-        if (retType.IsGenericType && retType.BaseType == typeof(Task))
+        SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true);
+        if (retInfo == null) return null;
+        if ((retInfo.Kind & ParameterTypeKind.Task) > 0)
         {
             sign |= FUNC_SIGN_ASYNC;
-            retType = retType.GetGenericArguments()[0];
         }
-        (retType, bool isNullable) = retType.UnpackNullable();
-        {
-            int gidx = Array.FindIndex(genTypes, g => g.Name == retType.Name);
-            if (gidx >= 0)
-            {
-                funcSchema.Func.Return = genTypes.Length > 1 ? $"T{gidx + 1}" : "T";
-            }
-            else
-            {
-                string? retSchema = retType.GetSchemaType(true);
-                if (string.IsNullOrWhiteSpace(retSchema))
-                {
-                    Console.Error.WriteLine($"The method {method.Name}'s return value can't be converted to a schema type.");
-                    return null;
-                }
-                funcSchema.Func.Return = retSchema;
-            }
-        }        
 
+        if (retInfo.Generic != null)
+        {
+            int gIdx = Array.FindIndex(genTypes, g => g == retInfo.Generic);
+            if (gIdx >= 0)
+                funcSchema.Func.Return = genTypes.Length > 1 ? $"T{gIdx + 1}" : "T";
+            else
+                return null;
+        }
+        else if (string.IsNullOrWhiteSpace(retInfo.SchemaType))
+        {
+            return null;
+        }
+        else
+        {
+            funcSchema.Func.Return = retInfo.SchemaType;
+        }
+        
         // Parameter types
         if (method.IsGenericMethodDefinition) sign |= FUNC_SIGN_GENERIC;
-        Dictionary<string, int> typeRel = new();
+        SchemaParamTypeInfo?[] paramInfos = parameters.Select(p => p.ParameterType.GetSchemaTypeInfo(true)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
             ParameterInfo p = parameters[i];
-            Type t = p.ParameterType;
-            (t, bool nullable) = t.UnpackNullable();
-            FunctionArgumentInfo arg = new FunctionArgumentInfo
+            SchemaParamTypeInfo? pt = paramInfos[i];
+            if (pt == null) return null;
+            
+            FunctionArgumentInfo arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
-                Nullable = nullable,
+                Nullable = (pt.Kind & ParameterTypeKind.Nullable) > 0,
             };
             funcSchema.Func.Args[i] = arg;
 
             // Check dynamic type
-            int gidx = Array.FindIndex(genTypes, (g) => g.Name == t.Name);
-            if (gidx >= 0)
+            if (pt.Generic != null)
             {
-                // generic type
-                arg.Type = genTypes.Length > 1 ? $"T{gidx + 1}" : "T";
-
-                // record generic map
-                if (typeRel.ContainsKey(t.Name)) continue;
-                typeRel[t.Name] = i + 1;
-                for (int j = 0; j < genTypes.Length; j++)
+                int gIdx = Array.FindIndex(genTypes, (g) => g == pt.Generic);
+                if (gIdx >= 0)
                 {
-                    if (genTypes[j].Name == t.Name)
-                    {
-                        genMap[j] = i + 1;
-                        break;
-                    }
+                    // generic type
+                    arg.Type = genTypes.Length > 1 ? $"T{gIdx + 1}" : "T";
                 }
+                else
+                {
+                    return null;
+                }
+            }
+            else if (string.IsNullOrWhiteSpace(pt.SchemaType))
+            {
+                return null;
             }
             else
             {
-                string? schemaType = t.GetSchemaType(true);
-                if (string.IsNullOrEmpty(schemaType))
-                {
-                    Console.Error.WriteLine($"The method {method.Name}'s argument {p.Name} can't be converted to a schema type.");
-                    return null;
-                }
-                arg.Type = schemaType;
+                arg.Type = pt.SchemaType;
             }
         }
                 
@@ -831,9 +834,11 @@ public class FunctionNode: AnySchemaNode
         {
             Name = funcSchema.Name,
             Method = method,
-            Nullable = isNullable,
+            Nullable = (retInfo.Kind & ParameterTypeKind.Nullable) > 0,
             Sign = sign,
-            GenericTypeMap = genMap
+            Generics = genTypeInfos!,
+            Args = paramInfos!,
+            Return = retInfo
         });
 
         return funcSchema;
@@ -848,19 +853,29 @@ public class FunctionNode: AnySchemaNode
     /// </summary>
     SchemaFuncInfo CompileFunction()
     {
-        // Only fullfilled function can be complied
+        // Only full-filled function can be complied
         if (Status != SchemaNodeStatus.Ready)
             throw new Exception($"The {Name} can't be compiled because of {Status}");
 
-        // Server call only
+        SchemaFuncInfo funcInfo = new SchemaFuncInfo
+        {
+            Name = Name,
+            Sign = FUNC_SIGN_CONTEXT,
+            FunctionNode = this,
+            Args = Args.Select(a =>
+            {
+                var info = a.TypeNode!.GetSchemaTypeInfo()!;
+                if (a.Nullable ?? false) info.Kind |= ParameterTypeKind.Nullable;
+                return info;
+            }).ToArray(),
+            Return = ReturnNode!.GetSchemaTypeInfo()!
+        };
+
+        // Remote call, no dynamic function required
         if (IsRemoteCall)
         {
-            return new SchemaFuncInfo
-            {
-                Name = Name,
-                Sign = FUNC_SIGN_CONTEXT | FUNC_SIGN_SERVERCALL | FUNC_SIGN_ASYNC,
-                FunctionNode = this,
-            };
+            funcInfo.Sign |= FUNC_SIGN_CONTEXT | FUNC_SIGN_REMOTECALL | FUNC_SIGN_ASYNC;
+            return funcInfo;
         }
 
         // Compile the dynamic function node
@@ -872,7 +887,8 @@ public class FunctionNode: AnySchemaNode
             ParameterExpression[] paramExps = new ParameterExpression[Args.Length + 1];
 
             // Build the parameters, no generic type for custom methods
-            paramExps[0] = Expression.Parameter(typeof(SchemaContext)); // Add SchemaContext as the first parameters
+            // Always add SchemaContext as the first parameters for inner call
+            paramExps[0] = Expression.Parameter(typeof(SchemaContext)); 
             for (int i = 0; i < Args.Length; i++)
             {
                 FunctionNodeArgument arg = Args[i];
@@ -899,7 +915,7 @@ public class FunctionNode: AnySchemaNode
 
             // Conversion last type
             // Gets the function and expression
-            Type lastType = ReturnNode?.ToCSharpType() ?? throw new Exception($"The {Name} can't be compiled - return type not valid"); ;
+            Type lastType = ReturnNode?.ToCSharpType() ?? throw new Exception($"The {Name} can't be compiled - return type not valid");
             Expression lastExp = expBlocks.Last();
             if (lastType != lastExp.Type)
             {
@@ -917,17 +933,12 @@ public class FunctionNode: AnySchemaNode
                 );
 
             // Build the dynamic method
-            Delegate dynamicMethod = ComplieMethod(lastType, paramExps, blockExpr);
+            Delegate dynamicMethod = CompileMethod(lastType, paramExps, blockExpr);
 
             // Build the function info
-            return new SchemaFuncInfo
-            {
-                Name = Name,
-                Sign = FUNC_SIGN_CONTEXT,
-                FunctionNode = this,
-                Method = dynamicMethod!.Method,
-                DynamicMethod = dynamicMethod
-            };
+            funcInfo.Method = dynamicMethod.Method;
+            funcInfo.DynamicMethod = dynamicMethod;
+            return funcInfo;
         }
         catch (Exception ex)
         {
@@ -936,8 +947,8 @@ public class FunctionNode: AnySchemaNode
         }
     }
 
-    // Complie the method to delegate
-    static Delegate ComplieMethod(Type retType, IReadOnlyList<ParameterExpression> paramExps, BlockExpression blockExpr)
+    // Compile the method to delegate
+    static Delegate CompileMethod(Type retType, IReadOnlyList<ParameterExpression> paramExps, BlockExpression blockExpr)
     {
         Type[] funcTypes = new Type[paramExps.Count + 1];
         for (int i = 0; i < paramExps.Count; i++)
@@ -968,7 +979,7 @@ public class FunctionNode: AnySchemaNode
         return (Delegate)typeof(FunctionNode)
             .GetMethod(nameof(ComplieDynamicMethod), BindingFlags.Static | BindingFlags.NonPublic)!
             .MakeGenericMethod(lambdaType)
-            .Invoke(null, new object[] { blockExpr, paramExps })!;
+            .Invoke(null, [blockExpr, paramExps])!;
     }
     
     /// <summary>
@@ -980,7 +991,8 @@ public class FunctionNode: AnySchemaNode
         {
             case FunctionNodeExpression exp:
                 {
-                    SchemaFuncInfo callFuncInfo = exp.FuncNode!.GetSchemaFuncInfo();
+                    SchemaFuncInfo? callFuncInfo = exp.FuncNode!.GetSchemaFuncInfo();
+                    if (callFuncInfo == null) throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
                     int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
 
                     // Prepare the call arguments
@@ -1014,35 +1026,36 @@ public class FunctionNode: AnySchemaNode
                                     object? value = constExp.Value;
                                     if (value != null)
                                     {
-                                        if (callType == typeof(int))
+                                        (Type realType, _) = callType.UnpackNullable();
+                                        if (realType == typeof(int))
                                         {
                                             value = Convert.ToInt32(value);
                                         }
-                                        else if (callType == typeof(long))
+                                        else if (realType == typeof(long))
                                         {
                                             value = Convert.ToInt64(value);
                                         }
-                                        else if (callType == typeof(float))
+                                        else if (realType == typeof(float))
                                         {
                                             value = Convert.ToSingle(value);
                                         }
-                                        else if (callType == typeof(double))
+                                        else if (realType == typeof(double))
                                         {
                                             value = Convert.ToDouble(value);
                                         }
-                                        else if (callType == typeof(decimal))
+                                        else if (realType == typeof(decimal))
                                         {
                                             value = Convert.ToDecimal(value);
                                         }
-                                        else if (callType == typeof(string))
+                                        else if (realType == typeof(string))
                                         {
                                             value = Convert.ToString(value);
                                         }
-                                        else if (callType == typeof(bool))
+                                        else if (realType == typeof(bool))
                                         {
                                             value = Convert.ToBoolean(value);
                                         }
-                                        else if (callType == typeof(DateTime))
+                                        else if (realType == typeof(DateTime))
                                         {
                                             value = Convert.ToDateTime(value);
                                         }
@@ -1050,9 +1063,11 @@ public class FunctionNode: AnySchemaNode
                                     callArgs[i + useContext] = Expression.Constant(value, callType);
                                 }
                                 break;
+                            
                             case FunctionNodeArgument argExp:
                                 callArgs[i + useContext] = paramMap[argExp.Name];
                                 break;
+                            
                             case FunctionNodeExpression otherExp:
                                 if (otherExp.Used == 1)
                                 {
@@ -1092,24 +1107,55 @@ public class FunctionNode: AnySchemaNode
                     if ((callFuncInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE && (callFuncInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
                     {
                         // Generate the generic method
-                        Type[] genTypes = callFuncInfo.GenericTypeMap.Select(p => p > 0 ? callArgTypes[p - 1 + useContext].GetNotNullType() : epxReturnElement).ToArray();
-                        string genSign = string.Join('|', genTypes.Select(p => p.IsSubclassOfGenericType(typeof(Nullable<>)) ? $"{p.GetGenericArguments()[0].Name}?" : p.Name));
-                        callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes));
+                        Type?[] genTypes = callFuncInfo.Generics.Select(p =>
+                        {
+                            SchemaParamTypeInfo? info = null;
+                            Type? type = null;
+                            if (callFuncInfo.Return.Generic == p.Generic)
+                            {
+                                info = callFuncInfo.Return;
+                                type = expReturnType;
+                            }
+                            else
+                            {
+                                for (int j = 0; j < callFuncInfo.Args.Length; j++)
+                                {
+                                    var sinfo = callFuncInfo.Args[j];
+                                    if (sinfo.Generic == p.Generic)
+                                    {
+                                        info = sinfo;
+                                        type = callArgTypes[j + useContext].GetNotNullType();
+                                    }
+                                }
+                            }
+
+                            if (info == null || type == null) return null;
+                            
+                            if ((info.Kind & ParameterTypeKind.Array) > 0 && type.IsSZArray)
+                                return type.GetElementType();
+                            if ((info.Kind & (ParameterTypeKind.Enumerable | ParameterTypeKind.List)) > 0 && type.GetGenericArguments() is { Length: > 0} args)
+                                return args[0];
+                            return expReturnType;
+                        }).ToArray();
+                        if (genTypes.Length == 0 || genTypes.Any(g => g == null))
+                            throw new Exception($"The expression {exp.Name}'s generic type not valid");
+                        string genSign = string.Join('|', genTypes.Select(p => p!.IsSubclassOfGenericType(typeof(Nullable<>)) ? $"{p!.GetGenericArguments()[0].Name}?" : p!.Name));
+                        callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes!));
                     }
-                    // Use server call
-                    else if ((callFuncInfo.Sign & FUNC_SIGN_SERVERCALL) == FUNC_SIGN_SERVERCALL)
+                    // Use remote call
+                    else if ((callFuncInfo.Sign & FUNC_SIGN_REMOTECALL) == FUNC_SIGN_REMOTECALL)
                     {
-                        // Genreate the call
+                        // Generate the call
                         Expression[] convCallArgs = new Expression[callArgs.Length + 2];
                         convCallArgs[0] = callArgs[0];
                         convCallArgs[1] = Expression.Constant(callFuncInfo.Name);
-                        convCallArgs[2] = Expression.Constant(exp.Return);
+                        convCallArgs[2] = Expression.Constant(exp.Return); // TODO
                         for (int i = 1; i < callArgs.Length; i++)
                             convCallArgs[i + 2] = callArgs[i];
                         callArgs = convCallArgs;
                         if (arrayIndex >= 0) arrayIndex += 2;
                         int count = callArgs.Length - 3;
-                        callMethod = typeof(FunctionNode).GetMethod($"CallServerFunction{count}", BindingFlags.Static | BindingFlags.NonPublic)!;
+                        callMethod = typeof(FunctionNode).GetMethod($"CallRemoteFunction{count}", BindingFlags.Static | BindingFlags.NonPublic)!;
 
                         // Make generic type
                         if (count > 0)callMethod = callMethod.MakeGenericMethod(callArgs.Skip(3).Select(e => e.Type).Prepend(epxReturnElement).ToArray());
@@ -1173,7 +1219,7 @@ public class FunctionNode: AnySchemaNode
                         // Map the element
                         case ExpressionType.Map:
                             {
-                                innerCall = ComplieMethod(varExp.Type, innerParams, Expression.Block(
+                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
                                     new[] { varExp, start, stop, array, final },
                                     Expression.Assign(varExp, Expression.New(varExp.Type)),
                                     Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
@@ -1215,7 +1261,7 @@ public class FunctionNode: AnySchemaNode
                                 innerCallArgs[sumIndex] = varExp;
 
                                 // Complie
-                                innerCall = ComplieMethod(varExp.Type, innerParams, Expression.Block(
+                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
                                     new[] { varExp, start, stop, array, final },
                                     Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
                                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -1245,7 +1291,7 @@ public class FunctionNode: AnySchemaNode
                                 ParameterExpression init = Expression.Parameter(varExp.Type, "_init");
 
                                 // Complie
-                                innerCall = ComplieMethod(varExp.Type, innerParams, Expression.Block(
+                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
                                     new[] { varExp, start, stop, array, init, final },
                                     Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
                                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -1280,7 +1326,7 @@ public class FunctionNode: AnySchemaNode
                                 ParameterExpression init = Expression.Parameter(varExp.Type, "_init");
 
                                 // Complie
-                                innerCall = ComplieMethod(varExp.Type, innerParams, Expression.Block(
+                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
                                     new[] { varExp, start, stop, array, init, final },
                                     Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
                                     Expression.Assign(stop, Expression.Constant(0, typeof(int))),
@@ -1311,7 +1357,7 @@ public class FunctionNode: AnySchemaNode
                                 ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
                                 innerCallArgs[arrayIndex] = curr;
 
-                                innerCall = ComplieMethod(varExp.Type, innerParams, Expression.Block(
+                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
                                     new[] { varExp, start, stop, array, final, curr },
                                     Expression.Assign(varExp, Expression.New(varExp.Type)),
                                     Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
@@ -1420,12 +1466,9 @@ public class FunctionNode: AnySchemaNode
             {
                 return ctype.GetNotNullType() == expType.GetNotNullType() ? exp : Expression.Call(null, GetConvertNullableExp(ctype, expType), exp);
             }
-            else
-            {
-                exp = Expression.Call(exp, expType.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!);
-                expType = expType.GetNotNullType();
-                if (ctype == expType) return exp;
-            }
+            exp = Expression.Call(exp, expType.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!);
+            expType = expType.GetNotNullType();
+            if (ctype == expType) return exp;
         }
         // @todo: more check
         else if (ctype.IsNullable())
@@ -1438,23 +1481,23 @@ public class FunctionNode: AnySchemaNode
         if (ctype == expType) return exp;
         if (ctype == typeof(int))
         {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), new[] { exp.Type })!, exp);
+            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [exp.Type])!, exp);
         }
         else if (ctype == typeof(long))
         {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), new[] { exp.Type })!, exp);
+            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [exp.Type])!, exp);
         }
         else if (ctype == typeof(float))
         {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), new[] { exp.Type })!, exp);
+            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [exp.Type])!, exp);
         }
         else if (ctype == typeof(double))
         {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), new[] { exp.Type })!, exp);
+            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [exp.Type])!, exp);
         }
         else if (ctype == typeof(decimal))
         {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), new[] { exp.Type })!, exp);
+            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [exp.Type])!, exp);
         }
         return exp;
     }
@@ -1475,19 +1518,21 @@ public class FunctionNode: AnySchemaNode
             return callFuncInfo.Name switch
             {
                 // system.arth
+                $"{NS_SYSTEM_MATH}.e" => Expression.Constant(Math.E),
+                $"{NS_SYSTEM_MATH}.pi" => Expression.Constant(Math.PI),
                 $"{NS_SYSTEM_MATH}.add" => Expression.Add(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_MATH}.subtract" => Expression.Subtract(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_MATH}.multiply" => Expression.Multiply(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_MATH}.divide" => Expression.Divide(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_MATH}.modulo" => Expression.Modulo(callArgs[0], callArgs[1]),
-
+                
                 // system.conv
                 $"{NS_SYSTEM_CONV}.assign" => callArgs[0],
                 $"{NS_SYSTEM_CONV}.null" => Expression.Constant(null, callMethod.ReturnType.GetNullableType()),
 
                 // system.logic
                 $"{NS_SYSTEM_LOGIC}.isnull" => Expression.Call(null, callMethod, Expression.Convert(callArgs[0], typeof(object))),
-                $"{NS_SYSTEM_LOGIC}.condition" => Expression.Condition(callArgs[0], callArgs[1], callArgs[2]),
+                $"{NS_SYSTEM_LOGIC}.cond" => Expression.Condition(callArgs[0], callArgs[1], callArgs[2]),
                 $"{NS_SYSTEM_LOGIC}.lessthan" => Expression.LessThan(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_LOGIC}.lessequal" => Expression.LessThanOrEqual(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_LOGIC}.equal" => Expression.Equal(callArgs[0], callArgs[1]),
@@ -1665,24 +1710,24 @@ public class FunctionNode: AnySchemaNode
     /// <summary>
     /// Call the data dict function with arguments
     /// </summary>
-    static async Task<TR?> CallServerFunction0<TR>(SchemaContext context, string name, string retType) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), [retType]));
-    static async Task<TR?> CallServerFunction1<TR, T1>(SchemaContext context, string name, string retType, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, [retType]));
-    static async Task<TR?> CallServerFunction2<TR, T1, T2>(SchemaContext context, string name, string retType, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, [retType]));
-    static async Task<TR?> CallServerFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, [retType]));
-    static async Task<TR?> CallServerFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, [retType]));
-    static async Task<TR?> CallServerFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, [retType]));
-    static async Task<TR?> CallServerFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, [retType]));
-    static async Task<TR?> CallServerFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, [retType]));
-    static async Task<TR?> CallServerFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, [retType]));
-    static async Task<TR?> CallServerFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, [retType]));
-    static async Task<TR?> CallServerFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, [retType]));
-    static async Task<TR?> CallServerFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, [retType]));
-    static async Task<TR?> CallServerFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, [retType]));
-    static async Task<TR?> CallServerFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, [retType]));
-    static async Task<TR?> CallServerFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, [retType]));
-    static async Task<TR?> CallServerFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, [retType]));
-    static async Task<TR?> CallServerFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, [retType]));
-    static async Task<TR?> CallServerFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, [retType]));
+    static async Task<TR?> CallRemoteFunction0<TR>(SchemaContext context, string name, string retType) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), [retType]));
+    static async Task<TR?> CallRemoteFunction1<TR, T1>(SchemaContext context, string name, string retType, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, [retType]));
+    static async Task<TR?> CallRemoteFunction2<TR, T1, T2>(SchemaContext context, string name, string retType, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, [retType]));
+    static async Task<TR?> CallRemoteFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, [retType]));
+    static async Task<TR?> CallRemoteFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, [retType]));
+    static async Task<TR?> CallRemoteFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, [retType]));
+    static async Task<TR?> CallRemoteFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, [retType]));
+    static async Task<TR?> CallRemoteFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, [retType]));
+    static async Task<TR?> CallRemoteFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, [retType]));
+    static async Task<TR?> CallRemoteFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, [retType]));
+    static async Task<TR?> CallRemoteFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, [retType]));
+    static async Task<TR?> CallRemoteFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, [retType]));
+    static async Task<TR?> CallRemoteFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, [retType]));
+    static async Task<TR?> CallRemoteFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, [retType]));
+    static async Task<TR?> CallRemoteFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, [retType]));
+    static async Task<TR?> CallRemoteFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, [retType]));
+    static async Task<TR?> CallRemoteFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, [retType]));
+    static async Task<TR?> CallRemoteFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, [retType]));
     
     #endregion
 
@@ -1718,10 +1763,9 @@ public class FunctionNode: AnySchemaNode
     /// <summary>
     /// Gets the info from data dict func
     /// </summary>
-    public SchemaFuncInfo GetSchemaFuncInfo()
+    public SchemaFuncInfo? GetSchemaFuncInfo()
     {
-        if (FuncInfo != null)
-            return FuncInfo;
+        if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
 
         // Check is static
         if (StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) && (result.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
@@ -1745,19 +1789,9 @@ public class FunctionNode: AnySchemaNode
         MethodInfo method = typeof(FunctionNode).GetMethod($"CallDynamicFunc{inputs.Length}", BindingFlags.Static | BindingFlags.NonPublic)!;
         return method!.MakeGenericMethod(inputs.Prepend(ret).ToArray());
     }
-
+    
     #endregion
     
-    #region Utility
-
-    // staitc mappings
-    private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
-    private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
-
-    #endregion
-
-    #endregion
-
     #region Utility
 
     void ResizeGeneric(int count)
@@ -1768,6 +1802,12 @@ public class FunctionNode: AnySchemaNode
             generic[i] = Generic[i];
         Generic = generic;
     }
+
+    // staitc mappings
+    private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
+    private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
+
+    #endregion
 
     #endregion
     
@@ -1986,12 +2026,12 @@ public class SchemaFuncInfo
     /// <summary>
     /// The method info
     /// </summary>
-    public MethodInfo? Method { get; init; }
+    public MethodInfo? Method { get; set; }
 
     /// <summary>
     /// The dynamic method generated by expression
     /// </summary>
-    public Delegate? DynamicMethod { get; init; }
+    public Delegate? DynamicMethod { get; set; }
 
     /// <summary>
     /// The function node
@@ -2006,12 +2046,22 @@ public class SchemaFuncInfo
     /// <summary>
     ///  The sign of the function
     /// </summary>
-    public int Sign { get; init; }
+    public int Sign { get; set; }
 
     /// <summary>
-    /// The generic type map
+    /// The generic info
     /// </summary>
-    public int[] GenericTypeMap { get; init; } = [];
+    public SchemaParamTypeInfo[] Generics { get; init; } = [];
+    
+    /// <summary>
+    /// The argument info
+    /// </summary>
+    public SchemaParamTypeInfo[] Args { get; init; } = [];
+    
+    /// <summary>
+    /// The return info
+    /// </summary>
+    public required SchemaParamTypeInfo Return { get; init; }
 
     /// <summary>
     /// The generic instances

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -36,109 +37,105 @@ public static class Schema
     }
 
     /// <summary>
-    /// Save the node schema as system, should only be used to save all system define functions
-    /// When server init, so no lock will be used for simple
+    /// Save the node schema as system, should only be used to save all system define function
     /// </summary>
     public static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
-        schema.LoadState = SchemaLoadState.System;
-        Console.WriteLine("save", schema.Name);
-        
-        string schemaName = schema.Name.ToLowerInvariant();
-        NodeSchema root = _root;
-        string fullPath = "";
-        foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
+        lock (_root)
         {
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-            NodeSchema? node = root.Schemas!.FirstOrDefault(x => x.Name == fullPath);
-            if (node == null)
+            schema.LoadState = SchemaLoadState.System;
+            Console.WriteLine("save", schema.Name);
+
+            string schemaName = schema.Name.ToLowerInvariant();
+            NodeSchema root = _root;
+            string fullPath = "";
+            foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
             {
-                if (schemaName == fullPath)
+                fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
+                NodeSchema? node = root.Schemas!.FirstOrDefault(x => x.Name == fullPath);
+                if (node == null)
                 {
-                    root.Schemas = root.Schemas != null ? root.Schemas.Concat([schema]).ToArray() : [schema];
+                    if (schemaName == fullPath)
+                    {
+                        root.Schemas = root.Schemas != null ? root.Schemas.Concat([schema]).ToArray() : [schema];
+                    }
+                    else
+                    {
+                        node = new NodeSchema
+                        {
+                            Name = fullPath,
+                            Type = SchemaType.Namespace,
+                            LoadState = SchemaLoadState.System,
+                            Schemas = []
+                        };
+                        root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
+                    }
+                }
+                else if (schemaName != fullPath)
+                {
+                    root = node;
+                    root.Schemas ??= [];
+                }
+            }
+
+            Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
+
+            // Register the type map
+            if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
+            {
+                if (schema.Type != SchemaType.Array)
+                {
+                    _systemTypes[schemaName] = type;
+                    _typeNames[type] = schemaName;
                 }
                 else
                 {
-                    node = new NodeSchema
-                    {
-                        Name = fullPath,
-                        Type = SchemaType.Namespace,
-                        LoadState = SchemaLoadState.System,
-                        Schemas = []
-                    };
-                    root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
+                    _typeArrNames[type] = schemaName;
                 }
-            }
-            else if (schemaName != fullPath)
-            {
-                root = node;
-                root.Schemas ??= [];
-            }
-        }
-        
-        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
-        
-        // Register the type map
-        if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
-        {
-            if (schema.Type != SchemaType.Array)
-            {
-                _systemTypes[schemaName] = type;
-                _typeNames[type] = schemaName;
-            }
-            else
-            {
-                _typeArrNames[type] = schemaName;
             }
         }
     }
 
     /// <summary>
-    /// Try register assembly type as schema and return its name
+    /// Try get the schema name of a assembly type, with auto register
     /// </summary>
     /// <param name="type">The type</param>
     /// <param name="autoConv">Whether auto convert the type no matter the attribute existed</param>
     /// <returns>The schema name be registered</returns>
     public static string? GetSchemaType(this Type type, bool autoConv = false)
     {
-        // array & list check
-        bool isArray = false;
-        string? typeName;
+        return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv);
+    }
+
+    /// <summary>
+    /// Try get the schema name of a assembly type, with auto register
+    /// </summary>
+    /// <param name="typeInfo">The type info</param>
+    /// <param name="autoConv">Whether auto convert the type</param>
+    /// <returns></returns>
+    public static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
+    {
+        if (typeInfo.Type == null) return null;
         
-        // Generic check
-        while (type.IsGenericType || type.IsArray)
-        {
-            if (type.IsArray)
-            {
-                if (isArray || !type.IsSZArray) return null; // not support multi dimension array
-                Type? elementType = type.GetElementType();
-                if (elementType == null) return null;
-                type = elementType;
-                isArray = true;
-            }
-            else if (type.IsSubclassOfGenericType(typeof(List<>)))
-            {
-                if (isArray) return null;
-                type = type.GetGenericArguments()[0];
-                isArray = true;
-            }
-            else if (type.IsSubclassOfGenericType(typeof(Nullable<>)))
-            {
-                type = type.GetGenericArguments()[0];
-            }
-            else
-            {
-                // not support other complex generic types
-                return null;
-            }
-        }
+        // array & list check
+        bool isArray = (typeInfo.Kind & (ParameterTypeKind.Array | ParameterTypeKind.List | ParameterTypeKind.Enumerable)) > 0;
+        Type type = typeInfo.Type;
 
         // Already registered
-        if (isArray ? _typeArrNames.TryGetValue(type, out typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
+        if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
         // Basic value check
         if (!type.IsEnum)
         {
+            if (type == typeof(JsonArray))
+            {
+                return NS_SYSTEM_ARRAY;
+            }
+            else if (type == typeof(JsonObject))
+            {
+                return NS_SYSTEM_STRUCT;
+            }
+            
             if (type == typeof(Guid))
             {
                 typeName = NS_SYSTEM_GUID;
@@ -185,18 +182,19 @@ public static class Schema
             NodeSchema[]? schemas = null;
             if (type.IsClass)
             {
+                // static class as api container
                 if (type.IsAbstract)
                 {
                     if (type.IsSealed)
                     {
                         // static class as method container
-                        SchemaNameSpaceAttribute? funcNsAttr = type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>();
+                        SchemaNameSpaceAttribute? funcNsAttr = type.GetCustomAttribute<SchemaNameSpaceAttribute>();
                         if (funcNsAttr != null)
                         {
                             List<NodeSchema>? funcNs = null;
                             foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
                             {
-                                NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr?.Name);
+                                NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
                                 funcNs ??= [];
                                 funcNs.Add(func);
@@ -208,7 +206,9 @@ public static class Schema
                 else
                 {
                     if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
-                        schemas = StructNode.GenerateSystemStruct(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                        schemas = StructNode.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
+                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
             }
             else if (type.IsValueType)
@@ -216,13 +216,17 @@ public static class Schema
                 if (type.IsEnum)
                 {
                     if (autoConv || type.GetCustomAttribute<SchemaEnumAttribute>() != null) 
-                        schemas = EnumNode.GenerateSystemEnum(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                        schemas = EnumNode.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
+                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
                     // struct
                     if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
-                        schemas = StructNode.GenerateSystemStruct(type, type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                        schemas = StructNode.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
+                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
             }
 
@@ -254,7 +258,120 @@ public static class Schema
         SaveSystemNodeSchema(arraySchema, type);
         return arraySchema.Name;
     }
+    
+    /// <summary>
+    /// Gets the parameter type info in the schema system
+    /// </summary>
+    public static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false)
+    {
+        if (input == null) return null;
 
+        SchemaParamTypeInfo? result;
+        
+        if (input.IsGenericType) // IList<T>, IList<int>
+        {
+            Type[] args = input.GetGenericArguments();
+            if (args.Length != 1) return null; // not support complex generic arguments
+            
+            result = GetSchemaTypeInfo(args[0]);
+            if (result == null) return null;
+
+            Type genType = input.GetGenericTypeDefinition();
+            
+            // T?
+            if (genType == typeof(Nullable<>))
+            {
+                result.Kind |= ParameterTypeKind.Nullable;
+            }
+            
+            // IList<T>, List<T>
+            else if (genType == typeof(IList<>) || genType == typeof(List<>))
+            {
+                result.Kind |= ParameterTypeKind.List;
+            }
+            
+            // IEnumerable<T>
+            else if (genType == typeof(IEnumerable<>))
+            {
+                result.Kind |= ParameterTypeKind.Enumerable;
+            }
+
+            // Task<T>
+            else if (genType == typeof(Task<>))
+            {
+                result.Kind |= ParameterTypeKind.Task;
+            }
+            
+            // Don't support other generic type
+            else
+            {
+                return null;
+            }
+
+            result.Kind |= ParameterTypeKind.GenericType;
+        }
+        else if (input.IsGenericParameter) // T where T: INumber<T>
+        {
+            // Only check INumber<T>, IFloatPoint<T>, don't cover full constraints
+            var constraints = input.GetGenericParameterConstraints();
+            bool isNumber = false;
+            bool isFloat = false;
+
+            foreach (Type constraint in constraints)
+            {
+                if (!constraint.IsGenericType) continue;
+                if (constraint.GetGenericTypeDefinition() == typeof(INumber<>))
+                {
+                    isNumber = true;
+                }
+                else if (constraint.GetGenericTypeDefinition() == typeof(IFloatingPoint<>))
+                {
+                    isFloat = true;
+                }
+            }
+            return new SchemaParamTypeInfo
+            {
+                Generic = input,
+                Kind = ParameterTypeKind.GenericParameter | 
+                       (isNumber ? ParameterTypeKind.Number : isFloat ? ParameterTypeKind.Float : ParameterTypeKind.Normal)
+            };
+        }
+        else if (input.IsArray)
+        {
+            // only allow one-level array
+            if (!input.IsSZArray) return null;
+            result = GetSchemaTypeInfo(input.GetElementType());
+            if (result == null) return null;
+            result.Kind |= ParameterTypeKind.Array;
+        }
+        else
+        {
+            result = new SchemaParamTypeInfo
+            {
+                Type = input,
+            };
+        }
+
+        // auto conv type to schema type
+        if (autoConv && result?.Type != null) result.SchemaType = GetSchemaType(result, true);
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the schema type info from any schema node
+    /// </summary>
+    public static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaNode node)
+    {
+        return node switch
+        {
+            ScalarNode or EnumNode or StructNode or ArrayNode => new SchemaParamTypeInfo
+            {
+                Type = node.ToCSharpType(), SchemaType = node.Name
+            },
+            _ => null
+        };
+    }
+    
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
@@ -352,6 +469,70 @@ public static class Schema
                 return true;
             }
         }
+    }
+    
+    #endregion
+    
+    #region Inner type
+    
+    /// <summary>
+    /// The generic type info
+    /// </summary>
+    public class SchemaParamTypeInfo
+    {
+        /// <summary>
+        /// The generic type, only allow "T", "T1", "T2" and etc
+        /// </summary>
+        public Type? Generic { get; set; }
+    
+        /// <summary>
+        /// The base type
+        /// </summary>
+        public Type? Type { get; set; }
+    
+        /// <summary>
+        /// The schema type
+        /// </summary>
+        public string? SchemaType { get; set; }
+    
+        /// <summary>
+        /// The generic type kind
+        /// </summary>
+        public ParameterTypeKind Kind { get; set; } = ParameterTypeKind.Normal;
+
+        #region State
+
+        public bool Nullable => (Kind & ParameterTypeKind.Nullable) > 0;
+        
+        public bool List => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Enumerable)) > 0;
+        
+        public bool Array => (Kind & ParameterTypeKind.Array) > 0;
+        
+        public bool Task => (Kind & ParameterTypeKind.Task) > 0;
+        
+        public bool Number => (Kind & (ParameterTypeKind.Number | ParameterTypeKind.Float)) > 0;
+        
+        public bool OnlyFloat => (Kind & ParameterTypeKind.Float) > 0;
+        
+        #endregion
+    }
+
+    /// <summary>
+    /// The parameter type kind
+    /// </summary>
+    [Flags]
+    public enum ParameterTypeKind
+    {
+        Normal = 0,
+        Nullable = 1 << 0,
+        Number = 1 << 1,
+        Float = 1 << 2,
+        List = 1 << 3,
+        Array = 1 << 4,
+        Enumerable = 1 << 5,
+        Task = 1 << 6,
+        GenericType = 1 << 7,
+        GenericParameter = 1 << 8,
     }
     
     #endregion

@@ -7,6 +7,7 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode.Context;
@@ -167,27 +168,40 @@ public class SchemaContext
     /// <returns>The result</returns>
     public async Task<JsonNode?> CallFunctionAsync(FunctionNode node, JsonArray args, string[]? generic = null)
     {
-        if (node.SchemaProvider != null)
+        if (node.IsRemoteCall)
         {
-            return await node.SchemaProvider.CallFunctionAsync(node.Name, args, generic);
+            if (node.SchemaProvider != null)
+                return await node.SchemaProvider.CallFunctionAsync(node.Name, args, generic);
+            return null;
         }
-        else
+
+        // Argument validation
+        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo() ?? throw new Exception($"Function {node.Name} can't be complied");
+        object[] callArgs = new object[funcInfo.Args!.Length];
+        Type[] generics = new Type[funcInfo.Generics.Length];
+        
+        
+        for(int i = 0; i < funcInfo.Args!.Length; i++)
         {
-            foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
+            SchemaParamTypeInfo arg = funcInfo.Args![i];
+            if (args.Count < i && !arg.Nullable) throw new Exception($"The ${i+1} argument must be provided");
+
+            // generic type
+            if (arg.Generic != null)
             {
-                try
-                {
-                    JsonNode? result = await provider.CallFunctionAsync(node.Name, args, generic);
-                    node.SchemaProvider = provider;
-                    return result;
-                }
-                catch
-                {
-                    //pass
-                }
+                int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
+                if (idx < 0) throw new Exception($"The ${i+1} argument must be provided and valid");
+                
+                (object value, string schemaType)? val = args[i].ParseSchemaValue(funcInfo.Generics[idx]);
+                if (val == null && !arg.Nullable) throw new Exception($"The ${i+1} argument must be provided and valid");
+
+                
+            }
+            else
+            {
+                
             }
         }
-        return null;
     }
 
     /// <summary>
@@ -200,8 +214,8 @@ public class SchemaContext
     public async Task<JsonNode?> CallFunctionAsync(string name, JsonArray args, string[]? generic = null)
     {
         AnySchemaNode? node = await GetSchemaNodeAsync(name);
-        if (node is FunctionNode funcNode) return await CallFunctionAsync(funcNode, args, generic);
-        return null;
+        if (node is not FunctionNode funcNode) throw new Exception($"Function {name} not found");
+        return await CallFunctionAsync(funcNode, args, generic);
     }
 
     #endregion

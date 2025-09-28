@@ -1,8 +1,7 @@
-using System;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Xml;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Utility;
 
@@ -98,11 +97,11 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    /// <param name="indent">Whether use indent</param>
+    /// <param name="indent">use indent</param>
     public static string ToJson<T>(this T value, bool indent = false)
     {
         // Generate the JSON string.
-        return JsonSerializer.Serialize<T>(value, indent ? IndentJsonOption : NoIndentJsonOption);
+        return JsonSerializer.Serialize(value, indent ? IndentJsonOption : NoIndentJsonOption);
     }
 
     /// <summary>
@@ -153,6 +152,39 @@ public static class Extension
         foreach (var item in b)
         {
             a.Add(item);
+        }
+    }
+
+    /// <summary>
+    /// Try parse json value to schema type value
+    /// </summary>
+    public static (object, string)? ParseSchemaValue(this JsonNode? node, Schema.SchemaParamTypeInfo? typeInfo = null)
+    {
+        if (node == null || node.IsEmpty()) return null;
+        if (node is JsonObject) return (node, NS_SYSTEM_STRUCT);
+        if (node is JsonArray arr) return (arr, NS_SYSTEM_ARRAY);
+        if (node is not JsonValue val) return null;
+        object raw = val.GetValue<object>();
+
+        switch (raw)
+        {
+            case bool: 
+                return (raw, NS_SYSTEM_BOOL);
+            case sbyte or byte or short or ushort or int or uint or long or ulong:
+                return (raw, NS_SYSTEM_INT);
+            case float: 
+                return (raw, NS_SYSTEM_FLOAT);
+            case double:
+                return (raw, NS_SYSTEM_DOUBLE);
+            case decimal:
+                return (raw, NS_SYSTEM_NUMBER);
+            case string s:
+                // 尝试解析成日期
+                if (DateTime.TryParse(s, out _))
+                    return (raw, NS_SYSTEM_DATE);
+                return (raw, NS_SYSTEM_STRING);
+            default:
+                return null;
         }
     }
 

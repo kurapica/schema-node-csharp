@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Xml.Schema;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -252,7 +252,7 @@ public class ScalarNode: AnySchemaNode
                     }
                     else if (DateTime.TryParse(strval, out DateTime dateTime))
                     {
-                         year = dateTime.GetYear();
+                         year = dateTime.GetLocaleYear();
                     }
                     else
                     {

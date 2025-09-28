@@ -32,7 +32,7 @@ public static class SystemDate
     /// system.datetime.getday
     /// </summary>
     [SchemaFunc("system.datetime.getday")]
-    public static long GetLocaleDay(this DateTime dt) => dt.ToUtc().Day;
+    public static long GetLocaleDay(this DateTime dt) => dt.FromUtc().Day;
 
     /// <summary>
     /// system.datetime.getmonth
@@ -44,11 +44,12 @@ public static class SystemDate
     /// system.datetime.getyear
     /// </summary>
     [SchemaFunc("system.datetime.getyear")]
-    public static DateTime GetLocaleYear(this DateTime dt) => dt.;
+    public static long GetLocaleYear(this DateTime dt) => dt.FromUtc().Year;
 
     /// <summary>
     /// Gets the first time of the year in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.firsttimeinyear")]
     public static DateTime GetFirstTimeOfYear(this DateTime date)
     {
         date = FromUtc(date);
@@ -59,6 +60,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.firsttimeinmonth")]
     public static DateTime GetFirstTimeOfMonth(this DateTime date)
     {
         date = FromUtc(date);
@@ -69,6 +71,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.firsttimeinday")]
     public static DateTime GetFirstTimeOfDay(this DateTime date)
     {
         date = FromUtc(date);
@@ -79,6 +82,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the year in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.lasttimeinyear")]
     public static DateTime GetLastTimeOfYear(this DateTime date)
     {
         date = FromUtc(date);
@@ -89,6 +93,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.lasttimeinmonth")]
     public static DateTime GetLastTimeOfMonth(this DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -99,6 +104,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
+    [SchemaFunc("system.datetime.lasttimeinday")]
     public static DateTime GetLastTimeOfDay(this DateTime date)
     {
         date = FromUtc(date).AddDays(1);
@@ -146,6 +152,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the days of a month
     /// </summary>
+    [SchemaFunc("system.datetime.getmonthdays")]
     public static long GetMonthDays(this DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -265,6 +272,7 @@ public static class SystemDate
     /// <summary>
     /// GreateEqual
     /// </summary>
+    [SchemaFunc("system.datetime.between")]
     public static bool Between(this DateTime date, DateTime min, DateTime max)
     {
         date = FromUtc(date);
@@ -282,10 +290,10 @@ public static class SystemDate
     /// Sets the time zone
     /// </summary>
     public static void SetTimeZone(string zone) => _timeZone = TZConvert.GetTimeZoneInfo(zone);
-    static TimeZoneInfo _timeZone = TZConvert.GetTimeZoneInfo(DEFAULT_TIMEZONÈ);
+    static TimeZoneInfo _timeZone = TZConvert.GetTimeZoneInfo(DEFAULT_TIMEZONE);
     
     // ReSharper disable once InconsistentNaming
-    const string DEFAULT_TIMEZONÈ = "China Standard Time";
+    const string DEFAULT_TIMEZONE = "China Standard Time";
     
     #endregion
 }
