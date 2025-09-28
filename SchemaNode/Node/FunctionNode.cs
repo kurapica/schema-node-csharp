@@ -136,7 +136,7 @@ public class FunctionNode: AnySchemaNode
         }
 
         // Check if server or direct call
-        IsRemoteCall = (LoadState & SchemaLoadState.Root) > 0;
+        IsRemoteCall = (LoadState & SchemaLoadState.Remote) > 0;
         IsSystemCall = (LoadState & SchemaLoadState.System) > 0;
         RequireRemoteCall = IsRemoteCall;
 
@@ -247,6 +247,8 @@ public class FunctionNode: AnySchemaNode
     // Clear the function info to be re-complied
     void ClearFunctionInfo()
     {
+        if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
+
         FuncInfo = null;
         if (UsedBy == null || UsedBy.IsEmpty) return;
         foreach ((AnySchemaNode other, _) in UsedBy)

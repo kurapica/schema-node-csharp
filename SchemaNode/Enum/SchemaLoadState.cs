@@ -32,5 +32,5 @@ public enum SchemaLoadState
     /// <summary>
     /// From up server
     /// </summary>
-    Root = 16,
+    Remote = 16,
 }
