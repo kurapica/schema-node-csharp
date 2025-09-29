@@ -543,8 +543,9 @@ public static class Schema
             object raw = val.GetValue<object>();
             return raw switch
             {
-                bool or sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal
-                    => (raw, raw.GetType()),
+                bool => (raw, typeof(bool)),
+                sbyte or byte or short or ushort or int or uint or long or ulong => ((long)raw, typeof(long)),
+                float or double or decimal => (raw, raw.GetType()),
                 string s => DateTime.TryParse(s, out _) ? (raw, typeof(DateTime)) : (raw, typeof(string)),
                 _ => ((object? value, Type? type))(null, null)
             };
@@ -560,45 +561,68 @@ public static class Schema
                 if (node == null || node.IsEmpty()) return (null, Type, generic);
                 if (node is JsonArray arr)
                 {
-                    
+                    if (!List && !Array) return (null, Type, generic);
+                    if (generic != null)
+                    {
+                        Type type = Array ? generic.MakeArrayType() : typeof(List<>).MakeGenericType(generic);
+                        try
+                        {
+                            return (node.FromJson(type), type, generic);
+                        }
+                        catch
+                        {
+                            return (null, Type, generic);
+                        }
+                    }
+                    else
+                    {
+                        if (arr.Count == 0) return (arr, typeof(JsonArray), null); // unkown
+                        var ele = arr[0];
+                        if (ele is JsonObject)
+                        {
+                            return (arr, typeof(JsonArray), null);
+                        }
+                        else if (ele is JsonValue val)
+                        {
+                            (object? value, Type? type) = ParseJsonValue(val);
+                            if (type != null)
+                            {
+                                Type arrType = Array ? type.MakeArrayType() : typeof(List<>).MakeGenericType(type);
+                                try
+                                {
+                                    return (node.FromJson(arrType), arrType, type);
+                                }
+                                catch
+                                {
+                                    return (null, Type, generic);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            return (null, Type, generic);
+                        }
+                    }
                 }
                 
                 // single
                 if (List || Array) return (null, Type, generic);
                 if (node is JsonObject obj)
                 {
-                    
+                    return (obj, typeof(JsonObject), null);
                 }
                 else if (node is JsonValue val)
                 {
-                    
-                    object raw = val.GetValue<object>();
-
-                    switch (raw)
-                    {
-                        case bool: 
-                            return (raw, NS_SYSTEM_BOOL);
-                        case sbyte or byte or short or ushort or int or uint or long or ulong:
-                            return (raw, NS_SYSTEM_INT);
-                        case float: 
-                            return (raw, NS_SYSTEM_FLOAT);
-                        case double:
-                            return (raw, NS_SYSTEM_DOUBLE);
-                        case decimal:
-                            return (raw, NS_SYSTEM_NUMBER);
-                        case string s:
-                            return DateTime.TryParse(s, out _) ? (raw, NS_SYSTEM_DATE) : (raw, NS_SYSTEM_STRING);
-                        default:
-                            return null;
-                    }
+                    (object? value, Type? type) = ParseJsonValue(val);
+                    return (value, type, type);
                 }
             }
-            else
+            else if (Type != null)
             {
                 // not generic
                 try
                 {
-                    return (node?.FromJson(Type!), Type, null);
+                    return (node?.FromJson(Type), Type, null);
                 }
                 catch
                 {
