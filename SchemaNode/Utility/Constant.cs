@@ -41,7 +41,8 @@ public static class Constant
     public const int FUNC_SIGN_ASYNC = 2;
     public const int FUNC_SIGN_GENERIC = 4;
     public const int FUNC_SIGN_IMMUTABLE = 8;
-    public const int FUNC_SIGN_REMOTECALL = 16;
+    public const int FUNC_SIGN_REMOTE_CALL = 16;
+    public const int FUNC_SIGN_NULLABLE_RET = 32;
 
     #endregion
     

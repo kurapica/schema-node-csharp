@@ -207,7 +207,7 @@ public class EnumNode: AnySchemaNode
     }
 
     /// <inheritdoc />
-    public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
         if (value is not JsonValue val || val.IsEmpty())
             return (value, TYPE_VALUE_NOT_VALID);

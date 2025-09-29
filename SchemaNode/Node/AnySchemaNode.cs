@@ -96,7 +96,7 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// Validate the value with the schema
     /// </summary>
-    public virtual async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public virtual async Task<(object? obj, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
         await Task.Yield();
         return (value, TYPE_NAMESPACE_NOT_DATA_TYPE);

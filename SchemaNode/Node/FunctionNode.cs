@@ -729,11 +729,11 @@ public class FunctionNode: AnySchemaNode
         if (funcAttr == null) return null;
 
         int sign = FUNC_SIGN_IMMUTABLE; // The system method won't be changed and already compiled
+        if (method.IsGenericMethodDefinition) sign |= FUNC_SIGN_GENERIC;
         
         // Generate the arguments and result type
-        Type[] genTypes = method.GetGenericArguments();
         ParameterInfo[] parameters = method.GetParameters();
-        SchemaParamTypeInfo?[] genTypeInfos = genTypes.Select(g => g.GetSchemaTypeInfo(true)).ToArray(); // The generic type infos
+        SchemaParamTypeInfo[] genInfos = method.GetGenericArguments().Select(g => g.GetSchemaTypeInfo(true)!).ToArray(); // The generic type infos
 
         // The schema context must be the first if used
         if (parameters.Length > 0 && (parameters[0].ParameterType == typeof(SchemaContext) || 
@@ -744,45 +744,46 @@ public class FunctionNode: AnySchemaNode
         }
 
         // Generate func schema
+        var name = $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{(funcAttr.Type ?? method.Name).ToLowerInvariant()}";
         NodeSchema funcSchema = new NodeSchema
         {
-            Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(funcAttr.Type ?? method.Name).ToLowerInvariant()}",
+            Name = name,
             Type = SchemaType.Function,
-            Display = funcAttr.Display,
+            Display = funcAttr.Display ?? name,
             Func = new FunctionSchema
             {
                 Return = string.Empty,
                 Args = new FunctionArgumentInfo[parameters.Length],
                 Exps = [],
-                Generic = genTypeInfos.Select(g =>
-                {
-                    if (g != null && (g.Kind & (ParameterTypeKind.Enumerable | ParameterTypeKind.Array | ParameterTypeKind.List)) == 0 
-                                  && (g.Kind & (ParameterTypeKind.Number | ParameterTypeKind.Float)) > 0)
-                    {
-                        return NS_SYSTEM_NUMBER;
-                    }
-                    return "";
-                }).ToArray(),
+                Generic = genInfos.Select(g => g is { Array: false, List: false, Number: true } 
+                    ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
 
-        // Check if return type is Task
+        // Return type
         SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true);
         if (retInfo == null) return null;
-        if ((retInfo.Kind & ParameterTypeKind.Task) > 0)
-        {
-            sign |= FUNC_SIGN_ASYNC;
-        }
+        if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
+        if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
 
         if (retInfo.Generic != null)
         {
-            int gIdx = Array.FindIndex(genTypes, g => g == retInfo.Generic);
-            if (gIdx >= 0)
-                funcSchema.Func.Return = genTypes.Length > 1 ? $"T{gIdx + 1}" : "T";
+            // IList<T>, use system.array instead
+            if (retInfo.Array || retInfo.List)
+            {
+                funcSchema.Func.Return = NS_SYSTEM_ARRAY;
+            }
             else
-                return null;
+            {
+                // single
+                int gIdx = Array.FindIndex(genInfos, g => g.Generic == retInfo.Generic);
+                if (gIdx >= 0)
+                    funcSchema.Func.Return = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
+                else
+                    return null;
+            }
         }
-        else if (string.IsNullOrWhiteSpace(retInfo.SchemaType))
+        else if (string.IsNullOrEmpty(retInfo.SchemaType))
         {
             return null;
         }
@@ -792,7 +793,6 @@ public class FunctionNode: AnySchemaNode
         }
         
         // Parameter types
-        if (method.IsGenericMethodDefinition) sign |= FUNC_SIGN_GENERIC;
         SchemaParamTypeInfo?[] paramInfos = parameters.Select(p => p.ParameterType.GetSchemaTypeInfo(true)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
@@ -803,22 +803,29 @@ public class FunctionNode: AnySchemaNode
             FunctionArgumentInfo arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
-                Nullable = (pt.Kind & ParameterTypeKind.Nullable) > 0,
+                Nullable = pt.Nullable,
             };
             funcSchema.Func.Args[i] = arg;
 
             // Check dynamic type
             if (pt.Generic != null)
             {
-                int gIdx = Array.FindIndex(genTypes, (g) => g == pt.Generic);
-                if (gIdx >= 0)
+                if (pt.Array || pt.List)
                 {
-                    // generic type
-                    arg.Type = genTypes.Length > 1 ? $"T{gIdx + 1}" : "T";
+                    arg.Type = NS_SYSTEM_ARRAY;
                 }
                 else
                 {
-                    return null;
+                    int gIdx = Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic);
+                    if (gIdx >= 0)
+                    {
+                        // generic type
+                        arg.Type = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
             }
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
@@ -830,15 +837,14 @@ public class FunctionNode: AnySchemaNode
                 arg.Type = pt.SchemaType;
             }
         }
-                
+
         // Save the method info to cache
         StaticMethodMap.TryAdd(funcSchema.Name, new SchemaFuncInfo
         {
             Name = funcSchema.Name,
             Method = method,
-            Nullable = (retInfo.Kind & ParameterTypeKind.Nullable) > 0,
             Sign = sign,
-            Generics = genTypeInfos!,
+            Generics = genInfos,
             Args = paramInfos!,
             Return = retInfo
         });
@@ -851,7 +857,7 @@ public class FunctionNode: AnySchemaNode
     #region Compile Custom Functions
 
     /// <summary>
-    /// Complie a custom function node to dynamic method
+    /// Compile a custom function node to dynamic method
     /// </summary>
     SchemaFuncInfo CompileFunction()
     {
@@ -862,7 +868,7 @@ public class FunctionNode: AnySchemaNode
         SchemaFuncInfo funcInfo = new SchemaFuncInfo
         {
             Name = Name,
-            Sign = FUNC_SIGN_CONTEXT,
+            Sign = FUNC_SIGN_CONTEXT, // always use context for dynamic func
             FunctionNode = this,
             Args = Args.Select(a =>
             {
@@ -876,7 +882,7 @@ public class FunctionNode: AnySchemaNode
         // Remote call, no dynamic function required
         if (IsRemoteCall)
         {
-            funcInfo.Sign |= FUNC_SIGN_CONTEXT | FUNC_SIGN_REMOTECALL | FUNC_SIGN_ASYNC;
+            funcInfo.Sign |= FUNC_SIGN_CONTEXT | FUNC_SIGN_REMOTE_CALL | FUNC_SIGN_ASYNC;
             return funcInfo;
         }
 
@@ -886,7 +892,7 @@ public class FunctionNode: AnySchemaNode
             // Prepare
             Dictionary<string, Expression> paramExpMap = new();
             Dictionary<string, ParameterExpression> variableExpMap = new();
-            ParameterExpression[] paramExps = new ParameterExpression[Args.Length + 1];
+            var paramExps = new ParameterExpression[Args.Length + 1];
 
             // Build the parameters, no generic type for custom methods
             // Always add SchemaContext as the first parameters for inner call
@@ -992,463 +998,494 @@ public class FunctionNode: AnySchemaNode
         switch (expTree)
         {
             case FunctionNodeExpression exp:
+            {
+                SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo()
+                    ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
+                int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
+
+                // Prepare the call arguments
+                int arrayIndex = -1;
+                Expression[] callArgs = new Expression[exp.LeafNodes.Length + useContext];
+                Type[] callArgTypes = new Type[callArgs.Length];
+                if (useContext > 0)
                 {
-                    SchemaFuncInfo? callFuncInfo = exp.FuncNode!.GetSchemaFuncInfo();
-                    if (callFuncInfo == null) throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
-                    int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
+                    callArgs[0] = contextExp;
+                    callArgTypes[0] = typeof(SchemaContext);
+                }
 
-                    // Prepare the call arguments
-                    int arrayIndex = -1;
-                    Expression[] callArgs = new Expression[exp.LeafNodes.Length + useContext];
-                    Type[] callArgTypes = new Type[callArgs.Length];
-                    if (useContext > 0)
+                // Add leaf nodes
+                for (int i = 0; i < exp.LeafNodes.Length; i++)
+                {
+                    // Gets the type
+                    Type callType = exp.Args[i].TypeNode?.ToCSharpType(exp.FuncNode!.Args[i].Nullable)
+                        ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
+
+                    // Build the call arguments
+                    switch (exp.LeafNodes[i])
                     {
-                        callArgs[0] = contextExp;
-                        callArgTypes[0] = typeof(SchemaContext);
-                    }
-
-                    // Add leaf nodes
-                    for (int i = 0; i < exp.LeafNodes.Length; i++)
-                    {
-                        // Gets the type
-                        Type callType = exp.Args[i].TypeNode?.ToCSharpType(exp.FuncNode.Args[i].Nullable)
-                            ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
-
-                        // Build the call arguments
-                        switch (exp.LeafNodes[i])
-                        {
-                            case ConstantExpNode constExp:
-                                if (constExp.Value == null && !callType.IsNullable())
-                                {
-                                    // For reduce
-                                    callArgs[i + useContext] = Expression.Default(callType);
-                                }
-                                else
-                                {
-                                    object? value = constExp.Value;
-                                    if (value != null)
-                                    {
-                                        (Type realType, _) = callType.UnpackNullable();
-                                        if (realType == typeof(int))
-                                        {
-                                            value = Convert.ToInt32(value);
-                                        }
-                                        else if (realType == typeof(long))
-                                        {
-                                            value = Convert.ToInt64(value);
-                                        }
-                                        else if (realType == typeof(float))
-                                        {
-                                            value = Convert.ToSingle(value);
-                                        }
-                                        else if (realType == typeof(double))
-                                        {
-                                            value = Convert.ToDouble(value);
-                                        }
-                                        else if (realType == typeof(decimal))
-                                        {
-                                            value = Convert.ToDecimal(value);
-                                        }
-                                        else if (realType == typeof(string))
-                                        {
-                                            value = Convert.ToString(value);
-                                        }
-                                        else if (realType == typeof(bool))
-                                        {
-                                            value = Convert.ToBoolean(value);
-                                        }
-                                        else if (realType == typeof(DateTime))
-                                        {
-                                            value = Convert.ToDateTime(value);
-                                        }
-                                    }
-                                    callArgs[i + useContext] = Expression.Constant(value, callType);
-                                }
-                                break;
-                            
-                            case FunctionNodeArgument argExp:
-                                callArgs[i + useContext] = paramMap[argExp.Name];
-                                break;
-                            
-                            case FunctionNodeExpression otherExp:
-                                if (otherExp.Used == 1)
-                                {
-                                    // Embed the other expression
-                                    callArgs[i + useContext] = CompileFunctionNodeExpression(contextExp, paramMap, expMap, blocks, otherExp);
-                                }
-                                else
-                                {
-                                    // Use variable expression
-                                    callArgs[i + useContext] = expMap[otherExp.Name];
-                                }
-                                break;
-                        }
-
-                        // Convert the call type to argument type
-                        if (exp.ArrayIndex != i) // !exp.LeafNodes[i].UseAsArray)
-                        {
-                            // Add Conversion
-                            callArgs[i + useContext] = ConvertExp(callType, callArgs[i + useContext]);
-                            callArgTypes[i + useContext] = callArgs[i + useContext].Type;
-                        }
-                        else
-                        {
-                            arrayIndex = i + useContext;
-                            callArgTypes[i + useContext] = exp.LeafNodes[i]?.TypeNode is ArrayNode a ? (a.ElementNode?.ToCSharpType() ?? callType) : callType;
-                        }
-                    }
-
-                    // Call the functions
-                    MethodInfo callMethod = callFuncInfo.Method!;
-                    Type expReturnType = exp.TypeNode?.ToCSharpType(callFuncInfo.Nullable) ?? throw new Exception($"The expression {exp.Name}'s type not valid");
-                    Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayNode arr
-                        ? (arr.ElementNode?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
-                        : expReturnType;
-
-                    // Make generic method for system defined methods
-                    if ((callFuncInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE && (callFuncInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
-                    {
-                        // Generate the generic method
-                        Type?[] genTypes = callFuncInfo.Generics.Select(p =>
-                        {
-                            SchemaParamTypeInfo? info = null;
-                            Type? type = null;
-                            if (callFuncInfo.Return.Generic == p.Generic)
+                        case ConstantExpNode constExp:
+                            if (constExp.Value == null && !callType.IsNullable())
                             {
-                                info = callFuncInfo.Return;
-                                type = expReturnType;
+                                // For reduce
+                                callArgs[i + useContext] = Expression.Default(callType);
                             }
                             else
                             {
-                                for (int j = 0; j < callFuncInfo.Args.Length; j++)
+                                object? value = constExp.Value;
+                                if (value != null)
                                 {
-                                    var sinfo = callFuncInfo.Args[j];
-                                    if (sinfo.Generic == p.Generic)
+                                    (Type realType, _) = callType.UnpackNullable();
+                                    if (realType == typeof(int))
                                     {
-                                        info = sinfo;
-                                        type = callArgTypes[j + useContext].GetNotNullType();
+                                        value = Convert.ToInt32(value);
+                                    }
+                                    else if (realType == typeof(long))
+                                    {
+                                        value = Convert.ToInt64(value);
+                                    }
+                                    else if (realType == typeof(float))
+                                    {
+                                        value = Convert.ToSingle(value);
+                                    }
+                                    else if (realType == typeof(double))
+                                    {
+                                        value = Convert.ToDouble(value);
+                                    }
+                                    else if (realType == typeof(decimal))
+                                    {
+                                        value = Convert.ToDecimal(value);
+                                    }
+                                    else if (realType == typeof(string))
+                                    {
+                                        value = Convert.ToString(value);
+                                    }
+                                    else if (realType == typeof(bool))
+                                    {
+                                        value = Convert.ToBoolean(value);
+                                    }
+                                    else if (realType == typeof(DateTime))
+                                    {
+                                        value = Convert.ToDateTime(value);
                                     }
                                 }
+                                callArgs[i + useContext] = Expression.Constant(value, callType);
                             }
-
-                            if (info == null || type == null) return null;
-                            
-                            if ((info.Kind & ParameterTypeKind.Array) > 0 && type.IsSZArray)
-                                return type.GetElementType();
-                            if ((info.Kind & (ParameterTypeKind.Enumerable | ParameterTypeKind.List)) > 0 && type.GetGenericArguments() is { Length: > 0} args)
-                                return args[0];
-                            return expReturnType;
-                        }).ToArray();
-                        if (genTypes.Length == 0 || genTypes.Any(g => g == null))
-                            throw new Exception($"The expression {exp.Name}'s generic type not valid");
-                        string genSign = string.Join('|', genTypes.Select(p => p!.IsSubclassOfGenericType(typeof(Nullable<>)) ? $"{p!.GetGenericArguments()[0].Name}?" : p!.Name));
-                        callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes!));
-                    }
-                    // Use remote call
-                    else if ((callFuncInfo.Sign & FUNC_SIGN_REMOTECALL) == FUNC_SIGN_REMOTECALL)
-                    {
-                        // Generate the call
-                        Expression[] convCallArgs = new Expression[callArgs.Length + 2];
-                        convCallArgs[0] = callArgs[0];
-                        convCallArgs[1] = Expression.Constant(callFuncInfo.Name);
-                        convCallArgs[2] = Expression.Constant(exp.Return); // TODO
-                        for (int i = 1; i < callArgs.Length; i++)
-                            convCallArgs[i + 2] = callArgs[i];
-                        callArgs = convCallArgs;
-                        if (arrayIndex >= 0) arrayIndex += 2;
-                        int count = callArgs.Length - 3;
-                        callMethod = typeof(FunctionNode).GetMethod($"CallRemoteFunction{count}", BindingFlags.Static | BindingFlags.NonPublic)!;
-
-                        // Make generic type
-                        if (count > 0)callMethod = callMethod.MakeGenericMethod(callArgs.Skip(3).Select(e => e.Type).Prepend(epxReturnElement).ToArray());
+                            break;
+                        
+                        case FunctionNodeArgument argExp:
+                            callArgs[i + useContext] = paramMap[argExp.Name];
+                            break;
+                        
+                        case FunctionNodeExpression otherExp:
+                            if (otherExp.Used == 1)
+                            {
+                                // Embed the other expression
+                                callArgs[i + useContext] = CompileFunctionNodeExpression(contextExp, paramMap, expMap, blocks, otherExp);
+                            }
+                            else
+                            {
+                                // Use variable expression
+                                callArgs[i + useContext] = expMap[otherExp.Name];
+                            }
+                            break;
                     }
 
-                    // Generate call body
-                    if (exp.Type == ExpressionType.Call)
-                        return GenMethodCallExp(callFuncInfo, callMethod, callArgs);
-
-                    // Generate the lambda for collection operations
-                    Type callMethodReturn = callMethod.ReturnType;
-                    if (callMethodReturn.IsSubclassOfGenericType(typeof(Task<>)))
-                        callMethodReturn = callMethodReturn.GetGenericArguments()[0];
-
-                    // Parameters
-                    ParameterExpression[] innerParams = callArgs.Select(p => Expression.Parameter(p.Type)).ToArray();
-                    Expression[] innerCallArgs = innerParams.Select(p => (Expression)p).ToArray();
-                    Expression jarray = innerCallArgs[arrayIndex];
-                    ParameterExpression varExp = Expression.Parameter(exp.Type switch
+                    // Convert the call type to argument type
+                    if (exp.ArrayIndex != i) // !exp.LeafNodes[i].UseAsArray)
                     {
-                        ExpressionType.Map => expReturnType.IsArrayType() ? expReturnType : typeof(JsonArray),
-                        ExpressionType.Reduce => callMethodReturn,
-                        ExpressionType.First => callArgTypes[arrayIndex],
-                        ExpressionType.Last => callArgTypes[arrayIndex],
-                        ExpressionType.Filter => expReturnType.IsArrayType() ? expReturnType : typeof(JsonArray),
-                        _ => throw new ArgumentOutOfRangeException()
-                    });
-                    ParameterExpression start = Expression.Parameter(typeof(int), "_start");
-                    ParameterExpression stop = Expression.Parameter(typeof(int), "_stop");
-                    LabelTarget forLabel = Expression.Label(typeof(int));
-                    ParameterExpression array = Expression.Parameter(jarray.Type.IsArrayType() ? jarray.Type : typeof(JsonNode[]), "_array");
-                    ParameterExpression final = Expression.Parameter(varExp.Type, "_final");
-
-                    // Convert the call argument
-                    if (callArgTypes[arrayIndex] == typeof(JsonObject))
-                    {
-                        // (JsonObject)array[start++]
-                        innerCallArgs[arrayIndex] = Expression.Convert(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonObject));
-                    }
-                    else if (array.Type.IsArrayType())
-                    {
-                        // array[start++]
-                        innerCallArgs[arrayIndex] = Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start));
+                        // Add Conversion
+                        callArgs[i + useContext] = ConvertExp(callType, callArgs[i + useContext]);
+                        callArgTypes[i + useContext] = callArgs[i + useContext].Type;
                     }
                     else
                     {
-                        // JsonValue.GetValue<T>(array[start++])
-                        innerCallArgs[arrayIndex] = Expression.Call(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(callArgTypes[arrayIndex]));
-
-                        // Conversion
-                        Type ctype = callMethod.GetParameters()[arrayIndex].ParameterType;
-                        innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
-                        callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
+                        arrayIndex = i + useContext;
+                        callArgTypes[i + useContext] = exp.LeafNodes[i]?.TypeNode is ArrayNode a ? (a.ElementNode?.ToCSharpType() ?? callType) : callType;
                     }
-
-                    // Generate call body
-                    Delegate innerCall;
-
-                    switch (exp.Type)
-                    {
-                        // Map the element
-                        case ExpressionType.Map:
-                            {
-                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
-                                    new[] { varExp, start, stop, array, final },
-                                    Expression.Assign(varExp, Expression.New(varExp.Type)),
-                                    Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                    Expression.Assign(stop, Expression.ArrayLength(array)),
-                                    Expression.Loop(
-                                        Expression.IfThenElse(
-                                            Expression.LessThan(start, stop),
-                                            varExp.Type.IsArrayType() 
-                                                ? callMethodReturn.IsArrayType()
-                                                    ? Expression.Call(varExp, varExp.Type.GetMethod("AddRange", new[] { typeof(IEnumerable<>).MakeGenericType(expReturnType) })!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                    : Expression.Call(varExp, varExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                : callMethodReturn == typeof(JsonArray)
-                                                    ? Expression.Call(varExp, typeof(Extension).GetMethod(nameof(Extension.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                    : Expression.Call(varExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), typeof(object))),
-                                            Expression.Break(forLabel, stop)
-                                        ),
-                                        forLabel
-                                    ),
-                                    Expression.Assign(final, varExp)
-                                ));
-                                break;
-                            }
-
-                        // Consume the elements
-                        case ExpressionType.Reduce:
-                            {
-                                // Buld the init
-                                int sumIndex = useContext > 0 ? (arrayIndex == 1 ? 2 : 1) : (arrayIndex == 1 ? 0 : 1);
-
-                                // init ??= array.Length > 0 ? array[start++] : default;
-                                Expression init = innerCallArgs[sumIndex] ?? Expression.Condition(
-                                    Expression.GreaterThan(Expression.ArrayLength(array), Expression.Constant(0)),
-                                    innerCallArgs[arrayIndex],
-                                    callMethodReturn == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : callMethodReturn == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callMethodReturn)
-                                );
-
-                                // Replace the sum exp
-                                innerCallArgs[sumIndex] = varExp;
-
-                                // Complie
-                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
-                                    new[] { varExp, start, stop, array, final },
-                                    Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                    Expression.Assign(stop, Expression.ArrayLength(array)),
-                                    Expression.Assign(varExp, init),
-                                    Expression.Loop(
-                                        Expression.IfThenElse(
-                                            Expression.LessThan(start, stop),
-                                            Expression.Assign(varExp, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
-                                            Expression.Break(forLabel, stop)
-                                        ),
-                                        forLabel
-                                    ),
-                                    Expression.Assign(final, varExp)
-                                ));
-                                break;
-                            }
-
-                        // First match
-                        case ExpressionType.First:
-                            {
-                                // Replace the call args
-                                Expression temp = innerCallArgs[arrayIndex];
-                                innerCallArgs[arrayIndex] = varExp;
-
-                                // New init parameter
-                                ParameterExpression init = Expression.Parameter(varExp.Type, "_init");
-
-                                // Complie
-                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
-                                    new[] { varExp, start, stop, array, init, final },
-                                    Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                    Expression.Assign(stop, Expression.ArrayLength(array)),
-                                    Expression.Assign(init, varExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : varExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
-                                    Expression.Assign(varExp, init),
-                                    Expression.Loop(
-                                        Expression.IfThenElse(
-                                            Expression.LessThan(start, stop),
-                                            Expression.Block(new List<Expression>()
-                                            {
-                                                Expression.Assign(varExp, temp),
-                                                Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(varExp, init))
-                                            }),
-                                            Expression.Break(forLabel, stop)
-                                        ),
-                                        forLabel
-                                    ),
-                                    Expression.Assign(final, varExp)
-                                ));
-                                break;
-                            }
-
-                        // Last match
-                        case ExpressionType.Last:
-                            {
-                                // Replace the call args
-                                Expression temp = innerCallArgs[arrayIndex];
-                                innerCallArgs[arrayIndex] = varExp;
-
-                                // New init parameter
-                                ParameterExpression init = Expression.Parameter(varExp.Type, "_init");
-
-                                // Complie
-                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
-                                    new[] { varExp, start, stop, array, init, final },
-                                    Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                    Expression.Assign(stop, Expression.Constant(0, typeof(int))),
-                                    Expression.Assign(start, Expression.ArrayLength(array)),
-                                    Expression.Assign(init, varExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : varExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
-                                    Expression.Assign(varExp, init),
-                                    Expression.Loop(
-                                        Expression.IfThenElse(
-                                            Expression.GreaterThan(start, stop),
-                                            Expression.Block(new List<Expression>()
-                                            {
-                                                Expression.Assign(varExp, temp),
-                                                Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(varExp, init))
-                                            }),
-                                            Expression.Break(forLabel, stop)
-                                        ),
-                                        forLabel
-                                    ),
-                                    Expression.Assign(final, varExp)
-                                ));
-                                break;
-                            }
-
-                        // Filter the elements
-                        case ExpressionType.Filter:
-                            {
-                                Expression temp = innerCallArgs[arrayIndex];
-                                ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
-                                innerCallArgs[arrayIndex] = curr;
-
-                                innerCall = CompileMethod(varExp.Type, innerParams, Expression.Block(
-                                    new[] { varExp, start, stop, array, final, curr },
-                                    Expression.Assign(varExp, Expression.New(varExp.Type)),
-                                    Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                    Expression.Assign(stop, Expression.ArrayLength(array)),
-                                    Expression.Loop(
-                                        Expression.IfThenElse(
-                                            Expression.LessThan(start, stop),
-                                            Expression.Block(new List<Expression>()
-                                            {
-                                                Expression.Assign(curr, temp),
-                                                Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs),
-                                                    varExp.Type.IsArrayType()
-                                                        ? Expression.Call(varExp, varExp.Type.GetMethod("Add")!, curr)
-                                                        : Expression.Call(varExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(curr, typeof(object)))
-                                                )
-                                            }),
-                                            Expression.Break(forLabel, stop)
-                                        ),
-                                        forLabel
-                                    ),
-                                    Expression.Assign(final, varExp)
-                                ));
-                                break;
-                            }
-                        default:
-                            throw new ArgumentOutOfRangeException();
-                    }
-
-                    // Gets the call
-                    return GenDynamicCallExp(varExp.Type, innerCall, callArgs);
                 }
-            // Generate the result
-            case StructResultExpNode strt:
+
+                // Call the functions
+                MethodInfo callMethod = callFuncInfo.Method!;
+                Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) 
+                                     ?? throw new Exception($"The expression {exp.Name}'s type not valid");
+                Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayNode arr
+                    ? (arr.ElementNode?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
+                    : expReturnType;
+
+                // Make generic method for system defined methods
+                if ((callFuncInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE && (callFuncInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
                 {
-                    // Only one struct result can exist
-                    ParameterExpression resultVar = Expression.Parameter(typeof(JsonObject));
-                    expMap.Add("_retobject", resultVar);
-                    blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(JsonObject).GetConstructor(System.Type.EmptyTypes)!)));
-                    MethodInfo objectAdd = typeof(JsonObject).GetMethod(nameof(JsonObject.Add), new[] { typeof(string), typeof(JsonNode) })!;
-
-                    // Build the JsonObject result
-                    foreach (FunctionNodeExpTree? leafNode in strt.LeafNodes)
+                    // Generate the generic method
+                    Type?[] genTypes = callFuncInfo.Generics.Select(p =>
                     {
-                        string name;
-                        Expression memberExp;
-                        switch (leafNode)
+                        SchemaParamTypeInfo? info = null;
+                        Type? type = null;
+                        if (callFuncInfo.Return.Generic == p.Generic)
                         {
-                            case FunctionNodeArgument leafArg:
-                                name = leafArg.Name;
-                                memberExp = paramMap[name];
-                                break;
-                            case FunctionNodeExpression leafExp:
-                                name = leafExp.Name;
-                                memberExp = expMap[name];
-                                break;
-                            default:
-                                continue; // won't hit
-                        }
-
-                        // Gets the struct member
-                        var fld = ((StructNode?)strt.TypeNode)?.Fields?.FirstOrDefault(p => p.Name == name);
-                        if (fld == null) continue;
-                        Type fldType = fld.TypeNode!.ToCSharpType(!fld.Require);
-                        memberExp = ConvertExp(fldType, memberExp);
-
-                        // Build the exp
-                        if (memberExp.Type.IsNullable())
-                        {
-                            blocks.Add(Expression.IfThen(
-                                Expression.Property(memberExp, memberExp.Type.GetProperty("HasValue")!),
-                                Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), Expression.New(typeof(JsonValue).GetConstructor(new[] { memberExp.Type.GetNotNullType() })!, Expression.Property(memberExp, memberExp.Type.GetProperty("Value")!)) })
-                            ));
-                        }
-                        else if (memberExp.Type == typeof(JsonArray) || memberExp.Type == typeof(JsonObject))
-                        {
-                            blocks.Add(Expression.IfThen(
-                                Expression.NotEqual(memberExp, Expression.Constant(null)),
-                                // ReSharper disable once RedundantExplicitArrayCreation
-                                Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), memberExp })
-                            ));
+                            info = callFuncInfo.Return;
+                            type = expReturnType;
                         }
                         else
                         {
-                            blocks.Add(Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), Expression.New(typeof(JsonValue).GetConstructor(new[] { memberExp.Type.GetNotNullType() })!, memberExp) }));
+                            for (int j = 0; j < callFuncInfo.Args.Length; j++)
+                            {
+                                SchemaParamTypeInfo sinfo = callFuncInfo.Args[j];
+                                if (sinfo.Generic == p.Generic)
+                                {
+                                    info = sinfo;
+                                    type = callArgTypes[j + useContext].GetNotNullType();
+                                    break;
+                                }
+                            }
                         }
-                    }
-                    return resultVar;
+
+                        if (info == null || type == null) return null;
+                        if (info.Array && type.IsSZArray) return type.GetElementType();
+                        if (info.List && type.GetGenericArguments() is { Length: > 0} args) return args[0];
+                        return type;
+                    }).ToArray();
+                    if (genTypes.Length == 0 || genTypes.Any(g => g == null))
+                        throw new Exception($"The expression {exp.Name}'s generic type not valid");
+                    string genSign = string.Join('|', genTypes.Select(p => p!.IsSubclassOfGenericType(typeof(Nullable<>)) ? $"{p!.GetGenericArguments()[0].Name}?" : p!.Name));
+                    callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes!));
                 }
+                // Use remote call
+                else if ((callFuncInfo.Sign & FUNC_SIGN_REMOTE_CALL) == FUNC_SIGN_REMOTE_CALL)
+                {
+                    string?[] genTypes = callFuncInfo.Generics.Select(p =>
+                    {
+                        SchemaParamTypeInfo? info = null;
+                        Type? type = null;
+                        if (callFuncInfo.Return.Generic == p.Generic)
+                        {
+                            info = callFuncInfo.Return;
+                            type = expReturnType;
+                        }
+                        else
+                        {
+                            for (int j = 0; j < callFuncInfo.Args.Length; j++)
+                            {
+                                SchemaParamTypeInfo sinfo = callFuncInfo.Args[j];
+                                if (sinfo.Generic == p.Generic)
+                                {
+                                    info = sinfo;
+                                    type = callArgTypes[j + useContext].GetNotNullType();
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (info == null || type == null) return null;
+                        
+                        if (info.Array && type.IsSZArray)
+                            return type.GetElementType()?.GetSchemaType();
+                        if (info.List && type.GetGenericArguments() is { Length: > 0} args)
+                            return args[0].GetSchemaType();
+                        return type.GetSchemaType();
+                    }).ToArray();
+                    
+                    // Generate the call
+                    var convCallArgs = new Expression[callArgs.Length + 2];
+                    convCallArgs[0] = callArgs[0];
+                    convCallArgs[1] = Expression.Constant(callFuncInfo.Name);
+                    convCallArgs[2] = Expression.Constant(genTypes);
+                    for (int i = 1; i < callArgs.Length; i++)
+                        convCallArgs[i + 2] = callArgs[i];
+                    callArgs = convCallArgs;
+                    if (arrayIndex >= 0) arrayIndex += 2;
+                    int count = callArgs.Length - 3;
+                    callMethod = typeof(FunctionNode).GetMethod($"CallRemoteFunction{count}", BindingFlags.Static | BindingFlags.NonPublic)!;
+
+                    // Make generic type
+                    if (count > 0)callMethod = callMethod.MakeGenericMethod(callArgs.Skip(3).Select(e => e.Type).Prepend(epxReturnElement).ToArray());
+                }
+
+                // Generate call body
+                if (exp.Type == ExpressionType.Call)
+                    return GenMethodCallExp(callFuncInfo, callMethod, callArgs);
+
+                // Generate the lambda for collection operations
+                Type callMethodReturn = callMethod.ReturnType;
+                if (callMethodReturn.IsSubclassOfGenericType(typeof(Task<>)))
+                    callMethodReturn = callMethodReturn.GetGenericArguments()[0];
+
+                // Parameters
+                ParameterExpression[] innerParams = callArgs.Select(p => Expression.Parameter(p.Type)).ToArray();
+                Expression[] innerCallArgs = innerParams.Select(p => (Expression)p).ToArray();
+                Expression jarray = innerCallArgs[arrayIndex];
+                ParameterExpression resExp = Expression.Parameter(exp.Type switch
+                {
+                    ExpressionType.Map => expReturnType.IsArrayType() ? expReturnType : typeof(JsonArray),
+                    ExpressionType.Reduce => callMethodReturn,
+                    ExpressionType.First => callArgTypes[arrayIndex],
+                    ExpressionType.Last => callArgTypes[arrayIndex],
+                    ExpressionType.Filter => expReturnType.IsArrayType() ? expReturnType : typeof(JsonArray),
+                    _ => throw new ArgumentOutOfRangeException()
+                });
+                ParameterExpression start = Expression.Parameter(typeof(int), "_start");
+                ParameterExpression stop = Expression.Parameter(typeof(int), "_stop");
+                LabelTarget forLabel = Expression.Label(typeof(int));
+                ParameterExpression array = Expression.Parameter(jarray.Type.IsArrayType() ? jarray.Type : typeof(JsonNode[]), "_array");
+                ParameterExpression final = Expression.Parameter(resExp.Type, "_final");
+
+                // Convert the call argument
+                if (callArgTypes[arrayIndex] == typeof(JsonObject))
+                {
+                    // (JsonObject)array[start++]
+                    innerCallArgs[arrayIndex] = Expression.Convert(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonObject));
+                }
+                else if (array.Type.IsArrayType())
+                {
+                    // array[start++]
+                    innerCallArgs[arrayIndex] = Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start));
+                }
+                else
+                {
+                    // JsonValue.GetValue<T>(array[start++])
+                    innerCallArgs[arrayIndex] = Expression.Call(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(callArgTypes[arrayIndex]));
+
+                    // Conversion
+                    Type ctype = callMethod.GetParameters()[arrayIndex].ParameterType;
+                    innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
+                    callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
+                }
+
+                // Generate call body
+                Delegate innerCall;
+
+                switch (exp.Type)
+                {
+                    // Map the element
+                    case ExpressionType.Map:
+                        {
+                            innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
+                                new[] { resExp, start, stop, array, final },
+                                Expression.Assign(resExp, Expression.New(resExp.Type)),
+                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Loop(
+                                    Expression.IfThenElse(
+                                        Expression.LessThan(start, stop),
+                                        resExp.Type.IsArrayType() 
+                                            ? callMethodReturn.IsArrayType()
+                                                ? Expression.Call(resExp, resExp.Type.GetMethod("AddRange", new[] { typeof(IEnumerable<>).MakeGenericType(expReturnType) })!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
+                                                : Expression.Call(resExp, resExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
+                                            : callMethodReturn == typeof(JsonArray)
+                                                ? Expression.Call(resExp, typeof(Extension).GetMethod(nameof(Extension.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
+                                                : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), typeof(object))),
+                                        Expression.Break(forLabel, stop)
+                                    ),
+                                    forLabel
+                                ),
+                                Expression.Assign(final, resExp)
+                            ));
+                            break;
+                        }
+
+                    // Consume the elements
+                    case ExpressionType.Reduce:
+                        {
+                            // Buld the init
+                            int sumIndex = useContext > 0 ? (arrayIndex == 1 ? 2 : 1) : (arrayIndex == 1 ? 0 : 1);
+
+                            // init ??= array.Length > 0 ? array[start++] : default;
+                            Expression init = innerCallArgs[sumIndex] ?? Expression.Condition(
+                                Expression.GreaterThan(Expression.ArrayLength(array), Expression.Constant(0)),
+                                innerCallArgs[arrayIndex],
+                                callMethodReturn == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : callMethodReturn == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callMethodReturn)
+                            );
+
+                            // Replace the sum exp
+                            innerCallArgs[sumIndex] = resExp;
+
+                            // Complie
+                            innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
+                                new[] { resExp, start, stop, array, final },
+                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Assign(resExp, init),
+                                Expression.Loop(
+                                    Expression.IfThenElse(
+                                        Expression.LessThan(start, stop),
+                                        Expression.Assign(resExp, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
+                                        Expression.Break(forLabel, stop)
+                                    ),
+                                    forLabel
+                                ),
+                                Expression.Assign(final, resExp)
+                            ));
+                            break;
+                        }
+
+                    // First match
+                    case ExpressionType.First:
+                        {
+                            // Replace the call args
+                            Expression temp = innerCallArgs[arrayIndex];
+                            innerCallArgs[arrayIndex] = resExp;
+
+                            // New init parameter
+                            ParameterExpression init = Expression.Parameter(resExp.Type, "_init");
+
+                            // Complie
+                            innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
+                                new[] { resExp, start, stop, array, init, final },
+                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Assign(init, resExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : resExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
+                                Expression.Assign(resExp, init),
+                                Expression.Loop(
+                                    Expression.IfThenElse(
+                                        Expression.LessThan(start, stop),
+                                        Expression.Block(new List<Expression>()
+                                        {
+                                            Expression.Assign(resExp, temp),
+                                            Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
+                                        }),
+                                        Expression.Break(forLabel, stop)
+                                    ),
+                                    forLabel
+                                ),
+                                Expression.Assign(final, resExp)
+                            ));
+                            break;
+                        }
+
+                    // Last match
+                    case ExpressionType.Last:
+                        {
+                            // Replace the call args
+                            Expression temp = innerCallArgs[arrayIndex];
+                            innerCallArgs[arrayIndex] = resExp;
+
+                            // New init parameter
+                            ParameterExpression init = Expression.Parameter(resExp.Type, "_init");
+
+                            // Complie
+                            innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
+                                new[] { resExp, start, stop, array, init, final },
+                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                Expression.Assign(stop, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(start, Expression.ArrayLength(array)),
+                                Expression.Assign(init, resExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : resExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
+                                Expression.Assign(resExp, init),
+                                Expression.Loop(
+                                    Expression.IfThenElse(
+                                        Expression.GreaterThan(start, stop),
+                                        Expression.Block(new List<Expression>()
+                                        {
+                                            Expression.Assign(resExp, temp),
+                                            Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
+                                        }),
+                                        Expression.Break(forLabel, stop)
+                                    ),
+                                    forLabel
+                                ),
+                                Expression.Assign(final, resExp)
+                            ));
+                            break;
+                        }
+
+                    // Filter the elements
+                    case ExpressionType.Filter:
+                        {
+                            Expression temp = innerCallArgs[arrayIndex];
+                            ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
+                            innerCallArgs[arrayIndex] = curr;
+
+                            innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
+                                new[] { resExp, start, stop, array, final, curr },
+                                Expression.Assign(resExp, Expression.New(resExp.Type)),
+                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Loop(
+                                    Expression.IfThenElse(
+                                        Expression.LessThan(start, stop),
+                                        Expression.Block(new List<Expression>()
+                                        {
+                                            Expression.Assign(curr, temp),
+                                            Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs),
+                                                resExp.Type.IsArrayType()
+                                                    ? Expression.Call(resExp, resExp.Type.GetMethod("Add")!, curr)
+                                                    : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(curr, typeof(object)))
+                                            )
+                                        }),
+                                        Expression.Break(forLabel, stop)
+                                    ),
+                                    forLabel
+                                ),
+                                Expression.Assign(final, resExp)
+                            ));
+                            break;
+                        }
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                // Gets the call
+                return GenDynamicCallExp(resExp.Type, innerCall, callArgs);
+            }
+            // Generate the result
+            case StructResultExpNode strt:
+            {
+                // Only one struct result can exist
+                ParameterExpression resultVar = Expression.Parameter(typeof(JsonObject));
+                expMap.Add("_retobject", resultVar);
+                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(JsonObject).GetConstructor(System.Type.EmptyTypes)!)));
+                MethodInfo objectAdd = typeof(JsonObject).GetMethod(nameof(JsonObject.Add), new[] { typeof(string), typeof(JsonNode) })!;
+
+                // Build the JsonObject result
+                foreach (FunctionNodeExpTree? leafNode in strt.LeafNodes)
+                {
+                    string name;
+                    Expression memberExp;
+                    switch (leafNode)
+                    {
+                        case FunctionNodeArgument leafArg:
+                            name = leafArg.Name;
+                            memberExp = paramMap[name];
+                            break;
+                        case FunctionNodeExpression leafExp:
+                            name = leafExp.Name;
+                            memberExp = expMap[name];
+                            break;
+                        default:
+                            continue; // won't hit
+                    }
+
+                    // Gets the struct member
+                    var fld = ((StructNode?)strt.TypeNode)?.Fields?.FirstOrDefault(p => p.Name == name);
+                    if (fld == null) continue;
+                    Type fldType = fld.TypeNode!.ToCSharpType(!fld.Require);
+                    memberExp = ConvertExp(fldType, memberExp);
+
+                    // Build the exp
+                    if (memberExp.Type.IsNullable())
+                    {
+                        blocks.Add(Expression.IfThen(
+                            Expression.Property(memberExp, memberExp.Type.GetProperty("HasValue")!),
+                            Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), Expression.New(typeof(JsonValue).GetConstructor(new[] { memberExp.Type.GetNotNullType() })!, Expression.Property(memberExp, memberExp.Type.GetProperty("Value")!)) })
+                        ));
+                    }
+                    else if (memberExp.Type == typeof(JsonArray) || memberExp.Type == typeof(JsonObject))
+                    {
+                        blocks.Add(Expression.IfThen(
+                            Expression.NotEqual(memberExp, Expression.Constant(null)),
+                            // ReSharper disable once RedundantExplicitArrayCreation
+                            Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), memberExp })
+                        ));
+                    }
+                    else
+                    {
+                        blocks.Add(Expression.Call(resultVar, objectAdd, new Expression[] { Expression.Constant(name, typeof(string)), Expression.New(typeof(JsonValue).GetConstructor(new[] { memberExp.Type.GetNotNullType() })!, memberExp) }));
+                    }
+                }
+                return resultVar;
+            }
         }
         // won't hit
         return Expression.Empty();
@@ -1712,24 +1749,24 @@ public class FunctionNode: AnySchemaNode
     /// <summary>
     /// Call the data dict function with arguments
     /// </summary>
-    static async Task<TR?> CallRemoteFunction0<TR>(SchemaContext context, string name, string retType) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), [retType]));
-    static async Task<TR?> CallRemoteFunction1<TR, T1>(SchemaContext context, string name, string retType, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, [retType]));
-    static async Task<TR?> CallRemoteFunction2<TR, T1, T2>(SchemaContext context, string name, string retType, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, [retType]));
-    static async Task<TR?> CallRemoteFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, [retType]));
-    static async Task<TR?> CallRemoteFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, [retType]));
-    static async Task<TR?> CallRemoteFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, [retType]));
-    static async Task<TR?> CallRemoteFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, [retType]));
-    static async Task<TR?> CallRemoteFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, [retType]));
-    static async Task<TR?> CallRemoteFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, [retType]));
-    static async Task<TR?> CallRemoteFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, [retType]));
-    static async Task<TR?> CallRemoteFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, [retType]));
-    static async Task<TR?> CallRemoteFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, [retType]));
-    static async Task<TR?> CallRemoteFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, [retType]));
-    static async Task<TR?> CallRemoteFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, [retType]));
-    static async Task<TR?> CallRemoteFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, [retType]));
-    static async Task<TR?> CallRemoteFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, [retType]));
-    static async Task<TR?> CallRemoteFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, [retType]));
-    static async Task<TR?> CallRemoteFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string retType, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, [retType]));
+    static async Task<TR?> CallRemoteFunction0<TR>(SchemaContext context, string name, string[] generic) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray(), generic));
+    static async Task<TR?> CallRemoteFunction1<TR, T1>(SchemaContext context, string name, string[] generic, T1 v1) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1 }, generic));
+    static async Task<TR?> CallRemoteFunction2<TR, T1, T2>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2 }, generic));
+    static async Task<TR?> CallRemoteFunction3<TR, T1, T2, T3>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3 }, generic));
+    static async Task<TR?> CallRemoteFunction4<TR, T1, T2, T3, T4>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4 }, generic));
+    static async Task<TR?> CallRemoteFunction5<TR, T1, T2, T3, T4, T5>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5 }, generic));
+    static async Task<TR?> CallRemoteFunction6<TR, T1, T2, T3, T4, T5, T6>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6 }, generic));
+    static async Task<TR?> CallRemoteFunction7<TR, T1, T2, T3, T4, T5, T6, T7>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7 }, generic));
+    static async Task<TR?> CallRemoteFunction8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8 }, generic));
+    static async Task<TR?> CallRemoteFunction9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9 }, generic));
+    static async Task<TR?> CallRemoteFunction10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10 }, generic));
+    static async Task<TR?> CallRemoteFunction11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11 }, generic));
+    static async Task<TR?> CallRemoteFunction12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12 }, generic));
+    static async Task<TR?> CallRemoteFunction13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13 }, generic));
+    static async Task<TR?> CallRemoteFunction14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14 }, generic));
+    static async Task<TR?> CallRemoteFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, generic));
+    static async Task<TR?> CallRemoteFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, generic));
+    static async Task<TR?> CallRemoteFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, generic));
     
     #endregion
 
@@ -2039,11 +2076,6 @@ public class SchemaFuncInfo
     /// The function node
     /// </summary>
     public FunctionNode? FunctionNode { get; set; }
-
-    /// <summary>
-    /// Whether need wrap the return value as nullable
-    /// </summary>
-    public bool Nullable { get; init; }
 
     /// <summary>
     ///  The sign of the function

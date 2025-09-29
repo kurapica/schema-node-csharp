@@ -232,25 +232,25 @@ public class ScalarNode: AnySchemaNode
      }
 
      /// <inheritdoc />
-     public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+     public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
      {
           await Task.Yield();
           if (value is not JsonValue val || val.IsEmpty())
                return (value, TYPE_VALUE_NOT_VALID);
           
           // validate the scalar value
-          string strval = val.ToString();
+          string strVal = val.ToString();
           
           // check with type
           try
           {
                if (IsYear)
                {
-                    if (long.TryParse(strval, out long year))
+                    if (long.TryParse(strVal, out long year))
                     {
                          // pass
                     }
-                    else if (DateTime.TryParse(strval, out DateTime dateTime))
+                    else if (DateTime.TryParse(strVal, out DateTime dateTime))
                     {
                          year = dateTime.GetLocaleYear();
                     }
@@ -266,47 +266,47 @@ public class ScalarNode: AnySchemaNode
                
                else if (IsInt)
                {
-                    if (!long.TryParse(strval, out long lval) || (LowLimit > lval || UpLimit < lval))
+                    if (!long.TryParse(strVal, out long lval) || (LowLimit > lval || UpLimit < lval))
                          return (value, TYPE_VALUE_NOT_VALID);
                     return (lval, null);
                }
                
                else if (IsSingle)
                {
-                    if (!float.TryParse(strval, out float fval) || (LowLimit > (decimal?)fval || UpLimit < (decimal?)fval))
+                    if (!float.TryParse(strVal, out float fval) || (LowLimit > (decimal?)fval || UpLimit < (decimal?)fval))
                          return (value, TYPE_VALUE_NOT_VALID);
                     return (fval, null);
                }
                
                else if (IsDouble)
                {
-                    if (!double.TryParse(strval, out double dval) || (LowLimit > (decimal?)dval || UpLimit < (decimal?)dval))
+                    if (!double.TryParse(strVal, out double dval) || (LowLimit > (decimal?)dval || UpLimit < (decimal?)dval))
                          return (value, TYPE_VALUE_NOT_VALID);
                     return (dval, null);
                }
                
                else if (IsNumber)
                {
-                    if (!decimal.TryParse(strval, out decimal mval) || (LowLimit > mval || UpLimit < mval))
+                    if (!decimal.TryParse(strVal, out decimal mval) || (LowLimit > mval || UpLimit < mval))
                          return (value, TYPE_VALUE_NOT_VALID);
                     return (mval, null);
                }
                
                else if (IsBool)
                {
-                    return Utility.Schema.TryParseBoolValue(strval, out bool bval) ? (bval, null) : (value, TYPE_VALUE_NOT_VALID);
+                    return Utility.Schema.TryParseBoolValue(strVal, out bool bval) ? (bval, null) : (value, TYPE_VALUE_NOT_VALID);
                }
                
                else if (IsString)
                {
-                    if (LowLimit > strval.Length || UpLimit < strval.Length)
+                    if (LowLimit > strVal.Length || UpLimit < strVal.Length)
                          return (value, TYPE_VALUE_NOT_VALID);
-                    return (strval, null);
+                    return (strVal, null);
                }
                
                else if (IsDate)
                {
-                    if (DateTime.TryParse(strval, out DateTime date))
+                    if (DateTime.TryParse(strVal, out DateTime date))
                     {
                          if (IsYearMonth)
                          {

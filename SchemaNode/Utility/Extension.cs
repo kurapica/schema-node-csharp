@@ -129,6 +129,32 @@ public static class Extension
         return JsonSerializer.Deserialize(value, type, NoIndentJsonOption);
     }
 
+    public static T? FromJson<T>(this JsonNode value)
+    {
+        return value.Deserialize<T>(NoIndentJsonOption);
+    }
+
+    public static object? FromJson(this JsonNode value, Type type)
+    {
+        if (type == typeof(JsonObject))
+        {
+            return value is JsonObject obj ? obj : throw new JsonException("The value is not an object");
+        }
+        else if (type == typeof(JsonArray))
+        {
+            return value is JsonArray arr ? arr : throw new JsonException("The value is not an array.");
+        }
+        else if (type == typeof(JsonValue))
+        {
+            return value is JsonValue val ? val : throw new JsonException("The value is not a valid JsonValue");
+        }
+        else if (type == typeof(JsonNode))
+        {
+            return value;
+        }
+        return value.Deserialize(type, NoIndentJsonOption);
+    }
+
     /// <summary>
     /// Whether the json node is empty
     /// </summary>
@@ -152,39 +178,6 @@ public static class Extension
         foreach (var item in b)
         {
             a.Add(item);
-        }
-    }
-
-    /// <summary>
-    /// Try parse json value to schema type value
-    /// </summary>
-    public static (object, string)? ParseSchemaValue(this JsonNode? node, Schema.SchemaParamTypeInfo? typeInfo = null)
-    {
-        if (node == null || node.IsEmpty()) return null;
-        if (node is JsonObject) return (node, NS_SYSTEM_STRUCT);
-        if (node is JsonArray arr) return (arr, NS_SYSTEM_ARRAY);
-        if (node is not JsonValue val) return null;
-        object raw = val.GetValue<object>();
-
-        switch (raw)
-        {
-            case bool: 
-                return (raw, NS_SYSTEM_BOOL);
-            case sbyte or byte or short or ushort or int or uint or long or ulong:
-                return (raw, NS_SYSTEM_INT);
-            case float: 
-                return (raw, NS_SYSTEM_FLOAT);
-            case double:
-                return (raw, NS_SYSTEM_DOUBLE);
-            case decimal:
-                return (raw, NS_SYSTEM_NUMBER);
-            case string s:
-                // 尝试解析成日期
-                if (DateTime.TryParse(s, out _))
-                    return (raw, NS_SYSTEM_DATE);
-                return (raw, NS_SYSTEM_STRING);
-            default:
-                return null;
         }
     }
 

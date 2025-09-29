@@ -131,7 +131,7 @@ public class ArrayNode: AnySchemaNode
     }
 
     /// <inheritdoc />
-    public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
         if (value is not JsonArray array)
             return (value, TYPE_VALUE_NOT_VALID);
@@ -157,7 +157,18 @@ public class ArrayNode: AnySchemaNode
         }
         
         // @TODO Union Validation
-        
+        Type type = this.ToCSharpType();
+        if (type != typeof(JsonArray))
+        {
+            try
+            {
+                return (result.FromJson(type), null);
+            }
+            catch (Exception ex)
+            {
+                return (result, ex.GetInnermostException().Message);
+            }
+        }
         return (result, error);
     }
 

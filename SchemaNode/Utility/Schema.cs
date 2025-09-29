@@ -25,6 +25,7 @@ public static class Schema
     public static NodeSchema? GetSystemNodeSchema(string schemaName)
     {
         schemaName = schemaName.ToLowerInvariant();
+        // ReSharper disable once InconsistentlySynchronizedField
         NodeSchema? node = _root;
         string fullPath = "";
         foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
@@ -44,7 +45,7 @@ public static class Schema
         lock (_root)
         {
             schema.LoadState = SchemaLoadState.System;
-            Console.WriteLine("save", schema.Name);
+            Console.WriteLine("save {0}", schema.Name);
 
             string schemaName = schema.Name.ToLowerInvariant();
             NodeSchema root = _root;
@@ -115,11 +116,11 @@ public static class Schema
     /// <returns></returns>
     public static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
     {
-        if (typeInfo.Type == null) return null;
+        if (typeInfo.BaseType == null) return null;
         
         // array & list check
         bool isArray = (typeInfo.Kind & (ParameterTypeKind.Array | ParameterTypeKind.List | ParameterTypeKind.Enumerable)) > 0;
-        Type type = typeInfo.Type;
+        Type type = typeInfo.BaseType;
 
         // Already registered
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
@@ -271,7 +272,7 @@ public static class Schema
         if (input.IsGenericType) // IList<T>, IList<int>
         {
             Type[] args = input.GetGenericArguments();
-            if (args.Length != 1) return null; // not support complex generic arguments
+            if (args.Length != 1) return null; // not support complex generic types like Dict<TK, TV>
             
             result = GetSchemaTypeInfo(args[0]);
             if (result == null) return null;
@@ -348,12 +349,13 @@ public static class Schema
         {
             result = new SchemaParamTypeInfo
             {
-                Type = input,
+                BaseType = input,
             };
         }
 
         // auto conv type to schema type
-        if (autoConv && result?.Type != null) result.SchemaType = GetSchemaType(result, true);
+        result.Type = input;
+        if (autoConv && result.BaseType != null) result.SchemaType = GetSchemaType(result, true);
         return result;
     }
 
@@ -366,7 +368,8 @@ public static class Schema
         {
             ScalarNode or EnumNode or StructNode or ArrayNode => new SchemaParamTypeInfo
             {
-                Type = node.ToCSharpType(), SchemaType = node.Name
+                BaseType = node.ToCSharpType(), 
+                SchemaType = node.Name
             },
             _ => null
         };
@@ -378,14 +381,20 @@ public static class Schema
     public static Type ToCSharpType(this AnySchemaNode node, bool? nullable = false)
     {
         bool isArray = false;
-        Type? type;
+        Type? type = null;
         if (node is ArrayNode array)
         {
-            if (array.ElementNode == null) return typeof(JsonArray);
-            isArray = true;
-            node = array.ElementNode;
+            if (array.ElementNode == null)
+            {
+                type = typeof(JsonArray);
+            }
+            else
+            {
+                isArray = true;
+                node = array.ElementNode;
+            }
         }
-        if (!_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
+        if (type is null && !_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
         {
             if (node is EnumNode enumNode)
             {
@@ -423,17 +432,23 @@ public static class Schema
                 }
                 else
                 {
-                    return isArray ? typeof(JsonArray) : typeof(JsonValue);
+                    type = isArray ? typeof(JsonArray) : typeof(JsonValue);
+                    isArray = false;
                 }
             }
             else if(node is StructNode)
             {
-                return isArray ? typeof(JsonArray) : typeof(JsonObject);
+                type = isArray ? typeof(JsonArray) : typeof(JsonObject);
+                isArray = false;
             }
         }
 
-        if (type == null) return isArray ? typeof(JsonArray) : typeof(JsonValue);
-        if (isArray)
+        // cover all
+        if (type == null)
+        {
+            type ??= isArray ? typeof(JsonArray) : typeof(JsonValue);
+        }
+        else if (isArray)
         {
             type = typeof(List<>).MakeGenericType(type);
         }
@@ -486,9 +501,14 @@ public static class Schema
         public Type? Generic { get; set; }
     
         /// <summary>
-        /// The base type
+        /// The original type
         /// </summary>
         public Type? Type { get; set; }
+        
+        /// <summary>
+        /// The base type
+        /// </summary>
+        public Type? BaseType { get; set; }
     
         /// <summary>
         /// The schema type
@@ -513,6 +533,81 @@ public static class Schema
         public bool Number => (Kind & (ParameterTypeKind.Number | ParameterTypeKind.Float)) > 0;
         
         public bool OnlyFloat => (Kind & ParameterTypeKind.Float) > 0;
+        
+        #endregion
+        
+        #region Method
+
+        (object? value, Type? type) ParseJsonValue(JsonValue val)
+        {
+            object raw = val.GetValue<object>();
+            return raw switch
+            {
+                bool or sbyte or byte or short or ushort or int or uint or long or ulong or float or double or decimal
+                    => (raw, raw.GetType()),
+                string s => DateTime.TryParse(s, out _) ? (raw, typeof(DateTime)) : (raw, typeof(string)),
+                _ => ((object? value, Type? type))(null, null)
+            };
+        }
+
+        /// <summary>
+        /// Parse the value to get the real value, type and generic type
+        /// </summary>
+        public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
+        {
+            if (Generic != null)
+            {
+                if (node == null || node.IsEmpty()) return (null, Type, generic);
+                if (node is JsonArray arr)
+                {
+                    
+                }
+                
+                // single
+                if (List || Array) return (null, Type, generic);
+                if (node is JsonObject obj)
+                {
+                    
+                }
+                else if (node is JsonValue val)
+                {
+                    
+                    object raw = val.GetValue<object>();
+
+                    switch (raw)
+                    {
+                        case bool: 
+                            return (raw, NS_SYSTEM_BOOL);
+                        case sbyte or byte or short or ushort or int or uint or long or ulong:
+                            return (raw, NS_SYSTEM_INT);
+                        case float: 
+                            return (raw, NS_SYSTEM_FLOAT);
+                        case double:
+                            return (raw, NS_SYSTEM_DOUBLE);
+                        case decimal:
+                            return (raw, NS_SYSTEM_NUMBER);
+                        case string s:
+                            return DateTime.TryParse(s, out _) ? (raw, NS_SYSTEM_DATE) : (raw, NS_SYSTEM_STRING);
+                        default:
+                            return null;
+                    }
+                }
+            }
+            else
+            {
+                // not generic
+                try
+                {
+                    return (node?.FromJson(Type!), Type, null);
+                }
+                catch
+                {
+                    // pass
+                }
+            }
+
+            return (null, Type, generic);
+        }
         
         #endregion
     }

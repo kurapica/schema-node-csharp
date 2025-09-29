@@ -139,7 +139,7 @@ public class StructNode: AnySchemaNode
     }
 
     /// <inheritdoc />
-    public override async Task<(JsonNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
         if (value is not JsonObject jobject)
             return (value, TYPE_VALUE_NOT_VALID);
@@ -173,7 +173,18 @@ public class StructNode: AnySchemaNode
         }
         
         // @TODO: Union validation
-        
+        Type type = this.ToCSharpType();
+        if (type != typeof(JsonObject))
+        {
+            try
+            {
+                return (result.FromJson(type), null);
+            }
+            catch (Exception ex)
+            {
+                return (result, ex.GetInnermostException().Message);
+            }
+        }
         return (result, error);
     }
 

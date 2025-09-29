@@ -13,7 +13,7 @@ public static class SystemLogic
     /// system.logic.andalso
     /// </summary>
     [SchemaFunc("system.logic.andalso")]
-    public static bool Andalso(bool a, bool b) => a && b;
+    public static bool AndAlso(bool a, bool b) => a && b;
 
     /// <summary>
     /// system.logic.between
