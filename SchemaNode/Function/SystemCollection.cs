@@ -3,7 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
-using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function;
 
@@ -17,72 +17,50 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [SchemaFunc]
-    public static long ArrLen<T>(IList array) => array.Count;
+    public static long ArrLen([SchemaFuncArg(NS_SYSTEM_ARRAY)] object array)
+    {
+        if (array is JsonArray jsonArray)
+        {
+            return jsonArray.Count;
+        }
+        if (array is Array arr)
+        {
+            return arr.LongLength;
+        }
+        if (array is ICollection collection)
+        {
+            return collection.Count;
+        }
+        return 0;
+    }
+
 
     /// <summary>
     /// Calc the average
     /// </summary>
     [SchemaFunc]
-    public static T Average<T>(JsonArray array) where T : INumber<T>
+    public static T Average<T>(IEnumerable<T> array) where T : INumber<T>
     {
         T sum = T.Zero;
-        foreach (JsonNode? node in array)
+        int count = 0;
+        foreach (T item in array)
         {
-            if (node is JsonValue val && !val.IsEmpty())
-            {
-                sum += T.CreateChecked(val.GetValue<T>());
-            }
+            count++;
+            sum += item;
         }
-        return sum / T.CreateChecked(array.Count);
+        return count == 0 ? T.Zero : sum / T.CreateChecked(count);
     }
 
-    /// <summary>
-    /// Calc the average in the field
-    /// </summary>
-    [SchemaFunc]
-    public static T AverageFields<T>(JsonArray array, string field) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        foreach (JsonNode? node in array)
-        {
-            if (node is JsonObject obj && obj.ContainsKey(field) && obj[field] is JsonValue val && !val.IsEmpty())
-            {
-                sum += T.CreateChecked(val.GetValue<T>());
-            }
-        }
-        return sum / T.CreateChecked(array.Count);
-    }
-    
     /// <summary>
     /// Calc the sum
     /// </summary>
     [SchemaFunc]
-    public static T Sum<T>(JsonArray array) where T : INumber<T>
+    public static T Sum<T>(IEnumerable<T> array) where T : INumber<T>
     {
         T sum = T.Zero;
-        foreach (JsonNode? node in array)
+        foreach (T item in array)
         {
-            if (node is JsonValue val && !val.IsEmpty())
-            {
-                sum += T.CreateChecked(val.GetValue<T>());
-            }
-        }
-        return sum;
-    }
-
-    /// <summary>
-    /// Calc the sum in the field
-    /// </summary>
-    [SchemaFunc]
-    public static T SumFields<T>(JsonArray array, string field) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        foreach (JsonNode? node in array)
-        {
-            if (node is JsonObject obj && obj.ContainsKey(field) && obj[field] is JsonValue val && !val.IsEmpty())
-            {
-                sum += T.CreateChecked(val.GetValue<T>());
-            }
+            sum += item;
         }
         return sum;
     }

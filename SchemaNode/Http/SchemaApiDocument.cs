@@ -31,6 +31,7 @@ public static class SchemaApiDocument
         document.Components ??= new OpenApiComponents();
         document.Components.Schemas ??= new Dictionary<string, IOpenApiSchema>();
         IDictionary<string, IOpenApiSchema> schemas = document.Components!.Schemas;
+        HandledTypes.Value = new HashSet<string>();
 
         // Add each API.
         foreach (var (api, url) in SchemaApiExtension.GetSchemaApis())
@@ -236,9 +237,9 @@ public static class SchemaApiDocument
 
         string typeKey = GetRegularStrFormat(type.Name, true);
 
-        if (!HandledTypes.Contains(typeKey))
+        if (!HandledTypes.Value.Contains(typeKey))
         {
-            HandledTypes.Add(typeKey);
+            HandledTypes.Value.Add(typeKey);
 
             // default value holder
             object? defaultHolder = null;
@@ -451,7 +452,7 @@ public static class SchemaApiDocument
     #region Private
 
     static readonly Dictionary<string, XmlDocument> XmlFiles = new();
-    static readonly HashSet<string> HandledTypes = new();
+    static readonly AsyncLocal<HashSet<string>> HandledTypes = new();
 
     #endregion
 

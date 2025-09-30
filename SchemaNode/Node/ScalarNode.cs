@@ -294,7 +294,7 @@ public class ScalarNode: AnySchemaNode
                
                else if (IsBool)
                {
-                    return Utility.Schema.TryParseBoolValue(strVal, out bool bval) ? (bval, null) : (value, TYPE_VALUE_NOT_VALID);
+                    return TryParseBoolValue(strVal, out bool bval) ? (bval, null) : (value, TYPE_VALUE_NOT_VALID);
                }
                
                else if (IsString)
@@ -359,14 +359,41 @@ public class ScalarNode: AnySchemaNode
      public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
                                          || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= 128;
 
-     #endregion
-     
-     #region Conversion
-     
-     /// <summary>
-     /// Convert the node to schema
-     /// </summary>
-     public static implicit operator NodeSchema?(ScalarNode? schema)
+    /// <summary>
+    /// Try parse bool value from string
+    /// </summary>
+    static bool TryParseBoolValue(string value, out bool ret)
+    {
+        ret = false;
+        if (string.IsNullOrEmpty(value))
+            return false;
+        value = value.ToLower();
+        switch (value)
+        {
+            case "true":
+                ret = true;
+                return true;
+            case "false":
+                ret = false;
+                return true;
+            default:
+                {
+                    if (!int.TryParse(value, out int val) || val is < 0 or > 1)
+                        return false;
+                    ret = val == 1;
+                    return true;
+                }
+        }
+    }
+
+    #endregion
+
+    #region Conversion
+
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(ScalarNode? schema)
      {
           if (schema == null) return null;
           return new NodeSchema

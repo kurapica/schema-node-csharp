@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -43,6 +44,26 @@ public static class Extension
     #endregion
 
     #region JSON
+
+    public class FlexibleLongConverter : JsonConverter<long>
+    {
+        public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            return reader.TokenType switch
+            {
+                JsonTokenType.Number when reader.TryGetInt64(out var l) => l,
+                JsonTokenType.Number when reader.TryGetDouble(out var d) => Convert.ToInt64(d),
+                JsonTokenType.Number when reader.TryGetDecimal(out var d) => Convert.ToInt64(d),
+                JsonTokenType.String when long.TryParse(reader.GetString(), out var l) => l,
+                _ => throw new JsonException($"Cannot convert {reader.GetString()} to long")
+            };
+        }
+
+        public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options)
+        {
+            writer.WriteNumberValue(value);
+        }
+    }
 
     public class JsonDateTimeIsoConverter : JsonConverter<DateTime>
     {
@@ -157,6 +178,38 @@ public static class Extension
     }
 
     /// <summary>
+    /// Try parse the json value to value and type
+    /// </summary>
+    public static (object? value, Type? type) ParseValueAndType(this JsonValue val)
+    {
+        switch ( val.GetValueKind() )
+        {
+            case JsonValueKind.String:
+                if (val.TryGetValue(out string? s))
+                {
+                    if (DateTime.TryParse(s, out DateTime d))
+                        return (d, typeof(DateTime));
+                    return (s, typeof(string));
+                }
+                return (null, typeof(string));
+
+            case JsonValueKind.Number:
+                if (val.TryGetValue(out long l))
+                    return (l, typeof(long));
+                return (val.GetValue<decimal>(), typeof(decimal));
+            case JsonValueKind.True:
+                return (true, typeof(bool));
+            case JsonValueKind.False:
+                return (false, typeof(bool));
+            case JsonValueKind.Null:
+                return (null, null);
+            default:
+                throw new ArgumentOutOfRangeException();
+        };
+    }
+
+
+    /// <summary>
     /// Whether the json node is empty
     /// </summary>
     public static bool IsEmpty(this JsonNode? node)
@@ -190,7 +243,8 @@ public static class Extension
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffetIsoConverter(),
-            new ForceStringConverter()
+            new ForceStringConverter(),
+            new FlexibleLongConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -204,7 +258,8 @@ public static class Extension
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffetIsoConverter(),
-            new ForceStringConverter()
+            new ForceStringConverter(),
+            new FlexibleLongConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -305,7 +360,13 @@ public static class Extension
     {
         if (value == null) return null;
         if (value.GetType().IsAssignableTo(type)) return value;
-        
+        if (value is JsonValue v)
+        {
+            (value, _) = v.ParseValueAndType();
+            if (value == null) return null;
+        }
+        if (value.GetType().IsAssignableTo(type)) return value;
+
         try
         {
             // Enum convert
@@ -359,7 +420,7 @@ public static class Extension
                 default:
                     throw new ArgumentOutOfRangeException();
             }
-            
+
             // Object
             if (type == typeof(Guid))
             {
@@ -374,7 +435,17 @@ public static class Extension
                     _ => null
                 };
             }
-    
+            else if (type == typeof(JsonArray))
+            {
+                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                return result is JsonArray ? result : null;
+            }
+            else if (type == typeof(JsonObject))
+            {
+                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                return result is JsonObject ? result : null;
+            }
+
             // TODO: more type support if require
             return null;
         }

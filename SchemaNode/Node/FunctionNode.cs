@@ -755,7 +755,7 @@ public class FunctionNode: AnySchemaNode
                 Return = string.Empty,
                 Args = new FunctionArgumentInfo[parameters.Length],
                 Exps = [],
-                Generic = genInfos.Select(g => g is { Array: false, List: false, Number: true } 
+                Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } 
                     ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
@@ -769,7 +769,7 @@ public class FunctionNode: AnySchemaNode
         if (retInfo.Generic != null)
         {
             // IList<T>, use system.array instead
-            if (retInfo.Array || retInfo.List)
+            if (retInfo.AnyArray)
             {
                 funcSchema.Func.Return = NS_SYSTEM_ARRAY;
             }
@@ -810,7 +810,7 @@ public class FunctionNode: AnySchemaNode
             // Check dynamic type
             if (pt.Generic != null)
             {
-                if (pt.Array || pt.List)
+                if (pt.AnyArray)
                 {
                     arg.Type = NS_SYSTEM_ARRAY;
                 }
@@ -830,7 +830,14 @@ public class FunctionNode: AnySchemaNode
             }
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
             {
-                return null;
+                if (pt.BaseType == typeof(object) && p.GetCustomAttribute<SchemaFuncArgAttribute>() != null)
+                {
+                    pt.SchemaType = p.GetCustomAttribute<SchemaFuncArgAttribute>()!.Type;
+                }
+                else
+                {
+                    return null;
+                }
             }
             else
             {
@@ -1141,7 +1148,7 @@ public class FunctionNode: AnySchemaNode
 
                         if (info == null || type == null) return null;
                         if (info.Array && type.IsSZArray) return type.GetElementType();
-                        if (info.List && type.GetGenericArguments() is { Length: > 0} args) return args[0];
+                        if ((info.List || info.Enumerable) && type.GetGenericArguments() is { Length: > 0} args) return args[0];
                         return type;
                     }).ToArray();
                     if (genTypes.Length == 0 || genTypes.Any(g => g == null))
@@ -1179,7 +1186,7 @@ public class FunctionNode: AnySchemaNode
                         
                         if (info.Array && type.IsSZArray)
                             return type.GetElementType()?.GetSchemaType();
-                        if (info.List && type.GetGenericArguments() is { Length: > 0} args)
+                        if ((info.List || info.Enumerable) && type.GetGenericArguments() is { Length: > 0} args)
                             return args[0].GetSchemaType();
                         return type.GetSchemaType();
                     }).ToArray();

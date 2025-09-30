@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
@@ -463,33 +462,6 @@ public static class Schema
         return type;
     }
         
-    /// <summary>
-    /// Try parse bool value from string
-    /// </summary>
-    public static bool TryParseBoolValue(string value, out bool ret)
-    {
-        ret = false;
-        if (string.IsNullOrEmpty(value))
-            return false;
-        value = value.ToLower();
-        switch (value)
-        {
-            case "true":
-                ret = true;
-                return true;
-            case "false":
-                ret = false;
-                return true;
-            default:
-            {
-                if (!int.TryParse(value, out int val) || val is < 0 or > 1)
-                    return false;
-                ret = val == 1;
-                return true;
-            }
-        }
-    }
-    
     #endregion
     
     #region Inner type
@@ -528,9 +500,13 @@ public static class Schema
 
         public bool Nullable => (Kind & ParameterTypeKind.Nullable) > 0;
         
-        public bool List => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Enumerable)) > 0;
-        
+        public bool List => (Kind & (ParameterTypeKind.List)) > 0;
+
+        public bool Enumerable => (Kind & (ParameterTypeKind.Enumerable)) > 0;
+
         public bool Array => (Kind & ParameterTypeKind.Array) > 0;
+
+        public bool AnyArray => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Array | ParameterTypeKind.Enumerable)) > 0;
         
         public bool Task => (Kind & ParameterTypeKind.Task) > 0;
         
@@ -542,49 +518,18 @@ public static class Schema
         
         #region Method
 
-        (object? value, Type? type) ParseJsonValue(JsonValue val)
-        {
-            return val.GetValueKind() switch
-            {
-                JsonValueKind.String => val.TryGetValue(out string? s)
-                    ? DateTime.TryParse(s, out DateTime d)
-                        ? (d, typeof(DateTime))
-                        : (s, typeof(string))
-                    : (null, typeof(string)),
-                JsonValueKind.Number => val.TryGetValue(out long l)
-                    ? (l, typeof(long))
-                    : (val.GetValue<decimal>(), typeof(decimal)),
-                JsonValueKind.True => (true, typeof(bool)),
-                JsonValueKind.False => (false, typeof(bool)),
-                JsonValueKind.Null => (null, null),
-                _ => throw new ArgumentOutOfRangeException()
-            };
-        }
-
         /// <summary>
         /// Parse the value to get the real value, type and generic type
         /// </summary>
         public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
         {
+            if (node == null || node.IsEmpty()) return (null, Type, generic);
             if (Generic != null)
             {
-                if (node == null || node.IsEmpty()) return (null, Type, generic);
                 if (node is JsonArray arr)
                 {
-                    if (!List && !Array) return (null, Type, generic);
-                    if (generic != null)
-                    {
-                        Type type = Array ? generic.MakeArrayType() : typeof(List<>).MakeGenericType(generic);
-                        try
-                        {
-                            return (node.FromJson(type), type, generic);
-                        }
-                        catch
-                        {
-                            return (null, Type, generic);
-                        }
-                    }
-                    else
+                    if (!AnyArray) return (null, Type, generic);
+                    if (generic == null)
                     {
                         if (arr.Count == 0) return (arr, typeof(JsonArray), null); // unkown
                         var ele = arr[0];
@@ -594,36 +539,77 @@ public static class Schema
                         }
                         else if (ele is JsonValue val)
                         {
-                            (object? _, Type? type) = ParseJsonValue(val);
-                            if (type != null)
-                            {
-                                Type arrType = Array ? type.MakeArrayType() : typeof(List<>).MakeGenericType(type);
-                                try
-                                {
-                                    return (node.FromJson(arrType), arrType, type);
-                                }
-                                catch
-                                {
-                                    return (null, Type, generic);
-                                }
-                            }
+                            (object? _, Type? type) = val.ParseValueAndType();
+                            if (type == null) return (arr, typeof(JsonArray), null); // unkown
+                            generic = type;                            
                         }
                         else
                         {
-                            return (null, Type, generic);
+                            return (arr, typeof(JsonArray), null); // unkown
                         }
                     }
+
+                    if (Enumerable)
+                    {
+                        try
+                        {
+                            MethodInfo method = _convEnum.GetOrAdd(generic, t => typeof(Schema).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                            return (method.Invoke(null, [arr]), typeof(IEnumerable<>).MakeGenericType(generic), generic);
+                        }
+                        catch
+                        {
+                            // pass
+                        }
+                    }
+
+                    Type arrType = Array ? generic.MakeArrayType() : typeof(List<>).MakeGenericType(generic);
+                    try
+                    {
+                        return (node.FromJson(arrType), arrType, generic);
+                    }
+                    catch
+                    {
+                        // pass
+                    }
+
+                    try
+                    {
+                        if (Array)
+                        {                                
+                            var array = System.Array.CreateInstanceFromArrayType(arrType, arr.Count);
+                            for (int i = 0; i < arr.Count; i++)
+                            {
+                                array.SetValue(generic.TryConvert(arr[i]), i);
+                            }
+                            return (array, arrType, generic);
+                        }
+                        else
+                        {
+                            dynamic list = Activator.CreateInstance(arrType)!;
+                            for (int i = 0; i < arr.Count; i++)
+                            {
+                                list.Add(generic.TryConvert(arr[i]));
+                            }
+                            return (list, arrType, generic);
+                        }
+                    }
+                    catch
+                    {
+                        // pass
+                    }
+
+                    return (null, arrType, generic);
                 }
                 
                 // single
-                if (List || Array) return (null, Type, generic);
+                if (AnyArray) return (null, Type, generic);
                 if (node is JsonObject obj)
                 {
                     return (obj, typeof(JsonObject), null);
                 }
                 else if (node is JsonValue val)
                 {
-                    (object? value, Type? type) = ParseJsonValue(val);
+                    (object? value, Type? type) = val.ParseValueAndType();
                     if (value == null) return (null, Type, generic);
                     if (generic != null)
                     {
@@ -642,6 +628,9 @@ public static class Schema
             }
             else if (Type != null)
             {
+                // list JsonArray for IList
+                if (Type.IsAssignableFrom(node.GetType())) return (node, Type, null);
+
                 // not generic
                 try
                 {
@@ -680,11 +669,19 @@ public static class Schema
     #endregion
     
     #region Utility
-    
+
+    static IEnumerable<T> ConvertToEnumerable<T>(JsonArray arr)
+    {
+        Type type = typeof(T);
+        return arr.Select(a => (T)type.TryConvert(a)!);
+    }
+
+    static ConcurrentDictionary<Type, MethodInfo> _convEnum = new();
+
     // System type maps
-    private static ConcurrentDictionary<string, Type> _systemTypes { get; } = new();
-    private static ConcurrentDictionary<Type, string> _typeNames { get; } = new();
-    private static ConcurrentDictionary<Type, string> _typeArrNames { get; } = new();
+    private static ConcurrentDictionary<string, Type> _systemTypes = new();
+    private static ConcurrentDictionary<Type, string> _typeNames  = new();
+    private static ConcurrentDictionary<Type, string> _typeArrNames = new();
 
     #endregion
     

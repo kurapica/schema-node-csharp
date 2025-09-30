@@ -7,21 +7,15 @@ namespace SchemaNode.Attribute;
 public class SchemaFuncArgAttribute: System.Attribute
 {
     /// <summary>
-    /// The description of the function
-    /// </summary>
-    public string? Name { get; }
-
-    /// <summary>
     /// The data dict type
     /// </summary>
-    public string? Type { get; }
+    public string Type { get; }
     
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaFuncArgAttribute(string? desc = null, string? type = null)
+    public SchemaFuncArgAttribute(string type)
     {
-        Name = desc;
         Type = type;
     }
 }
