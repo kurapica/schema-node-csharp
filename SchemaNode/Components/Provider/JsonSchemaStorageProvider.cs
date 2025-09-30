@@ -19,7 +19,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         {
             (string file, SchemaType schemaType)? res = CheckSchemaFile(name);
             if (string.IsNullOrEmpty(res?.file)) continue;
-            if (res?.schemaType == SchemaType.Namespace)
+            if (res.Value.schemaType == SchemaType.Namespace)
             {
                 NodeSchema schema = await LoadSchemaFile(Path.Combine(res.Value.file, "__ns.json")) ?? new NodeSchema
                 {
@@ -67,7 +67,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             }
             else
             {
-                NodeSchema? schema = await LoadSchemaFile(res!.Value.file);
+                NodeSchema? schema = await LoadSchemaFile(res.Value.file);
                 if (schema != null) schemas.Add(schema);
             }
         }
@@ -139,13 +139,14 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         await Task.Yield();
         (string file, SchemaType schemaType)? res = CheckSchemaFile(schema);
         if (string.IsNullOrEmpty(res?.file)) return false;
-        if (res?.schemaType == SchemaType.Namespace)
+        if (res.Value.schemaType == SchemaType.Namespace)
         {
-            Directory.Delete(res.Value.file, true);
+            File.Delete(Path.Combine(res.Value.file, "__ns.json"));
+            Directory.Delete(res.Value.file);
         }
         else
         {
-            File.Delete(res!.Value.file);
+            File.Delete(res.Value.file);
         }
 
         return true;
@@ -191,7 +192,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         if (Directory.Exists(folder))
         {
             string? find = Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly).Select(Path.GetFileName)
-                .FirstOrDefault(s => s.StartsWith($"{paths.Last()}.", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefault(s => s is not null && s.StartsWith($"{paths.Last()}.", StringComparison.OrdinalIgnoreCase));
             if (find is not null)
             {
                 string type = find[(paths.Last().Length + 1)..^5];
@@ -217,6 +218,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     {
         try
         {
+            if (!File.Exists(name)) return null;
             string readJson = await File.ReadAllTextAsync(name);
             return readJson.FromJson<NodeSchema>();
         }

@@ -1,6 +1,8 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
@@ -70,6 +72,8 @@ public static class Schema
                             Schemas = []
                         };
                         root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
+                        root = node;
+                        root.Schemas ??= [];
                     }
                 }
                 else if (schemaName != fullPath)
@@ -128,7 +132,7 @@ public static class Schema
         // Basic value check
         if (!type.IsEnum)
         {
-            if (type == typeof(JsonArray))
+            if (type == typeof(JsonArray) || type.IsAssignableTo(typeof(IList)))
             {
                 return NS_SYSTEM_ARRAY;
             }
@@ -540,14 +544,20 @@ public static class Schema
 
         (object? value, Type? type) ParseJsonValue(JsonValue val)
         {
-            object raw = val.GetValue<object>();
-            return raw switch
+            return val.GetValueKind() switch
             {
-                bool => (raw, typeof(bool)),
-                sbyte or byte or short or ushort or int or uint or long or ulong => ((long)raw, typeof(long)),
-                float or double or decimal => (raw, raw.GetType()),
-                string s => DateTime.TryParse(s, out _) ? (raw, typeof(DateTime)) : (raw, typeof(string)),
-                _ => ((object? value, Type? type))(null, null)
+                JsonValueKind.String => val.TryGetValue(out string? s)
+                    ? DateTime.TryParse(s, out DateTime d)
+                        ? (d, typeof(DateTime))
+                        : (s, typeof(string))
+                    : (null, typeof(string)),
+                JsonValueKind.Number => val.TryGetValue(out long l)
+                    ? (l, typeof(long))
+                    : (val.GetValue<decimal>(), typeof(decimal)),
+                JsonValueKind.True => (true, typeof(bool)),
+                JsonValueKind.False => (false, typeof(bool)),
+                JsonValueKind.Null => (null, null),
+                _ => throw new ArgumentOutOfRangeException()
             };
         }
 
@@ -584,7 +594,7 @@ public static class Schema
                         }
                         else if (ele is JsonValue val)
                         {
-                            (object? value, Type? type) = ParseJsonValue(val);
+                            (object? _, Type? type) = ParseJsonValue(val);
                             if (type != null)
                             {
                                 Type arrType = Array ? type.MakeArrayType() : typeof(List<>).MakeGenericType(type);
@@ -614,6 +624,19 @@ public static class Schema
                 else if (node is JsonValue val)
                 {
                     (object? value, Type? type) = ParseJsonValue(val);
+                    if (value == null) return (null, Type, generic);
+                    if (generic != null)
+                    {
+                        try
+                        {
+                            value = generic.TryConvert(value);
+                            return (value, generic, generic);
+                        }
+                        catch
+                        {
+                            return (null, Type, generic);
+                        }
+                    }
                     return (value, type, type);
                 }
             }

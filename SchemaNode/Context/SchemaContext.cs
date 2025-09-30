@@ -182,83 +182,68 @@ public class SchemaContext
         SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo() ?? throw new Exception($"Function {node.Name} can't be complied");
 
         // fill generic if provided
-        AnySchemaNode?[] generics = new AnySchemaNode?[funcInfo.Generics.Length];
+        Type?[] generics = new Type?[funcInfo.Generics.Length];
         if (generic != null)
         {
             for (int i = 0; i < Math.Min(funcInfo.Generics.Length, generic.Length); i++)
             {
                 if (string.IsNullOrEmpty(generic[i])) continue;
                 AnySchemaNode? ns = await GetSchemaNodeAsync(generic[i]);
-                if (ns is { IsValueType: true }) generics[i] = ns;
+                if (ns is { IsValueType: true }) generics[i] = ns.ToCSharpType();
             }
         }
         
-        // scan parameters
-        object?[] callArgs = new object[funcInfo.Args!.Length];
-        for(int i = 0; i < funcInfo.Args!.Length; i++)
+        // parse parameters
+        object?[] callArgs = new object[funcInfo.Args.Length];
+        for(int i = 0; i < funcInfo.Args.Length; i++)
         {
-            SchemaParamTypeInfo arg = funcInfo.Args![i];
-            if ((args.Count < i || args[i] == null) && !arg.Nullable) throw new Exception($"The ${i+1} argument must be provided");
+            SchemaParamTypeInfo arg = funcInfo.Args[i];
+            if (args.Count < i || args[i] == null)
+            {
+                if (arg.Nullable) continue;
+                throw new Exception($"The {i + 1} argument must be provided");
+            }
 
             // generic type
             if (arg.Generic != null)
             {
                 int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
                 if (idx < 0) throw new Exception("The function not valid");
-
-                AnySchemaNode? ns = generics[idx];
-                if (ns != null)
-                {
-                    if ((arg.Array || arg.List) && ns.Type != SchemaType.Array)
-                        ns = ns.GetArrayNode();
-
-                    if (args[i] != null)
-                    {
-                        (object? value, JsonNode? error) = await ns!.ValidateValueAsync(this, args[i]!);
-                        if (error != null) throw new Exception($"The ${i+1} argument must be provided and valid");
-                        callArgs[i] = value;
-                    }
-                }
-                else
-                {
-                    (object value, string schemaType)? val = args[i].ParseSchemaValue(funcInfo.Generics[idx]);
-                    if (val == null && !arg.Nullable) throw new Exception($"The ${i+1} argument must be provided and valid");
-                    callArgs[i] = val;
-                    generics[idx] = await GetSchemaNodeAsync(val!.Value.schemaType);
-                }
+                
+                (object? o, Type? _, Type? gen) = arg.ParseValue(args[i], generics[idx]);
+                callArgs[i] = o ?? throw new Exception($"The {i+1} argument must be provided and valid");
+                if (generics[idx] is null && gen is not null) generics[idx] = gen; // scan for generic
             }
             else if (arg.Type != null)
             {
-                // valiation
-                
+                (object? o, Type? _, Type? _) = arg.ParseValue(args[i]);
+                callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
             }
             else
             {
-                
+                throw new Exception("The function not valid");
             }
         }
         
         
         // Call the method
-        object result;
+        object? result;
         if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
         {
             MethodInfo callMethod = funcInfo.Method!;
 
-            // Gets the geneirc method instance
+            // Gets the generic method instance
             if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
             {
-                if (rtoken <= 0 && funcInfo.FunctionNode.UseArgType.HasValue)
-                    rtoken = tokens[funcInfo.FunctionNode.UseArgType.Value - 1];
-
-                Type[] genTypes = funcInfo.GenericTypeMap.Select(p => p > 0 ? GetTypeByToken(tokens[p - 1]) : GetTypeByToken(rtoken, info.EnableNullableReturn)).ToArray();
-                string genSign = string.Join('|', genTypes.Select(p => p.Name));
-                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => info.Method.MakeGenericMethod(genTypes));
+                if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
+                
+                string genSign = string.Join('|', generics.Select(p => p!.Name));
+                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
             }
 
             // Call the method
             result = (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
-                ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, new object[] { callMethod, callArgs })
+                ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
                 : callMethod.Invoke(null, callArgs);
         }
         else
@@ -420,10 +405,15 @@ public class SchemaContext
     public async Task<AnySchemaNode?> GetSchemaNodeAsync(string schemaName, bool reload = false, bool preload = false)
     {
         AnySchemaNode? node = RootNamespace;
-        if (string.IsNullOrWhiteSpace(schemaName) && !preload) return node;
+        if (string.IsNullOrWhiteSpace(schemaName))
+        {
+            if (!preload || RootNamespace.Schemas.Length > 0) return node;
+            reload = true;
+        }
         
         // gets the node
         string fullPath = "";
+        Logger.LogInformation("GetSchemaNodeAsync {0}", schemaName);
         foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
                      .Where(s => !string.IsNullOrWhiteSpace(s)))
         {
@@ -453,7 +443,7 @@ public class SchemaContext
                 reload = false;
             }
         }
-        if (!reload && !preload) return node;
+        if (!reload) return node;
         
         // reload the node
         NodeSchema? newSchema = await LoadSchemaAsync(fullPath);
@@ -515,7 +505,7 @@ public class SchemaContext
     private readonly Lazy<ILogger> _loggerThunk;
     
     static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
-    static readonly AnySchemaNode RootNamespace;
+    static readonly NamespaceNode RootNamespace;
     
     #endregion
 }

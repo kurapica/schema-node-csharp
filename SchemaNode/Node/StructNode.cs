@@ -77,7 +77,7 @@ public class StructNode: AnySchemaNode
         // Ref
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemaNode? baseNode = await context.GetSchemaNodeAsync(Base, preload);
+            AnySchemaNode? baseNode = await context.GetSchemaNodeAsync(Base, preload: preload);
             if (baseNode is not StructNode node)
                 Status = SchemaNodeStatus.StructWrongBase;
             else
@@ -90,7 +90,7 @@ public class StructNode: AnySchemaNode
         // Load Fields
         foreach (StructFieldConfig field in Fields)
         {
-            AnySchemaNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload);
+            AnySchemaNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload: preload);
             if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Function)
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
@@ -105,7 +105,7 @@ public class StructNode: AnySchemaNode
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemaNode? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload);
+                AnySchemaNode? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload: preload);
                 if (funcNode is not FunctionNode node)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -154,7 +154,7 @@ public class StructNode: AnySchemaNode
 
             if (jobject.ContainsKey(field.Name) && !jobject[field.Name].IsEmpty())
             {
-                (JsonNode? v, JsonNode? e) = await field.TypeNode.ValidateValueAsync(context, jobject[field.Name]!);
+                (object? v, JsonNode? e) = await field.TypeNode.ValidateValueAsync(context, jobject[field.Name]!);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -162,7 +162,7 @@ public class StructNode: AnySchemaNode
                 }
                 else
                 {
-                    result[field.Name] = v;
+                    result[field.Name] = field.TypeNode.Type is SchemaType.Array or SchemaType.Struct ? v as JsonObject : JsonValue.Create(v);
                 }
             }
             else if (field.Require ?? false)

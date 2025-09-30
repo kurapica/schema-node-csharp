@@ -620,7 +620,7 @@ public class FunctionNode: AnySchemaNode
                     else
                     {
                         // Check the value
-                        (JsonNode? r, JsonNode? e) = await funcArgType.ValidateValueAsync(context, callArg.Value);
+                        (object? r, JsonNode? e) = await funcArgType.ValidateValueAsync(context, callArg.Value);
                         if (e != null && !e.IsEmpty())
                         {
                             exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
@@ -628,7 +628,7 @@ public class FunctionNode: AnySchemaNode
                             return (trees, TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALID);
                         }
                         
-                        callArg.Value = r;
+                        callArg.Value = funcArgType.Type is SchemaType.Array or SchemaType.Struct ? r as JsonNode : JsonValue.Create(r);
 
                         // Add to leaf
                         exp.LeafNodes[i] = new ConstantExpNode
@@ -1034,7 +1034,7 @@ public class FunctionNode: AnySchemaNode
                                 object? value = constExp.Value;
                                 if (value != null)
                                 {
-                                    (Type realType, _) = callType.UnpackNullable();
+                                    Type realType = callType.GetNotNullType();
                                     if (realType == typeof(int))
                                     {
                                         value = Convert.ToInt32(value);

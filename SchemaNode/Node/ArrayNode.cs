@@ -85,7 +85,7 @@ public class ArrayNode: AnySchemaNode
         // Ref
         if (!string.IsNullOrWhiteSpace(Element))
         {
-            AnySchemaNode? node = await context.GetSchemaNodeAsync(Element, preload);
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(Element, preload: preload);
             if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Function)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
@@ -102,7 +102,7 @@ public class ArrayNode: AnySchemaNode
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemaNode? node = await context.GetSchemaNodeAsync(relation.Func, preload);
+                AnySchemaNode? node = await context.GetSchemaNodeAsync(relation.Func, preload: preload);
                 if (node is not FunctionNode funcNode)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -144,7 +144,7 @@ public class ArrayNode: AnySchemaNode
         JsonObject? error = null;
         for (int i = 0; i < array.Count; i++)
         {
-            (JsonNode? v, JsonNode? e) = await ElementNode.ValidateValueAsync(context, array[i]!);
+            (object? v, JsonNode? e) = await ElementNode.ValidateValueAsync(context, array[i]!);
             if (e != null && !e.IsEmpty())
             {
                 error ??= new JsonObject();

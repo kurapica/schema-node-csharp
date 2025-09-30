@@ -1,7 +1,8 @@
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Utility;
 
@@ -45,16 +46,16 @@ public static class Extension
 
     public class JsonDateTimeIsoConverter : JsonConverter<DateTime>
     {
-        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return DateTime.Parse(reader.GetString() ?? "", null, System.Globalization.DateTimeStyles.RoundtripKind);
+            return DateTime.Parse(reader.GetString() ?? "", null, DateTimeStyles.RoundtripKind);
         }
 
         public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
+            writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
         }
     }
     public class ForceStringConverter : JsonConverter<string>
@@ -63,7 +64,7 @@ public static class Extension
         {
             return reader.TokenType switch
             {
-                JsonTokenType.Number => reader.GetDecimal().ToString(),
+                JsonTokenType.Number => reader.GetDecimal().ToString(CultureInfo.InvariantCulture),
                 JsonTokenType.True => "true",
                 JsonTokenType.False => "false",
                 JsonTokenType.Null => null,
@@ -79,16 +80,16 @@ public static class Extension
 
     public class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
     {
-        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
         public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return DateTimeOffset.Parse(reader.GetString() ?? "", null, System.Globalization.DateTimeStyles.RoundtripKind);
+            return DateTimeOffset.Parse(reader.GetString() ?? "", null, DateTimeStyles.RoundtripKind);
         }
 
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
+            writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
         }
     }
 
@@ -181,7 +182,7 @@ public static class Extension
         }
     }
 
-    private static JsonSerializerOptions IndentJsonOption = new()
+    private static readonly JsonSerializerOptions IndentJsonOption = new()
     {
         WriteIndented = true,
         Converters =
@@ -195,7 +196,7 @@ public static class Extension
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
     
-    private static JsonSerializerOptions NoIndentJsonOption = new()
+    private static readonly JsonSerializerOptions NoIndentJsonOption = new()
     {
         WriteIndented = false,
         Converters =
@@ -279,11 +280,6 @@ public static class Extension
     public static bool IsSubclassOfGenericType<T>(this Type type) => IsSubclassOfGenericType(type, typeof(T));
 
     /// <summary>
-    /// Unpack the nullable type
-    /// </summary>
-    public static (Type type, bool nullable) UnpackNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? (type.GetGenericArguments()[0], true) : (type, false);
-
-    /// <summary>
     /// Gets the not null type
     /// </summary>
     public static Type GetNotNullType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type.GetGenericArguments()[0] : type;
@@ -300,6 +296,106 @@ public static class Extension
 
     #endregion
 
+    #region Type
+
+    /// <summary>
+    /// Try to convert the value for the given type, only for enum & primitive values
+    /// </summary>
+    public static object? TryConvert(this Type type, object? value)
+    {
+        if (value == null) return null;
+        if (value.GetType().IsAssignableTo(type)) return value;
+        
+        try
+        {
+            // Enum convert
+            if (type.IsEnum)
+            {
+                return value is string s
+                    ? System.Enum.Parse(type, s, ignoreCase: true)
+                    : value.GetType().IsPrimitive
+                        ? System.Enum.ToObject(type, value)
+                        : null;
+            }
+
+            // Primitive
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.Empty:
+                case TypeCode.DBNull:
+                    return null;
+                case TypeCode.Object:
+                    break;
+                case TypeCode.Boolean:
+                    return Convert.ToBoolean(value);
+                case TypeCode.Char:
+                    return Convert.ToChar(value);
+                case TypeCode.SByte:
+                    return Convert.ToSByte(value);
+                case TypeCode.Byte:
+                    return Convert.ToByte(value);
+                case TypeCode.Int16:
+                    return Convert.ToInt16(value);
+                case TypeCode.UInt16:
+                    return Convert.ToUInt16(value);
+                case TypeCode.Int32:
+                    return Convert.ToInt32(value);
+                case TypeCode.UInt32:
+                    return Convert.ToUInt32(value);
+                case TypeCode.Int64:
+                    return Convert.ToInt64(value);
+                case TypeCode.UInt64:
+                    return Convert.ToUInt64(value);
+                case TypeCode.Single:
+                    return Convert.ToSingle(value);
+                case TypeCode.Double:
+                    return Convert.ToDouble(value);
+                case TypeCode.Decimal:
+                    return Convert.ToDecimal(value);
+                case TypeCode.DateTime:
+                    return Convert.ToDateTime(value);
+                case TypeCode.String:
+                    return Convert.ToString(value);
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+            
+            // Object
+            if (type == typeof(Guid))
+            {
+                return Guid.TryParse(value.ToString(), out Guid result) ? result : null;
+            }
+            else if (type == typeof(DateTimeOffset))
+            {
+                return value switch
+                {
+                    string s => DateTimeOffset.Parse(s),
+                    long or int => DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value)),
+                    _ => null
+                };
+            }
+    
+            // TODO: more type support if require
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Try to convert the value for the given type
+    /// </summary>
+    public static T? TryConvert<T>(object? value)
+    {
+        object? result = TryConvert(typeof(T), value);
+        if (result != null) return (T)result;
+        return default;
+    }
+
+    #endregion
+    
     #region Exception
 
     /// <summary>

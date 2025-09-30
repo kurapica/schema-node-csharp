@@ -21,7 +21,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         
         return new CallFunctionResponse
         {
-            Result = node is FunctionNode func ? await SchemaContext.CallFunctionAsync(request.Name, request.Args, request.Generic) : null
+            Result = node is FunctionNode func ? await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic) : null
         };
     }
 }
