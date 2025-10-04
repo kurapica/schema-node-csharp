@@ -26,9 +26,7 @@ public static class Injection
             SchemaNodeConfig nodeConfig = new SchemaNodeConfig();
             config.Invoke(nodeConfig);
             services.AddSingleton(nodeConfig);
-            
-            if (!string.IsNullOrWhiteSpace(nodeConfig.TimeZone))
-                SystemDate.SetTimeZone(nodeConfig.TimeZone);
+            SystemDate.SetTimeZone(nodeConfig.TimeZone);
         }
         
         // default logger

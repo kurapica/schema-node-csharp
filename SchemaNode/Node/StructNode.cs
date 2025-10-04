@@ -91,7 +91,7 @@ public class StructNode: AnySchemaNode
         foreach (StructFieldConfig field in Fields)
         {
             AnySchemaNode? typeNode = await context.GetSchemaNodeAsync(field.Type, preload: preload);
-            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Function)
+            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
                 continue;

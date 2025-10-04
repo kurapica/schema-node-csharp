@@ -67,7 +67,7 @@ public class NamespaceNode: AnySchemaNode
                 await context.GetSchemaNodeAsync(s.Name, preload: true);
 
             // function
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Function))
+            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
                 await context.GetSchemaNodeAsync(s.Name, preload: true);
 
             // namespace
@@ -97,6 +97,7 @@ public class NamespaceNode: AnySchemaNode
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            HasSchemas = schema.Schemas.Length > 0
         };
     }
 

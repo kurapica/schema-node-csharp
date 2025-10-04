@@ -59,7 +59,7 @@ public class FunctionNode: AnySchemaNode
     #region Status
     
     /// <inheritdoc />
-    public override SchemaType Type => SchemaType.Function;
+    public override SchemaType Type => SchemaType.Func;
     
     /// <summary>
     /// Whether the function will be used to construct the object
@@ -84,7 +84,7 @@ public class FunctionNode: AnySchemaNode
     /// <summary>
     /// The function info
     /// </summary>
-    public SchemaFuncInfo? FuncInfo { get; set; }
+    internal SchemaFuncInfo? FuncInfo { get; set; }
     
     #endregion
     
@@ -167,7 +167,7 @@ public class FunctionNode: AnySchemaNode
         else
         {
             ReturnNode = await context.GetSchemaNodeAsync(Return);
-            if (ReturnNode == null || ReturnNode!.IsValueType) Status = SchemaNodeStatus.FunctionWrongReturnType;
+            if (ReturnNode == null || !ReturnNode.IsValueType) Status = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
         // Generate the exp trees
@@ -553,12 +553,13 @@ public class FunctionNode: AnySchemaNode
                         // Match the type
                         if (funcArgType != null)
                         {
-                            if (argTypeNode!.CanBeUseAs(funcArgType)) continue;
-
-                            // Error
-                            exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                            Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                            return (trees, TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL);
+                            if (argTypeNode == null || !argTypeNode.CanBeUseAs(funcArgType))
+                            {
+                                // Error
+                                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                                Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                                return (trees, TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL);
+                            }
                         }
                         else if (funcArg.TypeNode is GenericTypeNode g)
                         {
@@ -748,7 +749,7 @@ public class FunctionNode: AnySchemaNode
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
-            Type = SchemaType.Function,
+            Type = SchemaType.Func,
             Display = funcAttr.Display ?? name,
             Func = new FunctionSchema
             {
@@ -803,7 +804,7 @@ public class FunctionNode: AnySchemaNode
             FunctionArgumentInfo arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
-                Nullable = pt.Nullable,
+                Nullable = pt.Nullable || p.HasDefaultValue
             };
             funcSchema.Func.Args[i] = arg;
 
@@ -830,7 +831,8 @@ public class FunctionNode: AnySchemaNode
             }
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
             {
-                if (pt.BaseType == typeof(object) && p.GetCustomAttribute<SchemaFuncArgAttribute>() != null)
+                // normally if arg is Object, use func arg attr to specific the schema type
+                if (p.GetCustomAttribute<SchemaFuncArgAttribute>() != null)
                 {
                     pt.SchemaType = p.GetCustomAttribute<SchemaFuncArgAttribute>()!.Type;
                 }
@@ -1040,41 +1042,7 @@ public class FunctionNode: AnySchemaNode
                             {
                                 object? value = constExp.Value;
                                 if (value != null)
-                                {
-                                    Type realType = callType.GetNotNullType();
-                                    if (realType == typeof(int))
-                                    {
-                                        value = Convert.ToInt32(value);
-                                    }
-                                    else if (realType == typeof(long))
-                                    {
-                                        value = Convert.ToInt64(value);
-                                    }
-                                    else if (realType == typeof(float))
-                                    {
-                                        value = Convert.ToSingle(value);
-                                    }
-                                    else if (realType == typeof(double))
-                                    {
-                                        value = Convert.ToDouble(value);
-                                    }
-                                    else if (realType == typeof(decimal))
-                                    {
-                                        value = Convert.ToDecimal(value);
-                                    }
-                                    else if (realType == typeof(string))
-                                    {
-                                        value = Convert.ToString(value);
-                                    }
-                                    else if (realType == typeof(bool))
-                                    {
-                                        value = Convert.ToBoolean(value);
-                                    }
-                                    else if (realType == typeof(DateTime))
-                                    {
-                                        value = Convert.ToDateTime(value);
-                                    }
-                                }
+                                    value = callType.GetNotNullType().TryConvert(value);
                                 callArgs[i + useContext] = Expression.Constant(value, callType);
                             }
                             break;
@@ -1130,7 +1098,7 @@ public class FunctionNode: AnySchemaNode
                         if (callFuncInfo.Return.Generic == p.Generic)
                         {
                             info = callFuncInfo.Return;
-                            type = expReturnType;
+                            type = epxReturnElement?.GetNotNullType();
                         }
                         else
                         {
@@ -1153,9 +1121,10 @@ public class FunctionNode: AnySchemaNode
                     }).ToArray();
                     if (genTypes.Length == 0 || genTypes.Any(g => g == null))
                         throw new Exception($"The expression {exp.Name}'s generic type not valid");
-                    string genSign = string.Join('|', genTypes.Select(p => p!.IsSubclassOfGenericType(typeof(Nullable<>)) ? $"{p!.GetGenericArguments()[0].Name}?" : p!.Name));
+                    string genSign = string.Join('|', genTypes.Select(p => (Nullable.GetUnderlyingType(p) ?? p).FullName));
                     callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes!));
                 }
+                
                 // Use remote call
                 else if ((callFuncInfo.Sign & FUNC_SIGN_REMOTE_CALL) == FUNC_SIGN_REMOTE_CALL)
                 {
@@ -1166,7 +1135,7 @@ public class FunctionNode: AnySchemaNode
                         if (callFuncInfo.Return.Generic == p.Generic)
                         {
                             info = callFuncInfo.Return;
-                            type = expReturnType;
+                            type = expReturnType.GetNotNullType();
                         }
                         else
                         {
@@ -1182,12 +1151,9 @@ public class FunctionNode: AnySchemaNode
                             }
                         }
 
-                        if (info == null || type == null) return null;
-                        
-                        if (info.Array && type.IsSZArray)
-                            return type.GetElementType()?.GetSchemaType();
-                        if ((info.List || info.Enumerable) && type.GetGenericArguments() is { Length: > 0} args)
-                            return args[0].GetSchemaType();
+                        if (info == null || type == null) return null;                        
+                        if (info.Array && type.IsSZArray) return type.GetElementType()?.GetSchemaType();
+                        if ((info.List || info.Enumerable) && type.GetGenericArguments() is { Length: > 0} args) return args[0].GetSchemaType();
                         return type.GetSchemaType();
                     }).ToArray();
                     
@@ -1232,33 +1198,29 @@ public class FunctionNode: AnySchemaNode
                 ParameterExpression start = Expression.Parameter(typeof(int), "_start");
                 ParameterExpression stop = Expression.Parameter(typeof(int), "_stop");
                 LabelTarget forLabel = Expression.Label(typeof(int));
-                ParameterExpression array = Expression.Parameter(jarray.Type.IsArrayType() ? jarray.Type : typeof(JsonNode[]), "_array");
+                //ParameterExpression array = Expression.Parameter(jarray.Type.IsArrayType() ? jarray.Type : typeof(JsonNode[]), "_array");
                 ParameterExpression final = Expression.Parameter(resExp.Type, "_final");
-
+                    
                 // Convert the call argument
-                if (callArgTypes[arrayIndex] == typeof(JsonObject))
-                {
-                    // (JsonObject)array[start++]
-                    innerCallArgs[arrayIndex] = Expression.Convert(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonObject));
-                }
-                else if (array.Type.IsArrayType())
+                if (jarray.Type.IsSZArray)
                 {
                     // array[start++]
-                    innerCallArgs[arrayIndex] = Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start));
+                    innerCallArgs[arrayIndex] = Expression.ArrayIndex(jarray, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start));
                 }
                 else
                 {
-                    // JsonValue.GetValue<T>(array[start++])
-                    innerCallArgs[arrayIndex] = Expression.Call(Expression.ArrayIndex(array, exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)), typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(callArgTypes[arrayIndex]));
-
-                    // Conversion
-                    Type ctype = callMethod.GetParameters()[arrayIndex].ParameterType;
-                    innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
-                    callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
+                    // array.get_item(start++)
+                    innerCallArgs[arrayIndex] = Expression.MakeIndex(jarray, jarray.Type.GetProperty("Item", new[] { typeof(int) })!, new[] { exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start) });
                 }
+
+                // Conversion
+                Type ctype = callMethod.GetParameters()[arrayIndex].ParameterType;
+                innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
+                callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
 
                 // Generate call body
                 Delegate innerCall;
+                Expression arrayLen = jarray.Type.IsSZArray ? Expression.ArrayLength(jarray) : Expression.Property(jarray, "Count");
 
                 switch (exp.Type)
                 {
@@ -1266,11 +1228,10 @@ public class FunctionNode: AnySchemaNode
                     case ExpressionType.Map:
                         {
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, array, final },
+                                new[] { resExp, start, stop, final },
                                 Expression.Assign(resExp, Expression.New(resExp.Type)),
-                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Assign(stop, arrayLen),
                                 Expression.Loop(
                                     Expression.IfThenElse(
                                         Expression.LessThan(start, stop),
@@ -1298,7 +1259,7 @@ public class FunctionNode: AnySchemaNode
 
                             // init ??= array.Length > 0 ? array[start++] : default;
                             Expression init = innerCallArgs[sumIndex] ?? Expression.Condition(
-                                Expression.GreaterThan(Expression.ArrayLength(array), Expression.Constant(0)),
+                                Expression.GreaterThan(arrayLen, Expression.Constant(0)),
                                 innerCallArgs[arrayIndex],
                                 callMethodReturn == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : callMethodReturn == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callMethodReturn)
                             );
@@ -1308,10 +1269,9 @@ public class FunctionNode: AnySchemaNode
 
                             // Complie
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, array, final },
-                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                new[] { resExp, start, stop, final },
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Assign(stop, arrayLen),
                                 Expression.Assign(resExp, init),
                                 Expression.Loop(
                                     Expression.IfThenElse(
@@ -1338,10 +1298,9 @@ public class FunctionNode: AnySchemaNode
 
                             // Complie
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, array, init, final },
-                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
-                                Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                new[] { resExp, start, stop, init, final },
+                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                                Expression.Assign(stop, arrayLen),
                                 Expression.Assign(init, resExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : resExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
                                 Expression.Assign(resExp, init),
                                 Expression.Loop(
@@ -1373,10 +1332,9 @@ public class FunctionNode: AnySchemaNode
 
                             // Complie
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, array, init, final },
-                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
+                                new[] { resExp, start, stop, init, final },
                                 Expression.Assign(stop, Expression.Constant(0, typeof(int))),
-                                Expression.Assign(start, Expression.ArrayLength(array)),
+                                Expression.Assign(start, arrayLen),
                                 Expression.Assign(init, resExp.Type == typeof(JsonObject) ? Expression.New(typeof(JsonObject)) : resExp.Type == typeof(JsonArray) ? Expression.New(typeof(JsonArray)) : Expression.Default(callArgTypes[arrayIndex])),
                                 Expression.Assign(resExp, init),
                                 Expression.Loop(
@@ -1404,11 +1362,10 @@ public class FunctionNode: AnySchemaNode
                             innerCallArgs[arrayIndex] = curr;
 
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, array, final, curr },
+                                new[] { resExp, start, stop, final, curr },
                                 Expression.Assign(resExp, Expression.New(resExp.Type)),
-                                Expression.Assign(array, Expression.Call(null, typeof(Enumerable).GetMethod(nameof(Enumerable.ToArray))!.MakeGenericMethod(epxReturnElement.IsArrayType() ? epxReturnElement : typeof(JsonNode)), jarray)),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
-                                Expression.Assign(stop, Expression.ArrayLength(array)),
+                                Expression.Assign(stop, arrayLen),
                                 Expression.Loop(
                                     Expression.IfThenElse(
                                         Expression.LessThan(start, stop),
@@ -1501,51 +1458,110 @@ public class FunctionNode: AnySchemaNode
     // Convert expression
     static Expression ConvertExp(Type ctype, Expression exp)
     {
-        if(ctype == typeof(object))
-            return Expression.Convert(exp, ctype);
+        if (ctype == exp.Type) return exp;
+        if (ctype.IsAssignableFrom(exp.Type)) return Expression.Convert(exp, ctype);
 
-        Type expType = exp.Type;
+        Expression notNullExp = exp.Type.IsNullable() ? Expression.Call(exp, exp.Type.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!) : exp;
+        Expression? resExp = null;
+        Type rctype = ctype.GetNotNullType();
 
-        if (expType.IsNullable())
+        switch (System.Type.GetTypeCode(rctype))
         {
-            if (ctype.IsNullable())
+            case TypeCode.Boolean:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(bool)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToBoolean), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Char:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(char)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToChar), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.SByte:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(sbyte)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSByte), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Byte:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(byte)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToByte), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Int16:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(Int16)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt16), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.UInt16:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(UInt16)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt16), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Int32:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(Int32)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.UInt32:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(UInt32)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt32), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Int64:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(Int64)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.UInt64:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(UInt64)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt64), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Single:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(Single)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Double:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(double)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.Decimal:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(decimal)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.DateTime:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(DateTime)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDateTime), [notNullExp.Type])!, notNullExp);
+                break;
+            case TypeCode.String:
+                resExp = notNullExp.Type == typeof(JsonValue)
+                    ? Expression.Call(notNullExp, typeof(JsonValue).GetMethod(nameof(JsonValue.GetValue), System.Type.EmptyTypes)!.MakeGenericMethod(typeof(string)))
+                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToString), [notNullExp.Type])!, notNullExp);
+                break;
+        }
+
+        // for complex types
+        if (resExp == null)
+        {
+            if ((rctype == typeof(JsonObject) || rctype == typeof(JsonArray)) && notNullExp.Type == typeof(JsonNode))
             {
-                return ctype.GetNotNullType() == expType.GetNotNullType() ? exp : Expression.Call(null, GetConvertNullableExp(ctype, expType), exp);
+                resExp = Expression.Convert(notNullExp, rctype);
             }
-            exp = Expression.Call(exp, expType.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!);
-            expType = expType.GetNotNullType();
-            if (ctype == expType) return exp;
-        }
-        // @todo: more check
-        else if (ctype.IsNullable())
-        {
-            return Expression.Convert(exp, ctype);
+            else
+            {
+                MethodInfo method = typeof(Extension).GetMethod(nameof(Extension.TryConvert), BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
+                resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(ctype), notNullExp), ctype);
+            }
         }
 
-        // Default
-        ctype = ctype.GetNotNullType();
-        if (ctype == expType) return exp;
-        if (ctype == typeof(int))
-        {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [exp.Type])!, exp);
-        }
-        else if (ctype == typeof(long))
-        {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [exp.Type])!, exp);
-        }
-        else if (ctype == typeof(float))
-        {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [exp.Type])!, exp);
-        }
-        else if (ctype == typeof(double))
-        {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [exp.Type])!, exp);
-        }
-        else if (ctype == typeof(decimal))
-        {
-            return Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [exp.Type])!, exp);
-        }
-        return exp;
+        // nullable result
+        return rctype == ctype
+            ? resExp
+            : Expression.Condition(Expression.NotEqual(exp, Expression.Constant(null, exp.Type)), resExp, Expression.Constant(null, ctype));
     }
 
     // Gen method call
@@ -1777,39 +1793,10 @@ public class FunctionNode: AnySchemaNode
     
     #endregion
 
-    // Nullable exp conversion
-    static T1? ConvertNullableExp<T1, T2>(T2 input)
-    {
-        if (input == null) return default;
-        Type retType = typeof(T1).GetNotNullType();
-        if (retType == typeof(int))
-        {
-            return (T1)(object)(Convert.ToInt32(input));
-        }
-        else if (retType == typeof(long))
-        {
-            return (T1)(object)(Convert.ToInt64(input));
-        }
-        else if (retType == typeof(float))
-        {
-            return (T1)(object)(Convert.ToSingle(input));
-        }
-        else if (retType == typeof(double))
-        {
-            return (T1)(object)(Convert.ToDouble(input));
-        }
-        else if (retType == typeof(decimal))
-        {
-            return (T1)(object)(Convert.ToDecimal(input));
-        }
-        else
-            return (T1)(object)input;
-    }
-
     /// <summary>
     /// Gets the info from data dict func
     /// </summary>
-    public SchemaFuncInfo? GetSchemaFuncInfo()
+    internal SchemaFuncInfo? GetSchemaFuncInfo()
     {
         if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
 
@@ -1825,9 +1812,6 @@ public class FunctionNode: AnySchemaNode
         FuncInfo = CompileFunction();
         return FuncInfo;
     }
-
-    // Gets the convert nullable exp
-    static MethodInfo GetConvertNullableExp(Type ret, Type input) => CallConvertNullableExp.GetOrAdd($"{ret.GetNotNullType().FullName}^{input.GetNotNullType().FullName}", _ => typeof(FunctionNode).GetMethod(nameof(ConvertNullableExp), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(ret, input));
 
     // Gets the call dynamic func
     static MethodInfo GetCallDynamicFunc(Type ret, params Type[] inputs)
@@ -2062,7 +2046,7 @@ public class ConstantExpNode : FunctionNodeExpTree
 /// <summary>
 /// The data dict func info
 /// </summary>
-public class SchemaFuncInfo
+internal class SchemaFuncInfo
 {
     /// <summary>
     /// The method name

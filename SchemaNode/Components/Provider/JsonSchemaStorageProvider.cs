@@ -50,7 +50,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                             "enum" => SchemaType.Enum,
                             "struct" => SchemaType.Struct,
                             "array" => SchemaType.Array,
-                            "func" => SchemaType.Function,
+                            "func" => SchemaType.Func,
                             _ => null
                         };
                         if (type == null) continue;
@@ -125,7 +125,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 SchemaType.Enum => "enum",
                 SchemaType.Struct => "struct",
                 SchemaType.Array => "array",
-                SchemaType.Function => "func",
+                SchemaType.Func => "func",
                 _ => throw new ArgumentOutOfRangeException()
             };
             await WriteSchemaFile(Path.Combine(folder, $"{paths.Last()}.{type}.json"), schema);
@@ -203,7 +203,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                     "enum" => SchemaType.Enum,
                     "struct" => SchemaType.Struct,
                     "array" => SchemaType.Array,
-                    "func" => SchemaType.Function,
+                    "func" => SchemaType.Func,
                     _ => null
                 };
                 if (schemaType is null) return null;

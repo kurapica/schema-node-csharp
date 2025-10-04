@@ -86,7 +86,7 @@ public class ArrayNode: AnySchemaNode
         if (!string.IsNullOrWhiteSpace(Element))
         {
             AnySchemaNode? node = await context.GetSchemaNodeAsync(Element, preload: preload);
-            if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Function)
+            if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
             }

@@ -1,5 +1,7 @@
-using System.Runtime.Serialization;
 using SchemaNode.Attribute;
+using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Enum;
 
@@ -37,6 +39,5 @@ public enum SchemaType
     /// <summary>
     /// The function node
     /// </summary>
-    [EnumMember(Value = "func")]
-    Function,
+    Func,
 }

@@ -28,12 +28,16 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             if (node is NamespaceNode @ns)
             {
                 // add one level sub nodes
-                schema.Schemas = ns.Schemas.Select(s => new NodeSchema
-                {
-                    Name = s.Name,
-                    Type = s.Type,
-                    Display = s.Display,
-                    LoadState = s.LoadState,
+                schema.Schemas = ns.Schemas.Select(s => {
+                    AnySchemaNode? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name);
+                    return new NodeSchema
+                    {
+                        Name = s.Name,
+                        Type = s.Type,
+                        Display = s.Display,
+                        LoadState = s.LoadState,
+                        HasSchemas = subNode is NamespaceNode n && n.Schemas.Length > 0
+                    };
                 }).ToArray();
             }
             schemas.Add(schema);

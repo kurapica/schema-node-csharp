@@ -1,13 +1,15 @@
-using Microsoft.AspNetCore.Mvc;
+using System.Collections.Concurrent;
 using System.Globalization;
-using System.Runtime.CompilerServices;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace SchemaNode.Utility;
 
-public static class Extension
+internal static class Extension
 {
     #region Casing
 
@@ -16,7 +18,7 @@ public static class Extension
     /// </summary>
     /// <param name="s">This string.</param>
     /// <returns>The camel case of this string.</returns>
-    public static string ToCamelCase(this string s)
+    internal static string ToCamelCase(this string s)
     {
         string result = s;
         if (result.Length > 0)
@@ -31,7 +33,7 @@ public static class Extension
     /// </summary>
     /// <param name="s">This string.</param>
     /// <returns>The camel case of this string.</returns>
-    public static string ToPascalCase(this string s)
+    internal static string ToPascalCase(this string s)
     {
         string result = s;
         if (result.Length > 0)
@@ -45,7 +47,7 @@ public static class Extension
 
     #region JSON
 
-    public class FlexibleLongConverter : JsonConverter<long>
+    internal class FlexibleLongConverter : JsonConverter<long>
     {
         public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -65,7 +67,7 @@ public static class Extension
         }
     }
 
-    public class JsonDateTimeIsoConverter : JsonConverter<DateTime>
+    internal class JsonDateTimeIsoConverter : JsonConverter<DateTime>
     {
         private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
@@ -79,7 +81,7 @@ public static class Extension
             writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
         }
     }
-    public class ForceStringConverter : JsonConverter<string>
+    internal class ForceStringConverter : JsonConverter<string>
     {
         public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -99,7 +101,7 @@ public static class Extension
         }
     }
 
-    public class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
+    internal class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
     {
         private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
@@ -120,7 +122,7 @@ public static class Extension
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
-    public static string ToJson<T>(this T value, bool indent = false)
+    internal static string ToJson<T>(this T value, bool indent = false)
     {
         // Generate the JSON string.
         return JsonSerializer.Serialize(value, indent ? IndentJsonOption : NoIndentJsonOption);
@@ -131,7 +133,7 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    public static T? FromJson<T>(this string value)
+    internal static T? FromJson<T>(this string value)
     {
         return JsonSerializer.Deserialize<T>(value, NoIndentJsonOption);
     }
@@ -139,7 +141,7 @@ public static class Extension
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
-    public static object? FromJson(this string value, Type type)
+    internal static object? FromJson(this string value, Type type)
     {
         if (type == typeof(string))
             return value;
@@ -151,12 +153,12 @@ public static class Extension
         return JsonSerializer.Deserialize(value, type, NoIndentJsonOption);
     }
 
-    public static T? FromJson<T>(this JsonNode value)
+    internal static T? FromJson<T>(this JsonNode value)
     {
         return value.Deserialize<T>(NoIndentJsonOption);
     }
 
-    public static object? FromJson(this JsonNode value, Type type)
+    internal static object? FromJson(this JsonNode value, Type type)
     {
         if (type == typeof(JsonObject))
         {
@@ -180,7 +182,7 @@ public static class Extension
     /// <summary>
     /// Try parse the json value to value and type
     /// </summary>
-    public static (object? value, Type? type) ParseValueAndType(this JsonValue val)
+    internal static (object? value, Type? type) ParseValueAndType(this JsonValue val)
     {
         switch ( val.GetValueKind() )
         {
@@ -212,7 +214,7 @@ public static class Extension
     /// <summary>
     /// Whether the json node is empty
     /// </summary>
-    public static bool IsEmpty(this JsonNode? node)
+    internal static bool IsEmpty(this JsonNode? node)
     {
         if (node == null) return true;
         return node switch
@@ -227,7 +229,7 @@ public static class Extension
     /// <summary>
     /// Add range
     /// </summary>
-    public static void AddRange(this JsonArray a, JsonArray b)
+    internal static void AddRange(this JsonArray a, JsonArray b)
     {
         foreach (var item in b)
         {
@@ -264,12 +266,12 @@ public static class Extension
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
-    
+
     #endregion
-    
+
     #region Generics
-    
-    public static bool IsPrimitiveLike(this Type type)
+
+    internal static bool IsPrimitiveLike(this Type type)
     {
         if (type.IsEnum) return true;
         if (type == typeof(Guid) || type == typeof(DateTimeOffset)) return true; // no type code
@@ -283,12 +285,12 @@ public static class Extension
     }
 
     // Checks if the type is nullable
-    public static bool IsNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>));
+    internal static bool IsNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>));
 
     /// <summary>
     /// Gets a specific generic base type.
     /// </summary>
-    public static Type? GetGenericBaseType(this Type type, Type genericType)
+    internal static Type? GetGenericBaseType(this Type type, Type genericType)
     {
         // Initialize.
         if (!genericType.IsGenericType || genericType.GetGenericTypeDefinition() != genericType)
@@ -322,32 +324,32 @@ public static class Extension
     /// <summary>
     /// Gets a specific generic base type.
     /// </summary>
-    public static Type? GetGenericBaseType<T>(this Type type) => GetGenericBaseType(type, typeof(T));
+    internal static Type? GetGenericBaseType<T>(this Type type) => GetGenericBaseType(type, typeof(T));
 
     /// <summary>
     /// Checks whether a type is a subclass of a specific generic type.
     /// </summary>
-    public static bool IsSubclassOfGenericType(this Type type, Type genericType) => GetGenericBaseType(type, genericType) != null;
+    internal static bool IsSubclassOfGenericType(this Type type, Type genericType) => GetGenericBaseType(type, genericType) != null;
 
     /// <summary>
     /// Checks whether a type is a subclass of a specific generic type.
     /// </summary>
-    public static bool IsSubclassOfGenericType<T>(this Type type) => IsSubclassOfGenericType(type, typeof(T));
+    internal static bool IsSubclassOfGenericType<T>(this Type type) => IsSubclassOfGenericType(type, typeof(T));
 
     /// <summary>
     /// Gets the not null type
     /// </summary>
-    public static Type GetNotNullType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type.GetGenericArguments()[0] : type;
+    internal static Type GetNotNullType(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
 
     /// <summary>
     /// Gets the nullable type
     /// </summary>
-    public static Type GetNullableType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
+    internal static Type GetNullableType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
 
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    public static bool IsArrayType(this Type type) => type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>));
+    internal static bool IsArrayType(this Type type) => type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>));
 
     #endregion
 
@@ -356,19 +358,85 @@ public static class Extension
     /// <summary>
     /// Try to convert the value for the given type, only for enum & primitive values
     /// </summary>
-    public static object? TryConvert(this Type type, object? value)
+    internal static object? TryConvert(this Type type, object? value)
     {
-        if (value == null) return null;
-        if (value.GetType().IsAssignableTo(type)) return value;
-        if (value is JsonValue v)
-        {
-            (value, _) = v.ParseValueAndType();
-            if (value == null) return null;
-        }
-        if (value.GetType().IsAssignableTo(type)) return value;
-
         try
         {
+            // value check
+            if (value == null) return null;
+            type = type.GetNotNullType();
+
+            if (value.GetType().IsAssignableTo(type)) return value;
+            
+            // json type
+            if (value is JsonArray or JsonObject)
+            {
+                return (value as JsonNode)!.FromJson(type);
+            }
+            else if (type == typeof(JsonArray))
+            {
+                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                return result is JsonArray ? result : null;
+            }
+            else if (type == typeof(JsonObject))
+            {
+                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                return result is JsonObject ? result : null;
+            }
+
+            // none json type
+            if (value is JsonValue v)
+            {
+                (value, _) = v.ParseValueAndType();
+                if (value == null) return null;
+                if (value.GetType().IsAssignableTo(type)) return value;
+            }
+            // for collections
+            else if (value is Array arr)
+            {
+                if (type.IsSZArray)
+                {
+                    Type? eleType = type.GetElementType();
+                    if (eleType == null) return null;
+                    return arr.Cast<object>().Select(o => TryConvert(eleType, o)).ToArray();
+                }
+                else if (type.IsSubclassOfGenericType(typeof(List<>)))
+                {
+                    Type? eleType = type.GetGenericArguments()[0];
+                    if (eleType == null) return null;
+                    return arr.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
+                }
+                else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))
+                {
+                    Type? eleType = type.GetElementType();
+                    if (eleType == null) return null;
+                    return arr.Cast<object>().Select(o => TryConvert(eleType, o));
+                }
+                return null;
+            }
+            else if(value is System.Collections.IEnumerable iter)
+            {
+                if (type.IsSZArray)
+                {
+                    Type? eleType = type.GetElementType();
+                    if (eleType == null) return null;
+                    return iter.Cast<object>().Select(o => TryConvert(eleType, o)).ToArray();
+                }
+                else if (type.IsSubclassOfGenericType(typeof(List<>)))
+                {
+                    Type? eleType = type.GetGenericArguments()[0];
+                    if (eleType == null) return null;
+                    return iter.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
+                }
+                else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))
+                {
+                    Type? eleType = type.GetElementType();
+                    if (eleType == null) return null;
+                    return iter.Cast<object>().Select(o => TryConvert(eleType, o));
+                }
+                return null;
+            }
+
             // Enum convert
             if (type.IsEnum)
             {
@@ -435,30 +503,22 @@ public static class Extension
                     _ => null
                 };
             }
-            else if (type == typeof(JsonArray))
+            else
             {
-                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
-                return result is JsonArray ? result : null;
+                return JsonSerializer.Deserialize(JsonSerializer.SerializeToNode(value, NoIndentJsonOption)!.ToJsonString(), type, NoIndentJsonOption);
             }
-            else if (type == typeof(JsonObject))
-            {
-                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
-                return result is JsonObject ? result : null;
-            }
-
-            // TODO: more type support if require
-            return null;
         }
-        catch
+        catch(Exception ex)
         {
-            return null;
+            Console.Error.WriteLine("TryConvert - {0}", ex.GetInnermostException().Message);
         }
+        return null;
     }
 
     /// <summary>
     /// Try to convert the value for the given type
     /// </summary>
-    public static T? TryConvert<T>(object? value)
+    internal static T? TryConvert<T>(object? value)
     {
         object? result = TryConvert(typeof(T), value);
         if (result != null) return (T)result;
@@ -466,13 +526,13 @@ public static class Extension
     }
 
     #endregion
-    
+
     #region Exception
 
     /// <summary>
     /// Gets the innermost exception.
     /// </summary>
-    public static Exception GetInnermostException(this Exception exception)
+    internal static Exception GetInnermostException(this Exception exception)
     {
         while (exception.InnerException != null)
             exception = exception.InnerException;

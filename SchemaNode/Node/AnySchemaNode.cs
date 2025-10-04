@@ -37,7 +37,7 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// Is value type
     /// </summary>
-    public virtual bool IsValueType => Type != SchemaType.Namespace && Type != SchemaType.Function;
+    public virtual bool IsValueType => Type != SchemaType.Namespace && Type != SchemaType.Func;
 
     /// <summary>
     /// The load state
@@ -147,7 +147,7 @@ public abstract class AnySchemaNode: IDisposable
             SchemaType.Enum => new EnumNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Struct => new StructNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Array => new ArrayNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Function => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Func => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -164,7 +164,7 @@ public abstract class AnySchemaNode: IDisposable
             SchemaType.Enum => (schema as EnumNode),
             SchemaType.Struct => (schema as StructNode),
             SchemaType.Array => (schema as ArrayNode),
-            SchemaType.Function => (schema as FunctionNode),
+            SchemaType.Func => (schema as FunctionNode),
             _ => (schema as NamespaceNode)
         };
     }

@@ -4,7 +4,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The constant
 /// </summary>
-public static class Constant
+internal static class Constant
 {
     #region Schema
 
@@ -36,6 +36,7 @@ public static class Constant
     public const string NS_SYSTEM_LOGIC = "system.logic";
     
     public const string NS_SYSTEM_SCHEMA = "system.schema";
+    public const string NS_SYSTEM_COLLECTION = "system.collection";
 
     public const int FUNC_SIGN_CONTEXT = 1;
     public const int FUNC_SIGN_ASYNC = 2;

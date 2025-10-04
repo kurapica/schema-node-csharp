@@ -70,6 +70,11 @@ public class NodeSchema
     }
 
     /// <summary>
+    /// Has sub schemas
+    /// </summary>
+    public bool? HasSchemas { get; set; }
+
+    /// <summary>
     /// The sub schemas of the namespace
     /// </summary>
     [SchemaStructMemIgnore]

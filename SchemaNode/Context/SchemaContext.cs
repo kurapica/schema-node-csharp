@@ -198,7 +198,7 @@ public class SchemaContext
         for(int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
-            if (args.Count < i || args[i] == null)
+            if (args.Count <= i || args[i] == null)
             {
                 if (arg.Nullable) continue;
                 throw new Exception($"The {i + 1} argument must be provided");
@@ -223,6 +223,11 @@ public class SchemaContext
             {
                 throw new Exception("The function not valid");
             }
+        }
+
+        if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
+        {
+            callArgs = callArgs.Prepend(this).ToArray();
         }
         
         
@@ -251,7 +256,7 @@ public class SchemaContext
             // Invoke the dynamic method
             try
             {
-                result = ((dynamic)funcInfo.DynamicMethod!).DynamicInvoke(callArgs);
+                result = funcInfo.DynamicMethod!.DynamicInvoke(callArgs);
             }
             catch (Exception ex)
             {

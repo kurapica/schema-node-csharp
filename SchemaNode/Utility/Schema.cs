@@ -16,14 +16,14 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// Provide the system schema
 /// </summary>
-public static class Schema
+internal static class Schema
 {
     #region Static Methods
 
     /// <summary>
     /// Gets the system node schema
     /// </summary>
-    public static NodeSchema? GetSystemNodeSchema(string schemaName)
+    internal static NodeSchema? GetSystemNodeSchema(string schemaName)
     {
         schemaName = schemaName.ToLowerInvariant();
         // ReSharper disable once InconsistentlySynchronizedField
@@ -41,7 +41,7 @@ public static class Schema
     /// <summary>
     /// Save the node schema as system, should only be used to save all system define function
     /// </summary>
-    public static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
+    internal static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
         lock (_root)
         {
@@ -106,7 +106,7 @@ public static class Schema
     /// <param name="type">The type</param>
     /// <param name="autoConv">Whether auto convert the type no matter the attribute existed</param>
     /// <returns>The schema name be registered</returns>
-    public static string? GetSchemaType(this Type type, bool autoConv = false)
+    internal static string? GetSchemaType(this Type type, bool autoConv = false)
     {
         return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv);
     }
@@ -117,66 +117,64 @@ public static class Schema
     /// <param name="typeInfo">The type info</param>
     /// <param name="autoConv">Whether auto convert the type</param>
     /// <returns></returns>
-    public static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
+    internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
     {
-        if (typeInfo.BaseType == null) return null;
+        if (typeInfo.BaseType == null) return null; // Generic, no schema type
         
         // array & list check
-        bool isArray = (typeInfo.Kind & (ParameterTypeKind.Array | ParameterTypeKind.List | ParameterTypeKind.Enumerable)) > 0;
+        bool isArray = typeInfo.AnyArray;
         Type type = typeInfo.BaseType;
 
         // Already registered
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
+        if (type == typeof(JsonArray) || type.IsAssignableTo(typeof(IList)))
+        {
+            return NS_SYSTEM_ARRAY;
+        }
+        else if (type == typeof(JsonObject))
+        {
+            return NS_SYSTEM_STRUCT;
+        }
+            
+        if (type == typeof(Guid))
+        {
+            typeName = NS_SYSTEM_GUID;
+        }
+        else if (type == typeof(DateTimeOffset))
+        {
+            typeName = NS_SYSTEM_DATE;
+        }
+
         // Basic value check
         if (!type.IsEnum)
         {
-            if (type == typeof(JsonArray) || type.IsAssignableTo(typeof(IList)))
+            switch (Type.GetTypeCode(type))
             {
-                return NS_SYSTEM_ARRAY;
-            }
-            else if (type == typeof(JsonObject))
-            {
-                return NS_SYSTEM_STRUCT;
-            }
-            
-            if (type == typeof(Guid))
-            {
-                typeName = NS_SYSTEM_GUID;
-            }
-            else if (type == typeof(DateTimeOffset))
-            {
-                typeName = NS_SYSTEM_DATE;
-            }
-            else
-            {
-                switch (Type.GetTypeCode(type))
-                {
-                    case TypeCode.Boolean:
-                        typeName = NS_SYSTEM_BOOL;
-                        break;
-                    case TypeCode.SByte:
-                    case TypeCode.Byte:
-                    case TypeCode.Int16:
-                    case TypeCode.UInt16:
-                    case TypeCode.Int32:
-                    case TypeCode.UInt32:
-                    case TypeCode.Int64:
-                    case TypeCode.UInt64:
-                        return isArray ? NS_SYSTEM_INTS : NS_SYSTEM_INT;
-                    case TypeCode.Single:
-                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_FLOAT;
-                    case TypeCode.Double:
-                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_DOUBLE;
-                    case TypeCode.Decimal:
-                        return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_NUMBER;
-                    case TypeCode.DateTime:
-                        typeName = NS_SYSTEM_DATE;
-                        break;
-                    case TypeCode.Char:
-                    case TypeCode.String:
-                        return isArray ? NS_SYSTEM_STRINGS : NS_SYSTEM_STRING;
-                }
+                case TypeCode.Boolean:
+                    typeName = NS_SYSTEM_BOOL;
+                    break;
+                case TypeCode.SByte:
+                case TypeCode.Byte:
+                case TypeCode.Int16:
+                case TypeCode.UInt16:
+                case TypeCode.Int32:
+                case TypeCode.UInt32:
+                case TypeCode.Int64:
+                case TypeCode.UInt64:
+                    return isArray ? NS_SYSTEM_INTS : NS_SYSTEM_INT;
+                case TypeCode.Single:
+                    return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_FLOAT;
+                case TypeCode.Double:
+                    return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_DOUBLE;
+                case TypeCode.Decimal:
+                    return isArray ? NS_SYSTEM_NUMBERS : NS_SYSTEM_NUMBER;
+                case TypeCode.DateTime:
+                    typeName = NS_SYSTEM_DATE;
+                    break;
+                case TypeCode.Char:
+                case TypeCode.String:
+                    return isArray ? NS_SYSTEM_STRINGS : NS_SYSTEM_STRING;
             }
         }
 
@@ -262,11 +260,11 @@ public static class Schema
         SaveSystemNodeSchema(arraySchema, type);
         return arraySchema.Name;
     }
-    
+
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    public static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false)
     {
         if (input == null) return null;
 
@@ -365,23 +363,23 @@ public static class Schema
     /// <summary>
     /// Gets the schema type info from any schema node
     /// </summary>
-    public static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaNode node)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaNode node)
     {
         return node switch
         {
             ScalarNode or EnumNode or StructNode or ArrayNode => new SchemaParamTypeInfo
             {
-                BaseType = node.ToCSharpType(), 
+                Type = node.ToCSharpType(), 
                 SchemaType = node.Name
             },
             _ => null
         };
     }
-    
+
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    public static Type ToCSharpType(this AnySchemaNode node, bool? nullable = false)
+    internal static Type ToCSharpType(this AnySchemaNode node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type = null;
@@ -461,15 +459,15 @@ public static class Schema
         }
         return type;
     }
-        
+
     #endregion
-    
+
     #region Inner type
-    
+
     /// <summary>
     /// The generic type info
     /// </summary>
-    public class SchemaParamTypeInfo
+    internal class SchemaParamTypeInfo
     {
         /// <summary>
         /// The generic type, only allow "T", "T1", "T2" and etc
@@ -553,7 +551,7 @@ public static class Schema
                     {
                         try
                         {
-                            MethodInfo method = _convEnum.GetOrAdd(generic, t => typeof(Schema).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                            MethodInfo method = _convToEnum.GetOrAdd(generic, t => typeof(Schema).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
                             return (method.Invoke(null, [arr]), typeof(IEnumerable<>).MakeGenericType(generic), generic);
                         }
                         catch
@@ -575,22 +573,14 @@ public static class Schema
                     try
                     {
                         if (Array)
-                        {                                
-                            var array = System.Array.CreateInstanceFromArrayType(arrType, arr.Count);
-                            for (int i = 0; i < arr.Count; i++)
-                            {
-                                array.SetValue(generic.TryConvert(arr[i]), i);
-                            }
-                            return (array, arrType, generic);
+                        {
+                            MethodInfo method = _arrConv.GetOrAdd(generic, t => typeof(Schema).GetMethod(nameof(ConvertToArray), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                            return (method.Invoke(null, [arr]), arrType, generic);
                         }
                         else
                         {
-                            dynamic list = Activator.CreateInstance(arrType)!;
-                            for (int i = 0; i < arr.Count; i++)
-                            {
-                                list.Add(generic.TryConvert(arr[i]));
-                            }
-                            return (list, arrType, generic);
+                            MethodInfo method = _lstConv.GetOrAdd(generic, t => typeof(Schema).GetMethod(nameof(ConvertToList), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                            return (method.Invoke(null, [arr]), arrType, generic);
                         }
                     }
                     catch
@@ -652,7 +642,7 @@ public static class Schema
     /// The parameter type kind
     /// </summary>
     [Flags]
-    public enum ParameterTypeKind
+    internal enum ParameterTypeKind
     {
         Normal = 0,
         Nullable = 1 << 0,
@@ -676,12 +666,26 @@ public static class Schema
         return arr.Select(a => (T)type.TryConvert(a)!);
     }
 
-    static ConcurrentDictionary<Type, MethodInfo> _convEnum = new();
+    static T[] ConvertToArray<T>(JsonArray arr)
+    {
+        Type type = typeof(T);
+        return arr.Select(a => (T)type.TryConvert(a)!).ToArray();
+    }
+
+    static List<T> ConvertToList<T>(JsonArray arr)
+    {
+        Type type = typeof(T);
+        return arr.Select(a => (T)type.TryConvert(a)!).ToList();
+    }
+
+    static ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
+    static ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
+    static ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
 
     // System type maps
-    private static ConcurrentDictionary<string, Type> _systemTypes = new();
-    private static ConcurrentDictionary<Type, string> _typeNames  = new();
-    private static ConcurrentDictionary<Type, string> _typeArrNames = new();
+    private static ConcurrentDictionary<string, Type> _systemTypes = [];
+    private static ConcurrentDictionary<Type, string> _typeNames  = [];
+    private static ConcurrentDictionary<Type, string> _typeArrNames = [];
 
     #endregion
     

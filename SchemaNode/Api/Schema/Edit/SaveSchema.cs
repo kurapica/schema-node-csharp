@@ -102,7 +102,7 @@ public class NodeSchemaData
             Enum = schema.Type == SchemaType.Enum ? schema.Enum : null,
             Struct = schema.Type == SchemaType.Struct ? schema.Struct : null,
             Array = schema.Type == SchemaType.Array ? schema.Array : null,
-            Func = schema.Type == SchemaType.Function ? schema.Func : null,
+            Func = schema.Type == SchemaType.Func ? schema.Func : null,
             LoadState = SchemaLoadState.Server
         };
     }

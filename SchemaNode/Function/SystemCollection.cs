@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function;
@@ -10,7 +11,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// System.Collection Aps
 /// </summary>
-[SchemaNameSpace("system.collection")]
+[SchemaNameSpace(NS_SYSTEM_COLLECTION)]
 public static class SystemCollection
 {
     /// <summary>
@@ -34,6 +35,54 @@ public static class SystemCollection
         return 0;
     }
 
+    /// <summary>
+    /// Create a new array
+    /// </summary>
+    [SchemaFunc]
+    public static List<T> NewArray<T>()
+    {
+        return new List<T>();
+    }
+
+    /// <summary>
+    /// Push to the list
+    /// </summary>
+    [SchemaFunc]
+    public static List<T> Push<T>(IEnumerable<T> arr, T value)
+    {
+        List<T> res = new (arr);
+        res.Add(value);
+        return res;
+    }
+
+    /// <summary>
+    /// Combine two array and distinct
+    /// </summary>
+    public static List<T> Combine<T>(IEnumerable<T> left, IEnumerable<T> right)
+    {
+        HashSet<T> temp = [];
+        List<T> res = [];
+        foreach (var item in left)
+        {
+            if (!temp.Add(item)) continue;
+            res.Add(item);
+        }
+        foreach (var item in right)
+        {
+            if (!temp.Add(item)) continue;
+            res.Add(item);
+        }
+        return res;
+    }
+
+    [SchemaFunc]
+    public static List<T> Sort<T>(IEnumerable<T> array, bool? desc) where T: IComparable
+    {
+        List<T> res = new (array);
+        res.Sort();
+        if (desc ?? false) res.Reverse();
+        return res; 
+    }
 
     /// <summary>
     /// Calc the average
@@ -79,12 +128,15 @@ public static class SystemCollection
         }
         return copy;
     }
-    
+
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
     [SchemaFunc]
-    public static JsonNode? GetField(JsonObject obj, string field) => obj[field];
+    public static T? GetField<T>(JsonObject obj, string field)
+    {
+        return obj.ContainsKey(field) ? (T?)typeof(T).TryConvert(obj[field]) : default(T?);
+    }
 
     /// <summary>
     /// Gets fields from the objects in the array to a new array
@@ -113,7 +165,7 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [SchemaFunc]
-    public static JsonObject SetField(JsonObject obj, string field, object value)
+    public static JsonObject SetField<T>(JsonObject obj, string field, T value)
     {
         JsonObject copy = (JsonObject)obj.DeepClone();
         copy[field] = JsonSerializer.SerializeToNode(value);
