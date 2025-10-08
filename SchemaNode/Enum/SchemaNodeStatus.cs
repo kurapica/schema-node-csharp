@@ -26,6 +26,16 @@ public enum SchemaNodeStatus
     ScalarHasWrongPostValid,
 
     /// <summary>
+    /// Scalar has wrong pre valid func
+    /// </summary>
+    ScalarHasWrongPreValid,
+
+    /// <summary>
+    /// Scalar has wrong white list func
+    /// </summary>
+    ScalarHasWrongWhiteList,
+
+    /// <summary>
     /// No array element type
     /// </summary>
     ArrayHasWrongElementType,
@@ -174,4 +184,39 @@ public enum SchemaNodeStatus
     /// The function expression haven't pass the complier
     /// </summary>
     FunctionExpsHasCompileError,
+
+    /// <summary>
+    /// The application invalid field
+    /// </summary>
+    ApplicationInvalidField,
+
+    /// <summary>
+    /// The application field wrong type
+    /// </summary>
+    ApplicationFieldWrongType,
+
+    /// <summary>
+    /// The application field wrong func
+    /// </summary>
+    ApplicationFieldWrongFunc,
+
+    /// <summary>
+    /// The application func wrong field
+    /// </summary>
+    ApplicationFieldWrongFuncField,
+
+    /// <summary>
+    /// The application field wrong reference
+    /// </summary>
+    ApplicationFieldWrongRef,
+
+    /// <summary>
+    /// The relation has wrong target field
+    /// </summary>
+    ApplicationRelationWrongTarget,
+
+    /// <summary>
+    /// The relation has wrong func
+    /// </summary>
+    ApplicationRelationWrongFunc,
 }

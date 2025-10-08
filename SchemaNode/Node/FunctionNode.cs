@@ -243,7 +243,38 @@ public class FunctionNode: AnySchemaNode
 
     /// <inheritdoc />
     public override ArrayNode? GetArrayNode(bool exactly = false) => null;
-    
+
+    /// <inheritdoc />
+    public override IEnumerable<AnySchemaNode> GetDependNodes()
+    {
+        if (ReturnNode != null && ReturnNode is not GenericTypeNode)
+            yield return ReturnNode;
+
+        foreach (FunctionNodeArgument arg in Args)
+        {             
+            if (arg.TypeNode != null && arg.TypeNode is not GenericTypeNode)
+                yield return arg.TypeNode;
+        }
+
+        foreach(FunctionNodeExpression exp in Exps)
+        {
+            if (exp.TypeNode != null && exp.TypeNode is not GenericTypeNode)
+                yield return exp.TypeNode;
+
+            if (exp.FuncNode != null)
+                yield return exp.FuncNode;
+
+            if (exp.Args is { Length: > 0 })
+            {
+                foreach (FunctionCallArgument callArg in exp.Args)
+                {
+                    if (callArg.TypeNode != null && callArg.TypeNode is not GenericTypeNode)
+                        yield return callArg.TypeNode;
+                }
+            }
+        }
+    }
+
     // Clear the function info to be re-complied
     void ClearFunctionInfo()
     {
@@ -1043,7 +1074,10 @@ public class FunctionNode: AnySchemaNode
                                 object? value = constExp.Value;
                                 if (value != null)
                                     value = callType.GetNotNullType().TryConvert(value);
-                                callArgs[i + useContext] = Expression.Constant(value, callType);
+                                if (value != null && value.GetType().IsSafeConstantValue())
+                                    callArgs[i + useContext] = Expression.Constant(value, callType);
+                                else
+                                    callArgs[i + useContext] = Expression.Default(callType);
                             }
                             break;
                         
@@ -1081,6 +1115,7 @@ public class FunctionNode: AnySchemaNode
 
                 // Call the functions
                 MethodInfo callMethod = callFuncInfo.Method!;
+                bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
                 Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) 
                                      ?? throw new Exception($"The expression {exp.Name}'s type not valid");
                 Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayNode arr
@@ -1214,13 +1249,19 @@ public class FunctionNode: AnySchemaNode
                 }
 
                 // Conversion
-                Type ctype = callMethod.GetParameters()[arrayIndex].ParameterType;
+                Type ctype = callMethod.GetParameters()[arrayIndex + (hasClosure ? 1 : 0)].ParameterType;
                 innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
                 callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
 
                 // Generate call body
                 Delegate innerCall;
                 Expression arrayLen = jarray.Type.IsSZArray ? Expression.ArrayLength(jarray) : Expression.Property(jarray, "Count");
+                Expression ctor = resExp.Type == typeof(JsonArray)
+                    ? Expression.New(typeof(JsonArray).GetConstructors()
+                        .First(c => c.GetParameters().Length == 1 && 
+                            Nullable.GetUnderlyingType(c.GetParameters()[0].ParameterType) == typeof(JsonNodeOptions)), Expression.Constant(null, typeof(JsonNodeOptions?)))
+                    : Expression.New(resExp.Type);
+
 
                 switch (exp.Type)
                 {
@@ -1229,7 +1270,7 @@ public class FunctionNode: AnySchemaNode
                         {
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
                                 new[] { resExp, start, stop, final },
-                                Expression.Assign(resExp, Expression.New(resExp.Type)),
+                                Expression.Assign(resExp, ctor),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
                                 Expression.Loop(
@@ -1241,7 +1282,7 @@ public class FunctionNode: AnySchemaNode
                                                 : Expression.Call(resExp, resExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
                                             : callMethodReturn == typeof(JsonArray)
                                                 ? Expression.Call(resExp, typeof(Extension).GetMethod(nameof(Extension.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), typeof(object))),
+                                                : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(JsonNode) })!, Expression.Call(ConvertExp(typeof(JsonNode), GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)), typeof(JsonNode).GetMethod(nameof(JsonNode.DeepClone))!)),
                                         Expression.Break(forLabel, stop)
                                     ),
                                     forLabel
@@ -1363,7 +1404,7 @@ public class FunctionNode: AnySchemaNode
 
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
                                 new[] { resExp, start, stop, final, curr },
-                                Expression.Assign(resExp, Expression.New(resExp.Type)),
+                                Expression.Assign(resExp, ctor),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
                                 Expression.Loop(
@@ -1375,7 +1416,7 @@ public class FunctionNode: AnySchemaNode
                                             Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs),
                                                 resExp.Type.IsArrayType()
                                                     ? Expression.Call(resExp, resExp.Type.GetMethod("Add")!, curr)
-                                                    : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(object) })!, Expression.Convert(curr, typeof(object)))
+                                                    : Expression.Call(resExp, typeof(JsonArray).GetMethod(nameof(JsonArray.Add), new[] { typeof(JsonNode) })!, Expression.Call( ConvertExp(typeof(JsonNode), curr), typeof(JsonNode).GetMethod(nameof(JsonNode.DeepClone))!))
                                             )
                                         }),
                                         Expression.Break(forLabel, stop)
@@ -1547,7 +1588,8 @@ public class FunctionNode: AnySchemaNode
         // for complex types
         if (resExp == null)
         {
-            if ((rctype == typeof(JsonObject) || rctype == typeof(JsonArray)) && notNullExp.Type == typeof(JsonNode))
+            if ((rctype == typeof(JsonObject) || rctype == typeof(JsonArray) || rctype == typeof(JsonValue) || rctype == typeof(JsonNode)) &&
+                notNullExp.Type.IsAssignableTo(typeof(JsonNode)))
             {
                 resExp = Expression.Convert(notNullExp, rctype);
             }
@@ -1642,108 +1684,145 @@ public class FunctionNode: AnySchemaNode
 
     #region CallDynamicFunc
 
+    static TR? CallDynamicFunc<TR>(Delegate del, object[] args)
+    {
+        var method = del.Method;
+        var target = del.Target;
+        var parms = method.GetParameters();
+        int parmCount = parms.Length;
+        bool firstIsClosure = parmCount > 0 && parms[0].ParameterType.FullName == "System.Runtime.CompilerServices.Closure";
+
+        // Case A: static method
+        if (method.IsStatic)
+        {
+            // If static method expects a Closure as first parameter and we do have a closure target,
+            // pass the closure as first arg and invoke with null target.
+            if (firstIsClosure && target != null && parmCount == args.Length + 1)
+            {
+                var newArgs = new object?[args.Length + 1];
+                newArgs[0] = target;
+                Array.Copy(args, 0, newArgs, 1, args.Length);
+                return (TR?)method.Invoke(null, newArgs);
+            }
+
+            // If parameter count exactly matches args, call as plain static
+            if (parmCount == args.Length)
+                return (TR?)method.Invoke(null, args);
+
+            // otherwise fallback to DynamicInvoke (safer but slower)
+            return (TR?)del.DynamicInvoke(args);
+        }
+
+        // Case B: instance method
+        // Normal: instance method => call with target as instance, args match parmCount
+        if (!method.IsStatic)
+        {
+            if (parmCount == args.Length)
+                return (TR?)method.Invoke(target, args);
+
+            // Special: open-instance-like delegate: target == null, but method expects instance as first parameter:
+            // if parmCount == args.Length + 1, treat args[0] as the instance
+            if (target == null && parmCount == args.Length + 1)
+            {
+                var newTarget = args[0];
+                var remaining = new object?[args.Length - 1];
+                Array.Copy(args, 1, remaining, 0, remaining.Length);
+                return (TR?)method.Invoke(newTarget, remaining);
+            }
+
+            // Fallback to DynamicInvoke
+            return (TR?)del.DynamicInvoke(args);
+        }
+
+        // Fallback (shouldn't reach here)
+        return (TR?)del.DynamicInvoke(args);
+    }
+
     // Call dynamic function
     static TR? CallDynamicFunc1<TR, T1>(Delegate method, T1 arg1)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1! });
     }
     static TR? CallDynamicFunc2<TR, T1, T2>(Delegate method, T1 arg1, T2 arg2)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2! });
     }
     static TR? CallDynamicFunc3<TR, T1, T2, T3>(Delegate method, T1 arg1, T2 arg2, T3 arg3)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3! });
     }
     static TR? CallDynamicFunc4<TR, T1, T2, T3, T4>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4! });
     }
     static TR? CallDynamicFunc5<TR, T1, T2, T3, T4, T5>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5! });
     }
     static TR? CallDynamicFunc6<TR, T1, T2, T3, T4, T5, T6>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6! });
     }
     static TR? CallDynamicFunc7<TR, T1, T2, T3, T4, T5, T6, T7>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7! });
     }
     static TR? CallDynamicFunc8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8! });
     }
     static TR? CallDynamicFunc9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9! });
     }
     static TR? CallDynamicFunc10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10! });
     }
     static TR? CallDynamicFunc11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11! });
     }
     static TR? CallDynamicFunc12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12! });
     }
     static TR? CallDynamicFunc13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13! });
     }
     static TR? CallDynamicFunc14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] {arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14! });
     }
     static TR? CallDynamicFunc15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15! });
     }
     static TR? CallDynamicFunc16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16! });
     }
     static TR? CallDynamicFunc17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, T17 arg17)
     {
         // Invoke the dynamic method
-        object result = ((dynamic)method).DynamicInvoke(new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!, arg17! });
-        return result == null ? default : (TR)result;
+        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!, arg17! });
     }
     #endregion
 

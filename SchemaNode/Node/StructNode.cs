@@ -204,6 +204,24 @@ public class StructNode: AnySchemaNode
                });
     }
 
+    public override IEnumerable<AnySchemaNode> GetDependNodes()
+    {
+        if (BaseNode != null) yield return BaseNode;
+        foreach (StructFieldConfig field in Fields)
+        {
+            if (field.TypeNode != null)
+                yield return field.TypeNode;
+        }
+        if (Relations != null)
+        {
+            foreach (StructFieldRelation relation in Relations)
+            {
+                if (relation.FuncNode != null)
+                    yield return relation.FuncNode;
+            }
+        }
+    }
+
     #endregion
     
     #region Static Feature

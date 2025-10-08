@@ -45,8 +45,68 @@ internal static class Constant
     public const int FUNC_SIGN_REMOTE_CALL = 16;
     public const int FUNC_SIGN_NULLABLE_RET = 32;
 
+    /// <summary>
+    /// DYNAMIC TABLE TARG FIELD
+    /// </summary>
+    public const string DYNAMIC_TABLE_TARG_FIELD = "_target";
+
+    /// <summary>
+    /// DYNAMIC TABLE TARG LEN
+    /// </summary>
+    public const int DYNAMIC_TABLE_TARG_LEN = 64;
+
+    /// <summary>
+    /// DYNAMIC TABLE VALUE FIELD
+    /// </summary>
+    public const string DYNAMIC_TABLE_VALUE_FIELD = "_data";
+
+    /// <summary>
+    /// DYNAMIC TABLE SEQNO FIELD
+    /// </summary>
+    public const string DYNAMIC_TABLE_SEQNO_FIELD = "_seqno";
+
+    /// <summary>
+    /// DYNAMIC TABLE PREFIX
+    /// </summary>
+    public const string DYNAMIC_TABLE_PREFIX = "dyn";
+
+    /// <summary>
+    /// DYNAMIC UNIQUE INDEX
+    /// </summary>
+    public const string DYNAMIC_UNIQUE_INDEX = "IDX_Key";
+
+    /// <summary>
+    /// COMPLEX SEP
+    /// </summary>
+    public const string COMPLEX_SEP = "_";
+
+    /// <summary>
+    /// The app field ref type
+    /// </summary>
+    public const string APP_FIELD_REF = "__app_field_ref";
+
+    /// <summary>
+    /// The app field refs type
+    /// </summary>
+    public const string APP_FIELD_REFS = "__app_field_refs";
+
+    /// <summary>
+    /// The ref app
+    /// </summary>
+    public const string APP_FIELD_REF_APP = "app";
+
+    /// <summary>
+    /// The ref target
+    /// </summary>
+    public const string APP_FIELD_REF_TARGET = "target";
+
+    /// <summary>
+    /// The field name
+    /// </summary>
+    public const string APP_FIELD_REF_NAME = "appref";
+
     #endregion
-    
+
     #region Message
 
     public const string TYPE_VALUE_NOT_VALID = "TYPE_VALUE_NOT_VALID";

@@ -1,11 +1,9 @@
-using System.Collections.Concurrent;
+using Microsoft.AspNetCore.Http;
+using SchemaNode.Node;
 using System.Globalization;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Linq;
 
 namespace SchemaNode.Utility;
 
@@ -233,9 +231,35 @@ internal static class Extension
     {
         foreach (var item in b)
         {
-            a.Add(item);
+            if (item != null)
+                a.Add(item.DeepClone());
         }
     }
+
+    /// <summary>
+    /// Gets the value with paths
+    /// </summary>
+    public static JsonNode? GetValueByPaths(this JsonNode? token, IEnumerable<string> paths)
+    {
+        foreach (string path in paths)
+        {
+            if (token is JsonObject obj && obj.ContainsKey(path))
+            {
+                token = obj[path];
+            }
+            else
+            {
+                token = null;
+                break;
+            }
+        }
+        return token;
+    }
+
+    /// <summary>
+    /// Gets the value with paths
+    /// </summary>
+    public static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
 
     private static readonly JsonSerializerOptions IndentJsonOption = new()
     {
@@ -349,7 +373,27 @@ internal static class Extension
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    internal static bool IsArrayType(this Type type) => type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>));
+    internal static bool IsArrayType(this Type type) => type != typeof(JsonArray) && 
+        ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
+    
+    internal static bool IsSafeConstantValue(this Type type)
+    { 
+        if (type.IsValueType || type == typeof(string))
+            return true;
+
+        if (typeof(Type).IsAssignableFrom(type))
+            return true;
+
+        if (type == typeof(Uri) || type == typeof(Version))
+            return true;
+
+        return false;
+    }
+
+    internal static bool HasClosure(this Delegate method)
+    {
+        return method.Target != null && method.Target.GetType().FullName == "System.Runtime.CompilerServices.Closure";
+    }
 
     #endregion
 
@@ -513,16 +557,6 @@ internal static class Extension
             Console.Error.WriteLine("TryConvert - {0}", ex.GetInnermostException().Message);
         }
         return null;
-    }
-
-    /// <summary>
-    /// Try to convert the value for the given type
-    /// </summary>
-    internal static T? TryConvert<T>(object? value)
-    {
-        object? result = TryConvert(typeof(T), value);
-        if (result != null) return (T)result;
-        return default;
     }
 
     #endregion

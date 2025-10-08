@@ -1,11 +1,17 @@
-using System.Text;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi;
+using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components.Provider;
 using SchemaNode.Http;
+using System.Data;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Mysql
+var connString = builder.Configuration.GetConnectionString("Default");
+builder.Services.AddTransient<IDbConnection>(sp => new MySqlConnection(connString));
 
 // for test
 builder.Services.AddCors(options =>

@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "dgSpecHash": "mi+Rpakq4GE=",
+  "success": true,
+  "projectFilePath": "D:\\Workspace\\SchemaNode\\schema-node-csharp\\SchemaNode.MySql\\SchemaNode.MySql.csproj",
+  "expectedPackageFiles": [
+    "D:\\Program Files\\NuGet\\microsoft.extensions.dependencyinjection\\10.0.0-rc.1.25451.107\\microsoft.extensions.dependencyinjection.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.extensions.dependencyinjection.abstractions\\10.0.0-rc.1.25451.107\\microsoft.extensions.dependencyinjection.abstractions.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.extensions.logging\\10.0.0-rc.1.25451.107\\microsoft.extensions.logging.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.extensions.logging.abstractions\\10.0.0-rc.1.25451.107\\microsoft.extensions.logging.abstractions.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.extensions.options\\10.0.0-rc.1.25451.107\\microsoft.extensions.options.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.extensions.primitives\\10.0.0-rc.1.25451.107\\microsoft.extensions.primitives.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\microsoft.openapi\\2.3.2\\microsoft.openapi.2.3.2.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\mysqlconnector\\2.4.0\\mysqlconnector.2.4.0.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\mysqlconnector.dependencyinjection\\2.4.0\\mysqlconnector.dependencyinjection.2.4.0.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\system.diagnostics.diagnosticsource\\10.0.0-rc.1.25451.107\\system.diagnostics.diagnosticsource.10.0.0-rc.1.25451.107.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\system.text.json\\8.0.5\\system.text.json.8.0.5.nupkg.sha512",
+    "D:\\Program Files\\NuGet\\timezoneconverter\\7.0.0\\timezoneconverter.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -4,6 +4,5 @@ namespace SchemaNode.Components.Provider;
 /// The application data storage provider
 /// </summary>
 public interface IAppSchemaDataProvider
-{
-    
+{    
 }

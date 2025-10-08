@@ -56,6 +56,28 @@ public static class SystemCollection
     }
 
     /// <summary>
+    /// Whether the list contains the item
+    /// </summary>
+    [SchemaFunc]
+    public static bool Contains<T>(IEnumerable<T> array, T value) where T: IComparable
+    {
+        foreach (var item in array)
+        {
+            if (EqualityComparer<T>.Default.Equals(item, value)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Whether the list not contains the item
+    /// </summary>
+    [SchemaFunc]
+    public static bool NotContains<T>(IEnumerable<T> array, T value) where T: IComparable
+    {
+        return !Contains(array, value);
+    }
+
+    /// <summary>
     /// Combine two array and distinct
     /// </summary>
     public static List<T> Combine<T>(IEnumerable<T> left, IEnumerable<T> right)
@@ -73,15 +95,6 @@ public static class SystemCollection
             res.Add(item);
         }
         return res;
-    }
-
-    [SchemaFunc]
-    public static List<T> Sort<T>(IEnumerable<T> array, bool? desc) where T: IComparable
-    {
-        List<T> res = new (array);
-        res.Sort();
-        if (desc ?? false) res.Reverse();
-        return res; 
     }
 
     /// <summary>
@@ -127,6 +140,24 @@ public static class SystemCollection
             copy[key] = value!;
         }
         return copy;
+    }
+
+    /// <summary>
+    /// Whether the object has the field
+    /// </summary>
+    [SchemaFunc]
+    public static bool ContainsKey(JsonObject obj, string field)
+    {
+        return obj.ContainsKey(field);
+    }
+
+    /// <summary>
+    /// Whether the object not has the field
+    /// </summary>
+    [SchemaFunc]
+    public static bool NotContainsKey(JsonObject obj, string field)
+    {
+        return !obj.ContainsKey(field);
     }
 
     /// <summary>

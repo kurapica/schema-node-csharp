@@ -32,6 +32,11 @@ public class ArrayNode: AnySchemaNode
     public string[]? Primary { get; set; }
 
     /// <summary>
+    /// The indexes
+    /// </summary>
+    public DataIndex[]? Indexes { get; set; }
+
+    /// <summary>
     /// The data combine rule
     /// </summary>
     public DataCombine[]? Combine { get; set; }
@@ -77,6 +82,7 @@ public class ArrayNode: AnySchemaNode
         Primary = array?.Primary;
         Combine = array?.Combine;
         Relations = array?.Relations;
+        Indexes = array?.Indexes;
         Additional = array?.Additional;
         
         // Status
@@ -181,6 +187,21 @@ public class ArrayNode: AnySchemaNode
 
     /// <inheritdoc />
     public override ArrayNode? GetArrayNode(bool exactly = false) => null;
+
+    public override IEnumerable<AnySchemaNode> GetDependNodes()
+    {
+        if (ElementNode != null)
+            yield return ElementNode;
+        
+        if (Relations != null)
+        {
+            foreach (StructFieldRelation relation in Relations)
+            {
+                if (relation.FuncNode != null)
+                    yield return relation.FuncNode;
+            }
+        }
+    }
 
     #endregion
 

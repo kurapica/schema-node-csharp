@@ -57,7 +57,7 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// Whether the node is used
     /// </summary>
-    public virtual bool IsUsed => UsedBy is { IsEmpty: false };
+    public virtual bool IsUsed => UsedBy is { IsEmpty: false } || UsedByApp is { IsEmpty: false };
 
     #endregion
 
@@ -86,11 +86,29 @@ public abstract class AnySchemaNode: IDisposable
     }
 
     /// <summary>
+    /// Used by an application field
+    /// </summary>
+    public void AddRef(AppFieldNode node)
+    {
+        UsedByApp ??= new ConcurrentDictionary<AppFieldNode, bool>();
+        UsedByApp.TryAdd(node, true);
+    }
+
+    /// <summary>
     /// Remove a ref from another node
     /// </summary>
     public void RemoveRef(AnySchemaNode node)
     {
         UsedBy?.TryRemove(node, out _);
+    }
+
+    /// <summary>
+    /// Remove ref for an application field
+    /// </summary>
+    /// <param name="node"></param>
+    public void RemoveRef(AppFieldNode node)
+    {
+        UsedByApp?.TryRemove(node, out _);
     }
 
     /// <summary>
@@ -128,6 +146,15 @@ public abstract class AnySchemaNode: IDisposable
     /// Release ref
     /// </summary>
     public void Dispose() => Release();
+
+    /// <summary>
+    /// Gets the depends schema nodes
+    /// </summary>
+    /// <returns></returns>
+    public virtual IEnumerable<AnySchemaNode> GetDependNodes()
+    {
+        yield break;
+    }
 
     #endregion
     
@@ -177,6 +204,7 @@ public abstract class AnySchemaNode: IDisposable
     /// Used by other types
     /// </summary>
     protected ConcurrentDictionary<AnySchemaNode, bool>? UsedBy;
+    protected ConcurrentDictionary<AppFieldNode, bool>? UsedByApp;
 
     #endregion
 }

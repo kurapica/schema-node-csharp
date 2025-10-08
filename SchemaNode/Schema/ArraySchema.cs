@@ -26,6 +26,11 @@ public class ArraySchema
     public string[]? Primary { get; set; }
 
     /// <summary>
+    /// The indexes
+    /// </summary>
+    public DataIndex[]? Indexes { get; set; }
+
+    /// <summary>
     /// The data combine rule
     /// </summary>
     public DataCombine[]? Combine { get; set; }
@@ -56,4 +61,17 @@ public class DataCombine
     /// The combine type
     /// </summary>
     public DataCombineType Type { get; set; } = DataCombineType.Assign;
+}
+
+public class DataIndex
+{
+    /// <summary>
+    /// The index name
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The index fields
+    /// </summary>
+    public string[] Fields { get; set; } = [];
 }

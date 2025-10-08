@@ -1,4 +1,6 @@
 using SchemaNode.Enum;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SchemaNode.Schema;
 
@@ -23,14 +25,9 @@ public class AppSchema
     public LocaleString? Desc { get; set; }
     
     /// <summary>
-    /// Standalone
+    /// Standalone app without app target
     /// </summary>
     public bool? Standalone { get; set; }
-    
-    /// <summary>
-    /// The main application
-    /// </summary>
-    public string? Main { get; set; }
     
     /// <summary>
     /// Whether it has sub-applications
@@ -60,7 +57,13 @@ public class AppSchema
     /// <summary>
     /// The types related to the application
     /// </summary>
-    public NodeSchema[]? Types { get; set; }
+    public NodeSchema[]? NodeSchemas { get; set; }
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 /// <summary>
@@ -132,4 +135,10 @@ public class AppFieldSchema
     /// The combine rule for struct or struct-array type
     /// </summary>
     public DataCombine[]? Combines { get; set; }
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }

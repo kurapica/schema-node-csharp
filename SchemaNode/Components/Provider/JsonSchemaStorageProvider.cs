@@ -1,8 +1,10 @@
-using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 
 namespace SchemaNode.Components.Provider;
 
@@ -21,7 +23,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             if (string.IsNullOrEmpty(res?.file)) continue;
             if (res.Value.schemaType == SchemaType.Namespace)
             {
-                NodeSchema schema = await LoadSchemaFile(Path.Combine(res.Value.file, "__ns.json")) ?? new NodeSchema
+                NodeSchema schema = await LoadSchemaFile<NodeSchema>(Path.Combine(res.Value.file, "__ns.json")) ?? new NodeSchema
                 {
                     Name = name,
                     Type = SchemaType.Namespace,
@@ -32,7 +34,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 List<NodeSchema> nodes = [];
                 foreach (string d in Directory.GetDirectories(res.Value.file, "*", SearchOption.TopDirectoryOnly))
                 {
-                    nodes.Add(await LoadSchemaFile(Path.Combine(d, "__ns.json")) ?? new NodeSchema
+                    nodes.Add(await LoadSchemaFile<NodeSchema>(Path.Combine(d, "__ns.json")) ?? new NodeSchema
                     {
                         Name = name,
                         Type = SchemaType.Namespace,
@@ -67,7 +69,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             }
             else
             {
-                NodeSchema? schema = await LoadSchemaFile(res.Value.file);
+                NodeSchema? schema = await LoadSchemaFile<NodeSchema>(res.Value.file);
                 if (schema != null) schemas.Add(schema);
             }
         }
@@ -75,9 +77,56 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public Task<AppSchema?> LoadAppSchemaAsync(string app)
+    public async Task<AppSchema?> LoadAppSchemaAsync(string app)
     {
-        throw new NotImplementedException();
+        await Task.Yield();
+        app = app.ToLowerInvariant();
+
+        string[] paths = app.Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        if (!Directory.Exists(folder)) return null;
+
+        AppSchema schema = await LoadSchemaFile<AppSchema>(Path.Combine(folder, "__app.json")) ?? new AppSchema
+        {
+            Name = app,
+        };
+
+        // load apps
+        string[] dirs = Directory.GetDirectories(folder);
+        if (dirs.Length > 0)
+        {
+            schema.Apps = dirs.Select(d => Path.GetFileName(d))
+                .Where(d => !string.IsNullOrEmpty(d))
+                .Select(d => new AppSchema
+                {
+                    Name = $"{app}.{d}",
+                })
+                .ToArray()!;
+        }
+
+        // load fields
+        var fields = Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Select(p =>
+            {
+                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1).ToArray();
+        if (fields.Length > 0)
+        {
+            schema.Fields = new AppFieldSchema[fields.Length];
+            for(int i = 0; i < fields.Length; i++)
+            {
+                schema.Fields[i] = await LoadSchemaFile<AppFieldSchema>(Path.Combine(folder, $"{fields[i].Item1.ToString("D3")}.{fields[i].Item2}.json")) 
+                    ?? new AppFieldSchema
+                    {
+                        Name = fields[i].Item2,
+                    };
+            }   
+        }
+        return schema;
     }
 
     /// <inheritdoc />
@@ -102,7 +151,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     public async Task<bool> SaveSchemaAsync(NodeSchema schema)
     {
         string[] paths = schema.Name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
-        string root = Path.Combine(AppContext.BaseDirectory, Folder);
+        string root = Path.Combine(AppContext.BaseDirectory, SchemaFolder);
 
         if (schema.Type == SchemaType.Namespace)
         {
@@ -167,19 +216,158 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         await SaveSchemaAsync(@enum.ToNodeSchema(99));
         return true;
     }
-    
+
+    /// <inheritdoc />
+    public async Task<bool> SaveAppSchemaAsync(AppSchema app)
+    {
+        string[] paths = app.Name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        Directory.CreateDirectory(folder);
+
+        await WriteSchemaFile(Path.Combine(folder, "__app.json"), new AppSchema
+        {
+            Name = app.Name,
+            Display = app.Display,
+            Desc = app.Desc,
+            Standalone = app.Standalone,
+            Relations = app.Relations,
+            Additional = app.Additional
+        });
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAppSchemaAsync(string app)
+    {
+        await Task.Yield();
+
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        if (!Directory.Exists(folder)) return false;
+
+        if (Directory.GetDirectories(folder).Length > 0 ||
+            Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly).Length > 1)
+            return false; // not empty
+
+        File.Delete(Path.Combine(folder, "__app.json"));
+        Directory.Delete(folder);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SaveAppFieldSchemaAsync(string app, AppFieldSchema field)
+    {
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        Directory.CreateDirectory(folder);
+
+        int maxOrder = 0;
+        foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$" ))
+            .Select(p => {
+                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1))
+        {
+            if (file.Item2.Equals(field.Name, StringComparison.OrdinalIgnoreCase)) break;
+            maxOrder = file.Item1;
+        }
+
+        // save
+        string fileName = $"{(maxOrder + 1).ToString("D3")}.{field.Name}.json";
+
+        await WriteSchemaFile(Path.Combine(folder, fileName), field);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAppFieldSchemaAsync(string app, string field)
+    {
+        await Task.Yield();
+
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        if (!Directory.Exists(folder)) return false;
+
+        int maxOrder = 1;
+        foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Select(p => {
+                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1))
+        {
+            if (file.Item2.Equals(field, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(Path.Combine(folder, $"{file.Item1.ToString("D3")}.{file.Item2}.json"));
+                continue;
+            }
+            else if(file.Item1 != maxOrder)
+            {
+                // re-order
+                File.Move(Path.Combine(folder, $"{file.Item1.ToString("D3")}.{file.Item2}.json"),
+                    Path.Combine(folder, $"{maxOrder.ToString("D3")}.{file.Item2}.json"));
+            }
+            maxOrder += 1;
+        }
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SwapAppFieldSchemaAsync(string app, string field1, string field2)
+    {
+        await Task.Yield();
+
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        if (!Directory.Exists(folder)) return false;
+
+        (int, string)? order1 = null;
+        (int, string)? order2 = null;
+        foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Select(p => {
+                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1))
+        {
+            if (file.Item2.Equals(field1, StringComparison.OrdinalIgnoreCase))
+                order1 = file;
+            else if (file.Item2.Equals(field2, StringComparison.OrdinalIgnoreCase))
+                order2 = file;
+        }
+        if (order1 is null || order2 is null) return false;
+        File.Move(Path.Combine(folder, $"{order1.Value.Item1.ToString("D3")}.{order1.Value.Item2}.json"), Path.Combine(folder, $"__temp__.json"));
+        File.Move(Path.Combine(folder, $"{order2.Value.Item1.ToString("D3")}.{order2.Value.Item2}.json"), Path.Combine(folder, $"{order1.Value.Item1.ToString("D3")}.{order1.Value.Item2}.json"));
+        File.Move(Path.Combine(folder, $"__temp__.json"), Path.Combine(folder, $"{order2.Value.Item1.ToString("D3")}.{order2.Value.Item2}.json"));
+        return true;
+    }
+
     public SchemaLoadState? DefaultLoadState { get; } = SchemaLoadState.Server;
 
     /// <summary>
-    /// The root folder
+    /// The root folder for type
     /// </summary>
-    public string Folder { get; set; } = "Schema";
+    public string SchemaFolder { get; set; } = "Schema";
+
+    /// <summary>
+    /// The root folder for app
+    /// </summary>
+    public string AppFolder { get; set; } = "App";
 
     #region Utility
 
     (string file, SchemaType schemaType)? CheckSchemaFile(string name)
     {
-        string root = Path.Combine(AppContext.BaseDirectory, Folder);
+        string root = Path.Combine(AppContext.BaseDirectory, SchemaFolder);
         string[] paths = name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
         string folder = Path.Combine(paths.Prepend(root).ToArray());
         
@@ -214,21 +402,21 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         return null;
     }
 
-    async Task<NodeSchema?> LoadSchemaFile(string name)
+    async Task<T?> LoadSchemaFile<T>(string name)
     {
         try
         {
-            if (!File.Exists(name)) return null;
+            if (!File.Exists(name)) return default;
             string readJson = await File.ReadAllTextAsync(name);
-            return readJson.FromJson<NodeSchema>();
+            return readJson.FromJson<T>();
         }
         catch
         {
-            return null;
+            return default;
         }
     }
 
-    async Task WriteSchemaFile(string name, NodeSchema schema)
+    async Task WriteSchemaFile<T>(string name, T schema)
     {
         try
         {

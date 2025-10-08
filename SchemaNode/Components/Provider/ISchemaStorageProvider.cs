@@ -39,4 +39,37 @@ public interface ISchemaStorageProvider: ISchemaProvider
     /// <param name="value">The enum value</param>
     /// <returns>true if deleted</returns>
     Task<bool> DeleteEnumSubListAsync(EnumNode schema, string value);
+
+    /// <summary>
+    /// Save the app schema
+    /// </summary>
+    /// <param name="app"></param>
+    /// <returns></returns>
+    Task<bool> SaveAppSchemaAsync(AppSchema app);
+
+    /// <summary>
+    /// Delete an app schema
+    /// </summary>
+    /// <param name="app"></param>
+    /// <returns></returns>
+    Task<bool> DeleteAppSchemaAsync(string app);
+
+    /// <summary>
+    /// Save app field schema
+    /// </summary>
+    Task<bool> SaveAppFieldSchemaAsync(string app, AppFieldSchema field);
+
+    /// <summary>
+    /// Delete app field schema
+    /// </summary>
+    Task<bool> DeleteAppFieldSchemaAsync(string app, string field);
+
+    /// <summary>
+    /// Swap the field order
+    /// </summary>
+    /// <param name="app"></param>
+    /// <param name="field1"></param>
+    /// <param name="field2"></param>
+    /// <returns></returns>
+    Task<bool> SwapAppFieldSchemaAsync(string app, string field1, string field2);
 }

@@ -15,146 +15,156 @@ namespace SchemaNode.Node;
 /// </summary>
 public class ScalarNode: AnySchemaNode
 {
-     #region Data
+    #region Data
      
-     /// <summary>
-     /// The base type of the scalar
-     /// </summary>
-     public string? Base { get; private set; }
+    /// <summary>
+    /// The base type of the scalar
+    /// </summary>
+    public string? Base { get; private set; }
      
-     /// <summary>
-     /// The default unit of the scalar value
-     /// </summary>
-     public LocaleString? Unit { get; private set; }
+    /// <summary>
+    /// The default unit of the scalar value
+    /// </summary>
+    public LocaleString? Unit { get; private set; }
      
-     /// <summary>
-     /// The default low limit of the scalar value
-     /// </summary>
-     public decimal? LowLimit { get; private set; }
+    /// <summary>
+    /// The default low limit of the scalar value
+    /// </summary>
+    public decimal? LowLimit { get; private set; }
      
-     /// <summary>
-     /// The default up limit of the scalar value
-     /// </summary>
-     public decimal? UpLimit { get; private set; }
+    /// <summary>
+    /// The default up limit of the scalar value
+    /// </summary>
+    public decimal? UpLimit { get; private set; }
      
-     /// <summary>
-     /// The default error message
-     /// </summary>
-     public LocaleString? Error { get; private set; }
+    /// <summary>
+    /// The default error message
+    /// </summary>
+    public LocaleString? Error { get; private set; }
      
-     /// <summary>
-     /// The regex of the scalar value
-     /// </summary>
-     public string? Regex { get; private set; }
+    /// <summary>
+    /// The regex of the scalar value
+    /// </summary>
+    public string? Regex { get; private set; }
      
-     /// <summary>
-     /// The white list function
-     /// </summary>
-     public string? WhiteList { get; set; }
+    /// <summary>
+    /// The white list function
+    /// </summary>
+    public string? WhiteList { get; set; }
     
-     /// <summary>
-     /// As suggest
-     /// </summary>
-     public bool? AsSuggest { get; set; }
+    /// <summary>
+    /// As suggest
+    /// </summary>
+    public bool? AsSuggest { get; set; }
      
-     /// <summary>
-     /// The function to validate the scalar value in frontend
-     /// </summary>
-     public string? PreValid { get; private set; }
+    /// <summary>
+    /// The function to validate the scalar value in frontend
+    /// </summary>
+    public string? PreValid { get; private set; }
      
-     /// <summary>
-     /// The function to validate the scalar value in backend
-     /// </summary>
-     public string? PostValid { get; private set; }
+    /// <summary>
+    /// The function to validate the scalar value in backend
+    /// </summary>
+    public string? PostValid { get; private set; }
      
-     /// <summary>
-     /// The additional data
-     /// </summary>
-     [JsonExtensionData]
-     public Dictionary<string, JsonElement>? Additional { get; set; }
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
      
-     #endregion
+    #endregion
      
-     #region Status
+    #region Status
      
-     /// <inheritdoc />
-     public override SchemaType Type => SchemaType.Scalar;
+    /// <inheritdoc />
+    public override SchemaType Type => SchemaType.Scalar;
 
-     /// <summary>
-     /// The scalar value type
-     /// </summary>
-     public ScalarValueType ValueType { get; private set; } = ScalarValueType.None;
+    /// <summary>
+    /// The scalar value type
+    /// </summary>
+    public ScalarValueType ValueType { get; private set; } = ScalarValueType.None;
 
-     /// <summary>
-     /// The type is number
-     /// </summary>
-     public bool IsNumber => (ValueType & ScalarValueType.Number) > 0;
+    /// <summary>
+    /// The type is number
+    /// </summary>
+    public bool IsNumber => (ValueType & ScalarValueType.Number) > 0;
      
-     /// <summary>
-     /// the type is int
-     /// </summary>
-     public bool IsInt  => (ValueType & ScalarValueType.Integer) > 0;
+    /// <summary>
+    /// the type is int
+    /// </summary>
+    public bool IsInt  => (ValueType & ScalarValueType.Integer) > 0;
      
-     /// <summary>
-     /// the type is single
-     /// </summary>
-     public bool IsSingle => (ValueType & ScalarValueType.Single) > 0;
+    /// <summary>
+    /// the type is single
+    /// </summary>
+    public bool IsSingle => (ValueType & ScalarValueType.Single) > 0;
      
-     /// <summary>
-     /// The type is number
-     /// </summary>
-     public bool IsDouble => (ValueType & ScalarValueType.Double) > 0;
+    /// <summary>
+    /// The type is number
+    /// </summary>
+    public bool IsDouble => (ValueType & ScalarValueType.Double) > 0;
      
-     /// <summary>
-     /// The type is bool
-     /// </summary>
-     public bool IsBool => (ValueType & ScalarValueType.Boolean) > 0;
+    /// <summary>
+    /// The type is bool
+    /// </summary>
+    public bool IsBool => (ValueType & ScalarValueType.Boolean) > 0;
      
-     /// <summary>
-     /// The type is string
-     /// </summary>
-     public bool IsString => (ValueType & ScalarValueType.String) > 0;
+    /// <summary>
+    /// The type is string
+    /// </summary>
+    public bool IsString => (ValueType & ScalarValueType.String) > 0;
      
-     /// <summary>
-     /// The type is date
-     /// </summary>
-     public bool IsDate => (ValueType & ScalarValueType.Date) > 0;
+    /// <summary>
+    /// The type is date
+    /// </summary>
+    public bool IsDate => (ValueType & ScalarValueType.Date) > 0;
      
-     /// <summary>
-     /// The type is year
-     /// </summary>
-     public bool IsYear => (ValueType & ScalarValueType.Year) > 0;
+    /// <summary>
+    /// The type is year
+    /// </summary>
+    public bool IsYear => (ValueType & ScalarValueType.Year) > 0;
      
-     /// <summary>
-     /// The type is year month
-     /// </summary>
-     public bool IsYearMonth => (ValueType & ScalarValueType.YearMonth) > 0;
+    /// <summary>
+    /// The type is year month
+    /// </summary>
+    public bool IsYearMonth => (ValueType & ScalarValueType.YearMonth) > 0;
      
-     /// <summary>
-     /// The type is full date
-     /// </summary>
-     public bool IsFullDate => (ValueType & ScalarValueType.FullDate) > 0;
+    /// <summary>
+    /// The type is full date
+    /// </summary>
+    public bool IsFullDate => (ValueType & ScalarValueType.FullDate) > 0;
      
-     #endregion
+    #endregion
      
-     #region Ref
+    #region Ref
      
-     /// <summary>
-     /// The base node
-     /// </summary>
-     public ScalarNode? BaseNode { get; private set; }
+    /// <summary>
+    /// The base node
+    /// </summary>
+    public ScalarNode? BaseNode { get; private set; }
      
-     /// <summary>
-     /// The post validation function node
-     /// </summary>
-     public FunctionNode? PostValidNode { get; private set; }
+    /// <summary>
+    /// The post validation function node
+    /// </summary>
+    public FunctionNode? PostValidNode { get; private set; }
+
+    /// <summary>
+    /// The pre validation function node
+    /// </summary>
+    public FunctionNode? PreValidNode { get; private set; }
+
+    /// <summary>
+    /// The whitelist function node
+    /// </summary>
+    public FunctionNode? WhiteListNode { get; private set; }
 
     #endregion
 
-     #region Method
+    #region Method
 
-     /// <inheritdoc />
-     public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    /// <inheritdoc />
+    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
      {
         ScalarSchema? scalar = schema.Scalar;
 
@@ -205,6 +215,36 @@ public class ScalarNode: AnySchemaNode
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(PreValid))
+        {
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(PreValid, preload: preload);
+            if (node != null && node is FunctionNode fnode)
+            {
+                PreValidNode = fnode;
+                fnode.AddRef(this);
+            }
+            else
+            {
+                PreValidNode = null;
+                Status = SchemaNodeStatus.ScalarHasWrongPreValid;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(WhiteList))
+        {
+            AnySchemaNode? node = await context.GetSchemaNodeAsync(WhiteList, preload: preload);
+            if (node != null && node is FunctionNode fnode)
+            {
+                WhiteListNode = fnode;
+                fnode.AddRef(this);
+            }
+            else
+            {
+                WhiteListNode = null;
+                Status = SchemaNodeStatus.ScalarHasWrongWhiteList;
+            }
+        }
+
         // Value Type
         ValueType = schema.Name.ToLowerInvariant() switch
         {
@@ -224,15 +264,15 @@ public class ScalarNode: AnySchemaNode
         };
     }
 
-     /// <inheritdoc />
-     public override void Release()
+    /// <inheritdoc />
+    public override void Release()
      {
           BaseNode?.RemoveRef(this);
           PostValidNode?.RemoveRef(this);
      }
 
-     /// <inheritdoc />
-     public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    /// <inheritdoc />
+    public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
      {
           await Task.Yield();
           if (value is not JsonValue val || val.IsEmpty())
@@ -334,8 +374,8 @@ public class ScalarNode: AnySchemaNode
           return (value, TYPE_VALUE_NOT_VALID);
      }
 
-     /// <inheritdoc />
-     public override bool CanBeUseAs(AnySchemaNode other) =>
+    /// <inheritdoc />
+    public override bool CanBeUseAs(AnySchemaNode other) =>
           base.CanBeUseAs(other) ||
           other switch
           {
@@ -355,9 +395,24 @@ public class ScalarNode: AnySchemaNode
                _ => false
           };
 
-     /// <inheritdoc />
-     public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
+    /// <inheritdoc />
+    public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
                                          || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= 128;
+
+    public override IEnumerable<AnySchemaNode> GetDependNodes()
+    {
+        if (BaseNode != null)
+            yield return BaseNode;
+
+        if (PostValidNode != null)
+            yield return PostValidNode;
+
+        if (PreValidNode != null)
+            yield return PreValidNode;
+
+        if (WhiteListNode != null)
+            yield return WhiteListNode;
+    }
 
     /// <summary>
     /// Try parse bool value from string
