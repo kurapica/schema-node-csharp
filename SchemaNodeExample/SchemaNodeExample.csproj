@@ -37,6 +37,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
     <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
   </ItemGroup>
 

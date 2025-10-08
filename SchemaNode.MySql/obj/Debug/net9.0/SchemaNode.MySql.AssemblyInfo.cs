@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SchemaNode.MySql")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+127cc544172b183bf82a1d5dfac9d17e0b96a405")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c0320156dbd9b5a3ed37bc9329d1fe3255ea6d68")]
 [assembly: System.Reflection.AssemblyProductAttribute("SchemaNode.MySql")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SchemaNode.MySql")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
