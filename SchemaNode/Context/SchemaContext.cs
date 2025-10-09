@@ -1008,7 +1008,7 @@ public class SchemaContext
     /// <summary>
     /// Commit transaction.
     /// </summary>
-    public async Task<Dictionary<string, Dictionary<string, List<FieldDataChangeData>>>> CommitAsync(bool pushAll = false, bool pushAllFields = false)
+    public async Task<Dictionary<string, Dictionary<string, List<FieldDataChangeData>>>> CommitTransactionAsync(bool pushAll = false, bool pushAllFields = false)
     {
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         
@@ -1037,7 +1037,7 @@ public class SchemaContext
     /// <summary>
     /// Rollback transaction.
     /// </summary>
-    public async Task RollbackAsync()
+    public async Task RollbackTransactionAsync()
     {
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         await AppDataProvider.RollbackTransactionAsync();

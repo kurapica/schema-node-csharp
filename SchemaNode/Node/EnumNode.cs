@@ -146,7 +146,7 @@ public class EnumNode: AnySchemaNode
     /// <param name="noSubList">no sub list should be loaded</param>
     /// <param name="withSubList">with the value's sub list</param>
     /// <returns></returns>
-    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList, bool? withSubList)
+    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList = false, bool? withSubList = false)
     {
         EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];

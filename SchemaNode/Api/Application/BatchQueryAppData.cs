@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components.Provider;
 using SchemaNode.Context;
@@ -7,6 +5,9 @@ using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Schema;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Nodes;
+using System.Xml.Linq;
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -42,31 +43,183 @@ public static class BatchQueryExtension
     public static async Task<(AppDataResult[] Result, NodeSchema[]? Schemas)> BatchQueryAppDataAsync(this SchemaContext context, AppDataQuery[] querys)
     {
         List<AppDataResult> results = [];
-        HashSet<string> schemaIds = [];
+        NodeSchema root = new NodeSchema
+        {
+            Name = "",
+            Type = SchemaType.Namespace,
+            Schemas = []
+        };
+        rootEnumValueInfo.Value = new EnumValueInfo();
         foreach (AppDataQuery query in querys)
         {
             if (string.IsNullOrWhiteSpace(query.App)) continue;
+            if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
             AppNode? node = await context.GetAppNodeAsync(query.App);
             if (node == null) continue;
-            var (result, schemaId) = await context.QueryAppDataAsync(node, query);
-            if (result != null)
+
+            if (!(query.NoSchema ?? false))
             {
-                results.Add(result);
-                if (!string.IsNullOrWhiteSpace(schemaId))
+                node.GetNodeSchemas(root);
+            }
+
+            // query fields
+            List<AppFieldNode> fields = node.Fields?.Where(f => !(f.Disable ?? false) && !(f.Frontend ?? false)).ToList() ?? [];
+            if (query.Fields is { Length: > 0 })
+            {
+                fields = fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            }
+            if (query.OnlyInput == true)
+            {
+                fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp)).ToList();
+            }
+            else if (query.OnlyOutput == true)
+            {
+                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp)).ToList();
+            }
+
+            if (fields.Count == 0) continue;
+
+            Dictionary<string, JsonNode> datas = [];
+            Dictionary<string, AppDataFieldInfo> infos = [];
+            HashSet<string> enumsKeys = [];
+
+            if (!(query.SchemaOnly ?? false))
+            {
+                foreach (AppFieldNode field in fields)
                 {
-                    schemaIds.Add(schemaId);
+                    AppDataFieldQuery? q = query.Querys != null && query.Querys.ContainsKey(field.Name) ? query.Querys[field.Name] : null;
+                    (JsonNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
+                        q?.Filter, q?.Skip ?? 0, q?.Take ?? query.Take ?? 0, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                    if (result != null)
+                    {
+                        datas[field.Name] = result;
+                        infos[field.Name] = new AppDataFieldInfo
+                        {
+                            Filter = q?.Filter,
+                            OrderBy = q?.OrderBy,
+                            Skip = q?.Skip ?? 0,
+                            Take = q?.Take ?? query.Take ?? 0,
+                            Descend = q?.Descend ?? query.Descend ?? false,
+                            Total = total
+                        };
+
+                        if (!query.NoSchema ?? false)
+                        {
+                            await ScanEnumAccess(context, root, field.TypeNode!, enumsKeys, result);
+                        }
+                    }
                 }
             }
-        }
 
-        NodeSchema[]? schemas = null;
-        if (schemaIds.Count > 0)
-        {
-            schemas = await context.GetNodeSchemasAsync(schemaIds.ToArray());
+            // result
+            AppDataResult appResult = new AppDataResult { 
+                App = query.App,
+                Target = query.Target,
+                Results = datas,
+                Infos = infos,
+                Schema = !(query.NoSchema ?? false) ? new AppSchema
+                {
+                    Name = node.Name,
+                    Display = node.Display,
+                    Desc = node.Desc,
+                    Standalone = node.Standalone,
+                    HasFields = node.Fields is { Count: > 0 },
+                    Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
+                    Relations = node.Relations?.Select(r => new StructFieldRelation
+                    {
+                        Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
+                        Type = r.Type,
+                        Func = r.Func,
+                        Args = r.Args?.Select(a => new FunctionCallArgument
+                        {
+                            Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
+                            Value = a.Value,
+                        }).ToArray() ?? []
+                    }).ToArray()
+                } : null
+            };
+            results.Add(appResult);
+
         }
-        
-        return (results.ToArray(), schemas);
+                
+        return (results.ToArray(), root.Schemas);
     }
+
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaNode type, HashSet<string> enumsKeys, JsonNode? value)
+    {
+        switch (type)
+        {
+            case EnumNode enumNode:
+                if (value is JsonValue val)
+                {
+                    string key = $"{enumNode.Name}:{val.GetValue<string>()}";
+                    if (!enumsKeys.Contains(key))
+                    {
+                        enumsKeys.Add(key);
+                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.GetValue<string>());
+
+                        if (access.Length > 0)
+                        {
+                            string[] paths = enumNode.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                            string fullPath = string.Empty;
+                            NodeSchema parent = root;
+                            for (int i = 0; i < paths.Length; i++)
+                            {
+                                string p = paths[i];
+                                fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
+
+                                parent.Schemas ??= [];
+                                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+                                if (sub == null) return;
+                                parent = sub;
+                            }
+
+                            if (parent.Type == SchemaType.Enum)
+                            {
+                                rootEnumValueInfo.Value!.SubList = parent.Enum!.Values;
+                                rootEnumValueInfo.Value!.CombineAccessList(access);
+                                rootEnumValueInfo.Value!.SubList = null;
+                            }
+                        }
+                    }
+                }
+                break;
+            case StructNode @struct:
+                if (value is JsonObject obj)
+                {
+                    foreach (StructFieldConfig f in @struct.Fields)
+                    {
+                        JsonNode? v = obj[f.Name];
+                        if (v != null)
+                            await ScanEnumAccess(context, root, f.TypeNode!, enumsKeys, v);
+                    }
+                }
+                break;
+
+            case ArrayNode array:
+                if (value is not JsonArray arr) return;
+
+                if (array.ElementNode is StructNode eleStruct)
+                {
+                    foreach (JsonNode? v in arr)
+                    {
+                        if (v is JsonObject)
+                            await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
+                    }
+                }
+                else if(array.ElementNode is EnumNode eleEnum)
+                {
+                    foreach (JsonNode? v in arr)
+                    {
+                        if (v is JsonValue)
+                            await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
+                    }
+                }
+                break;
+        }
+    }
+
+    static AsyncLocal<EnumValueInfo> rootEnumValueInfo = new();
 }
 
 /// <summary>
@@ -135,7 +288,7 @@ public class AppDataQuery
     /// <summary>
     /// The default take count
     /// </summary>
-    public int? Task { get; set; }
+    public int? Take { get; set; }
     
     /// <summary>
     /// The default order

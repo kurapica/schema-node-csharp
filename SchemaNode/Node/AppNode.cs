@@ -320,13 +320,13 @@ public class AppNode
     /// Gets all node schemas used by the application
     /// </summary>
     /// <returns></returns>
-    public NodeSchema[] GetNodeSchemas()
+    public NodeSchema[] GetNodeSchemas(NodeSchema? root = null)
     {
         if (Fields == null || Fields.Count == 0)
             return [];
 
         HashSet<string> types = new();
-        NodeSchema root = new NodeSchema
+        root ??= new NodeSchema
         {
             Name = "",
             Type = SchemaType.Namespace,
@@ -359,6 +359,7 @@ public class AppNode
                     };
                     parent.Schemas = parent.Schemas.Append(sub).ToArray();
                 }
+                parent = sub;
             }
             parent.Schemas ??= [];
             parent.Schemas = parent.Schemas.Append((NodeSchema)node!).ToArray();

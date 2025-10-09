@@ -2,10 +2,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
-using SchemaNode.Schema;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -24,7 +23,8 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
         
         return new PushAppDataResponse
         {
-            Result = await SchemaContext.PushAppDataAsync(request.Schema)
+            Result = result,
+            Error = error
         };
     }
 }
@@ -40,7 +40,43 @@ public static class PushDataExtenstion
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
         Dictionary<string, AppDataFieldPushQuery>? datas)
     {
-        await Task.Yield();
+        if (string.IsNullOrWhiteSpace(app)) return (false, Constant.APP_NOT_FOUND);
+        if (string.IsNullOrWhiteSpace(target)) return (false, Constant.APP_TARGET_REQUIRED);
+        if (datas == null || datas.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
+
+        AppNode? appNode = await context.GetAppNodeAsync(app);
+        if (appNode == null) return (false, Constant.APP_NOT_FOUND);
+
+        bool hasData = false;
+
+        foreach((string field, AppDataFieldPushQuery push) in datas)
+        {
+            AppFieldNode? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
+            if (appField == null) continue;
+
+            if (!hasData)
+            {
+                hasData = true;
+                await context.BeginTransactionAsync();
+            }
+
+            if (push.Deletes != null && push.Deletes.Count > 0)
+            {
+                await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
+            }
+
+            if (push.Data != null)
+            {
+                (bool isEmpty, JsonNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
+                if (error != null) return (false, error);
+                await context.SaveFieldDataAsync(appField, target, result);
+            }
+        }
+
+        if (hasData)
+            await context.CommitTransactionAsync();
+
+
         return (true, null);
     }
 }
