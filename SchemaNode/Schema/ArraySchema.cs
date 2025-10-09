@@ -33,7 +33,7 @@ public class ArraySchema
     /// <summary>
     /// The data combine rule
     /// </summary>
-    public DataCombine[]? Combine { get; set; }
+    public DataCombine[]? Combines { get; set; }
 
     /// <summary>
     /// The realtions between the fields

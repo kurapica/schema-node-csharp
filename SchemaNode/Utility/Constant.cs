@@ -4,7 +4,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The constant
 /// </summary>
-internal static class Constant
+public static class Constant
 {
     #region Schema
 
@@ -109,6 +109,7 @@ internal static class Constant
 
     #region Message
 
+    public const string TYPE_NOT_EXIST = "TYPE_NOT_EXIST";
     public const string TYPE_VALUE_NOT_VALID = "TYPE_VALUE_NOT_VALID";
     public const string TYPE_NAMESPACE_NOT_DATA_TYPE = "TYPE_NAMESPACE_NOT_DATA_TYPE";
     public const string TYPE_VALUE_STRUCT_MEMBER_REQUIRE = "TYPE_VALUE_STRUCT_MEMBER_REQUIRE";
@@ -138,6 +139,8 @@ internal static class Constant
     public const string TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH = "TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH";
     public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
     public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
+    
+    public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
 
     #endregion
 }

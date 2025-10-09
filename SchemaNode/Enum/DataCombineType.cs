@@ -27,14 +27,4 @@ public enum DataCombineType
     /// Count
     /// </summary>
     Count,
-
-    /// <summary>
-    /// The min value
-    /// </summary>
-    Min,
-
-    /// <summary>
-    /// The max value
-    /// </summary>
-    Max,
 }

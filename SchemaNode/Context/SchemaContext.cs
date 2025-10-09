@@ -12,8 +12,7 @@ using System.Text.RegularExpressions;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Schema;
 using static SchemaNode.Utility.Constant;
-using System.Runtime.CompilerServices;
-using System.Text;
+using SchemaNode.Function;
 
 namespace SchemaNode.Context;
 
@@ -34,6 +33,8 @@ public class SchemaContext
     {
         ServiceProvider = serviceProvider;
         _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
+        _dataProviderThunk = new Lazy<IAppSchemaDataProvider?>(serviceProvider.GetService<IAppSchemaDataProvider>);
+        _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(serviceProvider.GetRequiredService<ICriticalRegionProvider>);
     }
     
     #endregion
@@ -49,6 +50,16 @@ public class SchemaContext
     /// Gets the logger
     /// </summary>
     public ILogger Logger => _loggerThunk.Value;
+    
+    /// <summary>
+    /// Gets the app data provider
+    /// </summary>
+    protected IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
+
+    /// <summary>
+    /// The current category target to be used
+    /// </summary>
+    public string Target { get; set; } = string.Empty;
 
     #endregion
     
@@ -685,9 +696,9 @@ public class SchemaContext
         if (!reload) return node;
 
         // reload the node
-        AppSchema? AppSchema = await LoadAppSchemaAsync(fullPath);
-        if (AppSchema == null) return node;
-        await node.LoadAsync(this, AppSchema, preload);
+        AppSchema? appSchema = await LoadAppSchemaAsync(fullPath);
+        if (appSchema == null) return node;
+        await node.LoadAsync(this, appSchema, preload);
         return node;
     }
 
@@ -709,7 +720,7 @@ public class SchemaContext
             if (node.SubAppList == null || !node.SubAppList.TryGetValue(path, out node)) return false;
         }
 
-        if (node?.SubAppList is null) return false;
+        if (node.SubAppList is null) return false;
 
         if (node.SubAppList.TryGetValue(paths.Last(), out AppNode? child))
         {
@@ -722,235 +733,72 @@ public class SchemaContext
 
     #endregion
 
+    #region Lock
+
+    /// <summary>
+    /// Lock by key
+    /// </summary>
+    public Task<ICriticalRegion> GetLockAsync(string lockKey, params object[] args)
+        => _criticalRegionProvider.Value.AcquireAsync(string.Format(lockKey, args));
+
+    /// <summary>
+    /// Lock by key with timeout
+    /// </summary>
+    public Task<ICriticalRegion> GetLockAsync(string lockKey, TimeSpan timeout, params object[] args)
+        => _criticalRegionProvider.Value.AcquireAsync(string.Format(lockKey, args), timeout);
+
+    /// <summary>
+    /// The critical region provider
+    /// </summary>
+    private readonly Lazy<ICriticalRegionProvider> _criticalRegionProvider;
+
+    #endregion
+    
     #region Dynamic Data
 
     #region Table Management
 
     /// <summary>
-    /// Preprare the dynamic table for the field
+    /// Prepare the dynamic table for the field
     /// </summary>
-    async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldNode field)
+    public async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldNode field)
     {
         // no front only & enable & no source ref
         if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null)
             return field.Schema ??= field.GenDynamicTableSchema();
 
-        // creating and building
-        if (MySql.Context.Database.GetDbConnection().State == ConnectionState.Closed)
-            await MySql.Context.Database.GetDbConnection().OpenAsync();
-
         // Return the data
-        DynamicTableSchema schema = field.Schema;
+        DynamicTableSchema? schema = field.Schema;
         if (schema != null) return schema;
-        field.Schema = field.GenDynamicTableSchema();
-        schema = field.Schema;
 
-        // Check to update the data table
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        using ICriticalRegion locker = await GetLockAsync($"SCHEMA_CONTEXT_DYN_TABLE_CREATION:{field.DynamicTableName}");
         try
         {
-            // Gets the existed fields
-            DbCommand command = GetDbCommand();
-            command.CommandText = $"DESCRIBE `{schema.Name}`";
-            DbDataReader reader = await command.ExecuteReaderAsync();
-            Dictionary<string, string> nameTypes = new();
-            try
-            {
-                while (await reader.ReadAsync())
-                    nameTypes.Add(reader.GetString(0), reader.GetString(1));
-            }
-            finally
-            {
-                await reader.CloseAsync();
-            }
+            schema = field.Schema;
+            if (schema != null) return schema;
 
-            // Check the new schema
-            StringBuilder? sb = null;
-            foreach (DynamicTableField dyFld in schema.Fields)
-            {
-                if (!nameTypes.ContainsKey(dyFld.Name))
-                {
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE `{schema.Name}` ADD `{dyFld.Name}` {dyFld.DataType};");
-                }
-                else if (!nameTypes[dyFld.Name].Equals(dyFld.DataType, StringComparison.OrdinalIgnoreCase))
-                {
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE `{schema.Name}` MODIFY COLUMN `{dyFld.Name}` {dyFld.DataType};");
-                }
-            }
-
-            // Check the existed indexes
-            command = GetDbCommand();
-            command.CommandText = $"SHOW INDEXES FROM `{schema.Name}`";
-            reader = await command.ExecuteReaderAsync();
-            Dictionary<string, bool> names = new(); // name => unique
-
-            // Check indexes
-            List<string> uniqueIndex = new();
-            try
-            {
-                while (await reader.ReadAsync())
-                {
-                    string keyName = reader.GetString("Key_name");
-                    if (keyName.Equals(DYNAMIC_UNIQUE_INDEX, StringComparison.OrdinalIgnoreCase))
-                    {
-                        uniqueIndex.Add(reader.GetString("Column_name"));
-                    }
-                    else if (!keyName.Equals("PRIMARY", StringComparison.OrdinalIgnoreCase) && !names.ContainsKey(keyName))
-                    {
-                        names.Add(keyName, reader.GetInt32("Non_unique") == 0);
-                    }
-                }
-            }
-            finally
-            {
-                await reader.CloseAsync();
-            }
-
-            // Check unique indexes
-            if (!schema.Single)
-            {
-                List<string> chkUniqueIndex = new()
-                {
-                    DYNAMIC_TABLE_TARG_FIELD
-                };
-                foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
-                    chkUniqueIndex.Add(tableField.Name);
-
-                // Compares the unique indexes
-                if (chkUniqueIndex.Count != uniqueIndex.Count || chkUniqueIndex.Where((p, i) => !p.Equals(uniqueIndex[i])).Any())
-                {
-                    // Remove the old unique index
-                    if (uniqueIndex.Count > 0)
-                    {
-                        sb ??= new StringBuilder();
-                        sb.Append($"DROP INDEX `{DYNAMIC_UNIQUE_INDEX}` ON `{schema.Name}`;");
-                    }
-
-                    // Add the unique index
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE `{schema.Name}` ADD UNIQUE INDEX `{DYNAMIC_UNIQUE_INDEX}`({string.Join(',', chkUniqueIndex.Select(e => $"`{e}`"))});");
-                }
-            }
-
-            // Check new indexes
-            if (schema.Indexes is { Count: > 0 })
-            {
-                foreach (DataTableIndex index in schema.Indexes)
-                {
-                    string key = $"IDX_{schema.Name}_{string.Join('_', index.Fields)}";
-                    bool isUnique = index.Unique ?? false;
-                    if (names.ContainsKey(key))
-                    {
-                        // Check unique
-                        if (names[key] != isUnique)
-                        {
-                            sb ??= new StringBuilder();
-                            sb.Append($"DROP INDEX `{key}` ON `{schema.Name}`;");
-                            sb.Append($"ALTER TABLE `{schema.Name}` ADD {(isUnique ? "UNIQUE" : "INDEX")} `{key}`({string.Join(',', index.Fields.Select(e => $"`{e}`"))});");
-                        }
-                        names.Remove(key);
-                    }
-                    else
-                    {
-                        sb ??= new StringBuilder();
-                        sb.Append($"ALTER TABLE `{schema.Name}` ADD {(isUnique ? "UNIQUE" : "INDEX")} `{key}`({string.Join(',', index.Fields.Select(e => $"`{e}`"))});");
-                    }
-                }
-            }
-
-            // Remove no use indexes
-            foreach (string name in names.Keys.Where(p => !p.Equals(DYNAMIC_UNIQUE_INDEX)))
-            {
-                sb ??= new StringBuilder();
-                sb.Append($"DROP INDEX `{name}` ON `{schema.Name}`;");
-            }
-
-            // Update the table
-            if (sb != null)
-            {
-                DbCommand updateCommand = GetDbCommand();
-                updateCommand.CommandText = sb.ToString();
-                await updateCommand.ExecuteNonQueryAsync();
-            }
+            schema = field.GenDynamicTableSchema();
+            await AppDataProvider.EnsureDynamicTableAsync(schema);
+            field.Schema = schema;
             return schema;
         }
-        catch (MySqlException ex)
-        {
-            // Continue to create the table
-            if (ex.ErrorCode != MySqlErrorCode.NoSuchTable)
-                throw;
-        }
         catch (Exception ex)
         {
-            Logger.LogError(ex.Message);
+            Logger.LogError(ex, $"PrepareFieldDataAsync {field.DynamicTableName} Error");
             throw;
         }
-
-        // Create the data table
-        try
-        {
-            StringBuilder sb = new();
-
-            // Creaate the data table
-            sb.Append($"CREATE TABLE IF NOT EXISTS `{schema.Name}` (");
-
-            // The primary key
-            if (!schema.Single)
-                sb.Append($"`{DYNAMIC_TABLE_SEQNO_FIELD}` INT UNSIGNED AUTO_INCREMENT,");
-            sb.Append($"`{DYNAMIC_TABLE_TARG_FIELD}` VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
-
-            // Genereate the column lists
-            foreach (DynamicTableField tableField in schema.Fields)
-            {
-                // Name-Type
-                sb.Append($"`{tableField.Name}` {tableField.DataType}");
-
-                // Not Null
-                if (tableField.Primary)
-                    sb.Append(" NOT NULL");
-
-                // End
-                sb.Append(", ");
-            }
-
-            // Append primary key
-            if (schema.Single)
-                sb.Append($"PRIMARY KEY(`{DYNAMIC_TABLE_TARG_FIELD}`)");
-            else
-            {
-                // Use auto-incr seqno as primary key
-                sb.Append($"PRIMARY KEY(`{DYNAMIC_TABLE_SEQNO_FIELD}`)");
-
-                // Use target and other primary key as unique index
-                sb.Append($", UNIQUE INDEX {DYNAMIC_UNIQUE_INDEX} (`{DYNAMIC_TABLE_TARG_FIELD}`");
-                foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
-                    sb.Append($", `{tableField.Name}`");
-                sb.Append(")");
-            }
-
-            // End the building
-            sb.Append(") engine=InnoDB;");
-            DbCommand command = GetDbCommand();
-            command.CommandText = sb.ToString();
-            await command.ExecuteNonQueryAsync();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex.Message);
-            throw;
-        }
-
-        field.Used = true;
-        return schema;
     }
 
     /// <summary>
-    /// Preprare the dynamic table for the field
+    /// Prepare the dynamic table for the field
     /// </summary>
     public async Task<List<DynamicTableSchema>> PrepareFieldDataAsync(AppNode node)
     {
         List<DynamicTableSchema> schemaList = new();
+        if (node.Fields == null) return schemaList;
+        
+        // prepare the fields
         foreach (AppFieldNode field in node.Fields)
             schemaList.Add(await PrepareFieldDataAsync(field));
 
@@ -970,49 +818,50 @@ public class SchemaContext
     public async Task<bool> SetSourceFieldNode(AppFieldNode field, string target, string sourceTarget)
     {
         if (field.SourceNode == null) return false;
-        AppNode category = await GetAppNodeAsync(field.Category);
+        AppNode? category = await GetAppNodeAsync(field.App);
         if (category?.RefField == null) return false;
-        JObject data = new();
-        data.Add(CATEGORY_FIELD_REF_CATE, field.SourceCategory);
-        data.Add(CATEGORY_FIELD_REF_TARGET, sourceTarget);
+        JsonObject data = new()
+        {
+            { APP_FIELD_REF_APP, field.SourceApp },
+            { APP_FIELD_REF_TARGET, sourceTarget }
+        };
         return await SaveFieldDataAsync(category.RefField, target, data);
     }
 
     /// <summary>
     /// Sets the ref target of the field
     /// </summary>
-    public async Task<bool> SetSourceFieldNode(AppNode category, string target, string sourceCategory, string sourceTarget)
+    public async Task<bool> SetSourceFieldNode(AppNode app, string target, string sourceApp, string sourceTarget)
     {
-        AppFieldNode field = category.Fields.FirstOrDefault(f => sourceCategory.Equals(f.SourceCategory, StringComparison.OrdinalIgnoreCase));
+        AppFieldNode? field = app.Fields?.FirstOrDefault(f => sourceApp.Equals(f.SourceApp, StringComparison.OrdinalIgnoreCase));
         return field == null || await SetSourceFieldNode(field, target, sourceTarget);
     }
 
     /// <summary>
     /// Sets the ref target of the field
     /// </summary>
-    public async Task<bool> SetSourceFieldNode(string category, string target, string sourceCategory, string sourceTarget)
+    public async Task<bool> SetSourceFieldNode(string app, string target, string sourceApp, string sourceTarget)
     {
-        AppNode node = await GetAppNodeAsync(category);
-        return node == null || await SetSourceFieldNode(node, target, sourceCategory, sourceTarget);
+        AppNode? node = await GetAppNodeAsync(app);
+        return node == null || await SetSourceFieldNode(node, target, sourceApp, sourceTarget);
     }
 
     /// <summary>
     /// Gets the source field node
     /// </summary>
-    public async Task<(AppFieldNode, string)> GetSourceFieldNode(AppFieldNode field, string target, bool forPush = false)
+    public async Task<(AppFieldNode?, string)> GetSourceFieldNode(AppFieldNode? field, string target, bool forPush = false)
     {
-        if (field.SourceNode == null) return (field, target);
-        AppNode category = await GetAppNodeAsync(field.Category);
+        if (field?.SourceNode == null) return (field, target);
+        AppNode? category = await GetAppNodeAsync(field.App);
 
         // Means the category is front only and use the source node's target as target
         if (category?.RefField == null) return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceNode, target);
 
-        JObject query = new();
-        query.Add(CATEGORY_FIELD_REF_CATE, field.SourceNode.Category);
-        (JToken refdata, _) = await GetFieldDataAsync(category.RefField, target, query, ignoreCache: true);
-        if (refdata is JArray { Count: > 0 } arr && arr[0] is JObject jObject && jObject.TryGetValue(CATEGORY_FIELD_REF_TARGET, out JToken val) && val is JValue && !val.IsEmpty())
+        JsonObject query = new() { { APP_FIELD_REF_APP, field.SourceNode.App } };
+        (JsonNode? refData, _) = await GetFieldDataAsync(category.RefField, target, query);
+        if (refData is JsonArray { Count: > 0 } arr && arr[0] is JsonObject jObject && jObject.TryGetValue(APP_FIELD_REF_TARGET, out JsonNode? val) && val is JsonValue && !val.IsEmpty())
         {
-            string reftarget = val.Value<string>();
+            string reftarget = val.GetValue<string>();
             if (!string.IsNullOrWhiteSpace(reftarget))
             {
                 return await GetSourceFieldNode(field.SourceNode, reftarget, forPush);
@@ -1026,286 +875,22 @@ public class SchemaContext
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public async Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, JToken value = null, bool innerCall = false, bool dropList = false)
+    public async Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, JsonNode? value = null, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if (field.IsFrontEnd || !field.IsEnable || field.SourceNode != null) return false;
+        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return false;
 
         // Not allow the direct data update
         if (!innerCall && !string.IsNullOrWhiteSpace(field.Func)) return false;
-
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        
         // Prepare
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-        if (schema == null) return false;
-
-        // Check if incremental updating
-        if (field.IsIncrUpdate) dropList = false;
 
         try
         {
-            target = MySqlHelper.EscapeString(target);
-            DbCommand command;
-
-            // Save the field data to the target
-            if (schema.Single) // Single value
-            {
-                // Gets the origin value
-                (JToken origin, _) = await GetFieldDataAsync(field, target, ignoreCache: true);
-                if (schema.IsSameToken(origin, value))
-                    return true;
-
-                // Delete if null
-                if (value.IsEmpty())
-                {
-                    if (origin != null)
-                    {
-                        command = GetDbCommand();
-                        command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                        await command.ExecuteNonQueryAsync();
-                        OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
-                    }
-                    return true;
-                }
-
-                // Check the value type
-                if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
-                {
-                    // Convert the value
-                    string result = schema.Fields[0].ToString(value);
-                    bool isInsert = false;
-
-                    // Insert the value
-                    if (origin == null)
-                    {
-                        try
-                        {
-                            command = GetDbCommand();
-                            command.CommandText = schema.Fields[0].IsString
-                                ? $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", \"{MySqlHelper.EscapeString(result!)}\" )"
-                                : $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", {result} )";
-                            await command.ExecuteNonQueryAsync();
-                            isInsert = true;
-                        }
-                        catch (MySqlException ex)
-                        {
-                            if (ex.ErrorCode != MySqlErrorCode.DuplicateKeyEntry)
-                                throw;
-                        }
-                    }
-
-                    // Update the value
-                    if (!isInsert)
-                    {
-                        command = GetDbCommand();
-                        command.CommandText = schema.Fields[0].IsString
-                            ? $"UPDATE `{schema.Name}` SET `{DYNAMIC_TABLE_VALUE_FIELD}` = \"{MySqlHelper.EscapeString(result!)}\" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\""
-                            : $"UPDATE `{schema.Name}` SET `{DYNAMIC_TABLE_VALUE_FIELD}` = {result!} WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                        await command.ExecuteNonQueryAsync();
-                    }
-                    OnFieldDataChanged(target, field, isInsert ? TransactionChangeOperation.Create : TransactionChangeOperation.Modify, value, origin);
-                }
-                else if (value is JObject pack)
-                {
-                    // Build the sql
-                    StringBuilder sb = new();
-                    bool isInsert = false;
-
-                    // Insert
-                    if (origin == null)
-                    {
-                        // Header
-                        sb.Append($"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, ");
-                        schema.AppendFields(sb);
-                        sb.Append($") VALUES ( \"{target}\"");
-
-                        // Body
-                        foreach ((string _, string val, bool isString, _) in schema.GetFieldValues(pack))
-                            sb.Append($",{(val == null ? "null" : (isString ? $"\"{MySqlHelper.EscapeString(val)}\"" : val))}");
-
-                        // Footer
-                        sb.Append(");");
-                        try
-                        {
-                            // Execute
-                            command = GetDbCommand();
-                            command.CommandText = sb.ToString();
-                            await command.ExecuteNonQueryAsync();
-                            isInsert = true;
-                        }
-                        catch (MySqlException ex)
-                        {
-                            if (ex.ErrorCode != MySqlErrorCode.DuplicateKeyEntry)
-                                throw;
-                        }
-                    }
-
-                    // Update
-                    if (!isInsert)
-                    {
-                        // Header
-                        sb.Clear();
-                        sb.Append($"UPDATE `{schema.Name}` SET ");
-
-                        // Body
-                        bool preCond = false;
-                        foreach ((string fld, string val, bool isString, _) in schema.GetFieldValues(pack))
-                        {
-                            sb.Append($"{(preCond ? "," : "")}`{fld}`={(val == null ? "null" : (isString ? $"\"{MySqlHelper.EscapeString(val)}\"" : val))}");
-                            preCond = true;
-                        }
-
-                        // Footer
-                        sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
-
-                        // Execute
-                        command = GetDbCommand();
-                        command.CommandText = sb.ToString();
-                        await command.ExecuteNonQueryAsync();
-                    }
-                    OnFieldDataChanged(target, field, isInsert ? TransactionChangeOperation.Create : TransactionChangeOperation.Modify, value, origin);
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else // Multi-Line
-            {
-                JArray array;
-                StringBuilder sb = new();
-
-                // Check if drop list
-                if (dropList)
-                {
-                    // Gets origin data if needed
-                    JToken origin = null;
-                    if (IsDropDataRequired(field)) (origin, _) = await GetFieldDataAsync(field, target, ignoreCache: true);
-
-                    // drop data
-                    command = GetDbCommand();
-                    command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                    await command.ExecuteNonQueryAsync();
-                    OnFieldDataChanged(target, field, TransactionChangeOperation.DropAll, null, origin);
-                }
-
-                // Prepare the data
-                switch (value)
-                {
-                    case JArray arr:
-                        array = arr;
-                        break;
-                    case JObject obj:
-                        array = new JArray
-                        {
-                            obj
-                        };
-                        break;
-                    default:
-                        return dropList;
-                }
-
-                // Foreach
-                foreach (JToken val in array)
-                {
-                    if (val is not JObject pack)
-                        continue;
-
-                    // Build where condition
-                    bool fullfill = true;
-                    sb.Clear();
-                    sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
-                    foreach ((string fld, string v, bool isString, _) in schema.GetFieldValues(pack, true))
-                    {
-                        // Check value
-                        if (v == null)
-                        {
-                            fullfill = false;
-                            break;
-                        }
-                        sb.Append(isString
-                            ? $" AND `{fld}` = \"{MySqlHelper.EscapeString(v)}\""
-                            : $" AND `{fld}` = {v}"
-                        );
-                    }
-                    if (!fullfill)
-                        continue;
-
-                    // Query the origin
-                    string where = sb.ToString();
-                    JToken origin = null;
-                    if (!dropList)
-                    {
-                        (origin, _) = await GetFieldDataAsync(field, target, pack, ignoreCache: true);
-                        if (origin is JArray { Count: > 0 } arr)
-                        {
-                            origin = arr.First;
-                        }
-                        else
-                        {
-                            origin = null;
-                        }
-                    }
-                    if (schema.IsSameToken(origin, pack))
-                        continue;
-
-                    // Insert
-                    bool isInsert = false;
-                    if (origin.IsEmpty())
-                    {
-                        // Header
-                        sb.Clear();
-                        sb.Append($"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, ");
-                        schema.AppendFields(sb);
-                        sb.Append($") VALUES ( \"{target}\"");
-
-                        // Body
-                        foreach ((string _, string v, bool isString, _) in schema.GetFieldValues(pack))
-                            sb.Append($",{(v == null ? "null" : (isString ? $"\"{MySqlHelper.EscapeString(v)}\"" : v))}");
-
-                        // Footer
-                        sb.Append(");");
-                        try
-                        {
-                            // Execute
-                            command = GetDbCommand();
-                            command.CommandText = sb.ToString();
-                            await command.ExecuteNonQueryAsync();
-                            isInsert = true;
-                        }
-                        catch (MySqlException ex)
-                        {
-                            if (ex.ErrorCode != MySqlErrorCode.DuplicateKeyEntry)
-                                throw;
-                        }
-                    }
-                    if (!isInsert)
-                    {
-                        // Header
-                        sb.Clear();
-                        sb.Append($"UPDATE `{schema.Name}` SET ");
-
-                        // Body
-                        bool preCond = false;
-                        foreach ((string fld, string v, bool isString, _) in schema.GetFieldValues(pack, false, true))
-                        {
-                            sb.Append($"{(preCond ? "," : "")}`{fld}`={(v == null ? "null" : (isString ? $"\"{MySqlHelper.EscapeString(v)}\"" : v))}");
-                            preCond = true;
-                        }
-
-                        // Footer
-                        sb.Append(" ");
-                        sb.Append(where);
-
-                        // Execute
-                        command = GetDbCommand();
-                        command.CommandText = sb.ToString();
-                        await command.ExecuteNonQueryAsync();
-                    }
-
-                    // Register the operation
-                    OnFieldDataChanged(target, field, isInsert ? TransactionChangeOperation.Create : TransactionChangeOperation.Modify, pack, origin);
-                }
-            }
+            (bool result, JsonNode? origin) = await AppDataProvider.SaveDynamicTableDataAsync(schema, target, value);
+            if (result) OnFieldDataChanged(target, field, TransactionChangeOperation.Modify, value, origin);
             return true;
         }
         catch (Exception ex)
@@ -1318,76 +903,22 @@ public class SchemaContext
     /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public async Task DeleteFieldListDataAsync(AppFieldNode field, string target, JToken query, bool multi = false, bool innerCall = false)
+    public async Task DeleteFieldListDataAsync(AppFieldNode field, string target, JsonArray query, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if (field.IsFrontEnd || !field.IsEnable || field.SourceNode != null) return;
-
+        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return;
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        
         // Prepare
-        target = MySqlHelper.EscapeString(target);
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
 
         // Only non-single schema can be used
-        if (schema == null || schema.Single) return;
+        if (schema.Single) return;
         try
         {
-            JArray array;
-            StringBuilder sb = new();
-            switch (query)
-            {
-                case JArray arr:
-                    array = arr;
-                    break;
-                case JObject obj:
-                    array = new JArray
-                    {
-                        obj
-                    };
-                    break;
-                default:
-                    return;
-            }
-
-            // Foreach
-            foreach (JToken val in array)
-            {
-                if (val is not JObject pack)
-                    continue;
-
-                // Build where condition
-                bool fullfill = true;
-                sb.Clear();
-                sb.Append($"WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
-                foreach ((string fld, string v, bool isString, _) in schema.GetFieldValues(pack, true))
-                {
-                    // Check value
-                    if (v == null)
-                    {
-                        if (multi)
-                            continue;
-                        fullfill = false;
-                        break;
-                    }
-                    sb.Append(isString
-                        ? $" AND `{fld}` = \"{MySqlHelper.EscapeString(v)}\""
-                        : $" AND `{fld}` = {v}"
-                    );
-                }
-                if (!fullfill)
-                    continue;
-
-                // Gets the data
-                (JToken origin, _) = await GetFieldDataAsync(field, target, pack, ignoreCache: true);
-                if (origin is not JArray { Count: > 0 } arr)
-                    continue;
-
-                // Delete the data
-                DbCommand command = GetDbCommand();
-                command.CommandText = $"DELETE FROM `{schema.Name}` {sb}";
-                await command.ExecuteNonQueryAsync();
-                foreach (JToken token in arr)
-                    OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, token);
-            }
+            (bool result, JsonNode? origin) = await AppDataProvider.DeleteDynamicTableDataAsync(schema, target, query);
+            if (result)
+                OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
@@ -1402,38 +933,19 @@ public class SchemaContext
     public async Task DeleteFieldDataAsync(AppFieldNode field, string target, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if (field.IsFrontEnd || !field.IsEnable || field.SourceNode != null) return;
-
+        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return;
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        
         // Prepare
-        target = MySqlHelper.EscapeString(target);
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-        if (schema == null) return;
+        
         try
         {
-            if (schema.Single)
-            {
-                // Gets the deleted data
-                (JToken origin, _) = await GetFieldDataAsync(field, target, ignoreCache: true);
-                if (origin != null)
-                {
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\";";
-                    await command.ExecuteNonQueryAsync();
-                    OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
-                }
-            }
-            else
-            {
-                // Gets origin data if needed
-                JToken origin = null;
-                if (IsDropDataRequired(field)) (origin, _) = await GetFieldDataAsync(field, target, ignoreCache: true);
-
-                // Drop data
-                DbCommand command = GetDbCommand();
-                command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\";";
-                await command.ExecuteNonQueryAsync();
-                OnFieldDataChanged(target, field, TransactionChangeOperation.DropAll, null, origin);
-            }
+            (bool result, JsonNode? origin) = await AppDataProvider.DeleteDynamicTableDataAsync(schema, target);
+            if (result)
+                OnFieldDataChanged(target, field, 
+                    schema.Single ? TransactionChangeOperation.Delete : TransactionChangeOperation.DropAll, 
+                    null, origin);
         }
         catch (Exception ex)
         {
@@ -1445,364 +957,28 @@ public class SchemaContext
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public async Task<(JToken value, int total)> GetFieldDataAsync(AppFieldNode field, string target, JToken query = null, int? offset = 0, int? count = -1, bool desc = false, bool ignoreCache = false)
+    public async Task<(JsonNode? value, int total)> GetFieldDataAsync(AppFieldNode? field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         // Front end only
-        if (field.IsFrontEnd || !field.IsEnable) return (null, 0);
-
-        // Prepare
-        target = MySqlHelper.EscapeString(target);
+        if ((field?.Frontend ?? false) || (field?.Disable ?? false)) return (null, 0);
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         (field, target) = await GetSourceFieldNode(field, target);
         if (field == null) return (null, 0);
 
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-        if (schema == null)
-            return (null, 0);
 
         string original = Target;
         try
         {
             Target = target;
-            if (schema.Single)
-            {
-                // Gets the data from the cache
-                JToken value = !ignoreCache ? await GetFieldDataFromCacheAsync<JToken>(schema.Name, target) : null;
-                if (value != null)
-                    return (value, 1);
-
-                // Gets the data from the database
-                if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
-                {
-                    // Single value
-
-                    // Gets the data from data base
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = $"SELECT `{DYNAMIC_TABLE_VALUE_FIELD}` FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                    DbDataReader reader = await command.ExecuteReaderAsync();
-                    try
-                    {
-                        if (reader.HasRows)
-                        {
-                            await reader.ReadAsync();
-                            value = schema.Fields[0].FromReader(reader);
-                        }
-                    }
-                    finally
-                    {
-                        await reader.CloseAsync();
-                    }
-                }
-                else
-                {
-                    // Struct value
-
-                    // Build sql
-                    StringBuilder sbs = new();
-                    sbs.Append("SELECT ");
-                    schema.AppendFields(sbs);
-                    sbs.Append($" From `{schema.Name}`");
-                    sbs.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
-
-                    // Get datas
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = sbs.ToString();
-                    DbDataReader reader = await command.ExecuteReaderAsync();
-                    try
-                    {
-                        if (reader.HasRows)
-                        {
-                            await reader.ReadAsync();
-                            value = schema.GetFieldPack(this, reader);
-                        }
-                    }
-                    finally
-                    {
-                        await reader.CloseAsync();
-                    }
-
-                    // Generate display only fields
-                    await schema.GenerateDisplayOnlyFields(this, value);
-                }
-
-                // Save to cache
-                if (value != null && !ignoreCache)
-                    await SaveFieldDataToCacheAsync(schema.Name, target, value);
-                return (value, value == null ? 0 : 1);
-            }
-            else
-            {
-                // return list value
-                JToken[] cacheValues = null;
-
-                // Build sql
-                bool queryTotal = true;
-                bool cacheArray = (DataDictConfig?.EnableTotalArrayCache ?? false) && !field.IsIncrUpdate && offset is null or <= 0 && count is null or <= 0;
-                Dictionary<string, string> queryPack = null;
-                StringBuilder sb = new();
-                sb.Append($" From `{schema.Name}`");
-
-                // Conditions
-                sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
-                switch (query)
-                {
-                    // Query based on the conditions
-                    case JObject pack:
-                        {
-                            bool fullfill = true;
-                            List<string> primaryKey = new();
-                            queryPack = new Dictionary<string, string>();
-                            foreach ((string fld, string v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
-                            {
-                                if (v == null)
-                                {
-                                    fullfill = false;
-                                }
-                                else
-                                {
-                                    // Multi, no cache
-                                    if (isList) fullfill = false;
-
-                                    queryPack.Add(fld, v);
-                                    primaryKey.Add(v);
-                                    sb.Append(
-                                        isList
-                                            ? $" AND `{fld}` IN {v}"
-                                            : isString
-                                                ? $" AND `{fld}` = \"{v}\""
-                                                : $" AND `{fld}` = {v}");
-                                }
-                            }
-
-                            // Check count && offset
-                            queryTotal = !fullfill;
-                            if (fullfill)
-                            {
-                                // Gets the data by cache
-                                JToken v = !ignoreCache ? await GetFieldDataFromCacheAsync<JToken>(schema.Name, target, primaryKey.ToArray()) : null;
-                                if (v != null)
-                                    return (new JArray
-                                {
-                                    v
-                                }, 1);
-                                // Prepare for query
-                                cacheValues = new JToken[1];
-                            }
-                            break;
-                        }
-                    case JArray array:
-                        {
-                            if (array.Count == 0)
-                                break;
-                            queryTotal = false;
-                            cacheValues = new JToken[array.Count];
-                            bool hasQuery = false;
-                            sb.Append(" AND (");
-
-                            // Only allow fullfill query
-                            for (int i = 0; i < array.Count; i++)
-                            {
-                                JToken token = array[i];
-                                if (token is not JObject pack)
-                                    continue;
-
-                                // Pre
-                                StringBuilder subSb = new();
-                                bool fullfill = true;
-                                bool appenAnd = false;
-                                List<string> primaryKey = new();
-
-                                // Build the query
-                                if (hasQuery) subSb.Append(" OR ");
-                                subSb.Append("(");
-                                foreach ((string fld, string v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
-                                {
-                                    if (isList || v == null)
-                                    {
-                                        fullfill = false;
-                                        break;
-                                    }
-                                    primaryKey.Add(v);
-                                    if (appenAnd) subSb.Append(" AND ");
-                                    subSb.Append(isString ? $"`{fld}` = \"{v}\"" : $"`{fld}` = {v}");
-                                    appenAnd = true;
-                                }
-                                subSb.Append(")");
-
-                                // Only allow full query here
-                                if (fullfill)
-                                {
-                                    // Gets the data by cache
-                                    JToken v = !ignoreCache ? await GetFieldDataFromCacheAsync<JToken>(schema.Name, target, primaryKey.ToArray()) : null;
-                                    if (v == null)
-                                    {
-                                        sb.Append(subSb.ToString());
-                                        hasQuery = true;
-                                    }
-                                    else
-                                    {
-                                        cacheValues[i] = v;
-                                    }
-                                }
-                                else
-                                {
-                                    return (null, 0);
-                                }
-                            }
-                            // Tail
-                            sb.Append(")");
-
-                            // Check if all in cache
-                            if (cacheValues.All(p => p != null))
-                            {
-                                JArray result = new();
-                                foreach (JToken token in cacheValues) result.Add(token);
-                                return (result, result.Count);
-                            }
-                            if (!hasQuery)
-                                return (null, 0);
-
-                            // Continue
-                            break;
-                        }
-                }
-
-                // Query Total
-                int total = 0;
-                if (queryTotal)
-                {
-                    // Check the full cache of the target
-                    if (cacheArray && !ignoreCache)
-                    {
-                        JArray cacheResult = await GetFieldDataFromCacheAsync<JArray>(schema.Name, target);
-                        if (cacheResult is { Count: > 0 })
-                        {
-                            // Filter by query pack
-                            if (queryPack is { Count: > 0 })
-                            {
-                                JArray filterArray = new();
-                                foreach (JToken token in cacheResult)
-                                {
-                                    if (token is JObject obj)
-                                    {
-                                        bool fullMatch = true;
-                                        foreach ((string k, string v) in queryPack)
-                                        {
-                                            if (obj.ContainsKey(k) && obj[k] is JValue { Value: { } } val && v.Equals(val.ToString(CultureInfo.InvariantCulture)))
-                                            {
-                                                fullMatch = false;
-                                                break;
-                                            }
-                                        }
-                                        if (fullMatch)
-                                            filterArray.Add(obj);
-                                    }
-                                }
-                                cacheResult = filterArray;
-                            }
-                            return (cacheResult, cacheResult.Count);
-                        }
-                    }
-                    DbCommand totalCommand = GetDbCommand();
-                    totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
-                    DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
-                    try
-                    {
-                        if (totalReader.HasRows && await totalReader.ReadAsync())
-                            total = totalReader.GetInt32(0);
-                    }
-                    finally
-                    {
-                        await totalReader.CloseAsync();
-                    }
-
-                    // Append the rest
-                    sb.Append($" ORDER BY `{DYNAMIC_TABLE_SEQNO_FIELD}`");
-                    if (desc) sb.Append(" DESC ");
-                    if (count is > 0)
-                        sb.Append($" LIMIT {count}");
-                    if (offset is > 0)
-                        sb.Append($" OFFSET {offset}");
-                }
-                sb.Append(";");
-
-                // Query Data
-                StringBuilder header = new();
-                header.Append("SELECT ");
-                schema.AppendFields(header);
-                JArray value = new();
-                DbCommand command = GetDbCommand();
-                command.CommandText = $"{header}{sb}";
-                DbDataReader reader = await command.ExecuteReaderAsync();
-                try
-                {
-                    if (reader.HasRows)
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            JObject pack = schema.GetFieldPack(this, reader);
-                            if (pack != null)
-                                value.Add(pack);
-                        }
-                    }
-                }
-                finally
-                {
-                    await reader.CloseAsync();
-                }
-
-                // Generate display only fields
-                foreach (JToken v in value)
-                {
-                    await schema.GenerateDisplayOnlyFields(this, v);
-                }
-
-                // Cache
-                switch (queryTotal)
-                {
-                    // Check if need save the array to cache
-                    case true when cacheArray && (queryPack == null || queryPack.Count == 0) && value.Count < 100 && !ignoreCache:
-                        await SaveFieldDataToCacheAsync(schema.Name, target, value);
-                        break;
-
-                    // Combine the cache data with values
-                    case false when cacheValues is { Length: > 0 }:
-                        {
-                            int i = 0;
-                            foreach (JToken token in value)
-                            {
-                                for (; i < cacheValues.Length; i++)
-                                {
-                                    if (cacheValues[i] != null) continue;
-                                    cacheValues[i] = token;
-                                    if (token is JObject obj && !ignoreCache)
-                                    {
-                                        // Save the data to cache
-                                        List<string> primaryKey = new();
-                                        foreach ((_, string v, _, _) in schema.GetFieldValues(obj, true))
-                                        {
-                                            primaryKey.Add(v);
-                                        }
-                                        await SaveFieldDataToCacheAsync(schema.Name, target, obj, primaryKey.ToArray());
-                                    }
-                                    break;
-                                }
-                            }
-
-                            // re-fill the result
-                            value.Clear();
-                            for (i = 0; i < cacheValues.Length; i++)
-                            {
-                                if (cacheValues[i] != null)
-                                {
-                                    value.Add(cacheValues[i]);
-                                }
-                            }
-                            break;
-                        }
-                }
-                return (value, total == 0 ? value.Count : total);
-            }
+            
+            (JsonNode? result, int total) = await AppDataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy);
+            
+            // Generate display only fields
+            await schema.GenerateDisplayOnlyFields(this, result);
+            
+            return (result, total);
         }
         catch (Exception ex)
         {
@@ -1812,631 +988,6 @@ public class SchemaContext
         finally
         {
             Target = original;
-        }
-    }
-
-    /// <summary>
-    /// Gets the field datas
-    /// </summary>
-    public async Task<Dictionary<string, JToken>> GetFieldDatasAsync(AppFieldNode field, IEnumerable<string> targetList, JToken query = null, int? offset = 0, int? count = -1)
-    {
-        // Front end only
-        if (field.IsFrontEnd || !field.IsEnable || field.SourceNode != null) return new Dictionary<string, JToken>();
-
-        // Prepare
-        DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-        if (schema == null) return new Dictionary<string, JToken>();
-
-        try
-        {
-            Dictionary<string, JToken> result = new();
-
-            if (schema.Single)
-            {
-                // Check the cache first
-                List<string> queryTargets = new();
-                foreach (string target in targetList.Select(MySqlHelper.EscapeString))
-                {
-                    JToken value = await GetFieldDataFromCacheAsync<JToken>(schema.Name, target);
-                    if (value != null)
-                    {
-                        result.Add(target, value);
-                    }
-                    else
-                    {
-                        queryTargets.Add(target);
-                    }
-                }
-                if (queryTargets.Count == 0)
-                {
-                    return result;
-                }
-
-                // Query the data
-                string targets = string.Join(',', queryTargets.Select(p => $"\'{p}\'").ToList());
-                if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
-                {
-                    // return single value
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = $"SELECT `{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}` FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` in ({targets});";
-                    DbDataReader reader = await command.ExecuteReaderAsync();
-                    try
-                    {
-                        if (reader.HasRows)
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                string targetId = reader.GetString(DYNAMIC_TABLE_TARG_FIELD);
-                                if (!result.ContainsKey(targetId))
-                                    result.Add(targetId, schema.Fields[0].FromReader(reader, 1));
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        await reader.CloseAsync();
-                    }
-                }
-                else
-                {
-                    // return struct value
-
-                    // Build sql
-                    StringBuilder sb = new();
-                    sb.Append($"SELECT `{DYNAMIC_TABLE_TARG_FIELD}`, ");
-                    schema.AppendFields(sb);
-                    sb.Append($" From `{schema.Name}`");
-                    sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` in ({targets});");
-
-                    // Get datas
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = sb.ToString();
-                    DbDataReader reader = await command.ExecuteReaderAsync();
-                    try
-                    {
-                        if (reader.HasRows)
-                        {
-                            while (await reader.ReadAsync())
-                            {
-                                string targetId = reader.GetString(DYNAMIC_TABLE_TARG_FIELD);
-                                if (!result.ContainsKey(targetId))
-                                    result.Add(targetId, schema.GetFieldPack(this, reader, 1));
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        await reader.CloseAsync();
-                    }
-
-                    foreach ((_, JToken v) in result)
-                    {
-                        // Generate display only fields
-                        await schema.GenerateDisplayOnlyFields(this, v);
-                    }
-                }
-
-                // Save the cache
-                foreach (string target in queryTargets.Where(target => result.ContainsKey(target)))
-                {
-                    await SaveFieldDataToCacheAsync(schema.Name, target, result[target]);
-                }
-                return result;
-            }
-            else
-            {
-                // TODO: Add cache support or not, this is a complex branch won't or rarely used
-                targetList = targetList.Select(MySqlHelper.EscapeString).ToList();
-                string targets = string.Join(',', targetList.Select(p => $"\'{p}\'").ToList());
-
-                // return list value
-
-                // Build sql
-                StringBuilder sb = new();
-                sb.Append($"SELECT `{DYNAMIC_TABLE_TARG_FIELD}`, ");
-                schema.AppendFields(sb);
-                sb.Append($" From `{schema.Name}`");
-
-                // Conditions
-                sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` in ({targets})");
-                switch (query)
-                {
-                    // Query based on the conditions
-                    case JObject pack:
-                        {
-                            bool fullfill = true;
-                            foreach ((string fld, string v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
-                            {
-                                if (v == null)
-                                {
-                                    fullfill = false;
-                                }
-                                else if (isList)
-                                {
-                                    fullfill = false;
-                                    sb.Append($" AND `{fld}` IN {v}");
-                                }
-                                else
-                                {
-                                    sb.Append(isString ? $" AND `{fld}` = \"{v}\"" : $" AND `{fld}` = {v}");
-                                }
-                            }
-
-                            // Check count && offset
-                            if (!fullfill)
-                            {
-                                sb.Append($" ORDER BY `{DYNAMIC_TABLE_SEQNO_FIELD}`");
-                                if (count is > 0)
-                                    sb.Append($" LIMIT {count}");
-                                if (offset is > 0)
-                                    sb.Append($" OFFSET {offset}");
-                            }
-                            sb.Append(";");
-                            break;
-                        }
-                    case JArray array:
-                        bool hasQuery = false;
-                        sb.Append(" AND (");
-
-                        // Only allow fullfil query
-                        foreach (JToken token in array)
-                        {
-                            if (token is not JObject pack)
-                                continue;
-
-                            // Pre
-                            if (hasQuery)
-                                sb.Append(" OR ");
-                            sb.Append("(");
-                            bool fullfill = true;
-                            bool appenAnd = false;
-                            foreach ((string fld, string v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
-                            {
-                                if (isList || v == null)
-                                {
-                                    fullfill = false;
-                                    break;
-                                }
-                                else
-                                {
-                                    if (appenAnd)
-                                        sb.Append(" AND ");
-                                    appenAnd = true;
-                                    sb.Append(isString
-                                        ? $"`{fld}` = \"{v}\""
-                                        : $"`{fld}` = {v}");
-                                }
-                            }
-
-                            // Check count && offset
-                            if (fullfill)
-                            {
-                                hasQuery = true;
-                            }
-                            else
-                            {
-                                return null;
-                            }
-
-                            // Tail
-                            sb.Append(")");
-                        }
-                        if (!hasQuery)
-                            return null;
-                        sb.Append($") ORDER BY `{DYNAMIC_TABLE_SEQNO_FIELD}`;");
-                        break;
-                    default:
-                        // Based on offset & count
-                        sb.Append($" ORDER BY `{DYNAMIC_TABLE_SEQNO_FIELD}`");
-                        if (count is > 0)
-                            sb.Append($" LIMIT {count}");
-                        if (offset is > 0)
-                            sb.Append($" OFFSET {offset}");
-                        sb.Append(";");
-                        break;
-                }
-
-                // Query
-                Dictionary<string, JToken> values = null;
-                DbCommand command = GetDbCommand();
-                command.CommandText = sb.ToString();
-                DbDataReader reader = await command.ExecuteReaderAsync();
-                try
-                {
-                    if (reader.HasRows)
-                    {
-                        values = new Dictionary<string, JToken>();
-                        while (await reader.ReadAsync())
-                        {
-                            string targetId = reader.GetString(DYNAMIC_TABLE_TARG_FIELD);
-                            JObject pack = schema.GetFieldPack(this, reader, 1);
-                            if (!values.ContainsKey(targetId))
-                            {
-                                if (pack != null)
-                                    values.Add(targetId, new JArray(pack));
-                            }
-                            else
-                            {
-                                if (pack != null)
-                                    ((JArray)values[targetId]).Add(pack);
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    await reader.CloseAsync();
-                }
-
-                // Generate display only fields
-                if (values != null)
-                {
-                    foreach ((_, JToken v) in values)
-                    {
-                        if (v is JArray arr)
-                        {
-                            foreach (JToken val in arr)
-                            {
-                                await schema.GenerateDisplayOnlyFields(this, val);
-                            }
-                        }
-                    }
-                }
-
-                return values;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex.Message);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Gets field data with query condition
-    /// </summary>
-    public async Task<JArray> GetFieldDataAsync(AppFieldNode field, string target, string condition, JObject query)
-    {
-        // Front end only
-        if (field.IsFrontEnd || !field.IsEnable) return new JArray();
-
-        string original = Target;
-        try
-        {
-            // Prepare
-            target = MySqlHelper.EscapeString(target);
-
-            (field, target) = await GetSourceFieldNode(field, target);
-            if (field == null) return new JArray();
-
-            DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-            if (schema == null) return new JArray();
-
-            Target = target;
-
-            // No condition or single
-            if (string.IsNullOrWhiteSpace(condition) || schema.Single)
-            {
-                (JToken value, _) = await GetFieldDataAsync(field, target);
-                return value switch
-                {
-                    JArray arr => arr,
-                    JObject => new JArray
-                    {
-                        value
-                    },
-                    JValue { Value: { } } => new JArray
-                    {
-                        value
-                    },
-                    _ => new JArray()
-                };
-            }
-            else if (condition.Contains(";"))
-            {
-                return new JArray();
-            }
-            else
-            {
-                // Prepare the condition
-                MatchCollection matches = Regex.Matches(condition, @"(\w+)\s*([=><]+|like)\s*\{(\w+)\}", RegexOptions.IgnoreCase);
-
-                // Prepare the replacement
-                foreach (Match match in matches)
-                {
-                    string key = match.Groups[3].Value;
-                    DynamicTableField fld = schema.Fields.FirstOrDefault(p => p.Name.Equals(match.Groups[1].Value, StringComparison.InvariantCultureIgnoreCase));
-                    if (fld == null || !query.ContainsKey(key)) return new JArray();
-                    JToken val = query[key];
-                    string replace;
-                    if (fld.Type == DynamicTableFieldType.DateTime)
-                    {
-                        DateTime dt = val.ToObject<DateTime>();
-                        if (match.Groups[2].Value.Contains(">"))
-                        {
-                            dt = dt.GetFirstTimeOfDay();
-                        }
-                        else if (match.Groups[2].Value.Contains("<"))
-                        {
-                            dt = dt.GetLastTimeOfDay();
-                        }
-                        replace = $"\"{dt:yyyy-MM-dd HH:mm:ss}\"";
-                    }
-                    else
-                    {
-                        replace = fld.ToString(val);
-                        if (fld.IsString) replace = $"\"{replace}\"";
-                    }
-                    condition = condition.Replace($"{{{key}}}", replace);
-                }
-
-                // Build the query sql
-                StringBuilder sb = new();
-                sb.Append($" From `{schema.Name}`");
-
-                // Conditions
-                sb.Append($" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\" AND {condition};");
-
-                // Query Data
-                StringBuilder header = new();
-                header.Append("SELECT ");
-                schema.AppendFields(header);
-                JArray value = new();
-                DbCommand command = GetDbCommand();
-                command.CommandText = $"{header}{sb}";
-                DbDataReader reader = await command.ExecuteReaderAsync();
-                try
-                {
-                    if (reader.HasRows)
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            JObject pack = schema.GetFieldPack(this, reader);
-                            if (pack != null)
-                                value.Add(pack);
-                        }
-                    }
-                }
-                finally
-                {
-                    await reader.CloseAsync();
-                }
-
-                // Generate display only fields
-                foreach (JToken val in value)
-                {
-                    await schema.GenerateDisplayOnlyFields(this, val);
-                }
-
-                return value;
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex.Message);
-            throw;
-        }
-        finally
-        {
-            Target = original;
-        }
-    }
-
-    /// <summary>
-    /// Reload push field data
-    /// </summary>
-    public async Task<(JToken value, int total)> ReLoadFieldDataAsync(AppFieldNode field, string target, JToken query = null, int? offset = 0, int? count = -1, bool desc = false, bool ignoreCache = false)
-    {
-        if (field.FuncNode != null)
-        {
-            await BeginTransactionAsync();
-
-            // Process data field push
-            await ProcessDataPush(target, new TransactionChangeData(), true, false, field);
-
-            // Clear caches
-            foreach ((string t, TransactionChangeData changeData) in transChangedData)
-                await ClearCacheByChangedData(t, changeData);
-
-            // commit transactions
-            if (transaction != null)
-            {
-                await transaction.CommitAsync();
-                await transaction.DisposeAsync();
-                transaction = null;
-            }
-
-            // Clear the caches
-            if (clearMessage != null)
-            {
-                try
-                {
-                    foreach (string key in clearMessage.Keys)
-                    {
-                        await Cache.Delete(key);
-                    }
-                    foreach (string key in clearMessage.HashKeys)
-                    {
-                        await HashCache.Delete(key);
-                    }
-                    foreach ((string key, List<string> fields) in clearMessage.HashFields)
-                    {
-                        foreach (string f in fields)
-                        {
-                            await HashCache.DeleteHashItem<JToken>(key, f);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (MessageQueue != null)
-                    {
-                        await MessageQueue.SendAsync(clearMessage, "CLEAR");
-                    }
-                    Logger.LogError(ex.Message);
-                }
-                clearMessage = null;
-            }
-        }
-        // Return changes
-        return await GetFieldDataAsync(field, target, query, offset, count, desc, ignoreCache);
-    }
-
-    #endregion
-
-    #region Dynamic Data Cache
-
-    // Get data from cache
-    async Task<T> GetFieldDataFromCacheAsync<T>(string table, string target, params string[] keys) where T : JToken
-    {
-        if (DataDictConfig is not { DynamicCacheInterval: > 0 }) return default;
-        try
-        {
-            if (keys is { Length: > 0 })
-            {
-                // Hash
-                if ((await HashCache.TryGetHashItem<JToken>($"{DYNAMIC_HASH_CACHE_PREFIX}{table}:{target}", string.Join(':', keys))).Out(out JToken value))
-                {
-                    if (value is T v)
-                        return v;
-                }
-            }
-            else
-            {
-                // Single
-                if ((await Cache.TryGet<JToken>($"{DYNAMIC_SINGLE_CACHE_PREFIX}{table}:{target}")).Out(out JToken value))
-                {
-                    if (value is T v)
-                        return v;
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"{nameof(GetFieldDataFromCacheAsync)} Failed");
-        }
-        return null;
-    }
-
-    // Delete data in cache
-    void DeleteFieldDataInCacheAsync(string table, string target, params string[] keys)
-    {
-        if (DataDictConfig is not { DynamicCacheInterval: > 0 }) return;
-        try
-        {
-            // DELETE SINGLE
-            string key = $"{DYNAMIC_SINGLE_CACHE_PREFIX}{table}:{target}";
-            if (clearMessage.Keys != null && !clearMessage.Keys.Contains(key))
-                clearMessage.Keys.Add(key);
-
-            // DELETE Hash
-            key = $"{DYNAMIC_HASH_CACHE_PREFIX}{table}:{target}";
-            if (keys is { Length: > 0 })
-            {
-                // Delete by field
-                string field = string.Join(':', keys);
-                if (clearMessage.HashFields != null)
-                {
-                    if (clearMessage.HashFields.ContainsKey(key))
-                    {
-                        clearMessage.HashFields[key].Add(field);
-                    }
-                    else
-                    {
-                        clearMessage.HashFields.Add(key, new List<string>
-                        {
-                            field
-                        });
-                    }
-                }
-            }
-            else if (clearMessage.HashKeys != null && !clearMessage.HashKeys.Contains(key))
-            {
-                // Delete all
-                clearMessage.HashKeys.Add(key);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"{nameof(DeleteFieldDataInCacheAsync)} Failed");
-        }
-    }
-
-    // Save data to cache
-    async Task SaveFieldDataToCacheAsync(string table, string target, JToken value, params string[] keys)
-    {
-        if (DataDictConfig is not { DynamicCacheInterval: > 0 }) return;
-        try
-        {
-            if (keys is { Length: > 0 })
-            {
-                // Hash
-                string key = $"{DYNAMIC_HASH_CACHE_PREFIX}{table}:{target}";
-                await HashCache.SetHashItem(key, string.Join(':', keys), value);
-                await HashCache.SetExpireTime(key, TimeSpan.FromSeconds(DataDictConfig.DynamicCacheInterval));
-            }
-            else
-            {
-                // Single
-                await Cache.Set($"{DYNAMIC_SINGLE_CACHE_PREFIX}{table}:{target}", value, TimeSpan.FromSeconds(DataDictConfig.DynamicCacheInterval));
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, $"{nameof(SaveFieldDataToCacheAsync)} Failed");
-        }
-    }
-
-    // Clear by changed data
-    async Task ClearCacheByChangedData(string target, TransactionChangeData changeData)
-    {
-        foreach ((AppFieldNode field, List<FieldDataChangeData> changes) in changeData.Changes)
-        {
-            DynamicTableSchema schema = await PrepareFieldDataAsync(field);
-            if (schema == null) continue;
-            if (schema.Single)
-            {
-                DeleteFieldDataInCacheAsync(schema.Name, target);
-            }
-            else
-            {
-                if (changes.Any(p => p.Operation == TransactionChangeOperation.DropAll))
-                {
-                    // Delete all
-                    DeleteFieldDataInCacheAsync(schema.Name, target);
-                }
-                else
-                {
-                    bool fullDel = false;
-                    foreach (FieldDataChangeData data in changes)
-                    {
-                        if (data.Origin == null) continue;
-                        List<string> primaryKey = new();
-                        if (data.Origin is not JObject pack)
-                        {
-                            fullDel = true;
-                            break;
-                        }
-                        foreach ((_, string v, _, _) in schema.GetFieldValues(pack, true))
-                        {
-                            if (v == null)
-                            {
-                                fullDel = true;
-                                break;
-                            }
-                            else
-                            {
-                                primaryKey.Add(v);
-                            }
-                        }
-                        if (fullDel) break;
-                        DeleteFieldDataInCacheAsync(schema.Name, target, primaryKey.ToArray());
-                    }
-                    if (fullDel)
-                        DeleteFieldDataInCacheAsync(schema.Name, target);
-                }
-            }
         }
     }
 
@@ -2449,21 +1000,9 @@ public class SchemaContext
     /// </summary>
     public async Task BeginTransactionAsync()
     {
-        if (MySql.Context.Database.GetDbConnection().State == ConnectionState.Closed)
-            await MySql.Context.Database.GetDbConnection().OpenAsync();
-
-        // Begin transaction
-        if (MySql.Context.Database.CurrentTransaction == null)
-            transaction = await MySql.Context.Database.BeginTransactionAsync();
-        else
-            transaction = null;
-        transChangedData.Clear();
-        clearMessage = new DotNetGaiaCloudCacheClearMessage
-        {
-            Keys = new List<string>(),
-            HashKeys = new List<string>(),
-            HashFields = new Dictionary<string, List<string>>()
-        };
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        await AppDataProvider.BeginTransactionAsync();
+        _transChangedData.Clear();
     }
 
     /// <summary>
@@ -2471,65 +1010,25 @@ public class SchemaContext
     /// </summary>
     public async Task<Dictionary<string, Dictionary<string, List<FieldDataChangeData>>>> CommitAsync(bool pushAll = false, bool pushAllFields = false)
     {
-        // Gather change datas
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        
+        // Gather change data
         Dictionary<string, Dictionary<string, List<FieldDataChangeData>>> commits = new();
 
         // Process data field push
-        foreach (string target in transChangedData.Keys.ToArray())
+        foreach (string target in _transChangedData.Keys.ToArray())
         {
             // Gather change datas
             Dictionary<string, List<FieldDataChangeData>> commitFields = new();
-            foreach ((AppFieldNode field, List<FieldDataChangeData> data) in transChangedData[target].Changes)
+            foreach ((AppFieldNode field, List<FieldDataChangeData> data) in _transChangedData[target].Changes)
                 commitFields[field.Name] = data;
             commits[target] = commitFields;
 
             // process data push
-            await ProcessDataPush(target, transChangedData[target], pushAll, pushAllFields);
+            await ProcessDataPush(target, _transChangedData[target], pushAll, pushAllFields);
         }
 
-        // Clear caches
-        foreach ((string target, TransactionChangeData changeData) in transChangedData)
-            await ClearCacheByChangedData(target, changeData);
-
-        // commit transactions
-        if (transaction != null)
-        {
-            await transaction.CommitAsync();
-            await transaction.DisposeAsync();
-            transaction = null;
-        }
-
-        // Clear the caches
-        if (clearMessage != null)
-        {
-            try
-            {
-                foreach (string key in clearMessage.Keys)
-                {
-                    await Cache.Delete(key);
-                }
-                foreach (string key in clearMessage.HashKeys)
-                {
-                    await HashCache.Delete(key);
-                }
-                foreach ((string key, List<string> fields) in clearMessage.HashFields)
-                {
-                    foreach (string field in fields)
-                    {
-                        await HashCache.DeleteHashItem<JToken>(key, field);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                if (MessageQueue != null)
-                {
-                    await MessageQueue.SendAsync(clearMessage, "CLEAR");
-                }
-                Logger.LogError(ex.Message);
-            }
-            clearMessage = null;
-        }
+        await AppDataProvider.CommitTransactionAsync();
 
         // Return changes
         return commits;
@@ -2540,13 +1039,13 @@ public class SchemaContext
     /// </summary>
     public async Task RollbackAsync()
     {
-        if (transaction != null)
-            await transaction.RollbackAsync();
-        transaction = null;
+        if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        await AppDataProvider.RollbackTransactionAsync();
+        _transChangedData.Clear();
     }
 
     // Process the data push
-    async Task ProcessDataPush(string target, TransactionChangeData changeData, bool pushAll = false, bool pushAllFields = false, AppFieldNode pushNode = null)
+    async Task ProcessDataPush(string target, TransactionChangeData changeData, bool pushAll = false, bool pushAllFields = false, AppFieldNode? pushNode = null)
     {
         // record the target
         Target = target;
@@ -2558,20 +1057,20 @@ public class SchemaContext
         if (pushAllFields)
         {
             baseFields.Clear();
-            foreach (string category in changeData.Changes.Keys.Select(p => p.Category).Distinct())
+            foreach (string app in changeData.Changes.Keys.Select(p => p.App).Distinct())
             {
-                AppNode AppNode = await GetAppNodeAsync(category);
-                if (AppNode != null)
+                AppNode? appNode = await GetAppNodeAsync(app);
+                if (appNode?.Fields != null)
                 {
-                    baseFields.AddRange(AppNode.Fields.Where(f => f.FuncNode == null && f.Observers is { Count: > 0 }));
+                    baseFields.AddRange(appNode.Fields.Where(f => f.FuncNode == null && f.Observers is { Count: > 0 }));
                 }
             }
         }
 
         // Generate the push levels
-        FieldDataPushLevel root = null;
-        FieldDataPushLevel curr = null;
-        Dictionary<Guid, FieldDataPushLevel> updateFieldsLvlMap = new();
+        FieldDataPushLevel? root = null;
+        FieldDataPushLevel? curr = null;
+        Dictionary<string, FieldDataPushLevel> updateFieldsLvlMap = new();
 
         // The given push node
         if (pushNode != null)
@@ -2592,20 +1091,20 @@ public class SchemaContext
             FieldDataPushLevel next = new();
 
             // Check fields
-            foreach (AppFieldNode node in baseFields.SelectMany(p => p.Observers).Distinct().Where(n => n.IsEnable && !n.IsFrontEnd))
+            foreach (AppFieldNode node in baseFields.Where(p => p.Observers != null).SelectMany(p => p.Observers!).Distinct().Where(n => !(n.Disable ?? false) && !(n.Frontend ?? false)))
             {
-                if (!updateFieldsLvlMap.ContainsKey(node.Id))
+                if (!updateFieldsLvlMap.ContainsKey(node.Name))
                 {
                     next.Fields.Add(node);
-                    updateFieldsLvlMap.Add(node.Id, next);
+                    updateFieldsLvlMap.Add(node.Name, next);
                 }
                 else
                 {
                     // Move the field to current
-                    AppFieldNode item = updateFieldsLvlMap[node.Id].Fields.First(p => p.Id == node.Id);
+                    AppFieldNode item = updateFieldsLvlMap[node.Name].Fields.First(p => p.Name == node.Name);
                     next.Fields.Add(item);
-                    updateFieldsLvlMap[node.Id].Fields.Remove(item);
-                    updateFieldsLvlMap[node.Id] = next;
+                    updateFieldsLvlMap[node.Name].Fields.Remove(item);
+                    updateFieldsLvlMap[node.Name] = next;
                 }
             }
 
@@ -2630,7 +1129,7 @@ public class SchemaContext
         }
 
         // Process data push
-        Dictionary<AppFieldNode, JToken> otherFields = new();
+        Dictionary<AppFieldNode, JsonNode> otherFields = new();
         HashSet<AppFieldNode> displayOnlyGens = new();
         HashSet<string> otherTargets = new();
         while (root?.Fields.Count is > 0)
@@ -2638,7 +1137,7 @@ public class SchemaContext
             foreach (AppFieldNode field in root.Fields)
             {
                 // Check ref
-                AppFieldNode tarField = field;
+                AppFieldNode? tarField = field;
                 string realTarget = target;
                 if (field.SourceNode != null)
                 {
@@ -2648,17 +1147,18 @@ public class SchemaContext
                 }
 
                 // Prepare arguments
-                FieldDataPushArg[] args = new FieldDataPushArg[field.FuncCategoryArgs.Count];
-                FunctionNode funcNode = field.FuncNode;
+                FunctionNode? funcNode = field.FuncNode;
+                if (funcNode == null || field.FuncArgs == null) continue;
+                FieldDataPushArg[] args = new FieldDataPushArg[field.FuncArgs.Count];
                 int arrayIndex = -1;
-                for (int i = 0; i < field.FuncCategoryArgs.Count; i++)
+                for (int i = 0; i < field.FuncArgs.Count; i++)
                 {
-                    AppFieldNodeArgument call = field.FuncCategoryArgs[i];
+                    AppFieldNodeArgument call = field.FuncArgs[i];
                     args[i] = new FieldDataPushArg();
 
                     // Generate argument
-                    List<FieldDataChangeData> changes = (!pushAll || field.SourceNode != null) && changeData.Changes.ContainsKey(call.CategoryField) ? changeData.Changes[call.CategoryField] : null;
-                    args[i].Type = call.CategoryField.TypeNode;
+                    List<FieldDataChangeData>? changes = (!pushAll || field.SourceNode != null) && changeData.Changes.ContainsKey(call.AppField) ? changeData.Changes[call.AppField] : null;
+                    args[i].Type = call.AppField.TypeNode!;
                     if (args[i].Type is ArrayNode && (funcNode.Args[i].TypeNode is not ArrayNode || arrayIndex < 0)) arrayIndex = i;
 
                     // Check changes
@@ -2668,56 +1168,63 @@ public class SchemaContext
                         args[i].Changed = false;
 
                         // full data
-                        if (otherFields.ContainsKey(call.CategoryField))
+                        if (otherFields.ContainsKey(call.AppField))
                         {
-                            args[i].Value = otherFields[call.CategoryField];
+                            args[i].Value = otherFields[call.AppField].IsEmpty() ? null : otherFields[call.AppField];
                         }
                         else
                         {
-                            (args[i].Value, _) = await GetFieldDataAsync(call.CategoryField, target, ignoreCache: true);
-                            otherFields[call.CategoryField] = args[i].Value ?? new JValue((JToken)null);
+                            (args[i].Value, _) = await GetFieldDataAsync(call.AppField, target);
+                            otherFields[call.AppField] = args[i].Value ?? call.AppField.TypeNode?.Type switch
+                            {
+                                SchemaType.Scalar => JsonValue.Create((string?)null)!,
+                                SchemaType.Enum => JsonValue.Create((string?)null)!,
+                                SchemaType.Struct => new JsonObject(),
+                                SchemaType.Array => new JsonArray(),
+                                _ => JsonValue.Create((string?)null)!
+                            };
                         }
                         args[i].Origin = args[i].Value;
                     }
                     else
                     {
                         // generate display only fields for upload datas
-                        if (displayOnlyGens.Add(call.CategoryField))
+                        if (displayOnlyGens.Add(call.AppField))
                         {
                             // check schema
-                            if (call.CategoryField.TypeNode is ArrayNode { BaseNode: StructNode } or StructNode)
+                            if (call.AppField.TypeNode is ArrayNode { ElementNode: StructNode } or StructNode)
                             {
-                                DynamicTableSchema schema = await PrepareFieldDataAsync(call.CategoryField);
+                                DynamicTableSchema schema = await PrepareFieldDataAsync(call.AppField);
                                 foreach (FieldDataChangeData change in changes)
                                 {
                                     // for new
-                                    if (change.Value is JArray varr)
+                                    if (change.Value is JsonArray varr)
                                     {
-                                        foreach (JToken token in varr)
+                                        foreach (JsonNode? token in varr)
                                         {
-                                            if (token is JObject obj && !obj.IsEmpty())
+                                            if (token is JsonObject obj && !obj.IsEmpty())
                                             {
                                                 await schema.GenerateDisplayOnlyFields(this, obj);
                                             }
                                         }
                                     }
-                                    else if (change.Value is JObject vobj && !vobj.IsEmpty())
+                                    else if (change.Value is JsonObject vobj && !vobj.IsEmpty())
                                     {
                                         await schema.GenerateDisplayOnlyFields(this, vobj);
                                     }
 
                                     // for origin
-                                    if (change.Origin is JArray oarr)
+                                    if (change.Origin is JsonArray oarr)
                                     {
-                                        foreach (JToken token in oarr)
+                                        foreach (JsonNode? token in oarr)
                                         {
-                                            if (token is JObject obj && !obj.IsEmpty())
+                                            if (token is JsonObject obj && !obj.IsEmpty())
                                             {
                                                 await schema.GenerateDisplayOnlyFields(this, obj);
                                             }
                                         }
                                     }
-                                    else if (change.Origin is JObject gobj && !gobj.IsEmpty())
+                                    else if (change.Origin is JsonObject gobj && !gobj.IsEmpty())
                                     {
                                         await schema.GenerateDisplayOnlyFields(this, gobj);
                                     }
@@ -2726,11 +1233,11 @@ public class SchemaContext
                         }
 
                         args[i].Changed = true;
-                        if (call.CategoryField.TypeNode is ArrayNode)
+                        if (call.AppField.TypeNode is ArrayNode)
                         {
                             // Check array if need part update
-                            JArray values = new();
-                            JArray origins = new();
+                            JsonArray values = new();
+                            JsonArray origins = new();
                             foreach (FieldDataChangeData change in changes)
                             {
                                 switch (change.Operation)
@@ -2738,7 +1245,7 @@ public class SchemaContext
                                     case TransactionChangeOperation.Create:
                                         if (!change.Value.IsEmpty())
                                         {
-                                            if (change.Value is JArray varr)
+                                            if (change.Value is JsonArray varr)
                                             {
                                                 //  For array without primary keys
                                                 args[i].IsFull = true;
@@ -2753,7 +1260,7 @@ public class SchemaContext
                                     case TransactionChangeOperation.Modify:
                                         if (!change.Value.IsEmpty())
                                         {
-                                            if (change.Value is JArray varr)
+                                            if (change.Value is JsonArray varr)
                                             {
                                                 //  For array without primary keys
                                                 args[i].IsFull = true;
@@ -2766,7 +1273,7 @@ public class SchemaContext
                                         }
                                         if (!change.Origin.IsEmpty())
                                         {
-                                            if (change.Origin is JArray varr)
+                                            if (change.Origin is JsonArray varr)
                                             {
                                                 //  For array without primary keys
                                                 args[i].IsFull = true;
@@ -2781,7 +1288,7 @@ public class SchemaContext
                                     case TransactionChangeOperation.Delete:
                                         if (!change.Origin.IsEmpty())
                                         {
-                                            if (change.Origin is JArray varr)
+                                            if (change.Origin is JsonArray varr)
                                             {
                                                 //  For array without primary keys
                                                 args[i].IsFull = true;
@@ -2795,7 +1302,7 @@ public class SchemaContext
                                         break;
                                     case TransactionChangeOperation.DropAll:
                                         args[i].IsFull = true;
-                                        if (change.Origin is JArray arr)
+                                        if (change.Origin is JsonArray arr)
                                             origins = arr;
                                         break;
                                     default:
@@ -2843,10 +1350,10 @@ public class SchemaContext
                             // Gets the origin
                             args[i].Origin = args[i].Origin.GetValueByPaths(call.DataField);
                         }
-                        else if (args[i].Type is ArrayNode { BaseNode: StructNode })
+                        else if (args[i].Type is ArrayNode { ElementNode: StructNode })
                         {
                             // Gets the value
-                            if (args[i].Value is JArray arr)
+                            if (args[i].Value is JsonArray arr)
                             {
                                 for (int h = 0; h < arr.Count; h++)
                                 {
@@ -2855,7 +1362,7 @@ public class SchemaContext
                             }
 
                             // Gets the origin
-                            if (args[i].Origin is JArray oarr)
+                            if (args[i].Origin is JsonArray oarr)
                             {
                                 for (int h = 0; h < oarr.Count; h++)
                                 {
@@ -2871,41 +1378,91 @@ public class SchemaContext
                 if (field.SourceNode == null && args.Any(p => p is { Changed: true, IsArray: false }) && arrayIndex >= 0 && !args[arrayIndex].IsFull)
                 {
                     FieldDataPushArg arg = args[arrayIndex];
-                    AppFieldNodeArgument call = field.FuncCategoryArgs[arrayIndex];
+                    AppFieldNodeArgument call = field.FuncArgs[arrayIndex];
 
                     // full data
-                    if (otherFields.ContainsKey(call.CategoryField))
+                    if (otherFields.ContainsKey(call.AppField))
                     {
-                        arg.Value = otherFields[call.CategoryField];
+                        arg.Value = otherFields[call.AppField].IsEmpty() ? null : otherFields[call.AppField];
                     }
                     else
                     {
-                        (arg.Value, _) = await GetFieldDataAsync(call.CategoryField, target, ignoreCache: true);
-                        otherFields[call.CategoryField] = arg.Value ?? new JValue((JToken)null);
+                        (arg.Value, _) = await GetFieldDataAsync(call.AppField, target);
+                        otherFields[call.AppField] = arg.Value ?? call.AppField.TypeNode?.Type switch
+                        {
+                            SchemaType.Scalar => JsonValue.Create((string?)null)!,
+                            SchemaType.Enum => JsonValue.Create((string?)null)!,
+                            SchemaType.Struct => new JsonObject(),
+                            SchemaType.Array => new JsonArray(),
+                            _ => JsonValue.Create((string?)null)!
+                        };
                     }
                     arg.Origin = arg.Value;
                     arg.IsFull = true;
                 }
 
                 // If part update or is ref, must get the original calc result
-                JToken oldResult = null;
+                JsonNode? oldResult = null;
                 if (arrayIndex >= 0 && (!args[arrayIndex].IsFull || field.SourceNode != null))
                 {
-                    JArray originCall = new();
+                    JsonArray originCall = new();
                     foreach (FieldDataPushArg arg in args)
                         originCall.Add(arg.Origin);
 
                     // Check if use element
                     if (funcNode.Args[arrayIndex].TypeNode is not ArrayNode)
                     {
-                        JArray resultArr = new();
-                        foreach (JToken t in (JArray)args[arrayIndex].Origin)
+                        JsonArray resultArr = new();
+                        if (args[arrayIndex].Origin is JsonArray origin)
                         {
-                            originCall[arrayIndex] = t;
-                            JToken calcRes = await CallFunction(field.Func, originCall, !string.IsNullOrWhiteSpace(funcNode.RetType) ? funcNode.RetType : field.Type);
-                            if (calcRes is JArray arr)
+                            foreach (JsonNode? t in origin)
                             {
-                                foreach (JToken ele in arr)
+                                originCall[arrayIndex] = t;
+                                JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, originCall,[
+                                    !string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                                if (calcRes is JsonArray arr)
+                                {
+                                    foreach (JsonNode? ele in arr)
+                                    {
+                                        if (!ele.IsEmpty())
+                                            resultArr.Add(ele);
+                                    }
+                                }
+                                else if (!calcRes.IsEmpty())
+                                {
+                                    resultArr.Add(calcRes);
+                                }
+                            }
+                        }
+
+                        oldResult = resultArr;
+                    }
+                    else
+                    {
+                        oldResult = await CallFunctionAsync(field.FuncNode!, originCall, [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                    }
+                }
+
+                // Calc the new result
+                JsonNode? newResult;
+                JsonArray callArgs = new();
+                foreach (FieldDataPushArg arg in args)
+                    callArgs.Add(arg.Value);
+
+                // Check if use element
+                if (arrayIndex >= 0 && funcNode.Args[arrayIndex].TypeNode is not ArrayNode)
+                {
+                    JsonArray resultArr = new();
+                    if (args[arrayIndex].Value is JsonArray origin)
+                    {
+                        foreach (JsonNode? t in origin)
+                        {
+                            callArgs[arrayIndex] = t;
+                            JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, callArgs,
+                                [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                            if (calcRes is JsonArray arr)
+                            {
+                                foreach (JsonNode? ele in arr)
                                 {
                                     if (!ele.IsEmpty())
                                         resultArr.Add(ele);
@@ -2916,68 +1473,33 @@ public class SchemaContext
                                 resultArr.Add(calcRes);
                             }
                         }
-                        oldResult = resultArr;
                     }
-                    else
-                    {
-                        oldResult = await CallFunction(field.Func, originCall, !string.IsNullOrWhiteSpace(funcNode.RetType) ? funcNode.RetType : field.Type);
-                    }
-                }
 
-                // Calc the new result
-                JToken newResult;
-                JArray callArgs = new();
-                foreach (FieldDataPushArg arg in args)
-                    callArgs.Add(arg.Value);
-
-                // Check if use element
-                if (arrayIndex >= 0 && funcNode.Args[arrayIndex].TypeNode is not ArrayNode)
-                {
-                    JArray resultArr = new();
-                    foreach (JToken t in (JArray)args[arrayIndex].Value)
-                    {
-                        callArgs[arrayIndex] = t;
-                        JToken calcRes = await CallFunction(field.Func, callArgs, !string.IsNullOrWhiteSpace(funcNode.RetType) ? funcNode.RetType : field.Type);
-                        if (calcRes is JArray arr)
-                        {
-                            foreach (JToken ele in arr)
-                            {
-                                if (!ele.IsEmpty())
-                                    resultArr.Add(ele);
-                            }
-                        }
-                        else if (!calcRes.IsEmpty())
-                        {
-                            resultArr.Add(calcRes);
-                        }
-                    }
                     newResult = resultArr;
                 }
                 else
                 {
-                    newResult = await CallFunction(field.Func, callArgs, !string.IsNullOrWhiteSpace(funcNode.RetType) ? funcNode.RetType : field.Type);
+                    newResult = await CallFunctionAsync(field.FuncNode!, callArgs, [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
                 }
 
                 // Join the result
-                JToken result = null;
+                JsonNode? result = null;
                 switch (field.TypeNode)
                 {
                     case EnumNode @enum:
                         {
                             // Can't join the result, only directly assignment allowed
-                            if (newResult is JValue)
+                            if (newResult is JsonValue)
                             {
-                                (JToken res, JToken error) = await @enum.ValidateValue(this, newResult);
-                                result = error.IsEmpty() ? res : throw new Exception(error.ToString());
+                                (_, JsonNode? error) = await @enum.ValidateValueAsync(this, newResult);
+                                result = error.IsEmpty() ? newResult : throw new Exception(error!.ToString());
                             }
                             break;
                         }
                     case ScalarNode scalar:
                         {
                             // Gets the join method
-                            ArrayJoinMethod method = scalar.IsNumber ? ArrayJoinMethod.Sum : ArrayJoinMethod.Assign;
-                            if (field.JoinMethods is JValue val && !val.IsEmpty() && Enum.TryParse(typeof(ArrayJoinMethod), val.ToString(CultureInfo.InvariantCulture), out object m) && m != null)
-                                method = (ArrayJoinMethod)m;
+                            DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
                             if (arrayIndex < 0 || args[arrayIndex].IsFull)
                             {
                                 // Full
@@ -2986,57 +1508,56 @@ public class SchemaContext
                             else
                             {
                                 // Part
-                                (JToken origin, _) = await GetFieldDataAsync(tarField, realTarget);
-                                JValue old = await GroupJoin(scalar, oldResult, method);
-                                JValue now = await GroupJoin(scalar, newResult, method);
+                                (JsonNode? origin, _) = await GetFieldDataAsync(tarField, realTarget);
+                                JsonValue? old = await GroupJoin(scalar, oldResult, method);
+                                JsonValue? now = await GroupJoin(scalar, newResult, method);
 
                                 // Update with join method
                                 switch (method)
                                 {
-                                    case ArrayJoinMethod.Assign:
+                                    case DataCombineType.Assign:
                                         {
                                             result = now;
                                             break;
                                         }
-                                    case ArrayJoinMethod.Distinct:
+                                    case DataCombineType.Init:
                                         {
                                             result = origin.IsEmpty() ? now : origin;
                                             break;
                                         }
-                                    case ArrayJoinMethod.Sum:
+                                    case DataCombineType.Sum:
                                         {
                                             if (scalar.IsInt)
                                             {
-                                                result = (!origin.IsEmpty() ? ((JValue)origin).Value<int>() : 0)
-                                                         + (!now.IsEmpty() ? (now).Value<int>() : 0)
-                                                         - (!old.IsEmpty() ? (old).Value<int>() : 0);
+                                                result = (!origin.IsEmpty() ? ((JsonValue)origin!).GetValue<int>() : 0)
+                                                         + (!now.IsEmpty() ? (now!).GetValue<int>() : 0)
+                                                         - (!old.IsEmpty() ? (old!).GetValue<int>() : 0);
                                             }
                                             else if (scalar.IsSingle)
                                             {
-                                                result = (!origin.IsEmpty() ? ((JValue)origin).Value<float>() : 0)
-                                                         + (!now.IsEmpty() ? (now).Value<float>() : 0)
-                                                         - (!old.IsEmpty() ? (old).Value<float>() : 0);
+                                                result = (!origin.IsEmpty() ? ((JsonValue)origin!).GetValue<float>() : 0)
+                                                         + (!now.IsEmpty() ? (now!).GetValue<float>() : 0)
+                                                         - (!old.IsEmpty() ? (old!).GetValue<float>() : 0);
+                                            }
+                                            else if (scalar.IsDouble)
+                                            {
+                                                result = (!origin.IsEmpty() ? ((JsonValue)origin!).GetValue<double>() : 0)
+                                                         + (!now.IsEmpty() ? (now!).GetValue<double>() : 0)
+                                                         - (!old.IsEmpty() ? (old!).GetValue<double>() : 0);
                                             }
                                             else
                                             {
-                                                result = (!origin.IsEmpty() ? ((JValue)origin).Value<decimal>() : 0)
-                                                         + (!now.IsEmpty() ? (now).Value<decimal>() : 0)
-                                                         - (!old.IsEmpty() ? (old).Value<decimal>() : 0);
+                                                result = (!origin.IsEmpty() ? ((JsonValue)origin!).GetValue<decimal>() : 0)
+                                                         + (!now.IsEmpty() ? (now!).GetValue<decimal>() : 0)
+                                                         - (!old.IsEmpty() ? (old!).GetValue<decimal>() : 0);
                                             }
                                         }
                                         break;
-                                    case ArrayJoinMethod.Count:
+                                    case DataCombineType.Count:
                                         {
-                                            result = (!origin.IsEmpty() ? ((JValue)origin).Value<int>() : 0)
-                                                     + (!now.IsEmpty() ? (now).Value<int>() : 0)
-                                                     - (!old.IsEmpty() ? (old).Value<int>() : 0);
-                                            break;
-                                        }
-                                    case ArrayJoinMethod.Average:
-                                    case ArrayJoinMethod.Min:
-                                    case ArrayJoinMethod.Max:
-                                        {
-                                            result = null;
+                                            result = (!origin.IsEmpty() ? ((JsonValue)origin!).GetValue<int>() : 0)
+                                                     + (!now.IsEmpty() ? (now!).GetValue<int>() : 0)
+                                                     - (!old.IsEmpty() ? (old!).GetValue<int>() : 0);
                                             break;
                                         }
                                     default:
@@ -3048,21 +1569,14 @@ public class SchemaContext
                     case StructNode { Fields.Count: > 0 } @struct:
                         {
                             // Gets the join method map
-                            Dictionary<string, ArrayJoinMethod> joinMethodMap = new();
+                            Dictionary<string, DataCombineType> joinMethodMap = new();
 
                             // Default join
-                            foreach (StructNodeField f in @struct.Fields)
+                            foreach (StructFieldConfig f in @struct.Fields)
                             {
                                 if (f.TypeNode is ScalarNode s)
-                                    joinMethodMap[f.Name] = s.IsNumber ? ArrayJoinMethod.Sum : ArrayJoinMethod.Assign;
-                            }
-
-                            // Check settings
-                            if (field.JoinMethods is JObject map)
-                            {
-                                foreach ((string name, JToken token) in map)
-                                    if (token is JValue val && !val.IsEmpty() && Enum.TryParse(typeof(ArrayJoinMethod), val.ToString(CultureInfo.InvariantCulture), out object m) && m != null)
-                                        joinMethodMap[name] = (ArrayJoinMethod)m;
+                                    joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type 
+                                        ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
                             }
 
                             // Gets the result
@@ -3074,9 +1588,9 @@ public class SchemaContext
                             else
                             {
                                 // Part
-                                (JToken origin, _) = await GetFieldDataAsync(tarField, realTarget);
-                                JObject old = await GroupJoin(@struct, oldResult, joinMethodMap);
-                                JObject now = await GroupJoin(@struct, newResult, joinMethodMap);
+                                (JsonNode? origin, _) = await GetFieldDataAsync(tarField, realTarget);
+                                JsonObject? old = await GroupJoin(@struct, oldResult, joinMethodMap);
+                                JsonObject? now = await GroupJoin(@struct, newResult, joinMethodMap);
 
                                 // Update with join method
                                 if (origin.IsEmpty() && old.IsEmpty())
@@ -3085,54 +1599,47 @@ public class SchemaContext
                                 }
                                 else
                                 {
-                                    JObject final = !origin.IsEmpty() ? (JObject)origin.DeepClone() : new JObject();
-                                    foreach (StructNodeField nodeField in @struct.Fields)
+                                    JsonObject final = !origin.IsEmpty() ? (JsonObject)origin!.DeepClone() : new JsonObject();
+                                    foreach (StructFieldConfig nodeField in @struct.Fields)
                                     {
-                                        switch (joinMethodMap.ContainsKey(nodeField.Name) ? joinMethodMap[nodeField.Name] : ArrayJoinMethod.Assign)
+                                        switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
                                         {
-                                            case ArrayJoinMethod.Assign:
+                                            case DataCombineType.Assign:
                                                 {
-                                                    if (!now.IsEmpty() && now.ContainsKey(nodeField.Name))
+                                                    if (!now.IsEmpty() && now!.ContainsKey(nodeField.Name))
                                                         final[nodeField.Name] = now[nodeField.Name];
                                                     //else if (final.ContainsKey(nodeField.Name))
                                                     //    final.Remove(nodeField.Name);
                                                     break;
                                                 }
-                                            case ArrayJoinMethod.Distinct:
+                                            case DataCombineType.Init:
                                                 {
-                                                    if (origin.IsEmpty() && !now.IsEmpty() && now.ContainsKey(nodeField.Name))
+                                                    if (origin.IsEmpty() && !now.IsEmpty() && now!.ContainsKey(nodeField.Name))
                                                         final[nodeField.Name] = now[nodeField.Name];
                                                     break;
                                                 }
-                                            case ArrayJoinMethod.Sum when nodeField.TypeNode is ScalarNode { IsNumber: true }:
+                                            case DataCombineType.Sum when nodeField.TypeNode is ScalarNode { IsNumber: true }:
                                                 {
                                                     decimal sum = 0m;
-                                                    if (origin is JObject originObj && originObj.ContainsKey(nodeField.Name) && originObj[nodeField.Name] is JValue oval && !oval.IsEmpty())
-                                                        sum = oval.Value<decimal>();
-                                                    if (!old.IsEmpty() && old.ContainsKey(nodeField.Name) && old[nodeField.Name] is JValue olval && !olval.IsEmpty())
-                                                        sum -= olval.Value<decimal>();
-                                                    if (!now.IsEmpty() && now.ContainsKey(nodeField.Name) && now[nodeField.Name] is JValue nval && !nval.IsEmpty())
-                                                        sum += nval.Value<decimal>();
+                                                    if (origin is JsonObject originObj && originObj.ContainsKey(nodeField.Name) && originObj[nodeField.Name] is JsonValue oval && !oval.IsEmpty())
+                                                        sum = oval.GetValue<decimal>();
+                                                    if (!old.IsEmpty() && old!.ContainsKey(nodeField.Name) && old[nodeField.Name] is JsonValue olval && !olval.IsEmpty())
+                                                        sum -= olval.GetValue<decimal>();
+                                                    if (!now.IsEmpty() && now!.ContainsKey(nodeField.Name) && now[nodeField.Name] is JsonValue nval && !nval.IsEmpty())
+                                                        sum += nval.GetValue<decimal>();
                                                     final[nodeField.Name] = sum;
                                                     break;
                                                 }
-                                            case ArrayJoinMethod.Count when nodeField.TypeNode is ScalarNode { IsNumber: true }:
+                                            case DataCombineType.Count when nodeField.TypeNode is ScalarNode { IsNumber: true }:
                                                 {
                                                     int sum = 0;
-                                                    if (origin is JObject originObj && originObj.ContainsKey(nodeField.Name) && originObj[nodeField.Name] is JValue oval && !oval.IsEmpty())
-                                                        sum = oval.Value<int>();
-                                                    if (!old.IsEmpty() && old.ContainsKey(nodeField.Name) && old[nodeField.Name] is JValue olval && !olval.IsEmpty())
-                                                        sum -= olval.Value<int>();
-                                                    if (!now.IsEmpty() && now.ContainsKey(nodeField.Name) && now[nodeField.Name] is JValue nval && !nval.IsEmpty())
-                                                        sum += nval.Value<int>();
+                                                    if (origin is JsonObject originObj && originObj.ContainsKey(nodeField.Name) && originObj[nodeField.Name] is JsonValue oval && !oval.IsEmpty())
+                                                        sum = oval.GetValue<int>();
+                                                    if (!old.IsEmpty() && old!.ContainsKey(nodeField.Name) && old[nodeField.Name] is JsonValue olval && !olval.IsEmpty())
+                                                        sum -= olval.GetValue<int>();
+                                                    if (!now.IsEmpty() && now!.ContainsKey(nodeField.Name) && now[nodeField.Name] is JsonValue nval && !nval.IsEmpty())
+                                                        sum += nval.GetValue<int>();
                                                     final[nodeField.Name] = sum;
-                                                    break;
-                                                }
-                                            case ArrayJoinMethod.Average:
-                                            case ArrayJoinMethod.Min:
-                                            case ArrayJoinMethod.Max:
-                                                {
-                                                    final[nodeField.Name] = null;
                                                     break;
                                                 }
                                             default:
@@ -3144,39 +1651,28 @@ public class SchemaContext
                             }
                             break;
                         }
-                    case ArrayNode { BaseNode: EnumNode or ScalarNode } array:
+                    case ArrayNode { ElementNode: EnumNode or ScalarNode } array:
                         {
                             // simple array, use the new result directly, can't join the data, normally this case won't be really used.
-                            // There is no primay key to track which should be removed, which should be updated
-                            if (newResult is JArray { Count: > 0 } arr)
+                            // There is no primary key to track which should be removed, which should be updated
+                            if (newResult is JsonArray { Count: > 0 } arr)
                             {
-                                (JToken res, JToken error) = await array.ValidateValue(this, arr);
-                                result = error.IsEmpty() ? res : throw new Exception(error.ToString());
-
-                                // Distinct
-                                JValue val = field.JoinMethods is JValue fval && !fval.IsEmpty() ? fval : null;
-                                if (!val.IsEmpty() && Enum.TryParse(typeof(ArrayJoinMethod), val.ToString(CultureInfo.InvariantCulture), out object m)
-                                    && m != null && (ArrayJoinMethod)m == ArrayJoinMethod.Distinct)
-                                {
-                                    JArray newArr = new();
-                                    foreach (JToken t in result.Distinct())
-                                        newArr.Add(t);
-                                    result = newArr;
-                                }
+                                (object? res, JsonNode? error) = await array.ValidateValueAsync(this, arr);
+                                result = error.IsEmpty() ? res as JsonArray : throw new Exception(error!.ToString());
                             }
                             break;
                         }
-                    case ArrayNode { BaseNode: StructNode { Fields: { Count: > 0 } } structNode, Primary: { Count: > 0 } } array:
+                    case ArrayNode { ElementNode: StructNode { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
                         {
                             // Gets the join method map
-                            Dictionary<string, ArrayJoinMethod> joinMethodMap = new();
-                            Dictionary<string, JObject> resultMap;
+                            Dictionary<string, DataCombineType> joinMethodMap = new();
+                            Dictionary<string, JsonObject> resultMap;
                             bool isFull = arrayIndex < 0 || args[arrayIndex].IsFull;
 
                             // Gets the value fields
                             List<string> valueFields = new();
-                            Dictionary<string, NamespaceNode> primaryNodes = new();
-                            foreach (StructNodeField fieldType in structNode.Fields)
+                            Dictionary<string, AnySchemaNode> primaryNodes = new();
+                            foreach (StructFieldConfig fieldType in structNode.Fields)
                             {
                                 if (!array.Primary.Contains(fieldType.Name))
                                 {
@@ -3184,26 +1680,29 @@ public class SchemaContext
 
                                     if (fieldType.TypeNode is ScalarNode s)
                                     {
-                                        joinMethodMap[fieldType.Name] = s.IsNumber ? ArrayJoinMethod.Sum : ArrayJoinMethod.Assign;
+                                        joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
                                     }
                                 }
                                 else
-                                    primaryNodes.Add(fieldType.Name, fieldType.TypeNode);
+                                    primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
                             }
 
                             // Based on field join methods
-                            if (field.JoinMethods is JObject map)
+                            if (field.Combines != null)
                             {
-                                foreach ((string name, JToken token) in map)
-                                    if (token is JValue val && !val.IsEmpty() && Enum.TryParse(typeof(ArrayJoinMethod), val.ToString(CultureInfo.InvariantCulture), out object m) && m != null && !(!isFull && m.Equals(ArrayJoinMethod.Average)))
-                                        joinMethodMap[name] = (ArrayJoinMethod)m;
+                                foreach (DataCombine combine in field.Combines)
+                                {
+                                    joinMethodMap[field.Name] = combine.Type;
+                                }
                             }
                             // Based on array join methods
-                            else if (array.JoinMethods != null)
+                            else if (array.Combines != null)
                             {
-                                foreach ((string name, ArrayJoinMethod token) in array.JoinMethods)
-                                    if (!(!isFull && token.Equals(ArrayJoinMethod.Average)))
-                                        joinMethodMap[name] = token;
+                                foreach (DataCombine combine in array.Combines)
+                                {
+                                    if (!joinMethodMap.ContainsKey(field.Name))
+                                        joinMethodMap[field.Name] = combine.Type;
+                                }
                             }
 
                             // Generate result map
@@ -3217,36 +1716,34 @@ public class SchemaContext
                                 // Part
 
                                 // Group join the old & now data
-                                Dictionary<string, JObject> oldMap = await GroupJoinObjectMap(array, oldResult, joinMethodMap);
-                                Dictionary<string, JObject> nowMap = await GroupJoinObjectMap(array, newResult, joinMethodMap);
+                                Dictionary<string, JsonObject> oldMap = await GroupJoinObjectMap(array, oldResult, joinMethodMap);
+                                Dictionary<string, JsonObject> nowMap = await GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                                 // Query the original data
                                 HashSet<string> keys = new();
-                                JArray query = new();
-                                foreach ((string key, JObject obj) in oldMap)
+                                JsonArray query = new();
+                                foreach ((string key, JsonObject obj) in oldMap)
                                 {
-                                    if (keys.Contains(key)) continue;
-                                    keys.Add(key);
+                                    if (!keys.Add(key)) continue;
                                     query.Add(obj);
                                 }
-                                foreach ((string key, JObject obj) in nowMap)
+                                foreach ((string key, JsonObject obj) in nowMap)
                                 {
-                                    if (keys.Contains(key)) continue;
-                                    keys.Add(key);
+                                    if (!keys.Add(key)) continue;
                                     query.Add(obj);
                                 }
 
                                 // Gets the original data
-                                resultMap = new Dictionary<string, JObject>();
+                                resultMap = new Dictionary<string, JsonObject>();
                                 if (!query.IsEmpty())
                                 {
-                                    (JToken value, _) = await GetFieldDataAsync(tarField, realTarget, query, ignoreCache: true);
-                                    if (value is JArray arr)
+                                    (JsonNode? value, _) = await GetFieldDataAsync(tarField, realTarget, query);
+                                    if (value is JsonArray arr)
                                     {
-                                        foreach (JToken token in arr)
+                                        foreach (JsonNode? token in arr)
                                         {
-                                            if (token is not JObject obj) continue;
-                                            string key = array.GetPrimaryKey(obj);
+                                            if (token is not JsonObject obj) continue;
+                                            string? key = array.GetPrimaryKey(obj);
                                             if (string.IsNullOrWhiteSpace(key)) continue;
                                             resultMap[key] = obj;
                                         }
@@ -3256,35 +1753,31 @@ public class SchemaContext
                                 // Generate the result map
                                 foreach (string key in keys)
                                 {
-                                    if (resultMap.ContainsKey(key))
+                                    if (resultMap.TryGetValue(key, out var res1))
                                     {
-                                        JObject res = resultMap[key];
-                                        JObject old = oldMap.ContainsKey(key) ? oldMap[key] : null;
-                                        JObject now = nowMap.ContainsKey(key) ? nowMap[key] : null;
+                                        JsonObject? old = oldMap.ContainsKey(key) ? oldMap[key] : null;
+                                        JsonObject? now = nowMap.ContainsKey(key) ? nowMap[key] : null;
                                         foreach (string s in valueFields)
                                         {
-                                            switch (joinMethodMap.ContainsKey(s) ? joinMethodMap[s] : ArrayJoinMethod.Assign)
+                                            switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
                                             {
-                                                case ArrayJoinMethod.Assign:
-                                                    if (!now.IsEmpty() && now.ContainsKey(s))
-                                                        res[s] = now[s];
+                                                case DataCombineType.Assign:
+                                                    if (!now.IsEmpty() && now!.ContainsKey(s))
+                                                        res1[s] = now[s];
                                                     //else if (res.ContainsKey(s))
                                                     //    res.Remove(s);
                                                     break;
-                                                case ArrayJoinMethod.Distinct:
+                                                case DataCombineType.Init:
                                                     break;
-                                                case ArrayJoinMethod.Sum:
-                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.Value<decimal>() : 0) +
-                                                             (!now.IsEmpty() && now.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.Value<decimal>() : 0) -
-                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.Value<decimal>() : 0);
+                                                case DataCombineType.Sum:
+                                                    res1[s] = (res1.ContainsKey(s) && !res1[s].IsEmpty() ? res1[s]!.GetValue<decimal>() : 0) +
+                                                              (!now.IsEmpty() && now!.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.GetValue<decimal>() : 0) -
+                                                              (!old.IsEmpty() && old!.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<decimal>() : 0);
                                                     break;
-                                                case ArrayJoinMethod.Count:
-                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.Value<int>() : 0) +
-                                                             (!now.IsEmpty() && now.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.Value<int>() : 0) -
-                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.Value<int>() : 0);
-                                                    break;
-                                                case ArrayJoinMethod.Average:
-                                                    res[s] = null;
+                                                case DataCombineType.Count:
+                                                    res1[s] = (res1.ContainsKey(s) && !res1[s].IsEmpty() ? res1[s]!.GetValue<int>() : 0) +
+                                                              (!now.IsEmpty() && now!.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.GetValue<int>() : 0) -
+                                                              (!old.IsEmpty() && old!.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<int>() : 0);
                                                     break;
                                                 default:
                                                     throw new ArgumentOutOfRangeException();
@@ -3298,29 +1791,26 @@ public class SchemaContext
                                             continue;
 
                                         // Shouldn't be but still handle it
-                                        JObject old = oldMap[key];
-                                        JObject res = resultMap[key];
+                                        JsonObject old = oldMap[key];
+                                        JsonObject res = resultMap[key];
 
                                         foreach (string s in valueFields)
                                         {
-                                            switch (joinMethodMap.ContainsKey(s) ? joinMethodMap[s] : ArrayJoinMethod.Assign)
+                                            switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
                                             {
-                                                case ArrayJoinMethod.Assign:
+                                                case DataCombineType.Assign:
                                                     break;
-                                                case ArrayJoinMethod.Distinct:
+                                                case DataCombineType.Init:
                                                     if (!old.IsEmpty() && old.ContainsKey(s))
                                                         res[s] = old[s];
                                                     break;
-                                                case ArrayJoinMethod.Sum:
-                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.Value<decimal>() : 0) -
-                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.Value<decimal>() : 0);
+                                                case DataCombineType.Sum:
+                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.GetValue<decimal>() : 0) -
+                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<decimal>() : 0);
                                                     break;
-                                                case ArrayJoinMethod.Count:
-                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.Value<int>() : 0) -
-                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.Value<int>() : 0);
-                                                    break;
-                                                case ArrayJoinMethod.Average:
-                                                    res[s] = null;
+                                                case DataCombineType.Count:
+                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.GetValue<int>() : 0) -
+                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<int>() : 0);
                                                     break;
                                                 default:
                                                     throw new ArgumentOutOfRangeException();
@@ -3331,8 +1821,8 @@ public class SchemaContext
                             }
 
                             // Convert the map to list, sorted by primary keys
-                            JArray joinArray = new();
-                            List<JObject> joinObjs = resultMap.Values.ToList();
+                            JsonArray joinArray = new();
+                            List<JsonObject> joinObjs = resultMap.Values.ToList();
                             joinObjs.Sort((a, b) =>
                             {
                                 foreach (string s in array.Primary)
@@ -3341,24 +1831,24 @@ public class SchemaContext
                                     {
                                         case ScalarNode { IsDate: true }:
                                             {
-                                                DateTime ad = a[s]!.Value<DateTime>();
-                                                DateTime bd = b[s]!.Value<DateTime>();
-                                                if (!DateExtensions.Equal(ad, bd))
-                                                    return DateExtensions.LessThan(ad, bd) ? -1 : 1;
+                                                DateTime ad = a[s]!.GetValue<DateTime>();
+                                                DateTime bd = b[s]!.GetValue<DateTime>();
+                                                if (!ad.Equal(bd))
+                                                    return ad.LessThan(bd) ? -1 : 1;
                                                 break;
                                             }
                                         case ScalarNode { IsNumber: true }:
                                             {
-                                                decimal ad = a[s]!.Value<decimal>();
-                                                decimal bd = b[s]!.Value<decimal>();
+                                                decimal ad = a[s]!.GetValue<decimal>();
+                                                decimal bd = b[s]!.GetValue<decimal>();
                                                 if (ad != bd)
                                                     return ad < bd ? -1 : 1;
                                                 break;
                                             }
                                         default:
                                             {
-                                                string ad = a[s].ToString();
-                                                string bd = b[s].ToString();
+                                                string ad = a[s]?.ToString() ?? "";
+                                                string bd = b[s]?.ToString() ?? "";
                                                 if (!ad.Equals(bd))
                                                     return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
                                                 break;
@@ -3367,7 +1857,7 @@ public class SchemaContext
                                 }
                                 return 0;
                             });
-                            foreach (JObject o in joinObjs)
+                            foreach (JsonObject o in joinObjs)
                                 joinArray.Add(o);
 
                             // Save to result
@@ -3377,7 +1867,7 @@ public class SchemaContext
                 }
 
                 // Save
-                await SaveFieldDataAsync(tarField, realTarget, result, true, dropList: realTarget == target && (arrayIndex < 0 || args[arrayIndex].IsFull));
+                await SaveFieldDataAsync(tarField, realTarget, result, true);
             }
 
             // Process next level
@@ -3387,23 +1877,23 @@ public class SchemaContext
         // Process other targets
         foreach (string tar in otherTargets)
         {
-            if (transChangedData.TryGetValue(tar, out TransactionChangeData val))
+            if (_transChangedData.TryGetValue(tar, out TransactionChangeData? val))
                 await ProcessDataPush(tar, val);
         }
     }
 
     // Record the changed fields with changed values
-    void OnFieldDataChanged(string target, AppFieldNode field, TransactionChangeOperation operation, JToken value = null, JToken origin = null)
+    void OnFieldDataChanged(string target, AppFieldNode field, TransactionChangeOperation operation, JsonNode? value = null, JsonNode? origin = null)
     {
         TransactionChangeData changeData;
-        if (transChangedData.ContainsKey(target))
+        if (_transChangedData.ContainsKey(target))
         {
-            changeData = transChangedData[target];
+            changeData = _transChangedData[target];
         }
         else
         {
             changeData = new TransactionChangeData();
-            transChangedData.Add(target, changeData);
+            _transChangedData.Add(target, changeData);
         }
         if (changeData.Changes.ContainsKey(field))
         {
@@ -3418,20 +1908,6 @@ public class SchemaContext
         }
     }
 
-    // Drop data required to update the ref field
-    bool IsDropDataRequired(AppFieldNode field) => field.Observers != null && field.Observers.Any(o => o.SourceNode != null || IsDropDataRequired(o));
-
-    /// <summary>
-    /// Get DbCommand.
-    /// </summary>
-    /// <returns></returns>
-    DbCommand GetDbCommand()
-    {
-        DbCommand command = MySql.Context.Database.GetDbConnection().CreateCommand();
-        command.Transaction = transaction != null ? transaction.GetDbTransaction() : MySql.Context.Database.CurrentTransaction?.GetDbTransaction();
-        return command;
-    }
-
     #endregion
 
     #region Group Join
@@ -3439,114 +1915,83 @@ public class SchemaContext
     /// <summary>
     /// Join to scalar
     /// </summary>
-    public async Task<JValue> GroupJoin(ScalarNode node, JToken value, ArrayJoinMethod method)
+    public async Task<JsonValue?> GroupJoin(ScalarNode node, JsonNode? value, DataCombineType method)
     {
-        JValue result = value switch
+        JsonValue? result = value switch
         {
             // Direct
-            JValue val => val,
+            JsonValue val => val,
             // Join
-            JArray { Count: > 0 } newArray =>
+            JsonArray { Count: > 0 } newArray =>
                 // Get by join methods
                 method switch
                 {
                     // Join the data
-                    ArrayJoinMethod.Assign => newArray.LastOrDefault(p => p is JValue) as JValue,
-                    ArrayJoinMethod.Count => new JValue(newArray.Count),
-                    ArrayJoinMethod.Sum => node.IsNumber ? new JValue(newArray.Sum(token => token.Value<decimal>())) : null,
-                    ArrayJoinMethod.Distinct => newArray.FirstOrDefault(p => p is JValue) as JValue,
-                    ArrayJoinMethod.Average => node.IsNumber && newArray.Count > 0 ? new JValue(newArray.Average(token => token.Value<decimal>())) : null,
-                    ArrayJoinMethod.Min => node.IsNumber && newArray.Count > 0 ? new JValue(newArray.Min(token => token.Value<decimal>())) : null,
-                    ArrayJoinMethod.Max => node.IsNumber && newArray.Count > 0 ? new JValue(newArray.Max(token => token.Value<decimal>())) : null,
+                    DataCombineType.Assign => newArray.LastOrDefault(p => p is JsonValue) as JsonValue,
+                    DataCombineType.Count => JsonValue.Create(newArray.Count),
+                    DataCombineType.Sum => node.IsNumber ? JsonValue.Create(newArray.Sum(token => token?.GetValue<decimal>() ?? 0)) : null,
+                    DataCombineType.Init => newArray.FirstOrDefault(p => p is JsonValue) as JsonValue,
                     _ => throw new ArgumentOutOfRangeException(nameof(method), method, null)
                 },
             _ => null
         };
         if (result.IsEmpty()) return null;
-        (JToken res, JToken error) = await node.ValidateValue(this, result);
-        return error.IsEmpty() ? res as JValue : throw new Exception(error.ToString());
+        (object? res, JsonNode? error) = await node.ValidateValueAsync(this, result!);
+        return error.IsEmpty() ? JsonValue.Create(res) : throw new Exception(error!.ToString());
     }
 
     /// <summary>
     /// Join to struct
     /// </summary>
-    public async Task<JObject> GroupJoin(StructNode node, JToken value, IReadOnlyDictionary<string, ArrayJoinMethod> joinMethodMap)
+    public async Task<JsonObject?> GroupJoin(StructNode node, JsonNode? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
     {
-        if (value.IsEmpty() || node.Fields == null || node.Fields.Count == 0) return null;
+        if (value.IsEmpty() || node.Fields.Length == 0) return null;
         switch (value)
         {
-            case JObject:
+            case JsonObject:
                 {
-                    (JToken res, JToken error) = await node.ValidateValue(this, value);
-                    return error.IsEmpty() ? res as JObject : throw new Exception(error.ToString());
+                    (object? res, JsonNode? error) = await node.ValidateValueAsync(this, value);
+                    return error.IsEmpty() ? res.ToJsonNode() as JsonObject : throw new Exception(error!.ToString());
                 }
-            case JArray { Count: > 0 } array:
+            case JsonArray { Count: > 0 } array:
                 {
                     // Valiate the result
-                    JArray validateArray = new();
-                    foreach (JToken token in array)
+                    JsonArray validateArray = new();
+                    foreach (JsonNode? token in array)
                     {
-                        (JToken res, JToken error) = await node.ValidateValue(this, token);
-                        validateArray.Add(error.IsEmpty() ? res : throw new Exception(error.ToString()));
+                        if (token == null) continue;
+                        (object? res, JsonNode? error) = await node.ValidateValueAsync(this, token);
+                        validateArray.Add(error.IsEmpty() ? res : throw new Exception(error!.ToString()));
                     }
                     array = validateArray;
                     if (array.IsEmpty()) return null;
 
                     // Join
-                    JObject result = new();
-                    foreach (StructNodeField field in node.Fields)
+                    JsonObject result = new();
+                    foreach (StructFieldConfig field in node.Fields)
                     {
-                        switch (joinMethodMap.ContainsKey(field.Name) ? joinMethodMap[field.Name] : ArrayJoinMethod.Assign)
+                        switch (joinMethodMap.GetValueOrDefault(field.Name, DataCombineType.Assign))
                         {
-                            case ArrayJoinMethod.Assign:
+                            case DataCombineType.Assign:
                                 {
-                                    JObject last = (JObject)array.LastOrDefault(p => p is JObject obj && obj.ContainsKey(field.Name));
+                                    JsonObject? last = (JsonObject?)array.LastOrDefault(p => p is JsonObject obj && obj.ContainsKey(field.Name));
                                     if (last != null)
                                         result[field.Name] = last[field.Name];
                                     break;
                                 }
-                            case ArrayJoinMethod.Distinct:
+                            case DataCombineType.Init:
                                 {
-                                    JObject first = (JObject)array.FirstOrDefault(p => p is JObject obj && obj.ContainsKey(field.Name));
+                                    JsonObject? first = (JsonObject?)array.FirstOrDefault(p => p is JsonObject obj && obj.ContainsKey(field.Name));
                                     if (first != null)
                                         result[field.Name] = first[field.Name];
                                     break;
                                 }
-                            case ArrayJoinMethod.Sum:
-                                result[field.Name] = field.TypeNode is ScalarNode { IsNumber: true } ? array.Sum(p => p is JObject obj && obj.ContainsKey(field.Name) && obj[field.Name] is JValue val && !val.IsEmpty() ? val.Value<decimal>() : 0) : null;
+                            case DataCombineType.Sum:
+                                result[field.Name] = field.TypeNode is ScalarNode { IsNumber: true } ? array.Sum(p => p is JsonObject obj && obj.ContainsKey(field.Name) && obj[field.Name] is JsonValue val && !val.IsEmpty() ? val.GetValue<decimal>() : 0) : null;
                                 break;
-                            case ArrayJoinMethod.Count:
+                            case DataCombineType.Count:
                                 result[field.Name] = field.TypeNode is ScalarNode { IsNumber: true } ? array.Count : null;
                                 break;
-                            case ArrayJoinMethod.Average:
-                                result[field.Name] = field.TypeNode is ScalarNode { IsNumber: true } ? array.Average(p => p is JObject obj && obj.ContainsKey(field.Name) && obj[field.Name] is JValue val && !val.IsEmpty() ? val.Value<decimal>() : 0) : null;
-                                break;
-                            case ArrayJoinMethod.Min:
-                                {
-                                    if (field.TypeNode is ScalarNode { IsNumber: true })
-                                    {
-                                        decimal[] valArray = array.Where(p => p is JObject obj && obj.ContainsKey(field.Name) && obj[field.Name] is JValue val && !val.IsEmpty()).Select(p => p[field.Name]!.Value<decimal>()).ToArray();
-                                        result[field.Name] = valArray.Length > 0 ? valArray.Min() : null;
-                                    }
-                                    else
-                                    {
-                                        result[field.Name] = null;
-                                    }
-                                    break;
-                                }
-                            case ArrayJoinMethod.Max:
-                                {
-                                    if (field.TypeNode is ScalarNode { IsNumber: true })
-                                    {
-                                        decimal[] valArray = array.Where(p => p is JObject obj && obj.ContainsKey(field.Name) && obj[field.Name] is JValue val && !val.IsEmpty()).Select(p => p[field.Name]!.Value<decimal>()).ToArray();
-                                        result[field.Name] = valArray.Length > 0 ? valArray.Max() : null;
-                                    }
-                                    else
-                                    {
-                                        result[field.Name] = null;
-                                    }
-                                    break;
-                                }
                             default:
                                 throw new ArgumentOutOfRangeException();
                         }
@@ -3560,111 +2005,79 @@ public class SchemaContext
     /// <summary>
     /// Join to array
     /// </summary>
-    public async Task<Dictionary<string, JObject>> GroupJoinObjectMap(ArrayNode node, JToken value, Dictionary<string, ArrayJoinMethod> joinMethodMap)
+    public async Task<Dictionary<string, JsonObject>> GroupJoinObjectMap(ArrayNode node, JsonNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
-        if (value.IsEmpty()) return new Dictionary<string, JObject>();
+        if (value.IsEmpty()) return new Dictionary<string, JsonObject>();
 
         // Gets field type
-        StructNode @struct = (StructNode)node.BaseNode;
+        StructNode @struct = (StructNode)node.ElementNode!;
         List<string> valueFields = (from fieldType in @struct.Fields where !node.Primary.Contains(fieldType.Name) select fieldType.Name).ToList();
 
         // The element struct type
         switch (value)
         {
             // Check by value
-            case JObject o when !o.IsEmpty():
+            case JsonObject o when !o.IsEmpty():
                 {
                     // Validate the value
-                    (JToken res, JToken error) = await @struct.ValidateValue(this, o);
-                    if (!error.IsEmpty()) throw new Exception(error.ToString());
-                    if (res.IsEmpty() || res is not JObject resObj) break;
-                    o = resObj;
+                    (object? res, JsonNode? error) = await @struct.ValidateValueAsync(this, o);
+                    if (!error.IsEmpty()) throw new Exception(error!.ToString());
+                    o = (JsonObject)res.ToJsonNode()!;
 
                     // Check the primary key
-                    string key = node.GetPrimaryKey(o);
+                    string? key = node.GetPrimaryKey(o);
                     if (string.IsNullOrWhiteSpace(key))
-                        return new Dictionary<string, JObject>();
+                        return new Dictionary<string, JsonObject>();
 
                     // Return single element array
-                    return new Dictionary<string, JObject>
+                    return new Dictionary<string, JsonObject>
                     {
                         { key, o }
                     };
                 }
-            case JArray array:
+            case JsonArray array:
                 {
                     // The return list with order
-                    Dictionary<string, JObject> keyMap = new();
+                    Dictionary<string, JsonObject> keyMap = new();
                     Dictionary<string, int> keyCount = new();
-                    foreach (JToken token in array)
+                    foreach (JsonNode? token in array)
                     {
-                        if (token is not JObject obj) continue;
+                        if (token is not JsonObject obj) continue;
 
                         // Validate the value
-                        (JToken res, JToken error) = await @struct.ValidateValue(this, obj);
-                        if (!error.IsEmpty()) throw new Exception(error.ToString());
-                        if (res.IsEmpty() || res is not JObject o) continue;
-                        obj = o;
+                        (object ?res, JsonNode? error) = await @struct.ValidateValueAsync(this, obj);
+                        if (!error.IsEmpty()) throw new Exception(error!.ToString());
+                        obj = (JsonObject)res.ToJsonNode()!;
 
                         // Gets the key
-                        string key = node.GetPrimaryKey(obj);
+                        string? key = node.GetPrimaryKey(obj);
                         if (string.IsNullOrWhiteSpace(key)) continue;
-                        if (keyMap.ContainsKey(key))
+                        if (keyMap.TryGetValue(key, out JsonObject? total))
                         {
                             // Join the data fields
-                            JObject total = keyMap[key];
                             keyCount[key]++;
                             foreach (string s in valueFields)
                             {
-                                switch (joinMethodMap.ContainsKey(s) ? joinMethodMap[s] : ArrayJoinMethod.Assign)
+                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
                                 {
-                                    // 赋值
-                                    case ArrayJoinMethod.Assign:
+                                    case DataCombineType.Assign:
                                         {
                                             if (obj.ContainsKey(s) && !obj[s].IsEmpty())
                                                 total[s] = obj[s];
                                             break;
                                         }
 
-                                    // 取一个
-                                    case ArrayJoinMethod.Distinct:
+                                    case DataCombineType.Init:
                                         if (!(total.ContainsKey(s) && !total[s].IsEmpty()) && obj.ContainsKey(s) && !obj[s].IsEmpty())
                                             total[s] = obj[s];
                                         break;
 
-                                    // 统计 X 平均
-                                    case ArrayJoinMethod.Sum:
-                                    case ArrayJoinMethod.Average:
-                                        total[s] = (total.ContainsKey(s) && !total[s].IsEmpty() ? total[s]!.Value<decimal>() : 0) + (obj.ContainsKey(s) && !obj[s].IsEmpty() ? obj[s]!.Value<decimal>() : 0);
+                                    case DataCombineType.Sum:
+                                        total[s] = (total.ContainsKey(s) && !total[s].IsEmpty() ? total[s]!.GetValue<decimal>() : 0) + (obj.ContainsKey(s) && !obj[s].IsEmpty() ? obj[s]!.GetValue<decimal>() : 0);
                                         break;
 
-                                    // 计数
-                                    case ArrayJoinMethod.Count:
-                                        total[s] = (total.ContainsKey(s) && !total[s].IsEmpty() ? total[s]!.Value<int>() : 0) + 1;
-                                        break;
-
-                                    // 最小
-                                    case ArrayJoinMethod.Min:
-                                        if (obj.ContainsKey(s) && !obj[s].IsEmpty())
-                                        {
-                                            decimal val = obj[s].Value<decimal>();
-                                            if (!total.ContainsKey(s) || total[s].IsEmpty() || val < total[s].Value<decimal>())
-                                            {
-                                                total[s] = val;
-                                            }
-                                        }
-                                        break;
-
-                                    // 最大
-                                    case ArrayJoinMethod.Max:
-                                        if (obj.ContainsKey(s) && !obj[s].IsEmpty())
-                                        {
-                                            decimal val = obj[s].Value<decimal>();
-                                            if (!total.ContainsKey(s) || total[s].IsEmpty() || val > total[s].Value<decimal>())
-                                            {
-                                                total[s] = val;
-                                            }
-                                        }
+                                    case DataCombineType.Count:
+                                        total[s] = (total.ContainsKey(s) && !total[s].IsEmpty() ? total[s]!.GetValue<int>() : 0) + 1;
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -3678,20 +2091,9 @@ public class SchemaContext
                             keyCount[key] = 1;
 
                             // Init Count
-                            foreach ((string s, ArrayJoinMethod m) in joinMethodMap)
-                                if (m == ArrayJoinMethod.Count)
+                            foreach ((string s, DataCombineType m) in joinMethodMap)
+                                if (m == DataCombineType.Count)
                                     obj[s] = 1;
-                        }
-                    }
-
-                    // Calc average
-                    foreach ((string s, ArrayJoinMethod m) in joinMethodMap)
-                    {
-                        if (m != ArrayJoinMethod.Average) continue;
-                        foreach ((string key, JObject total) in keyMap)
-                        {
-                            if (total.ContainsKey(s))
-                                total[s] = (!total[s].IsEmpty() ? total[s].Value<decimal>() : 0m) / keyCount[key];
                         }
                     }
 
@@ -3699,21 +2101,21 @@ public class SchemaContext
                     return keyMap;
                 }
         }
-        return new Dictionary<string, JObject>();
+        return new Dictionary<string, JsonObject>();
     }
 
     /// <summary>
     /// Join to array
     /// </summary>
-    public async Task<JArray> GroupJoin(ArrayNode node, JToken value, Dictionary<string, ArrayJoinMethod> joinMethodMap)
+    public async Task<JsonArray?> GroupJoin(ArrayNode node, JsonNode value, Dictionary<string, DataCombineType> joinMethodMap)
     {
-        if (node.BaseNode is not StructNode structNode) return null;
-        Dictionary<string, NamespaceNode> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
+        if (node.ElementNode is not StructNode structNode || node.Primary == null) return null;
+        Dictionary<string, AnySchemaNode?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
 
         // Result
-        JArray joinArray = new();
-        Dictionary<string, JObject> resultMap = await GroupJoinObjectMap(node, value, joinMethodMap);
-        List<JObject> joinObjs = resultMap.Values.ToList();
+        JsonArray joinArray = new();
+        Dictionary<string, JsonObject> resultMap = await GroupJoinObjectMap(node, value, joinMethodMap);
+        List<JsonObject> joinObjs = resultMap.Values.ToList();
         joinObjs.Sort((a, b) =>
         {
             foreach (string s in node.Primary)
@@ -3722,24 +2124,24 @@ public class SchemaContext
                 {
                     case ScalarNode { IsDate: true }:
                         {
-                            DateTime ad = a[s]!.Value<DateTime>();
-                            DateTime bd = b[s]!.Value<DateTime>();
+                            DateTime ad = a[s]!.GetValue<DateTime>();
+                            DateTime bd = b[s]!.GetValue<DateTime>();
                             if (!ad.Equal(bd))
                                 return ad.LessThan(bd) ? -1 : 1;
                             break;
                         }
                     case ScalarNode { IsNumber: true }:
                         {
-                            decimal ad = a[s]!.Value<decimal>();
-                            decimal bd = b[s]!.Value<decimal>();
+                            decimal ad = a[s]!.GetValue<decimal>();
+                            decimal bd = b[s]!.GetValue<decimal>();
                             if (ad != bd)
                                 return ad < bd ? -1 : 1;
                             break;
                         }
                     default:
                         {
-                            string ad = a[s].ToString();
-                            string bd = b[s].ToString();
+                            string ad = a[s]?.ToString() ?? string.Empty;
+                            string bd = b[s]?.ToString() ?? string.Empty;
                             if (!ad.Equals(bd))
                                 return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
                             break;
@@ -3748,265 +2150,10 @@ public class SchemaContext
             }
             return 0;
         });
-        foreach (JObject o in joinObjs)
+        foreach (JsonObject o in joinObjs)
             joinArray.Add(o);
         return joinArray;
     }
-
-    #endregion
-
-    #region Validate Field Data Type
-
-    /// <summary>
-    /// Whether the function can be used for type validation(in: type, out: string)
-    /// </summary>
-    public async Task<bool> IsValidFuncForType(string type, string func, string @base = null)
-    {
-        NamespaceNode node = await GetNamespaceNodeAsync(func);
-        return node is FunctionNode { ReturnNode: ScalarNode { IsString: true } } funcNode
-               && ((funcNode.Args is { Count: 1 } && type.Equals(funcNode.Args[0].Type))
-                   || (!string.IsNullOrWhiteSpace(@base) && funcNode.Args is { Count: 2 } && @base.Equals(funcNode.Args[0].Type) && (@base.Equals(funcNode.Args[1].Type) || funcNode.Args[1].UseArgType == 1)));
-    }
-
-    /// <summary>
-    /// Validate the value with data type
-    /// </summary>
-    public async Task<(JToken value, JToken error)> ValidateValueByType(string typeName, JToken value)
-    {
-        // Valiadte value
-        if (value.IsEmpty()) return (null, null);
-
-        // validate the namespace
-        NamespaceNode node = await GetNamespaceNodeAsync(typeName);
-        if (node == null) return (value, TYPE_NAMESPACE_NOT_EXIST);
-        return await node.ValidateValue(this, value);
-    }
-
-    /// <summary>
-    /// Validate field by DynamicTableSchema and return nullable
-    /// </summary>
-    public async Task<(bool isEmpty, JToken result)> ValidateField(JToken token, DynamicTableSchema schema, [CallerArgumentExpression("token")] string paramName = null)
-    {
-        if (token.IsEmpty()) return (true, null);
-        if (paramName!.IndexOf('.') > 0)
-            paramName = paramName[(paramName.IndexOf('.') + 1)..];
-
-        // Validate by the data type
-        (JToken value, JToken errors) = await ValidateValueByType(schema.DataType, token);
-        if (!errors.IsEmpty())
-            throw CreateParameterException(paramName, errors);
-
-        // check schema
-        if (schema.Single)
-        {
-            if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
-            {
-                if (schema.Fields[0].Type != DynamicTableFieldType.Json)
-                {
-                    // null, string, scalar
-                    if (string.IsNullOrWhiteSpace(value.Value<string>()))
-                    {
-                        return (true, null);
-                    }
-                    CheckValue(value, schema.Fields[0].Type);
-                }
-                else if (value is JValue)
-                {
-                    throw CreateParameterException(paramName, IMPORT_DATA_FIELD_NOT_MATCH);
-                }
-            }
-            else
-            {
-                if (value is not JObject jObject)
-                    throw CreateParameterException(paramName, IMPORT_DATA_FIELD_NOT_MATCH);
-
-                // empty obj
-                if (jObject.Count == 0)
-                {
-                    return (true, value);
-                }
-                CheckObject(jObject, schema.Fields);
-            }
-        }
-        else
-        {
-            if (value is not JArray arr)
-                throw CreateParameterException(paramName, IMPORT_DATA_FIELD_NOT_MATCH);
-
-            // empty arr
-            if (arr.Count == 0)
-            {
-                return (true, value);
-            }
-            if (arr.Any(p => p.Type != JTokenType.Object))
-                throw CreateParameterException(paramName, IMPORT_DATA_FIELD_NOT_MATCH);
-            foreach (JToken subToken in arr)
-            {
-                CheckObject(subToken as JObject, schema.Fields);
-            }
-        }
-        return (false, value);
-    }
-
-    /// <summary>
-    /// Check the value type if match the field in database.
-    /// </summary>
-    static void CheckValue(JToken token, DynamicTableFieldType type)
-    {
-        if (token.IsEmpty()) return;
-        try
-        {
-            switch (type)
-            {
-                case DynamicTableFieldType.Bool:
-                    token.ToObject<bool>();
-                    break;
-                case DynamicTableFieldType.Smallint:
-                    token.ToObject<short>();
-                    break;
-                case DynamicTableFieldType.USmallint:
-                    token.ToObject<ushort>();
-                    break;
-                case DynamicTableFieldType.Int:
-                case DynamicTableFieldType.Mediumint:
-                    token.ToObject<int>();
-                    break;
-                case DynamicTableFieldType.UInt:
-                case DynamicTableFieldType.UMediumint:
-                    token.ToObject<uint>();
-                    break;
-                case DynamicTableFieldType.BigInt:
-                    token.ToObject<long>();
-                    break;
-                case DynamicTableFieldType.UBigInt:
-                    token.ToObject<ulong>();
-                    break;
-                case DynamicTableFieldType.Float:
-                    token.ToObject<float>();
-                    break;
-                case DynamicTableFieldType.Double:
-                    token.ToObject<double>();
-                    break;
-                case DynamicTableFieldType.DateTime:
-                    token.ToObject<DateTime>();
-                    break;
-                case DynamicTableFieldType.Char:
-                case DynamicTableFieldType.VarChar:
-                case DynamicTableFieldType.TinyText:
-                case DynamicTableFieldType.Text:
-                case DynamicTableFieldType.MediumText:
-                case DynamicTableFieldType.LongText:
-                case DynamicTableFieldType.TinyBlob:
-                case DynamicTableFieldType.Blob:
-                case DynamicTableFieldType.MediumBlob:
-                case DynamicTableFieldType.LongBlob:
-                    if (token.Type != JTokenType.String) throw new Exception();
-                    token.ToObject<string>();
-                    break;
-                case DynamicTableFieldType.Json:
-                    break;
-                default:
-                    throw new Exception();
-            }
-        }
-        catch (Exception)
-        {
-            throw CreateParameterException(new Dictionary<string, string>
-            {
-                { "Data", IMPORT_DATA_FIELD_TYPE_NOT_MATCH },
-                { token.Parent != null ? token.Parent.ToJson() : token.ToJson(), IMPORT_DATA_FIELD_TYPE_NOT_MATCH }
-            });
-        }
-    }
-
-    /// <summary>
-    /// Check the each item type of the JObject if match the field in database.
-    /// </summary>
-    static void CheckObject(JObject obj, List<DynamicTableField> fields)
-    {
-        foreach (DynamicTableField field in fields)
-        {
-            if (field.Complex == null)
-            {
-                if (!obj.ContainsKey(field.Name)) continue;
-                if (field.Type != DynamicTableFieldType.Json)
-                    CheckValue(obj[field.Name], field.Type);
-            }
-            else if (obj.ContainsKey(field.Complex.Main) && obj[field.Complex.Main] is JObject subObj && subObj.ContainsKey(field.Complex.Field))
-            {
-                if (field.Type != DynamicTableFieldType.Json)
-                    CheckValue(subObj[field.Complex.Field], field.Type);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Creates an exception that represents a parameter error.
-    /// </summary>
-    [DebuggerHidden]
-    static MicroserviceApiException CreateParameterException(string field, string message)
-    {
-        return new MicroserviceApiException(MicroserviceApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", new Dictionary<string, object>
-        {
-            { field, message }
-        });
-    }
-
-    /// <summary>
-    /// Creates an exception that represents a parameter error.
-    /// </summary>
-    [DebuggerHidden]
-    static MicroserviceApiException CreateParameterException(IDictionary<string, string> errorMessages)
-    {
-        IDictionary<string, object> errorData = errorMessages.ToDictionary(keyValuePair => keyValuePair.Key, keyValuePair => (object)keyValuePair.Value);
-        return new MicroserviceApiException(MicroserviceApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", errorData);
-    }
-
-    [DebuggerHidden]
-    static MicroserviceApiException CreateParameterException(string field, JToken errors)
-    {
-        return new MicroserviceApiException(MicroserviceApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", new Dictionary<string, object>
-        {
-            { field, errors }
-        });
-    }
-
-    #endregion
-
-    #region Validation
-
-    /// <summary>
-    /// Validate the parent namespace.
-    /// </summary>
-    public async Task<NamespaceNode> ValidateParentNamespaceAsync(string name, [CallerArgumentExpression("name")] string paramName = null)
-    {
-        string[] names = Regex.Split(name, @"\W+");
-        if (names.Length <= 1) return null;
-        name = string.Join(".", names.SkipLast(1));
-
-        NamespaceNode entity = await GetNamespaceNodeAsync(name);
-        if (entity is not { Type: NamespaceType.Namspace })
-            throw CreateParameterException(paramName![(paramName.IndexOf('.') + 1)..], string.Format(TYPE_NAMESPACE_PARENT_NOT_VALID, name));
-
-        return entity;
-    }
-
-    /// <summary>
-    /// Validate the parent category.
-    /// </summary>
-    public async Task<AppNode> ValidateParentCategoryAsync(string name, [CallerArgumentExpression("name")] string paramName = null)
-    {
-        string[] names = Regex.Split(name, @"\W+");
-        if (names.Length <= 1) return null;
-        name = string.Join(".", names.SkipLast(1));
-
-        AppNode entity = await GetAppNodeAsync(name);
-        if (entity == null)
-            throw CreateParameterException(paramName![(paramName.IndexOf('.') + 1)..], string.Format(CATEGORY_PARENT_NOT_VALID, name));
-
-        return entity;
-    }
-
 
     #endregion
 
@@ -4014,6 +2161,8 @@ public class SchemaContext
 
     #region Utility
 
+    readonly Dictionary<string, TransactionChangeData> _transChangedData = new();
+    
     // Call async function
     static T? CallAsyncFunc<T>(MethodBase asyncCall, params object[] callArgs)
     {
@@ -4026,6 +2175,7 @@ public class SchemaContext
 
 
     private readonly Lazy<ILogger> _loggerThunk;
+    private readonly Lazy<IAppSchemaDataProvider?> _dataProviderThunk;
     
     static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
     static readonly NamespaceNode RootNamespace;

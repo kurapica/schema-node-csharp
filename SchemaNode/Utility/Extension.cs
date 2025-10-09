@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using SchemaNode.Node;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -99,7 +97,7 @@ internal static class Extension
         }
     }
 
-    internal class JsonDateTimeOffetIsoConverter : JsonConverter<DateTimeOffset>
+    internal class JsonDateTimeOffsetIsoConverter : JsonConverter<DateTimeOffset>
     {
         private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
@@ -176,6 +174,13 @@ internal static class Extension
         }
         return value.Deserialize(type, NoIndentJsonOption);
     }
+    
+    internal static JsonNode? ToJsonNode<T>(this T? value)
+    {
+        if (value == null) return null;
+        if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
+        return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+    }
 
     /// <summary>
     /// Try parse the json value to value and type
@@ -205,7 +210,7 @@ internal static class Extension
                 return (null, null);
             default:
                 throw new ArgumentOutOfRangeException();
-        };
+        }
     }
 
 
@@ -239,7 +244,7 @@ internal static class Extension
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public static JsonNode? GetValueByPaths(this JsonNode? token, IEnumerable<string> paths)
+    internal static JsonNode? GetValueByPaths(this JsonNode? token, IEnumerable<string> paths)
     {
         foreach (string path in paths)
         {
@@ -257,6 +262,20 @@ internal static class Extension
     }
 
     /// <summary>
+    /// Try get the value with name
+    /// </summary>
+    internal static bool TryGetValue(this JsonObject? obj, string name, out JsonNode? value)
+    {
+        if (obj != null && obj.ContainsKey(name))
+        {
+            value = obj[name];
+            return true;
+        }
+        value = null;
+        return false;
+    }
+    
+    /// <summary>
     /// Gets the value with paths
     /// </summary>
     public static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
@@ -268,7 +287,7 @@ internal static class Extension
         {
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
-            new JsonDateTimeOffetIsoConverter(),
+            new JsonDateTimeOffsetIsoConverter(),
             new ForceStringConverter(),
             new FlexibleLongConverter(),
         },
@@ -283,7 +302,7 @@ internal static class Extension
         {
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new JsonDateTimeIsoConverter(),
-            new JsonDateTimeOffetIsoConverter(),
+            new JsonDateTimeOffsetIsoConverter(),
             new ForceStringConverter(),
             new FlexibleLongConverter(),
         },
@@ -446,8 +465,7 @@ internal static class Extension
                 }
                 else if (type.IsSubclassOfGenericType(typeof(List<>)))
                 {
-                    Type? eleType = type.GetGenericArguments()[0];
-                    if (eleType == null) return null;
+                    Type eleType = type.GetGenericArguments()[0];
                     return arr.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
                 }
                 else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))
@@ -468,8 +486,7 @@ internal static class Extension
                 }
                 else if (type.IsSubclassOfGenericType(typeof(List<>)))
                 {
-                    Type? eleType = type.GetGenericArguments()[0];
-                    if (eleType == null) return null;
+                    Type eleType = type.GetGenericArguments()[0];
                     return iter.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
                 }
                 else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))

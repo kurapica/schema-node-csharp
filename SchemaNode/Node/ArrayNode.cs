@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -39,10 +40,10 @@ public class ArrayNode: AnySchemaNode
     /// <summary>
     /// The data combine rule
     /// </summary>
-    public DataCombine[]? Combine { get; set; }
+    public DataCombine[]? Combines { get; set; }
 
     /// <summary>
-    /// The realtions between the fields
+    /// The relation between the fields
     /// </summary>
     public StructFieldRelation[]? Relations { get; set; }
     
@@ -80,7 +81,7 @@ public class ArrayNode: AnySchemaNode
         Element = array?.Element;
         Single = array?.Single;
         Primary = array?.Primary;
-        Combine = array?.Combine;
+        Combines = array?.Combines;
         Relations = array?.Relations;
         Indexes = array?.Indexes;
         Additional = array?.Additional;
@@ -188,6 +189,32 @@ public class ArrayNode: AnySchemaNode
     /// <inheritdoc />
     public override ArrayNode? GetArrayNode(bool exactly = false) => null;
 
+    /// <summary>
+    /// Get unique key for object
+    /// </summary>
+    public string? GetPrimaryKey(JsonObject obj)
+    {
+        if (Primary == null || Primary.Length == 0 || ElementNode is not StructNode { Fields.Count: > 0 } @struct)
+            return null;
+
+        string? key = null;
+        foreach (string p in Primary)
+        {
+            if (obj.ContainsKey(p))
+            {
+                StructFieldConfig? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
+                if (fld == null) return null;
+                string part = fld.TypeNode is ScalarNode { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>().FromUtc():yyyyMMdd}" : $"{obj[p]}";
+                key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return key;
+    }
+    
     public override IEnumerable<AnySchemaNode> GetDependNodes()
     {
         if (ElementNode != null)
@@ -224,7 +251,7 @@ public class ArrayNode: AnySchemaNode
                 Element = schema.Element,
                 Single = schema.Single,
                 Primary = schema.Primary,
-                Combine = schema.Combine,
+                Combines = schema.Combines,
                 Relations = schema.Relations,
                 Additional = schema.Additional,
             }

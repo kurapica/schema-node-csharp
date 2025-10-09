@@ -6,6 +6,7 @@ using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 using System.Data;
 using System.Text;
+using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,7 +28,8 @@ builder.Services.AddCors(options =>
 // schema
 builder.Services
     .AddSchemaNode()
-    .AddSchemaStorageProvider<JsonSchemaStorageProvider>();
+    .AddSchemaStorageProvider<JsonSchemaStorageProvider>()
+    .AddAppSchemaDataProvider<AppSchemaDataProvider>();
 
 var app = builder.Build();
 app.UseCors("AllowAll");

@@ -213,7 +213,7 @@ public sealed class SchemaApiResponseError
     public SchemaApiResponseErrorCode Code { get; set; }
 
     /// <summary>
-    /// Provides a key of the error description for programatic use.
+    /// Provides a key of the error description for programmatic use.
     /// </summary>
     public string? MessageKey { get; set; }
 
@@ -375,7 +375,7 @@ public static class SchemaApiExtension
                 if (assembly == schemaAssembly)
                 {
                     // no storage no edit
-                    if (type.FullName!.Contains(nameof(SchemaNode.Api.Schema.Edit)))
+                    if (type.FullName!.Contains("SchemaNode.Api.Schema.Edit"))
                     {
                         if (!hasSchemaStorage) continue;
                     }
@@ -411,7 +411,7 @@ public static class SchemaApiExtension
         {
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
             new Extension.JsonDateTimeIsoConverter(),
-            new Extension.JsonDateTimeOffetIsoConverter(),
+            new Extension.JsonDateTimeOffsetIsoConverter(),
             new Extension.ForceStringConverter(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

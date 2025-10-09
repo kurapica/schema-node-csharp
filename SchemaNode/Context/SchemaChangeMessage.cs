@@ -39,5 +39,13 @@ public class SchemaChangeMessageHandler : ISchemaMessageHandler<SchemaChangeMess
         if (message.DeleteSchemas != null)
             foreach (string schema in message.DeleteSchemas)
                 context.RemoveSchemaNode(schema);
+        
+        if (message.Apps != null)
+            foreach (string app in message.Apps)
+                await context.GetAppNodeAsync(app, reload: true).ConfigureAwait(false);
+            
+        if (message.DeleteApps != null)
+            foreach (string app in message.DeleteApps)
+                context.RemoveAppNode(app);
     }
 }
