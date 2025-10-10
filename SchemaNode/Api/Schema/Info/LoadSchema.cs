@@ -35,7 +35,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
                         Type = s.Type,
                         Display = s.Display,
                         LoadState = s.LoadState,
-                        HasSchemas = subNode is NamespaceNode n && n.Schemas.Length > 0
+                        HasSchemas = (s.HasSchemas ?? false) || subNode is NamespaceNode { Schemas.Length: > 0 }
                     };
                 }).ToArray();
             }

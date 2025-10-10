@@ -663,7 +663,7 @@ public class SchemaContext
 
         // Gets the node
         string fullPath = string.Empty;
-        foreach (string path in Regex.Split(name, @"\W+"))
+        foreach (string path in Regex.Split(name, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
         {
             AppNode parent = node;
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
@@ -1566,7 +1566,7 @@ public class SchemaContext
                             }
                             break;
                         }
-                    case StructNode { Fields.Count: > 0 } @struct:
+                    case StructNode { Fields.Length: > 0 } @struct:
                         {
                             // Gets the join method map
                             Dictionary<string, DataCombineType> joinMethodMap = new();

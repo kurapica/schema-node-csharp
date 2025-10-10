@@ -233,12 +233,12 @@ public class AppNode
                     DataField = r.Field.Contains(".") ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
                     Type = r.Type,
                     Func = r.Func,
-                    Args = r.Args?.Select(a => new AppArgSchema
+                    Args = r.Args.Select(a => new AppArgSchema
                     {
                         AppField = a.Name?.Split(".", 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty,
                         DataField = a.Name != null && a.Name.Contains(".") ? a.Name.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
                         Value = a.Value,
-                    }).ToArray() ?? [],
+                    }).ToArray(),
                 }).ToList();
 
                 foreach (AppRelationSchema relation in Relations)
@@ -247,7 +247,7 @@ public class AppNode
                     if (field == null) {
                         relation.Status = SchemaNodeStatus.ApplicationRelationWrongTarget;
                         continue;
-                    };
+                    }
                     relation.FieldNode = field;
 
                     if (string.IsNullOrWhiteSpace(relation.Func))
@@ -280,7 +280,7 @@ public class AppNode
                 {
                     Name = APP_FIELD_REFS,
                     Element = APP_FIELD_REF,
-                    Primary = new string[] { APP_FIELD_REF_APP },
+                    Primary = [APP_FIELD_REF_APP],
                     ElementNode = new StructNode
                     {
                         Name = APP_FIELD_REF,
@@ -383,7 +383,7 @@ public class AppNode
             }
         }
 
-        return root.Schemas;
+        return root.Schemas!;
     }
 
     #endregion

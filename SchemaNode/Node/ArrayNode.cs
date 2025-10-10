@@ -194,7 +194,7 @@ public class ArrayNode: AnySchemaNode
     /// </summary>
     public string? GetPrimaryKey(JsonObject obj)
     {
-        if (Primary == null || Primary.Length == 0 || ElementNode is not StructNode { Fields.Count: > 0 } @struct)
+        if (Primary == null || Primary.Length == 0 || ElementNode is not StructNode { Fields.Length: > 0 } @struct)
             return null;
 
         string? key = null;

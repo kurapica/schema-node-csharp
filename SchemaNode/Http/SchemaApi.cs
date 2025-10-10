@@ -349,11 +349,7 @@ public static class SchemaApiExtension
     /// <summary>
     /// Enable microservice apis
     /// </summary>
-    /// <param name="app"></param>
-    /// <param name="prefix"></param>
-    /// <param name="suffix"></param>
-    /// <returns></returns>
-    public static IEndpointRouteBuilder UseSchemaApis(this IEndpointRouteBuilder app, string prefix = "schema", string suffix = "")
+    public static IEndpointRouteBuilder UseSchemaApis(this IEndpointRouteBuilder app, string prefix = "schema", string suffix = "", bool enableAppDataApi = false)
     {
         UrlPrefix = prefix;
         UrlSuffix = suffix;
@@ -366,6 +362,7 @@ public static class SchemaApiExtension
 
         IServiceProviderIsService service = app.ServiceProvider.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
+        bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
 
         while (RegisterAssemblys.TryTake(out assembly))
         {
@@ -375,9 +372,13 @@ public static class SchemaApiExtension
                 if (assembly == schemaAssembly)
                 {
                     // no storage no edit
-                    if (type.FullName!.Contains("SchemaNode.Api.Schema.Edit"))
+                    if (type.FullName!.Contains("api.schema.edit", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!hasSchemaStorage) continue;
+                    }
+                    else if (type.FullName!.Contains("api.schema.application", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!hasAppDataStorage || !enableAppDataApi) continue;
                     }
                 }
                 

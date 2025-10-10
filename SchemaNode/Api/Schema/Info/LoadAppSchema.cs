@@ -35,8 +35,8 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                 Display = a.Display,
                 Desc = a.Desc,
                 Standalone = a.Standalone,
-                HasApps = a.Apps is { Length: > 0 },
-                HasFields = a.Fields is { Length: > 0 },
+                HasApps = a.HasApps ?? a.Apps is { Length: > 0 },
+                HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 },
             }).ToArray(),
         };
 
@@ -55,7 +55,8 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                 }).ToArray() ?? []
             }).ToArray();
 
-            schema.NodeSchemas = node.GetNodeSchemas();
+            if(request.IncludeTypes)
+                schema.NodeSchemas = node.GetNodeSchemas();
         }
 
         return new LoadAppSchemaResponse
@@ -73,7 +74,6 @@ public class LoadAppSchemaRequest : SchemaApiRequest
     /// <summary>
     /// The app schema name
     /// </summary>
-    [Required]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

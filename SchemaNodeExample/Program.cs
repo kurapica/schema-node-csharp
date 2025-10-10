@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Mysql
 var connString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddTransient<IDbConnection>(sp => new MySqlConnection(connString));
+builder.Services.AddTransient<MySqlConnection>(sp => new MySqlConnection(connString));
 
 // for test
 builder.Services.AddCors(options =>
@@ -34,7 +35,7 @@ builder.Services
 var app = builder.Build();
 app.UseCors("AllowAll");
 
-app.UseSchemaApis();
+app.UseSchemaApis(enableAppDataApi:true);
 app.PreLoadSchemaNodes();
 
 #region Swagger

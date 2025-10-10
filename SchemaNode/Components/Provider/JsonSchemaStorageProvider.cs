@@ -4,7 +4,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace SchemaNode.Components.Provider;
 
@@ -40,6 +39,10 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                         Type = SchemaType.Namespace,
                         Display = name
                     });
+
+                    if (Directory.GetFiles(d, "*", SearchOption.TopDirectoryOnly).Length > 1
+                        || Directory.GetDirectories(d).Length > 0)
+                        nodes.Last().HasSchemas = true;
                 }
                 foreach (string f in Directory.GetFiles(res.Value.file, "*.json", SearchOption.TopDirectoryOnly))
                 {
@@ -56,12 +59,8 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                             _ => null
                         };
                         if (type == null) continue;
-                        nodes.Add(new NodeSchema
-                        {
-                            Name = $"{name}.{path[0]}",
-                            Type = type.Value,
-                            Display = path[0]
-                        });
+                        NodeSchema? subNs = await LoadSchemaFile<NodeSchema>(f);
+                        if (subNs != null) nodes.Add(subNs);
                     }
                 }
                 schema.Schemas = nodes.ToArray();
@@ -96,22 +95,35 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         string[] dirs = Directory.GetDirectories(folder);
         if (dirs.Length > 0)
         {
-            schema.Apps = dirs.Select(d => Path.GetFileName(d))
-                .Where(d => !string.IsNullOrEmpty(d))
-                .Select(d => new AppSchema
+            schema.Apps = new AppSchema[dirs.Length];
+
+            for (int i = 0; i < dirs.Length; i++)
+            {
+                string d = dirs[i];
+                schema.Apps[i] = await LoadSchemaFile<AppSchema>(Path.Combine(d, "__app.json")) ?? new AppSchema
                 {
-                    Name = $"{app}.{d}",
-                })
-                .ToArray()!;
+                    Name = string.IsNullOrWhiteSpace(app) ? Path.GetFileName(d) : $"{app}.{Path.GetFileName(d)}"
+                };
+                if (Directory
+                    .GetFiles(d, "*.json", SearchOption.TopDirectoryOnly)
+                    .Select(Path.GetFileNameWithoutExtension).Any(p => Regex.IsMatch(p!, @"^\d{3}\..+$")))
+                {
+                    schema.Apps[i].HasFields = true;
+                }
+                else if (Directory.GetDirectories(d).Length > 0)
+                {
+                    schema.Apps[i].HasApps = true;
+                }
+            }
         }
 
         // load fields
         var fields = Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
-            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$"))
             .Select(p =>
             {
-                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
                 return (int.Parse(path[0]), path[1]);
             }).OrderBy(v => v.Item1).ToArray();
         if (fields.Length > 0)
@@ -267,9 +279,9 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         int maxOrder = 0;
         foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
-            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$" ))
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$" ))
             .Select(p => {
-                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
                 return (int.Parse(path[0]), path[1]);
             }).OrderBy(v => v.Item1))
         {
@@ -278,7 +290,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         }
 
         // save
-        string fileName = $"{(maxOrder + 1).ToString("D3")}.{field.Name}.json";
+        string fileName = $"{(maxOrder + 1):D3}.{field.Name}.json";
 
         await WriteSchemaFile(Path.Combine(folder, fileName), field);
         return true;
@@ -297,22 +309,22 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         int maxOrder = 1;
         foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
-            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$"))
             .Select(p => {
-                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
                 return (int.Parse(path[0]), path[1]);
             }).OrderBy(v => v.Item1))
         {
             if (file.Item2.Equals(field, StringComparison.OrdinalIgnoreCase))
             {
-                File.Delete(Path.Combine(folder, $"{file.Item1.ToString("D3")}.{file.Item2}.json"));
+                File.Delete(Path.Combine(folder, $"{file.Item1:D3}.{file.Item2}.json"));
                 continue;
             }
             else if(file.Item1 != maxOrder)
             {
                 // re-order
-                File.Move(Path.Combine(folder, $"{file.Item1.ToString("D3")}.{file.Item2}.json"),
-                    Path.Combine(folder, $"{maxOrder.ToString("D3")}.{file.Item2}.json"));
+                File.Move(Path.Combine(folder, $"{file.Item1:D3}.{file.Item2}.json"),
+                    Path.Combine(folder, $"{maxOrder:D3}.{file.Item2}.json"));
             }
             maxOrder += 1;
         }
@@ -333,9 +345,9 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         (int, string)? order2 = null;
         foreach (var file in Directory.GetFiles(folder, "*.json", SearchOption.TopDirectoryOnly)
             .Select(Path.GetFileNameWithoutExtension)
-            .Where(p => Regex.IsMatch(p, @"^\d{3}\..+$"))
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$"))
             .Select(p => {
-                string[] path = p.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
                 return (int.Parse(path[0]), path[1]);
             }).OrderBy(v => v.Item1))
         {
@@ -345,9 +357,9 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 order2 = file;
         }
         if (order1 is null || order2 is null) return false;
-        File.Move(Path.Combine(folder, $"{order1.Value.Item1.ToString("D3")}.{order1.Value.Item2}.json"), Path.Combine(folder, $"__temp__.json"));
-        File.Move(Path.Combine(folder, $"{order2.Value.Item1.ToString("D3")}.{order2.Value.Item2}.json"), Path.Combine(folder, $"{order1.Value.Item1.ToString("D3")}.{order1.Value.Item2}.json"));
-        File.Move(Path.Combine(folder, $"__temp__.json"), Path.Combine(folder, $"{order2.Value.Item1.ToString("D3")}.{order2.Value.Item2}.json"));
+        File.Move(Path.Combine(folder, $"{order1.Value.Item1:D3}.{order1.Value.Item2}.json"), Path.Combine(folder, $"__temp__.json"));
+        File.Move(Path.Combine(folder, $"{order2.Value.Item1:D3}.{order2.Value.Item2}.json"), Path.Combine(folder, $"{order1.Value.Item1:D3}.{order2.Value.Item2}.json"));
+        File.Move(Path.Combine(folder, $"__temp__.json"), Path.Combine(folder, $"{order2.Value.Item1:D3}.{order1.Value.Item2}.json"));
         return true;
     }
 

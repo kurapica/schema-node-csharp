@@ -132,8 +132,9 @@ public static class Injection
         _ = Task.Run(async() =>
         {
             using IServiceScope scope = app.ApplicationServices.CreateScope();
-            return await scope.ServiceProvider.GetRequiredService<SchemaContext>()
-                .GetSchemaNodeAsync("", preload: true);
+            SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+            await context.GetSchemaNodeAsync("", preload: true);
+            await context.GetAppNodeAsync("", preload: true);
         });
         return app;
     }
