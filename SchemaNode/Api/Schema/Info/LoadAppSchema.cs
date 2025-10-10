@@ -29,14 +29,17 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             Standalone = node.Standalone,
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
-            Apps = node.Apps?.Select(a => new AppSchema
-            {
-                Name = a.Name,
-                Display = a.Display,
-                Desc = a.Desc,
-                Standalone = a.Standalone,
-                HasApps = a.HasApps ?? a.Apps is { Length: > 0 },
-                HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 },
+            Apps = node.Apps?.Select(a => {
+                AppNode? childNode = node.SubAppList?.Values?.FirstOrDefault(a => a.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
+                return new AppSchema
+                {
+                    Name = a.Name,
+                    Display = a.Display,
+                    Desc = a.Desc,
+                    Standalone = a.Standalone,
+                    HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
+                    HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
+                };
             }).ToArray(),
         };
 

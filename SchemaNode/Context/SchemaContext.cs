@@ -460,7 +460,9 @@ public class SchemaContext
         {
             AppNode? parentNode = await GetAppNodeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
             if (parentNode != null)
+            {
                 parentNode.Apps = parentNode.Apps == null ? [app] : parentNode.Apps.Concat([app]).ToArray();
+            }
         }
         await GetAppNodeAsync(app.Name, reload: true); // force reload
         await this.PublishMessageAsync(new SchemaChangeMessage
@@ -573,7 +575,6 @@ public class SchemaContext
         
         // gets the node
         string fullPath = "";
-        Logger.LogInformation("GetSchemaNodeAsync {0}", schemaName);
         foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
                      .Where(s => !string.IsNullOrWhiteSpace(s)))
         {
@@ -639,6 +640,7 @@ public class SchemaContext
             {
                 if (child.IsUsed) return false;
                 ns.SchemaNodes.TryRemove(paths.Last(), out child);
+                child?.Dispose();
             }
             ns.Schemas = ns.Schemas.Where(s => !s.Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase)).ToArray();
             return true;
