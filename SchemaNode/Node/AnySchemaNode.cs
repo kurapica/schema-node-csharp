@@ -203,8 +203,8 @@ public abstract class AnySchemaNode: IDisposable
     /// <summary>
     /// Used by other types
     /// </summary>
-    protected ConcurrentDictionary<AnySchemaNode, bool>? UsedBy;
-    protected ConcurrentDictionary<AppFieldNode, bool>? UsedByApp;
+    internal ConcurrentDictionary<AnySchemaNode, bool>? UsedBy;
+    internal ConcurrentDictionary<AppFieldNode, bool>? UsedByApp;
 
     #endregion
 }

@@ -182,6 +182,11 @@ internal static class Extension
         return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
     }
 
+    internal static T ToValue<T>(this JsonNode node)
+    {
+        return (T)(TryConvert(typeof(T), node) ?? default);
+    }
+
     /// <summary>
     /// Try parse the json value to value and type
     /// </summary>

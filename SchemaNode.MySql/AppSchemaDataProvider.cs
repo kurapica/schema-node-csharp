@@ -283,10 +283,15 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             else
             {
                 // Struct value
+                StringBuilder sb = new();
+                sb.Append($"SELECT ");
+                schema.AppendFields(sb);
+                sb.Append($" FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"");
+                sb.Append(forUpdate ? " FOR UPDATE;" : ";");
 
                 // Get data
                 DbCommand command = GetDbCommand();
-                command.CommandText = $"SELECT * FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"" + (forUpdate ? " FOR UPDATE;" : ";");
+                command.CommandText = sb.ToString();
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
                 {
@@ -358,13 +363,13 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                             continue;
 
                         // Pre
-                        StringBuilder subSb = new();
                         fullFill = true;
                         bool appAnd = false;
 
                         // Build the query
-                        if (hasQuery) subSb.Append(" OR ");
-                        subSb.Append("(");
+                        if (hasQuery) sb.Append(" OR ");
+                        hasQuery = true;
+                        sb.Append("(");
                         foreach ((string fld, string? v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
                         {
                             if (isList || v == null)
@@ -373,12 +378,12 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                                 break;
                             }
 
-                            if (appAnd) subSb.Append(" AND ");
-                            subSb.Append(isString ? $"`{fld}` = \"{v}\"" : $"`{fld}` = {v}");
+                            if (appAnd) sb.Append(" AND ");
+                            sb.Append(isString ? $"`{fld}` = \"{v}\"" : $"`{fld}` = {v}");
                             appAnd = true;
                         }
 
-                        subSb.Append(")");
+                        sb.Append(")");
 
                         // Only allow full query here
                         if (!fullFill)
@@ -412,7 +417,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             // for other
-            _whereClause.Value = $"{sb}";
+            _whereClause = $"{sb}";
 
             // Append the rest
             sb.Append(" ORDER BY ");
@@ -421,7 +426,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             {
                 if (first) sb.Append(", ");
                 first = true;
-                sb.Append($"`{field}`");
+                sb.Append($"{field}");
                 if (d) sb.Append(" DESC ");
             }
             if (take is > 0)
@@ -430,12 +435,34 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 sb.Append($" OFFSET {skip}");
             
             // Query Data
-            StringBuilder header = new();
-            header.Append("SELECT ");
-            schema.AppendFields(header);
+            StringBuilder select = new();
+            select.Append("SELECT ");
+            schema.AppendFields(select, "o.");
+            select.Append(" FROM ");
+            select.Append(schema.Name);
+            select.Append(" o JOIN (SELECT ");
+            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(" ");
+            select.Append(sb.ToString());
+            select.Append(") t ON o.");
+            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(" = t.");
+            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(" ORDER BY ");
+            first = false;
+            foreach(var (field, d) in schema.GetOrderBys(desc, orderBy))
+            {
+                if (first) select.Append(", ");
+                first = true;
+                select.Append($"o.{field}");
+                if (d) select.Append(" DESC ");
+            }
+
+            select.Append(forUpdate ? " FOR UPDATE;" : ";");
             JsonArray value = [];
             DbCommand command = GetDbCommand();
-            command.CommandText = $"SELECT o.* FROM {schema.Name} o JOIN (SELECT {DYNAMIC_TABLE_SEQNO_FIELD} {sb}) t ON o.{DYNAMIC_TABLE_SEQNO_FIELD} = t.{DYNAMIC_TABLE_SEQNO_FIELD}" + (forUpdate ? " FOR UPDATE;" : ";");
+            command.CommandText = select.ToString();
+            Logger.LogInformation(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync();
             try
             {
@@ -761,11 +788,12 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         // multi rows
         else if (!schema.IncrUpdate || filter is JsonArray { Count: > 0 })
         {
+            _whereClause = null;
             (JsonNode? origin, _) = await QueryDynamicTableAsync(schema, target, filter, forUpdate: true);
-            if (origin is not JsonArray arr || arr.Count == 0 || _whereClause.Value == null) return (false, null);
+            if (origin is not JsonArray arr || arr.Count == 0 || _whereClause == null) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE ${_whereClause.Value};";
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX(`{DYNAMIC_UNIQUE_INDEX}`)", "")};"; // Can change to deleted flag controls
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -859,7 +887,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     private ILogger Logger => _loggerThunk.Value;
     private readonly MySqlConnection _dbConnection;
     private readonly Lazy<ILogger> _loggerThunk;
-    private static AsyncLocal<string?> _whereClause = new();
+    private string? _whereClause = null;
 
     #endregion
 }

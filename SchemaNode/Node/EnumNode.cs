@@ -243,9 +243,9 @@ public class EnumNode: AnySchemaNode
         {
             return (ValueType switch
             {
-                EnumValueType.String => val.GetValue<string>(),
-                EnumValueType.Int => val.GetValue<int>(),
-                EnumValueType.Flags => val.GetValue<int>(),
+                EnumValueType.String => val.ToString(),
+                EnumValueType.Int => val.GetValue<long>(),
+                EnumValueType.Flags => val.GetValue<long>(),
                 _ => throw new ArgumentOutOfRangeException()
             }, null);
         }

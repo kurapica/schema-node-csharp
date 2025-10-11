@@ -22,11 +22,11 @@ public class BatchQueryAppDataApi : SchemaApi<BatchQueryAppDataRequest, BatchQue
     {
         Logger.LogDebug("[Api]BatchQueryAppData [Request]{request}", request);
         
-        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Querys);
+        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries);
         
         return new BatchQueryAppDataResponse
         {
-            Result = result,
+            Results = result,
             Schemas = schemas
         };
     }
@@ -40,7 +40,8 @@ public static class BatchQueryExtension
     /// <summary>
     /// Batch query app data with schemas
     /// </summary>
-    public static async Task<(AppDataResult[] Result, NodeSchema[]? Schemas)> BatchQueryAppDataAsync(this SchemaContext context, AppDataQuery[] querys)
+    
+    public static async Task<(AppDataResult[] Result, NodeSchema[]? Schemas)> BatchQueryAppDataAsync(this SchemaContext context, AppDataQuery[] queries)
     {
         List<AppDataResult> results = [];
         NodeSchema root = new NodeSchema
@@ -50,7 +51,7 @@ public static class BatchQueryExtension
             Schemas = []
         };
         rootEnumValueInfo.Value = new EnumValueInfo();
-        foreach (AppDataQuery query in querys)
+        foreach (AppDataQuery query in queries)
         {
             if (string.IsNullOrWhiteSpace(query.App)) continue;
             if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
@@ -230,7 +231,7 @@ public class BatchQueryAppDataRequest : SchemaApiRequest
     /// <summary>
     /// The app data queries    
     /// </summary>
-    public AppDataQuery[] Querys { get; set; }
+    public AppDataQuery[] Queries { get; set; } = [];
 }
 
 /// <summary>
@@ -241,7 +242,7 @@ public class BatchQueryAppDataResponse : SchemaApiResponse
     /// <summary>
     /// The result
     /// </summary>
-    public AppDataResult[] Result { get; set; }
+    public AppDataResult[]? Results { get; set; }
     
     /// <summary>
     /// The node schemas used by apps

@@ -1148,7 +1148,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Append the fields to the string builder
     /// </summary>
-    public StringBuilder AppendFields(StringBuilder sb)
+    public StringBuilder AppendFields(StringBuilder sb, string prefix="")
     {
         bool appendComma = false;
         foreach (DynamicTableField dyfld in Fields)
@@ -1156,7 +1156,7 @@ public class DynamicTableSchema
             if (appendComma)
                 sb.Append(", ");
             appendComma = true;
-            sb.Append($"`{dyfld.Name}`");
+            sb.Append($"{prefix}`{dyfld.Name}`");
         }
         return sb;
     }
@@ -1511,19 +1511,8 @@ public class DynamicTableField
         return Type switch
         {
             DynamicTableFieldType.Bool => v.GetValue<bool>() ? "1" : "0",
-            DynamicTableFieldType.Smallint => v.GetValue<short>().ToString(),
-            DynamicTableFieldType.USmallint => v.GetValue<ushort>().ToString(),
-            DynamicTableFieldType.Mediumint => v.GetValue<int>().ToString(),
-            DynamicTableFieldType.UMediumint => v.GetValue<uint>().ToString(),
-            DynamicTableFieldType.Int => v.GetValue<int>().ToString(),
-            DynamicTableFieldType.UInt => v.GetValue<uint>().ToString(),
-            DynamicTableFieldType.BigInt => v.GetValue<long>().ToString(),
-            DynamicTableFieldType.UBigInt => v.GetValue<ulong>().ToString(),
-            DynamicTableFieldType.Float => v.GetValue<float>().ToString(CultureInfo.InvariantCulture),
-            DynamicTableFieldType.Double => v.GetValue<double>().ToString(CultureInfo.InvariantCulture),
             DynamicTableFieldType.DateTime => v.GetValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            DynamicTableFieldType.Json => v.ToString(),
-            _ => v.GetValue<string>()
+            _ => v.ToString()
         };
     }
 }

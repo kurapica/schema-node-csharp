@@ -288,6 +288,10 @@ public class SchemaContext
             // Gets the generic method instance
             if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
             {
+                for (int i = 0; i < generics.Length; i++)
+                {
+                    generics[i] ??= typeof(JsonNode);
+                }
                 if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
                 
                 string genSign = string.Join('|', generics.Select(p => p!.Name));
@@ -1255,7 +1259,7 @@ public class SchemaContext
                                             }
                                             else
                                             {
-                                                values.Add(change.Value);
+                                                values.Add(change.Value!.DeepClone());
                                             }
                                         }
                                         break;
@@ -1270,7 +1274,7 @@ public class SchemaContext
                                             }
                                             else
                                             {
-                                                values.Add(change.Value);
+                                                values.Add(change.Value!.DeepClone());
                                             }
                                         }
                                         if (!change.Origin.IsEmpty())
@@ -1283,7 +1287,7 @@ public class SchemaContext
                                             }
                                             else
                                             {
-                                                origins.Add(change.Origin);
+                                                origins.Add(change.Origin!.DeepClone());
                                             }
                                         }
                                         break;
@@ -1298,7 +1302,7 @@ public class SchemaContext
                                             }
                                             else
                                             {
-                                                origins.Add(change.Origin);
+                                                origins.Add(change.Origin!.DeepClone());
                                             }
                                         }
                                         break;
@@ -1405,11 +1409,11 @@ public class SchemaContext
 
                 // If part update or is ref, must get the original calc result
                 JsonNode? oldResult = null;
-                if (arrayIndex >= 0 && (!args[arrayIndex].IsFull || field.SourceNode != null))
+                if (arrayIndex >= 0) // && (!args[arrayIndex].IsFull || field.SourceNode != null))
                 {
                     JsonArray originCall = new();
                     foreach (FieldDataPushArg arg in args)
-                        originCall.Add(arg.Origin);
+                        originCall.Add(arg.Origin?.DeepClone());
 
                     // Check if use element
                     if (funcNode.Args[arrayIndex].TypeNode is not ArrayNode)
@@ -1419,20 +1423,20 @@ public class SchemaContext
                         {
                             foreach (JsonNode? t in origin)
                             {
-                                originCall[arrayIndex] = t;
-                                JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, originCall,[
-                                    !string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                                if (t == null) continue;
+                                originCall[arrayIndex] = t.DeepClone();
+                                JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, originCall);
                                 if (calcRes is JsonArray arr)
                                 {
                                     foreach (JsonNode? ele in arr)
                                     {
                                         if (!ele.IsEmpty())
-                                            resultArr.Add(ele);
+                                            resultArr.Add(ele!.DeepClone());
                                     }
                                 }
                                 else if (!calcRes.IsEmpty())
                                 {
-                                    resultArr.Add(calcRes);
+                                    resultArr.Add(calcRes!.DeepClone());
                                 }
                             }
                         }
@@ -1441,7 +1445,7 @@ public class SchemaContext
                     }
                     else
                     {
-                        oldResult = await CallFunctionAsync(field.FuncNode!, originCall, [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                        oldResult = await CallFunctionAsync(field.FuncNode!, originCall);
                     }
                 }
 
@@ -1449,7 +1453,7 @@ public class SchemaContext
                 JsonNode? newResult;
                 JsonArray callArgs = new();
                 foreach (FieldDataPushArg arg in args)
-                    callArgs.Add(arg.Value);
+                    callArgs.Add(arg.Value?.DeepClone());
 
                 // Check if use element
                 if (arrayIndex >= 0 && funcNode.Args[arrayIndex].TypeNode is not ArrayNode)
@@ -1459,20 +1463,20 @@ public class SchemaContext
                     {
                         foreach (JsonNode? t in origin)
                         {
-                            callArgs[arrayIndex] = t;
-                            JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, callArgs,
-                                [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                            if (t == null) continue;
+                            callArgs[arrayIndex] = t.DeepClone();
+                            JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, callArgs);
                             if (calcRes is JsonArray arr)
                             {
                                 foreach (JsonNode? ele in arr)
                                 {
                                     if (!ele.IsEmpty())
-                                        resultArr.Add(ele);
+                                        resultArr.Add(ele!.DeepClone());
                                 }
                             }
                             else if (!calcRes.IsEmpty())
                             {
-                                resultArr.Add(calcRes);
+                                resultArr.Add(calcRes!.DeepClone());
                             }
                         }
                     }
@@ -1481,7 +1485,7 @@ public class SchemaContext
                 }
                 else
                 {
-                    newResult = await CallFunctionAsync(field.FuncNode!, callArgs, [!string.IsNullOrWhiteSpace(funcNode.Return) ? funcNode.Return : field.Type]);
+                    newResult = await CallFunctionAsync(field.FuncNode!, callArgs);
                 }
 
                 // Join the result
@@ -1609,7 +1613,7 @@ public class SchemaContext
                                             case DataCombineType.Assign:
                                                 {
                                                     if (!now.IsEmpty() && now!.ContainsKey(nodeField.Name))
-                                                        final[nodeField.Name] = now[nodeField.Name];
+                                                        final[nodeField.Name] = now[nodeField.Name]?.DeepClone();
                                                     //else if (final.ContainsKey(nodeField.Name))
                                                     //    final.Remove(nodeField.Name);
                                                     break;
@@ -1617,7 +1621,7 @@ public class SchemaContext
                                             case DataCombineType.Init:
                                                 {
                                                     if (origin.IsEmpty() && !now.IsEmpty() && now!.ContainsKey(nodeField.Name))
-                                                        final[nodeField.Name] = now[nodeField.Name];
+                                                        final[nodeField.Name] = now[nodeField.Name]?.DeepClone();
                                                     break;
                                                 }
                                             case DataCombineType.Sum when nodeField.TypeNode is ScalarNode { IsNumber: true }:
@@ -1689,26 +1693,25 @@ public class SchemaContext
                                     primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
                             }
 
+                            // Based on array join methods
+                            if (array.Combines != null)
+                            {
+                                foreach (DataCombine combine in array.Combines)
+                                {
+                                    joinMethodMap[combine.Field] = combine.Type;
+                                }
+                            }
                             // Based on field join methods
                             if (field.Combines != null)
                             {
                                 foreach (DataCombine combine in field.Combines)
                                 {
-                                    joinMethodMap[field.Name] = combine.Type;
-                                }
-                            }
-                            // Based on array join methods
-                            else if (array.Combines != null)
-                            {
-                                foreach (DataCombine combine in array.Combines)
-                                {
-                                    if (!joinMethodMap.ContainsKey(field.Name))
-                                        joinMethodMap[field.Name] = combine.Type;
+                                    joinMethodMap[combine.Field] = combine.Type;
                                 }
                             }
 
                             // Generate result map
-                            if (isFull)
+                            if (isFull && false)
                             {
                                 // Full
                                 resultMap = await GroupJoinObjectMap(array, newResult, joinMethodMap);
@@ -1727,12 +1730,12 @@ public class SchemaContext
                                 foreach ((string key, JsonObject obj) in oldMap)
                                 {
                                     if (!keys.Add(key)) continue;
-                                    query.Add(obj);
+                                    query.Add(obj.DeepClone());
                                 }
                                 foreach ((string key, JsonObject obj) in nowMap)
                                 {
                                     if (!keys.Add(key)) continue;
-                                    query.Add(obj);
+                                    query.Add(obj.DeepClone());
                                 }
 
                                 // Gets the original data
@@ -1765,7 +1768,7 @@ public class SchemaContext
                                             {
                                                 case DataCombineType.Assign:
                                                     if (!now.IsEmpty() && now!.ContainsKey(s))
-                                                        res1[s] = now[s];
+                                                        res1[s] = now[s]?.DeepClone();
                                                     //else if (res.ContainsKey(s))
                                                     //    res.Remove(s);
                                                     break;
@@ -1777,9 +1780,9 @@ public class SchemaContext
                                                               (!old.IsEmpty() && old!.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<decimal>() : 0);
                                                     break;
                                                 case DataCombineType.Count:
-                                                    res1[s] = (res1.ContainsKey(s) && !res1[s].IsEmpty() ? res1[s]!.GetValue<int>() : 0) +
-                                                              (!now.IsEmpty() && now!.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.GetValue<int>() : 0) -
-                                                              (!old.IsEmpty() && old!.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<int>() : 0);
+                                                    res1[s] = (res1.ContainsKey(s) && !res1[s].IsEmpty() ? res1[s]!.GetValue<long>() : 0) +
+                                                              (!now.IsEmpty() && now!.ContainsKey(s) && !now[s].IsEmpty() ? now[s]!.GetValue<long>() : 0) -
+                                                              (!old.IsEmpty() && old!.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<long>() : 0);
                                                     break;
                                                 default:
                                                     throw new ArgumentOutOfRangeException();
@@ -1804,15 +1807,15 @@ public class SchemaContext
                                                     break;
                                                 case DataCombineType.Init:
                                                     if (!old.IsEmpty() && old.ContainsKey(s))
-                                                        res[s] = old[s];
+                                                        res[s] = old[s]?.DeepClone();
                                                     break;
                                                 case DataCombineType.Sum:
                                                     res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.GetValue<decimal>() : 0) -
                                                              (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<decimal>() : 0);
                                                     break;
                                                 case DataCombineType.Count:
-                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.GetValue<int>() : 0) -
-                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<int>() : 0);
+                                                    res[s] = (res.ContainsKey(s) && !res[s].IsEmpty() ? res[s]!.GetValue<long>() : 0) -
+                                                             (!old.IsEmpty() && old.ContainsKey(s) && !old[s].IsEmpty() ? old[s]!.GetValue<long>() : 0);
                                                     break;
                                                 default:
                                                     throw new ArgumentOutOfRangeException();
@@ -1860,7 +1863,7 @@ public class SchemaContext
                                 return 0;
                             });
                             foreach (JsonObject o in joinObjs)
-                                joinArray.Add(o);
+                                joinArray.Add(o.DeepClone());
 
                             // Save to result
                             result = joinArray;
@@ -1953,7 +1956,17 @@ public class SchemaContext
             case JsonObject:
                 {
                     (object? res, JsonNode? error) = await node.ValidateValueAsync(this, value);
-                    return error.IsEmpty() ? res.ToJsonNode() as JsonObject : throw new Exception(error!.ToString());
+                    if (!error.IsEmpty()) throw new Exception(error!.ToString());
+                    JsonObject result = (JsonObject)res.ToJsonNode()!;
+                    // count field
+                    foreach ((string field, DataCombineType method) in joinMethodMap)
+                    {
+                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is StructFieldConfig { TypeNode: ScalarNode { IsNumber: true } })
+                        {
+                            result[field] = 1;
+                        }
+                    }
+                    return result;
                 }
             case JsonArray { Count: > 0 } array:
                 {

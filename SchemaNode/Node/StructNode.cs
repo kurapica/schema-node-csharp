@@ -136,6 +136,18 @@ public class StructNode: AnySchemaNode
                 relation.FuncNode = null;
             }
         }
+        
+        // Gets relative struct types
+        List<AnySchemaNode> relTypes = [this];
+        
+        if (UsedBy is { Count: > 0 })
+            relTypes.AddRange(UsedBy.Keys.Where(p => p.Type == SchemaType.Struct));
+        foreach (AnySchemaNode node in relTypes.ToList().Where(node => node.UsedBy is { Count: > 0 }))
+            relTypes.AddRange(node.UsedBy!.Keys.Where(p => p.Type == SchemaType.Array));
+
+        // Gets the relative field type
+        foreach (AppFieldNode field in relTypes.Where(node => node.UsedByApp is { Count: > 0 }).SelectMany(node => node.UsedByApp!.Keys))
+            field.Schema = null; // Clear to reload
     }
 
     /// <inheritdoc />

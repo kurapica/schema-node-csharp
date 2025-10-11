@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -348,18 +349,7 @@ public class ScalarNode: AnySchemaNode
                {
                     if (DateTime.TryParse(strVal, out DateTime date))
                     {
-                         if (IsYearMonth)
-                         {
-                              return (date.GetFirstTimeOfMonth(), null);
-                         }
-                         else if (IsFullDate)
-                         {
-                              return (date, null);
-                         }
-                         else
-                         {
-                              return (date.GetFirstTimeOfDay(), null);
-                         }
+                        return (date, null);
                     }
                     else
                     {
@@ -367,9 +357,9 @@ public class ScalarNode: AnySchemaNode
                     }
                }
           }
-          catch
+          catch (Exception ex)
           {
-               // pass
+              Console.WriteLine(ex.GetInnermostException().Message);
           }
           return (value, TYPE_VALUE_NOT_VALID);
      }
