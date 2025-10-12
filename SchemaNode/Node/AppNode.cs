@@ -4,7 +4,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Data.Common;
-using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -12,6 +11,8 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using SchemaNode.Components.Provider;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Runtime;
+using Microsoft.AspNetCore.Identity;
 
 namespace SchemaNode.Node;
 
@@ -143,7 +144,7 @@ public class AppNode
                 field.Status = SchemaNodeStatus.Ready;
 
                 // Valid the type
-                AnySchemaNode? node = await context.GetSchemaNodeAsync(field.Type);
+                AnySchemeType? node = await context.GetSchemaNodeAsync(field.Type);
                 if (node == null)
                     field.Status = SchemaNodeStatus.ApplicationFieldWrongType;
                 else
@@ -156,7 +157,7 @@ public class AppNode
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
                     node = await context.GetSchemaNodeAsync(field.Func);
-                    if (node is FunctionNode funcNode)
+                    if (node is FunctionType funcNode)
                     {
                         field.FuncNode = funcNode;
                         funcNode.AddRef(field);
@@ -256,8 +257,8 @@ public class AppNode
                     }
                     else
                     {
-                        AnySchemaNode? relationFunc = await context.GetSchemaNodeAsync(relation.Func);
-                        if (relationFunc is FunctionNode funcNode)
+                        AnySchemeType? relationFunc = await context.GetSchemaNodeAsync(relation.Func);
+                        if (relationFunc is FunctionType funcNode)
                         {
                             funcNode.AddRef(field);
                             relation.FunctionNode = funcNode;
@@ -276,12 +277,12 @@ public class AppNode
                 App = Name,
                 Name = APP_FIELD_REF_NAME,
                 Type = APP_FIELD_REFS,
-                TypeNode = new ArrayNode
+                TypeNode = new ArrayType
                 {
                     Name = APP_FIELD_REFS,
                     Element = APP_FIELD_REF,
                     Primary = [APP_FIELD_REF_APP],
-                    ElementNode = new StructNode
+                    ElementNode = new StructType
                     {
                         Name = APP_FIELD_REF,
                         Fields = new StructFieldConfig[]
@@ -333,8 +334,8 @@ public class AppNode
             Schemas = []
         };
 
-        Action<AnySchemaNode?> install = null!;
-        install = (AnySchemaNode? node) =>
+        Action<AnySchemeType?> install = null!;
+        install = (node) =>
         {
             if (node == null || !types.Add(node.Name)) return;
 
@@ -365,7 +366,7 @@ public class AppNode
             parent.Schemas = parent.Schemas.Append((NodeSchema)node!).ToArray();
 
             // add dependencies
-            foreach (AnySchemaNode n in node.GetDependNodes())
+            foreach (AnySchemeType n in node.GetDependNodes())
                 install(n);
         };
 
@@ -498,12 +499,12 @@ public class AppFieldNode
     /// <summary>
     /// The field type node
     /// </summary>
-    public AnySchemaNode? TypeNode { get; set; }
+    public AnySchemeType? TypeNode { get; set; }
 
     /// <summary>
     /// The field function node
     /// </summary>
-    public FunctionNode? FuncNode { get; set; }
+    public FunctionType? FuncNode { get; set; }
 
     /// <summary>
     /// The call arguments
@@ -583,7 +584,7 @@ public class AppFieldNode
     public DynamicTableSchema GenDynamicTableSchema()
     {
         // Generate the fields
-        AnySchemaNode node = TypeNode!;
+        AnySchemeType node = TypeNode!;
         List<DynamicTableField> fields = new();
         DataIndex[]? indexes = null;
         bool single = true;
@@ -612,19 +613,19 @@ public class AppFieldNode
                         Name = DYNAMIC_TABLE_VALUE_FIELD,
                         Type = info.Type,
                         MaxLength = info.MaxLength,
-                        SchemaType = node.Name
+                        SchemaType = node
                     });
                     break;
                 }
             case SchemaType.Struct:
                 {
-                    StructNode structNode = (StructNode)node;
+                    StructType structNode = (StructType)node;
                     foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                     {
                         if (sField.TypeNode?.Type == SchemaType.Struct) // Check if the sfield use a struct type
                         {
                             // As complex fields
-                            StructNode subStructNode = (StructNode)sField.TypeNode;
+                            StructType subStructNode = (StructType)sField.TypeNode;
                             foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
                                 info = GetDataTypeInfo(iField.TypeNode!, iField);
@@ -638,7 +639,7 @@ public class AppFieldNode
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = iField.Type
+                                    SchemaType = iField.TypeNode!
                                 });
                             }
                         }
@@ -650,7 +651,7 @@ public class AppFieldNode
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = sField.Type
+                                SchemaType = sField.TypeNode!
                             });
                         }
                     }
@@ -658,10 +659,10 @@ public class AppFieldNode
                 }
             case SchemaType.Array:
                 {
-                    ArrayNode arrayNode = (ArrayNode)node;
+                    ArrayType arrayNode = (ArrayType)node;
                     node = arrayNode.ElementNode!; // Record the base node for array
                     indexes = arrayNode.Indexes;
-                    if (node is StructNode structNode && arrayNode.Primary is { Length: > 0 })
+                    if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
                     {
                         single = false;
 
@@ -676,7 +677,7 @@ public class AppFieldNode
                                 Type = info.Type,
                                 Primary = true,
                                 MaxLength = info.MaxLength,
-                                SchemaType = sField.Type,
+                                SchemaType = sField.TypeNode!,
                                 StructFieldNode = sField,
                             });
                         }
@@ -687,7 +688,7 @@ public class AppFieldNode
                             if (sField.TypeNode!.Type == SchemaType.Struct)
                             {
                                 // As complex fields
-                                foreach (var ifield in ((StructNode)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
+                                foreach (var ifield in ((StructType)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
                                 {
                                     info = GetDataTypeInfo(ifield.TypeNode!, ifield);
                                     fields.Add(new DynamicTableField
@@ -700,7 +701,7 @@ public class AppFieldNode
                                         },
                                         Type = info.Type,
                                         MaxLength = info.MaxLength,
-                                        SchemaType = ifield.Type
+                                        SchemaType = ifield.TypeNode!
                                     });
                                 }
                             }
@@ -712,7 +713,7 @@ public class AppFieldNode
                                     Name = sField.Name,
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = sField.Type
+                                    SchemaType = sField.TypeNode!
                                 });
                             }
                         }
@@ -723,7 +724,7 @@ public class AppFieldNode
                         {
                             Name = DYNAMIC_TABLE_VALUE_FIELD,
                             Type = DynamicTableFieldType.Json,
-                            SchemaType = node.Name
+                            SchemaType = node
                         });
                     }
                     break;
@@ -744,9 +745,9 @@ public class AppFieldNode
     }
 
     // Get scalar type mapping info
-    static DataTypeInfo GetDataTypeInfo(AnySchemaNode node, StructFieldConfig? field = null)
+    static DataTypeInfo GetDataTypeInfo(AnySchemeType node, StructFieldConfig? field = null)
     {
-        if (node is ScalarNode scalar)
+        if (node is ScalarType scalar)
         {
             // Get base scalar data type info
             DataTypeInfo info = JsonDataType;
@@ -843,7 +844,7 @@ public class AppFieldNode
             }
             return info;
         }
-        else if (node is EnumNode @enum)
+        else if (node is EnumType @enum)
         {
             return new DataTypeInfo
             {
@@ -869,12 +870,12 @@ public class AppFieldNode
     /// <summary>
     /// Validate field by DynamicTableSchema and return nullable
     /// </summary>
-    public async Task<(bool isEmpty, JsonNode? result, JsonNode? error)> ValidateDataAsync(SchemaContext context, JsonNode? token)
+    public async Task<(bool isEmpty, AnySchemaNode? result, JsonNode? error)> ValidateDataAsync(SchemaContext context, JsonNode? token)
     {
         if (token.IsEmpty()) return (true, null, null);
         
-        (object? value, JsonNode? error) = await TypeNode!.ValidateValueAsync(context, token!);
-        return (false, value.ToJsonNode(), error);
+        (AnySchemaNode? value, JsonNode? error) = await TypeNode!.ValidateValueAsync(context, token!);
+        return (false, value, error);
     }
 
     #endregion
@@ -939,7 +940,7 @@ public class AppRelationSchema
     /// The function node
     /// </summary>
     [JsonIgnore]
-    public FunctionNode? FunctionNode { get; set; }
+    public FunctionType? FunctionNode { get; set; }
 
     /// <summary>
     /// The relation status
@@ -1143,7 +1144,7 @@ public class DynamicTableSchema
     /// <summary>
     /// The data type node
     /// </summary>
-    public required AnySchemaNode TypeNode { get; init; }
+    public required AnySchemeType TypeNode { get; init; }
 
     /// <summary>
     /// Append the fields to the string builder
@@ -1182,11 +1183,11 @@ public class DynamicTableSchema
                         {
                             if (field.IsString)
                             {
-                                yield return (field.Name, $"({(string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\"")))})", true, true);
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\""))})", true, true);
                             }
                             else
                             {
-                                yield return (field.Name, $"({(string.Join(",", arr.Select(v => field.ToString(v))))})", false, true);
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => field.ToString(v)))})", false, true);
                             }
                         }
                         else
@@ -1214,11 +1215,11 @@ public class DynamicTableSchema
                     {
                         if (field.IsString)
                         {
-                            yield return (field.Name, $"({(string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\"")))})", field.IsString, true);
+                            yield return (field.Name, $"({string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\""))})", field.IsString, true);
                         }
                         else
                         {
-                            yield return (field.Name, $"({(string.Join(",", arr.Select(v => field.ToString(v))))})", field.IsString, true);
+                            yield return (field.Name, $"({string.Join(",", arr.Select(v => field.ToString(v)))})", field.IsString, true);
                         }
                     }
                     else
@@ -1238,38 +1239,118 @@ public class DynamicTableSchema
         }
     }
 
-    /// <summary>
-    /// Gets the field data pack from the reader
-    /// </summary>
-    public JsonObject GetFieldPack(DbDataReader reader, int offset = 0)
+    public IEnumerable<(string field, string? value, bool isString, bool isList)> GetFieldValues(StructNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
-        JsonObject pack = new();
-        foreach (DynamicTableField field in Fields)
+        IEnumerable<DynamicTableField> fields = Fields;
+        if (primaryOnly) fields = Fields.Where(p => p.Primary);
+        else if (noPrimary) fields = Fields.Where(p => !p.Primary);
+        foreach (DynamicTableField field in fields)
         {
-            JsonNode? val = field.FromReader(reader, offset++);
-            if (val == null) continue;
             if (field.Complex == null)
             {
-                pack.Add(field.Name, val);
-            }
-            else
-            {
-                if (pack.ContainsKey(field.Complex.Main) && pack[field.Complex.Main] is JsonObject spack)
+                AnySchemaNode? fieldNode = pack.GetField(field.Name);
+                if (fieldNode != null && !fieldNode.IsEmpty)
                 {
-                    spack.Add(field.Complex.Field, val);
+                    // In value list
+                    if (field.Type != DynamicTableFieldType.Json && fieldNode is ArrayNode arr)
+                    {
+                        if (arr.Count > 1)
+                        {
+                            if (field.IsString)
+                            {
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\""))})", true, true);
+                            }
+                            else
+                            {
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => field.ToString(v)))})", false, true);
+                            }
+                        }
+                        else
+                        {
+                            yield return (field.Name, field.ToString(arr[0]), field.IsString, false);
+                        }
+                    }
+                    // Single value
+                    else
+                    {
+                        yield return (field.Name, field.ToString(fieldNode), field.IsString, false);
+                    }
                 }
                 else
                 {
-                    spack = new JsonObject()
+                    yield return (field.Name, null, field.IsString, false);
+                }
+            }
+            else
+            {
+                AnySchemaNode? complex = pack.GetField(field.Complex.Main);
+                if (complex is StructNode sPack && sPack.GetField(field.Complex.Field) is AnySchemaNode part && !part.IsEmpty)
+                {
+                    // In value list
+                    if (field.Type != DynamicTableFieldType.Json && part is ArrayNode arr)
                     {
-                        { field.Complex.Field, val }
-                    };
-                    pack.Add(field.Complex.Main, spack);
+                        if (arr.Count > 1)
+                        {
+                            if (field.IsString)
+                            {
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => $"\"{field.ToString(v)}\""))})", field.IsString, true);
+                            }
+                            else
+                            {
+                                yield return (field.Name, $"({string.Join(",", arr.Select(v => field.ToString(v)))})", field.IsString, true);
+                            }
+                        }
+                        else
+                        {
+                            yield return (field.Name, field.ToString(arr[0]), field.IsString, false);
+                        }
+                    }
+                    // Single value
+                    {
+                        yield return (field.Name, field.ToString(part), field.IsString, false);
+                    }
+                }
+                else
+                {
+                    yield return (field.Name, null, field.IsString, false);
                 }
             }
         }
+    }
 
-        return pack;
+    /// <summary>
+    /// Gets the field data pack from the reader
+    /// </summary>
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0)
+    {
+        // single value
+        if (Fields.Count == 1 && Fields[0].SchemaType == TypeNode)
+        {
+            return Fields[0].FromReader(reader, offset++);
+        }
+
+        StructNode result = new StructNode((StructType)(TypeNode is ArrayType arr ? arr.ElementNode : TypeNode)!);
+        foreach (DynamicTableField field in Fields)
+        {
+            AnySchemaNode? val = field.FromReader(reader, offset++);
+            if (val == null) continue;
+            if (field.Complex == null)
+            {
+                result.SetField(field.Name, val);
+            }
+            else
+            {
+                AnySchemaNode? main = result.GetField(field.Complex.Main);
+                if (main == null)
+                {
+                    main = new StructNode((StructType)((StructType)TypeNode).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
+                    result.SetField(field.Complex.Main, main);
+                }
+                (main as StructNode)![field.Complex.Field] = val;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -1280,7 +1361,7 @@ public class DynamicTableSchema
         if (orderBy is { Length: > 0 })
         {
             bool has = false;
-            foreach (DynamicTableField field in Fields.Where((f => f.Primary)))
+            foreach (DynamicTableField field in Fields.Where(f => f.Primary))
             {
                 AppSchemaDataOrder? order = orderBy.FirstOrDefault(o => o.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase));
                 if (order == null) continue;
@@ -1296,18 +1377,18 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public async Task GenerateDisplayOnlyFields(SchemaContext context, JsonNode? pack)
+    public async Task GenerateDisplayOnlyFields(SchemaContext context, AnySchemaNode? pack)
     {
         // Generate the display only fields
-        if (TypeNode is StructNode @struct)
+        if (TypeNode is StructType @struct)
         {
-            if (pack is JsonObject obj)
+            if (pack is StructNode obj)
                 await GenerateDisplayOnlyStructFields(context, @struct, obj);
-            else if (pack is JsonArray arr)
+            else if (pack is ArrayNode arr)
             {
-                foreach (JsonNode? item in arr)
+                foreach (AnySchemaNode? item in arr)
                 {
-                    if (item is JsonObject aObj)
+                    if (item is StructNode aObj)
                         await GenerateDisplayOnlyStructFields(context, @struct, aObj);
                 }
             }
@@ -1316,64 +1397,8 @@ public class DynamicTableSchema
 
     #region Utility
 
-    /// <summary>
-    /// Whether the json token is the same
-    /// </summary>
-
-    /// <summary>
-    /// Whether the json token is the same
-    /// </summary>
-    public bool IsSameToken(JsonNode? origin, JsonNode? value)
-    {
-        // Check empty
-        if (origin.IsEmpty() || value.IsEmpty())
-            return origin.IsEmpty() && value.IsEmpty();
-
-        // Compare the value
-        switch (origin)
-        {
-            case JsonValue oval when value is JsonValue val:
-                return oval.Equals(val);
-            case JsonObject obj when value is JsonObject vobj:
-                {
-                    foreach (DynamicTableField dyfld in Fields)
-                    {
-                        if (dyfld.Complex == null)
-                        {
-                            if (!IsSameToken(obj.ContainsKey(dyfld.Name) ? obj[dyfld.Name] : null, vobj.ContainsKey(dyfld.Name) ? vobj[dyfld.Name] : null))
-                                return false;
-                        }
-                        else
-                        {
-                            JsonNode? left = obj.ContainsKey(dyfld.Complex.Main) ? obj[dyfld.Complex.Main] : null;
-                            JsonNode? right = vobj.ContainsKey(dyfld.Complex.Main) ? vobj[dyfld.Complex.Main] : null;
-                            if (left != null && right != null && left is JsonObject lobj && right is JsonObject robj)
-                            {
-                                if (!IsSameToken(lobj.ContainsKey(dyfld.Complex.Field) ? lobj[dyfld.Complex.Field] : null, robj.ContainsKey(dyfld.Complex.Field) ? robj[dyfld.Complex.Field] : null))
-                                    return false;
-                            }
-                            else if (left != null || right != null)
-                            {
-                                return false;
-                            }
-                        }
-                    }
-                    return true;
-                }
-            case JsonArray oarr when value is JsonArray varr:
-                {
-                    if (oarr.Count != varr.Count)
-                        return false;
-                    return !oarr.Where((t, i) => !IsSameToken(t, varr[i])).Any();
-                }
-            default:
-                return false;
-        }
-    }
-
-
     // Generate the display only fields
-    static async Task GenerateDisplayOnlyStructFields(SchemaContext context, StructNode node, JsonObject pack)
+    static async Task GenerateDisplayOnlyStructFields(SchemaContext context, StructType node, StructNode pack)
     {
         if (node.Fields.Length == 0) return;
         foreach (var field in node.Fields)
@@ -1386,29 +1411,29 @@ public class DynamicTableSchema
                 JsonArray args = new();
                 foreach (var arg in relation.Args)
                 {
-                    args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name) : arg.Value);
+                    args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value);
                 }
                 JsonNode? result = await context.CallFunctionAsync(relation.Func, args);
                 if (!result.IsEmpty()) pack[field.Name] = result;
             }
-            else if (field.TypeNode is StructNode @struct && pack.ContainsKey(field.Name) && pack[field.Name] is JsonObject spack)
+            else if (field.TypeNode is StructType @struct && pack.GetField(field.Name) is StructNode spack)
             {
                 await GenerateDisplayOnlyStructFields(context, @struct, spack);
             }
-            else if (field.TypeNode is ArrayNode { ElementNode: StructNode arrayStruct } && pack.ContainsKey(field.Name) && pack[field.Name] is JsonArray { Count: > 0 } arrayPack)
+            else if (field.TypeNode is ArrayType { ElementNode: StructType arrayStruct } && pack.GetField(field.Name) is ArrayNode { Count: > 0 } arrayPack)
             {
-                foreach (JsonNode? token in arrayPack)
+                foreach (var token in arrayPack)
                 {
-                    if (token is JsonObject apack)
+                    if (token is StructNode apack)
                         await GenerateDisplayOnlyStructFields(context, arrayStruct, apack);
                 }
             }
             // Fill empty field with default value
-            else if (field.TypeNode is ScalarNode scalar && !string.IsNullOrWhiteSpace(field.Default) && (!pack.ContainsKey(field.Name) || pack[field.Name].IsEmpty()))
+            else if (field.TypeNode is ScalarType scalar && !string.IsNullOrWhiteSpace(field.Default) && (pack.GetField(field.Name)?.IsEmpty ?? false))
             {
-                (object? val, JsonNode? err) = await scalar.ValidateValueAsync(context, field.Default);
+                (AnySchemaNode? val, JsonNode? err) = await scalar.ValidateValueAsync(context, field.Default);
                 if (err == null || err.IsEmpty())
-                    pack[field.Name] = JsonValue.Create(val);
+                    pack[field.Name] = val;
             }
         }
     }
@@ -1449,7 +1474,7 @@ public class DynamicTableField
     /// <summary>
     /// The data dict type
     /// </summary>
-    public required string SchemaType { get; init; }
+    public required AnySchemeType SchemaType { get; init; }
 
     /// <summary>
     /// The struct field node of primary field
@@ -1479,10 +1504,10 @@ public class DynamicTableField
     /// <summary>
     /// Get JToken from reader
     /// </summary>
-    public JsonNode? FromReader(DbDataReader reader, int col = 0)
+    public AnySchemaNode? FromReader(DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
-        return Type switch
+        return SchemaType.CreateNode(Type switch
         {
             DynamicTableFieldType.Bool => reader.GetByte(col) == 1,
             DynamicTableFieldType.Smallint => reader.GetInt16(col),
@@ -1497,7 +1522,37 @@ public class DynamicTableField
             DynamicTableFieldType.Double => reader.GetDouble(col),
             DynamicTableFieldType.DateTime => reader.GetDateTime(col),
             DynamicTableFieldType.Json => JsonNode.Parse(reader.GetString(col)),
-            _ => JsonValue.Create(reader.GetString(col))
+            _ => reader.GetString(col)
+        }) ?? throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Gets the string of the JToken value
+    /// </summary>
+    public string? ToString(AnySchemaNode? value)
+    {
+        if (value?._value == null) return null;
+
+        return Type switch
+        {
+            DynamicTableFieldType.Bool => value.ToValue<bool>() ? "1" : "0",
+            DynamicTableFieldType.DateTime => value.ToValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
+            _ => value._value.ToString()
+        };
+    }
+
+    /// <summary>
+    /// Gets the string of the JToken value
+    /// </summary>
+    public string? ToString(object? value)
+    {
+        if (value == null) return null;
+
+        return Type switch
+        {
+            DynamicTableFieldType.Bool => Convert.ToBoolean(value) ? "1" : "0",
+            DynamicTableFieldType.DateTime => Convert.ToDateTime(value).ToString("yyyy-MM-dd HH:mm:ss"),
+            _ => value.ToString()
         };
     }
 
@@ -1552,7 +1607,7 @@ public class DataTypeInfo
 /// <summary>
 /// The field data change info
 /// </summary>
-public record FieldDataChangeData(TransactionChangeOperation Operation, JsonNode? Value, JsonNode? Origin);
+public record FieldDataChangeData(TransactionChangeOperation Operation, AnySchemaNode? Value, AnySchemaNode? Origin);
 
 // The transaction change data
 public class TransactionChangeData
@@ -1587,22 +1642,22 @@ public struct FieldDataPushArg
     /// <summary>
     /// The value
     /// </summary>
-    public JsonNode? Value { get; set; }
+    public AnySchemaNode? Value { get; set; }
 
     /// <summary>
     /// The origin value
     /// </summary>
-    public JsonNode? Origin { get; set; }
+    public AnySchemaNode? Origin { get; set; }
 
     /// <summary>
     /// Whether is array data
     /// </summary>
-    public bool IsArray => Type is ArrayNode;
+    public bool IsArray => Type is ArrayType;
 
     /// <summary>
     /// The value type
     /// </summary>
-    public AnySchemaNode Type { get; set; }
+    public AnySchemeType Type { get; set; }
 
     /// <summary>
     /// Whether is full data

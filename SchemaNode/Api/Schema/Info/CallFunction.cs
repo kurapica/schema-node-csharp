@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -17,11 +17,11 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
     {
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
-        AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
         
         return new CallFunctionResponse
         {
-            Result = node is FunctionNode func ? await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic) : null
+            Result = node is FunctionType func ? await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic) : null
         };
     }
 }

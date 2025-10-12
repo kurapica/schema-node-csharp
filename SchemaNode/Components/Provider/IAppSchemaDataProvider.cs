@@ -16,19 +16,19 @@ public interface IAppSchemaDataProvider
     /// <summary>
     /// Query dynamic table data with the filter and paging
     /// </summary>
-    Task<(JsonNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", 
+    Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", 
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false);
     
     /// <summary>
     /// Save the dynamic table data
     /// </summary>
-    Task<(bool result, JsonNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? data = null);
+    Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", AnySchemaNode? data = null);
     
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    Task<(bool result, JsonNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null);
+    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null);
     
     /// <summary>
     /// Begin a transaction

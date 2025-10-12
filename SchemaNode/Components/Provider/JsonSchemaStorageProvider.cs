@@ -1,5 +1,5 @@
 using SchemaNode.Enum;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
@@ -214,7 +214,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public async Task<bool> SaveEnumSubListAsync(EnumNode @enum, string? value, EnumValueInfo[] values, bool? append)
+    public async Task<bool> SaveEnumSubListAsync(EnumType @enum, string? value, EnumValueInfo[] values, bool? append)
     {
         @enum.SaveEnumSubListAsync(value, values); // do it directly for simple @TODO 
         await SaveSchemaAsync(@enum.ToNodeSchema(99));
@@ -222,7 +222,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public async Task<bool> DeleteEnumSubListAsync(EnumNode @enum, string value)
+    public async Task<bool> DeleteEnumSubListAsync(EnumType @enum, string value)
     {
         @enum.DeleteEnumSubListAsync(value); // do it directly for simple @TODO 
         await SaveSchemaAsync(@enum.ToNodeSchema(99));

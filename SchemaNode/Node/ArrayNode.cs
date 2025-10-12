@@ -1,262 +1,246 @@
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using SchemaNode.Context;
-using SchemaNode.Enum;
-using SchemaNode.Function;
-using SchemaNode.Schema;
+﻿using SchemaNode.Runtime;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
+using System.Collections;
+using System.Data;
+using System.Text.Json.Nodes;
 
 namespace SchemaNode.Node;
 
-/// <summary>
-/// The in-memory array schema representation
-/// </summary>
-public class ArrayNode: AnySchemaNode
+public class ArrayNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    #region Data
-    
-    /// <summary>
-    /// The element type of the array.
-    /// </summary>
-    public string? Element { get; set; }
-
-    /// <summary>
-    /// Whether the array should be treated as a whole value,
-    /// no element schema nodes would be created
-    /// </summary>
-    public bool? Single { get; set; }
-
-    /// <summary>
-    /// The primary fields of the array if the element is a struct.
-    /// </summary>
-    public string[]? Primary { get; set; }
-
-    /// <summary>
-    /// The indexes
-    /// </summary>
-    public DataIndex[]? Indexes { get; set; }
-
-    /// <summary>
-    /// The data combine rule
-    /// </summary>
-    public DataCombine[]? Combines { get; set; }
-
-    /// <summary>
-    /// The relation between the fields
-    /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
-    
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
-    #endregion
-    
-    #region Status
-    
-    /// <inheritdoc />
-    public override SchemaType Type => SchemaType.Array;
-    
-    #endregion
-    
-    #region Ref
-    
-    /// <summary>
-    /// The element type node
-    /// </summary>
-    public AnySchemaNode? ElementNode { get; set; }
-    
-    #endregion
-    
-    #region Method
-
-    /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public ArrayNode(AnySchemeType type, object? value = null) : base(type, null)
     {
-        ArraySchema? array = schema.Array;
-        
-        // Data
-        Element = array?.Element;
-        Single = array?.Single;
-        Primary = array?.Primary;
-        Combines = array?.Combines;
-        Relations = array?.Relations;
-        Indexes = array?.Indexes;
-        Additional = array?.Additional;
-        
-        // Status
-        if (array == null) Status = SchemaNodeStatus.NoDefinition;
-        
-        // Ref
-        if (!string.IsNullOrWhiteSpace(Element))
-        {
-            AnySchemaNode? node = await context.GetSchemaNodeAsync(Element, preload: preload);
-            if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
-            {
-                Status = SchemaNodeStatus.ArrayHasWrongElementType;
-            }
+        ElementType = type is ArrayType arr ? arr.ElementNode : type;
+        Value = value;
+    }
+
+    public AnySchemeType? ElementType { get; set; }
+
+    public object? this[int index]
+    {
+        get {
+            if (ElementType != null) 
+                return index >= 0 && index < _elements.Count ? _elements[index] : null;
             else
-            {
-                ElementNode = node;
-                node.AddRef(this);
-            }
+                return index >= 0 && index < _rawElements.Count ? _rawElements[index] : null;
         }
-        
-        // Relation
-        if (Relations != null)
+        set
         {
-            foreach (StructFieldRelation relation in Relations)
+            if (index < 0) throw new IndexOutOfRangeException();
+
+            if (ElementType != null)
             {
-                AnySchemaNode? node = await context.GetSchemaNodeAsync(relation.Func, preload: preload);
-                if (node is not FunctionNode funcNode)
+                if (index < _elements.Count)
                 {
-                    Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    continue;
+                    _elements[index].Value = value;
                 }
-                relation.FuncNode = funcNode;
-                funcNode.AddRef(this);
-            }
-        }
-    }
-
-    /// <inheritdoc />
-    public override void Release()
-    {
-        ElementNode?.RemoveRef(this);
-        ElementNode = null;
-
-        if (Relations != null)
-        {
-            foreach (StructFieldRelation relation in Relations)
-            {
-                relation.FuncNode?.RemoveRef(this);
-                relation.FuncNode = null;
-            }
-        }
-    }
-
-    /// <inheritdoc />
-    public override async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
-    {
-        if (value is not JsonArray array)
-            return (value, TYPE_VALUE_NOT_VALID);
-        
-        if (ElementNode == null)
-            return (array, null);
-        
-        // validate elements
-        JsonArray result = [];
-        JsonObject? error = null;
-        for (int i = 0; i < array.Count; i++)
-        {
-            (object? v, JsonNode? e) = await ElementNode.ValidateValueAsync(context, array[i]!);
-            if (e != null && !e.IsEmpty())
-            {
-                error ??= new JsonObject();
-                error[i.ToString()] = e;
+                else if (index == _elements.Count)
+                {
+                    _elements.Add(ElementType.CreateNode(value) ?? throw new NotSupportedException());
+                }
+                else
+                {
+                    throw new IndexOutOfRangeException();
+                }
             }
             else
             {
-                result.Add(v);
+                if (index < _rawElements.Count)
+                {
+                    _rawElements[index] = value!;
+                }
+                else if (index == _rawElements.Count)
+                {
+                    _rawElements.Add(value!);
+                }
+                else
+                {
+                    throw new IndexOutOfRangeException();
+                }
             }
         }
-        
-        // @TODO Union Validation
-        Type type = this.ToCSharpType();
-        if (type != typeof(JsonArray))
-        {
-            try
-            {
-                return (result.FromJson(type), null);
-            }
-            catch (Exception ex)
-            {
-                return (result, ex.GetInnermostException().Message);
-            }
-        }
-        return (result, error);
     }
 
-    /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemaNode other) => 
-        this == other 
-        || Name.Equals(NS_SYSTEM_ARRAY) 
-        || other.Name.Equals(NS_SYSTEM_ARRAY) 
-        || (other is ArrayNode array && ElementNode != null && array.ElementNode != null && ElementNode.CanBeUseAs(array.ElementNode));
+    public int Count => ElementType != null ? _elements.Count : _rawElements.Count;
 
-    /// <inheritdoc />
-    public override ArrayNode? GetArrayNode(bool exactly = false) => null;
+    public override bool IsEmpty => Count == 0;
 
-    /// <summary>
-    /// Get unique key for object
-    /// </summary>
-    public string? GetPrimaryKey(JsonObject obj)
+    public override object? Value
     {
-        if (Primary == null || Primary.Length == 0 || ElementNode is not StructNode { Fields.Length: > 0 } @struct)
-            return null;
-
-        string? key = null;
-        foreach (string p in Primary)
+        get => this;
+        set
         {
-            if (obj.ContainsKey(p))
+            if (ElementType != null)
             {
-                StructFieldConfig? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
-                if (fld == null) return null;
-                string part = fld.TypeNode is ScalarNode { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>().FromUtc():yyyyMMdd}" : $"{obj[p]}";
-                key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
+                if (value == null)
+                {
+                    _elements.Clear();
+                }
+                else if (value is IEnumerable<AnySchemaNode> nodes)
+                {
+                    _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
+                }
+                else if (value is IEnumerable objs)
+                {
+                    _elements.Clear();
+                    foreach (object o in objs)
+                    {
+                        _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
+                    }
+                }
+                else
+                {
+                    Add(value);
+                }
             }
             else
             {
-                return null;
-            }
-        }
-        return key;
-    }
-    
-    public override IEnumerable<AnySchemaNode> GetDependNodes()
-    {
-        if (ElementNode != null)
-            yield return ElementNode;
-        
-        if (Relations != null)
-        {
-            foreach (StructFieldRelation relation in Relations)
-            {
-                if (relation.FuncNode != null)
-                    yield return relation.FuncNode;
+                if (value == null)
+                {
+                    _rawElements.Clear();
+                }
+                else if (value is IEnumerable<AnySchemaNode> nodes)
+                {
+                    _rawElements = nodes.Select(p => (object)p).ToList();
+                }
+                else if (value is IEnumerable objs)
+                {
+                    _rawElements.Clear();
+                    foreach (object o in objs)
+                    {
+                        _rawElements.Add(o);
+                    }
+                }
+                else
+                {
+                    throw new InvalidCastException();
+                }
             }
         }
     }
 
-    #endregion
-
-    #region Conversion
-    
-    /// <summary>
-    /// Convert the node to schema
-    /// </summary>
-    public static implicit operator NodeSchema?(ArrayNode? schema)
+    public void AddRange(IEnumerable node)
     {
-        if (schema == null) return null;
-        return new NodeSchema
+        if (ElementType != null)
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Array = new ArraySchema
+            foreach (var o in node)
             {
-                Element = schema.Element,
-                Single = schema.Single,
-                Primary = schema.Primary,
-                Combines = schema.Combines,
-                Relations = schema.Relations,
-                Additional = schema.Additional,
+                _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
             }
-        };
+        }
+        else
+        {
+            foreach (var o in node)
+            {
+                _rawElements.Add(o);
+            }
+        }
     }
-    
-    #endregion
+
+    public void Add(object node)
+    {
+        if (ElementType != null)
+        {
+            _elements.Add(ElementType.CreateNode(node) ?? throw new NotSupportedException());
+        }
+        else
+        {
+            _rawElements.Add(node);
+        }
+    }
+
+    public override object? ToTypeValue(Type type)
+    {
+        if (type == typeof(ArrayNode))
+            return this;
+
+        if (ElementType != null)
+        {
+            if (type.IsArray)
+            {
+                var elementType = type.GetElementType() ?? typeof(object);
+                var array = Array.CreateInstance(elementType, _elements.Count);
+                for (int i = 0; i < _elements.Count; i++)
+                {
+                    array.SetValue(_elements[i].ToTypeValue(elementType) ?? DBNull.Value, i);
+                }
+                return array;
+            }
+            else if (type == typeof(IEnumerable))
+            {
+                return _elements.Select(e => e.Value ?? DBNull.Value);
+            }
+            else if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
+            {
+                var genericType = type.GetGenericArguments()[0];
+                var listType = typeof(List<>).MakeGenericType(genericType);
+                var list = (IList)Activator.CreateInstance(listType)!;
+                foreach (var element in _elements)
+                {
+                    list.Add(element.ToTypeValue(genericType) ?? DBNull.Value);
+                }
+                return list;
+            }
+            else if (type == typeof(JsonArray) || type == typeof(JsonNode))
+            {
+                return ToJson();
+            }
+        }
+        else
+        {
+            if (type.IsArray)
+            {
+                var elementType = type.GetElementType() ?? typeof(object);
+                var array = Array.CreateInstance(elementType, _rawElements.Count);
+                for (int i = 0; i < _rawElements.Count; i++)
+                {
+                    array.SetValue(elementType.TryConvert(_rawElements[i]), i);
+                }
+                return array;
+            }
+            else if (type == typeof(IEnumerable))
+            {
+                return _rawElements;
+            }
+            else if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
+            {
+                var genericType = type.GetGenericArguments()[0];
+                var listType = typeof(List<>).MakeGenericType(genericType);
+                var list = (IList)Activator.CreateInstance(listType)!;
+                foreach (var element in _rawElements)
+                {
+                    list.Add(genericType.TryConvert(element));
+                }
+                return list;
+            }
+            else if (type == typeof(JsonArray) || type == typeof(JsonNode))
+            {
+                return ToJson();
+            }
+        }
+        return null;
+    }
+
+    public override JsonArray? ToJson()
+    {
+        JsonArray array = new();
+        foreach(var element in _elements)
+        {
+            array.Add(element.ToJson());
+        }
+        return array;
+    }
+
+    public IEnumerator<AnySchemaNode> GetEnumerator()
+    {
+        return _elements.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return ElementType != null ? ((IEnumerable)_elements).GetEnumerator() : ((IEnumerable)_rawElements).GetEnumerator();
+    }
+
+    List<AnySchemaNode> _elements = [];
+    List<object> _rawElements = [];
 }

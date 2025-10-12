@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Numerics;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
-using SchemaNode.Utility;
+using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function;
@@ -27,6 +27,10 @@ public static class SystemCollection
         if (array is Array arr)
         {
             return arr.LongLength;
+        }
+        if (array is ArrayNode node)
+        {
+            return node.Count;
         }
         if (array is ICollection collection)
         {
@@ -131,75 +135,74 @@ public static class SystemCollection
     /// Delete a field from the json object
     /// </summary>
     [SchemaFunc]
-    public static JsonObject DelField(JsonObject obj, string field)
+    public static StructNode DelField(StructNode obj, string field)
     {
-        JsonObject copy = new();
-        foreach (var (key, value) in obj)
-        {
-            if (key.Equals(field, StringComparison.OrdinalIgnoreCase)) continue;
-            copy[key] = value!;
-        }
-        return copy;
+        obj[field] = null;
+        return obj;
     }
 
     /// <summary>
     /// Whether the object has the field
     /// </summary>
     [SchemaFunc]
-    public static bool ContainsKey(JsonObject obj, string field)
+    public static bool ContainsKey(StructNode obj, string field)
     {
-        return obj.ContainsKey(field);
+        return obj[field] != null;
     }
 
     /// <summary>
     /// Whether the object not has the field
     /// </summary>
     [SchemaFunc]
-    public static bool NotContainsKey(JsonObject obj, string field)
+    public static bool NotContainsKey(StructNode obj, string field)
     {
-        return !obj.ContainsKey(field);
+        return obj[field] == null;
     }
 
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
     [SchemaFunc]
-    public static T? GetField<T>(JsonObject obj, string field)
+    public static T? GetField<T>(StructNode obj, string field)
     {
-        return obj.ContainsKey(field) ? (T?)typeof(T).TryConvert(obj[field]) : default(T?);
+        return (T?)(obj.GetField(field)?.ToTypeValue(typeof(T)));
     }
 
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>
     [SchemaFunc]
-    public static JsonArray GetFields(JsonArray array, string field)
+    public static ArrayNode GetFields(ArrayNode array, string field)
     {
-        JsonArray copy = new();
-        foreach (JsonNode? node in array)
+        ArrayType arrayType = array.Type as ArrayType ?? throw new  InvalidOperationException("The array type is invalid");
+        if (arrayType.ElementNode is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
+        
+        var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
+        if (f.TypeNode == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
+        var arrayNode = f.TypeNode.GetArrayNode() ?? throw new InvalidOperationException($"The field {field} type {f.TypeNode.Name} cannot be used as array element");
+
+        ArrayNode resultType = new (arrayNode);
+        foreach (AnySchemaNode item in array)
         {
-            if (node is JsonObject obj && obj.ContainsKey(field))
+            if (item is StructNode node)
             {
-                copy.Add(obj[field]);
+                AnySchemaNode? fieldNode = node.GetField(field);
+                if (fieldNode != null)
+                {
+                    resultType.Add(fieldNode);
+                }
             }
         }
-        return copy;
+        return resultType;
     }
     
-    /// <summary>
-    /// Create a new json object
-    /// </summary>
-    [SchemaFunc]
-    public static JsonObject? NewStruct() => new JsonObject();
-
     /// <summary>
     /// Sets the field and return a new json object
     /// </summary>
     [SchemaFunc]
-    public static JsonObject SetField<T>(JsonObject obj, string field, T value)
+    public static StructNode SetField(StructNode obj, string field, object? value)
     {
-        JsonObject copy = (JsonObject)obj.DeepClone();
-        copy[field] = JsonSerializer.SerializeToNode(value);
-        return copy;
+        obj[field] = value;
+        return obj;
     }
 }

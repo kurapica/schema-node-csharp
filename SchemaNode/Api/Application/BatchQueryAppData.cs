@@ -4,6 +4,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
@@ -89,11 +90,11 @@ public static class BatchQueryExtension
                 foreach (AppFieldNode field in fields)
                 {
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.ContainsKey(field.Name) ? query.Querys[field.Name] : null;
-                    (JsonNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
+                    (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
                         q?.Filter, q?.Skip ?? 0, q?.Take ?? query.Take ?? 0, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                     if (result != null)
                     {
-                        datas[field.Name] = result;
+                        datas[field.Name] = result.ToJson()!;
                         infos[field.Name] = new AppDataFieldInfo
                         {
                             Filter = q?.Filter,
@@ -146,18 +147,18 @@ public static class BatchQueryExtension
         return (results.ToArray(), root.Schemas);
     }
 
-    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaNode type, HashSet<string> enumsKeys, JsonNode? value)
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemeType type, HashSet<string> enumsKeys, AnySchemaNode? value)
     {
         switch (type)
         {
-            case EnumNode enumNode:
-                if (value is JsonValue val)
+            case EnumType enumNode:
+                if (value is EnumNode val)
                 {
-                    string key = $"{enumNode.Name}:{val.GetValue<string>()}";
+                    string key = $"{enumNode.Name}:{val.ToValue<string>()}";
                     if (!enumsKeys.Contains(key))
                     {
                         enumsKeys.Add(key);
-                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.GetValue<string>());
+                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.ToValue<string>()!);
 
                         if (access.Length > 0)
                         {
@@ -185,34 +186,34 @@ public static class BatchQueryExtension
                     }
                 }
                 break;
-            case StructNode @struct:
-                if (value is JsonObject obj)
+            case StructType @struct:
+                if (value is StructNode obj)
                 {
                     foreach (StructFieldConfig f in @struct.Fields)
                     {
-                        JsonNode? v = obj[f.Name];
-                        if (v != null)
+                        var v = obj.GetField(f.Name);
+                        if (v != null && !v.IsEmpty)
                             await ScanEnumAccess(context, root, f.TypeNode!, enumsKeys, v);
                     }
                 }
                 break;
 
-            case ArrayNode array:
-                if (value is not JsonArray arr) return;
+            case ArrayType array:
+                if (value is not ArrayNode arr) return;
 
-                if (array.ElementNode is StructNode eleStruct)
+                if (array.ElementNode is StructType eleStruct)
                 {
-                    foreach (JsonNode? v in arr)
+                    foreach (var v in arr)
                     {
-                        if (v is JsonObject)
+                        if (v is StructNode)
                             await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
                     }
                 }
-                else if(array.ElementNode is EnumNode eleEnum)
+                else if(array.ElementNode is EnumType eleEnum)
                 {
-                    foreach (JsonNode? v in arr)
+                    foreach (var v in arr)
                     {
-                        if (v is JsonValue)
+                        if (v is EnumNode)
                             await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
                     }
                 }

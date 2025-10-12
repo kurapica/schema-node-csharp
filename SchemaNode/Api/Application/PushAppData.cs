@@ -67,7 +67,7 @@ public static class PushDataExtenstion
 
             if (push.Data != null)
             {
-                (bool isEmpty, JsonNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
+                (bool isEmpty, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
                 if (error != null) return (false, error);
                 await context.SaveFieldDataAsync(appField, target, result);
             }

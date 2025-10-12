@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components.Provider;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -245,7 +246,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     }
     
     /// <inheritdoc />
-    public async Task<(JsonNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", 
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", 
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false)
     {
@@ -258,7 +259,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         // single row
         if (schema.Single)
         {
-            JsonNode? value = null;
+            AnySchemaNode? value = null;
             
             // Gets the data from the database
             if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
@@ -459,7 +460,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            JsonArray value = [];
+            ArrayNode value = new ArrayNode((ArrayType)schema.TypeNode);
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogInformation(command.CommandText);
@@ -470,8 +471,8 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 {
                     while (await reader.ReadAsync())
                     {
-                        JsonObject pack = schema.GetFieldPack(reader);
-                        value.Add(pack);
+                        AnySchemaNode? pack = schema.GetFieldPack(reader);
+                        if (pack != null) value.Add(pack);
                     }
                 }
             }
@@ -485,7 +486,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, JsonNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? value = null)
+    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", AnySchemaNode? value = null)
     {
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
@@ -497,7 +498,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         if (schema.Single)
         {
             // Gets the origin value
-            (JsonNode? origin, _) = await QueryDynamicTableAsync(schema, target);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target);
 
             // Delete if null
             if (value == null)
@@ -553,7 +554,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 }
                 return (true, origin);
             }
-            else if (value is JsonObject pack)
+            else if (value is StructNode pack)
             {
                 // Build the sql
                 StringBuilder sb = new();
@@ -630,27 +631,27 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             // Prepare the data
             switch (value)
             {
-                case JsonArray arr:
-                    array = arr;
+                case ArrayNode arr:
+                    array = arr.ToJson()!;
                     break;
-                case JsonObject obj:
-                    array = [obj];
+                case StructNode obj:
+                    array = [obj.ToJson()];
                     break;
                 default:
                     return (false, null);
             }
             if (array.Count == 0) return (false, null);
             
-            (JsonNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
 
             // record exist rows
             HashSet<string> existKeys = [];
             List<string> keys = [];
-            if (origin is JsonArray oArr && oArr.Count > 0)
+            if (origin is ArrayNode oArr && oArr.Count > 0)
             {
-                foreach (JsonNode? item in oArr)
+                foreach (AnySchemaNode item in oArr)
                 {
-                    if (item is JsonObject obj)
+                    if (item is StructNode obj)
                     {
                         keys.Clear();
                         bool fullFill = true;
@@ -711,7 +712,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     sb.Append($") VALUES ( \"{target}\"");
 
                     // Body
-                    foreach ((string _, string v, bool isString, _) in schema.GetFieldValues(pack))
+                    foreach ((string _, string? v, bool isString, _) in schema.GetFieldValues(pack))
                         sb.Append($",{(v == null ? "null" : (isString ? $"\"{MySqlHelper.EscapeString(v)}\"" : v))}");
 
                     // Footer
@@ -758,12 +759,10 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
             return (true, origin);
         }
-        
-        return (false, null);
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, JsonNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null)
+    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null)
     {
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
@@ -774,7 +773,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         // single row
         if (schema.Single)
         {
-            (JsonNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
@@ -789,8 +788,8 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         else if (!schema.IncrUpdate || filter is JsonArray { Count: > 0 })
         {
             _whereClause = null;
-            (JsonNode? origin, _) = await QueryDynamicTableAsync(schema, target, filter, forUpdate: true);
-            if (origin is not JsonArray arr || arr.Count == 0 || _whereClause == null) return (false, null);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, filter, forUpdate: true);
+            if (origin is not ArrayNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX(`{DYNAMIC_UNIQUE_INDEX}`)", "")};"; // Can change to deleted flag controls

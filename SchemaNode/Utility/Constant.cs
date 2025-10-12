@@ -9,8 +9,8 @@ public static class Constant
     #region Schema
 
     public const string NS_SYSTEM = "system";
-    public const string NS_SYSTEM_ARRAY = "system.array";
-    public const string NS_SYSTEM_STRUCT = "system.struct";
+    public const string NS_SYSTEM_ARRAY = "system.array"; // any array
+    public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
     public const string NS_SYSTEM_BOOL = "system.bool";
     public const string NS_SYSTEM_DATE = "system.date";
     public const string NS_SYSTEM_NUMBER = "system.number";

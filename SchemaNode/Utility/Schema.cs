@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -26,7 +27,6 @@ internal static class Schema
     internal static NodeSchema? GetSystemNodeSchema(string schemaName)
     {
         schemaName = schemaName.ToLowerInvariant();
-        // ReSharper disable once InconsistentlySynchronizedField
         NodeSchema? node = _root;
         string fullPath = "";
         foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
@@ -43,59 +43,56 @@ internal static class Schema
     /// </summary>
     internal static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
-        lock (_root)
-        {
-            schema.LoadState = SchemaLoadState.System;
-            Console.WriteLine("save {0}", schema.Name);
+        schema.LoadState = SchemaLoadState.System;
+        Console.WriteLine("save {0}", schema.Name);
 
-            string schemaName = schema.Name.ToLowerInvariant();
-            NodeSchema root = _root;
-            string fullPath = "";
-            foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
+        string schemaName = schema.Name.ToLowerInvariant();
+        NodeSchema root = _root;
+        string fullPath = "";
+        foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
+        {
+            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
+            NodeSchema? node = root.Schemas!.FirstOrDefault(x => x.Name == fullPath);
+            if (node == null)
             {
-                fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-                NodeSchema? node = root.Schemas!.FirstOrDefault(x => x.Name == fullPath);
-                if (node == null)
+                if (schemaName == fullPath)
                 {
-                    if (schemaName == fullPath)
-                    {
-                        root.Schemas = root.Schemas != null ? root.Schemas.Concat([schema]).ToArray() : [schema];
-                    }
-                    else
-                    {
-                        node = new NodeSchema
-                        {
-                            Name = fullPath,
-                            Type = SchemaType.Namespace,
-                            LoadState = SchemaLoadState.System,
-                            Schemas = []
-                        };
-                        root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
-                        root = node;
-                        root.Schemas ??= [];
-                    }
+                    root.Schemas = root.Schemas != null ? root.Schemas.Concat([schema]).ToArray() : [schema];
                 }
-                else if (schemaName != fullPath)
+                else
                 {
+                    node = new NodeSchema
+                    {
+                        Name = fullPath,
+                        Type = SchemaType.Namespace,
+                        LoadState = SchemaLoadState.System,
+                        Schemas = []
+                    };
+                    root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
                     root = node;
                     root.Schemas ??= [];
                 }
             }
-
-            Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
-
-            // Register the type map
-            if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
+            else if (schemaName != fullPath)
             {
-                if (schema.Type != SchemaType.Array)
-                {
-                    _systemTypes[schemaName] = type;
-                    _typeNames[type] = schemaName;
-                }
-                else
-                {
-                    _typeArrNames[type] = schemaName;
-                }
+                root = node;
+                root.Schemas ??= [];
+            }
+        }
+
+        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
+
+        // Register the type map
+        if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
+        {
+            if (schema.Type != SchemaType.Array)
+            {
+                _systemTypes[schemaName] = type;
+                _typeNames[type] = schemaName;
+            }
+            else
+            {
+                _typeArrNames[type] = schemaName;
             }
         }
     }
@@ -114,9 +111,6 @@ internal static class Schema
     /// <summary>
     /// Try get the schema name of a assembly type, with auto register
     /// </summary>
-    /// <param name="typeInfo">The type info</param>
-    /// <param name="autoConv">Whether auto convert the type</param>
-    /// <returns></returns>
     internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
     {
         if (typeInfo.BaseType == null) return null; // Generic, no schema type
@@ -128,22 +122,14 @@ internal static class Schema
         // Already registered
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
-        if (type == typeof(JsonArray) || type.IsAssignableTo(typeof(IList)))
+        // Common
+        if (type == typeof(JsonArray) || type == typeof(ArrayNode) || type.IsAssignableTo(typeof(IEnumerable)))
         {
             return NS_SYSTEM_ARRAY;
         }
-        else if (type == typeof(JsonObject))
+        else if (type == typeof(JsonObject) || type == typeof(StructNode))
         {
             return NS_SYSTEM_STRUCT;
-        }
-            
-        if (type == typeof(Guid))
-        {
-            typeName = NS_SYSTEM_GUID;
-        }
-        else if (type == typeof(DateTimeOffset))
-        {
-            typeName = NS_SYSTEM_DATE;
         }
 
         // Basic value check
@@ -178,6 +164,15 @@ internal static class Schema
             }
         }
 
+        if (type == typeof(Guid))
+        {
+            typeName = NS_SYSTEM_GUID;
+        }
+        else if (type == typeof(DateTimeOffset))
+        {
+            typeName = NS_SYSTEM_DATE;
+        }
+
         if (string.IsNullOrWhiteSpace(typeName) && !_typeNames.TryGetValue(type, out typeName))
         {
             // try generate
@@ -196,7 +191,7 @@ internal static class Schema
                             List<NodeSchema>? funcNs = null;
                             foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
                             {
-                                NodeSchema? func = FunctionNode.GenerateSystemFunction(info, funcNsAttr.Name);
+                                NodeSchema? func = FunctionType.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
                                 funcNs ??= [];
                                 funcNs.Add(func);
@@ -208,7 +203,7 @@ internal static class Schema
                 else
                 {
                     if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
-                        schemas = StructNode.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
+                        schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
                             ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
                             : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
@@ -218,7 +213,7 @@ internal static class Schema
                 if (type.IsEnum)
                 {
                     if (autoConv || type.GetCustomAttribute<SchemaEnumAttribute>() != null) 
-                        schemas = EnumNode.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
+                        schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
                             ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
                             : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
@@ -226,7 +221,7 @@ internal static class Schema
                 {
                     // struct
                     if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
-                        schemas = StructNode.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
+                        schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
                             ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
                             : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
                 }
@@ -363,11 +358,11 @@ internal static class Schema
     /// <summary>
     /// Gets the schema type info from any schema node
     /// </summary>
-    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaNode node)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemeType node)
     {
         return node switch
         {
-            ScalarNode or EnumNode or StructNode or ArrayNode => new SchemaParamTypeInfo
+            ScalarType or EnumType or StructType or ArrayType => new SchemaParamTypeInfo
             {
                 Type = node.ToCSharpType(), 
                 SchemaType = node.Name
@@ -379,15 +374,15 @@ internal static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    internal static Type ToCSharpType(this AnySchemaNode node, bool? nullable = false)
+    internal static Type ToCSharpType(this AnySchemeType node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type = null;
-        if (node is ArrayNode array)
+        if (node is ArrayType array)
         {
             if (array.ElementNode == null)
             {
-                type = typeof(JsonArray);
+                return typeof(ArrayNode);
             }
             else
             {
@@ -397,11 +392,11 @@ internal static class Schema
         }
         if (type is null && !_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
         {
-            if (node is EnumNode enumNode)
+            if (node is EnumType enumNode)
             {
                 type = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(int);
             }
-            else if (node is ScalarNode scalar)
+            else if (node is ScalarType scalar)
             {
                 if (scalar.IsBool)
                 {
@@ -433,13 +428,13 @@ internal static class Schema
                 }
                 else
                 {
-                    type = isArray ? typeof(JsonArray) : typeof(JsonValue);
+                    type = isArray ? typeof(ArrayNode) : typeof(ScalarNode);
                     isArray = false;
                 }
             }
-            else if(node is StructNode)
+            else if(node is StructType)
             {
-                type = isArray ? typeof(JsonArray) : typeof(JsonObject);
+                type = isArray ? typeof(ArrayNode) : typeof(StructNode);
                 isArray = false;
             }
         }
@@ -447,7 +442,7 @@ internal static class Schema
         // cover all
         if (type == null)
         {
-            type ??= isArray ? typeof(JsonArray) : typeof(JsonValue);
+            type ??= isArray ? typeof(ArrayNode) : typeof(StructNode);
         }
         else if (isArray)
         {

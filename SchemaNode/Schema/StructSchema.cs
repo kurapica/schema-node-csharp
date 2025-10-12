@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Schema;
 
@@ -198,7 +198,7 @@ public class StructFieldConfig
     /// </summary>
     [JsonIgnore]
     [SchemaStructMemIgnore]
-    public AnySchemaNode? TypeNode { get; set; }
+    public AnySchemeType? TypeNode { get; set; }
     
     #endregion
 }
@@ -233,5 +233,5 @@ public class StructFieldRelation
     /// </summary>
     [JsonIgnore]
     [SchemaStructMemIgnore]
-    public FunctionNode? FuncNode { get; set; }
+    public FunctionType? FuncNode { get; set; }
 }

@@ -237,7 +237,7 @@ public static class SchemaApiDocument
 
         string typeKey = GetRegularStrFormat(type.Name, true);
 
-        if (!HandledTypes.Value.Contains(typeKey))
+        if (!HandledTypes.Value!.Contains(typeKey))
         {
             HandledTypes.Value.Add(typeKey);
 

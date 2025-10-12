@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Api.Schema.Info;
@@ -21,21 +21,21 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(t);
+            AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(t);
             if (node == null) continue;
             NodeSchema schema = node!;
-            if (node is NamespaceNode @ns)
+            if (node is TypeNamespace @ns)
             {
                 // add one level sub nodes
                 schema.Schemas = ns.Schemas.Select(s => {
-                    AnySchemaNode? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name);
+                    AnySchemeType? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name);
                     return new NodeSchema
                     {
                         Name = s.Name,
                         Type = s.Type,
                         Display = s.Display,
                         LoadState = s.LoadState,
-                        HasSchemas = (s.HasSchemas ?? false) || subNode is NamespaceNode { Schemas.Length: > 0 }
+                        HasSchemas = (s.HasSchemas ?? false) || subNode is TypeNamespace { Schemas.Length: > 0 }
                     };
                 }).ToArray();
             }

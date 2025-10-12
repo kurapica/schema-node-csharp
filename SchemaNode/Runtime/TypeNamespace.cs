@@ -3,12 +3,12 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
 
-namespace SchemaNode.Node;
+namespace SchemaNode.Runtime;
 
 /// <summary>
 /// The namespace node
 /// </summary>
-public class NamespaceNode: AnySchemaNode
+public class TypeNamespace: AnySchemeType
 {
     #region Data
 
@@ -24,7 +24,7 @@ public class NamespaceNode: AnySchemaNode
     /// <summary>
     /// The Sub namespaces
     /// </summary>
-    public ConcurrentDictionary<string, AnySchemaNode> SchemaNodes { get; set; } = new ();
+    public ConcurrentDictionary<string, AnySchemeType> SchemaNodes { get; set; } = new ();
 
     #endregion
 
@@ -88,7 +88,7 @@ public class NamespaceNode: AnySchemaNode
     /// <summary>
     /// Convert the node to schema
     /// </summary>
-    public static implicit operator NodeSchema?(NamespaceNode? schema)
+    public static implicit operator NodeSchema?(TypeNamespace? schema)
     {
         if (schema == null) return null;
         return new NodeSchema

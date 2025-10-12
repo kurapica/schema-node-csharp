@@ -1,210 +1,68 @@
-using System.Collections.Concurrent;
+﻿using SchemaNode.Enum;
+using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using System.Text.Json.Nodes;
-using SchemaNode.Context;
-using SchemaNode.Enum;
-using SchemaNode.Components.Provider;
-using SchemaNode.Schema;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
-/// <summary>
-/// The in-memory schema representation
-/// </summary>
-public abstract class AnySchemaNode: IDisposable
+public abstract class AnySchemaNode
 {
-    #region Data
+    internal AnySchemaNode(AnySchemeType type, object? value = null) {
+        Type = type;
+        CsharpType = type.ToCSharpType();
+
+        if (value != null) Value = value;
+    }
 
     /// <summary>
-    /// The namespace
+    /// The schema type representation
     /// </summary>
-    public string Name { get; init; } = string.Empty;
+    public virtual AnySchemeType Type { get; set; }
 
     /// <summary>
-    /// The schema display
+    /// The c# type representation
     /// </summary>
-    public LocaleString? Display { get; set; }
+    public Type CsharpType { get; set; }
 
-    #endregion
-    
-    #region Status
-    
     /// <summary>
     /// The schema type
     /// </summary>
-    public virtual SchemaType Type => SchemaType.Namespace;
+    public SchemaType SchemaType => Type.Type;
+
+    public virtual bool IsEmpty => _value == null;
+
+    public virtual T? ToValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
+
+    public virtual object? ToTypeValue(Type type) => type.TryConvert(_value);
 
     /// <summary>
-    /// Is value type
+    /// The value of the node
     /// </summary>
-    public virtual bool IsValueType => Type != SchemaType.Namespace && Type != SchemaType.Func;
-
-    /// <summary>
-    /// The load state
-    /// </summary>
-    public SchemaLoadState LoadState { get; init; } = SchemaLoadState.Server;
-
-    /// <summary>
-    /// The schema node status
-    /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
-        
-    /// <summary>
-    /// The scheme provider used to load the node
-    /// </summary>
-    public ISchemaProvider? SchemaProvider { get; set; }
-    
-    /// <summary>
-    /// Whether the node is used
-    /// </summary>
-    public virtual bool IsUsed => UsedBy is { IsEmpty: false } || UsedByApp is { IsEmpty: false };
-
-    #endregion
-
-    #region Methods
-
-    /// <summary>
-    /// Load the schema data
-    /// </summary>
-    /// <param name="context">The schema context</param>
-    /// <param name="schema">The schema</param>
-    /// <param name="preload">Whether during preload</param>
-    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { return Task.CompletedTask; }
-    
-    /// <summary>
-    /// Release the refs
-    /// </summary>
-    public virtual void Release() { }
-
-    /// <summary>
-    /// Used by another node
-    /// </summary>
-    public void AddRef(AnySchemaNode node)
+    public virtual object? Value
     {
-        UsedBy ??= new ConcurrentDictionary<AnySchemaNode, bool>();
-        UsedBy.TryAdd(node, true);
-    }
-
-    /// <summary>
-    /// Used by an application field
-    /// </summary>
-    public void AddRef(AppFieldNode node)
-    {
-        UsedByApp ??= new ConcurrentDictionary<AppFieldNode, bool>();
-        UsedByApp.TryAdd(node, true);
-    }
-
-    /// <summary>
-    /// Remove a ref from another node
-    /// </summary>
-    public void RemoveRef(AnySchemaNode node)
-    {
-        UsedBy?.TryRemove(node, out _);
-    }
-
-    /// <summary>
-    /// Remove ref for an application field
-    /// </summary>
-    /// <param name="node"></param>
-    public void RemoveRef(AppFieldNode node)
-    {
-        UsedByApp?.TryRemove(node, out _);
-    }
-
-    /// <summary>
-    /// Validate the value with the schema
-    /// </summary>
-    public virtual async Task<(object? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
-    {
-        await Task.Yield();
-        return (value, TYPE_NAMESPACE_NOT_DATA_TYPE);
-    }
-
-    /// <summary>
-    /// Whether the schema type can be used as the other
-    /// </summary>
-    public virtual bool CanBeUseAs(AnySchemaNode other) => Name.Equals(other.Name);
-    
-    /// <summary>
-    /// Gets the array node that use this node as element
-    /// </summary>
-    public virtual ArrayNode? GetArrayNode(bool exactly = false) =>
-        UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.ElementNode == this) as ArrayNode
-        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayNode array && array.ElementNode != null && CanBeUseAs(array.ElementNode)) as ArrayNode : null); 
-    
-    /// <summary>
-    /// Whether the type can be used as data index
-    /// </summary>
-    public virtual bool IsIndexable => false;
-    
-    /// <summary>
-    /// Whether the new schema is valid for updating
-    /// </summary>
-    public virtual bool IsUpdatable(AnySchemaNode other) => Type == other.Type;
-
-    /// <summary>
-    /// Release ref
-    /// </summary>
-    public void Dispose() => Release();
-
-    /// <summary>
-    /// Gets the depends schema nodes
-    /// </summary>
-    /// <returns></returns>
-    public virtual IEnumerable<AnySchemaNode> GetDependNodes()
-    {
-        yield break;
-    }
-
-    #endregion
-    
-    #region Conversion
-
-    /// <summary>
-    /// Convert the schema to node
-    /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException"></exception>
-    public static implicit operator AnySchemaNode?(NodeSchema? schema)
-    {
-        if (schema == null) return null;
-        return schema.Type switch
+        get => _value;
+        set
         {
-            SchemaType.Namespace => new NamespaceNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Scalar => new ScalarNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Enum => new EnumNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Struct => new StructNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Array => new ArrayNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Func => new FunctionNode { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            _ => throw new ArgumentOutOfRangeException()
-        };
+            if (value is AnySchemaNode node)
+            {
+                _value = node.Type.CanBeUseAs(Type) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
+            }
+            else
+            {
+                _value = CsharpType.TryConvert(value);
+            }
+        }
     }
 
     /// <summary>
-    /// Convert the node to schema
+    /// Convert to json node
     /// </summary>
-    public static implicit operator NodeSchema?(AnySchemaNode? schema)
-    {
-        if (schema == null) return null;
-        return schema.Type switch
-        {
-            SchemaType.Scalar => (schema as ScalarNode),
-            SchemaType.Enum => (schema as EnumNode),
-            SchemaType.Struct => (schema as StructNode),
-            SchemaType.Array => (schema as ArrayNode),
-            SchemaType.Func => (schema as FunctionNode),
-            _ => (schema as NamespaceNode)
-        };
-    }
-    
-    #endregion
+    public virtual JsonNode? ToJson() => _value?.ToJsonNode();
 
-    #region Utility
-    
     /// <summary>
-    /// Used by other types
+    /// To string
     /// </summary>
-    internal ConcurrentDictionary<AnySchemaNode, bool>? UsedBy;
-    internal ConcurrentDictionary<AppFieldNode, bool>? UsedByApp;
+    public override string ToString() => _value?.ToJson() ?? string.Empty;
 
-    #endregion
+    internal object? _value;
 }

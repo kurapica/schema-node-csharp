@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Schema;
 
@@ -113,5 +113,5 @@ public class FunctionCallArgument {
     /// </summary>
     [SchemaStructMemIgnore]
     [JsonIgnore]
-    public AnySchemaNode? TypeNode { get; set; }
+    public AnySchemeType? TypeNode { get; set; }
 }

@@ -1,3 +1,5 @@
+using SchemaNode.Node;
+using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -182,9 +184,9 @@ internal static class Extension
         return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
     }
 
-    internal static T ToValue<T>(this JsonNode node)
+    internal static T? ToValue<T>(this JsonNode node)
     {
-        return (T)(TryConvert(typeof(T), node) ?? default);
+        return (T?)(TryConvert(typeof(T), node) ?? default);
     }
 
     /// <summary>
@@ -206,7 +208,15 @@ internal static class Extension
             case JsonValueKind.Number:
                 if (val.TryGetValue(out long l))
                     return (l, typeof(long));
-                return (val.GetValue<decimal>(), typeof(decimal));
+                else if(val.TryGetValue(out int i))
+                    return (i, typeof(int));
+                else if (val.TryGetValue(out double db))
+                    return (db, typeof(double));
+                else if (val.TryGetValue(out float f))
+                    return (f, typeof(float));
+                else if (val.TryGetValue(out decimal dec))
+                    return (val.GetValue<decimal>(), typeof(decimal));
+                throw new InvalidCastException("Can't be converted to a number");
             case JsonValueKind.True:
                 return (true, typeof(bool));
             case JsonValueKind.False:
@@ -267,6 +277,11 @@ internal static class Extension
     }
 
     /// <summary>
+    /// Gets the value with paths
+    /// </summary>
+    public static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
+
+    /// <summary>
     /// Try get the value with name
     /// </summary>
     internal static bool TryGetValue(this JsonObject? obj, string name, out JsonNode? value)
@@ -280,11 +295,6 @@ internal static class Extension
         return false;
     }
     
-    /// <summary>
-    /// Gets the value with paths
-    /// </summary>
-    public static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
-
     private static readonly JsonSerializerOptions IndentJsonOption = new()
     {
         WriteIndented = true,
@@ -397,7 +407,7 @@ internal static class Extension
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    internal static bool IsArrayType(this Type type) => type != typeof(JsonArray) && 
+    internal static bool IsArrayType(this Type type) => type != typeof(ArrayNode) && 
         ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
     
     internal static bool IsSafeConstantValue(this Type type)
@@ -435,7 +445,8 @@ internal static class Extension
             type = type.GetNotNullType();
 
             if (value.GetType().IsAssignableTo(type)) return value;
-            
+            if (value is AnySchemaNode node) return node.ToTypeValue(type);
+
             // json type
             if (value is JsonArray or JsonObject)
             {
@@ -481,7 +492,7 @@ internal static class Extension
                 }
                 return null;
             }
-            else if(value is System.Collections.IEnumerable iter)
+            else if(value is IEnumerable iter)
             {
                 if (type.IsSZArray)
                 {
@@ -576,9 +587,8 @@ internal static class Extension
         }
         catch(Exception ex)
         {
-            Console.Error.WriteLine("TryConvert - {0}", ex.GetInnermostException().Message);
+            throw new InvalidCastException($"Cannot convert the value '{value}' to type '{type.FullName}'", ex);
         }
-        return null;
     }
 
     #endregion

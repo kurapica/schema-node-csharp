@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Api.Schema.Info;
@@ -17,11 +17,11 @@ public class LoadEnumAccessListApi : SchemaApi<LoadEnumAccessListRequest, LoadEn
     {
         Logger.LogDebug("[Api]LoadEnumAccessList [Request]{request}", request);
 
-        AnySchemaNode? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
 
         return new LoadEnumAccessListResponse
         {
-            Access = node is EnumNode @enum ? await @enum.LoadEnumAccessListAsync(SchemaContext, request.Value, request.NoSubList, request.WithSubList) : []
+            Access = node is EnumType @enum ? await @enum.LoadEnumAccessListAsync(SchemaContext, request.Value, request.NoSubList, request.WithSubList) : []
         };
     }
 }
