@@ -60,23 +60,22 @@ public static class PushDataExtenstion
                 await context.BeginTransactionAsync();
             }
 
-            if (push.Deletes != null && push.Deletes.Count > 0)
-            {
-                await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
-            }
-
             if (push.Data != null)
             {
-                (bool isEmpty, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
+                (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
                 if (error != null) return (false, error);
                 await context.SaveFieldDataAsync(appField, target, result);
+            }
+            
+            if (push.Deletes is { Count: > 0 })
+            {
+                await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
             }
         }
 
         if (hasData)
             await context.CommitTransactionAsync();
-
-
+        
         return (true, null);
     }
 }

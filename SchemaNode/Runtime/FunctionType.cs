@@ -1892,22 +1892,25 @@ public class FunctionType: AnySchemeType
         if (schema == null) return null;
         return new NodeSchema
         {
-            Name = schema.Name,
+            Name = schema.Name.ToLower(),
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Used = schema.IsUsed,
+            UsedBy = schema.UsedBy?.Keys.Select(p => p.Name).ToArray(),
+            UsedByApp = schema.UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray(),
             Func = new FunctionSchema
             {
                 Return = schema.Return,
                 Args = schema.Args.Select(a => new FunctionArgumentInfo
                 {
-                    Name = a.Name,
+                    Name = a.Name.ToCamelCase(),
                     Type = a.Type,
                     Nullable = a.Nullable
                 }).ToArray(),
                 Exps = schema.Exps.Select(e => new FunctionExpression
                 {
-                    Name = e.Name,
+                    Name = e.Name.ToCamelCase(),
                     Func = e.Func,
                     Type = e.Type ?? ExpressionType.Call,
                     Return = e.Return,

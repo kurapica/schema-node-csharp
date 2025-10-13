@@ -28,13 +28,14 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             {
                 // add one level sub nodes
                 schema.Schemas = ns.Schemas.Select(s => {
-                    AnySchemeType? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name);
+                    AnySchemeType? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).Last());
                     return new NodeSchema
                     {
                         Name = s.Name,
                         Type = s.Type,
                         Display = s.Display,
                         LoadState = s.LoadState,
+                        Used = subNode?.IsUsed ?? (s.HasSchemas ?? false) || subNode is TypeNamespace { Schemas.Length: > 0 },
                         HasSchemas = (s.HasSchemas ?? false) || subNode is TypeNamespace { Schemas.Length: > 0 }
                     };
                 }).ToArray();

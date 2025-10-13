@@ -73,6 +73,21 @@ public class NodeSchema
     /// Has sub schemas
     /// </summary>
     public bool? HasSchemas { get; set; }
+    
+    /// <summary>
+    /// The schema is used, can't be deleted
+    /// </summary>
+    public bool? Used { get; set; }
+    
+    /// <summary>
+    /// Used by other types
+    /// </summary>
+    public string[]? UsedBy { get; set; }
+    
+    /// <summary>
+    /// Used by other apps
+    /// </summary>
+    public string[]? UsedByApp { get; set; }
 
     /// <summary>
     /// The sub schemas of the namespace

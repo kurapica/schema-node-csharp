@@ -17,7 +17,7 @@ public abstract class AnySchemaNode
     /// <summary>
     /// The schema type representation
     /// </summary>
-    public virtual AnySchemeType Type { get; set; }
+    public AnySchemeType Type { get; set; }
 
     /// <summary>
     /// The c# type representation

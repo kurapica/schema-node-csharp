@@ -292,6 +292,9 @@ public class EnumType: AnySchemeType
             Type = Type,
             Display = Display,
             LoadState = LoadState,
+            Used = IsUsed,
+            UsedBy = UsedBy?.Keys.Select(p => p.Name).ToArray(),
+            UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray(),
             Enum = new EnumSchema
             {
                 Type = ValueType,

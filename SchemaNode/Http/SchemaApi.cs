@@ -405,7 +405,7 @@ public static class SchemaApiExtension
     
     static readonly AsyncLocal<Stopwatch> StopWatch = new ();
 
-    private static JsonSerializerOptions JsonOptions = new ()
+    static readonly JsonSerializerOptions JsonOptions = new ()
     {
         WriteIndented = false,
         Converters =

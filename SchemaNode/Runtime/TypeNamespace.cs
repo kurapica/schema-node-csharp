@@ -97,6 +97,7 @@ public class TypeNamespace: AnySchemeType
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Used = schema.IsUsed,
             HasSchemas = schema.Schemas.Length > 0
         };
     }

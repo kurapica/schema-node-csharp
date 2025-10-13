@@ -256,7 +256,7 @@ public class StructType: AnySchemeType
                     SchemaStructMemAttribute? memAttr = p.GetCustomAttribute<SchemaStructMemAttribute>();
                     return new StructFieldConfig
                     {
-                        Name = p.Name,
+                        Name = p.Name.ToCamelCase(),
                         Type = p.PropertyType.GetSchemaType()!,
                         Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
                         Display = memAttr?.Display ?? p.Name,
@@ -297,6 +297,9 @@ public class StructType: AnySchemeType
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Used = schema.IsUsed,
+            UsedBy = schema.UsedBy?.Keys.Select(p => p.Name).ToArray(),
+            UsedByApp = schema.UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray(),
             Struct = new StructSchema
             {
                 Base = schema.Base,

@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
 using SchemaNode.Node;
@@ -30,7 +29,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Apps = node.Apps?.Select(a => {
-                AppNode? childNode = node.SubAppList?.Values?.FirstOrDefault(a => a.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
+                AppNode? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(p.Name, StringComparison.OrdinalIgnoreCase));
                 return new AppSchema
                 {
                     Name = a.Name,
@@ -51,11 +50,11 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                 Type = r.Type,
                 Func = r.Func,
-                Args = r.Args?.Select(a => new FunctionCallArgument
+                Args = r.Args.Select(a => new FunctionCallArgument
                 {
                     Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
                     Value = a.Value,
-                }).ToArray() ?? []
+                }).ToArray()
             }).ToArray();
 
             if(request.IncludeTypes)

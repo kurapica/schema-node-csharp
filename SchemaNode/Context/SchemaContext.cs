@@ -45,12 +45,12 @@ public class SchemaContext
     /// <summary>
     /// The schema provider
     /// </summary>
-    public IServiceProvider ServiceProvider { get; }
+    internal IServiceProvider ServiceProvider { get; }
     
     /// <summary>
     /// Gets the logger
     /// </summary>
-    public ILogger Logger => _loggerThunk.Value;
+    protected ILogger Logger => _loggerThunk.Value;
     
     /// <summary>
     /// Gets the app data provider
@@ -60,7 +60,7 @@ public class SchemaContext
     /// <summary>
     /// The current category target to be used
     /// </summary>
-    public string Target { get; set; } = string.Empty;
+    protected string Target { get; set; } = string.Empty;
 
     #endregion
 
@@ -842,8 +842,8 @@ public class SchemaContext
 
     #endregion
 
-    #region Data Management
-
+    #region App Source Field
+ 
     /// <summary>
     /// Sets the ref target of the field
     /// </summary>
@@ -903,6 +903,10 @@ public class SchemaContext
         // Consider use the same target if no ref for view
         return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceNode, target);
     }
+
+    #endregion
+    
+    #region Data Management
 
     public Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, JsonNode? value = null, bool innerCall = false)
     {
@@ -1046,30 +1050,18 @@ public class SchemaContext
     /// <summary>
     /// Commit transaction.
     /// </summary>
-    public async Task<Dictionary<string, Dictionary<string, List<FieldDataChangeData>>>> CommitTransactionAsync(bool pushAll = false, bool pushAllFields = false)
+    public async Task CommitTransactionAsync(bool pushAll = false, bool pushAllFields = false)
     {
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         
-        // Gather change data
-        Dictionary<string, Dictionary<string, List<FieldDataChangeData>>> commits = new();
-
         // Process data field push
         foreach (string target in _transChangedData.Keys.ToArray())
         {
-            // Gather change datas
-            Dictionary<string, List<FieldDataChangeData>> commitFields = new();
-            foreach ((AppFieldNode field, List<FieldDataChangeData> data) in _transChangedData[target].Changes)
-                commitFields[field.Name] = data;
-            commits[target] = commitFields;
-
             // process data push
             await ProcessDataPush(target, _transChangedData[target], pushAll, pushAllFields);
         }
 
         await AppDataProvider.CommitTransactionAsync();
-
-        // Return changes
-        return commits;
     }
 
     /// <summary>
@@ -1168,8 +1160,8 @@ public class SchemaContext
 
         // Process data push
         Dictionary<AppFieldNode, AnySchemaNode> otherFields = new();
-        HashSet<AppFieldNode> displayOnlyGens = new();
-        HashSet<string> otherTargets = new();
+        HashSet<AppFieldNode> displayOnlyGens = [];
+        HashSet<string> otherTargets = [];
         while (root?.Fields.Count is > 0)
         {
             foreach (AppFieldNode field in root.Fields)
@@ -1903,7 +1895,7 @@ public class SchemaContext
                     // count field
                     foreach ((string field, DataCombineType method) in joinMethodMap)
                     {
-                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is StructFieldConfig { TypeNode: ScalarType { IsNumber: true } })
+                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { TypeNode: ScalarType { IsNumber: true } })
                         {
                             @struct[field] = 1;
                         }

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components.Provider;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -19,9 +18,9 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
 {
     #region Constructors
 
-    public AppSchemaDataProvider(MySqlConnection dbConn, IServiceProvider serviceProvider)
+    public AppSchemaDataProvider(IDbConnection dbConn, IServiceProvider serviceProvider)
     {
-        _dbConnection = dbConn;
+        _dbConnection = (MySqlConnection)dbConn;
         _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<AppSchemaDataProvider>>);
     }
 
