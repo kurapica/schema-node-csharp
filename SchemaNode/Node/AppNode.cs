@@ -12,7 +12,6 @@ using System.Text.RegularExpressions;
 using SchemaNode.Components.Provider;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Runtime;
-using Microsoft.AspNetCore.Identity;
 
 namespace SchemaNode.Node;
 
@@ -1284,7 +1283,7 @@ public class DynamicTableSchema
             else
             {
                 AnySchemaNode? complex = pack.GetField(field.Complex.Main);
-                if (complex is StructNode sPack && sPack.GetField(field.Complex.Field) is AnySchemaNode part && !part.IsEmpty)
+                if (complex is StructNode sPack && sPack.GetField(field.Complex.Field) is { IsEmpty: false } part)
                 {
                     // In value list
                     if (field.Type != DynamicTableFieldType.Json && part is ArrayNode arr)
@@ -1326,7 +1325,7 @@ public class DynamicTableSchema
         // single value
         if (Fields.Count == 1 && Fields[0].SchemaType == TypeNode)
         {
-            return Fields[0].FromReader(reader, offset++);
+            return Fields[0].FromReader(reader, offset);
         }
 
         StructNode result = new StructNode((StructType)(TypeNode is ArrayType arr ? arr.ElementNode : TypeNode)!);
@@ -1507,23 +1506,32 @@ public class DynamicTableField
     public AnySchemaNode? FromReader(DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
-        return SchemaType.CreateNode(Type switch
+        object? data;
+        if (Type == DynamicTableFieldType.Json)
         {
-            DynamicTableFieldType.Bool => reader.GetByte(col) == 1,
-            DynamicTableFieldType.Smallint => reader.GetInt16(col),
-            DynamicTableFieldType.USmallint => reader.GetInt32(col),
-            DynamicTableFieldType.Mediumint => reader.GetInt32(col),
-            DynamicTableFieldType.UMediumint => reader.GetInt32(col),
-            DynamicTableFieldType.Int => reader.GetInt32(col),
-            DynamicTableFieldType.UInt => reader.GetInt64(col),
-            DynamicTableFieldType.BigInt => reader.GetInt64(col),
-            DynamicTableFieldType.UBigInt => reader.GetInt64(col),
-            DynamicTableFieldType.Float => reader.GetFloat(col),
-            DynamicTableFieldType.Double => reader.GetDouble(col),
-            DynamicTableFieldType.DateTime => reader.GetDateTime(col),
-            DynamicTableFieldType.Json => JsonNode.Parse(reader.GetString(col)),
-            _ => reader.GetString(col)
-        }) ?? throw new NotSupportedException();
+            data = JsonNode.Parse(reader.GetString(col));
+        }
+        else
+        {
+            data = (Type switch
+            {
+                DynamicTableFieldType.Bool => reader.GetByte(col) == 1,
+                DynamicTableFieldType.Smallint => reader.GetInt16(col),
+                DynamicTableFieldType.USmallint => reader.GetInt32(col),
+                DynamicTableFieldType.Mediumint => reader.GetInt32(col),
+                DynamicTableFieldType.UMediumint => reader.GetInt32(col),
+                DynamicTableFieldType.Int => reader.GetInt32(col),
+                DynamicTableFieldType.UInt => reader.GetInt64(col),
+                DynamicTableFieldType.BigInt => reader.GetInt64(col),
+                DynamicTableFieldType.UBigInt => reader.GetInt64(col),
+                DynamicTableFieldType.Float => reader.GetFloat(col),
+                DynamicTableFieldType.Double => reader.GetDouble(col),
+                DynamicTableFieldType.DateTime => reader.GetDateTime(col),
+                _ => reader.GetString(col)
+            });
+        }
+
+        return SchemaType.CreateNode(data);
     }
 
     /// <summary>

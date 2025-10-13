@@ -262,7 +262,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             AnySchemaNode? value = null;
             
             // Gets the data from the database
-            if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
+            if (schema.Fields is [{ Name: DYNAMIC_TABLE_VALUE_FIELD }])
             {
                 // Single value
                 DbCommand command = GetDbCommand();
@@ -315,7 +315,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         else
         {
             // Build sql
-            Dictionary<string, string>? queryPack = null;
             bool fullFill = false;
             StringBuilder sb = new();
             sb.Append($" From `{schema.Name}` FORCE INDEX(`{DYNAMIC_UNIQUE_INDEX}`) ");
@@ -327,7 +326,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 // Query based on the conditions
                 case JsonObject pack:
                 {
-                    queryPack = new Dictionary<string, string>();
                     fullFill = true;
                     foreach ((string fld, string? v, bool isString, bool isList) in schema.GetFieldValues(pack, true))
                     {
@@ -337,7 +335,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                         }
                         else
                         {
-                            queryPack.Add(fld, v);
                             sb.Append(
                                 isList
                                     ? $" AND `{fld}` IN {v}"
@@ -460,7 +457,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            ArrayNode value = new ArrayNode((ArrayType)schema.TypeNode);
+            ArrayNode value = new ArrayNode(schema.TypeNode);
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogInformation(command.CommandText);
@@ -529,7 +526,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     {
                         DbCommand command = GetDbCommand();
                         command.CommandText = schema.Fields[0].IsString
-                            ? $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", \"{MySqlHelper.EscapeString(result!)}\" )"
+                            ? $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", \"{MySqlHelper.EscapeString(result)}\" )"
                             : $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", {result} )";
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
@@ -655,7 +652,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     {
                         keys.Clear();
                         bool fullFill = true;
-                        foreach ((string fld, string? v, bool isString, _) in schema.GetFieldValues(obj, true))
+                        foreach ((_, string? v, _, _) in schema.GetFieldValues(obj, true))
                         {
                             // Check value
                             if (v == null)
@@ -805,31 +802,31 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     /// <inheritdoc />
     public async Task BeginTransactionAsync()
     {
-        if (transaction != null)
+        if (_transaction != null)
             throw new InvalidOperationException("There is already a transaction in progress.");
 
         await EnsureOpenConnectionAsync();
-        transaction = await _dbConnection.BeginTransactionAsync();
+        _transaction = await _dbConnection.BeginTransactionAsync();
     }
 
     /// <inheritdoc />
     public async Task CommitTransactionAsync()
     {
-        if (transaction == null)
+        if (_transaction == null)
             throw new InvalidOperationException("There is no transaction in progress.");
-        await transaction.CommitAsync();
-        await transaction.DisposeAsync();
-        transaction = null;
+        await _transaction.CommitAsync();
+        await _transaction.DisposeAsync();
+        _transaction = null;
     }
 
     /// <inheritdoc />
     public async Task RollbackTransactionAsync()
     {
-        if (transaction == null)
+        if (_transaction == null)
             throw new InvalidOperationException("There is no transaction in progress.");
-        await transaction.RollbackAsync();
-        await transaction.DisposeAsync();
-        transaction = null;
+        await _transaction.RollbackAsync();
+        await _transaction.DisposeAsync();
+        _transaction = null;
     }
 
     #endregion
@@ -840,7 +837,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     DbCommand GetDbCommand()
     {
         DbCommand command = _dbConnection.CreateCommand();
-        command.Transaction = transaction;
+        command.Transaction = _transaction;
         return command;
     }
     
@@ -882,11 +879,11 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
     };
 
 
-    private DbTransaction? transaction;
+    private DbTransaction? _transaction;
     private ILogger Logger => _loggerThunk.Value;
     private readonly MySqlConnection _dbConnection;
     private readonly Lazy<ILogger> _loggerThunk;
-    private string? _whereClause = null;
+    private string? _whereClause;
 
     #endregion
 }

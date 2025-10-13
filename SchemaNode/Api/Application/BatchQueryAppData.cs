@@ -8,7 +8,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
-using System.Xml.Linq;
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -51,7 +50,7 @@ public static class BatchQueryExtension
             Type = SchemaType.Namespace,
             Schemas = []
         };
-        rootEnumValueInfo.Value = new EnumValueInfo();
+        RootEnumValueInfo.Value = new EnumValueInfo();
         foreach (AppDataQuery query in queries)
         {
             if (string.IsNullOrWhiteSpace(query.App)) continue;
@@ -89,7 +88,7 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldNode field in fields)
                 {
-                    AppDataFieldQuery? q = query.Querys != null && query.Querys.ContainsKey(field.Name) ? query.Querys[field.Name] : null;
+                    AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
                         q?.Filter, q?.Skip ?? 0, q?.Take ?? query.Take ?? 0, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                     if (result != null)
@@ -132,11 +131,11 @@ public static class BatchQueryExtension
                         Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                         Type = r.Type,
                         Func = r.Func,
-                        Args = r.Args?.Select(a => new FunctionCallArgument
+                        Args = r.Args.Select(a => new FunctionCallArgument
                         {
                             Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
                             Value = a.Value,
-                        }).ToArray() ?? []
+                        }).ToArray()
                     }).ToArray()
                 } : null
             };
@@ -155,9 +154,8 @@ public static class BatchQueryExtension
                 if (value is EnumNode val)
                 {
                     string key = $"{enumNode.Name}:{val.ToValue<string>()}";
-                    if (!enumsKeys.Contains(key))
+                    if (enumsKeys.Add(key))
                     {
-                        enumsKeys.Add(key);
                         EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.ToValue<string>()!);
 
                         if (access.Length > 0)
@@ -165,9 +163,8 @@ public static class BatchQueryExtension
                             string[] paths = enumNode.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
                             string fullPath = string.Empty;
                             NodeSchema parent = root;
-                            for (int i = 0; i < paths.Length; i++)
+                            foreach (string p in paths)
                             {
-                                string p = paths[i];
                                 fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
 
                                 parent.Schemas ??= [];
@@ -178,9 +175,9 @@ public static class BatchQueryExtension
 
                             if (parent.Type == SchemaType.Enum)
                             {
-                                rootEnumValueInfo.Value!.SubList = parent.Enum!.Values;
-                                rootEnumValueInfo.Value!.CombineAccessList(access);
-                                rootEnumValueInfo.Value!.SubList = null;
+                                RootEnumValueInfo.Value!.SubList = parent.Enum!.Values;
+                                RootEnumValueInfo.Value!.CombineAccessList(access);
+                                RootEnumValueInfo.Value!.SubList = null;
                             }
                         }
                     }
@@ -191,8 +188,8 @@ public static class BatchQueryExtension
                 {
                     foreach (StructFieldConfig f in @struct.Fields)
                     {
-                        var v = obj.GetField(f.Name);
-                        if (v != null && !v.IsEmpty)
+                        AnySchemaNode? v = obj.GetField(f.Name);
+                        if (v is { IsEmpty: false })
                             await ScanEnumAccess(context, root, f.TypeNode!, enumsKeys, v);
                     }
                 }
@@ -201,27 +198,34 @@ public static class BatchQueryExtension
             case ArrayType array:
                 if (value is not ArrayNode arr) return;
 
-                if (array.ElementNode is StructType eleStruct)
+                switch (array.ElementNode)
                 {
-                    foreach (var v in arr)
+                    case StructType eleStruct:
                     {
-                        if (v is StructNode)
-                            await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
+                        foreach (AnySchemaNode v in arr)
+                        {
+                            if (v is StructNode)
+                                await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
+                        }
+
+                        break;
                     }
-                }
-                else if(array.ElementNode is EnumType eleEnum)
-                {
-                    foreach (var v in arr)
+                    case EnumType eleEnum:
                     {
-                        if (v is EnumNode)
-                            await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
+                        foreach (AnySchemaNode v in arr)
+                        {
+                            if (v is EnumNode)
+                                await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
+                        }
+
+                        break;
                     }
                 }
                 break;
         }
     }
 
-    static AsyncLocal<EnumValueInfo> rootEnumValueInfo = new();
+    static readonly AsyncLocal<EnumValueInfo> RootEnumValueInfo = new();
 }
 
 /// <summary>
