@@ -25,7 +25,6 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             Name = node.Name,
             Display = node.Display,
             Desc = node.Desc,
-            Standalone = node.Standalone,
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Apps = node.Apps?.Select(a => {
@@ -35,7 +34,6 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                     Name = a.Name,
                     Display = a.Display,
                     Desc = a.Desc,
-                    Standalone = a.Standalone,
                     HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
                     HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
                 };

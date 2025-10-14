@@ -14,6 +14,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
+using static SchemaNode.Utility.App;
 
 namespace SchemaNode.Context;
 
@@ -50,17 +51,17 @@ public class SchemaContext
     /// <summary>
     /// Gets the logger
     /// </summary>
-    protected ILogger Logger => _loggerThunk.Value;
+    internal ILogger Logger => _loggerThunk.Value;
     
     /// <summary>
     /// Gets the app data provider
     /// </summary>
-    protected IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
+    internal IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
 
     /// <summary>
     /// The current category target to be used
     /// </summary>
-    protected string Target { get; set; } = string.Empty;
+    internal string Target { get; set; } = string.Empty;
 
     #endregion
 
@@ -146,7 +147,7 @@ public class SchemaContext
     /// <returns>The app schema</returns>
     public async Task<AppSchema?> LoadAppSchemaAsync(string schemaName)
     {
-        AppSchema? schema = null;
+        AppSchema? schema = GetSystemApp(schemaName);
 
         foreach (ISchemaProvider provider in ServiceProvider.GetServices<ISchemaProvider>())
         {
@@ -382,10 +383,13 @@ public class SchemaContext
     public async Task<bool> SaveSchemaAsync(NodeSchema schema)
     {
         AnySchemeType? node = await GetSchemaNodeAsync(schema.Name);
+        
+        // save the schema
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SaveSchemaAsync(schema)) return false;
 
+        // save runtime
         if (node == null)
         {
             AnySchemeType? parentNode = await GetSchemaNodeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
@@ -437,41 +441,14 @@ public class SchemaContext
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
-        bool res = await provider.SaveEnumSubListAsync(@enum, value, values, append);
-        if (res)
-        {
-            @enum.SaveEnumSubListAsync(value, values);
-            await this.PublishMessageAsync(new SchemaChangeMessage
-            {
-                Schemas = [name]
-            });
-        }
-        return res;
-    }
-
-    /// <summary>
-    /// Delete the sub list for an enum value
-    /// </summary>
-    /// <param name="name">The schema name</param>
-    /// <param name="value">The enum value</param>
-    /// <returns>true if deleted</returns>
-    public async Task<bool> DeleteEnumSubListAsync(string name, string value)
-    {
-        AnySchemeType? node = await GetSchemaNodeAsync(name);
-        if (node is not EnumType @enum) return false;
         
-        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
-        if (provider == null) return false;
-        bool res = await provider.DeleteEnumSubListAsync(@enum, value);
-        if (res)
+        // save the sub list
+        @enum.SaveEnumSubListAsync(value, await provider.SaveEnumSubListAsync(@enum, value, values, append));
+        await this.PublishMessageAsync(new SchemaChangeMessage
         {
-            @enum.DeleteEnumSubListAsync(value);
-            await this.PublishMessageAsync(new SchemaChangeMessage
-            {
-                Schemas = [name]
-            });
-        }
-        return res;
+            Schemas = [name]
+        });
+        return true;
     }
 
     /// <summary>

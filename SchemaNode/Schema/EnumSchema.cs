@@ -23,6 +23,7 @@ public class EnumSchema
     /// <summary>
     /// The enum values
     /// </summary>
+    [SchemaStructMemIgnore]
     public EnumValueInfo[] Values { get; set; } = [];
     
     /// <summary>
@@ -35,13 +36,31 @@ public class EnumSchema
 /// <summary>
 /// The enum value info
 /// </summary>
+[SchemaStruct(["enum", "value"], index: ["enum", "root", "value"] )]
+[SchemaApp]
 public class EnumValueInfo
 {
+    /// <summary>
+    /// The enum name
+    /// </summary>
+    public string Enum { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The enum value sequence number
+    /// </summary>
+    public int Seqno { get; set; } = 0;
+
+    /// <summary>
+    /// The cascade level, 0 for root
+    /// </summary>
+    [SchemaStructMemIgnore]
+    public int Level { get; set; } = 0;
+    
     /// <summary>
     /// The root value
     /// </summary>
     public string? Root { get; set; }
-    
+
     /// <summary>
     /// The value
     /// </summary>
@@ -80,7 +99,7 @@ public class EnumValueInfo
     /// </summary>
     [JsonIgnore]
     [SchemaStructMemIgnore]
-    public bool IsFullyLoaded { get; set; } = false;
+    public bool IsFullyLoaded { get; set; }
 
     /// <summary>
     /// Refresh status

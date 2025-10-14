@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -10,7 +11,9 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Reflection;
 using SchemaNode.Function;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Schema;
+using static SchemaNode.Utility.App;
 
 namespace SchemaNode;
 
@@ -45,7 +48,9 @@ public static class Injection
         
         // system.schema types
         services.AddSchemaSystemTypes<SchemaContext>();
-        return services.AddSchemaSystemTypes(Assembly.GetEntryAssembly());
+        services.AddSchemaSystemTypes(Assembly.GetEntryAssembly());
+        
+        return services;
     }
     
     /// <summary>
@@ -117,10 +122,44 @@ public static class Injection
                 Display = rootNamespaceAttr.Display,
             });
         }
+        
+        SchemaAppAttribute? appAttr = assembly.GetCustomAttribute<SchemaAppAttribute>();
+        string appName = assembly.GetName().Name?.ToLower() ?? "app";
+        if (appAttr?.Application != null)
+        {
+            appName = appAttr.Application;
+            SaveSystemAppField(appAttr.Application, display: appAttr.Display);
+        }
 
         // scan all
         foreach (var type in assembly.GetTypes())
-            type.GetSchemaType();
+        {
+            string? typeName = type.GetSchemaType();
+            
+            // auto application registered
+            if (typeName != null && (type is { IsClass: true, IsAbstract: false } || type is { IsValueType: true, IsEnum: false } && !type.IsPrimitiveLike() ))
+            {
+                SchemaAppAttribute? attr = type.GetCustomAttribute<SchemaAppAttribute>();
+                if (attr != null)
+                {
+                    SchemaStructAttribute? structAttr = type.GetCustomAttribute<SchemaStructAttribute>();
+                    if (structAttr?.Primary is { Length: > 0 })
+                    {
+                        typeName = $"{typeName}s";
+                    }
+
+                    string fieldName = attr.Field ?? type.Name.ToLower();
+                    string application = attr.Application ?? appName;
+                    SaveSystemAppField(application, new AppFieldSchema
+                    {
+                        Name = fieldName,
+                        Type = typeName,
+                        Display = attr.Display,
+                    });
+                }
+            }
+        }
+
         return services;
     }
 

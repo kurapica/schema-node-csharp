@@ -123,7 +123,6 @@ public static class BatchQueryExtension
                     Name = node.Name,
                     Display = node.Display,
                     Desc = node.Desc,
-                    Standalone = node.Standalone,
                     HasFields = node.Fields is { Count: > 0 },
                     Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
                     Relations = node.Relations?.Select(r => new StructFieldRelation

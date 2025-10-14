@@ -180,30 +180,33 @@ public class EnumType: AnySchemeType
     /// <summary>
     /// Save enum value sub list
     /// </summary>
-    public void SaveEnumSubListAsync(string? value, EnumValueInfo[] values)
+    internal void SaveEnumSubListAsync(string? value, EnumValueInfo[] values)
     {
         // check existed
         EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
         if (accesses is { Length: > 0 })
         {
-            accesses.Last().CombineAccessList([ new EnumValueAccess
+            EnumValueInfo access = accesses.Last();
+            if (values.Length == 0)
             {
-                Value = "",
-                SubList = values
-            } ]);
-        }
-    }
-
-    public void DeleteEnumSubListAsync(string? value)
-    {
-        // check existed
-        EnumValueInfo[]? accesses = Root.GetEnumAccesses(value);
-        if (accesses is { Length: > 0 })
-        {
-            EnumValueInfo last = accesses.Last();
-            last.SubList = null;
-            last.HasSubList = false;
-            last.IsFullyLoaded = true;
+                access.SubList = null;
+                access.HasSubList = false;
+            }
+            else
+            {
+                if (access.SubList is not null)
+                {
+                    foreach (EnumValueInfo info in values)
+                    {
+                        EnumValueInfo? exist = access.SubList.FirstOrDefault(s => s.Value.Equals(info.Value, StringComparison.OrdinalIgnoreCase));
+                        if (exist is null) continue;
+                        info.HasSubList = exist.HasSubList;
+                        info.SubList = exist.SubList;
+                    }
+                }
+                access.HasSubList = true;
+                access.SubList = values;
+            }
         }
     }
 
@@ -383,7 +386,7 @@ public class EnumType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(EnumType? schema)
     {
-        return schema?.ToNodeSchema(MAX_SUBLIST_LEVEL);
+        return schema?.ToNodeSchema();
     }
     
     #endregion

@@ -22,6 +22,11 @@ public class SchemaStructAttribute: System.Attribute
     /// Whether generate the array type with the given primary keys
     /// </summary>
     public string[]? Primary { get; }
+    
+    /// <summary>
+    /// The additional index
+    /// </summary>
+    public string[]? Index { get; }
 
     /// <summary>
     /// The constructor
@@ -35,10 +40,11 @@ public class SchemaStructAttribute: System.Attribute
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaStructAttribute(string[] primary, string? display = null, string? type = null )
+    public SchemaStructAttribute(string[] primary, string[]? index = null, string? display = null, string? type = null )
     {
         Display = display;
         Type = type;
         Primary = primary;
+        Index = index;
     }
 }

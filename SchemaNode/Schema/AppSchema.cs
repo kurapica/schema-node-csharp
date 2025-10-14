@@ -1,14 +1,22 @@
 using SchemaNode.Enum;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 
 namespace SchemaNode.Schema;
 
 /**
  * The application schema
  */
+[SchemaStruct(["name"], ["parent", "name"])]
+[SchemaApp]
 public class AppSchema
 {
+    /// <summary>
+    /// The parent app name
+    /// </summary>
+    public string Parent { get; set; } = string.Empty;
+    
     /// <summary>
     /// The application name
     /// </summary>
@@ -25,28 +33,27 @@ public class AppSchema
     public LocaleString? Desc { get; set; }
     
     /// <summary>
-    /// Standalone app without app target
-    /// </summary>
-    public bool? Standalone { get; set; }
-    
-    /// <summary>
     /// Whether it has sub-applications
     /// </summary>
+    [SchemaStructMemIgnore]
     public bool? HasApps { get; set; }
     
     /// <summary>
     /// Whether it has fields
     /// </summary>
+    [SchemaStructMemIgnore]
     public bool? HasFields { get; set; }
 
     /// <summary>
     /// The sub applications
     /// </summary>
+    [SchemaStructMemIgnore]
     public AppSchema[]? Apps { get; set; }
     
     /// <summary>
     /// The application fields
     /// </summary>
+    [SchemaStructMemIgnore]
     public AppFieldSchema[]? Fields { get; set; }
     
     /// <summary>
@@ -57,6 +64,7 @@ public class AppSchema
     /// <summary>
     /// The types related to the application
     /// </summary>
+    [SchemaStructMemIgnore]
     public NodeSchema[]? NodeSchemas { get; set; }
 
     /// <summary>
@@ -64,13 +72,31 @@ public class AppSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+    
+    /// <summary>
+    /// The load state
+    /// </summary>
+    [SchemaStructMemIgnore]
+    public SchemaLoadState? LoadState { get; set; }
 }
 
 /// <summary>
 /// The application field schema
 /// </summary>
+[SchemaStruct(["app", "name"])]
+[SchemaApp]
 public class AppFieldSchema
 {
+    /// <summary>
+    /// the application name
+    /// </summary>
+    public string App { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The seqno
+    /// </summary>
+    public int Seqno { get; set; } = 0;
+    
     /// <summary>
     /// The field name
     /// </summary>
@@ -100,6 +126,11 @@ public class AppFieldSchema
     /// The source field
     /// </summary>
     public string? SourceField { get; set; }
+    
+    /// <summary>
+    /// Track the push data to the source field, so toggle the source target, will also re-push the data
+    /// </summary>
+    public bool? TrackPush { get; set; }
     
     /// <summary>
     /// The calculate function

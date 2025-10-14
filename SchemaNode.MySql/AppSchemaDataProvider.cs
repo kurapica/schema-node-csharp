@@ -252,7 +252,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
         
-        // @TODO: Standalone app support
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
 
         // single row
@@ -340,6 +339,22 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                                     : isString
                                         ? $" AND `{fld}` = \"{v}\""
                                         : $" AND `{fld}` = {v}");
+                        }
+                    }
+
+                    if (!fullFill)
+                    {
+                        foreach ((string fld, string? v, bool isString, bool isList) in schema.GetFieldValues(pack, noPrimary:true))
+                        {
+                            if (v != null)
+                            {
+                                sb.Append(
+                                    isList
+                                        ? $" AND `{fld}` IN {v}"
+                                        : isString
+                                            ? $" AND `{fld}` = \"{v}\""
+                                            : $" AND `{fld}` = {v}");
+                            }
                         }
                     }
 
@@ -487,7 +502,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
-        // @TODO: Standalone app support
         if (string.IsNullOrWhiteSpace(target)) return (false, null);
         
         // single row
@@ -763,7 +777,6 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
-        // @TODO: Standalone app support
         if (string.IsNullOrWhiteSpace(target)) return (false, null);
         
         // single row

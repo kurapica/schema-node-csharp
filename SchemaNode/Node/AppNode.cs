@@ -38,11 +38,6 @@ public class AppNode
     public LocaleString? Desc { get; set; }
 
     /// <summary>
-    /// Standalone app without app target
-    /// </summary>
-    public bool? Standalone { get; set; }
-
-    /// <summary>
     /// The application field relations
     /// </summary>
     public List<AppRelationSchema>? Relations { get; set; }
@@ -126,7 +121,6 @@ public class AppNode
         // data
         Display = schema.Display;
         Desc = schema.Desc;
-        Standalone = schema.Standalone;
         Apps = schema.Apps;
         Additional = schema.Additional;
 
@@ -317,6 +311,14 @@ public class AppNode
     }
 
     /// <summary>
+    /// Gets the app field by name
+    /// </summary>
+    public AppFieldNode? GetField(string name)
+    {
+        return Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+    
+    /// <summary>
     /// Gets all node schemas used by the application
     /// </summary>
     /// <returns></returns>
@@ -400,6 +402,11 @@ public class AppFieldNode
     /// The application name
     /// </summary>
     public string App { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The seqno
+    /// </summary>
+    public int Seqno { get; set; } = 0;
 
     /// <summary>
     /// The field name.
@@ -422,15 +429,20 @@ public class AppFieldNode
     public LocaleString? Desc { get; init; }
 
     /// <summary>
-    /// ����ģ��
+    /// The source application
     /// </summary>
     public string? SourceApp { get; set; }
 
     /// <summary>
-    /// �����ֶ�
+    /// The source field
     /// </summary>
     public string? SourceField { get; set; }
 
+    /// <summary>
+    /// Track the push data to the source field, so toggle the source target, will also re-push the data
+    /// </summary>
+    public bool? TrackPush { get; set; }
+    
     /// <summary>
     /// The calculate function
     /// </summary>
@@ -533,10 +545,12 @@ public class AppFieldNode
         {
             Name = entity.Name,
             Type = entity.Type,
+            Seqno = entity.Seqno,
             Display = entity.Display,
             Desc = entity.Desc,
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
+            TrackPush = entity.TrackPush,
             Func = entity.Func,
             Args = entity.Args,
             IncrUpdate = entity.IncrUpdate,
@@ -557,10 +571,12 @@ public class AppFieldNode
         {
             Name = entity.Name,
             Type = entity.Type,
+            Seqno = entity.Seqno,
             Display = entity.Display,
             Desc = entity.Desc,
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
+            TrackPush = entity.TrackPush,
             Func = entity.Func,
             Args = entity.Args,
             IncrUpdate = entity.IncrUpdate,

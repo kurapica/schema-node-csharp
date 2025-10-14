@@ -140,6 +140,8 @@ public static class Constant
     public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
     public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
     
+    public const string TYPE_ENUM_VALUE_HAS_SUBLIST = "TYPE_ENUM_VALUE_HAS_SUBLIST";
+    
     public const string APP_NOT_FOUND = "APP_NOT_FOUND";
     public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
     public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";

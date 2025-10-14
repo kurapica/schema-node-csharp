@@ -4,6 +4,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components.Provider;
 
@@ -12,6 +13,8 @@ namespace SchemaNode.Components.Provider;
 /// </summary>
 public class JsonSchemaStorageProvider: ISchemaStorageProvider
 {
+    #region Schema
+
     /// <inheritdoc />
     public async Task<NodeSchema[]> LoadSchemaAsync(string[] names)
     {
@@ -35,9 +38,9 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 {
                     nodes.Add(await LoadSchemaFile<NodeSchema>(Path.Combine(d, "__ns.json")) ?? new NodeSchema
                     {
-                        Name = name,
+                        Name = string.IsNullOrEmpty(name) ? Path.GetFileName(d).ToLower() : $"{name}.{Path.GetFileName(d).ToLower()}",
                         Type = SchemaType.Namespace,
-                        Display = name
+                        Display = string.IsNullOrEmpty(name) ? Path.GetFileName(d).ToLower() : $"{name}.{Path.GetFileName(d).ToLower()}"
                     });
 
                     if (Directory.GetFiles(d, "*", SearchOption.TopDirectoryOnly).Length > 1
@@ -70,15 +73,256 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             {
                 NodeSchema? schema = await LoadSchemaFile<NodeSchema>(res.Value.file);
                 if (schema != null) schemas.Add(schema);
+                
+                // check enum sub list
+                if (schema is { Type: SchemaType.Enum, Enum.Cascade.Length: > 0 })
+                {
+                    string root = Path.Combine(AppContext.BaseDirectory, EnumFolder);
+                    foreach (string s in name.Split('.', StringSplitOptions.RemoveEmptyEntries))
+                        root = Path.Combine(root, s.ToLower());
+                    foreach (var item in schema.Enum.Values)
+                    {
+                        item.HasSubList = File.Exists(Path.Combine(root, $"{item.Value}.json"));
+                    }
+                }
             }
         }
         return schemas.ToArray();
     }
 
     /// <inheritdoc />
-    public async Task<AppSchema?> LoadAppSchemaAsync(string app)
+    public Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> SaveSchemaAsync(NodeSchema schema)
+    {
+        string[] paths = schema.Name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, SchemaFolder);
+
+        if (schema.Type == SchemaType.Namespace)
+        {
+            string folder = Path.Combine(paths.Prepend(root).ToArray());
+            Directory.CreateDirectory(folder);
+            await WriteSchemaFile(Path.Combine(folder, "__ns.json"), new NodeSchema
+            {
+                Name = schema.Name,
+                Type = SchemaType.Namespace,
+                Display = schema.Display,
+            });
+        }
+        else
+        {
+            string folder = Path.Combine(paths.SkipLast(1).Prepend(root).ToArray());
+            Directory.CreateDirectory(folder);
+            string type = schema.Type switch
+            {
+                SchemaType.Scalar => "scalar",
+                SchemaType.Enum => "enum",
+                SchemaType.Struct => "struct",
+                SchemaType.Array => "array",
+                SchemaType.Func => "func",
+                _ => throw new ArgumentOutOfRangeException()
+            };
+            await WriteSchemaFile(Path.Combine(folder, $"{paths.Last()}.{type}.json"), schema);
+        }
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteSchemaAsync(string schema)
     {
         await Task.Yield();
+        (string file, SchemaType schemaType)? res = CheckSchemaFile(schema);
+        if (string.IsNullOrEmpty(res?.file)) return false;
+        if (res.Value.schemaType == SchemaType.Namespace)
+        {
+            File.Delete(Path.Combine(res.Value.file, "__ns.json"));
+            Directory.Delete(res.Value.file);
+        }
+        else
+        {
+            File.Delete(res.Value.file);
+        }
+
+        return true;
+    }
+
+    #endregion
+
+    #region Enum List
+    
+    /// <inheritdoc />
+    public async Task<EnumValueInfo[]> LoadEnumSubListAsync(string schemaName, string? value, bool? fullList = null)
+    {
+        // combine path
+        string root = Path.Combine(AppContext.BaseDirectory, EnumFolder);
+        foreach (string s in schemaName.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            root = Path.Combine(root, s.ToLower());
+        if (!Directory.Exists(root)) return [];
+        
+        // load enum list
+        string path = Path.Combine(root, $"{(string.IsNullOrEmpty(value) ? "__root" : value)}.json");
+        if (!File.Exists(path)) return [];
+        
+        EnumValueInfo[] list = await LoadSchemaFile<EnumValueInfo[]>(path) ?? [];
+        
+        // sub list check
+        foreach (EnumValueInfo item in list)
+        {
+            if (!File.Exists(Path.Combine(root, $"{item.Value}.json"))) continue;
+            item.HasSubList = true;
+            item.SubList = (fullList ?? false) ? await LoadEnumSubListAsync(schemaName, item.Value, true) : null;
+        }
+        return list;
+    }
+
+    /// <inheritdoc />
+    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(string schemaName, string value, bool? noSubList = null, bool? withSubList = null)
+    {
+        NodeSchema[] nodeSchemas = await LoadSchemaAsync([schemaName]);
+        if (nodeSchemas.Length == 0 || nodeSchemas[0].Type != SchemaType.Enum) return [];
+        NodeSchema enumSchema = nodeSchemas[0];
+        
+        // root value check
+        EnumValueInfo? existed = enumSchema.Enum?.Values.FirstOrDefault(v => v.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
+        if (existed != null)
+        {
+            if ((withSubList == true) && enumSchema.Enum?.Cascade is { Length: > 1} )
+            {
+                return
+                [
+                    new EnumValueAccess
+                    {
+                        Name = enumSchema.Enum.Cascade[0],
+                        Value = value,
+                        SubList = enumSchema.Enum!.Values
+                    },
+                    new EnumValueAccess
+                    {
+                        Name = enumSchema.Enum.Cascade[1],
+                        Value = "",
+                        SubList = await LoadEnumSubListAsync(schemaName, value)
+                    }
+                ];
+            }
+            return
+            [
+                new EnumValueAccess
+                {
+                    Name = enumSchema.Enum?.Cascade is { Length: > 0 } ? enumSchema.Enum.Cascade[0] : null,
+                    Value = value,
+                    SubList = enumSchema.Enum!.Values
+                }
+            ];
+        }
+        
+        // no sub list
+        if (enumSchema.Enum?.Cascade is null || enumSchema.Enum.Cascade.Length <= 1) return [];
+        
+        // combine path
+        string root = Path.Combine(AppContext.BaseDirectory, EnumFolder);
+        foreach (string s in schemaName.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            root = Path.Combine(root, s.ToLower());
+        
+        if (!Directory.Exists(root)) return [];
+        
+        // load enum list
+        string path = Path.Combine(root, "__access.json");
+        if (!File.Exists(path)) return [];
+        
+        Dictionary<string, string> map = await LoadSchemaFile<Dictionary<string, string>>(path) ?? [];
+        if (!map.ContainsKey(value)) return [];
+
+        List<EnumValueAccess> accesses = [];
+        if (withSubList == true && File.Exists(Path.Combine(root, $"{value}.json")))
+            accesses.Add(new EnumValueAccess
+            {
+                Value = "",
+                SubList = await LoadEnumSubListAsync(schemaName, value)
+            });
+        
+        while (map.TryGetValue(value, out string? parent))
+        {
+            accesses.Insert(0, new EnumValueAccess
+            {
+                Value = value,
+                SubList = !(noSubList ?? false) && File.Exists(Path.Combine(root, $"{parent}.json"))
+                    ? await LoadEnumSubListAsync(schemaName, parent, noSubList == true) : null
+            });
+            value = parent;
+        }
+        accesses.Insert(0, new EnumValueAccess
+        {
+            Value = value,
+            SubList = enumSchema.Enum!.Values
+        });
+        for(int i = 0; i < accesses.Count; i++)
+        {
+            accesses[i].Name = enumSchema.Enum.Cascade.Length > i ? enumSchema.Enum.Cascade[i] : null;
+        }
+        return accesses.ToArray();
+    }
+
+    /// <inheritdoc />
+    public async Task<EnumValueInfo[]> SaveEnumSubListAsync(EnumType @enum, string? value, EnumValueInfo[] values, bool? append)
+    {
+        if (string.IsNullOrEmpty(value)) return values;
+        
+        // combine path
+        string root = Path.Combine(AppContext.BaseDirectory, EnumFolder);
+        foreach (string s in @enum.Name.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            root = Path.Combine(root, s.ToLower());
+        Directory.CreateDirectory(root);
+        
+        // save sub list
+        string path = Path.Combine(root, $"{(string.IsNullOrEmpty(value) ? "__root" : value)}.json");
+        EnumValueInfo[] existed = await LoadSchemaFile<EnumValueInfo[]>(path) ?? [];
+        if (append ?? false)
+        {
+            values = existed.Concat(values.Where(v => existed.All(e => !e.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
+        }
+        else
+        {
+            if (existed.Where(item => values.All(v => !v.Value.Equals(item.Value, StringComparison.OrdinalIgnoreCase))).Any(item => Directory.Exists(Path.Combine(root, $"{item.Value}.json"))))
+            {
+                throw new Exception(TYPE_ENUM_VALUE_HAS_SUBLIST);
+            }
+        }
+
+        if (values.Length == 0 && !string.IsNullOrEmpty(value))
+        {
+            File.Delete(path);
+        }
+        else
+        {
+            await WriteSchemaFile(path, values.Select(v => v.Clone()).ToArray());
+        }
+
+        // save access map
+        if (!string.IsNullOrEmpty(value))
+        {
+            string accessPath = Path.Combine(root, "__access.json");
+            Dictionary<string, string> accessMap = await LoadSchemaFile<Dictionary<string, string>>(accessPath) ?? [];
+            foreach (EnumValueInfo v in values)
+            {
+                accessMap[v.Value] = value;
+            }
+            await WriteSchemaFile(accessPath, accessMap);
+        }
+        
+        return values;
+    }
+
+    #endregion
+    
+    #region App Schema
+    
+    /// <inheritdoc />
+    public async Task<AppSchema?> LoadAppSchemaAsync(string app)
+    {
         app = app.ToLowerInvariant();
 
         string[] paths = app.Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
@@ -142,94 +386,6 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public Task<EnumValueInfo[]> LoadEnumSubListAsync(string schemaName, string? value, bool? fullList = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc />
-    public Task<EnumValueAccess[]> LoadEnumAccessListAsync(string schemaName, string value, bool? noSubList = null, bool? withSubList = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc />
-    public Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> SaveSchemaAsync(NodeSchema schema)
-    {
-        string[] paths = schema.Name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
-        string root = Path.Combine(AppContext.BaseDirectory, SchemaFolder);
-
-        if (schema.Type == SchemaType.Namespace)
-        {
-            string folder = Path.Combine(paths.Prepend(root).ToArray());
-            Directory.CreateDirectory(folder);
-            await WriteSchemaFile(Path.Combine(folder, "__ns.json"), new NodeSchema
-            {
-                Name = schema.Name,
-                Type = SchemaType.Namespace,
-                Display = schema.Display,
-            });
-        }
-        else
-        {
-            string folder = Path.Combine(paths.SkipLast(1).Prepend(root).ToArray());
-            Directory.CreateDirectory(folder);
-            string type = schema.Type switch
-            {
-                SchemaType.Scalar => "scalar",
-                SchemaType.Enum => "enum",
-                SchemaType.Struct => "struct",
-                SchemaType.Array => "array",
-                SchemaType.Func => "func",
-                _ => throw new ArgumentOutOfRangeException()
-            };
-            await WriteSchemaFile(Path.Combine(folder, $"{paths.Last()}.{type}.json"), schema);
-        }
-        return true;
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> DeleteSchemaAsync(string schema)
-    {
-        await Task.Yield();
-        (string file, SchemaType schemaType)? res = CheckSchemaFile(schema);
-        if (string.IsNullOrEmpty(res?.file)) return false;
-        if (res.Value.schemaType == SchemaType.Namespace)
-        {
-            File.Delete(Path.Combine(res.Value.file, "__ns.json"));
-            Directory.Delete(res.Value.file);
-        }
-        else
-        {
-            File.Delete(res.Value.file);
-        }
-
-        return true;
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> SaveEnumSubListAsync(EnumType @enum, string? value, EnumValueInfo[] values, bool? append)
-    {
-        @enum.SaveEnumSubListAsync(value, values); // do it directly for simple @TODO 
-        await SaveSchemaAsync(@enum.ToNodeSchema(99));
-        return true;
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> DeleteEnumSubListAsync(EnumType @enum, string value)
-    {
-        @enum.DeleteEnumSubListAsync(value); // do it directly for simple @TODO 
-        await SaveSchemaAsync(@enum.ToNodeSchema(99));
-        return true;
-    }
-
-    /// <inheritdoc />
     public async Task<bool> SaveAppSchemaAsync(AppSchema app)
     {
         string[] paths = app.Name.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
@@ -242,7 +398,6 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             Name = app.Name,
             Display = app.Display,
             Desc = app.Desc,
-            Standalone = app.Standalone,
             Relations = app.Relations,
             Additional = app.Additional
         });
@@ -363,6 +518,10 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         return true;
     }
 
+    #endregion
+    
+    #region Property
+    
     public SchemaLoadState? DefaultLoadState { get; } = SchemaLoadState.Server;
 
     /// <summary>
@@ -374,7 +533,14 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     /// The root folder for app
     /// </summary>
     public string AppFolder { get; set; } = "App";
+    
+    /// <summary>
+    /// The enum sub list folder
+    /// </summary>
+    public string EnumFolder { get; set; } = "Enum";
 
+    #endregion
+    
     #region Utility
 
     (string file, SchemaType schemaType)? CheckSchemaFile(string name)

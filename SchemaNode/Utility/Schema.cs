@@ -123,7 +123,7 @@ internal static class Schema
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
         // Common
-        if (type == typeof(JsonArray) || type == typeof(ArrayNode) || type.IsAssignableTo(typeof(IEnumerable)))
+        if (type == typeof(JsonArray) || type == typeof(ArrayNode))
         {
             return NS_SYSTEM_ARRAY;
         }

@@ -251,7 +251,7 @@ public class StructType: AnySchemeType
             Display = attr?.Display ?? type.Name,
             Struct = new StructSchema
             {
-                Fields = properties.Select(p =>
+                Fields = properties.Where(p => p.GetCustomAttribute<SchemaStructMemIgnoreAttribute>() == null).Select(p =>
                 {
                     SchemaStructMemAttribute? memAttr = p.GetCustomAttribute<SchemaStructMemAttribute>();
                     return new StructFieldConfig
@@ -261,6 +261,7 @@ public class StructType: AnySchemeType
                         Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
                         Display = memAttr?.Display ?? p.Name,
                         Desc = memAttr?.Desc,
+                        DisplayOnly = memAttr?.DisplayOnly ?? false,
                     };
                 }).ToArray()
             }
@@ -275,7 +276,10 @@ public class StructType: AnySchemeType
             Array = new ArraySchema
             {
                 Element = structSchema.Name,
-                Primary = attr.Primary.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray()
+                Primary = attr.Primary.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray(),
+                Indexes = attr.Index != null 
+                    ? [new DataIndex{ Name = "index", Fields = attr.Index.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray() }]
+                    : null
             }
         };
         return [structSchema, arraySchema];

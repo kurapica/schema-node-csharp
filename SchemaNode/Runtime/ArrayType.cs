@@ -266,6 +266,7 @@ public class ArrayType: AnySchemeType
                 Element = schema.Element,
                 Single = schema.Single,
                 Primary = schema.Primary,
+                Indexes = schema.Indexes,
                 Combines = schema.Combines,
                 Relations = schema.Relations,
                 Additional = schema.Additional,

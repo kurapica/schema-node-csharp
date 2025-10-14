@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Components.Provider;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
@@ -9,9 +10,15 @@ namespace SchemaNode.Schema;
 /// The data node schema
 /// The schema is used to describe the data node
 /// </summary>
-[SchemaStruct(["name"])]
+[SchemaStruct(["name"], ["namespace", "name"])]
+[SchemaApp]
 public class NodeSchema
 {
+    /// <summary>
+    /// The parent schema name
+    /// </summary>
+    public string Namespace { get; set; } = string.Empty;
+    
     /// <summary>
     /// The schema name
     /// </summary>
@@ -55,6 +62,7 @@ public class NodeSchema
     /// <summary>
     /// The load state
     /// </summary>
+    [SchemaStructMemIgnore]
     public SchemaLoadState? LoadState
     {
         get => _schemaLoadState;
@@ -72,21 +80,25 @@ public class NodeSchema
     /// <summary>
     /// Has sub schemas
     /// </summary>
+    [SchemaStructMemIgnore]
     public bool? HasSchemas { get; set; }
     
     /// <summary>
     /// The schema is used, can't be deleted
     /// </summary>
+    [SchemaStructMemIgnore]
     public bool? Used { get; set; }
     
     /// <summary>
     /// Used by other types
     /// </summary>
+    [SchemaStructMemIgnore]
     public string[]? UsedBy { get; set; }
     
     /// <summary>
     /// Used by other apps
     /// </summary>
+    [SchemaStructMemIgnore]
     public string[]? UsedByApp { get; set; }
 
     /// <summary>

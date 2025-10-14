@@ -18,14 +18,20 @@ public class SchemaStructMemAttribute: System.Attribute
     /// The description of the enum
     /// </summary>
     public string? Desc { get; }
-
+    
+    /// <summary>
+    /// The field is display only
+    /// </summary>
+    public bool? DisplayOnly { get; }
+    
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaStructMemAttribute(string? display = null, string? desc = null)
+    public SchemaStructMemAttribute(string? display = null, string? desc = null, bool? displayOnly = null)
     {
         Display = display;
         Desc = desc;
+        DisplayOnly = displayOnly;
     }
 }
 /// <summary>
