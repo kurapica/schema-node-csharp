@@ -770,10 +770,10 @@ public class SchemaContext
     /// <summary>
     /// Prepare the dynamic table for the field
     /// </summary>
-    public async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldNode field)
+    internal async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldNode field)
     {
         // no front only & enable & no source ref
-        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null)
+        if (!field.EnableDynamicTable)
             return field.Schema ??= field.GenDynamicTableSchema();
 
         // Return the data
@@ -885,10 +885,41 @@ public class SchemaContext
     
     #region Data Management
 
-    public Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, JsonNode? value = null, bool innerCall = false)
+    /// <summary>
+    /// Save entity data
+    /// </summary>
+    public async Task<bool> SaveEntityAsync<T>(string target, T value)
+    {
+        (string app, string field, PropertyInfo[] _)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        return await SaveFieldDataAsync(appFieldNode, target, appFieldNode.TypeNode!.CreateNode(value));
+    }
+
+    /// <summary>
+    /// Save entity list data
+    /// </summary>
+    public async Task<bool> SaveEntitysAsync<T>(string target, List<T> values)
+    {
+        (string app, string field, PropertyInfo[] _)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        return await SaveFieldDataAsync(appFieldNode, target, appFieldNode.TypeNode!.CreateNode(values));
+    }
+
+    /// <summary>
+    /// Sve field data
+    /// </summary>
+    public Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, JsonNode? value = null)
     {
         AnySchemaNode data = field.TypeNode!.CreateNode(value) ?? throw new NotSupportedException();
-        return SaveFieldDataAsync(field, target, data, innerCall);
+        return SaveFieldDataAsync(field, target, data);
     }
 
     /// <summary>
@@ -897,7 +928,7 @@ public class SchemaContext
     public async Task<bool> SaveFieldDataAsync(AppFieldNode field, string target, AnySchemaNode? value = null, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return false;
+        if (!field.EnableDynamicTable) return false;
 
         // Not allow the direct data update
         if (!innerCall && !string.IsNullOrWhiteSpace(field.Func)) return false;
@@ -920,12 +951,102 @@ public class SchemaContext
     }
 
     /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntityAsync<T>(string target, T value)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonObject query = [];
+        foreach(PropertyInfo prop in app.Value.primarys)
+        {
+            query[prop.Name] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+        }
+
+        await DeleteFieldListDataAsync(appFieldNode, target, [query]);
+    }
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntityAsync<T>(string target, params object[] primarys)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        if (primarys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+
+        JsonObject query = [];
+        for(int i = 0; i < primarys.Length; i++)
+        {
+            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(primarys[i]);
+        }
+
+        await DeleteFieldListDataAsync(appFieldNode, target, [query]);
+    }
+
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntitysAsync<T>(string target, params (string key, object value)[] keys)
+    {
+        if (keys.Length == 0) throw new ArgumentException("At least one key must be provided");
+
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonObject query = [];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            query[keys[i].key.ToCamelCase()] = JsonValue.Create(keys[i].value);
+        }
+
+        await DeleteFieldListDataAsync(appFieldNode, target, [query]);
+    }
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntitysAsync<T>(string target, List<T> value)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonArray querys = [];
+        foreach (T valueItem in value)
+        {
+            JsonObject query = [];
+            foreach (PropertyInfo prop in app.Value.primarys)
+            {
+                query[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+            }
+            querys.Add(query);
+        }
+
+        await DeleteFieldListDataAsync(appFieldNode, target, querys);
+    }
+
+    /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
     public async Task DeleteFieldListDataAsync(AppFieldNode field, string target, JsonArray query, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return;
+        if (!field.EnableDynamicTable) return;
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         
         // Prepare
@@ -952,7 +1073,7 @@ public class SchemaContext
     public async Task DeleteFieldDataAsync(AppFieldNode field, string target, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if ((field.Frontend ?? false) || (field.Disable ?? false) || field.SourceNode != null) return;
+        if (!field.EnableDynamicTable) return;
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         
         // Prepare
@@ -971,6 +1092,157 @@ public class SchemaContext
             Logger.LogError(ex.Message);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public async Task<T?> GetEntityAsync<T>(string target, params object[] primarys)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        if (primarys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+
+        JsonObject query = [];
+        for (int i = 0; i < primarys.Length; i++)
+        {
+            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(primarys[i]);
+        }
+
+        (List<T>? result, _) = await GetFieldDataAsync<T>(target, query, take: 1);
+        return result is { Count: > 0 } ? result[0] : default;
+    }
+
+    /// <summary>
+    /// Gets the entity data by primary keys
+    /// </summary>
+    public async Task<List<T>> GetEntitysAsync<T>(string target, params (string key, object value)[] keys)
+    {
+        JsonObject query = [];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            query[keys[i].key.ToCamelCase()] = JsonValue.Create(keys[i].value);
+        }
+
+        (List<T>? result, _) = await GetFieldDataAsync<T>(target, query);
+        return result ?? [];
+    }
+
+    /// <summary>
+    /// Gets the entity data
+    /// </summary>
+    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, T? filter = default, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonObject? query = null;
+        if (filter != null)
+        {
+            query = [];
+            foreach(PropertyInfo prop in app.Value.primarys)
+            {
+                object? val = prop.GetValue(filter);
+                if (val != null) query[prop.Name] = JsonValue.Create(val);
+            }
+        }
+
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, query, skip, take, desc, orderBy);
+        List<T> results = [];
+        if (result is ArrayNode arr)
+        {
+            foreach (AnySchemaNode item in arr)
+            {
+                if (item is StructNode obj)
+                {
+                    T? val = obj.ToValue<T>();
+                    if (val != null) results.Add(val);
+                }
+            }
+        }
+        else if (result is StructNode obj)
+        {
+            T? val = obj.ToValue<T>();
+            if (val != null) results.Add(val);
+        }
+        return (results, total);
+    }
+
+
+    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, List<T> filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonArray querys = [];
+        foreach (T valueItem in filter)
+        {
+            JsonObject query = [];
+            foreach (PropertyInfo prop in app.Value.primarys)
+            {
+                query[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+            }
+            querys.Add(query);
+        }
+
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, querys, skip, take, desc, orderBy);
+        List<T> results = [];
+        if (result is ArrayNode arr)
+        {
+            foreach (AnySchemaNode item in arr)
+            {
+                if (item is StructNode obj)
+                {
+                    T? val = obj.ToValue<T>();
+                    if (val != null) results.Add(val);
+                }
+            }
+        }
+        else if (result is StructNode obj)
+        {
+            T? val = obj.ToValue<T>();
+            if (val != null) results.Add(val);
+        }
+        return (results, total);
+    }
+
+    /// <summary>
+    /// Gets the entity data
+    /// </summary>
+    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppNode? appNode = await GetAppNodeAsync(app.Value.app);
+        AppFieldNode? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, filter, skip, take, desc, orderBy);
+        List<T> results = [];
+        if (result is ArrayNode arr)
+        {
+            foreach (AnySchemaNode item in arr)
+            {
+                if (item is StructNode obj)
+                {
+                    T? val = obj.ToValue<T>();
+                    if (val != null) results.Add(val);
+                }
+            }
+        }
+        else if (result is StructNode obj)
+        {
+            T? val = obj.ToValue<T>();
+            if (val != null) results.Add(val);
+        }
+        return (results, total);
     }
 
     /// <summary>
@@ -1825,231 +2097,6 @@ public class SchemaContext
         {
             changeData.Changes.Add(field, [new FieldDataChangeData(operation, value, origin)]);
         }
-    }
-
-    #endregion
-
-    #region Group Join
-
-    /// <summary>
-    /// Join to scalar
-    /// </summary>
-    public AnySchemaNode? GroupJoin(AnySchemaNode? value, DataCombineType method)
-    {
-        return method switch
-        {
-            DataCombineType.Assign => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Init => value is ArrayNode arr ? arr.FirstOrDefault() : value,
-            _ => throw new NotImplementedException(),
-        };
-    }
-
-    /// <summary>
-    /// Join to scalar
-    /// </summary>
-    public AnySchemaNode? GroupJoin(ScalarType node, AnySchemaNode? value, DataCombineType method)
-    {
-        return method switch
-        {
-            DataCombineType.Assign => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Init => value is ArrayNode arr ? arr.FirstOrDefault() : value,
-            DataCombineType.Sum => new ScalarNode(node, value is ArrayNode arr ? arr.Select(a => a.ToValue<decimal>()).Sum() : (value?.Value ?? 0m)),
-            DataCombineType.Count => new ScalarNode(node, value is ArrayNode arr ? arr.Count : 0),
-            _ => throw new NotImplementedException(),
-        };
-    }
-
-    /// <summary>
-    /// Join to struct
-    /// </summary>
-    public AnySchemaNode? GroupJoin(StructType node, AnySchemaNode? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
-    {
-        if (value == null || value.IsEmpty || node.Fields.Length == 0) return null;
-        switch (value)
-        {
-            case StructNode @struct:
-                {
-                    // count field
-                    foreach ((string field, DataCombineType method) in joinMethodMap)
-                    {
-                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { TypeNode: ScalarType { IsNumber: true } })
-                        {
-                            @struct[field] = 1;
-                        }
-                    }
-                    return @struct;
-                }
-            case ArrayNode { Count: > 0 } array:
-                {
-                    // Join
-                    StructNode result = new(node);
-                    foreach (StructFieldConfig field in node.Fields)
-                    {
-                        switch (joinMethodMap.GetValueOrDefault(field.Name, DataCombineType.Assign))
-                        {
-                            case DataCombineType.Assign:
-                                {
-                                    StructNode? last = (StructNode?)array.LastOrDefault(p => p is StructNode obj && !obj.GetField(field.Name)!.IsEmpty);
-                                    if (last != null) result[field.Name] = last[field.Name];
-                                    break;
-                                }
-                            case DataCombineType.Init:
-                                {
-                                    StructNode? first = (StructNode?)array.FirstOrDefault(p => p is StructNode obj && !obj.GetField(field.Name)!.IsEmpty);
-                                    if (first != null) result[field.Name] = first[field.Name];
-                                    break;
-                                }
-                            case DataCombineType.Sum:
-                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Sum(p => p is StructNode obj  && obj[field.Name] is ScalarNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
-                                break;
-                            case DataCombineType.Count:
-                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Count : null;
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException();
-                        }
-                    }
-                    return value;
-                }
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Join to array
-    /// </summary>
-    public Dictionary<string, StructNode> GroupJoinObjectMap(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
-    {
-        if (value ==  null || value.IsEmpty) return new ();
-
-        // Gets field type
-        StructType @struct = (StructType)node.ElementNode!;
-        string[] valueFields = (from fieldType in @struct.Fields where !node.Primary!.Contains(fieldType.Name) select fieldType.Name).ToArray();
-
-        // The element struct type
-        switch (value)
-        {
-            // Check by value
-            case StructNode { IsEmpty: false } o:
-                {
-                    // Check the primary key
-                    string? key = node.GetPrimaryKey(o);
-                    if (string.IsNullOrWhiteSpace(key)) return new();
-
-                    // Return single element array
-                    return new () { { key, o }};
-                }
-            case ArrayNode array:
-                {
-                    // The return list with order
-                    Dictionary<string, StructNode> keyMap = new();
-                    Dictionary<string, int> keyCount = new();
-                    foreach (var token in array)
-                    {
-                        if (token is not StructNode obj) continue;
-
-                        // Gets the key
-                        string? key = node.GetPrimaryKey(obj);
-                        if (string.IsNullOrWhiteSpace(key)) continue;
-                        if (keyMap.TryGetValue(key, out StructNode? total))
-                        {
-                            // Join the data fields
-                            keyCount[key]++;
-                            foreach (string s in valueFields)
-                            {
-                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
-                                {
-                                    case DataCombineType.Assign:
-                                        {
-                                            if (obj[s] is AnySchemaNode { IsEmpty: false } sp)
-                                                total[s] = sp;
-                                            break;
-                                        }
-
-                                    case DataCombineType.Init:
-                                        if (!(total[s] is AnySchemaNode { IsEmpty: false }) && obj[s] is AnySchemaNode { IsEmpty: false } c)
-                                            total[s] = c;
-                                        break;
-
-                                    case DataCombineType.Sum:
-                                        total[s] = (total[s] is AnySchemaNode { IsEmpty: false } t ? t.ToValue<decimal>() : 0) + 
-                                                   (obj[s] is AnySchemaNode { IsEmpty: false } n ? n.ToValue<decimal>() : 0);
-                                        break;
-
-                                    case DataCombineType.Count:
-                                        total[s] = (total[s] is AnySchemaNode { IsEmpty: false } d ? d.ToValue<int>() : 0) + 1;
-                                        break;
-                                    default:
-                                        throw new ArgumentOutOfRangeException();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Add to order list
-                            keyMap[key] = obj;
-                            keyCount[key] = 1;
-
-                            // Init Count
-                            foreach ((string s, DataCombineType m) in joinMethodMap)
-                                if (m == DataCombineType.Count)
-                                    obj[s] = 1;
-                        }
-                    }
-
-                    // Gen the result
-                    return keyMap;
-                }
-        }
-        return new ();
-    }
-
-    /// <summary>
-    /// Join to array
-    /// </summary>
-    public ArrayNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
-    {
-        if (node.ElementNode is not StructType structNode || node.Primary == null) return null;
-        Dictionary<string, AnySchemeType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
-
-        // Result
-        Dictionary<string, StructNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);
-        List<StructNode> joinObjs = resultMap.Values.ToList();
-        joinObjs.Sort((a, b) =>
-        {
-            foreach (string s in node.Primary)
-            {
-                switch (primaryNodes[s])
-                {
-                    case ScalarType { IsDate: true }:
-                        {
-                            DateTime ad = a.GetField(s)!.ToValue<DateTime>();
-                            DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (!ad.Equal(bd))
-                                return ad.LessThan(bd) ? -1 : 1;
-                            break;
-                        }
-                    case ScalarType { IsNumber: true }:
-                        {
-                            decimal ad = a.GetField(s)!.ToValue<decimal>();
-                            decimal bd = b.GetField(s)!.ToValue<decimal>();
-                            if (ad != bd)
-                                return ad < bd ? -1 : 1;
-                            break;
-                        }
-                    default:
-                        {
-                            string ad = a[s]?.ToString() ?? string.Empty;
-                            string bd = b[s]?.ToString() ?? string.Empty;
-                            if (!ad.Equals(bd))
-                                return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
-                            break;
-                        }
-                }
-            }
-            return 0;
-        });
-        return new ArrayNode(node, joinObjs);
     }
 
     #endregion

@@ -64,7 +64,7 @@ public static class BatchQueryExtension
             }
 
             // query fields
-            List<AppFieldNode> fields = node.Fields?.Where(f => !(f.Disable ?? false) && !(f.Frontend ?? false)).ToList() ?? [];
+            List<AppFieldNode> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
             if (query.Fields is { Length: > 0 })
             {
                 fields = fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToList();

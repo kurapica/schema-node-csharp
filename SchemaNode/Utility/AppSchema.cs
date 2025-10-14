@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.RegularExpressions;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 
@@ -7,6 +10,15 @@ namespace SchemaNode.Utility;
 internal static class App
 {
     #region Methods
+
+    /// <summary>
+    /// Gets the type's system app and field
+    /// </summary>
+    internal static (string app, string field, PropertyInfo[] primarys)? GetSystemAppField(this Type type)
+    {
+        if (typeAppFieldMap.TryGetValue(type, out var result)) return result;
+        return null;
+    }
 
     /// <summary>
     /// Gets the system app
@@ -43,7 +55,7 @@ internal static class App
         };
     }
 
-    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null)
+    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null, Type? type = null)
     {
         appName = appName.ToLower();
         AppSchema app = Root;
@@ -69,10 +81,28 @@ internal static class App
         app.Fields ??= [];
         app.Fields = app.Fields.Where(f => !f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
             .Concat([field]).ToArray();
+
+        if (type != null) {
+            SchemaStructAttribute? structAttr = type.GetCustomAttribute<SchemaStructAttribute>();
+            if (structAttr?.Primary is { Length: > 0 })
+            {
+                PropertyInfo[] props = type.GetProperties();
+                typeAppFieldMap[type] = (appName, field.Name,
+                    structAttr.Primary.Select(p =>
+                        props.FirstOrDefault(s => s.Name.Equals(p, StringComparison.OrdinalIgnoreCase))
+                        ?? throw new Exception($"The {p} has no match property in {type.FullName}")).ToArray());
+            }
+        }
     }
 
     #endregion
-    
+
+    #region Utility
+
+    static ConcurrentDictionary<Type, (string app, string field, PropertyInfo[] primay)> typeAppFieldMap = [];
+
+    #endregion
+
     #region System
 
     static readonly AppSchema Root = new ()

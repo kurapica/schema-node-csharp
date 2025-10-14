@@ -212,10 +212,9 @@ public class AppNode
                         }
                     }
                 }
-                else if (!(field.Frontend ?? false) && !(field.Disable ?? false))
-                {
+                
+                if (field.EnableDynamicTable)
                     requireDb = true;
-                }
             }
 
             // Check the relations
@@ -502,6 +501,17 @@ public class AppFieldNode
     /// The application field node status
     /// </summary>
     public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+
+    /// <summary>
+    /// Enable dynamic table
+    /// </summary>
+    public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false) && (SourceNode == null || TrackPush == true && FuncNode != null);
+
+   
+    /// <summary>
+    /// The data is queryable
+    /// </summary>
+    public bool IsQueryable => !(Frontend ?? false) && !(Disable ?? false) && (SourceNode == null || FuncNode == null);
 
     #endregion
 

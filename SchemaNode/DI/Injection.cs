@@ -155,7 +155,7 @@ public static class Injection
                         Name = fieldName,
                         Type = typeName,
                         Display = attr.Display,
-                    });
+                    }, type: type);
                 }
             }
         }
