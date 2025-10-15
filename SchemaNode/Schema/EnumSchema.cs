@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -17,7 +18,7 @@ public class EnumSchema
     /// The struct name
     /// </summary>
     [JsonIgnore]
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
     
     /// <summary>
@@ -52,7 +53,7 @@ public class EnumValueInfo
     /// <summary>
     /// The enum name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Enum { get; set; } = string.Empty;
     
     /// <summary>
@@ -63,13 +64,13 @@ public class EnumValueInfo
     /// <summary>
     /// The root value
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
 
     /// <summary>
     /// The value
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>

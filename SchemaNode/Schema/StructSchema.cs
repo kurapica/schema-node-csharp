@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
+using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -18,13 +19,13 @@ public class StructSchema
     /// The struct name
     /// </summary>
     [JsonIgnore]
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
     
     /// <summary>
     /// The base struct type to be inherited from.
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Base { get; set; }
     
     /// <summary>
@@ -52,13 +53,13 @@ public class StructFieldConfig
     /// <summary>
     /// The field name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
     /// The type name of the node.
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -109,7 +110,7 @@ public class StructFieldConfig
     /// <summary>
     /// The default value of the node.
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Default { get; set; }
     
     /// <summary>
@@ -123,7 +124,7 @@ public class StructFieldConfig
     /// <summary>
     /// The root value, for special scalar type values
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
     
     /// <summary>
@@ -139,13 +140,13 @@ public class StructFieldConfig
     /// <summary>
     /// The low limit of the scalar value.
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? LowLimit { get; set; }
 
     /// <summary>
     /// The up limit of the scalar value.
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? UpLimit { get; set; }
 
     /// <summary>
@@ -228,13 +229,13 @@ public class StructFieldRelation
     /// <summary>
     /// The target field, can use . for deep fields
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
     /// The relation function
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

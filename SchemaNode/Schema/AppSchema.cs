@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
+using System.ComponentModel.DataAnnotations;
 
 namespace SchemaNode.Schema;
 
@@ -16,13 +17,13 @@ public class AppSchema
     /// <summary>
     /// The parent app name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Parent { get; set; } = string.Empty;
     
     /// <summary>
     /// The application name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
     
     /// <summary>
@@ -93,7 +94,7 @@ public class AppFieldSchema
     /// <summary>
     /// the application name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string App { get; set; } = string.Empty;
     
     /// <summary>
@@ -104,13 +105,13 @@ public class AppFieldSchema
     /// <summary>
     /// The field name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
     
     /// <summary>
     /// The field type
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Type { get; set; } = default!;
     
     /// <summary>
@@ -126,13 +127,13 @@ public class AppFieldSchema
     /// <summary>
     /// The source application
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? SourceApp { get; set; }
     
     /// <summary>
     /// The source field
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? SourceField { get; set; }
     
     /// <summary>
@@ -143,7 +144,7 @@ public class AppFieldSchema
     /// <summary>
     /// The calculate function
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Func { get; set; }
     
     /// <summary>

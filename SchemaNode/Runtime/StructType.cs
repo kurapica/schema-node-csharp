@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -266,7 +267,8 @@ public class StructType: AnySchemeType
                         Display = memAttr?.Display ?? p.Name,
                         Desc = memAttr?.Desc,
                         DisplayOnly = memAttr?.DisplayOnly ?? false,
-                        UpLimit = p.GetCustomAttribute<SchemaUpLimitAttribute>()?.UpLimit.ToString() ?? null,
+                        UpLimit = p.GetCustomAttribute<MaxLengthAttribute>()?.Length.ToString() ?? null,
+                        LowLimit = p.GetCustomAttribute<MinLengthAttribute>()?.Length.ToString() ?? null,
                     };
                 }).ToArray()
             }

@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
+using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -18,13 +19,13 @@ public class FunctionSchema
     /// The struct name
     /// </summary>
     [JsonIgnore]
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
     
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -62,13 +63,13 @@ public class FunctionArgumentInfo
     /// <summary>
     /// The argument name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The argument type, T T1 T2 means the generic type
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -84,13 +85,13 @@ public class FunctionExpression {
     /// <summary>
     /// The expression name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The call function
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -101,7 +102,7 @@ public class FunctionExpression {
     /// <summary>
     /// The expression type
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -117,7 +118,7 @@ public class FunctionCallArgument {
     /// <summary>
     /// The argument name or expression name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
 
     /// <summary>

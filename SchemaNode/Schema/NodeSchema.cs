@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Components.Provider;
+using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -17,13 +17,13 @@ public class NodeSchema
     /// <summary>
     /// The parent schema name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Namespace { get; set; } = string.Empty;
     
     /// <summary>
     /// The schema name
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -154,7 +154,7 @@ public class LocaleString: ICloneable
     /// <summary>
     /// The default key
     /// </summary>
-    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
     
     /// <summary>
