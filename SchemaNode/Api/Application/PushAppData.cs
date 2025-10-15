@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Api.Schema.Application;
@@ -44,14 +45,14 @@ public static class PushDataExtenstion
         if (string.IsNullOrWhiteSpace(target)) return (false, Constant.APP_TARGET_REQUIRED);
         if (datas == null || datas.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
 
-        AppNode? appNode = await context.GetAppNodeAsync(app);
+        AppType? appNode = await context.GetAppNodeAsync(app);
         if (appNode == null) return (false, Constant.APP_NOT_FOUND);
 
         bool hasData = false;
 
         foreach((string field, AppDataFieldPushQuery push) in datas)
         {
-            AppFieldNode? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
+            AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
 
             if (!hasData)

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Api.Schema.Info;
@@ -16,7 +16,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
     {
         Logger.LogDebug("[Api]LoadAppSchemaApi [Request]{request}", request);
 
-        AppNode? node = await SchemaContext.GetAppNodeAsync(request.Name);
+        AppType? node = await SchemaContext.GetAppNodeAsync(request.Name);
         if (node == null) return new LoadAppSchemaResponse();
 
         // Generate schema
@@ -28,7 +28,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Apps = node.Apps?.Select(a => {
-                AppNode? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(p.Name, StringComparison.OrdinalIgnoreCase));
+                AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(p.Name, StringComparison.OrdinalIgnoreCase));
                 return new AppSchema
                 {
                     Name = a.Name,

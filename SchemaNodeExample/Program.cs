@@ -6,13 +6,15 @@ using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 using System.Data;
 using System.Text;
+using MySqlConnector.Logging;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Mysql
 var connString = builder.Configuration.GetConnectionString("Default");
-builder.Services.AddTransient<IDbConnection>(_ => new MySqlConnection(connString));
+builder.Services.AddScoped<IDbConnection>(_ => new MySqlConnection(connString));
+MySqlConnectorLogManager.Provider = new ConsoleLoggerProvider((MySqlConnectorLogLevel)LogLevel.Debug);
 
 // for test
 builder.Services.AddCors(options =>
@@ -28,7 +30,8 @@ builder.Services.AddCors(options =>
 // schema
 builder.Services
     .AddSchemaNode()
-    .AddSchemaStorageProvider<JsonSchemaStorageProvider>()
+    //.AddSchemaStorageProvider<JsonSchemaStorageProvider>()
+    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>()
     .AddAppSchemaDataProvider<AppSchemaDataProvider>();
 
 var app = builder.Build();

@@ -1,8 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Context;
 using SchemaNode.Http;
-using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Api.Schema.Application;
@@ -20,8 +19,8 @@ public class GetSourceTargetApi : SchemaApi<GetSourceTargetRequest, GetSourceTar
 
         if (string.IsNullOrEmpty(request.Target)) throw new Exception(APP_TARGET_REQUIRED);
 
-        AppNode app = await SchemaContext.GetAppNodeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
-        AppFieldNode field = app.Fields?.FirstOrDefault(f => f.Name.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
+        AppType app = await SchemaContext.GetAppNodeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
+        AppFieldType field = app.Fields?.FirstOrDefault(f => f.Name.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
         var result = await SchemaContext.GetSourceFieldNode(field, request.Target, true);
 

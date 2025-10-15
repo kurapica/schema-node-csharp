@@ -55,7 +55,7 @@ public static class BatchQueryExtension
         {
             if (string.IsNullOrWhiteSpace(query.App)) continue;
             if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
-            AppNode? node = await context.GetAppNodeAsync(query.App);
+            AppType? node = await context.GetAppNodeAsync(query.App);
             if (node == null) continue;
 
             if (!(query.NoSchema ?? false))
@@ -64,7 +64,7 @@ public static class BatchQueryExtension
             }
 
             // query fields
-            List<AppFieldNode> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
+            List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
             if (query.Fields is { Length: > 0 })
             {
                 fields = fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToList();
@@ -86,7 +86,7 @@ public static class BatchQueryExtension
 
             if (!(query.SchemaOnly ?? false))
             {
-                foreach (AppFieldNode field in fields)
+                foreach (AppFieldType field in fields)
                 {
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
@@ -150,7 +150,7 @@ public static class BatchQueryExtension
         switch (type)
         {
             case EnumType enumNode:
-                if (value is EnumNode val)
+                if (value is EnumTypeNode val)
                 {
                     string key = $"{enumNode.Name}:{val.ToValue<string>()}";
                     if (enumsKeys.Add(key))
@@ -183,7 +183,7 @@ public static class BatchQueryExtension
                 }
                 break;
             case StructType @struct:
-                if (value is StructNode obj)
+                if (value is StructTypeNode obj)
                 {
                     foreach (StructFieldConfig f in @struct.Fields)
                     {
@@ -195,7 +195,7 @@ public static class BatchQueryExtension
                 break;
 
             case ArrayType array:
-                if (value is not ArrayNode arr) return;
+                if (value is not ArrayTypeNode arr) return;
 
                 switch (array.ElementNode)
                 {
@@ -203,7 +203,7 @@ public static class BatchQueryExtension
                     {
                         foreach (AnySchemaNode v in arr)
                         {
-                            if (v is StructNode)
+                            if (v is StructTypeNode)
                                 await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
                         }
 
@@ -213,7 +213,7 @@ public static class BatchQueryExtension
                     {
                         foreach (AnySchemaNode v in arr)
                         {
-                            if (v is EnumNode)
+                            if (v is EnumTypeNode)
                                 await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
                         }
 

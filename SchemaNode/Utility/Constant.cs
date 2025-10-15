@@ -8,25 +8,28 @@ public static class Constant
 {
     #region Schema
 
+    public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
+    
     public const string NS_SYSTEM = "system";
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
     public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
+    public const string NS_SYSTEM_JSON = "system.json"; // any value, used by entity
     public const string NS_SYSTEM_BOOL = "system.bool";
     public const string NS_SYSTEM_DATE = "system.date";
     public const string NS_SYSTEM_NUMBER = "system.number";
     public const string NS_SYSTEM_DOUBLE = "system.double";
     public const string NS_SYSTEM_FLOAT = "system.float";
     public const string NS_SYSTEM_PERCENT = "system.percent";
-    public const string NS_SYSTEM_FULLDATE = "system.fulldate";
+    public const string NS_SYSTEM_FULL_DATE = "system.fulldate";
     public const string NS_SYSTEM_INT = "system.int";
     public const string NS_SYSTEM_STRING = "system.string";
     public const string NS_SYSTEM_YEAR = "system.year";
     public const string NS_SYSTEM_YEARMONTH = "system.yearmonth";
     public const string NS_SYSTEM_GUID = "system.guid";
-    public const string NS_SYSTEM_RANGEDATE = "system.rangedate";
-    public const string NS_SYSTEM_RANGEFULLDATE = "system.rangefulldate";
-    public const string NS_SYSTEM_RANGEMONTH = "system.rangemonth";
-    public const string NS_SYSTEM_RANGEYEAR = "system.rangeyear";
+    public const string NS_SYSTEM_RANGE_DATE = "system.rangedate";
+    public const string NS_SYSTEM_RANGE_FULL_DATE = "system.rangefulldate";
+    public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
+    public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
     public const string NS_SYSTEM_STRINGS = "system.strings";
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
     public const string NS_SYSTEM_INTS = "system.ints";

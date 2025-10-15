@@ -257,7 +257,7 @@ public class ScalarType: AnySchemeType
             NS_SYSTEM_FLOAT => ScalarValueType.Single | ScalarValueType.Number,
             NS_SYSTEM_PERCENT => ScalarValueType.Single | ScalarValueType.Number,
             NS_SYSTEM_INT => ScalarValueType.Integer | ScalarValueType.Number,
-            NS_SYSTEM_FULLDATE => ScalarValueType.FullDate | ScalarValueType.Date,
+            NS_SYSTEM_FULL_DATE => ScalarValueType.FullDate | ScalarValueType.Date,
             NS_SYSTEM_STRING => ScalarValueType.String,
             NS_SYSTEM_YEAR => ScalarValueType.Year | ScalarValueType.Integer | ScalarValueType.Number,
             NS_SYSTEM_YEARMONTH => ScalarValueType.YearMonth | ScalarValueType.Date,
@@ -282,7 +282,7 @@ public class ScalarType: AnySchemeType
           
         // validate the scalar value
         string strVal = val.ToString();
-        AnySchemaNode result = new ScalarNode(this);
+        AnySchemaNode result = new ScalarTypeNode(this);
 
         // check with type
         try

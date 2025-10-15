@@ -50,6 +50,10 @@ public class TypeNamespace: AnySchemeType
         {
             if (schema.Schemas == null || schema.Schemas.Length == 0) return;
 
+            // json
+            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
+                await context.GetSchemaNodeAsync(s.Name, preload: true);
+
             // scalar
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Scalar))
                 await context.GetSchemaNodeAsync(s.Name, preload: true);
@@ -69,7 +73,7 @@ public class TypeNamespace: AnySchemeType
             // function
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
                 await context.GetSchemaNodeAsync(s.Name, preload: true);
-
+            
             // namespace
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Namespace))
                 await context.GetSchemaNodeAsync(s.Name, preload: true);

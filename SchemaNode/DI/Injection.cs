@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -60,6 +59,7 @@ public static class Injection
         where T : class, ISchemaProvider
     {
         services.AddScoped<ISchemaProvider, T>();
+        services.AddScoped(typeof(T));
         return services;
     }
 
@@ -71,6 +71,7 @@ public static class Injection
     {
         services.AddScoped<ISchemaProvider, T>();
         services.TryAddScoped<ISchemaStorageProvider, T>();
+        services.AddScoped(typeof(T));
         return services;
     }
 
@@ -83,6 +84,7 @@ public static class Injection
     public static IServiceCollection AddAppSchemaDataProvider<T>(this IServiceCollection services)
         where T : class, IAppSchemaDataProvider
     {
+        services.AddScoped(typeof(T));
         services.TryAddScoped<IAppSchemaDataProvider, T>();
         if (typeof(ISchemaStorageProvider).IsAssignableFrom(typeof(T)))
             services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));

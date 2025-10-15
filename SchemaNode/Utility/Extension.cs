@@ -122,6 +122,8 @@ internal static class Extension
     /// <param name="indent">use indent</param>
     internal static string ToJson<T>(this T value, bool indent = false)
     {
+        if (value is JsonNode json) return json.ToString();
+        
         // Generate the JSON string.
         return JsonSerializer.Serialize(value, indent ? IndentJsonOption : NoIndentJsonOption);
     }
@@ -407,7 +409,7 @@ internal static class Extension
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    internal static bool IsArrayType(this Type type) => type != typeof(ArrayNode) && 
+    internal static bool IsArrayType(this Type type) => type != typeof(ArrayTypeNode) && 
         ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
     
     internal static bool IsSafeConstantValue(this Type type)
@@ -492,7 +494,7 @@ internal static class Extension
                 }
                 return null;
             }
-            else if(value is IEnumerable iter)
+            else if(value is not string && value is IEnumerable iter)
             {
                 if (type.IsSZArray)
                 {

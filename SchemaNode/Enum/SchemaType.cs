@@ -35,6 +35,12 @@ public enum SchemaType
     /// The array node
     /// </summary>
     Array,
+    
+    /// <summary>
+    /// The complex json node, we don't care how it organized
+    /// Useful for entities defined in C#
+    /// </summary>
+    Json,
 
     /// <summary>
     /// The function node

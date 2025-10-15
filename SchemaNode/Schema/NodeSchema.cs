@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Components.Provider;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
@@ -16,11 +17,13 @@ public class NodeSchema
     /// <summary>
     /// The parent schema name
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Namespace { get; set; } = string.Empty;
     
     /// <summary>
     /// The schema name
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -36,26 +39,31 @@ public class NodeSchema
     /// <summary>
     /// The scalar schema if type is scalar
     /// </summary>
+    [SchemaStructMemIgnore]
     public ScalarSchema? Scalar { get; set; }
 
     /// <summary>
     /// The enum schema if type is enum
     /// </summary>
+    [SchemaStructMemIgnore]
     public EnumSchema? Enum  { get; set; }
 
     /// <summary>
     /// The struct schema if type is struct
     /// </summary>
+    [SchemaStructMemIgnore]
     public StructSchema? Struct { get; set; }
 
     /// <summary>
     /// The array schema if type is array
     /// </summary>
+    [SchemaStructMemIgnore]
     public ArraySchema? Array  { get; set; }
 
     /// <summary>
     /// The function schema if type is function
     /// </summary>
+    [SchemaStructMemIgnore]
     public FunctionSchema? Func { get; set; }
 
     /// <summary>
@@ -111,7 +119,7 @@ public class NodeSchema
     /// </summary>
     [JsonIgnore]
     [SchemaStructMemIgnore]
-    public ISchemaProvider? SchemaProvider
+    public Type? SchemaProvider
     {
         get => _schemaProvider;
         set
@@ -126,7 +134,7 @@ public class NodeSchema
     #region Utility
 
     private SchemaLoadState? _schemaLoadState;
-    private ISchemaProvider? _schemaProvider;
+    private Type? _schemaProvider;
 
     #endregion
 }
@@ -146,6 +154,7 @@ public class LocaleString: ICloneable
     /// <summary>
     /// The default key
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
     
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -147,7 +148,7 @@ public class StructType: AnySchemeType
             relTypes.AddRange(node.UsedBy!.Keys.Where(p => p.Type == SchemaType.Array));
 
         // Gets the relative field type
-        foreach (AppFieldNode field in relTypes.Where(node => node.UsedByApp is { Count: > 0 }).SelectMany(node => node.UsedByApp!.Keys))
+        foreach (AppFieldType field in relTypes.Where(node => node.UsedByApp is { Count: > 0 }).SelectMany(node => node.UsedByApp!.Keys))
             field.Schema = null; // Clear to reload
     }
 
@@ -158,7 +159,7 @@ public class StructType: AnySchemeType
             return (null, TYPE_VALUE_NOT_VALID);
         
         // validate fields
-        StructNode result = new(this);
+        StructTypeNode result = new(this);
         JsonObject? error = null;
         foreach (StructFieldConfig field in Fields)
         {
@@ -244,6 +245,8 @@ public class StructType: AnySchemeType
         ).ToArray();
         if (properties.Length == 0) return [];
 
+        List<PropertyInfo> fieldMaps = [];
+        
         NodeSchema structSchema = new NodeSchema
         {
             Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
@@ -254,6 +257,7 @@ public class StructType: AnySchemeType
                 Fields = properties.Where(p => p.GetCustomAttribute<SchemaStructMemIgnoreAttribute>() == null).Select(p =>
                 {
                     SchemaStructMemAttribute? memAttr = p.GetCustomAttribute<SchemaStructMemAttribute>();
+                    fieldMaps.Add(p);
                     return new StructFieldConfig
                     {
                         Name = p.Name.ToCamelCase(),
@@ -262,10 +266,12 @@ public class StructType: AnySchemeType
                         Display = memAttr?.Display ?? p.Name,
                         Desc = memAttr?.Desc,
                         DisplayOnly = memAttr?.DisplayOnly ?? false,
+                        UpLimit = p.GetCustomAttribute<SchemaUpLimitAttribute>()?.UpLimit.ToString() ?? null,
                     };
                 }).ToArray()
             }
         };
+        CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
         
         if (attr?.Primary == null) return [structSchema];
         NodeSchema arraySchema = new NodeSchema
@@ -284,6 +290,13 @@ public class StructType: AnySchemeType
         };
         return [structSchema, arraySchema];
     }
+    
+    /// <summary>
+    /// Gets the C# properties for the struct type
+    /// </summary>
+    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type) => CsharpTypeProperties[type.ToLower()];
+    
+    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = new();
 
     #endregion
     

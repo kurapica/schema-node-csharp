@@ -2,14 +2,24 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The enum type schema
 /// </summary>
+[SchemaStruct(["name"])]
+[SchemaApp]
 public class EnumSchema
 {
+    /// <summary>
+    /// The struct name
+    /// </summary>
+    [JsonIgnore]
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string? Name { get; set; }
+    
     /// <summary>
     /// The enum value type
     /// </summary>
@@ -23,7 +33,6 @@ public class EnumSchema
     /// <summary>
     /// The enum values
     /// </summary>
-    [SchemaStructMemIgnore]
     public EnumValueInfo[] Values { get; set; } = [];
     
     /// <summary>
@@ -43,27 +52,24 @@ public class EnumValueInfo
     /// <summary>
     /// The enum name
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Enum { get; set; } = string.Empty;
     
     /// <summary>
     /// The enum value sequence number
     /// </summary>
     public int Seqno { get; set; } = 0;
-
-    /// <summary>
-    /// The cascade level, 0 for root
-    /// </summary>
-    [SchemaStructMemIgnore]
-    public int Level { get; set; } = 0;
     
     /// <summary>
     /// The root value
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
 
     /// <summary>
     /// The value
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>

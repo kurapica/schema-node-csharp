@@ -1223,11 +1223,11 @@ public class FunctionType: AnySchemeType
                 Expression jarray = innerCallArgs[arrayIndex];
                 ParameterExpression resExp = Expression.Parameter(exp.Type switch
                 {
-                    ExpressionType.Map => expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode),
+                    ExpressionType.Map => expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode),
                     ExpressionType.Reduce => callMethodReturn,
                     ExpressionType.First => callArgTypes[arrayIndex],
                     ExpressionType.Last => callArgTypes[arrayIndex],
-                    ExpressionType.Filter => expReturnType.IsArrayType() ? expReturnType : typeof(ArrayNode),
+                    ExpressionType.Filter => expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode),
                     _ => throw new ArgumentOutOfRangeException()
                 });
                 ParameterExpression start = Expression.Parameter(typeof(int), "_start");
@@ -1255,7 +1255,7 @@ public class FunctionType: AnySchemeType
                 // Generate call body
                 Delegate innerCall;
                 Expression arrayLen = jarray.Type.IsSZArray ? Expression.ArrayLength(jarray) : Expression.Property(jarray, "Count");
-                Expression ctor = resExp.Type == typeof(ArrayNode)
+                Expression ctor = resExp.Type == typeof(ArrayTypeNode)
                     ? Expression.New(resExp.Type.GetConstructors()[0], Expression.Constant(exp.TypeNode!))
                     : Expression.New(resExp.Type);
 
@@ -1276,9 +1276,9 @@ public class FunctionType: AnySchemeType
                                             ? callMethodReturn.IsArrayType()
                                                 ? Expression.Call(resExp, resExp.Type.GetMethod("AddRange", new[] { typeof(IEnumerable<>).MakeGenericType(expReturnType) })!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
                                                 : Expression.Call(resExp, resExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                            : callMethodReturn == typeof(ArrayNode)
-                                                ? Expression.Call(resExp, typeof(ArrayNode).GetMethod(nameof(ArrayNode.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                : Expression.Call(resExp, typeof(ArrayNode).GetMethod(nameof(ArrayNode.Add))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
+                                            : callMethodReturn == typeof(ArrayTypeNode)
+                                                ? Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
+                                                : Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.Add))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
                                         Expression.Break(forLabel, stop)
                                     ),
                                     forLabel
@@ -1432,10 +1432,10 @@ public class FunctionType: AnySchemeType
             case StructResultExpNode strt:
             {
                 // Only one struct result can exist
-                ParameterExpression resultVar = Expression.Parameter(typeof(StructNode));
+                ParameterExpression resultVar = Expression.Parameter(typeof(StructTypeNode));
                 expMap.Add("_retobject", resultVar);
-                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructNode).GetConstructors()[0], Expression.Constant(strt.TypeNode))));
-                MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.SetField))!;
+                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructTypeNode).GetConstructors()[0], Expression.Constant(strt.TypeNode))));
+                MethodInfo objectAdd = typeof(StructTypeNode).GetMethod(nameof(StructTypeNode.SetField))!;
 
                 // Build the result
                 foreach (FunctionNodeExpTree? leafNode in strt.LeafNodes)

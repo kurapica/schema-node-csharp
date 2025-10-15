@@ -145,7 +145,7 @@ public class ArrayType: AnySchemeType
             return (null, TYPE_VALUE_NOT_VALID);
 
         // validate elements
-        ArrayNode result = new(this);
+        ArrayTypeNode result = new(this);
         JsonObject? error = null;
         if (ElementNode != null)
         {
@@ -211,7 +211,7 @@ public class ArrayType: AnySchemeType
     /// <summary>
     /// Get unique key for object
     /// </summary>
-    public string? GetPrimaryKey(StructNode obj)
+    public string? GetPrimaryKey(StructTypeNode obj)
     {
         if (Primary == null || Primary.Length == 0 || ElementNode is not StructType { Fields.Length: > 0 } @struct)
             return null;

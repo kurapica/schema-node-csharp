@@ -53,12 +53,17 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public ISchemaProvider? SchemaProvider { get; set; }
+    public Type? SchemaProvider { get; set; }
     
     /// <summary>
     /// Whether the node is used
     /// </summary>
     public virtual bool IsUsed => UsedBy is { IsEmpty: false } || UsedByApp is { IsEmpty: false };
+    
+    /// <summary>
+    /// The type is loaded
+    /// </summary>
+    internal bool Loaded { get; set; }
 
     #endregion
 
@@ -89,10 +94,10 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Used by an application field
     /// </summary>
-    public void AddRef(AppFieldNode node)
+    public void AddRef(AppFieldType type)
     {
-        UsedByApp ??= new ConcurrentDictionary<AppFieldNode, bool>();
-        UsedByApp.TryAdd(node, true);
+        UsedByApp ??= new ConcurrentDictionary<AppFieldType, bool>();
+        UsedByApp.TryAdd(type, true);
     }
 
     /// <summary>
@@ -106,18 +111,19 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Remove ref for an application field
     /// </summary>
-    /// <param name="node"></param>
-    public void RemoveRef(AppFieldNode node)
+    /// <param name="type"></param>
+    public void RemoveRef(AppFieldType type)
     {
-        UsedByApp?.TryRemove(node, out _);
+        UsedByApp?.TryRemove(type, out _);
     }
 
     public virtual AnySchemaNode? CreateNode(object? value = null) => Type switch
     {
-        SchemaType.Scalar => new ScalarNode((ScalarType)this, value),
-        SchemaType.Enum => new EnumNode((EnumType)this, value),
-        SchemaType.Struct => new StructNode((StructType)this, value),
-        SchemaType.Array => new ArrayNode((ArrayType)this, value),
+        SchemaType.Scalar => new ScalarTypeNode((ScalarType)this, value),
+        SchemaType.Enum => new EnumTypeNode((EnumType)this, value),
+        SchemaType.Struct => new StructTypeNode((StructType)this, value),
+        SchemaType.Array => new ArrayTypeNode((ArrayType)this, value),
+        SchemaType.Json => new JsonTypeNode((JsonType)this, value),
         _ => null
     };
 
@@ -185,6 +191,7 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Struct => new StructType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Array => new ArrayType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Func => new FunctionType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
+            SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -202,6 +209,7 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Struct => (schema as StructType),
             SchemaType.Array => (schema as ArrayType),
             SchemaType.Func => (schema as FunctionType),
+            SchemaType.Json => (schema as JsonType),
             _ => (schema as TypeNamespace)
         };
     }
@@ -211,7 +219,7 @@ public abstract class AnySchemeType: IDisposable
     #region Utility
     
     internal ConcurrentDictionary<AnySchemeType, bool>? UsedBy;
-    internal ConcurrentDictionary<AppFieldNode, bool>? UsedByApp;
+    internal ConcurrentDictionary<AppFieldType, bool>? UsedByApp;
 
     #endregion
 }

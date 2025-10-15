@@ -28,7 +28,7 @@ public static class SystemCollection
         {
             return arr.LongLength;
         }
-        if (array is ArrayNode node)
+        if (array is ArrayTypeNode node)
         {
             return node.Count;
         }
@@ -135,7 +135,7 @@ public static class SystemCollection
     /// Delete a field from the json object
     /// </summary>
     [SchemaFunc]
-    public static StructNode DelField(StructNode obj, string field)
+    public static StructTypeNode DelField(StructTypeNode obj, string field)
     {
         obj[field] = null;
         return obj;
@@ -145,7 +145,7 @@ public static class SystemCollection
     /// Whether the object has the field
     /// </summary>
     [SchemaFunc]
-    public static bool ContainsKey(StructNode obj, string field)
+    public static bool ContainsKey(StructTypeNode obj, string field)
     {
         return obj[field] != null;
     }
@@ -154,7 +154,7 @@ public static class SystemCollection
     /// Whether the object not has the field
     /// </summary>
     [SchemaFunc]
-    public static bool NotContainsKey(StructNode obj, string field)
+    public static bool NotContainsKey(StructTypeNode obj, string field)
     {
         return obj[field] == null;
     }
@@ -163,7 +163,7 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [SchemaFunc]
-    public static T? GetField<T>(StructNode obj, string field)
+    public static T? GetField<T>(StructTypeNode obj, string field)
     {
         return (T?)(obj.GetField(field)?.ToTypeValue(typeof(T)));
     }
@@ -172,7 +172,7 @@ public static class SystemCollection
     /// Gets fields from the objects in the array to a new array
     /// </summary>
     [SchemaFunc]
-    public static ArrayNode GetFields(ArrayNode array, string field)
+    public static ArrayTypeNode GetFields(ArrayTypeNode array, string field)
     {
         ArrayType arrayType = array.Type as ArrayType ?? throw new  InvalidOperationException("The array type is invalid");
         if (arrayType.ElementNode is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
@@ -181,10 +181,10 @@ public static class SystemCollection
         if (f.TypeNode == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
         var arrayNode = f.TypeNode.GetArrayNode() ?? throw new InvalidOperationException($"The field {field} type {f.TypeNode.Name} cannot be used as array element");
 
-        ArrayNode resultType = new (arrayNode);
+        ArrayTypeNode resultType = new (arrayNode);
         foreach (AnySchemaNode item in array)
         {
-            if (item is StructNode node)
+            if (item is StructTypeNode node)
             {
                 AnySchemaNode? fieldNode = node.GetField(field);
                 if (fieldNode != null)
@@ -200,7 +200,7 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [SchemaFunc]
-    public static StructNode SetField(StructNode obj, string field, object? value)
+    public static StructTypeNode SetField(StructTypeNode obj, string field, object? value)
     {
         obj[field] = value;
         return obj;

@@ -1,15 +1,16 @@
-﻿using SchemaNode.Runtime;
+﻿using System.Reflection;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 
 namespace SchemaNode.Node;
 
-public class StructNode : AnySchemaNode
+public class StructTypeNode : AnySchemaNode
 {
-    internal AnySchemaNode[] Fields = [];
-    object? csharpObject = null;
+    internal AnySchemaNode[] Fields;
+    object? _csharpObject = null;
 
-    public StructNode(StructType type, object? value = null) : base(type, null)
+    public StructTypeNode(StructType type, object? value = null) : base(type, null)
     {
         // init fields
         Fields = new AnySchemaNode[type.Fields.Length];
@@ -29,7 +30,7 @@ public class StructNode : AnySchemaNode
             var field = GetField(name);
             if (field != null)
             {
-                csharpObject = null;
+                _csharpObject = null;
                 field.Value = value;
             }
         }
@@ -54,7 +55,7 @@ public class StructNode : AnySchemaNode
         var field = GetField(fieldName);
         if (field != null)
         {
-            csharpObject = null;
+            _csharpObject = null;
             field.Value = value;
         }
     }
@@ -66,7 +67,7 @@ public class StructNode : AnySchemaNode
         get => this;
         set
         {
-            csharpObject = null;
+            _csharpObject = null;
             if (value == null)
             {
                 foreach (var field in Fields)
@@ -74,7 +75,7 @@ public class StructNode : AnySchemaNode
                     field.Value = null;
                 }
             }
-            else if(value is StructNode @struct)
+            else if(value is StructTypeNode @struct)
             {
                 var fields = (Type as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
@@ -92,11 +93,23 @@ public class StructNode : AnySchemaNode
             }
             else if(value.GetType() == CsharpType)
             {
-                csharpObject = value;
-                var fields = (Type as StructType)!.Fields;
-                for (int i = 0; i < fields.Length; i++)
+                IReadOnlyList<PropertyInfo>? props = StructType.GetStructFieldCSharpProperties(Type.Name);
+                if (props != null)
                 {
-                    Fields[i].Value = CsharpType.GetProperty(fields[i].Name)?.GetValue(value);
+                    _csharpObject = value;
+                    for (int i = 0; i < props.Count; i++)
+                    {
+                        Fields[i].Value = props[i]?.GetValue(value);
+                    }
+                }
+                else
+                {
+                    JsonObject jsonObj = (JsonObject)value.ToJsonNode()!;
+                    var fields = (Type as StructType)!.Fields;
+                    for (int i = 0; i < fields.Length; i++)
+                    {
+                        Fields[i].Value = jsonObj[fields[i].Name];
+                    }
                 }
             }
             else
@@ -114,7 +127,7 @@ public class StructNode : AnySchemaNode
         AnySchemaNode? node = this;
         foreach (string path in paths)
         {
-            node = (node is StructNode obj) ? obj.GetField(path) : null;
+            node = (node is StructTypeNode obj) ? obj.GetField(path) : null;
             if (node == null) return null;
         }
         return node;
@@ -129,8 +142,8 @@ public class StructNode : AnySchemaNode
     {
         if (CsharpType.IsAssignableTo(type))
         {
-            csharpObject ??= ToJson()?.FromJson(CsharpType);
-            return csharpObject;
+            _csharpObject ??= ToJson()?.FromJson(CsharpType);
+            return _csharpObject;
         }
         return ToJson()?.FromJson(type);
     }

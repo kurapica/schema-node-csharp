@@ -6,9 +6,9 @@ using System.Text.Json.Nodes;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : AnySchemaNode, IEnumerable<AnySchemaNode>
+public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayNode(AnySchemeType type, object? value = null) : base(type, null)
+    public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type, null)
     {
         ElementType = type is ArrayType arr ? arr.ElementNode : type;
         Value = value;
@@ -151,7 +151,7 @@ public class ArrayNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 
     public override object? ToTypeValue(Type type)
     {
-        if (type == typeof(ArrayNode))
+        if (type == typeof(ArrayTypeNode))
             return this;
 
         if (ElementType != null)

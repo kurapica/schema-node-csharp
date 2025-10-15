@@ -1,17 +1,29 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The array schema
 /// </summary>
+[SchemaStruct(["name"])]
+[SchemaApp]
 public class ArraySchema
 {
     /// <summary>
+    /// The struct name
+    /// </summary>
+    [JsonIgnore]
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string? Name { get; set; }
+
+    /// <summary>
     /// The element type of the array.
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Element { get; set; }
 
     /// <summary>
@@ -55,6 +67,7 @@ public class DataCombine
     /// <summary>
     /// The field
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
@@ -68,6 +81,7 @@ public class DataIndex
     /// <summary>
     /// The index name
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

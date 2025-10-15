@@ -1,16 +1,28 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
 /**
  * The schema of the scalar type
 */
+[SchemaStruct(["name"])]
+[SchemaApp]
 public class ScalarSchema
 {
     /// <summary>
+    /// The struct name
+    /// </summary>
+    [JsonIgnore]
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string? Name { get; set; }
+
+    /// <summary>
     /// The base type of the scalar
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Base { get; set; }
 
     /// <summary>
@@ -36,11 +48,13 @@ public class ScalarSchema
     /// <summary>
     /// The regex of the scalar value
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Regex  { get; set; }
     
     /// <summary>
     /// The white list function
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? WhiteList { get; set; }
     
     /// <summary>
@@ -51,11 +65,13 @@ public class ScalarSchema
     /// <summary>
     /// The function to validate the scalar value in frontend
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? PreValid  { get; set; }
 
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
+    [SchemaUpLimit(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? PostValid  { get; set; }// 用来存放额外的字段
     
     /// <summary>

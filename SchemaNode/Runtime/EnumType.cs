@@ -116,7 +116,7 @@ public class EnumType: AnySchemeType
         EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
         EnumValueInfo access = accesses.Last();
         if (!(access.HasSubList ?? false)) return [];
-        
+         
         // load sub list
         int chkLvl = 1;
         if (fullList ?? false)
@@ -216,7 +216,7 @@ public class EnumType: AnySchemeType
         if (value is not JsonValue val || val.IsEmpty())
             return (null, TYPE_VALUE_NOT_VALID);
 
-        AnySchemaNode result = new EnumNode(this);
+        AnySchemaNode result = new EnumTypeNode(this);
 
         // Combine value
         if (ValueType == EnumValueType.Flags)
@@ -256,7 +256,7 @@ public class EnumType: AnySchemeType
             result.Value = ValueType switch
             {
                 EnumValueType.String => val.ToString(),
-                _ => val.GetValue<long>()
+                _ => val.ToValue<long>()
             };
             return (result, null);
         }

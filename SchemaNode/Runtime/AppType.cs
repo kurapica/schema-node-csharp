@@ -11,14 +11,14 @@ using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using SchemaNode.Components.Provider;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Runtime;
+using SchemaNode.Node;
 
-namespace SchemaNode.Node;
+namespace SchemaNode.Runtime;
 
 /// <summary>
 /// The application node
 /// </summary>
-public class AppNode
+public class AppType
 {
     #region Properties
 
@@ -68,6 +68,11 @@ public class AppNode
     /// The application is used
     /// </summary>
     public bool IsUsed => Fields is { Count: > 0 } || Apps is { Length: > 0 };
+    
+    /// <summary>
+    /// Already loaded
+    /// </summary>
+    internal bool Loaded { get; set; }
 
     #endregion
 
@@ -76,17 +81,17 @@ public class AppNode
     /// <summary>
     /// The sub application node
     /// </summary>
-    public ConcurrentDictionary<string, AppNode>? SubAppList { get; set; }
+    public ConcurrentDictionary<string, AppType>? SubAppList { get; set; }
 
     /// <summary>
     /// The application field nodes
     /// </summary>
-    public List<AppFieldNode>? Fields { get; set; }
+    public List<AppFieldType>? Fields { get; set; }
 
     /// <summary>
     /// The ref field
     /// </summary>
-    public AppFieldNode? RefField { get; set; }
+    public AppFieldType? RefField { get; set; }
 
     #endregion
 
@@ -127,11 +132,11 @@ public class AppNode
         // Load the application fields
         bool useRef = false;
         bool requireDb = false;
-        Fields = schema.Fields?.Select(p => (AppFieldNode)p).ToList();
+        Fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
         Relations = null;
         if (Fields is { Count: > 0 })
         {
-            foreach (AppFieldNode field in Fields)
+            foreach (AppFieldType field in Fields)
             {
                 field.App = Name;
                 field.Status = SchemaNodeStatus.Ready;
@@ -166,7 +171,7 @@ public class AppNode
                         foreach (string arg in field.Args)
                         {
                             string[] paths = arg.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
-                            AppFieldNode? tar = paths.Length > 0 
+                            AppFieldType? tar = paths.Length > 0 
                                     ? Fields.FirstOrDefault(p => p.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))
                                     : null;
                             if (tar == null)
@@ -174,7 +179,7 @@ public class AppNode
                             else
                             {
                                 // Register to observers
-                                tar.Observers ??= new List<AppFieldNode>();
+                                tar.Observers ??= new List<AppFieldType>();
                                 tar.Observers.Add(field);
                                 field.FuncArgs.Add(new AppFieldNodeArgument
                                 {
@@ -189,14 +194,14 @@ public class AppNode
                 // Valid source
                 if (!string.IsNullOrWhiteSpace(field.SourceApp) && !string.IsNullOrWhiteSpace(field.SourceField))
                 {
-                    AppNode? sourceNode = await context.GetAppNodeAsync(field.SourceApp);
+                    AppType? sourceNode = await context.GetAppNodeAsync(field.SourceApp);
                     if (sourceNode == null)
                     {
                         field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
                     }
                     else
                     {
-                        AppFieldNode? sourceField = sourceNode.Fields?.FirstOrDefault(f => f.Name.Equals(field.SourceField, StringComparison.OrdinalIgnoreCase));
+                        AppFieldType? sourceField = sourceNode.Fields?.FirstOrDefault(f => f.Name.Equals(field.SourceField, StringComparison.OrdinalIgnoreCase));
                         if (sourceField == null)
                         {
                             field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
@@ -236,7 +241,7 @@ public class AppNode
 
                 foreach (AppRelationSchema relation in Relations)
                 {
-                    AppFieldNode? field = Fields?.FirstOrDefault(f => f.Name.Equals(relation.AppField, StringComparison.OrdinalIgnoreCase));
+                    AppFieldType? field = Fields?.FirstOrDefault(f => f.Name.Equals(relation.AppField, StringComparison.OrdinalIgnoreCase));
                     if (field == null) {
                         relation.Status = SchemaNodeStatus.ApplicationRelationWrongTarget;
                         continue;
@@ -264,7 +269,7 @@ public class AppNode
             }
 
             // Use ref
-            RefField = requireDb && useRef ? new AppFieldNode
+            RefField = requireDb && useRef ? new AppFieldType
             {
                 App = Name,
                 Name = APP_FIELD_REF_NAME,
@@ -312,7 +317,7 @@ public class AppNode
     /// <summary>
     /// Gets the app field by name
     /// </summary>
-    public AppFieldNode? GetField(string name)
+    public AppFieldType? GetField(string name)
     {
         return Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
@@ -370,7 +375,7 @@ public class AppNode
                 install(n);
         };
 
-        foreach (AppFieldNode fieldNode in Fields)
+        foreach (AppFieldType fieldNode in Fields)
         {
             install(fieldNode.TypeNode);
             install(fieldNode.FuncNode);
@@ -393,7 +398,7 @@ public class AppNode
 /// <summary>
 /// The application field node
 /// </summary>
-public class AppFieldNode
+public class AppFieldType
 {
     #region Properties
 
@@ -491,7 +496,7 @@ public class AppFieldNode
     /// <summary>
     /// The fields that subscribe the update of this field.
     /// </summary>
-    public List<AppFieldNode>? Observers { get; set; }
+    public List<AppFieldType>? Observers { get; set; }
 
     #endregion
 
@@ -506,7 +511,6 @@ public class AppFieldNode
     /// Enable dynamic table
     /// </summary>
     public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false) && (SourceNode == null || TrackPush == true && FuncNode != null);
-
    
     /// <summary>
     /// The data is queryable
@@ -535,7 +539,7 @@ public class AppFieldNode
     /// <summary>
     /// The source node
     /// </summary>
-    public AppFieldNode? SourceNode { get; set; }
+    public AppFieldType? SourceNode { get; set; }
     
     /// <summary>
     /// The dynamic table schema
@@ -549,9 +553,9 @@ public class AppFieldNode
     /// <summary>
     /// Gets the field node from entity
     /// </summary>
-    public static implicit operator AppFieldNode(AppFieldSchema entity)
+    public static implicit operator AppFieldType(AppFieldSchema entity)
     {
-        return new AppFieldNode
+        return new AppFieldType
         {
             Name = entity.Name,
             Type = entity.Type,
@@ -575,7 +579,7 @@ public class AppFieldNode
     /// <summary>
     /// Convert the node to schema
     /// </summary>
-    public static implicit operator AppFieldSchema(AppFieldNode entity)
+    public static implicit operator AppFieldSchema(AppFieldType entity)
     {
         return new AppFieldSchema
         {
@@ -631,6 +635,7 @@ public class AppFieldNode
         {
             case SchemaType.Scalar:
             case SchemaType.Enum:
+            case SchemaType.Json:
                 {
                     info = GetDataTypeInfo(node);
                     fields.Add(new DynamicTableField
@@ -879,7 +884,8 @@ public class AppFieldNode
                     EnumValueType.Int => DynamicTableFieldType.BigInt,
                     EnumValueType.Flags => DynamicTableFieldType.UInt,
                     _ => throw new ArgumentOutOfRangeException()
-                }
+                },
+                MaxLength = @enum.ValueType == EnumValueType.String ? ENTITY_PRIMARY_KEY_MAX_LEN : null
             };
         }
 
@@ -916,7 +922,7 @@ public class AppFieldNodeArgument
     /// <summary>
     /// The application field
     /// </summary>
-    public required AppFieldNode AppField { get; init; }
+    public required AppFieldType AppField { get; init; }
 
     /// <summary>
     /// The data field
@@ -959,7 +965,7 @@ public class AppRelationSchema
     /// The field node
     /// </summary>
     [JsonIgnore]
-    public AppFieldNode? FieldNode { get; set; }
+    public AppFieldType? FieldNode { get; set; }
 
     /// <summary>
     /// The function node
@@ -1264,7 +1270,7 @@ public class DynamicTableSchema
         }
     }
 
-    public IEnumerable<(string field, string? value, bool isString, bool isList)> GetFieldValues(StructNode pack, bool primaryOnly = false, bool noPrimary = false)
+    public IEnumerable<(string field, string? value, bool isString, bool isList)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
         IEnumerable<DynamicTableField> fields = Fields;
         if (primaryOnly) fields = Fields.Where(p => p.Primary);
@@ -1277,7 +1283,7 @@ public class DynamicTableSchema
                 if (fieldNode != null && !fieldNode.IsEmpty)
                 {
                     // In value list
-                    if (field.Type != DynamicTableFieldType.Json && fieldNode is ArrayNode arr)
+                    if (field.Type != DynamicTableFieldType.Json && fieldNode is ArrayTypeNode arr)
                     {
                         if (arr.Count > 1)
                         {
@@ -1309,10 +1315,10 @@ public class DynamicTableSchema
             else
             {
                 AnySchemaNode? complex = pack.GetField(field.Complex.Main);
-                if (complex is StructNode sPack && sPack.GetField(field.Complex.Field) is { IsEmpty: false } part)
+                if (complex is StructTypeNode sPack && sPack.GetField(field.Complex.Field) is { IsEmpty: false } part)
                 {
                     // In value list
-                    if (field.Type != DynamicTableFieldType.Json && part is ArrayNode arr)
+                    if (field.Type != DynamicTableFieldType.Json && part is ArrayTypeNode arr)
                     {
                         if (arr.Count > 1)
                         {
@@ -1354,7 +1360,7 @@ public class DynamicTableSchema
             return Fields[0].FromReader(reader, offset);
         }
 
-        StructNode result = new StructNode((StructType)(TypeNode is ArrayType arr ? arr.ElementNode : TypeNode)!);
+        StructTypeNode result = new StructTypeNode((StructType)(TypeNode is ArrayType arr ? arr.ElementNode : TypeNode)!);
         foreach (DynamicTableField field in Fields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
@@ -1368,10 +1374,10 @@ public class DynamicTableSchema
                 AnySchemaNode? main = result.GetField(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructNode((StructType)((StructType)TypeNode).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
+                    main = new StructTypeNode((StructType)((StructType)TypeNode).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
                     result.SetField(field.Complex.Main, main);
                 }
-                (main as StructNode)![field.Complex.Field] = val;
+                (main as StructTypeNode)![field.Complex.Field] = val;
             }
         }
 
@@ -1407,13 +1413,13 @@ public class DynamicTableSchema
         // Generate the display only fields
         if (TypeNode is StructType @struct)
         {
-            if (pack is StructNode obj)
+            if (pack is StructTypeNode obj)
                 await GenerateDisplayOnlyStructFields(context, @struct, obj);
-            else if (pack is ArrayNode arr)
+            else if (pack is ArrayTypeNode arr)
             {
                 foreach (AnySchemaNode? item in arr)
                 {
-                    if (item is StructNode aObj)
+                    if (item is StructTypeNode aObj)
                         await GenerateDisplayOnlyStructFields(context, @struct, aObj);
                 }
             }
@@ -1423,7 +1429,7 @@ public class DynamicTableSchema
     #region Utility
 
     // Generate the display only fields
-    static async Task GenerateDisplayOnlyStructFields(SchemaContext context, StructType node, StructNode pack)
+    static async Task GenerateDisplayOnlyStructFields(SchemaContext context, StructType node, StructTypeNode pack)
     {
         if (node.Fields.Length == 0) return;
         foreach (var field in node.Fields)
@@ -1441,15 +1447,15 @@ public class DynamicTableSchema
                 JsonNode? result = await context.CallFunctionAsync(relation.Func, args);
                 if (!result.IsEmpty()) pack[field.Name] = result;
             }
-            else if (field.TypeNode is StructType @struct && pack.GetField(field.Name) is StructNode spack)
+            else if (field.TypeNode is StructType @struct && pack.GetField(field.Name) is StructTypeNode spack)
             {
                 await GenerateDisplayOnlyStructFields(context, @struct, spack);
             }
-            else if (field.TypeNode is ArrayType { ElementNode: StructType arrayStruct } && pack.GetField(field.Name) is ArrayNode { Count: > 0 } arrayPack)
+            else if (field.TypeNode is ArrayType { ElementNode: StructType arrayStruct } && pack.GetField(field.Name) is ArrayTypeNode { Count: > 0 } arrayPack)
             {
                 foreach (var token in arrayPack)
                 {
-                    if (token is StructNode apack)
+                    if (token is StructTypeNode apack)
                         await GenerateDisplayOnlyStructFields(context, arrayStruct, apack);
                 }
             }
@@ -1601,7 +1607,8 @@ public class DynamicTableField
         {
             DynamicTableFieldType.Bool => v.GetValue<bool>() ? "1" : "0",
             DynamicTableFieldType.DateTime => v.GetValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => v.ToString()
+            DynamicTableFieldType.Json => v.ToJsonString(),
+            _ => v.ToValue<string>()
         };
     }
 }
@@ -1649,7 +1656,7 @@ public class TransactionChangeData
     /// <summary>
     /// The change operations
     /// </summary>
-    public Dictionary<AppFieldNode, List<FieldDataChangeData>> Changes { get; } = new();
+    public Dictionary<AppFieldType, List<FieldDataChangeData>> Changes { get; } = new();
 }
 
 /// <summary>
@@ -1660,7 +1667,7 @@ public class FieldDataPushLevel
     /// <summary>
     /// The fields to be updated
     /// </summary>
-    public List<AppFieldNode> Fields { get; } = new();
+    public List<AppFieldType> Fields { get; } = new();
 
     /// <summary>
     /// The next level to be updated

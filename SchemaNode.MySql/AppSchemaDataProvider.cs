@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components.Provider;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -39,6 +40,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             // Gets the existed fields
             DbCommand command = GetDbCommand();
             command.CommandText = $"DESCRIBE `{schema.Name}`";
+            Logger.LogInformation(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync();
             Dictionary<string, string> nameTypes = new();
             try
@@ -265,6 +267,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 // Single value
                 DbCommand command = GetDbCommand();
                 command.CommandText = $"SELECT `{DYNAMIC_TABLE_VALUE_FIELD}` FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
+                Logger.LogInformation(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
                 {
@@ -291,6 +294,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 // Get data
                 DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
+                Logger.LogInformation(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
                 {
@@ -416,6 +420,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             {
                 DbCommand totalCommand = GetDbCommand();
                 totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+                Logger.LogInformation(totalCommand.CommandText);
                 DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
                 try
                 {
@@ -471,7 +476,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            ArrayNode value = new ArrayNode(schema.TypeNode);
+            ArrayTypeNode value = new ArrayTypeNode(schema.TypeNode);
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogInformation(command.CommandText);
@@ -525,7 +530,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             // Check the value type
-            if (schema.Fields.Count == 1 && schema.Fields[0].Name == DYNAMIC_TABLE_VALUE_FIELD)
+            if (schema.Fields is [{ Name: DYNAMIC_TABLE_VALUE_FIELD }])
             {
                 // Convert the value
                 string? result = schema.Fields[0].ToString(value);
@@ -564,7 +569,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 }
                 return (true, origin);
             }
-            else if (value is StructNode pack)
+            else if (value is StructTypeNode pack)
             {
                 // Build the sql
                 StringBuilder sb = new();
@@ -641,10 +646,10 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             // Prepare the data
             switch (value)
             {
-                case ArrayNode arr:
+                case ArrayTypeNode arr:
                     array = arr.ToJson()!;
                     break;
-                case StructNode obj:
+                case StructTypeNode obj:
                     array = [obj.ToJson()];
                     break;
                 default:
@@ -657,11 +662,11 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             // record exist rows
             HashSet<string> existKeys = [];
             List<string> keys = [];
-            if (origin is ArrayNode oArr && oArr.Count > 0)
+            if (origin is ArrayTypeNode oArr && oArr.Count > 0)
             {
                 foreach (AnySchemaNode item in oArr)
                 {
-                    if (item is StructNode obj)
+                    if (item is StructTypeNode obj)
                     {
                         keys.Clear();
                         bool fullFill = true;
@@ -798,7 +803,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
         {
             _whereClause = null;
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, filter, forUpdate: true);
-            if (origin is not ArrayNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
+            if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX(`{DYNAMIC_UNIQUE_INDEX}`)", "")};"; // Can change to deleted flag controls

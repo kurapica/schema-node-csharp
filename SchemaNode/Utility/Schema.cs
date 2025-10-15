@@ -4,7 +4,6 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
@@ -45,7 +44,6 @@ internal static class Schema
     internal static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
         schema.LoadState = SchemaLoadState.System;
-        Console.WriteLine("save {0}", schema.Name);
 
         string schemaName = schema.Name.ToLowerInvariant();
         NodeSchema root = _root;
@@ -114,6 +112,7 @@ internal static class Schema
     /// </summary>
     internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
     {
+        if (typeInfo.Complex) return NS_SYSTEM_JSON; // Complex type, use JsonNode
         if (typeInfo.BaseType == null) return null; // Generic, no schema type
         
         // array & list check
@@ -124,13 +123,17 @@ internal static class Schema
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
         // Common
-        if (type == typeof(JsonArray) || type == typeof(ArrayNode))
+        if (type == typeof(JsonArray) || type == typeof(ArrayTypeNode))
         {
             return NS_SYSTEM_ARRAY;
         }
-        else if (type == typeof(JsonObject) || type == typeof(StructNode))
+        else if (type == typeof(JsonObject) || type == typeof(StructTypeNode))
         {
             return NS_SYSTEM_STRUCT;
+        }
+        else if (type == typeof(JsonNode))
+        {
+            return NS_SYSTEM_JSON;
         }
 
         // Basic value check
@@ -269,7 +272,16 @@ internal static class Schema
         if (input.IsGenericType) // IList<T>, IList<int>
         {
             Type[] args = input.GetGenericArguments();
-            if (args.Length != 1) return null; // not support complex generic types like Dict<TK, TV>
+            if (args.Length != 1)
+            {
+                return new SchemaParamTypeInfo
+                {
+                    Kind = ParameterTypeKind.GenericType | ParameterTypeKind.Complex,
+                    Type = typeof(JsonNode),
+                    BaseType = typeof(JsonNode),
+                    SchemaType = NS_SYSTEM_JSON,
+                };
+            };
             
             result = GetSchemaTypeInfo(args[0]);
             if (result == null) return null;
@@ -300,10 +312,16 @@ internal static class Schema
                 result.Kind |= ParameterTypeKind.Task;
             }
             
-            // Don't support other generic type
+            // Like Dict<TK, TV>
             else
             {
-                return null;
+                return new SchemaParamTypeInfo
+                {
+                    Kind = ParameterTypeKind.GenericType | ParameterTypeKind.Complex,
+                    Type = typeof(JsonNode),
+                    BaseType = typeof(JsonNode),
+                    SchemaType = NS_SYSTEM_JSON,
+                };
             }
 
             result.Kind |= ParameterTypeKind.GenericType;
@@ -368,6 +386,11 @@ internal static class Schema
                 Type = node.ToCSharpType(), 
                 SchemaType = node.Name
             },
+            JsonType => new SchemaParamTypeInfo
+            {
+                Type = typeof(JsonNode), 
+                SchemaType = NS_SYSTEM_JSON
+            },
             _ => null
         };
     }
@@ -379,11 +402,17 @@ internal static class Schema
     {
         bool isArray = false;
         Type? type = null;
+        
+        // json
+        if (node is JsonType)
+            return typeof(JsonNode);
+        
+        // array
         if (node is ArrayType array)
         {
             if (array.ElementNode == null)
             {
-                return typeof(ArrayNode);
+                return typeof(ArrayTypeNode);
             }
             else
             {
@@ -395,7 +424,7 @@ internal static class Schema
         {
             if (node is EnumType enumNode)
             {
-                type = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(int);
+                type = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(Int64);
             }
             else if (node is ScalarType scalar)
             {
@@ -429,13 +458,13 @@ internal static class Schema
                 }
                 else
                 {
-                    type = isArray ? typeof(ArrayNode) : typeof(ScalarNode);
+                    type = isArray ? typeof(ArrayTypeNode) : typeof(ScalarTypeNode);
                     isArray = false;
                 }
             }
             else if(node is StructType)
             {
-                type = isArray ? typeof(ArrayNode) : typeof(StructNode);
+                type = isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
                 isArray = false;
             }
         }
@@ -443,7 +472,7 @@ internal static class Schema
         // cover all
         if (type == null)
         {
-            type ??= isArray ? typeof(ArrayNode) : typeof(StructNode);
+            type ??= isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
         }
         else if (isArray)
         {
@@ -467,8 +496,8 @@ internal static class Schema
     {
         return method switch
         {
-            DataCombineType.Assign => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Init => value is ArrayNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Assign => value is ArrayTypeNode arr ? arr.LastOrDefault() : value,
+            DataCombineType.Init => value is ArrayTypeNode arr ? arr.FirstOrDefault() : value,
             _ => throw new NotImplementedException(),
         };
     }
@@ -480,10 +509,10 @@ internal static class Schema
     {
         return method switch
         {
-            DataCombineType.Assign => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Init => value is ArrayNode arr ? arr.FirstOrDefault() : value,
-            DataCombineType.Sum => new ScalarNode(node, value is ArrayNode arr ? arr.Select(a => a.ToValue<decimal>()).Sum() : (value?.Value ?? 0m)),
-            DataCombineType.Count => new ScalarNode(node, value is ArrayNode arr ? arr.Count : 0),
+            DataCombineType.Assign => value is ArrayTypeNode arr ? arr.LastOrDefault() : value,
+            DataCombineType.Init => value is ArrayTypeNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Sum => new ScalarTypeNode(node, value is ArrayTypeNode arr ? arr.Select(a => a.ToValue<decimal>()).Sum() : (value?.Value ?? 0m)),
+            DataCombineType.Count => new ScalarTypeNode(node, value is ArrayTypeNode arr ? arr.Count : 0),
             _ => throw new NotImplementedException(),
         };
     }
@@ -496,7 +525,7 @@ internal static class Schema
         if (value == null || value.IsEmpty || node.Fields.Length == 0) return null;
         switch (value)
         {
-            case StructNode @struct:
+            case StructTypeNode @struct:
                 {
                     // count field
                     foreach ((string field, DataCombineType method) in joinMethodMap)
@@ -508,28 +537,28 @@ internal static class Schema
                     }
                     return @struct;
                 }
-            case ArrayNode { Count: > 0 } array:
+            case ArrayTypeNode { Count: > 0 } array:
                 {
                     // Join
-                    StructNode result = new(node);
+                    StructTypeNode result = new(node);
                     foreach (StructFieldConfig field in node.Fields)
                     {
                         switch (joinMethodMap.GetValueOrDefault(field.Name, DataCombineType.Assign))
                         {
                             case DataCombineType.Assign:
                                 {
-                                    StructNode? last = (StructNode?)array.LastOrDefault(p => p is StructNode obj && !obj.GetField(field.Name)!.IsEmpty);
+                                    StructTypeNode? last = (StructTypeNode?)array.LastOrDefault(p => p is StructTypeNode obj && !obj.GetField(field.Name)!.IsEmpty);
                                     if (last != null) result[field.Name] = last[field.Name];
                                     break;
                                 }
                             case DataCombineType.Init:
                                 {
-                                    StructNode? first = (StructNode?)array.FirstOrDefault(p => p is StructNode obj && !obj.GetField(field.Name)!.IsEmpty);
+                                    StructTypeNode? first = (StructTypeNode?)array.FirstOrDefault(p => p is StructTypeNode obj && !obj.GetField(field.Name)!.IsEmpty);
                                     if (first != null) result[field.Name] = first[field.Name];
                                     break;
                                 }
                             case DataCombineType.Sum:
-                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Sum(p => p is StructNode obj && obj[field.Name] is ScalarNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
+                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Sum(p => p is StructTypeNode obj && obj[field.Name] is ScalarTypeNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
                                 break;
                             case DataCombineType.Count:
                                 result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Count : null;
@@ -547,7 +576,7 @@ internal static class Schema
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static Dictionary<string, StructNode> GroupJoinObjectMap(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static Dictionary<string, StructTypeNode> GroupJoinObjectMap(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (value == null || value.IsEmpty) return new();
 
@@ -559,7 +588,7 @@ internal static class Schema
         switch (value)
         {
             // Check by value
-            case StructNode { IsEmpty: false } o:
+            case StructTypeNode { IsEmpty: false } o:
                 {
                     // Check the primary key
                     string? key = node.GetPrimaryKey(o);
@@ -568,19 +597,19 @@ internal static class Schema
                     // Return single element array
                     return new() { { key, o } };
                 }
-            case ArrayNode array:
+            case ArrayTypeNode array:
                 {
                     // The return list with order
-                    Dictionary<string, StructNode> keyMap = new();
+                    Dictionary<string, StructTypeNode> keyMap = new();
                     Dictionary<string, int> keyCount = new();
                     foreach (var token in array)
                     {
-                        if (token is not StructNode obj) continue;
+                        if (token is not StructTypeNode obj) continue;
 
                         // Gets the key
                         string? key = node.GetPrimaryKey(obj);
                         if (string.IsNullOrWhiteSpace(key)) continue;
-                        if (keyMap.TryGetValue(key, out StructNode? total))
+                        if (keyMap.TryGetValue(key, out StructTypeNode? total))
                         {
                             // Join the data fields
                             keyCount[key]++;
@@ -636,14 +665,14 @@ internal static class Schema
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static ArrayNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static ArrayTypeNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (node.ElementNode is not StructType structNode || node.Primary == null) return null;
         Dictionary<string, AnySchemeType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
 
         // Result
-        Dictionary<string, StructNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);
-        List<StructNode> joinObjs = resultMap.Values.ToList();
+        Dictionary<string, StructTypeNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);
+        List<StructTypeNode> joinObjs = resultMap.Values.ToList();
         joinObjs.Sort((a, b) =>
         {
             foreach (string s in node.Primary)
@@ -678,7 +707,7 @@ internal static class Schema
             }
             return 0;
         });
-        return new ArrayNode(node, joinObjs);
+        return new ArrayTypeNode(node, joinObjs);
     }
 
     #endregion
@@ -732,6 +761,8 @@ internal static class Schema
         public bool Number => (Kind & (ParameterTypeKind.Number | ParameterTypeKind.Float)) > 0;
         
         public bool OnlyFloat => (Kind & ParameterTypeKind.Float) > 0;
+        
+        public bool Complex => (Kind & ParameterTypeKind.Complex) > 0;
         
         #endregion
         
@@ -875,6 +906,7 @@ internal static class Schema
         Task = 1 << 6,
         GenericType = 1 << 7,
         GenericParameter = 1 << 8,
+        Complex = 1 << 9, // Dict<TK, TV> || JsonNode || other complex type
     }
     
     #endregion
@@ -950,6 +982,13 @@ internal static class Schema
                         {
                             Fields = []
                         }
+                    },
+                    new NodeSchema()
+                    {
+                        Name = NS_SYSTEM_JSON,
+                        Type = SchemaType.Json,
+                        LoadState = SchemaLoadState.System,
+                        Display = NS_SYSTEM_JSON,
                     },
 
                     // scalar
@@ -1030,10 +1069,10 @@ internal static class Schema
                     },
                     new NodeSchema
                     {
-                        Name = NS_SYSTEM_FULLDATE,
+                        Name = NS_SYSTEM_FULL_DATE,
                         Type = SchemaType.Scalar,
                         LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_FULLDATE,
+                        Display = NS_SYSTEM_FULL_DATE,
                         Scalar = new ScalarSchema
                         {
                             Base = NS_SYSTEM_DATE,
@@ -1104,10 +1143,10 @@ internal static class Schema
                     // struct
                     new NodeSchema
                     {
-                        Name = NS_SYSTEM_RANGEDATE,
+                        Name = NS_SYSTEM_RANGE_DATE,
                         Type = SchemaType.Struct,
                         LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGEDATE,
+                        Display = NS_SYSTEM_RANGE_DATE,
                         Struct = new StructSchema
                         {
                             Fields =
@@ -1131,10 +1170,10 @@ internal static class Schema
                     },
                     new NodeSchema
                     {
-                        Name = NS_SYSTEM_RANGEFULLDATE,
+                        Name = NS_SYSTEM_RANGE_FULL_DATE,
                         Type = SchemaType.Struct,
                         LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGEFULLDATE,
+                        Display = NS_SYSTEM_RANGE_FULL_DATE,
                         Struct = new StructSchema
                         {
                             Fields =
@@ -1143,14 +1182,14 @@ internal static class Schema
                                 {
                                     Name = "start",
                                     Require = true,
-                                    Type = NS_SYSTEM_FULLDATE,
+                                    Type = NS_SYSTEM_FULL_DATE,
                                     Display = "system.rangedate.start",
                                 },
                                 new StructFieldConfig
                                 {
                                     Name = "stop",
                                     Require = true,
-                                    Type = NS_SYSTEM_FULLDATE,
+                                    Type = NS_SYSTEM_FULL_DATE,
                                     Display = "system.rangedate.stop",
                                 }
                             ],
@@ -1158,10 +1197,10 @@ internal static class Schema
                     },
                     new NodeSchema
                     {
-                        Name = NS_SYSTEM_RANGEMONTH,
+                        Name = NS_SYSTEM_RANGE_MONTH,
                         Type = SchemaType.Struct,
                         LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGEMONTH,
+                        Display = NS_SYSTEM_RANGE_MONTH,
                         Struct = new StructSchema
                         {
                             Fields =
@@ -1185,10 +1224,10 @@ internal static class Schema
                     },
                     new NodeSchema
                     {
-                        Name = NS_SYSTEM_RANGEYEAR,
+                        Name = NS_SYSTEM_RANGE_YEAR,
                         Type = SchemaType.Struct,
                         LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGEYEAR,
+                        Display = NS_SYSTEM_RANGE_YEAR,
                         Struct = new StructSchema
                         {
                             Fields =
