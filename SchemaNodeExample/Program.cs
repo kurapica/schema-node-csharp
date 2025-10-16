@@ -14,7 +14,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Mysql
 var connString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddScoped<IDbConnection>(_ => new MySqlConnection(connString));
-MySqlConnectorLogManager.Provider = new ConsoleLoggerProvider((MySqlConnectorLogLevel)LogLevel.Debug);
 
 // for test
 builder.Services.AddCors(options =>

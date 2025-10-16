@@ -188,3 +188,22 @@ public class AppFieldSchema
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
 }
+
+/// <summary>
+/// The application ref
+/// </summary>
+[SchemaStruct([nameof(App)])]
+public class AppRef
+{
+    /// <summary>
+    /// The source app
+    /// </summary>
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string App { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The source target
+    /// </summary>
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string? Target { get; set; }
+}

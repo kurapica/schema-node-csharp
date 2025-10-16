@@ -768,13 +768,10 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? appType = await GetAppTypeAsync(field.App);
         if (appType?.RefField == null) return false;
         
-        (_, string refTarget) = await GetSourceFieldNode(field, target, forPush: true);
+        (_, string oldTarget) = await GetSourceFieldNode(field, target, forPush: true);
+        if (oldTarget == sourceTarget) return true;
 
-        await SaveFieldDataAsync(appType.RefField, target, new JsonObject()
-        {
-            { APP_FIELD_REF_APP, field.SourceApp },
-            { APP_FIELD_REF_TARGET, sourceTarget }
-        });
+        await SaveFieldEntityAsync(appType.RefField, target, new AppRef { App = field.SourceApp!, Target = sourceTarget });
         
         // Check track push fields
         foreach (AppFieldType trackPushField in appType.Fields!.Where(f => f.EnablePushTrackTable && f.SourceAppType == field.SourceAppType))
@@ -787,9 +784,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
             if (trackData == null || trackData.IsEmpty) continue;
             
             // clear the track data from old target
-            if (!string.IsNullOrWhiteSpace(refTarget))
+            if (!string.IsNullOrWhiteSpace(oldTarget))
             {
-                await SaveIncrementalData(refField, refTarget, null, trackData);
+                await SaveIncrementalData(refField, oldTarget, null, trackData);
             }
             
             // save to the new target
@@ -825,22 +822,18 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// </summary>
     public async Task<(AppFieldType?, string)> GetSourceFieldNode(AppFieldType? field, string target, bool forPush = false)
     {
+        if (field != null && field.EnablePushTrackTable && !forPush) return (field, target);
         if (field?.SourceAppType == null) return (forPush ? null : field, target);
         AppType? appType = await GetAppTypeAsync(field.App);
 
-        // Means the category is front only and use the source node's target as target
+        // Means the app is front only and use the source node's target as target
         if (appType?.RefField == null) return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceFieldType, target);
 
-        JsonObject query = new() { { APP_FIELD_REF_APP, field.SourceAppType.Name } };
-        (AnySchemaNode? refData, _) = await GetFieldDataAsync(appType.RefField, target, query);
-        if (refData is ArrayTypeNode { Count: > 0 } arr && arr[0] is StructTypeNode jObject && jObject[APP_FIELD_REF_TARGET] is ScalarTypeNode
-            {
-                IsEmpty: false
-            } val)
+        (List<AppRef>? refData, _) = await GetFieldEntitiesAsync<AppRef>(appType.RefField, target, e => e.App == field.SourceAppType.Name);
+        if (refData is { Count: > 0 })
         {
-            string? refTarget = val.ToValue<string>();
-            if (!string.IsNullOrWhiteSpace(refTarget))
-                return forPush ? (field.SourceFieldType, refTarget) : await GetSourceFieldNode(field.SourceFieldType, refTarget, forPush);
+            if (!string.IsNullOrWhiteSpace(refData[0].Target))
+                return forPush ? (field.SourceFieldType, refData[0].Target!) : await GetSourceFieldNode(field.SourceFieldType, refData[0].Target!);
         }
 
         // Consider use the same target if no ref for view
@@ -879,6 +872,24 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         return await SaveFieldDataAsync(appFieldNode, target, appFieldNode.TypeNode!.CreateNode(values));
+    }
+
+    /// <summary>
+    /// Save entity data
+    /// </summary>
+    public Task<bool> SaveFieldEntityAsync<T>(AppFieldType field, string target, T value)
+    {
+        AssertType<T>(field);
+        return SaveFieldDataAsync(field, target, field.TypeNode!.CreateNode(value));
+    }
+
+    /// <summary>
+    /// Save entity list data
+    /// </summary>
+    public Task<bool> SaveFieldEntitiesAsync<T>(AppFieldType field, string target, List<T> values)
+    {
+        AssertType<T>(field);
+        return SaveFieldDataAsync(field, target, field.TypeNode!.CreateNode(values));
     }
 
     /// <summary>
@@ -965,29 +976,6 @@ public class SchemaContext(IServiceProvider serviceProvider)
         await DeleteFieldListDataAsync(appFieldNode, target, [query]);
     }
 
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public async Task DeleteEntitiesAsync<T>(string target, params (string key, object value)[] keys)
-    {
-        if (keys.Length == 0) throw new ArgumentException("At least one key must be provided");
-
-        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
-        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        AppType? appNode = await GetAppTypeAsync(app.Value.app);
-        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        JsonObject query = [];
-        for (int i = 0; i < keys.Length; i++)
-        {
-            query[keys[i].key.ToCamelCase()] = JsonValue.Create(keys[i].value);
-        }
-
-        await DeleteFieldListDataAsync(appFieldNode, target, [query]);
-    }
-
     /// <summary>
     /// Delete entity data
     /// </summary>
@@ -1014,6 +1002,62 @@ public class SchemaContext(IServiceProvider serviceProvider)
     }
 
     /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        EntityConditionVisitor vistor = new();
+        vistor.Visit(cond);
+        JsonNode filter = vistor.Condition;
+
+        if (filter is JsonObject obj && !obj.IsEmpty())
+            await DeleteFieldListDataAsync(appFieldNode, target, [filter]);
+        else
+            throw new ArgumentException("The conditon is not valid");
+    }
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public Task DeleteFieldEntityAsync<T>(AppFieldType field, string target, T value)
+    {
+        AssertType<T>(field);
+        return DeleteFieldListDataAsync(field, target, [value.ToJsonNode()]);
+    }
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public Task DeleteEntitiesAsync<T>(AppFieldType field, string target, List<T> value)
+    {
+        AssertType<T>(field);
+        return DeleteFieldListDataAsync(field, target, (JsonArray?)value.ToJsonNode() ?? []);
+    }
+
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public async Task DeleteEntitiesAsync<T>(AppFieldType field, string target, Expression<Func<T, bool>> cond)
+    {
+        AssertType<T>(field);
+
+        EntityConditionVisitor vistor = new();
+        vistor.Visit(cond);
+        JsonNode filter = vistor.Condition;
+
+        if (filter is JsonObject obj && !obj.IsEmpty())
+            await DeleteFieldListDataAsync(field, target, [filter]);
+        else
+            throw new ArgumentException("The conditon is not valid");
+    }
+
+    /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
     public async Task DeleteFieldListDataAsync(AppFieldType field, string target, JsonArray query, bool innerCall = false)
@@ -1029,6 +1073,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (schema.Single) return;
         try
         {
+            if (query.Count == 0) return;
             (bool result, AnySchemaNode? origin) = await AppDataProvider.DeleteDynamicTableDataAsync(schema, target, query);
             if (result)
                 OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
@@ -1074,11 +1119,36 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
+    public async Task<T?> GetEntityAsync<T>(string target, params object[] keys)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        if (keys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
+        JsonObject query = [];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
+        }
+
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldNode, target, query, take: 1);
+        return result is { Count: > 0 } ? result[0] : default;
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
     public async Task<T?> GetEntityAsync<T>(string target, Expression<Func<T, bool>> cond)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-        
+
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+
         EntityConditionVisitor visitor = new();
         visitor.Visit(cond);
         JsonNode filter = visitor.Condition;
@@ -1094,62 +1164,34 @@ public class SchemaContext(IServiceProvider serviceProvider)
                 throw new ArgumentException("The condition is not valid");
         }
 
-        (List<T> result, _) = await GetFieldDataAsync<T>(target, query, take: 1);
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldNode,target, query, take: 1);
         return result is { Count: > 0 } ? result[0] : default;
     }
     
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<T?> GetEntityAsync<T>(string target, params object[] keys)
+    public async Task<List<T>> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-        if (keys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
 
-        JsonObject query = [];
-        for (int i = 0; i < keys.Length; i++)
-        {
-            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
-        }
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        (List<T> result, _) = await GetFieldDataAsync<T>(target, query, take: 1);
-        return result is { Count: > 0 } ? result[0] : default;
-    }
-
-    /// <summary>
-    /// Gets the entity data by full primary keys
-    /// </summary>
-    public async Task<List<T>> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
-    {
         EntityConditionVisitor visitor = new();
         visitor.Visit(cond);
         JsonNode filter = visitor.Condition;
         if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
         
-        (List<T> result, _) = await GetFieldDataAsync<T>(target, obj, skip, take, desc, orderBy);
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldNode, target, obj);
         return result;
     }
 
     /// <summary>
-    /// Gets the entity data by primary keys
+    /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<List<T>> GetEntitiesAsync<T>(string target, params (string key, object value)[] keys)
-    {
-        JsonObject query = [];
-        for (int i = 0; i < keys.Length; i++)
-        {
-            query[keys[i].key.ToCamelCase()] = JsonValue.Create(keys[i].value);
-        }
-
-        (List<T> result, _) = await GetFieldDataAsync<T>(target, query);
-        return result;
-    }
-
-    /// <summary>
-    /// Gets the entity data
-    /// </summary>
-    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, T? filter = default, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
@@ -1157,94 +1199,37 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        JsonObject? query = null;
-        if (filter != null)
-        {
-            query = [];
-            foreach(PropertyInfo prop in app.Value.primarys)
-            {
-                object? val = prop.GetValue(filter);
-                if (val != null) query[prop.Name] = JsonValue.Create(val);
-            }
-        }
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
 
-        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, query, skip, take, desc, orderBy);
-        List<T> results = [];
-        if (result is ArrayTypeNode arr)
-        {
-            foreach (AnySchemaNode item in arr)
-            {
-                if (item is StructTypeNode obj)
-                {
-                    T? val = obj.ToValue<T>();
-                    if (val != null) results.Add(val);
-                }
-            }
-        }
-        else if (result is StructTypeNode obj)
-        {
-            T? val = obj.ToValue<T>();
-            if (val != null) results.Add(val);
-        }
-        return (results, total);
+        return await GetFieldEntitiesAsync<T>(appFieldNode, target, obj, skip, take, desc, orderBy);
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    {
+        AssertType<T>(field);
+
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj || obj.IsEmpty()) throw new ArgumentException("The condition is not valid");
+
+        return await GetFieldEntitiesAsync<T>(field, target, obj, skip, take, desc, orderBy);
     }
 
     /// <summary>
     /// Gets the entity data
     /// </summary>
-    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, List<T> filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
-        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
-        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        AssertType<T>(field);
 
-        AppType? appNode = await GetAppTypeAsync(app.Value.app);
-        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        JsonArray query = [];
-        foreach (T valueItem in filter)
-        {
-            JsonObject q = [];
-            foreach (PropertyInfo prop in app.Value.primarys)
-            {
-                q[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-            }
-            query.Add(q);
-        }
-
-        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, query, skip, take, desc, orderBy);
-        List<T> results = [];
-        if (result is ArrayTypeNode arr)
-        {
-            foreach (AnySchemaNode item in arr)
-            {
-                if (item is StructTypeNode obj)
-                {
-                    T? val = obj.ToValue<T>();
-                    if (val != null) results.Add(val);
-                }
-            }
-        }
-        else if (result is StructTypeNode obj)
-        {
-            T? val = obj.ToValue<T>();
-            if (val != null) results.Add(val);
-        }
-        return (results, total);
-    }
-
-    /// <summary>
-    /// Gets the entity data
-    /// </summary>
-    public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
-    {
-        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
-        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        AppType? appNode = await GetAppTypeAsync(app.Value.app);
-        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-
-        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, filter, skip, take, desc, orderBy);
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(field, target, filter, skip, take, desc, orderBy);
         List<T> results = [];
         if (result is ArrayTypeNode arr)
         {
@@ -1268,14 +1253,15 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(AppFieldType? field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         // Front end only
         if ((field?.Frontend ?? false) || (field?.Disable ?? false)) return (null, 0);
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (field, target) = await GetSourceFieldNode(field, target);
-        if (field == null) return (null, 0);
+        (AppFieldType? sourceField, target) = await GetSourceFieldNode(field, target);
+        if (sourceField == null) return (null, 0);
+        field = sourceField;
 
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
 
@@ -2104,6 +2090,15 @@ public class SchemaContext(IServiceProvider serviceProvider)
     #endregion
 
     #region Utility
+
+    void AssertType<T>(AppFieldType field)
+    {
+        AnySchemeType? type = field.TypeNode;
+        if (type is ArrayType arr) type = arr.ElementNode;
+        Type? ctype = type?.ToCSharpType();
+        if (ctype == null || !ctype.IsAssignableFrom(typeof(T)))
+            throw new ArgumentException("The app field type don't match the value type");
+    }
 
     // should be sync, no concurrent required
     readonly Dictionary<string, TransactionChangeData> _transChangedData = new();

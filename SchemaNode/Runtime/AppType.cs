@@ -256,40 +256,22 @@ public class AppType
             }
 
             // Use ref
-            RefField = requireDb && useRef ? new AppFieldType
-            {
-                App = Name,
-                Name = APP_FIELD_REF_NAME,
-                Type = APP_FIELD_REFS,
-                TypeNode = new ArrayType
+            if (requireDb && useRef) {
+                string refType = typeof(List<AppRef>).GetSchemaType()!;
+                AnySchemeType? refTypeNode = await context.GetSchemaTypeAsync(refType);
+
+                RefField = new AppFieldType
                 {
-                    Name = APP_FIELD_REFS,
-                    Element = APP_FIELD_REF,
-                    Primary = [APP_FIELD_REF_APP],
-                    ElementNode = new StructType
-                    {
-                        Name = APP_FIELD_REF,
-                        Fields =
-                        [
-                            new StructFieldConfig
-                            {
-                                Name = APP_FIELD_REF_APP,
-                                Require = true,
-                                Type = NS_SYSTEM_STRING,
-                                UpLimit = "128",
-                                TypeNode = await context.GetSchemaTypeAsync(NS_SYSTEM_STRING),
-                            },
-                            new StructFieldConfig
-                            {
-                                Name = APP_FIELD_REF_TARGET,
-                                Type = NS_SYSTEM_STRING,
-                                UpLimit = "128",
-                                TypeNode = await context.GetSchemaTypeAsync(NS_SYSTEM_STRING),
-                            }
-                        ]
-                    }
-                }
-            } : null;
+                    App = Name,
+                    Name = APP_FIELD_REF_NAME,
+                    Type = refType,
+                    TypeNode = refTypeNode
+                };
+            }
+            else
+            {
+                RefField = null;
+            }
         }
 
         // pre-load sub applications

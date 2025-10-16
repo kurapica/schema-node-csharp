@@ -54,7 +54,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             if (sub.Type == SchemaType.Namespace)
                             {
-                                sub.HasSchemas = (await context.GetEntitiesAsync<NodeSchema>(Target, s => s.Namespace == sub.Name, take: 1)).Count != 0;
+                                sub.HasSchemas = (await context.GetEntitiesAsync<NodeSchema>(Target, s => s.Namespace == sub.Name, take: 1)).total != 0;
                             }
                         }
                         schema.Schemas = value.ToArray();
@@ -70,7 +70,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             foreach (EnumValueInfo enumValueInfo in schema.Enum.Values)
                             {
-                                enumValueInfo.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema.Name && e.Root == enumValueInfo.Value, take: 1)).Count != 0;
+                                enumValueInfo.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema.Name && e.Root == enumValueInfo.Value, take: 1)).total != 0;
                             }
                         }
 
@@ -203,7 +203,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     if (nodeSchema.Enum != null)
                     {
                         nodeSchema.Enum!.Name = nodeSchema.Name;
-                        await context.DeleteEntitiesAsync<EnumValueInfo>(Target, (nameof(EnumValueInfo.Enum), schema));
+                        await context.DeleteEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema);
                         await context.DeleteEntityAsync(Target, nodeSchema.Enum);
                     }
                     break;
@@ -259,7 +259,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
             {
-                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == info.Value, take: 1)).Count != 0;
+                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == info.Value, take: 1)).total != 0;
             }
             return enumValues.ToArray();
         }
@@ -365,7 +365,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
             {
-                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == enumType.Name && e.Root == info.Value, take: 1)).Count != 0;
+                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == enumType.Name && e.Root == info.Value, take: 1)).total != 0;
             }
             return enumValues.ToArray();
         }
@@ -403,14 +403,14 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             if (schema == null) return null;
 
             // load apps
-            List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, (nameof(AppSchema.Parent), app));
+            List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == app);
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
-                subApp.HasApps = (await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == subApp.Name, take: 1)).Count != 0;
+                subApp.HasApps = (await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == subApp.Name, take: 1)).total != 0;
 
                 // check fields
-                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == subApp.Name, take: 1)).Count != 0;
+                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == subApp.Name, take: 1)).total != 0;
             }
             schema.Apps = apps.Count > 0 ? apps.ToArray() : null;
             
