@@ -776,7 +776,8 @@ public class FunctionType: AnySchemeType
         }
 
         // Generate func schema
-        var name = $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{(funcAttr.Type ?? method.Name).ToLowerInvariant()}";
+        var name = method.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
+            ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{(funcAttr.Type ?? method.Name).ToLowerInvariant()}";
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
@@ -1256,7 +1257,7 @@ public class FunctionType: AnySchemeType
                 Delegate innerCall;
                 Expression arrayLen = jarray.Type.IsSZArray ? Expression.ArrayLength(jarray) : Expression.Property(jarray, "Count");
                 Expression ctor = resExp.Type == typeof(ArrayTypeNode)
-                    ? Expression.New(resExp.Type.GetConstructors()[0], Expression.Constant(exp.TypeNode!))
+                    ? Expression.New(resExp.Type.GetConstructors()[0], Expression.Constant(exp.TypeNode!), Expression.Constant(null))
                     : Expression.New(resExp.Type);
 
                 switch (exp.Type)
@@ -1434,7 +1435,7 @@ public class FunctionType: AnySchemeType
                 // Only one struct result can exist
                 ParameterExpression resultVar = Expression.Parameter(typeof(StructTypeNode));
                 expMap.Add("_retobject", resultVar);
-                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructTypeNode).GetConstructors()[0], Expression.Constant(strt.TypeNode))));
+                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructTypeNode).GetConstructors()[0], Expression.Constant(strt.TypeNode), Expression.Constant(null))));
                 MethodInfo objectAdd = typeof(StructTypeNode).GetMethod(nameof(StructTypeNode.SetField))!;
 
                 // Build the result

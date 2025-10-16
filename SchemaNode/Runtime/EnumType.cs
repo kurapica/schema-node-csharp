@@ -323,7 +323,8 @@ public class EnumType: AnySchemeType
         EnumValueType valueType = attr?.ValueType ?? EnumValueType.Int;
         NodeSchema enumSchema = new NodeSchema
         {
-            Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Name = type.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name
+                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
             Type = SchemaType.Enum,
             Display = attr?.Display ?? type.Name,
             Enum = new EnumSchema

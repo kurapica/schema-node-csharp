@@ -34,6 +34,13 @@ public static class Constant
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
     public const string NS_SYSTEM_INTS = "system.ints";
 
+    public const string NS_SYSTEM_LANGUAGE = "system.language";
+    public const string NS_SYSTEM_LOCALE_STRING = "system.localestring";
+    public const string NS_SYSTEM_LOCALE_TRAN = "system.localetran";
+
+    public const string NS_SYSTEM_ENTRY = "system.entry";
+    public const string NS_SYSTEM_ENTRIES = "system.entries";
+
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";

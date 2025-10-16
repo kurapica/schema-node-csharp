@@ -1139,6 +1139,20 @@ internal static class Schema
                             Regex = @"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$",
                         }
                     },
+                    new NodeSchema
+                    {
+                        Name = NS_SYSTEM_LANGUAGE,
+                        Type = SchemaType.Scalar,
+                        LoadState = SchemaLoadState.System,
+                        Display = NS_SYSTEM_LANGUAGE,
+                        Scalar = new ScalarSchema
+                        {
+                            Base = NS_SYSTEM_STRING,
+                            LowLimit = 2,
+                            UpLimit = 5,
+                            Regex = @"^[a-z]{2}(-[A-Z]{2})?$", // en, en-US
+                        }
+                    },
 
                     // struct
                     new NodeSchema
@@ -1249,6 +1263,31 @@ internal static class Schema
                             ],
                         },
                     },
+                    new NodeSchema
+                    {
+                        Name = NS_SYSTEM_ENTRY,
+                        Type = SchemaType.Struct,
+                        LoadState = SchemaLoadState.System,
+                        Display = NS_SYSTEM_ENTRY,
+                        Struct = new StructSchema
+                        {
+                            Fields =
+                            [
+                                new StructFieldConfig
+                                {
+                                    Name = "value",
+                                    Require = true,
+                                    Type = NS_SYSTEM_STRING,
+                                },
+                                new StructFieldConfig
+                                {
+                                    Name = "label",
+                                    Require = false,
+                                    Type = NS_SYSTEM_LOCALE_STRING,
+                                }
+                            ],
+                        },
+                    },
 
                     // array
                     new NodeSchema
@@ -1283,6 +1322,18 @@ internal static class Schema
                         Array = new ArraySchema
                         {
                             Element = NS_SYSTEM_INT
+                        },
+                    },
+                    new NodeSchema
+                    {
+                        Name = NS_SYSTEM_ENTRIES,
+                        Type = SchemaType.Array,
+                        LoadState = SchemaLoadState.System,
+                        Display = NS_SYSTEM_ENTRIES,
+                        Array = new ArraySchema
+                        {
+                            Element = NS_SYSTEM_ENTRY,
+                            Primary = ["value"],
                         },
                     },
                 ]

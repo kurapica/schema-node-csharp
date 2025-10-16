@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Function;
 
@@ -19,4 +20,7 @@ public static class SystemStr
     
     [SchemaFunc]
     public static string Substr(string str, int startIndex, int stop) => str.Substring(startIndex, stop - startIndex);
+
+    [SchemaFunc]
+    public static LocaleString ToLocale(string? str) => new LocaleString { Key = str ?? "" };
 }

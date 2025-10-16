@@ -250,7 +250,8 @@ public class StructType: AnySchemeType
         
         NodeSchema structSchema = new NodeSchema
         {
-            Name = $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Name = type.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name
+                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
             Type = SchemaType.Struct,
             Display = attr?.Display ?? type.Name,
             Struct = new StructSchema
@@ -262,7 +263,7 @@ public class StructType: AnySchemeType
                     return new StructFieldConfig
                     {
                         Name = p.Name.ToCamelCase(),
-                        Type = p.PropertyType.GetSchemaType()!,
+                        Type = memAttr?.Type ?? p.PropertyType.GetSchemaType()!,
                         Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
                         Display = memAttr?.Display ?? p.Name,
                         Desc = memAttr?.Desc,

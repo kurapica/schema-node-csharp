@@ -144,11 +144,27 @@ public class NodeSchema
 /// </summary>
 /// <param name="Lang">Language</param>
 /// <param name="Tran">Translate</param>
-public record LocaleTran(string Lang, string Tran);
+[SchemaNameSpace(NS_SYSTEM_LOCALE_TRAN)]
+[SchemaStruct([nameof(Lang)])]
+public class LocaleTran
+{
+    /// <summary>
+    /// The language
+    /// </summary>
+    [SchemaStructMem(type: NS_SYSTEM_LANGUAGE)]
+    public required string Lang { get; set; }
+
+    /// <summary>
+    /// The translation
+    /// </summary>
+    public string? Tran { get; set; }
+}
 
 /// <summary>
 /// The locale string
 /// </summary>
+[SchemaNameSpace(NS_SYSTEM_LOCALE_STRING)]
+[SchemaStruct([nameof(Key)])]
 public class LocaleString: ICloneable
 {
     /// <summary>

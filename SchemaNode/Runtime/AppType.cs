@@ -258,14 +258,13 @@ public class AppType
             // Use ref
             if (requireDb && useRef) {
                 string refType = typeof(List<AppRef>).GetSchemaType()!;
-                AnySchemeType? refTypeNode = await context.GetSchemaTypeAsync(refType);
 
                 RefField = new AppFieldType
                 {
                     App = Name,
                     Name = APP_FIELD_REF_NAME,
                     Type = refType,
-                    TypeNode = refTypeNode
+                    TypeNode = await context.GetSchemaTypeAsync(refType)
                 };
             }
             else

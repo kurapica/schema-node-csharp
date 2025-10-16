@@ -243,10 +243,15 @@ public class SchemaContext(IServiceProvider serviceProvider)
             {
                 int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
                 if (idx < 0) throw new Exception("The function not valid");
-                
+
                 (object? o, Type? _, Type? gen) = arg.ParseValue(args[i], generics[idx]);
-                callArgs[i] = o ?? throw new Exception($"The {i+1} argument must be provided and valid");
+                callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                 if (generics[idx] is null && gen is not null) generics[idx] = gen; // scan for generic
+            }
+            else if (arg.Type != null && arg.Type.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
+            {
+                callArgs[i] = (await GetSchemaTypeAsync(arg.SchemaType))
+                    ?.CreateNode(args[i]) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
             }
             else if (arg.Type != null)
             {

@@ -9,6 +9,8 @@ namespace SchemaNode.Attribute;
 [AttributeUsage(AttributeTargets.Property)]
 public class SchemaStructMemAttribute: System.Attribute
 {
+    public string? Type { get; }
+
     /// <summary>
     /// The display of the enum
     /// </summary>
@@ -22,13 +24,14 @@ public class SchemaStructMemAttribute: System.Attribute
     /// <summary>
     /// The field is display only
     /// </summary>
-    public bool? DisplayOnly { get; }
+    public bool DisplayOnly { get; }
     
     /// <summary>
     /// The constructor
     /// </summary>
-    public SchemaStructMemAttribute(string? display = null, string? desc = null, bool? displayOnly = null)
+    public SchemaStructMemAttribute(string? type = null, string? display = null, string? desc = null, bool displayOnly = false)
     {
+        Type = type;
         Display = display;
         Desc = desc;
         DisplayOnly = displayOnly;
