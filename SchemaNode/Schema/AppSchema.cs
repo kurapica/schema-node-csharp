@@ -10,7 +10,7 @@ namespace SchemaNode.Schema;
 /**
  * The application schema
  */
-[SchemaStruct(["name"], ["parent", "name"])]
+[SchemaStruct([nameof(Name)], [nameof(Parent), nameof(Name)])]
 [SchemaApp]
 public class AppSchema
 {
@@ -87,7 +87,7 @@ public class AppSchema
 /// <summary>
 /// The application field schema
 /// </summary>
-[SchemaStruct(["app", "name"])]
+[SchemaStruct([nameof(App), nameof(Name)])]
 [SchemaApp]
 public class AppFieldSchema
 {
@@ -166,6 +166,11 @@ public class AppFieldSchema
     /// The field is disabled
     /// </summary>
     public bool? Disable  { get; set; }
+    
+    /// <summary>
+    /// The field is readonly, data comes from other apps
+    /// </summary>
+    public bool? Readonly { get; set; }
     
     /// <summary>
     /// The combine rule for scalar/enum type

@@ -17,7 +17,7 @@ public class LoadEnumSubListApi : SchemaApi<LoadEnumSubListRequest, LoadEnumSubL
     {
         Logger.LogDebug("[Api]LoadEnumSubList [Request]{request}", request);
 
-        AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
 
         return new LoadEnumSubListResponse
         {

@@ -17,7 +17,7 @@ public class LoadEnumAccessListApi : SchemaApi<LoadEnumAccessListRequest, LoadEn
     {
         Logger.LogDebug("[Api]LoadEnumAccessList [Request]{request}", request);
 
-        AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(request.Name);
+        AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
 
         return new LoadEnumAccessListResponse
         {

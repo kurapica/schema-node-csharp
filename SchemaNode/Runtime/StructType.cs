@@ -80,7 +80,7 @@ public class StructType: AnySchemeType
         // Ref
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemeType? baseNode = await context.GetSchemaNodeAsync(Base, preload: preload);
+            AnySchemeType? baseNode = await context.GetSchemaTypeAsync(Base, preload: preload);
             if (baseNode is not StructType node)
                 Status = SchemaNodeStatus.StructWrongBase;
             else
@@ -93,7 +93,7 @@ public class StructType: AnySchemeType
         // Load Fields
         foreach (StructFieldConfig field in Fields)
         {
-            AnySchemeType? typeNode = await context.GetSchemaNodeAsync(field.Type, preload: preload);
+            AnySchemeType? typeNode = await context.GetSchemaTypeAsync(field.Type, preload: preload);
             if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
@@ -108,7 +108,7 @@ public class StructType: AnySchemeType
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemeType? funcNode = await context.GetSchemaNodeAsync(relation.Func, preload: preload);
+                AnySchemeType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (funcNode is not FunctionType node)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -284,7 +284,9 @@ public class StructType: AnySchemeType
             Array = new ArraySchema
             {
                 Element = structSchema.Name,
-                Primary = attr.Primary.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray(),
+                Primary = attr.Primary.Select(p => structSchema.Struct.Fields
+                    .FirstOrDefault(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))?.Name).
+                    Where(s => !string.IsNullOrWhiteSpace(s)).ToArray()!,
                 Indexes = attr.Index != null 
                     ? [new DataIndex{ Name = "index", Fields = attr.Index.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray() }]
                     : null
@@ -296,7 +298,7 @@ public class StructType: AnySchemeType
     /// <summary>
     /// Gets the C# properties for the struct type
     /// </summary>
-    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type) => CsharpTypeProperties[type.ToLower()];
+    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type) => CsharpTypeProperties.GetValueOrDefault(type.ToLower());
     
     static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = new();
 

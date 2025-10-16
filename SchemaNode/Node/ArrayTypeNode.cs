@@ -80,7 +80,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
                 {
                     _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
                 }
-                else if (value is IEnumerable objs)
+                else if (value is not string && value is not JsonObject && value is IEnumerable objs)
                 {
                     _elements.Clear();
                     foreach (object o in objs)
@@ -221,7 +221,32 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         return null;
     }
 
-    public override JsonArray? ToJson()
+    /// <summary>
+    /// Gets the value with paths
+    /// </summary>
+    public AnySchemaNode? GetValueByPaths(string paths) {
+        if (ElementType != null)
+        {
+            AnySchemeType? type = ElementType;
+            foreach (string path in paths.Split('.', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (type is not StructType @struct) return null;
+                type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
+                    ?.TypeNode;
+            }
+
+            if (type == null) return null;
+            AnySchemaNode? result = new ArrayTypeNode(type);
+            result.Value = _elements.Select(p => ((StructTypeNode)p).GetValueByPaths(paths)).Where(p => p != null).ToList();
+            return result;
+        }
+        else
+        {
+            return this;
+        }
+    }
+
+public override JsonArray? ToJson()
     {
         JsonArray array = new();
         foreach(var element in _elements)
@@ -231,6 +256,8 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         return array;
     }
 
+    public override string ToString() => ToJson()?.ToString() ?? string.Empty;
+    
     public IEnumerator<AnySchemaNode> GetEnumerator()
     {
         return _elements.GetEnumerator();

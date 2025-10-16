@@ -9,6 +9,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -21,33 +22,15 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The schema context
 /// </summary>
-public class SchemaContext
+public class SchemaContext(IServiceProvider serviceProvider)
 {
-    #region Constructor
-
-    static SchemaContext()
-    {
-        RootNamespace = new TypeNamespace{ Name = "" };
-        RootAppType = new AppType { Name = "" };
-    }
-    
-    public SchemaContext(IServiceProvider serviceProvider)
-    {
-        ServiceProvider = serviceProvider;
-        _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
-        _dataProviderThunk = new Lazy<IAppSchemaDataProvider?>(serviceProvider.GetService<IAppSchemaDataProvider>);
-        _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(serviceProvider.GetRequiredService<ICriticalRegionProvider>);
-    }
-    
-    #endregion
-    
     #region Properties
     
     /// <summary>
     /// The schema provider
     /// </summary>
-    internal IServiceProvider ServiceProvider { get; }
-    
+    internal IServiceProvider ServiceProvider { get; } = serviceProvider;
+
     /// <summary>
     /// Gets the logger
     /// </summary>
@@ -56,36 +39,12 @@ public class SchemaContext
     /// <summary>
     /// Gets the app data provider
     /// </summary>
-    internal IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
+    IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
 
     /// <summary>
     /// The current category target to be used
     /// </summary>
-    internal string Target { get; set; } = string.Empty;
-
-    #endregion
-
-    #region Static Method
-
-    /// <summary>
-    /// Gets cached schema type
-    /// </summary>
-    internal static AnySchemeType? GetCachedSchemaType(string schemaName)
-    {
-        AnySchemeType? node = RootNamespace;
-        string fullPath = "";
-        foreach (string path in Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
-                     .Where(s => !string.IsNullOrWhiteSpace(s)))
-        {
-            if (node is not TypeNamespace parent) return null;
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-
-            // Gets the sub node
-            if (parent.SchemaNodes.TryGetValue(path, out node)) continue;
-            return null;
-        }
-        return node;
-    }
+    public string Target { get; private set; } = string.Empty;
 
     #endregion
 
@@ -96,7 +55,7 @@ public class SchemaContext
     /// </summary>
     /// <param name="schemaName">The schema name</param>
     /// <returns>The schema</returns>
-    public async Task<NodeSchema?> LoadSchemaAsync(string schemaName)
+    async Task<NodeSchema?> LoadSchemaAsync(string schemaName)
     {
         NodeSchema? schema = GetSystemNodeSchema(schemaName);
         if (schema != null)
@@ -145,7 +104,7 @@ public class SchemaContext
     /// </summary>
     /// <param name="schemaName">The app schema name</param>
     /// <returns>The app schema</returns>
-    public async Task<AppSchema?> LoadAppSchemaAsync(string schemaName)
+    async Task<AppSchema?> LoadAppSchemaAsync(string schemaName)
     {
         AppSchema? schema = GetSystemApp(schemaName);
         if (schema?.Fields is { Length: > 0 }) return schema;
@@ -263,7 +222,7 @@ public class SchemaContext
             for (int i = 0; i < Math.Min(funcInfo.Generics.Length, generic.Length); i++)
             {
                 if (string.IsNullOrEmpty(generic[i])) continue;
-                AnySchemeType? ns = await GetSchemaNodeAsync(generic[i]);
+                AnySchemeType? ns = await GetSchemaTypeAsync(generic[i]);
                 if (ns is { IsValueType: true }) generics[i] = ns.ToCSharpType();
             }
         }
@@ -367,7 +326,7 @@ public class SchemaContext
     /// <returns>The result</returns>
     public async Task<JsonNode?> CallFunctionAsync(string name, JsonArray args, string[]? generic = null)
     {
-        AnySchemeType? node = await GetSchemaNodeAsync(name);
+        AnySchemeType? node = await GetSchemaTypeAsync(name);
         if (node is not FunctionType funcNode) throw new Exception($"Function {name} not found");
         return await CallFunctionAsync(funcNode, args, generic);
     }
@@ -383,7 +342,7 @@ public class SchemaContext
     /// <returns>true if saved</returns>
     public async Task<bool> SaveSchemaAsync(NodeSchema schema)
     {
-        AnySchemeType? node = await GetSchemaNodeAsync(schema.Name);
+        AnySchemeType? node = await GetSchemaTypeAsync(schema.Name);
         
         // save the schema
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
@@ -393,11 +352,11 @@ public class SchemaContext
         // save runtime
         if (node == null)
         {
-            AnySchemeType? parentNode = await GetSchemaNodeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
+            AnySchemeType? parentNode = await GetSchemaTypeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
             if (parentNode is TypeNamespace ns)
                 ns.Schemas = ns.Schemas.Concat([schema]).ToArray();
         }
-        await GetSchemaNodeAsync(schema.Name, reload: true); // force reload
+        await GetSchemaTypeAsync(schema.Name, reload: true); // force reload
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             Schemas = [schema.Name]
@@ -412,14 +371,14 @@ public class SchemaContext
     /// <returns>true if deleted</returns>
     public async Task<bool> DeleteSchemaAsync(string name)
     {
-        AnySchemeType? node = await GetSchemaNodeAsync(name);
+        AnySchemeType? node = await GetSchemaTypeAsync(name);
         if (node == null || node.IsUsed) return false;
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
-        RemoveSchemaNode(name);
+        RemoveSchemaType(name);
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             DeleteSchemas = [name]
@@ -437,7 +396,7 @@ public class SchemaContext
     /// <returns>true if saved</returns>
     public async Task<bool> SaveEnumSubListAsync(string name, string? value, EnumValueInfo[] values, bool? append)
     {
-        AnySchemeType? node = await GetSchemaNodeAsync(name);
+        AnySchemeType? node = await GetSchemaTypeAsync(name);
         if (node is not EnumType @enum) return false;
         
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
@@ -459,20 +418,20 @@ public class SchemaContext
     /// <returns></returns>
     public async Task<bool> SaveAppSchemaAsync(AppSchema app)
     {
-        AppType? node = await GetAppNodeAsync(app.Name);
+        AppType? node = await GetAppTypeAsync(app.Name);
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SaveAppSchemaAsync(app)) return false;
 
         if (node == null)
         {
-            AppType? parentNode = await GetAppNodeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
+            AppType? parentNode = await GetAppTypeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
             if (parentNode != null)
             {
                 parentNode.Apps = parentNode.Apps == null ? [app] : parentNode.Apps.Concat([app]).ToArray();
             }
         }
-        await GetAppNodeAsync(app.Name, reload: true); // force reload
+        await GetAppTypeAsync(app.Name, reload: true); // force reload
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             Apps = [app.Name]
@@ -487,13 +446,13 @@ public class SchemaContext
     /// <returns></returns>
     public async Task<bool> DeleteAppSchemaAsync(string app)
     {
-        AppType? node = await GetAppNodeAsync(app);
+        AppType? node = await GetAppTypeAsync(app);
         if (node == null || node.IsUsed) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
-        RemoveAppNode(app);
+        RemoveAppType(app);
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             DeleteApps = [app]
@@ -504,16 +463,16 @@ public class SchemaContext
     /// <summary>
     /// Save app field schema
     /// </summary>
-    public async Task<bool> SaveAppFieldSchemAsync(string app, AppFieldSchema field)
+    public async Task<bool> SaveAppFieldSchemaAsync(string app, AppFieldSchema field)
     {
-        AppType? node = await GetAppNodeAsync(app);
+        AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SaveAppFieldSchemaAsync(app, field)) return false;
 
-        await GetAppNodeAsync(app, reload: true);
+        await GetAppTypeAsync(app, reload: true);
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             Apps = [app]
@@ -526,14 +485,14 @@ public class SchemaContext
     /// </summary>
     public async Task<bool> DeleteAppFieldSchemaAsync(string app, string field)
     {
-        AppType? node = await GetAppNodeAsync(app);
+        AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppFieldSchemaAsync(app, field)) return false;
 
-        await GetAppNodeAsync(app, reload: true);
+        await GetAppTypeAsync(app, reload: true);
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             Apps = [app]
@@ -550,14 +509,14 @@ public class SchemaContext
     /// <returns></returns>
     public async Task<bool> SwapAppFieldSchemaAsync(string app, string field1, string field2)
     {
-        AppType? node = await GetAppNodeAsync(app);
+        AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SwapAppFieldSchemaAsync(app, field1, field2)) return false;
 
-        await GetAppNodeAsync(app, reload: true);
+        await GetAppTypeAsync(app, reload: true);
         await this.PublishMessageAsync(new SchemaChangeMessage
         {
             Apps = [app]
@@ -572,7 +531,7 @@ public class SchemaContext
     /// <summary>
     /// Gets the schema node
     /// </summary>
-    public async Task<AnySchemeType?> GetSchemaNodeAsync(string schemaName, bool reload = false, bool preload = false)
+    public async Task<AnySchemeType?> GetSchemaTypeAsync(string schemaName, bool reload = false, bool preload = false)
     {
         AnySchemeType? node = RootNamespace;
         
@@ -629,7 +588,7 @@ public class SchemaContext
     /// <summary>
     /// Remove a node from cache
     /// </summary>
-    internal bool RemoveSchemaNode(string schemaName)
+    internal bool RemoveSchemaType(string schemaName)
     {
         AnySchemeType? node = RootNamespace;
         if (string.IsNullOrWhiteSpace(schemaName)) return false;
@@ -660,7 +619,7 @@ public class SchemaContext
     /// <summary>
     /// Gets the category node
     /// </summary>
-    public async Task<AppType?> GetAppNodeAsync(string name, bool reload = false, bool preload = false)
+    public async Task<AppType?> GetAppTypeAsync(string name, bool reload = false, bool preload = false)
     {
         // From root
         AppType? node = RootAppType;
@@ -712,9 +671,7 @@ public class SchemaContext
     /// <summary>
     /// Remove an app from cache
     /// </summary>
-    /// <param name="appName"></param>
-    /// <returns></returns>
-    internal bool RemoveAppNode(string appName)
+    internal bool RemoveAppType(string appName)
     {
         AppType? node = RootAppType;
         if (string.IsNullOrWhiteSpace(appName)) return false;
@@ -757,7 +714,7 @@ public class SchemaContext
     /// <summary>
     /// The critical region provider
     /// </summary>
-    private readonly Lazy<ICriticalRegionProvider> _criticalRegionProvider;
+    private readonly Lazy<ICriticalRegionProvider> _criticalRegionProvider = new(serviceProvider.GetRequiredService<ICriticalRegionProvider>);
 
     #endregion
     
@@ -768,7 +725,7 @@ public class SchemaContext
     /// <summary>
     /// Prepare the dynamic table for the field
     /// </summary>
-    internal async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldType field)
+    async Task<DynamicTableSchema> PrepareFieldDataAsync(AppFieldType field)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable)
@@ -797,24 +754,6 @@ public class SchemaContext
         }
     }
 
-    /// <summary>
-    /// Prepare the dynamic table for the field
-    /// </summary>
-    public async Task<List<DynamicTableSchema>> PrepareFieldDataAsync(AppType type)
-    {
-        List<DynamicTableSchema> schemaList = new();
-        if (type.Fields == null) return schemaList;
-        
-        // prepare the fields
-        foreach (AppFieldType field in type.Fields)
-            schemaList.Add(await PrepareFieldDataAsync(field));
-
-        // prepare the ref field
-        if (type.RefField != null)
-            await PrepareFieldDataAsync(type.RefField);
-        return schemaList;
-    }
-
     #endregion
 
     #region App Source Field
@@ -824,15 +763,43 @@ public class SchemaContext
     /// </summary>
     public async Task<bool> SetSourceFieldNode(AppFieldType field, string target, string sourceTarget)
     {
-        if (field.SourceNode == null) return false;
-        AppType? category = await GetAppNodeAsync(field.App);
-        if (category?.RefField == null) return false;
-        JsonObject data = new()
+        if (field.SourceAppType == null) return false;
+        
+        AppType? appType = await GetAppTypeAsync(field.App);
+        if (appType?.RefField == null) return false;
+        
+        (_, string refTarget) = await GetSourceFieldNode(field, target, forPush: true);
+
+        await SaveFieldDataAsync(appType.RefField, target, new JsonObject()
         {
             { APP_FIELD_REF_APP, field.SourceApp },
             { APP_FIELD_REF_TARGET, sourceTarget }
-        };
-        return await SaveFieldDataAsync(category.RefField, target, data);
+        });
+        
+        // Check track push fields
+        foreach (AppFieldType trackPushField in appType.Fields!.Where(f => f.EnablePushTrackTable && f.SourceAppType == field.SourceAppType))
+        {
+            AppFieldType? refField = trackPushField.SourceFieldType;
+            if (refField == null) continue;
+            
+            // Get the track data
+            (AnySchemaNode? trackData, _) = await GetFieldDataAsync(trackPushField, target);
+            if (trackData == null || trackData.IsEmpty) continue;
+            
+            // clear the track data from old target
+            if (!string.IsNullOrWhiteSpace(refTarget))
+            {
+                await SaveIncrementalData(refField, refTarget, null, trackData);
+            }
+            
+            // save to the new target
+            if (!string.IsNullOrWhiteSpace(sourceTarget))
+            {
+                await SaveIncrementalData(refField, sourceTarget, trackData, null);
+            }
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -849,7 +816,7 @@ public class SchemaContext
     /// </summary>
     public async Task<bool> SetSourceFieldNode(string app, string target, string sourceApp, string sourceTarget)
     {
-        AppType? node = await GetAppNodeAsync(app);
+        AppType? node = await GetAppTypeAsync(app);
         return node == null || await SetSourceFieldNode(node, target, sourceApp, sourceTarget);
     }
 
@@ -858,31 +825,34 @@ public class SchemaContext
     /// </summary>
     public async Task<(AppFieldType?, string)> GetSourceFieldNode(AppFieldType? field, string target, bool forPush = false)
     {
-        if (field?.SourceNode == null) return (field, target);
-        AppType? category = await GetAppNodeAsync(field.App);
+        if (field?.SourceAppType == null) return (forPush ? null : field, target);
+        AppType? appType = await GetAppTypeAsync(field.App);
 
         // Means the category is front only and use the source node's target as target
-        if (category?.RefField == null) return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceNode, target);
+        if (appType?.RefField == null) return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceFieldType, target);
 
-        JsonObject query = new() { { APP_FIELD_REF_APP, field.SourceNode.App } };
-        (AnySchemaNode? refData, _) = await GetFieldDataAsync(category.RefField, target, query);
-        if (refData is ArrayTypeNode { Count: > 0 } arr && arr[0] is StructTypeNode jObject && jObject[APP_FIELD_REF_TARGET] is ScalarTypeNode val && !val.IsEmpty)
-        {
-            string? reftarget = val.ToValue<string>();
-            if (!string.IsNullOrWhiteSpace(reftarget))
+        JsonObject query = new() { { APP_FIELD_REF_APP, field.SourceAppType.Name } };
+        (AnySchemaNode? refData, _) = await GetFieldDataAsync(appType.RefField, target, query);
+        if (refData is ArrayTypeNode { Count: > 0 } arr && arr[0] is StructTypeNode jObject && jObject[APP_FIELD_REF_TARGET] is ScalarTypeNode
             {
-                return await GetSourceFieldNode(field.SourceNode, reftarget, forPush);
-            }
+                IsEmpty: false
+            } val)
+        {
+            string? refTarget = val.ToValue<string>();
+            if (!string.IsNullOrWhiteSpace(refTarget))
+                return forPush ? (field.SourceFieldType, refTarget) : await GetSourceFieldNode(field.SourceFieldType, refTarget, forPush);
         }
 
         // Consider use the same target if no ref for view
-        return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceNode, target);
+        return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceFieldType, target);
     }
 
     #endregion
     
     #region Data Management
 
+    #region Save
+    
     /// <summary>
     /// Save entity data
     /// </summary>
@@ -891,7 +861,7 @@ public class SchemaContext
         (string app, string field, PropertyInfo[] _)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         return await SaveFieldDataAsync(appFieldNode, target, appFieldNode.TypeNode!.CreateNode(value));
@@ -900,13 +870,13 @@ public class SchemaContext
     /// <summary>
     /// Save entity list data
     /// </summary>
-    public async Task<bool> SaveEntitysAsync<T>(string target, List<T> values)
+    public async Task<bool> SaveEntitiesAsync<T>(string target, List<T> values)
     {
         (string app, string field, PropertyInfo[] _)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
-        AppFieldType? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         return await SaveFieldDataAsync(appFieldNode, target, appFieldNode.TypeNode!.CreateNode(values));
     }
@@ -927,6 +897,7 @@ public class SchemaContext
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
+        if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
         // Not allow the direct data update
         if (!innerCall && !string.IsNullOrWhiteSpace(field.Func)) return false;
@@ -948,6 +919,10 @@ public class SchemaContext
         }
     }
 
+    #endregion
+
+    #region Delete
+    
     /// <summary>
     /// Delete entity data
     /// </summary>
@@ -956,13 +931,13 @@ public class SchemaContext
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         JsonObject query = [];
         foreach(PropertyInfo prop in app.Value.primarys)
         {
-            query[prop.Name] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+            query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
         }
 
         await DeleteFieldListDataAsync(appFieldNode, target, [query]);
@@ -971,20 +946,20 @@ public class SchemaContext
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public async Task DeleteEntityAsync<T>(string target, params object[] primarys)
+    public async Task DeleteEntityAsync<T>(string target, params object[] keys)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        if (primarys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+        if (keys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
 
         JsonObject query = [];
-        for(int i = 0; i < primarys.Length; i++)
+        for(int i = 0; i < keys.Length; i++)
         {
-            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(primarys[i]);
+            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
         }
 
         await DeleteFieldListDataAsync(appFieldNode, target, [query]);
@@ -994,15 +969,15 @@ public class SchemaContext
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public async Task DeleteEntitysAsync<T>(string target, params (string key, object value)[] keys)
+    public async Task DeleteEntitiesAsync<T>(string target, params (string key, object value)[] keys)
     {
         if (keys.Length == 0) throw new ArgumentException("At least one key must be provided");
 
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
-        AppFieldType? appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
+        AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         JsonObject query = [];
         for (int i = 0; i < keys.Length; i++)
@@ -1016,26 +991,26 @@ public class SchemaContext
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public async Task DeleteEntitysAsync<T>(string target, List<T> value)
+    public async Task DeleteEntitiesAsync<T>(string target, List<T> value)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        JsonArray querys = [];
+        JsonArray query = [];
         foreach (T valueItem in value)
         {
-            JsonObject query = [];
+            JsonObject q = [];
             foreach (PropertyInfo prop in app.Value.primarys)
             {
-                query[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+                q[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
             }
-            querys.Add(query);
+            query.Add(q);
         }
 
-        await DeleteFieldListDataAsync(appFieldNode, target, querys);
+        await DeleteFieldListDataAsync(appFieldNode, target, query);
     }
 
     /// <summary>
@@ -1092,19 +1067,50 @@ public class SchemaContext
         }
     }
 
+    #endregion
+
+    #region Query 
+    
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<T?> GetEntityAsync<T>(string target, params object[] primarys)
+    public async Task<T?> GetEntityAsync<T>(string target, Expression<Func<T, bool>> cond)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-        if (primarys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+        
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
+        
+        JsonObject query = [];
+        foreach (PropertyInfo t in app.Value.primarys)
+        {
+            string key = t.Name.ToCamelCase();
+            if (obj.TryGetPropertyValue(key, out JsonNode? val) && val is JsonValue v && !v.IsEmpty())
+                query[key] = v.DeepClone();
+            else
+                throw new ArgumentException("The condition is not valid");
+        }
+
+        (List<T> result, _) = await GetFieldDataAsync<T>(target, query, take: 1);
+        return result is { Count: > 0 } ? result[0] : default;
+    }
+    
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public async Task<T?> GetEntityAsync<T>(string target, params object[] keys)
+    {
+        (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
+        if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        if (keys.Length != app.Value.primarys.Length) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
 
         JsonObject query = [];
-        for (int i = 0; i < primarys.Length; i++)
+        for (int i = 0; i < keys.Length; i++)
         {
-            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(primarys[i]);
+            query[app.Value.primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
         }
 
         (List<T> result, _) = await GetFieldDataAsync<T>(target, query, take: 1);
@@ -1112,9 +1118,23 @@ public class SchemaContext
     }
 
     /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public async Task<List<T>> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    {
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
+        
+        (List<T> result, _) = await GetFieldDataAsync<T>(target, obj, skip, take, desc, orderBy);
+        return result;
+    }
+
+    /// <summary>
     /// Gets the entity data by primary keys
     /// </summary>
-    public async Task<List<T>> GetEntitysAsync<T>(string target, params (string key, object value)[] keys)
+    public async Task<List<T>> GetEntitiesAsync<T>(string target, params (string key, object value)[] keys)
     {
         JsonObject query = [];
         for (int i = 0; i < keys.Length; i++)
@@ -1134,7 +1154,7 @@ public class SchemaContext
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
         JsonObject? query = null;
@@ -1169,27 +1189,29 @@ public class SchemaContext
         return (results, total);
     }
 
-
+    /// <summary>
+    /// Gets the entity data
+    /// </summary>
     public async Task<(List<T> value, int total)> GetFieldDataAsync<T>(string target, List<T> filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        JsonArray querys = [];
+        JsonArray query = [];
         foreach (T valueItem in filter)
         {
-            JsonObject query = [];
+            JsonObject q = [];
             foreach (PropertyInfo prop in app.Value.primarys)
             {
-                query[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+                q[prop.Name] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
             }
-            querys.Add(query);
+            query.Add(q);
         }
 
-        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, querys, skip, take, desc, orderBy);
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(appFieldNode, target, query, skip, take, desc, orderBy);
         List<T> results = [];
         if (result is ArrayTypeNode arr)
         {
@@ -1218,7 +1240,7 @@ public class SchemaContext
         (string app, string field, PropertyInfo[] primarys)? app = typeof(T).GetSystemAppField();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        AppType? appNode = await GetAppNodeAsync(app.Value.app);
+        AppType? appNode = await GetAppTypeAsync(app.Value.app);
         AppFieldType appFieldNode = appNode?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
 
@@ -1281,8 +1303,10 @@ public class SchemaContext
     }
 
     #endregion
+    
+    #endregion
 
-    #region Transaction
+    #region Transaction & Data Push
 
     /// <summary>
     /// Begin transaction.
@@ -1327,8 +1351,9 @@ public class SchemaContext
         // record the target
         Target = target;
 
-        // Build the push generation
-        List<AppFieldType> baseFields = changeData.Changes.Keys.Where(p => p.Observers is { Count: > 0 }).ToList();
+        #region Generate push orders
+        
+        List<AppFieldType> baseFields = changeData.Changes.Keys.Where(p => p.HasObserver).ToList();
 
         // If push all
         if (pushAllFields)
@@ -1336,10 +1361,11 @@ public class SchemaContext
             baseFields.Clear();
             foreach (string app in changeData.Changes.Keys.Select(p => p.App).Distinct())
             {
-                AppType? appNode = await GetAppNodeAsync(app);
+                AppType? appNode = await GetAppTypeAsync(app);
                 if (appNode?.Fields != null)
                 {
-                    baseFields.AddRange(appNode.Fields.Where(f => f.FuncNode == null && f.Observers is { Count: > 0 }));
+                    // Add all the base fields with observers and no function
+                    baseFields.AddRange(appNode.Fields.Where(f => f.FuncNode == null && f.HasObserver));
                 }
             }
         }
@@ -1347,7 +1373,7 @@ public class SchemaContext
         // Generate the push levels
         FieldDataPushLevel? root = null;
         FieldDataPushLevel? curr = null;
-        Dictionary<string, FieldDataPushLevel> updateFieldsLvlMap = new();
+        Dictionary<AppFieldType, FieldDataPushLevel> updateFieldsLvlMap = new();
 
         // The given push node
         if (pushNode != null)
@@ -1360,28 +1386,31 @@ public class SchemaContext
                 }
             };
             curr = root;
-            if (baseFields.Count == 0 && pushNode.Observers is { Count: > 0 })
+            if (baseFields.Count == 0 && pushNode.HasObserver)
                 baseFields = root.Fields;
         }
+        
+        // Process levels
         while (baseFields.Count > 0)
         {
             FieldDataPushLevel next = new();
 
             // Check fields
-            foreach (AppFieldType node in baseFields.Where(p => p.Observers != null).SelectMany(p => p.Observers!).Distinct().Where(n => !(n.Disable ?? false) && !(n.Frontend ?? false)))
+            foreach (AppFieldType node in baseFields.Where(p => p.HasObserver)
+                         .SelectMany(p => p.Observers!).Distinct()
+                         .Where(n => !(n.Disable ?? false) && !(n.Frontend ?? false)))
             {
-                if (!updateFieldsLvlMap.ContainsKey(node.Name))
+                if (!updateFieldsLvlMap.TryGetValue(node, out FieldDataPushLevel? value))
                 {
                     next.Fields.Add(node);
-                    updateFieldsLvlMap.Add(node.Name, next);
+                    updateFieldsLvlMap.Add(node, next);
                 }
                 else
                 {
                     // Move the field to current
-                    AppFieldType item = updateFieldsLvlMap[node.Name].Fields.First(p => p.Name == node.Name);
-                    next.Fields.Add(item);
-                    updateFieldsLvlMap[node.Name].Fields.Remove(item);
-                    updateFieldsLvlMap[node.Name] = next;
+                    next.Fields.Add(node);
+                    value.Fields.Remove(node);
+                    updateFieldsLvlMap[node] = next;
                 }
             }
 
@@ -1402,9 +1431,11 @@ public class SchemaContext
             {
                 break;
             }
-            baseFields = next.Fields.Where(p => p.Observers is { Count: > 0 }).ToList();
+            baseFields = next.Fields.Where(p => p.HasObserver).ToList();
         }
 
+        #endregion
+        
         // Process data push
         Dictionary<AppFieldType, AnySchemaNode> otherFields = new();
         HashSet<AppFieldType> displayOnlyGens = [];
@@ -1416,7 +1447,10 @@ public class SchemaContext
                 // Check ref
                 AppFieldType? tarField = field;
                 string realTarget = target;
-                if (field.SourceNode != null)
+                bool notRefField = field.SourceAppType == null || field.TrackPush == true;
+                
+                // push to source directly
+                if (!notRefField)
                 {
                     (tarField, realTarget) = await GetSourceFieldNode(field, target, true);
                     if (tarField == null) continue;
@@ -1426,7 +1460,7 @@ public class SchemaContext
                 // Prepare arguments
                 FunctionType? funcNode = field.FuncNode;
                 if (funcNode == null || field.FuncArgs == null) continue;
-                FieldDataPushArg[] args = new FieldDataPushArg[field.FuncArgs.Count];
+                var args = new FieldDataPushArg[field.FuncArgs.Count];
                 int arrayIndex = -1;
                 for (int i = 0; i < field.FuncArgs.Count; i++)
                 {
@@ -1434,7 +1468,7 @@ public class SchemaContext
                     args[i] = new FieldDataPushArg();
 
                     // Generate argument
-                    List<FieldDataChangeData>? changes = (!pushAll || field.SourceNode != null) && changeData.Changes.TryGetValue(call.AppField, out List<FieldDataChangeData>? dataChange) ? dataChange : null;
+                    List<FieldDataChangeData>? changes = !(pushAll && notRefField) && changeData.Changes.TryGetValue(call.AppField, out List<FieldDataChangeData>? dataChange) ? dataChange : null;
                     args[i].Type = call.AppField.TypeNode!;
                     if (args[i].Type is ArrayType && (funcNode.Args[i].TypeNode is not ArrayType || arrayIndex < 0)) arrayIndex = i;
 
@@ -1468,36 +1502,10 @@ public class SchemaContext
                                 foreach (FieldDataChangeData change in changes)
                                 {
                                     // for new
-                                    if (change.Value is ArrayTypeNode vArr)
-                                    {
-                                        foreach (var token in vArr)
-                                        {
-                                            if (token is StructTypeNode { IsEmpty: false } obj)
-                                            {
-                                                await schema.GenerateDisplayOnlyFields(this, obj);
-                                            }
-                                        }
-                                    }
-                                    else if (change.Value is StructTypeNode { IsEmpty: false } vObj)
-                                    {
-                                        await schema.GenerateDisplayOnlyFields(this, vObj);
-                                    }
+                                    await schema.GenerateDisplayOnlyFields(this, change.Value);
 
                                     // for origin
-                                    if (change.Origin is ArrayTypeNode oarr)
-                                    {
-                                        foreach (var token in oarr)
-                                        {
-                                            if (token is StructTypeNode { IsEmpty: false } obj)
-                                            {
-                                                await schema.GenerateDisplayOnlyFields(this, obj);
-                                            }
-                                        }
-                                    }
-                                    else if (change.Origin is StructTypeNode { IsEmpty: false } gObj)
-                                    {
-                                        await schema.GenerateDisplayOnlyFields(this, gObj);
-                                    }
+                                    await schema.GenerateDisplayOnlyFields(this, change.Origin);
                                 }
                             }
                         }
@@ -1505,7 +1513,9 @@ public class SchemaContext
                         args[i].Changed = true;
                         if (call.AppField.TypeNode is ArrayType @array)
                         {
-                            // Check array if need part update
+                            // if full data
+                            args[i].IsFull = @array.Primary == null || @array.Primary.Length == 0;
+                            
                             ArrayTypeNode values = new(@array);
                             ArrayTypeNode origins = new(@array);
                             foreach (FieldDataChangeData change in changes)
@@ -1517,8 +1527,6 @@ public class SchemaContext
                                         {
                                             if (change.Value is ArrayTypeNode vArr)
                                             {
-                                                //  For array without primary keys
-                                                args[i].IsFull = true;
                                                 values.AddRange(vArr);
                                             }
                                             else
@@ -1532,8 +1540,6 @@ public class SchemaContext
                                         {
                                             if (change.Value is ArrayTypeNode vArr)
                                             {
-                                                //  For array without primary keys
-                                                args[i].IsFull = true;
                                                 values.AddRange(vArr);
                                             }
                                             else
@@ -1545,8 +1551,6 @@ public class SchemaContext
                                         {
                                             if (change.Origin is ArrayTypeNode vArr)
                                             {
-                                                //  For array without primary keys
-                                                args[i].IsFull = true;
                                                 origins.AddRange(vArr);
                                             }
                                             else
@@ -1560,8 +1564,6 @@ public class SchemaContext
                                         {
                                             if (change.Origin is ArrayTypeNode vArr)
                                             {
-                                                //  For array without primary keys
-                                                args[i].IsFull = true;
                                                 origins.AddRange(vArr);
                                             }
                                             else
@@ -1609,7 +1611,7 @@ public class SchemaContext
                         }
                     }
 
-                    // Check data field
+                    // map data field
                     if (!string.IsNullOrWhiteSpace(call.DataField))
                     {
                         if (args[i].Type is StructType)
@@ -1625,27 +1627,21 @@ public class SchemaContext
                             // Gets the value
                             if (args[i].Value is ArrayTypeNode arr)
                             {
-                                for (int h = 0; h < arr.Count; h++)
-                                {
-                                    arr[h] = ((StructTypeNode?)arr[h])?.GetValueByPaths(call.DataField);
-                                }
+                                args[i].Value = arr.GetValueByPaths(call.DataField);
                             }
 
                             // Gets the origin
-                            if (args[i].Origin is ArrayTypeNode oarr)
+                            if (args[i].Origin is ArrayTypeNode oArr)
                             {
-                                for (int h = 0; h < oarr.Count; h++)
-                                {
-                                    oarr[h] = ((StructTypeNode?)oarr[h])?.GetValueByPaths(call.DataField);
-                                }
+                                args[i].Origin = oArr.GetValueByPaths(call.DataField);
                             }
                         }
                     }
                 }
 
                 // Check if there are changed field beyond part update field, need full update
-                // So normally simple field'll contains the settings that won't be upgraded, but if changes all should be rebuilt
-                if (field.SourceNode == null && args.Any(p => p is { Changed: true, IsArray: false }) && arrayIndex >= 0 && !args[arrayIndex].IsFull)
+                // So normally simple field contains the settings that won't be upgraded, but if changes all should be rebuilt
+                if (notRefField && args.Any(p => p is { Changed: true, IsArray: false }) && arrayIndex >= 0 && !args[arrayIndex].IsFull)
                 {
                     FieldDataPushArg arg = args[arrayIndex];
                     AppFieldNodeArgument call = field.FuncArgs[arrayIndex];
@@ -1666,16 +1662,16 @@ public class SchemaContext
 
                 // If part update or is ref, must get the original calc result
                 AnySchemaNode? oldResult = null;
-                if (arrayIndex >= 0) // && (!args[arrayIndex].IsFull || field.SourceNode != null))
+                if (arrayIndex >= 0 && (!args[arrayIndex].IsFull || !notRefField))
                 {
                     JsonArray originCall = new();
                     foreach (FieldDataPushArg arg in args)
                         originCall.Add(arg.Origin?.ToJson());
 
-                    // Check if use element
+                    // Check use element
                     if (funcNode.Args[arrayIndex].TypeNode is not ArrayType)
                     {
-                        JsonArray resultArr = new();
+                        oldResult = new ArrayTypeNode(field.TypeNode!);
                         if (args[arrayIndex].Origin is ArrayTypeNode origin)
                         {
                             foreach (AnySchemaNode t in origin)
@@ -1684,20 +1680,15 @@ public class SchemaContext
                                 JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, originCall);
                                 if (calcRes is JsonArray arr)
                                 {
-                                    foreach (JsonNode? ele in arr)
-                                    {
-                                        if (!ele.IsEmpty())
-                                            resultArr.Add(ele!.DeepClone());
-                                    }
+                                    ((ArrayTypeNode)oldResult).AddRange(arr.Where(o => !o.IsEmpty()));
                                 }
                                 else if (!calcRes.IsEmpty())
                                 {
-                                    resultArr.Add(calcRes!.DeepClone());
+                                    ((ArrayTypeNode)oldResult).Add(calcRes!);
                                 }
                             }
                         }
 
-                        oldResult = new ArrayTypeNode(field.TypeNode!, resultArr);
                     }
                     else
                     {
@@ -1708,14 +1699,13 @@ public class SchemaContext
 
                 // Calc the new result
                 AnySchemaNode? newResult;
-                JsonArray callArgs = new();
-                foreach (FieldDataPushArg arg in args)
-                    callArgs.Add(arg.Value?.ToJson());
+                JsonArray callArgs = [];
+                foreach (FieldDataPushArg arg in args) callArgs.Add(arg.Value?.ToJson());
 
-                // Check if use element
+                // Check use element
                 if (arrayIndex >= 0 && funcNode.Args[arrayIndex].TypeNode is not ArrayType)
                 {
-                    JsonArray resultArr = new();
+                    newResult = new ArrayTypeNode(field.TypeNode!);
                     if (args[arrayIndex].Value is ArrayTypeNode origin)
                     {
                         foreach (AnySchemaNode t in origin)
@@ -1724,20 +1714,15 @@ public class SchemaContext
                             JsonNode? calcRes = await CallFunctionAsync(field.FuncNode!, callArgs);
                             if (calcRes is JsonArray arr)
                             {
-                                foreach (JsonNode? ele in arr)
-                                {
-                                    if (!ele.IsEmpty())
-                                        resultArr.Add(ele!.DeepClone());
-                                }
+                                ((ArrayTypeNode)newResult).AddRange(arr.Where(e => !e.IsEmpty()));
                             }
                             else if (!calcRes.IsEmpty())
                             {
-                                resultArr.Add(calcRes!.DeepClone());
+                                ((ArrayTypeNode)newResult).Add(calcRes!);
                             }
                         }
                     }
 
-                    newResult = new ArrayTypeNode(field.TypeNode!, resultArr);
                 }
                 else
                 {
@@ -1745,326 +1730,18 @@ public class SchemaContext
                     newResult = r is JsonArray arr ? new ArrayTypeNode(field.TypeNode!, arr) : field.TypeNode!.CreateNode(r);
                 }
 
-                // Join the result
-                AnySchemaNode? result = null;
-                switch (field.TypeNode)
+                // Save the incremental data
+                await SaveIncrementalData(tarField, realTarget, newResult, oldResult);
+                
+                // Check if track push field
+                if (tarField.EnablePushTrackTable)
                 {
-                    case EnumType:
-                        {
-                            DataCombineType method = field.Combine ?? DataCombineType.Assign;
-                            (AnySchemaNode? origin, _) = await GetFieldDataAsync(tarField, realTarget);
-                            AnySchemaNode? now = GroupJoin(newResult, method);
-
-                            // Update with join method
-                            switch (method)
-                            {
-                                case DataCombineType.Assign:
-                                    {
-                                        result = now is { IsEmpty: false } ? now : origin;
-                                        break;
-                                    }
-                                case DataCombineType.Init:
-                                    {
-                                        result = origin is { IsEmpty: false } ? origin : now;
-                                        break;
-                                    }
-                            }
-                            break;
-                        }
-                    case ScalarType scalar:
-                        {
-                            // Gets the join method
-                            DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
-                            
-                            // Part
-                            (AnySchemaNode? origin, _) = await GetFieldDataAsync(tarField, realTarget);
-                            AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
-                            AnySchemaNode? now = GroupJoin(scalar, newResult, method);
-
-                            // Update with join method
-                            switch (method)
-                            {
-                                case DataCombineType.Assign:
-                                    {
-                                        result = now;
-                                        break;
-                                    }
-                                case DataCombineType.Init:
-                                    {
-                                        result = origin is { IsEmpty: false } ? origin : now;
-                                        break;
-                                    }
-                                case DataCombineType.Sum:
-                                case DataCombineType.Count:
-                                    {
-                                        result = field.TypeNode.CreateNode(
-                                            (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
-                                            (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
-                                            (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
-                                        );
-                                    }
-                                    break;
-                                default:
-                                    throw new ArgumentOutOfRangeException();
-                            }
-                            break;
-                        }
-                    case StructType { Fields.Length: > 0 } @struct:
-                        {
-                            // Gets the join method map
-                            Dictionary<string, DataCombineType> joinMethodMap = new();
-
-                            // Default join
-                            foreach (StructFieldConfig f in @struct.Fields)
-                            {
-                                if (f.TypeNode is ScalarType s)
-                                    joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type 
-                                        ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
-                            }
-
-                            // Gets the result
-                            (AnySchemaNode? origin, _) = await GetFieldDataAsync(tarField, realTarget);
-                            AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
-                            AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
-
-                            // Update with join method
-                            if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
-                            {
-                                result = now;
-                            }
-                            else
-                            {
-                                StructTypeNode final = new StructTypeNode(@struct);
-                                foreach (StructFieldConfig nodeField in @struct.Fields)
-                                {
-                                    AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
-                                    AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
-                                    AnySchemaNode? nowFld = now is StructTypeNode ns ? ns.GetField(nodeField.Name) : null;
-
-                                    switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
-                                    {
-                                        case DataCombineType.Assign:
-                                            {
-                                                final[field.Name] = nowFld is { IsEmpty: false } ? nowFld : originFld;
-                                                break;
-                                            }
-                                        case DataCombineType.Init:
-                                            {
-                                                final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
-                                                break;
-                                            }
-                                        case DataCombineType.Sum when nodeField.TypeNode is ScalarType { IsNumber: true }:
-                                        case DataCombineType.Count when nodeField.TypeNode is ScalarType { IsNumber: true }:
-                                            {
-                                                final[nodeField.Name] = nodeField.TypeNode.CreateNode(
-                                                    (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                                    (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                                    (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
-                                                );
-                                                break;
-                                            }
-                                        default:
-                                            throw new ArgumentOutOfRangeException();
-                                    }
-                                }
-                                result = final;
-                            }
-                        
-                            break;
-                        }
-                    case ArrayType { ElementNode: EnumType or ScalarType }:
-                        {
-                            result = newResult;
-                            break;
-                        }
-                    case ArrayType { ElementNode: StructType { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
-                        {
-                            // Gets the join method map
-                            Dictionary<string, DataCombineType> joinMethodMap = new();
-
-                            // Gets the value fields
-                            List<string> valueFields = new();
-                            Dictionary<string, AnySchemeType> primaryNodes = new();
-                            foreach (StructFieldConfig fieldType in structNode.Fields)
-                            {
-                                if (!array.Primary.Contains(fieldType.Name))
-                                {
-                                    valueFields.Add(fieldType.Name);
-
-                                    if (fieldType.TypeNode is ScalarType s)
-                                    {
-                                        joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
-                                    }
-                                }
-                                else
-                                    primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
-                            }
-
-                            // Based on array join methods
-                            if (array.Combines != null)
-                            {
-                                foreach (DataCombine combine in array.Combines)
-                                {
-                                    joinMethodMap[combine.Field] = combine.Type;
-                                }
-                            }
-                            // Based on field join methods
-                            if (field.Combines != null)
-                            {
-                                foreach (DataCombine combine in field.Combines)
-                                {
-                                    joinMethodMap[combine.Field] = combine.Type;
-                                }
-                            }
-
-                            // Generate result map
-                            // Group join the old & now data
-                            Dictionary<string, StructTypeNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
-                            Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
-
-                            // Query the original data
-                            HashSet<string> keys = new();
-                            JsonArray query = new();
-                            foreach ((string key, StructTypeNode obj) in oldMap)
-                            {
-                                if (!keys.Add(key)) continue;
-                                query.Add(obj.ToJson());
-                            }
-                            foreach ((string key, StructTypeNode obj) in nowMap)
-                            {
-                                if (!keys.Add(key)) continue;
-                                query.Add(obj.ToJson());
-                            }
-
-                            // Gets the original data
-                            Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
-                            if (!query.IsEmpty())
-                            {
-                                (AnySchemaNode? value, _) = await GetFieldDataAsync(tarField, realTarget, query);
-                                if (value is ArrayTypeNode arr)
-                                {
-                                    foreach (var token in arr)
-                                    {
-                                        if (token is not StructTypeNode obj) continue;
-                                        string? key = array.GetPrimaryKey(obj);
-                                        if (string.IsNullOrWhiteSpace(key)) continue;
-                                        resultMap[key] = obj;
-                                    }
-                                }
-                            }
-
-                            // Generate the result map
-                            foreach (string key in keys)
-                            {
-                                if (resultMap.TryGetValue(key, out var res1))
-                                {
-                                    oldMap.TryGetValue(key, out StructTypeNode? old);
-                                    nowMap.TryGetValue(key, out StructTypeNode? now);
-                                    foreach (string s in valueFields)
-                                    {
-                                        AnySchemaNode? originFld = res1.GetField(s);
-                                        AnySchemaNode? oldFld = old?.GetField(s);
-                                        AnySchemaNode? nowFld = now?.GetField(s);
-
-                                        switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
-                                        {
-                                            case DataCombineType.Assign:
-                                                if (nowFld is { IsEmpty: false })
-                                                    res1[s] = nowFld;
-                                                break;
-                                            case DataCombineType.Init:
-                                                if (originFld == null || originFld.IsEmpty)
-                                                    res1[s] = nowFld;
-                                                break;
-                                            case DataCombineType.Sum:
-                                            case DataCombineType.Count:
-                                                res1[s] = (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                                    (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                                    (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
-                                                break;
-                                            default:
-                                                throw new ArgumentOutOfRangeException();
-                                        }
-                                    }
-                                }
-                                else if (nowMap.TryGetValue(key, out StructTypeNode? res))
-                                {
-                                    resultMap.Add(key, res);
-                                    if (!oldMap.TryGetValue(key, out StructTypeNode? old)) continue;
-
-                                    // Shouldn't be but still handle it
-                                    foreach (string s in valueFields)
-                                    {
-                                        AnySchemaNode? oldFld = old?.GetField(s);
-                                        AnySchemaNode? nowFld = res?.GetField(s);
-
-                                        switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
-                                        {
-                                            case DataCombineType.Assign:
-                                                if (nowFld == null || nowFld.IsEmpty)
-                                                    res![s] = oldFld;
-                                                break;
-                                            case DataCombineType.Init:
-                                                if (oldFld is { IsEmpty: false })
-                                                    res![s] = oldFld;
-                                                break;
-                                            case DataCombineType.Sum:
-                                            case DataCombineType.Count:
-                                                res![s] = (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                                    (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
-                                                break;
-                                            default:
-                                                throw new ArgumentOutOfRangeException();
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Convert the map to list, sorted by primary keys
-                            List<StructTypeNode> joinObjs = resultMap.Values.ToList();
-                            joinObjs.Sort((a, b) =>
-                            {
-                                foreach (string s in array.Primary)
-                                {
-                                    switch (primaryNodes[s])
-                                    {
-                                        case ScalarType { IsDate: true }:
-                                            {
-                                                DateTime ad = a.GetField(s)!.ToValue<DateTime>();
-                                                DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                                if (!ad.Equal(bd))
-                                                    return ad.LessThan(bd) ? -1 : 1;
-                                                break;
-                                            }
-                                        case ScalarType { IsNumber: true }:
-                                            {
-                                                decimal ad = a.GetField(s)!.ToValue<decimal>();
-                                                decimal bd = b.GetField(s)!.ToValue<decimal>();
-                                                if (ad != bd)
-                                                    return ad < bd ? -1 : 1;
-                                                break;
-                                            }
-                                        default:
-                                            {
-                                                string ad = a[s]?.ToString() ?? "";
-                                                string bd = b[s]?.ToString() ?? "";
-                                                if (!ad.Equals(bd))
-                                                    return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
-                                                break;
-                                            }
-                                    }
-                                }
-                                return 0;
-                            });
-
-                            // Save to result
-                            result = field.TypeNode.CreateNode(joinObjs);
-                            break;
-                        }
+                    // push to the real target
+                    (AppFieldType? refField, string refTarget) = await GetSourceFieldNode(tarField, realTarget, true);
+                    if (refField == null || refField == tarField) continue;
+                    if (refTarget != target) otherTargets.Add(refTarget);
+                    await SaveIncrementalData(refField, refTarget, newResult, oldResult);
                 }
-
-                // Save
-                await SaveFieldDataAsync(tarField, realTarget, result, true);
             }
 
             // Process next level
@@ -2079,6 +1756,331 @@ public class SchemaContext
         }
     }
 
+    async Task SaveIncrementalData(AppFieldType field, string target,
+        AnySchemaNode? newResult, AnySchemaNode? oldResult)
+    {
+        // Join the result
+        AnySchemaNode? result = null;
+        switch (field.TypeNode)
+        {
+            case EnumType:
+                {
+                    DataCombineType method = field.Combine ?? DataCombineType.Assign;
+                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                    AnySchemaNode? now = GroupJoin(newResult, method);
+
+                    // Update with join method
+                    switch (method)
+                    {
+                        case DataCombineType.Assign:
+                            {
+                                result = now is { IsEmpty: false } ? now : origin;
+                                break;
+                            }
+                        case DataCombineType.Init:
+                            {
+                                result = origin is { IsEmpty: false } ? origin : now;
+                                break;
+                            }
+                    }
+                    break;
+                }
+            case ScalarType scalar:
+                {
+                    // Gets the join method
+                    DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                    
+                    // Part
+                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                    AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
+                    AnySchemaNode? now = GroupJoin(scalar, newResult, method);
+
+                    // Update with join method
+                    switch (method)
+                    {
+                        case DataCombineType.Assign:
+                            {
+                                result = now;
+                                break;
+                            }
+                        case DataCombineType.Init:
+                            {
+                                result = origin is { IsEmpty: false } ? origin : now;
+                                break;
+                            }
+                        case DataCombineType.Sum:
+                        case DataCombineType.Count:
+                            {
+                                result = field.TypeNode.CreateNode(
+                                    (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
+                                    (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
+                                    (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
+                                );
+                            }
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                    break;
+                }
+            case StructType { Fields.Length: > 0 } @struct:
+                {
+                    // Gets the join method map
+                    Dictionary<string, DataCombineType> joinMethodMap = new();
+
+                    // Default join
+                    foreach (StructFieldConfig f in @struct.Fields)
+                    {
+                        if (f.TypeNode is ScalarType s)
+                            joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type 
+                                ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                    }
+
+                    // Gets the result
+                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                    AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
+                    AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
+
+                    // Update with join method
+                    if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
+                    {
+                        result = now;
+                    }
+                    else
+                    {
+                        StructTypeNode final = new StructTypeNode(@struct);
+                        foreach (StructFieldConfig nodeField in @struct.Fields)
+                        {
+                            AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
+                            AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
+                            AnySchemaNode? nowFld = now is StructTypeNode ns ? ns.GetField(nodeField.Name) : null;
+
+                            switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
+                            {
+                                case DataCombineType.Assign:
+                                    {
+                                        final[field.Name] = nowFld is { IsEmpty: false } ? nowFld : originFld;
+                                        break;
+                                    }
+                                case DataCombineType.Init:
+                                    {
+                                        final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
+                                        break;
+                                    }
+                                case DataCombineType.Sum when nodeField.TypeNode is ScalarType { IsNumber: true }:
+                                case DataCombineType.Count when nodeField.TypeNode is ScalarType { IsNumber: true }:
+                                    {
+                                        final[nodeField.Name] = nodeField.TypeNode.CreateNode(
+                                            (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
+                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
+                                        );
+                                        break;
+                                    }
+                                default:
+                                    throw new ArgumentOutOfRangeException();
+                            }
+                        }
+                        result = final;
+                    }
+                
+                    break;
+                }
+            case ArrayType { ElementNode: EnumType or ScalarType }:
+                {
+                    result = newResult;
+                    break;
+                }
+            case ArrayType { ElementNode: StructType { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
+                {
+                    // Gets the join method map
+                    Dictionary<string, DataCombineType> joinMethodMap = new();
+
+                    // Gets the value fields
+                    List<string> valueFields = new();
+                    Dictionary<string, AnySchemeType> primaryNodes = new();
+                    foreach (StructFieldConfig fieldType in structNode.Fields)
+                    {
+                        if (!array.Primary.Contains(fieldType.Name))
+                        {
+                            valueFields.Add(fieldType.Name);
+
+                            if (fieldType.TypeNode is ScalarType s)
+                            {
+                                joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
+                            }
+                        }
+                        else
+                            primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
+                    }
+
+                    // Based on array join methods
+                    if (array.Combines != null)
+                    {
+                        foreach (DataCombine combine in array.Combines)
+                        {
+                            joinMethodMap[combine.Field] = combine.Type;
+                        }
+                    }
+                    // Based on field join methods
+                    if (field.Combines != null)
+                    {
+                        foreach (DataCombine combine in field.Combines)
+                        {
+                            joinMethodMap[combine.Field] = combine.Type;
+                        }
+                    }
+
+                    // Generate result map
+                    // Group join the old & now data
+                    Dictionary<string, StructTypeNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
+                    Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
+
+                    // Query the original data
+                    HashSet<string> keys = new();
+                    JsonArray query = new();
+                    foreach ((string key, StructTypeNode obj) in oldMap)
+                    {
+                        if (!keys.Add(key)) continue;
+                        query.Add(obj.ToJson());
+                    }
+                    foreach ((string key, StructTypeNode obj) in nowMap)
+                    {
+                        if (!keys.Add(key)) continue;
+                        query.Add(obj.ToJson());
+                    }
+
+                    // Gets the original data
+                    Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
+                    if (!query.IsEmpty())
+                    {
+                        (AnySchemaNode? value, _) = await GetFieldDataAsync(field, target, query);
+                        if (value is ArrayTypeNode arr)
+                        {
+                            foreach (AnySchemaNode token in arr)
+                            {
+                                if (token is not StructTypeNode obj) continue;
+                                string? key = array.GetPrimaryKey(obj);
+                                if (string.IsNullOrWhiteSpace(key)) continue;
+                                resultMap[key] = obj;
+                            }
+                        }
+                    }
+
+                    // Generate the result map
+                    foreach (string key in keys)
+                    {
+                        if (resultMap.TryGetValue(key, out var res1))
+                        {
+                            oldMap.TryGetValue(key, out StructTypeNode? old);
+                            nowMap.TryGetValue(key, out StructTypeNode? now);
+                            foreach (string s in valueFields)
+                            {
+                                AnySchemaNode? originFld = res1.GetField(s);
+                                AnySchemaNode? oldFld = old?.GetField(s);
+                                AnySchemaNode? nowFld = now?.GetField(s);
+
+                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
+                                {
+                                    case DataCombineType.Assign:
+                                        if (nowFld is { IsEmpty: false })
+                                            res1[s] = nowFld;
+                                        break;
+                                    case DataCombineType.Init:
+                                        if (originFld == null || originFld.IsEmpty)
+                                            res1[s] = nowFld;
+                                        break;
+                                    case DataCombineType.Sum:
+                                    case DataCombineType.Count:
+                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
+                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException();
+                                }
+                            }
+                        }
+                        else if (nowMap.TryGetValue(key, out StructTypeNode? res))
+                        {
+                            resultMap.Add(key, res);
+                            if (!oldMap.TryGetValue(key, out StructTypeNode? old)) continue;
+
+                            // Shouldn't be but still handle it
+                            foreach (string s in valueFields)
+                            {
+                                AnySchemaNode? oldFld = old?.GetField(s);
+                                AnySchemaNode? nowFld = res?.GetField(s);
+
+                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
+                                {
+                                    case DataCombineType.Assign:
+                                        if (nowFld == null || nowFld.IsEmpty)
+                                            res![s] = oldFld;
+                                        break;
+                                    case DataCombineType.Init:
+                                        if (oldFld is { IsEmpty: false })
+                                            res![s] = oldFld;
+                                        break;
+                                    case DataCombineType.Sum:
+                                    case DataCombineType.Count:
+                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                        break;
+                                    default:
+                                        throw new ArgumentOutOfRangeException();
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Convert the map to list, sorted by primary keys
+                    List<StructTypeNode> joinObjs = resultMap.Values.ToList();
+                    joinObjs.Sort((a, b) =>
+                    {
+                        foreach (string s in array.Primary)
+                        {
+                            switch (primaryNodes[s])
+                            {
+                                case ScalarType { IsDate: true }:
+                                    {
+                                        DateTime ad = a.GetField(s)!.ToValue<DateTime>();
+                                        DateTime bd = b.GetField(s)!.ToValue<DateTime>();
+                                        if (!ad.Equal(bd))
+                                            return ad.LessThan(bd) ? -1 : 1;
+                                        break;
+                                    }
+                                case ScalarType { IsNumber: true }:
+                                    {
+                                        decimal ad = a.GetField(s)!.ToValue<decimal>();
+                                        decimal bd = b.GetField(s)!.ToValue<decimal>();
+                                        if (ad != bd)
+                                            return ad < bd ? -1 : 1;
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        string ad = a[s]?.ToString() ?? "";
+                                        string bd = b[s]?.ToString() ?? "";
+                                        if (!ad.Equals(bd))
+                                            return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
+                                        break;
+                                    }
+                            }
+                        }
+                        return 0;
+                    });
+
+                    // Save to result
+                    result = field.TypeNode.CreateNode(joinObjs);
+                    break;
+                }
+        }
+
+        // Save
+        await SaveFieldDataAsync(field, target, result, true);
+    }
+    
     // Record the changed fields with changed values
     void OnFieldDataChanged(string target, AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
     {
@@ -2117,12 +2119,12 @@ public class SchemaContext
     static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(SchemaContext).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
 
 
-    private readonly Lazy<ILogger> _loggerThunk;
-    private readonly Lazy<IAppSchemaDataProvider?> _dataProviderThunk;
+    private readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
+    private readonly Lazy<IAppSchemaDataProvider?> _dataProviderThunk = new(serviceProvider.GetService<IAppSchemaDataProvider>);
     
     static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
-    static readonly TypeNamespace RootNamespace;
-    static readonly AppType RootAppType;
+    static readonly TypeNamespace RootNamespace = new TypeNamespace { Name = "" };
+    static readonly AppType RootAppType = new AppType { Name = "" };
 
     #endregion
 }

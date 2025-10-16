@@ -156,8 +156,10 @@ public class StructTypeNode : AnySchemaNode
         for (int i = 0; i < fields.Length; i++)
         {
             JsonNode? d = Fields[i].ToJson();
-            if (d != null) result.Add(fields[i].Name, d);
+            if (d != null && !d.IsEmpty()) result.Add(fields[i].Name, d);
         }
         return result;
     }
+
+    public override string ToString() => ToJson()?.ToString() ?? string.Empty;
 }

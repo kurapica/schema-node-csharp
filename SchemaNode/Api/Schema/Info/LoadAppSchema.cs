@@ -16,7 +16,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
     {
         Logger.LogDebug("[Api]LoadAppSchemaApi [Request]{request}", request);
 
-        AppType? node = await SchemaContext.GetAppNodeAsync(request.Name);
+        AppType? node = await SchemaContext.GetAppTypeAsync(request.Name);
         if (node == null) return new LoadAppSchemaResponse();
 
         // Generate schema

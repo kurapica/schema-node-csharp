@@ -11,17 +11,8 @@ namespace SchemaNode.Components.Provider;
 /// <summary>
 /// Use application storage to store type schemas
 /// </summary>
-public class DynamicSchemaStorageProvider: ISchemaStorageProvider
+public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorageProvider
 {
-    #region Constructor
-
-    public DynamicSchemaStorageProvider(SchemaContext context)
-    {
-        _context = context;
-    }
-
-    #endregion
-    
     #region Schema
 
     /// <inheritdoc />
@@ -46,7 +37,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                 }
                 else
                 {
-                    schema = await _context.GetEntityAsync<NodeSchema>(Target, name);
+                    schema = await context.GetEntityAsync<NodeSchema>(Target, name);
                 }
                 
                 if (schema == null) continue;
@@ -56,52 +47,44 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     case SchemaType.Namespace: 
                     {
                         // sub namespace
-                        List<NodeSchema> value = await _context.GetEntitysAsync<NodeSchema>(Target, (nameof(NodeSchema.Namespace), string.IsNullOrEmpty(schema.Name) ? Root : schema.Name));
+                        string ns = string.IsNullOrEmpty(schema.Name) ? Root : schema.Name;
+                        List<NodeSchema> value = await context.GetEntitiesAsync<NodeSchema>(Target, s => s.Namespace == ns);
 
                         foreach (NodeSchema sub in value)
                         {
                             if (sub.Type == SchemaType.Namespace)
                             {
-                                (List<NodeSchema> _, int total) = await _context.GetFieldDataAsync<NodeSchema>(Target, new JsonObject
-                                {
-                                    { nameof(NodeSchema.Namespace).ToCamelCase(), sub.Name }
-                                }, take: 1);
-                                if (total > 0) sub.HasSchemas = true;
+                                sub.HasSchemas = (await context.GetEntitiesAsync<NodeSchema>(Target, s => s.Namespace == sub.Name, take: 1)).Count != 0;
                             }
                         }
                         schema.Schemas = value.ToArray();
                         break;
                     }
                     case SchemaType.Scalar:
-                        schema.Scalar = await _context.GetEntityAsync<ScalarSchema>(Target, name);
+                        schema.Scalar = await context.GetEntityAsync<ScalarSchema>(Target, name);
                         break;
                     case SchemaType.Enum:
-                        schema.Enum = await _context.GetEntityAsync<EnumSchema>(Target, name);
+                        schema.Enum = await context.GetEntityAsync<EnumSchema>(Target, name);
                         
                         if (schema is { Type: SchemaType.Enum, Enum.Cascade.Length: > 1 })
                         {
                             foreach (EnumValueInfo enumValueInfo in schema.Enum.Values)
                             {
-                                (_, int total) = await _context.GetFieldDataAsync<EnumValueInfo>(Target, new JsonObject
-                                {
-                                    { nameof(EnumValueInfo.Enum).ToCamelCase(), schema.Name },
-                                    { nameof(EnumValueInfo.Root).ToCamelCase(), enumValueInfo.Value }
-                                }, take: 1);
-                                if (total > 0) enumValueInfo.HasSubList = true;
+                                enumValueInfo.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema.Name && e.Root == enumValueInfo.Value, take: 1)).Count != 0;
                             }
                         }
 
                         break;
                     case SchemaType.Struct:
-                        schema.Struct = await _context.GetEntityAsync<StructSchema>(Target, name);
+                        schema.Struct = await context.GetEntityAsync<StructSchema>(Target, name);
                         break;
                     case SchemaType.Array:
-                        schema.Array = await _context.GetEntityAsync<ArraySchema>(Target, name);
+                        schema.Array = await context.GetEntityAsync<ArraySchema>(Target, name);
                         break;
                     case SchemaType.Json:
                         break;
                     case SchemaType.Func:
-                        schema.Func = await _context.GetEntityAsync<FunctionSchema>(Target, name);
+                        schema.Func = await context.GetEntityAsync<FunctionSchema>(Target, name);
                         break;
                 }
                 
@@ -112,7 +95,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to load schemas: {names}", string.Join(", ", names));
+            context.Logger.LogError(e, "Failed to load schemas: {names}", string.Join(", ", names));
             return [];
         }
     }
@@ -134,8 +117,8 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
             if (string.IsNullOrEmpty(root)) root = Root;
             schema.Namespace = root; // add namespace
            
-            await _context.BeginTransactionAsync();
-            await _context.SaveEntityAsync(Target, schema);
+            await context.BeginTransactionAsync();
+            await context.SaveEntityAsync(Target, schema);
 
             switch (schema.Type)
             {
@@ -143,7 +126,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (schema.Scalar != null)
                     {
                         schema.Scalar.Name = schema.Name;
-                        await _context.SaveEntityAsync(Target, schema.Scalar);
+                        await context.SaveEntityAsync(Target, schema.Scalar);
                     }
                     break;
                 case SchemaType.Enum:
@@ -155,14 +138,14 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                             val.Root = null;
                             val.SubList = null;
                         }
-                        await _context.SaveEntityAsync(Target, schema.Enum);
+                        await context.SaveEntityAsync(Target, schema.Enum);
                     }
                     break;
                 case SchemaType.Struct:
                     if (schema.Struct != null)
                     {
                         schema.Struct.Name = schema.Name;
-                        await _context.SaveEntityAsync(Target, schema.Struct);
+                        await context.SaveEntityAsync(Target, schema.Struct);
                     }
 
                     break;
@@ -170,7 +153,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (schema.Array != null)
                     {
                         schema.Array.Name = schema.Name;
-                        await _context.SaveEntityAsync(Target, schema.Array);
+                        await context.SaveEntityAsync(Target, schema.Array);
                     }
 
                     break;
@@ -178,17 +161,17 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (schema.Func != null)
                     {
                         schema.Func.Name = schema.Name;
-                        await _context.SaveEntityAsync(Target, schema.Func);
+                        await context.SaveEntityAsync(Target, schema.Func);
                     }
                     break;
             }
             
-            await _context.CommitTransactionAsync();
+            await context.CommitTransactionAsync();
             return true;
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to save schema: {schema}", schema.Name);
+            context.Logger.LogError(e, "Failed to save schema: {schema}", schema.Name);
             return false;
         }
     }
@@ -200,12 +183,12 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         
         try
         {
-            AnySchemeType? delNode = await _context.GetSchemaNodeAsync(schema);
+            AnySchemeType? delNode = await context.GetSchemaTypeAsync(schema);
             if (delNode == null) return false;
             NodeSchema nodeSchema = (NodeSchema)delNode!;
 
-            await _context.BeginTransactionAsync();
-            await _context.DeleteEntityAsync(Target, nodeSchema);
+            await context.BeginTransactionAsync();
+            await context.DeleteEntityAsync(Target, nodeSchema);
 
             switch (nodeSchema.Type)
             {
@@ -213,22 +196,22 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (nodeSchema.Scalar != null)
                     {
                         nodeSchema.Scalar.Name = nodeSchema.Name;
-                        await _context.DeleteEntityAsync(Target, nodeSchema.Scalar);
+                        await context.DeleteEntityAsync(Target, nodeSchema.Scalar);
                     }
                     break;
                 case SchemaType.Enum:
                     if (nodeSchema.Enum != null)
                     {
                         nodeSchema.Enum!.Name = nodeSchema.Name;
-                        await _context.DeleteEntitysAsync<EnumValueInfo>(Target, (nameof(EnumValueInfo.Enum), schema));
-                        await _context.DeleteEntityAsync(Target, nodeSchema.Enum);
+                        await context.DeleteEntitiesAsync<EnumValueInfo>(Target, (nameof(EnumValueInfo.Enum), schema));
+                        await context.DeleteEntityAsync(Target, nodeSchema.Enum);
                     }
                     break;
                 case SchemaType.Struct:
                     if (nodeSchema.Struct != null)
                     {
                         nodeSchema.Struct.Name = nodeSchema.Name;
-                        await _context.DeleteEntityAsync(Target, nodeSchema.Struct);
+                        await context.DeleteEntityAsync(Target, nodeSchema.Struct);
                     }
 
                     break;
@@ -236,7 +219,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (nodeSchema.Array != null)
                     {
                         nodeSchema.Array.Name = nodeSchema.Name;
-                        await _context.DeleteEntityAsync(Target, nodeSchema.Array);
+                        await context.DeleteEntityAsync(Target, nodeSchema.Array);
                     }
 
                     break;
@@ -244,16 +227,16 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                     if (nodeSchema.Func != null)
                     {
                         nodeSchema.Func.Name = nodeSchema.Name;
-                        await _context.DeleteEntityAsync(Target, nodeSchema.Func);
+                        await context.DeleteEntityAsync(Target, nodeSchema.Func);
                     }
                     break;
             }
-            await _context.CommitTransactionAsync();
+            await context.CommitTransactionAsync();
             return true;
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to delete schema: {schema}", schema);
+            context.Logger.LogError(e, "Failed to delete schema: {schema}", schema);
             return false;
         }
     }
@@ -270,26 +253,19 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
             if (string.IsNullOrEmpty(value)) return [];
 
             // load enum values
-            List<EnumValueInfo> enumValues = await _context.GetEntitysAsync<EnumValueInfo>(Target, 
-                (nameof(EnumValueInfo.Enum), schemaName),
-                (nameof(EnumValueInfo.Root), value));
+            List<EnumValueInfo> enumValues = await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == value);
             enumValues.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
 
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
             {
-                (_, int total) = await _context.GetFieldDataAsync<EnumValueInfo>(Target, new JsonObject
-                {
-                    { nameof(EnumValueInfo.Enum).ToCamelCase(), schemaName },
-                    { nameof(EnumValueInfo.Root).ToCamelCase(), info.Value }
-                }, take: 1);
-                if (total > 0) info.HasSubList = true;
+                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == info.Value, take: 1)).Count != 0;
             }
             return enumValues.ToArray();
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to load enum sub list: {schema} - {value}", schemaName, value);
+            context.Logger.LogError(e, "Failed to load enum sub list: {schema} - {value}", schemaName, value);
             return [];
         }
     }
@@ -302,14 +278,14 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         {
             List<EnumValueAccess> accesses = [];
             
-            NodeSchema? schema = await _context.GetEntityAsync<NodeSchema>(Target, schemaName);
+            NodeSchema? schema = await context.GetEntityAsync<NodeSchema>(Target, schemaName);
             if (schema?.Type != SchemaType.Enum || schema.Enum == null) return [];
             
             string previous = "";
             while (!string.IsNullOrEmpty(value))
             {
                 EnumValueInfo? info = schema.Enum.Values.FirstOrDefault(v => v.Value.Equals(value, StringComparison.OrdinalIgnoreCase))
-                    ?? await _context.GetEntityAsync<EnumValueInfo>(Target, schemaName, value);
+                    ?? await context.GetEntityAsync<EnumValueInfo>(Target, schemaName, value);
                 if (info == null) return [];
                 
                 if (withSubList == true)
@@ -335,7 +311,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to load enum sub list: {schema} - {value}", schemaName, value);
+            context.Logger.LogError(e, "Failed to load enum sub list: {schema} - {value}", schemaName, value);
             return [];
         }
     }
@@ -348,16 +324,13 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
             if (string.IsNullOrEmpty(value)) return values; // should be done in save schema
             
             EnumValueInfo? last = enumType.Root.GetEnumAccesses(value)?.Last()
-                ?? await _context.GetEntityAsync<EnumValueInfo>(Target, enumType.Name, value);
+                ?? await context.GetEntityAsync<EnumValueInfo>(Target, enumType.Name, value);
 
             // not existed
             if (last == null) return [];
 
             // load enum values
-            List<EnumValueInfo> enumValues = await _context.GetEntitysAsync<EnumValueInfo>(Target,
-                (nameof(EnumValueInfo.Enum), enumType.Name),
-                (nameof(EnumValueInfo.Root), value)
-            );
+            List<EnumValueInfo> enumValues = await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == enumType.Name && e.Root == value);
             enumValues.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
 
             List<EnumValueInfo> deletes = [];
@@ -373,6 +346,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                 enumValues = values.ToList();
             }
             
+            // Index settings
             for(int i = 0; i < enumValues.Count; i++)
             {
                 enumValues[i].Enum = enumType.Name;
@@ -380,29 +354,24 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                 enumValues[i].Seqno = i;
             }
             
-            await _context.BeginTransactionAsync();
+            await context.BeginTransactionAsync();
             if (deletes.Count > 0)
-                await _context.DeleteEntitysAsync(Target, deletes);
+                await context.DeleteEntitiesAsync(Target, deletes);
 
             if (enumValues.Count > 0)
-                await _context.SaveEntitysAsync(Target, enumValues);
-            await _context.CommitTransactionAsync();
+                await context.SaveEntitiesAsync(Target, enumValues);
+            await context.CommitTransactionAsync();
 
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
             {
-                (_, int total) = await _context.GetFieldDataAsync<EnumValueInfo>(Target, new JsonObject
-                {
-                    { nameof(EnumValueInfo.Enum).ToCamelCase(), enumType.Name },
-                    { nameof(EnumValueInfo.Root).ToCamelCase(), info.Value }
-                }, take: 1);
-                if (total > 0) info.HasSubList = true;
+                info.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == enumType.Name && e.Root == info.Value, take: 1)).Count != 0;
             }
             return enumValues.ToArray();
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to save enum sub list: {schema} - {value}", enumType.Name, value);
+            context.Logger.LogError(e, "Failed to save enum sub list: {schema} - {value}", enumType.Name, value);
             return [];
         }
     }
@@ -429,32 +398,24 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
             }
             else
             {
-                schema = await _context.GetEntityAsync<AppSchema>(Target, app);
+                schema = await context.GetEntityAsync<AppSchema>(Target, app);
             }
             if (schema == null) return null;
 
             // load apps
-            List<AppSchema> apps = await _context.GetEntitysAsync<AppSchema>(Target, (nameof(AppSchema.Parent), app));
+            List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, (nameof(AppSchema.Parent), app));
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
-                (_, int total) = await _context.GetFieldDataAsync<AppSchema>(Target, new JsonObject
-                    {
-                        { nameof(AppSchema.Parent).ToCamelCase(), subApp.Name }
-                    }, take: 1);
-                if (total > 0) subApp.HasApps = true;
+                subApp.HasApps = (await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == subApp.Name, take: 1)).Count != 0;
 
                 // check fields
-                (_, total) = await _context.GetFieldDataAsync<AppFieldSchema>(Target, new JsonObject
-                    {
-                        { nameof(AppFieldSchema.App).ToCamelCase(), subApp.Name }
-                    }, take: 1);
-                if (total > 0) subApp.HasFields = true;
+                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == subApp.Name, take: 1)).Count != 0;
             }
             schema.Apps = apps.Count > 0 ? apps.ToArray() : null;
             
             // load fields
-            List<AppFieldSchema> fields = await _context.GetEntitysAsync<AppFieldSchema>(Target, (nameof(AppFieldSchema.App), app));
+            List<AppFieldSchema> fields = await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == app);
             if (fields.Count > 0)
             {
                 fields.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
@@ -465,7 +426,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to load app schema: {app}", app);
+            context.Logger.LogError(e, "Failed to load app schema: {app}", app);
             return null;
         }
     }
@@ -475,17 +436,17 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
     {
         try
         {
-            await _context.BeginTransactionAsync();
+            await context.BeginTransactionAsync();
             app.Parent = string.Join('.', app.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
             if (string.IsNullOrEmpty(app.Parent)) app.Parent = Root;
-            await _context.SaveEntityAsync(Target, app);
-            await _context.CommitTransactionAsync();
+            await context.SaveEntityAsync(Target, app);
+            await context.CommitTransactionAsync();
             
             return true;
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to save app schema: {app}", app.Name);
+            context.Logger.LogError(e, "Failed to save app schema: {app}", app.Name);
             return false;
         }
     }
@@ -497,15 +458,15 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
         {
             if (string.IsNullOrWhiteSpace(app)) return false;
 
-            await _context.BeginTransactionAsync();
-            await _context.DeleteEntityAsync<AppSchema>(Target, app);
-            await _context.CommitTransactionAsync();
+            await context.BeginTransactionAsync();
+            await context.DeleteEntityAsync<AppSchema>(Target, app);
+            await context.CommitTransactionAsync();
             
             return true;
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to delete app schema: {app}", app);
+            context.Logger.LogError(e, "Failed to delete app schema: {app}", app);
             return false;
         }
     }
@@ -515,7 +476,7 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
     {
         try
         {            
-            AppType? appNode = await _context.GetAppNodeAsync(app);
+            AppType? appNode = await context.GetAppTypeAsync(app);
             if (appNode == null) return false;
             
             AppFieldType? exist = appNode.GetField(field.Name);
@@ -530,15 +491,15 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
                 field.Seqno = exist.Seqno;
             }
             
-            await _context.BeginTransactionAsync();
-            await _context.SaveEntityAsync(Target, field);
-            await _context.CommitTransactionAsync();
+            await context.BeginTransactionAsync();
+            await context.SaveEntityAsync(Target, field);
+            await context.CommitTransactionAsync();
             
             return true;
         }
         catch (Exception e)
         {
-            _context.Logger.LogError(e, "Failed to save app field schema: {app} - {field}", app, field.Name);
+            context.Logger.LogError(e, "Failed to save app field schema: {app} - {field}", app, field.Name);
             return false;
         }
     }
@@ -548,27 +509,27 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
     {
         try
         {
-            List<AppFieldSchema> fields = await _context.GetEntitysAsync<AppFieldSchema>(Target, (nameof(AppFieldSchema.App), app));
+            List<AppFieldSchema> fields = await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == app);
             int exist = fields.FindIndex(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (exist < 0) return false;
 
-            await _context.BeginTransactionAsync();
-            await _context.DeleteEntityAsync(Target, fields[exist]);
+            await context.BeginTransactionAsync();
+            await context.DeleteEntityAsync(Target, fields[exist]);
 
             fields = fields.Skip(exist + 1).ToList();
             for(int i = 0; i < fields.Count; i++)
             {
                 fields[i].Seqno = exist + i;
             }
-            await _context.SaveEntitysAsync(Target, fields);
+            await context.SaveEntitiesAsync(Target, fields);
 
-            await _context.CommitTransactionAsync();
+            await context.CommitTransactionAsync();
 
             return true;
         }
         catch(Exception ex)
         {
-            _context.Logger.LogError(ex, "Failed to delete app field schema: {app} - {field}", app, field);
+            context.Logger.LogError(ex, "Failed to delete app field schema: {app} - {field}", app, field);
             return false;
         }
     }
@@ -581,20 +542,20 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
             if (string.IsNullOrEmpty(field1) || string.IsNullOrEmpty(field2)) return false;
             if (field1 == field2) return true;
 
-            AppFieldSchema? first = await _context.GetEntityAsync<AppFieldSchema>(Target, app, field1);
-            AppFieldSchema? second = await _context.GetEntityAsync<AppFieldSchema>(Target, app, field2);
+            AppFieldSchema? first = await context.GetEntityAsync<AppFieldSchema>(Target, app, field1);
+            AppFieldSchema? second = await context.GetEntityAsync<AppFieldSchema>(Target, app, field2);
             if (first == null || second == null) return false;
 
             (first.Seqno, second.Seqno) = (second.Seqno, first.Seqno);
 
-            await _context.BeginTransactionAsync();
-            await _context.SaveEntitysAsync(Target, [ first, second ]);
-            await _context.CommitTransactionAsync();
+            await context.BeginTransactionAsync();
+            await context.SaveEntitiesAsync(Target, [ first, second ]);
+            await context.CommitTransactionAsync();
             return true;
         }
         catch(Exception e)
         {
-            _context.Logger.LogError(e, "Failed to swap app field schema: {app} - {field1} <-> {field2}", app, field1, field2);
+            context.Logger.LogError(e, "Failed to swap app field schema: {app} - {field1} <-> {field2}", app, field1, field2);
             return false;
         }
     }
@@ -610,7 +571,6 @@ public class DynamicSchemaStorageProvider: ISchemaStorageProvider
 
     #region Utility
 
-    readonly SchemaContext _context;
     static readonly string Target = Guid.Empty.ToString("D");
 
     private const string Root = "__root";

@@ -189,7 +189,7 @@ public class ScalarType: AnySchemeType
         // Relationship
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemeType? node = await context.GetSchemaNodeAsync(Base, preload: preload);
+            AnySchemeType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
             if (node != null && node is ScalarType snode)
             {
                 BaseNode = snode;
@@ -204,7 +204,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(PostValid))
         {
-            AnySchemeType? node = await context.GetSchemaNodeAsync(PostValid, preload: preload);
+            AnySchemeType? node = await context.GetSchemaTypeAsync(PostValid, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 PostValidNode = fnode;
@@ -219,7 +219,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(PreValid))
         {
-            AnySchemeType? node = await context.GetSchemaNodeAsync(PreValid, preload: preload);
+            AnySchemeType? node = await context.GetSchemaTypeAsync(PreValid, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 PreValidNode = fnode;
@@ -234,7 +234,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(WhiteList))
         {
-            AnySchemeType? node = await context.GetSchemaNodeAsync(WhiteList, preload: preload);
+            AnySchemeType? node = await context.GetSchemaTypeAsync(WhiteList, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 WhiteListNode = fnode;

@@ -30,17 +30,17 @@ public class AppType
     /// <summary>
     /// The display name
     /// </summary>
-    public LocaleString? Display { get; set; }
+    public LocaleString? Display { get; private set; }
 
     /// <summary>
     /// The description
     /// </summary>
-    public LocaleString? Desc { get; set; }
+    public LocaleString? Desc { get; private set; }
 
     /// <summary>
     /// The application field relations
     /// </summary>
-    public List<AppRelationSchema>? Relations { get; set; }
+    public List<AppRelationSchema>? Relations { get; private set; }
 
     /// <summary>
     /// The sub applications
@@ -142,7 +142,7 @@ public class AppType
                 field.Status = SchemaNodeStatus.Ready;
 
                 // Valid the type
-                AnySchemeType? node = await context.GetSchemaNodeAsync(field.Type);
+                AnySchemeType? node = await context.GetSchemaTypeAsync(field.Type);
                 if (node == null)
                     field.Status = SchemaNodeStatus.ApplicationFieldWrongType;
                 else
@@ -154,7 +154,7 @@ public class AppType
                 // Valid the function
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
-                    node = await context.GetSchemaNodeAsync(field.Func);
+                    node = await context.GetSchemaTypeAsync(field.Func);
                     if (node is FunctionType funcNode)
                     {
                         field.FuncNode = funcNode;
@@ -171,16 +171,15 @@ public class AppType
                         foreach (string arg in field.Args)
                         {
                             string[] paths = arg.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
-                            AppFieldType? tar = paths.Length > 0 
-                                    ? Fields.FirstOrDefault(p => p.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase))
-                                    : null;
+                            AppFieldType? tar = paths.Length > 0 ? GetField(paths[0]) : null;
                             if (tar == null)
+                            {
                                 field.Status = SchemaNodeStatus.ApplicationFieldWrongFuncField;
+                            }
                             else
                             {
                                 // Register to observers
-                                tar.Observers ??= new List<AppFieldType>();
-                                tar.Observers.Add(field);
+                                tar.AddObserver(field);
                                 field.FuncArgs.Add(new AppFieldNodeArgument
                                 {
                                     AppField = tar,
@@ -194,27 +193,15 @@ public class AppType
                 // Valid source
                 if (!string.IsNullOrWhiteSpace(field.SourceApp) && !string.IsNullOrWhiteSpace(field.SourceField))
                 {
-                    AppType? sourceNode = await context.GetAppNodeAsync(field.SourceApp);
-                    if (sourceNode == null)
+                    AppType? sourceApp = await context.GetAppTypeAsync(field.SourceApp);
+                    if (sourceApp?.GetField(field.SourceField) == null)
                     {
                         field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
                     }
                     else
                     {
-                        AppFieldType? sourceField = sourceNode.Fields?.FirstOrDefault(f => f.Name.Equals(field.SourceField, StringComparison.OrdinalIgnoreCase));
-                        if (sourceField == null)
-                        {
-                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
-                        }
-                        else
-                        {
-                            useRef = true;
-                            field.SourceNode = sourceField;
-
-                            // As external
-                            if (field.FuncNode != null)
-                                sourceField.IsExternal = true;
-                        }
+                        useRef = true;
+                        field.SourceAppType = sourceApp;
                     }
                 }
                 
@@ -254,7 +241,7 @@ public class AppType
                     }
                     else
                     {
-                        AnySchemeType? relationFunc = await context.GetSchemaNodeAsync(relation.Func);
+                        AnySchemeType? relationFunc = await context.GetSchemaTypeAsync(relation.Func);
                         if (relationFunc is FunctionType funcNode)
                         {
                             funcNode.AddRef(field);
@@ -282,24 +269,24 @@ public class AppType
                     ElementNode = new StructType
                     {
                         Name = APP_FIELD_REF,
-                        Fields = new StructFieldConfig[]
-                        {
-                            new ()
+                        Fields =
+                        [
+                            new StructFieldConfig
                             {
                                 Name = APP_FIELD_REF_APP,
                                 Require = true,
                                 Type = NS_SYSTEM_STRING,
                                 UpLimit = "128",
-                                TypeNode = await context.GetSchemaNodeAsync(NS_SYSTEM_STRING),
+                                TypeNode = await context.GetSchemaTypeAsync(NS_SYSTEM_STRING),
                             },
-                            new ()
+                            new StructFieldConfig
                             {
                                 Name = APP_FIELD_REF_TARGET,
                                 Type = NS_SYSTEM_STRING,
                                 UpLimit = "128",
-                                TypeNode = await context.GetSchemaNodeAsync(NS_SYSTEM_STRING),
-                            },
-                        }
+                                TypeNode = await context.GetSchemaTypeAsync(NS_SYSTEM_STRING),
+                            }
+                        ]
                     }
                 }
             } : null;
@@ -310,16 +297,18 @@ public class AppType
         {
             // Load all the sub application list
             foreach (string name in Apps.Select(p => p.Name))
-                await context.GetAppNodeAsync(name, preload: true);
+                await context.GetAppTypeAsync(name, preload: true);
         }
     }
 
     /// <summary>
     /// Gets the app field by name
     /// </summary>
-    public AppFieldType? GetField(string name)
+    public AppFieldType? GetField(string? name)
     {
-        return Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        return !string.IsNullOrWhiteSpace(name)
+            ? Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            : null;
     }
     
     /// <summary>
@@ -410,7 +399,7 @@ public class AppFieldType
     /// <summary>
     /// The seqno
     /// </summary>
-    public int Seqno { get; set; } = 0;
+    public int Seqno { get; set; }
 
     /// <summary>
     /// The field name.
@@ -471,6 +460,11 @@ public class AppFieldType
     /// The field is disabled
     /// </summary>
     public bool? Disable { get; set; }
+    
+    /// <summary>
+    /// The field is readonly
+    /// </summary>
+    public bool? Readonly { get; set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -488,16 +482,6 @@ public class AppFieldType
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
 
-    /// <summary>
-    /// The data is from outside application
-    /// </summary>
-    public bool IsExternal { get; set; }
-
-    /// <summary>
-    /// The fields that subscribe the update of this field.
-    /// </summary>
-    public List<AppFieldType>? Observers { get; set; }
-
     #endregion
 
     #region States
@@ -510,12 +494,22 @@ public class AppFieldType
     /// <summary>
     /// Enable dynamic table
     /// </summary>
-    public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false) && (SourceNode == null || TrackPush == true && FuncNode != null);
-   
+    public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false) && (SourceFieldType == null || TrackPush == true && FuncNode != null);
+
+    /// <summary>
+    /// Enable push track table
+    /// </summary>
+    public bool EnablePushTrackTable => SourceFieldType != null && EnableDynamicTable;
+    
     /// <summary>
     /// The data is queryable
     /// </summary>
-    public bool IsQueryable => !(Frontend ?? false) && !(Disable ?? false) && (SourceNode == null || FuncNode == null);
+    public bool IsQueryable => !(Frontend ?? false) && !(Disable ?? false) && (SourceFieldType == null || FuncNode == null);
+
+    /// <summary>
+    /// Has observers
+    /// </summary>
+    public bool HasObserver => _observers is { Count: > 0 };
 
     #endregion
 
@@ -532,20 +526,49 @@ public class AppFieldType
     public FunctionType? FuncNode { get; set; }
 
     /// <summary>
+    /// The fields that subscribe the update of this field.
+    /// </summary>
+    public IReadOnlyList<AppFieldType>? Observers => _observers;
+    
+    /// <summary>
+    ///  the observers in the same app
+    /// </summary>
+    List<AppFieldType>? _observers;
+
+    /// <summary>
     /// The call arguments
     /// </summary>
     public List<AppFieldNodeArgument>? FuncArgs { get; set; }
 
     /// <summary>
+    /// The source app type, won't be reloaded
+    /// </summary>
+    public AppType? SourceAppType { get; set; }
+
+    /// <summary>
     /// The source node
     /// </summary>
-    public AppFieldType? SourceNode { get; set; }
+    public AppFieldType? SourceFieldType => SourceAppType?.GetField(SourceField);
     
     /// <summary>
     /// The dynamic table schema
     /// </summary>
     public DynamicTableSchema? Schema { get; set; }
 
+    #endregion
+    
+    #region Method
+    
+    /// <summary>
+    /// Add observer
+    /// </summary>
+    public void AddObserver(AppFieldType observer)
+    {
+        _observers ??= new List<AppFieldType>();
+        if (!_observers.Contains(observer))
+            _observers.Add(observer);
+    }
+    
     #endregion
 
     #region Conversions
@@ -570,6 +593,7 @@ public class AppFieldType
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
+            Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
             Additional = entity.Additional,
@@ -596,6 +620,7 @@ public class AppFieldType
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
+            Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
             Additional = entity.Additional,
@@ -1571,13 +1596,13 @@ public class DynamicTableField
     /// </summary>
     public string? ToString(AnySchemaNode? value)
     {
-        if (value?._value == null) return null;
+        if (value == null || value.IsEmpty) return null;
 
         return Type switch
         {
             DynamicTableFieldType.Bool => value.ToValue<bool>() ? "1" : "0",
             DynamicTableFieldType.DateTime => value.ToValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => value._value.ToString()
+            _ => value.ToString()
         };
     }
 
@@ -1648,10 +1673,10 @@ public class DataTypeInfo
 /// <summary>
 /// The field data change info
 /// </summary>
-public record FieldDataChangeData(TransactionChangeOperation Operation, AnySchemaNode? Value, AnySchemaNode? Origin);
+internal record FieldDataChangeData(TransactionChangeOperation Operation, AnySchemaNode? Value, AnySchemaNode? Origin);
 
 // The transaction change data
-public class TransactionChangeData
+internal class TransactionChangeData
 {
     /// <summary>
     /// The change operations
@@ -1662,7 +1687,7 @@ public class TransactionChangeData
 /// <summary>
 /// The push levels
 /// </summary>
-public class FieldDataPushLevel
+internal class FieldDataPushLevel
 {
     /// <summary>
     /// The fields to be updated
@@ -1678,7 +1703,7 @@ public class FieldDataPushLevel
 /// <summary>
 /// The push argument
 /// </summary>
-public struct FieldDataPushArg
+internal struct FieldDataPushArg
 {
     /// <summary>
     /// The value

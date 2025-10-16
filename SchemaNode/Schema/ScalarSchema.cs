@@ -9,7 +9,7 @@ namespace SchemaNode.Schema;
 /**
  * The schema of the scalar type
 */
-[SchemaStruct(["name"])]
+[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class ScalarSchema
 {

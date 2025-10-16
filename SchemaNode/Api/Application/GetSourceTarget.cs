@@ -19,8 +19,8 @@ public class GetSourceTargetApi : SchemaApi<GetSourceTargetRequest, GetSourceTar
 
         if (string.IsNullOrEmpty(request.Target)) throw new Exception(APP_TARGET_REQUIRED);
 
-        AppType app = await SchemaContext.GetAppNodeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
-        AppFieldType field = app.Fields?.FirstOrDefault(f => f.Name.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
+        AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
+        AppFieldType field = app.Fields?.FirstOrDefault(f => f.SourceApp != null && f.SourceApp.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
         var result = await SchemaContext.GetSourceFieldNode(field, request.Target, true);
 

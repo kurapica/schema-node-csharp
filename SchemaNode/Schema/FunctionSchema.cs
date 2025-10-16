@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The schema of function
 /// </summary>
-[SchemaStruct(["name"])]
+[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class FunctionSchema
 {

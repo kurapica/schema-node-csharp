@@ -55,7 +55,7 @@ public static class BatchQueryExtension
         {
             if (string.IsNullOrWhiteSpace(query.App)) continue;
             if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
-            AppType? node = await context.GetAppNodeAsync(query.App);
+            AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
 
             if (!(query.NoSchema ?? false))

@@ -41,6 +41,16 @@ internal static class Extension
         return result;
     }
 
+    public static string? ToLiteral(this object input)
+    {
+        return input switch
+        {
+            DateTime dt => dt.ToString("yyyy-MM-dd hh:mm:ss.fff"),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd hh:mm:ss.fff"),
+            _ => input.ToString()
+        };
+    }
+    
     #endregion
 
     #region JSON
@@ -241,7 +251,7 @@ internal static class Extension
         {
             JsonArray a => a.Count == 0,
             JsonObject o => o.Count == 0,
-            JsonValue v => v.ToJsonString() == "null",
+            JsonValue v => v.ToJsonString() == "null" || string.IsNullOrWhiteSpace(v.ToString()),
             _ => true
         };
     }

@@ -21,7 +21,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AnySchemeType? node = await SchemaContext.GetSchemaNodeAsync(t);
+            AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(t);
             if (node == null) continue;
             NodeSchema schema = node!;
             if (node is TypeNamespace @ns)

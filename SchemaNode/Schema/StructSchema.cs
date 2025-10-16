@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The struct schema.
 /// </summary>
-[SchemaStruct(["name"])]
+[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class StructSchema
 {

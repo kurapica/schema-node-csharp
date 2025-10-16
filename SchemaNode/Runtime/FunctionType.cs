@@ -131,7 +131,7 @@ public class FunctionType: AnySchemeType
             {
                 string name = func.Generic![i];
                 if (!string.IsNullOrWhiteSpace(name) && !Regex.IsMatch(name, @"^[tT]\d*$"))
-                    Generic[i] = await context.GetSchemaNodeAsync(name);
+                    Generic[i] = await context.GetSchemaTypeAsync(name);
             }
         }
 
@@ -166,7 +166,7 @@ public class FunctionType: AnySchemeType
         }
         else
         {
-            ReturnNode = await context.GetSchemaNodeAsync(Return);
+            ReturnNode = await context.GetSchemaTypeAsync(Return);
             if (ReturnNode == null || !ReturnNode.IsValueType) Status = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
@@ -350,7 +350,7 @@ public class FunctionType: AnySchemeType
             }
             else
             {
-                AnySchemeType? node = await context.GetSchemaNodeAsync(arg.Type);
+                AnySchemeType? node = await context.GetSchemaTypeAsync(arg.Type);
                 if (node == null || !node.IsValueType)
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
@@ -405,7 +405,7 @@ public class FunctionType: AnySchemeType
                 Status = SchemaNodeStatus.FunctionExpWrongFunc;
                 return (trees, TYPE_FUNC_EXP_CALL_FUNC_REQUIRED);
             }
-            if (await context.GetSchemaNodeAsync(exp.Func) is not FunctionType funcNode)
+            if (await context.GetSchemaTypeAsync(exp.Func) is not FunctionType funcNode)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
                 Status = SchemaNodeStatus.FunctionExpWrongFunc;
@@ -461,7 +461,7 @@ public class FunctionType: AnySchemeType
             }
             else
             {
-                AnySchemeType? node = await context.GetSchemaNodeAsync(exp.Return);
+                AnySchemeType? node = await context.GetSchemaTypeAsync(exp.Return);
                 if (node is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionWrongReturnType;

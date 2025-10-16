@@ -34,18 +34,18 @@ public class SchemaChangeMessageHandler : ISchemaMessageHandler<SchemaChangeMess
     {
         if (message.Schemas != null)
             foreach (string schema in message.Schemas)
-                await context.GetSchemaNodeAsync(schema, reload: true).ConfigureAwait(false);
+                await context.GetSchemaTypeAsync(schema, reload: true).ConfigureAwait(false);
         
         if (message.DeleteSchemas != null)
             foreach (string schema in message.DeleteSchemas)
-                context.RemoveSchemaNode(schema);
+                context.RemoveSchemaType(schema);
         
         if (message.Apps != null)
             foreach (string app in message.Apps)
-                await context.GetAppNodeAsync(app, reload: true).ConfigureAwait(false);
+                await context.GetAppTypeAsync(app, reload: true).ConfigureAwait(false);
             
         if (message.DeleteApps != null)
             foreach (string app in message.DeleteApps)
-                context.RemoveAppNode(app);
+                context.RemoveAppType(app);
     }
 }

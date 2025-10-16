@@ -20,6 +20,7 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
     {
         Logger.LogDebug("[Api]PushAppData [Request]{request}", request);
         
+        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target);
         (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas);
         
         return new PushAppDataResponse
@@ -39,18 +40,18 @@ public static class PushDataExtenstion
     /// Push app data
     /// </summary>
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
-        Dictionary<string, AppDataFieldPushQuery>? datas)
+        Dictionary<string, AppDataFieldPushQuery>? data)
     {
         if (string.IsNullOrWhiteSpace(app)) return (false, Constant.APP_NOT_FOUND);
         if (string.IsNullOrWhiteSpace(target)) return (false, Constant.APP_TARGET_REQUIRED);
-        if (datas == null || datas.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
+        if (data == null || data.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
 
-        AppType? appNode = await context.GetAppNodeAsync(app);
+        AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, Constant.APP_NOT_FOUND);
 
         bool hasData = false;
 
-        foreach((string field, AppDataFieldPushQuery push) in datas)
+        foreach((string field, AppDataFieldPushQuery push) in data)
         {
             AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
@@ -95,7 +96,8 @@ public class PushAppDataRequest : SchemaApiRequest
     /// <summary>
     /// The target
     /// </summary>
-    public string? Target { get; set; }
+    [Required]
+    public required string Target { get; set; }
 
     /// <summary>
     /// The push data

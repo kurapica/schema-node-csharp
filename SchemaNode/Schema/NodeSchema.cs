@@ -10,7 +10,7 @@ namespace SchemaNode.Schema;
 /// The data node schema
 /// The schema is used to describe the data node
 /// </summary>
-[SchemaStruct(["name"], ["namespace", "name"])]
+[SchemaStruct([nameof(Name)], [nameof(Namespace), nameof(Name)])]
 [SchemaApp]
 public class NodeSchema
 {

@@ -10,7 +10,7 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The array schema
 /// </summary>
-[SchemaStruct(["name"])]
+[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class ArraySchema
 {

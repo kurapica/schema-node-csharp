@@ -93,7 +93,7 @@ public class ArrayType: AnySchemeType
         // Ref
         if (!string.IsNullOrWhiteSpace(Element))
         {
-            AnySchemeType? node = await context.GetSchemaNodeAsync(Element, preload: preload);
+            AnySchemeType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
             if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
@@ -110,7 +110,7 @@ public class ArrayType: AnySchemeType
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemeType? node = await context.GetSchemaNodeAsync(relation.Func, preload: preload);
+                AnySchemeType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (node is not FunctionType funcNode)
                 {
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;

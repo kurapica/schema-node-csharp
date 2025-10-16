@@ -129,12 +129,8 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             {
                 foreach (var index in schema.Indexes)
                 {
-                    string key = $"IDX_{schema.Name}_{string.Join('_', index.Fields)}";
-                    if (names.ContainsKey(key))
-                    {
-                        names.Remove(key);
-                    }
-                    else
+                    string key = $"IDX_{schema.Name}_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
+                    if (!names.Remove(key))
                     {
                         sb ??= new StringBuilder();
                         sb.Append($"ALTER TABLE `{schema.Name}` ADD INDEX `{key}`({string.Join(',', index.Fields.Select(e => $"`{e}`"))});");
@@ -227,7 +223,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 sb = new StringBuilder();
                 foreach (var index in schema.Indexes)
                 {
-                    string key = $"IDX_{schema.Name}_{string.Join('_', index.Fields)}";
+                    string key = $"IDX_{schema.Name}_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
                     sb.Append($"ALTER TABLE `{schema.Name}` ADD INDEX `{key}`({string.Join(',', index.Fields.Select(e => $"`{e}`"))});");
                 }
                 

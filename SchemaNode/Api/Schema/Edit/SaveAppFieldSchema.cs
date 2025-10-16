@@ -18,7 +18,7 @@ public class SaveAppFieldSchemaApi : SchemaApi<SaveAppFieldSchemaRequest, SaveAp
 
         return new SaveAppFieldSchemaResponse
         {
-            Result = await SchemaContext.SaveAppFieldSchemAsync(request.App, request.Schema)
+            Result = await SchemaContext.SaveAppFieldSchemaAsync(request.App, request.Schema)
         };
     }
 }

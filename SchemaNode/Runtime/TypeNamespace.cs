@@ -52,31 +52,31 @@ public class TypeNamespace: AnySchemeType
 
             // json
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
 
             // scalar
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Scalar))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
 
             // enum
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Enum))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
 
             // struct
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Struct))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
 
             // array
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Array))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
 
             // function
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
             
             // namespace
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Namespace))
-                await context.GetSchemaNodeAsync(s.Name, preload: true);
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
         }
     }
 
