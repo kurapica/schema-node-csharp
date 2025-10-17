@@ -153,6 +153,7 @@ public class LocaleTran
     /// The language
     /// </summary>
     [SchemaStructMem(type: NS_SYSTEM_LANGUAGE)]
+    [MaxLength(8)]
     public required string Lang { get; set; }
 
     /// <summary>
@@ -204,6 +205,7 @@ public class LocaleString: ICloneable
 [SchemaStruct([nameof(Value)])]
 public class Entry
 {
+    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     public LocaleString? Label { get; set; }

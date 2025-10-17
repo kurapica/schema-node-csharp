@@ -587,6 +587,23 @@ public class SchemaContext(IServiceProvider serviceProvider)
             node.Release();
             node.Status = SchemaNodeStatus.Ready;
             await node.LoadAsync(this, newSchema, preload);
+            if (par != null)
+            {
+                int index = -1;
+                for (int i = 0; i < par.Schemas.Length; i++)
+                {
+                    if (par.Schemas[i].Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        index = i;
+                        par.Schemas[i] = newSchema;
+                        break;
+                    }
+                }
+                if (index < 0)
+                {
+                    par.Schemas = par.Schemas.Append(newSchema).ToArray();
+                }
+            }
         }
         Logger.LogInformation("[Runtime]Schema Type {schema} working", schemaName);
         return node;
@@ -1263,7 +1280,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     public async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         // Front end only
-        if ((field?.Frontend ?? false) || (field?.Disable ?? false)) return (null, 0);
+        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         (AppFieldType? sourceField, target) = await GetSourceFieldNode(field, target);
