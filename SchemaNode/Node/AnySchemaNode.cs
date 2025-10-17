@@ -62,7 +62,7 @@ public abstract class AnySchemaNode
     /// <summary>
     /// To string
     /// </summary>
-    public override string ToString() => _value?.ToJson() ?? string.Empty;
+    public override string ToString() => _value?.ToLiteral() ?? string.Empty;
 
     internal object? _value;
 }

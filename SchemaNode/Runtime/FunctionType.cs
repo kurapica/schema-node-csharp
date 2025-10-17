@@ -1,18 +1,19 @@
-using System.Text.Json.Nodes;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
-using static SchemaNode.Utility.Constant;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using SchemaNode.Attribute;
-using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
-using SchemaNode.Node;
 
 namespace SchemaNode.Runtime;
 
@@ -836,9 +837,11 @@ public class FunctionType: AnySchemeType
             FunctionArgumentInfo arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
-                Nullable = pt.Nullable || p.HasDefaultValue
+                Nullable = pt.Nullable || p.HasDefaultValue || p.GetCustomAttributesData()
+                    .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null
             };
             funcSchema.Func.Args[i] = arg;
+            if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
 
             // Check dynamic type
             if (pt.Generic != null)

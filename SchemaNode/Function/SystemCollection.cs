@@ -205,4 +205,16 @@ public static class SystemCollection
         obj[field] = value;
         return obj;
     }
+
+    /// <summary>
+    /// Sets the field and return a new json object
+    /// </summary>
+    [SchemaFunc]
+    public static bool FieldEqual<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+
+        return EqualityComparer<T>.Default.Equals(node.ToValue<T>(), value);
+    }
 }

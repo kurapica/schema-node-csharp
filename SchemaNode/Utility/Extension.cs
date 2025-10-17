@@ -99,6 +99,10 @@ internal static class Extension
                 JsonTokenType.True => "true",
                 JsonTokenType.False => "false",
                 JsonTokenType.Null => null,
+                JsonTokenType.StartObject => null,
+                JsonTokenType.EndObject => null,
+                JsonTokenType.StartArray => null,
+                JsonTokenType.EndArray => null,
                 _ => reader.GetString()
             } ?? "";
         }
@@ -572,7 +576,7 @@ internal static class Extension
                     return Convert.ToDecimal(value);
                 case TypeCode.DateTime:
                     return Convert.ToDateTime(value);
-                case TypeCode.String:
+                case TypeCode.String:                    
                     return Convert.ToString(value);
                 default:
                     throw new ArgumentOutOfRangeException();

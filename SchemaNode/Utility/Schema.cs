@@ -1263,31 +1263,6 @@ internal static class Schema
                             ],
                         },
                     },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_ENTRY,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_ENTRY,
-                        Struct = new StructSchema
-                        {
-                            Fields =
-                            [
-                                new StructFieldConfig
-                                {
-                                    Name = "value",
-                                    Require = true,
-                                    Type = NS_SYSTEM_STRING,
-                                },
-                                new StructFieldConfig
-                                {
-                                    Name = "label",
-                                    Require = false,
-                                    Type = NS_SYSTEM_LOCALE_STRING,
-                                }
-                            ],
-                        },
-                    },
 
                     // array
                     new NodeSchema
@@ -1323,19 +1298,7 @@ internal static class Schema
                         {
                             Element = NS_SYSTEM_INT
                         },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_ENTRIES,
-                        Type = SchemaType.Array,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_ENTRIES,
-                        Array = new ArraySchema
-                        {
-                            Element = NS_SYSTEM_ENTRY,
-                            Primary = ["value"],
-                        },
-                    },
+                    }
                 ]
             }
         ]

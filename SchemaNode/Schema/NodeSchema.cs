@@ -3,6 +3,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
+using System.Reflection.Metadata;
 
 namespace SchemaNode.Schema;
 
@@ -197,4 +198,13 @@ public class LocaleString: ICloneable
             Trans = Trans?.ToArray(),
         };
     }
+}
+
+[SchemaNameSpace(NS_SYSTEM_ENTRY)]
+[SchemaStruct([nameof(Value)])]
+public class Entry
+{
+    public string Value { get; set; } = string.Empty;
+
+    public LocaleString? Label { get; set; }
 }

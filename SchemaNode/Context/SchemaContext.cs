@@ -203,7 +203,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
     /// <returns>The result</returns>
-    public async Task<JsonNode?> CallFunctionAsync(FunctionType node, JsonArray args, string[]? generic = null)
+    public async Task<JsonNode?> CallFunctionAsync(FunctionType node, JsonArray args, string[]? generic = null, string? target = null)
     {
         if (node.IsRemoteCall)
         {
@@ -211,6 +211,8 @@ public class SchemaContext(IServiceProvider serviceProvider)
                 ? await ((ISchemaProvider)ServiceProvider.GetRequiredService(node.SchemaProvider)).CallFunctionAsync(node.Name, args, generic)
                 : null;
         }
+
+        if (!string.IsNullOrWhiteSpace(target)) Target = target;
 
         // Argument validation
         SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo() ?? throw new Exception($"Function {node.Name} can't be complied");

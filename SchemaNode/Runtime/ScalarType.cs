@@ -279,9 +279,9 @@ public class ScalarType: AnySchemeType
         await Task.Yield();
         if (value is not JsonValue val || val.IsEmpty())
             return (null, TYPE_VALUE_NOT_VALID);
-          
+
         // validate the scalar value
-        string strVal = val.ToString();
+        string strVal = value.ToString();
         AnySchemaNode result = new ScalarTypeNode(this);
 
         // check with type

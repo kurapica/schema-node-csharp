@@ -39,7 +39,7 @@ public static class Constant
     public const string NS_SYSTEM_LOCALE_TRAN = "system.localetran";
 
     public const string NS_SYSTEM_ENTRY = "system.entry";
-    public const string NS_SYSTEM_ENTRIES = "system.entries";
+    public const string NS_SYSTEM_ENTRIES = "system.entrys";
 
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";

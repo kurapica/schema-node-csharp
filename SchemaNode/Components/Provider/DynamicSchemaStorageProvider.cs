@@ -24,6 +24,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             foreach (string name in names)
             {
                 NodeSchema? schema;
+                bool checkSubNs = false;
                 
                 // query schema
                 if (string.IsNullOrEmpty(name))
@@ -38,9 +39,17 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                 else
                 {
                     schema = await context.GetEntityAsync<NodeSchema>(Target, name);
+                    if (schema == null)
+                    {
+                        schema = new NodeSchema
+                        {
+                            Name = name,
+                            Type = SchemaType.Namespace,
+                            Display = name
+                        };
+                        checkSubNs = true;
+                    }
                 }
-                
-                if (schema == null) continue;
 
                 switch (schema.Type)
                 {
@@ -49,6 +58,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         // sub namespace
                         string ns = string.IsNullOrEmpty(schema.Name) ? Root : schema.Name;
                         List<NodeSchema> value = await context.GetEntitiesAsync<NodeSchema>(Target, s => s.Namespace == ns);
+                        if (value.Count == 0 && checkSubNs) continue;
 
                         foreach (NodeSchema sub in value)
                         {

@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Node;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Function;
@@ -23,4 +24,26 @@ public static class SystemStr
 
     [SchemaFunc]
     public static LocaleString ToLocale(string? str) => new LocaleString { Key = str ?? "" };
+
+    [SchemaFunc]
+    public static Entry ToEntry(StructTypeNode node, string valueField, string labelField)
+    {
+        AnySchemaNode? val = node.GetValueByPaths(valueField);
+        AnySchemaNode? label = node.GetValueByPaths(labelField);
+        return new Entry
+        {
+            Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
+            Label = label is StructTypeNode labelNode 
+                ? labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString 
+                : label is ScalarTypeNode or EnumTypeNode                
+                    ? new LocaleString { Key = label.ToTypeValue(typeof(string))?.ToString() ?? "" } 
+                    : new LocaleString { Key = val?.ToTypeValue(typeof(string))?.ToString() ?? ""  }
+        };
+    }
+
+    [SchemaFunc]
+    public static List<Entry> ToEntrys(ArrayTypeNode array, string valueField, string labelField) => array
+        .OfType<StructTypeNode>()
+        .Select(node => ToEntry(node, valueField, labelField))
+        .ToList();
 }
