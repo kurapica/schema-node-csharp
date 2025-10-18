@@ -181,6 +181,7 @@ internal static class Schema
         {
             // try generate
             NodeSchema[]? schemas = null;
+            bool shouldConv = autoConv || type.GetCustomAttribute<SchemaTypeAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
             if (type.IsClass)
             {
                 // static class as api container
@@ -189,11 +190,11 @@ internal static class Schema
                     if (type.IsSealed)
                     {
                         // static class as method container
-                        SchemaNameSpaceAttribute? funcNsAttr = type.GetCustomAttribute<SchemaNameSpaceAttribute>();
+                        SchemaTypeAttribute? funcNsAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
                         if (funcNsAttr != null)
                         {
                             List<NodeSchema>? funcNs = null;
-                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaFuncAttribute>() != null))
+                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaTypeAttribute>() != null))
                             {
                                 NodeSchema? func = FunctionType.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
@@ -206,28 +207,28 @@ internal static class Schema
                 }
                 else
                 {
-                    if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
+                    if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
                 }
             }
             else if (type.IsValueType)
             {
                 if (type.IsEnum)
                 {
-                    if (autoConv || type.GetCustomAttribute<SchemaEnumAttribute>() != null) 
+                    if (shouldConv) 
                         schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
                     // struct
-                    if (autoConv || type.GetCustomAttribute<SchemaStructAttribute>() != null) 
+                    if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
                 }
             }
 
@@ -410,14 +411,14 @@ internal static class Schema
         // array
         if (node is ArrayType array)
         {
-            if (array.ElementNode == null)
+            if (array.ElementSchemaType == null)
             {
                 return typeof(ArrayTypeNode);
             }
             else
             {
                 isArray = true;
-                node = array.ElementNode;
+                node = array.ElementSchemaType;
             }
         }
         if (type is null && !_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
@@ -581,7 +582,7 @@ internal static class Schema
         if (value == null || value.IsEmpty) return new();
 
         // Gets field type
-        StructType @struct = (StructType)node.ElementNode!;
+        StructType @struct = (StructType)node.ElementSchemaType!;
         string[] valueFields = (from fieldType in @struct.Fields where !node.Primary!.Contains(fieldType.Name) select fieldType.Name).ToArray();
 
         // The element struct type
@@ -667,7 +668,7 @@ internal static class Schema
     /// </summary>
     internal static ArrayTypeNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
-        if (node.ElementNode is not StructType structNode || node.Primary == null) return null;
+        if (node.ElementSchemaType is not StructType structNode || node.Primary == null) return null;
         Dictionary<string, AnySchemeType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
 
         // Result

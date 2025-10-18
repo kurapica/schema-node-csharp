@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -225,8 +226,13 @@ public class StructType: AnySchemeType
         }
     }
 
+    public IReadOnlyList<PropertyInfo>? GetCSharpProperties(bool primary = false)
+    {
+        return GetStructFieldCSharpProperties(Name, primary);
+    }
+
     #endregion
-    
+
     #region Static Feature
 
     /// <summary>
@@ -234,49 +240,115 @@ public class StructType: AnySchemeType
     /// </summary>
     public static NodeSchema[] GenerateSystemStruct(Type type, string? ns = null)
     {
-        SchemaStructAttribute? attr = type.GetCustomAttribute<SchemaStructAttribute>();
         if (type is { IsClass: false, IsValueType: false } || 
             type is { IsClass: true, IsAbstract: true } ||
             (type.IsValueType && type.IsPrimitiveLike())) return [];
         
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Where(p => 
-            p.GetCustomAttribute<SchemaStructMemIgnoreAttribute>() == null &&
-            p is { CanRead: true, CanWrite: true } && 
-            !string.IsNullOrWhiteSpace(p.PropertyType.GetSchemaType(true))
-        ).ToArray();
+        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>
+            p.GetMethod?.IsPrivate != true &&
+            p.GetCustomAttribute<NotMappedAttribute>() == null &&
+            p is { CanRead: true, CanWrite: true } && (
+                p.GetCustomAttribute<SchemaTypeAttribute>() != null ||
+                !string.IsNullOrWhiteSpace(p.PropertyType.GetSchemaType(true)))
+            ).OrderBy(p => p.MetadataToken).ToArray();
         if (properties.Length == 0) return [];
 
         List<PropertyInfo> fieldMaps = [];
-        
-        NodeSchema structSchema = new NodeSchema
+        string[] primarys = [];
+        Dictionary<string, string[]> indexes = [];
+        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name
+                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+
+        NodeSchema structSchema = new ()
         {
-            Name = type.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name
-                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Name = typeName,
             Type = SchemaType.Struct,
-            Display = attr?.Display ?? type.Name,
+            Display = type.GetSummaryFromXmlDoc() ?? typeName,
             Struct = new StructSchema
             {
-                Fields = properties.Where(p => p.GetCustomAttribute<SchemaStructMemIgnoreAttribute>() == null).Select(p =>
+                Fields = properties.Select(p =>
                 {
-                    SchemaStructMemAttribute? memAttr = p.GetCustomAttribute<SchemaStructMemAttribute>();
                     fieldMaps.Add(p);
-                    return new StructFieldConfig
+
+                    StructFieldConfig config = new ()
                     {
                         Name = p.Name.ToCamelCase(),
-                        Type = memAttr?.Type ?? p.PropertyType.GetSchemaType()!,
+                        Type = p.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? p.PropertyType.GetSchemaType()!,
                         Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
-                        Display = memAttr?.Display ?? p.Name,
-                        Desc = memAttr?.Desc,
-                        DisplayOnly = memAttr?.DisplayOnly ?? false,
-                        UpLimit = p.GetCustomAttribute<MaxLengthAttribute>()?.Length.ToString() ?? null,
-                        LowLimit = p.GetCustomAttribute<MinLengthAttribute>()?.Length.ToString() ?? null,
+                        Display = type.GetSummaryFromXmlDoc(p) ?? p.Name,
                     };
+
+                    // limit check
+                    if (config.Type == NS_SYSTEM_STRING)
+                    {
+                        StringLengthAttribute? strLenAttr = p.GetCustomAttribute<StringLengthAttribute>();
+                        MaxLengthAttribute? maxLengthAttribute = p.GetCustomAttribute<MaxLengthAttribute>();
+                        config.UpLimit = (strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length)?.ToString();
+                        config.LowLimit = (strLenAttr?.MinimumLength ?? 0).ToString();
+                    }
+                    else
+                    {
+                        RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
+                        if (rangeAttr != null)
+                        {
+                            config.LowLimit = rangeAttr.Minimum?.ToLiteral();
+                            config.UpLimit = rangeAttr.Maximum?.ToLiteral();
+                        }
+                    }
+
+                    // index check
+                    foreach(IndexAttribute attr in p.GetCustomAttributes<IndexAttribute>())
+                    {
+                        if (string.IsNullOrEmpty(attr.Name))
+                        {
+                            // primary
+                            if (attr.Order >= primarys.Length)
+                                Array.Resize(ref primarys, attr.Order + 1);
+
+                            if (string.IsNullOrWhiteSpace(primarys[attr.Order]))
+                            {
+                                // with given order
+                                primarys[attr.Order] = config.Name;
+                            }
+                            else
+                            {
+                                // follow default order
+                                Array.Resize(ref primarys, primarys.Length + 1);
+                                primarys[primarys.Length - 1] = config.Name;
+                            }
+                        }
+                        else
+                        {
+                            // normal index
+                            if (!indexes.ContainsKey(attr.Name)) indexes[attr.Name] = [];
+                            string[] fields = indexes[attr.Name];
+                            if (attr.Order >= fields.Length)
+                                Array.Resize(ref fields, attr.Order + 1);
+
+                            if (string.IsNullOrWhiteSpace(fields[attr.Order]))
+                            {
+                                // with given order
+                                fields[attr.Order] = config.Name;
+                            }
+                            else
+                            {
+                                // follow default order
+                                Array.Resize(ref fields, fields.Length + 1);
+                                fields[fields.Length - 1] = config.Name;
+                            }
+                            indexes[attr.Name] = fields;
+                        }
+                    }
+
+                    return config;
                 }).ToArray()
             }
         };
         CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
         
-        if (attr?.Primary == null) return [structSchema];
+        if (primarys.Length == 0) return [structSchema];
+        CSharpTypePrimaryProperties[structSchema.Name.ToLower()] = primarys.Select(p => fieldMaps.First(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray();
+
         NodeSchema arraySchema = new NodeSchema
         {
             Name = $"{structSchema.Name}s",
@@ -285,12 +357,12 @@ public class StructType: AnySchemeType
             Array = new ArraySchema
             {
                 Element = structSchema.Name,
-                Primary = attr.Primary.Select(p => structSchema.Struct.Fields
-                    .FirstOrDefault(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))?.Name).
-                    Where(s => !string.IsNullOrWhiteSpace(s)).ToArray()!,
-                Indexes = attr.Index != null 
-                    ? [new DataIndex{ Name = "index", Fields = attr.Index.Where(p => structSchema.Struct.Fields.Any(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray() }]
-                    : null
+                Primary = primarys,
+                Indexes = indexes.Select(kv => new DataIndex
+                {
+                    Name = kv.Key,
+                    Fields = kv.Value
+                }).ToArray()
             }
         };
         return [structSchema, arraySchema];
@@ -299,9 +371,9 @@ public class StructType: AnySchemeType
     /// <summary>
     /// Gets the C# properties for the struct type
     /// </summary>
-    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type) => CsharpTypeProperties.GetValueOrDefault(type.ToLower());
-    
-    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = new();
+    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.ToLower());
+    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = [];
+    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CSharpTypePrimaryProperties = [];
 
     #endregion
     

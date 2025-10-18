@@ -5,7 +5,6 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The schema load state
 /// </summary>
-[SchemaEnum(EnumValueType.Flags)]
 [Flags]
 public enum SchemaLoadState
 {

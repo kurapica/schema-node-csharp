@@ -10,7 +10,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
     public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type, null)
     {
-        ElementType = type is ArrayType arr ? arr.ElementNode : type;
+        ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;
     }
 

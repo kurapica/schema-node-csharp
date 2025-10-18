@@ -8,7 +8,6 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// Schema types.
 /// </summary>
-[SchemaEnum(EnumValueType.String)]
 public enum SchemaType
 {
     /// <summary>

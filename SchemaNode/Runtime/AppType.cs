@@ -105,7 +105,7 @@ public class AppType
         // Release the old field relationships
         Fields?.ForEach(p =>
         {
-            p.TypeNode?.RemoveRef(p);
+            p.SchemaType?.RemoveRef(p);
             p.FuncNode?.RemoveRef(p);
         });
         Relations?.ForEach(r =>
@@ -148,7 +148,7 @@ public class AppType
                 else
                 {
                     node.AddRef(field);
-                    field.TypeNode = node;
+                    field.SchemaType = node;
                 }
 
                 // Valid the function
@@ -264,7 +264,7 @@ public class AppType
                     App = Name,
                     Name = APP_FIELD_REF_NAME,
                     Type = refType,
-                    TypeNode = await context.GetSchemaTypeAsync(refType)
+                    SchemaType = await context.GetSchemaTypeAsync(refType)
                 };
             }
             else
@@ -347,7 +347,7 @@ public class AppType
 
         foreach (AppFieldType fieldNode in Fields)
         {
-            install(fieldNode.TypeNode);
+            install(fieldNode.SchemaType);
             install(fieldNode.FuncNode);
         }
 
@@ -499,7 +499,7 @@ public class AppFieldType
     /// <summary>
     /// The field type node
     /// </summary>
-    public AnySchemeType? TypeNode { get; set; }
+    public AnySchemeType? SchemaType { get; set; }
 
     /// <summary>
     /// The field function node
@@ -619,7 +619,7 @@ public class AppFieldType
     public DynamicTableSchema GenDynamicTableSchema()
     {
         // Generate the fields
-        AnySchemeType node = TypeNode!;
+        AnySchemeType node = SchemaType!;
         List<DynamicTableField> fields = new();
         DataIndex[]? indexes = null;
         bool single = true;
@@ -639,9 +639,9 @@ public class AppFieldType
 
         switch (node.Type)
         {
-            case SchemaType.Scalar:
-            case SchemaType.Enum:
-            case SchemaType.Json:
+            case Enum.SchemaType.Scalar:
+            case Enum.SchemaType.Enum:
+            case Enum.SchemaType.Json:
                 {
                     info = GetDataTypeInfo(node);
                     fields.Add(new DynamicTableField
@@ -653,12 +653,12 @@ public class AppFieldType
                     });
                     break;
                 }
-            case SchemaType.Struct:
+            case Enum.SchemaType.Struct:
                 {
                     StructType structNode = (StructType)node;
                     foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                     {
-                        if (sField.TypeNode?.Type == SchemaType.Struct) // Check if the sfield use a struct type
+                        if (sField.TypeNode?.Type == Enum.SchemaType.Struct) // Check if the sfield use a struct type
                         {
                             // As complex fields
                             StructType subStructNode = (StructType)sField.TypeNode;
@@ -693,10 +693,10 @@ public class AppFieldType
                     }
                     break;
                 }
-            case SchemaType.Array:
+            case Enum.SchemaType.Array:
                 {
                     ArrayType arrayNode = (ArrayType)node;
-                    node = arrayNode.ElementNode!; // Record the base node for array
+                    node = arrayNode.ElementSchemaType!; // Record the base node for array
                     indexes = arrayNode.Indexes;
                     if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
                     {
@@ -721,7 +721,7 @@ public class AppFieldType
                         foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
                         {
                             // Check if the sfield use a struct type
-                            if (sField.TypeNode!.Type == SchemaType.Struct)
+                            if (sField.TypeNode!.Type == Enum.SchemaType.Struct)
                             {
                                 // As complex fields
                                 foreach (var ifield in ((StructType)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
@@ -911,7 +911,7 @@ public class AppFieldType
     {
         if (token.IsEmpty()) return (true, null, null);
         
-        (AnySchemaNode? value, JsonNode? error) = await TypeNode!.ValidateValueAsync(context, token!);
+        (AnySchemaNode? value, JsonNode? error) = await SchemaType!.ValidateValueAsync(context, token!);
         return (false, value, error);
     }
 
@@ -1366,7 +1366,7 @@ public class DynamicTableSchema
             return Fields[0].FromReader(reader, offset);
         }
 
-        StructTypeNode result = new StructTypeNode((StructType)(TypeNode is ArrayType arr ? arr.ElementNode : TypeNode)!);
+        StructTypeNode result = new StructTypeNode((StructType)(TypeNode is ArrayType arr ? arr.ElementSchemaType : TypeNode)!);
         foreach (DynamicTableField field in Fields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
@@ -1457,7 +1457,7 @@ public class DynamicTableSchema
             {
                 await GenerateDisplayOnlyStructFields(context, @struct, spack);
             }
-            else if (field.TypeNode is ArrayType { ElementNode: StructType arrayStruct } && pack.GetField(field.Name) is ArrayTypeNode { Count: > 0 } arrayPack)
+            else if (field.TypeNode is ArrayType { ElementSchemaType: StructType arrayStruct } && pack.GetField(field.Name) is ArrayTypeNode { Count: > 0 } arrayPack)
             {
                 foreach (var token in arrayPack)
                 {

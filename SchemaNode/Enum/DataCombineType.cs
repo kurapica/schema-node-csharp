@@ -5,7 +5,6 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The data combine type
 /// </summary>
-[SchemaEnum(EnumValueType.String)]
 public enum DataCombineType
 {
     /// <summary>

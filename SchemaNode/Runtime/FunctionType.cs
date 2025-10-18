@@ -475,13 +475,13 @@ public class FunctionType: AnySchemeType
                 bool skipMatch = false;
                 if (exp.Type is ExpressionType.Map or ExpressionType.Filter)
                 {
-                    if (node is not ArrayType arr || arr.ElementNode is null)
+                    if (node is not ArrayType arr || arr.ElementSchemaType is null)
                     {
                         exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                         Status = SchemaNodeStatus.FunctionWrongReturnType;
                         return (trees, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
                     }
-                    node = arr.ElementNode;
+                    node = arr.ElementSchemaType;
                     if (exp.Type is ExpressionType.Filter)
                     {
                         arrayRequireEle = node;
@@ -509,8 +509,8 @@ public class FunctionType: AnySchemeType
                     }
                     else if (!(funcNode.ReturnNode!.CanBeUseAs(node) || 
                                exp.Type == ExpressionType.Map 
-                               && funcNode.ReturnNode is ArrayType { ElementNode: not null } arr
-                               && arr.ElementNode.CanBeUseAs(node)))
+                               && funcNode.ReturnNode is ArrayType { ElementSchemaType: not null } arr
+                               && arr.ElementSchemaType.CanBeUseAs(node)))
                     {
                         exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                         Status = SchemaNodeStatus.FunctionWrongReturnType;
@@ -573,13 +573,13 @@ public class FunctionType: AnySchemeType
                         
                         // Check if used as array type
                         if (isMapReduce && arrayArg < 0 && 
-                            argTypeNode is ArrayType { ElementNode: not null } array && 
+                            argTypeNode is ArrayType { ElementSchemaType: not null } array && 
                             funcArgType is not ArrayType && 
-                            (funcArgType is null || array.ElementNode.CanBeUseAs(funcArgType)) &&
-                            (arrayRequireEle is null || array.ElementNode.CanBeUseAs(arrayRequireEle)))
+                            (funcArgType is null || array.ElementSchemaType.CanBeUseAs(funcArgType)) &&
+                            (arrayRequireEle is null || array.ElementSchemaType.CanBeUseAs(arrayRequireEle)))
                         {
                             arrayArg = i;
-                            argTypeNode = array.ElementNode;
+                            argTypeNode = array.ElementSchemaType;
                         }
                         
                         // Match the type
@@ -758,7 +758,7 @@ public class FunctionType: AnySchemeType
     public static NodeSchema? GenerateSystemFunction(MethodInfo method, string? ns = null)
     {
         if (!method.IsStatic) return null;
-        SchemaFuncAttribute? funcAttr = method.GetCustomAttribute<SchemaFuncAttribute>();
+        SchemaTypeAttribute? funcAttr = method.GetCustomAttribute<SchemaTypeAttribute>();
         if (funcAttr == null) return null;
 
         int sign = FUNC_SIGN_IMMUTABLE; // The system method won't be changed and already compiled
@@ -777,8 +777,7 @@ public class FunctionType: AnySchemeType
         }
 
         // Generate func schema
-        var name = method.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name 
-            ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{(funcAttr.Type ?? method.Name).ToLowerInvariant()}";
+        var name = funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name.ToLowerInvariant()}";
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
@@ -867,9 +866,9 @@ public class FunctionType: AnySchemeType
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
             {
                 // normally if arg is Object, use func arg attr to specific the schema type
-                if (p.GetCustomAttribute<SchemaFuncArgAttribute>() != null)
+                if (p.GetCustomAttribute<SchemaTypeAttribute>() != null)
                 {
-                    pt.SchemaType = p.GetCustomAttribute<SchemaFuncArgAttribute>()!.Type;
+                    pt.SchemaType = p.GetCustomAttribute<SchemaTypeAttribute>()!.Name;
                 }
                 else
                 {
@@ -1113,7 +1112,7 @@ public class FunctionType: AnySchemeType
                     else
                     {
                         arrayIndex = i + useContext;
-                        callArgTypes[i + useContext] = exp.LeafNodes[i]?.TypeNode is ArrayType a ? (a.ElementNode?.ToCSharpType() ?? callType) : callType;
+                        callArgTypes[i + useContext] = exp.LeafNodes[i]?.TypeNode is ArrayType a ? (a.ElementSchemaType?.ToCSharpType() ?? callType) : callType;
                     }
                 }
 
@@ -1123,7 +1122,7 @@ public class FunctionType: AnySchemeType
                 Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) 
                                      ?? throw new Exception($"The expression {exp.Name}'s type not valid");
                 Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayType arr
-                    ? (arr.ElementNode?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
+                    ? (arr.ElementSchemaType?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
                     : expReturnType;
 
                 // Make generic method for system defined methods

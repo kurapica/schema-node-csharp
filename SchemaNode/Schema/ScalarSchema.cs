@@ -9,21 +9,21 @@ namespace SchemaNode.Schema;
 /**
  * The schema of the scalar type
 */
-[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class ScalarSchema
 {
     /// <summary>
     /// The struct name
     /// </summary>
+    [Index]
     [JsonIgnore]
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
 
     /// <summary>
     /// The base type of the scalar
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Base { get; set; }
 
     /// <summary>
@@ -49,13 +49,13 @@ public class ScalarSchema
     /// <summary>
     /// The regex of the scalar value
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Regex  { get; set; }
     
     /// <summary>
     /// The white list function
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? WhiteList { get; set; }
     
     /// <summary>
@@ -66,13 +66,13 @@ public class ScalarSchema
     /// <summary>
     /// The function to validate the scalar value in frontend
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? PreValid  { get; set; }
 
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? PostValid  { get; set; }// 用来存放额外的字段
     
     /// <summary>

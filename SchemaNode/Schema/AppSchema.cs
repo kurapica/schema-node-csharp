@@ -1,29 +1,32 @@
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
-using System.ComponentModel.DataAnnotations;
 
 namespace SchemaNode.Schema;
 
 /**
  * The application schema
  */
-[SchemaStruct([nameof(Name)], [nameof(Parent), nameof(Name)])]
 [SchemaApp]
 public class AppSchema
 {
     /// <summary>
     /// The parent app name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index("IX_SUB_APP")]
     public string Parent { get; set; } = string.Empty;
     
     /// <summary>
     /// The application name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [Index("IX_SUB_APP")]
     public string Name { get; set; } = default!;
     
     /// <summary>
@@ -39,25 +42,25 @@ public class AppSchema
     /// <summary>
     /// Whether it has sub-applications
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool? HasApps { get; set; }
     
     /// <summary>
     /// Whether it has fields
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool? HasFields { get; set; }
 
     /// <summary>
     /// The sub applications
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public AppSchema[]? Apps { get; set; }
     
     /// <summary>
     /// The application fields
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public AppFieldSchema[]? Fields { get; set; }
     
     /// <summary>
@@ -68,7 +71,7 @@ public class AppSchema
     /// <summary>
     /// The types related to the application
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public NodeSchema[]? NodeSchemas { get; set; }
 
     /// <summary>
@@ -80,38 +83,39 @@ public class AppSchema
     /// <summary>
     /// The load state
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public SchemaLoadState? LoadState { get; set; }
 }
 
 /// <summary>
 /// The application field schema
 /// </summary>
-[SchemaStruct([nameof(App), nameof(Name)])]
 [SchemaApp]
 public class AppFieldSchema
 {
     /// <summary>
     /// the application name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string App { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The field name
+    /// </summary>
+    [Index]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string Name { get; set; } = default!;
     
     /// <summary>
     /// The seqno
     /// </summary>
     public int Seqno { get; set; } = 0;
-    
-    /// <summary>
-    /// The field name
-    /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string Name { get; set; } = default!;
-    
+
     /// <summary>
     /// The field type
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Type { get; set; } = default!;
     
     /// <summary>
@@ -127,51 +131,131 @@ public class AppFieldSchema
     /// <summary>
     /// The source application
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? SourceApp { get; set; }
     
     /// <summary>
     /// The source field
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? SourceField { get; set; }
-    
-    /// <summary>
-    /// Track the push data to the source field, so toggle the source target, will also re-push the data
-    /// </summary>
-    public bool? TrackPush { get; set; }
     
     /// <summary>
     /// The calculate function
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Func { get; set; }
     
     /// <summary>
     /// The input fields
     /// </summary>
     public string[]? Args { get; set; }
-    
+
     /// <summary>
-    /// The field is using increase update, no full data push allowed
+    /// The field flags
     /// </summary>
-    public bool? IncrUpdate { get; set; }
-    
+    public AppFieldFlags Flags { get; set; } = AppFieldFlags.None;
+
     /// <summary>
     /// The field is front-end only, no data storage
     /// </summary>
-    public bool? Frontend { get; set; }
-    
+    [NotMapped]
+    public bool? Frontend
+    {
+        get => (Flags & AppFieldFlags.Frontend) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= AppFieldFlags.Frontend;
+            }
+            else
+            {
+                Flags &= ~AppFieldFlags.Frontend;
+            }
+        }
+    }
+
     /// <summary>
     /// The field is disabled
     /// </summary>
-    public bool? Disable  { get; set; }
-    
+    [NotMapped]
+    public bool? Disable
+    {
+        get => (Flags & AppFieldFlags.Disable) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= AppFieldFlags.Disable;
+            }
+            else
+            {
+                Flags &= ~AppFieldFlags.Disable;
+            }
+        }
+    }
+
     /// <summary>
     /// The field is readonly, data comes from other apps
     /// </summary>
-    public bool? Readonly { get; set; }
-    
+    [NotMapped]
+    public bool? Readonly
+    {
+        get => (Flags & AppFieldFlags.Readonly) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= AppFieldFlags.Readonly;
+            }
+            else
+            {
+                Flags &= ~AppFieldFlags.Readonly;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The field is using increase update, no full data push allowed
+    /// </summary>
+    [NotMapped]
+    public bool? IncrUpdate
+    {
+        get => (Flags & AppFieldFlags.IncrUpdate) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= AppFieldFlags.IncrUpdate;
+            }
+            else
+            {
+                Flags &= ~AppFieldFlags.IncrUpdate;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Track the push data to the source field, so toggle the source target, will also re-push the data
+    /// </summary>
+    [NotMapped]
+    public bool? TrackPush
+    {
+        get => (Flags & AppFieldFlags.TrackPush) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= AppFieldFlags.TrackPush;
+            }
+            else
+            {
+                Flags &= ~AppFieldFlags.TrackPush;
+            }
+        }
+    }
+
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
@@ -187,23 +271,38 @@ public class AppFieldSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+
+    #region Inner Type
+
+    [Flags]
+    public enum AppFieldFlags
+    {
+        None = 0,
+        Frontend = 1 << 0,
+        Disable = 1 << 1,
+        Readonly = 1 << 2,
+        IncrUpdate = 1 << 3,
+        TrackPush = 1 << 4,
+    }
+
+    #endregion
 }
 
 /// <summary>
 /// The application ref
 /// </summary>
-[SchemaStruct([nameof(App)])]
 public class AppRef
 {
     /// <summary>
     /// The source app
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
     /// The source target
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Target { get; set; }
 }

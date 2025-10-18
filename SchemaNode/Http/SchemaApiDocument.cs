@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using System.Xml;
+using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Http;
 
@@ -170,7 +170,7 @@ public static class SchemaApiDocument
                 }
             },
             // Add Summary
-            Summary = GetSummaryFromXmlDoc(apiType, "T:")
+            Summary = apiType.GetSummaryFromXmlDoc()
         };
 
         // Add the path item.
@@ -285,14 +285,14 @@ public static class SchemaApiDocument
                             .Cast<object>()
                             .Select(value => (JsonNode)JsonValue.Create(value.ToString())!)
                             .ToList(),
-                        Description = GetSummaryFromXmlDoc(type, "P:", t),
+                        Description = type.GetSummaryFromXmlDoc(t),
                         Deprecated = propertyType.GetCustomAttribute<ObsoleteAttribute>() != null
                     });
                 }
                 else
                 {
                     OpenApiSchema schema = GetTypeSchema(schemas, propertyType);
-                    schema.Description = GetSummaryFromXmlDoc(type, "P:", t);
+                    schema.Description = type.GetSummaryFromXmlDoc(t);
                     try
                     {
 
@@ -345,7 +345,7 @@ public static class SchemaApiDocument
             schemas.Add(typeKey, new OpenApiSchema
             {
                 Type = JsonSchemaType.Object,
-                Description = GetSummaryFromXmlDoc(type, "T:"),
+                Description = type.GetSummaryFromXmlDoc(),
                 Properties = props,
                 Required = requiredSet
             });
@@ -399,59 +399,10 @@ public static class SchemaApiDocument
         return skip ? str : str.ToCamelCase();
     }
 
-    /// <summary>
-    /// Get summary contents from XML document.
-    /// </summary>
-    static string GetSummaryFromXmlDoc(Type type, string preFix, PropertyInfo? prop = null)
-    {
-        string typeName = prop != null ? prop.DeclaringType!.Name : type.Name;
-        string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
-        string propertyName = prop != null ? prop.Name : string.Empty;
-
-        if (!File.Exists(xmlPath)) return string.Empty;
-        
-        if (!XmlFiles.ContainsKey(xmlPath))
-        {
-            XmlDocument document = new();
-            document.Load(xmlPath);
-            XmlFiles[xmlPath] = document;
-        }
-        string xPath = "/doc/members";
-        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
-        foreach (XmlElement node in nodeList!)
-        {
-            if (node.HasChildNodes && node.Attributes.Count > 0)
-            {
-                string name = node.Attributes[0].Value;
-                if (!string.IsNullOrEmpty(name))
-                {
-                    if ((name.StartsWith(preFix) && name.Contains(typeName) && string.IsNullOrEmpty(propertyName))
-                        ||
-                        (name.StartsWith(preFix) && name.Contains(typeName) && name.EndsWith(propertyName))
-                       )
-                    {
-                        string summaryContent = node.InnerText;
-                        return string.Join("\n",
-                            summaryContent
-                                .Split('\n', '\r')
-                                .Where(t =>
-                                    !string.IsNullOrWhiteSpace(t) &&
-                                    !string.IsNullOrEmpty(t))
-                                .Select(p => p.Trim())
-                                .ToArray()
-                        );
-                    }
-                }
-            }
-        }
-        return string.Empty;
-    }
-
     #endregion
 
     #region Private
 
-    static readonly Dictionary<string, XmlDocument> XmlFiles = new();
     static readonly AsyncLocal<HashSet<string>> HandledTypes = new();
 
     #endregion

@@ -5,27 +5,28 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The schema of function
 /// </summary>
-[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class FunctionSchema
 {
     /// <summary>
     /// The struct name
     /// </summary>
+    [Index]
     [JsonIgnore]
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
     
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -63,13 +64,13 @@ public class FunctionArgumentInfo
     /// <summary>
     /// The argument name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The argument type, T T1 T2 means the generic type
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -85,13 +86,13 @@ public class FunctionExpression {
     /// <summary>
     /// The expression name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The call function
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -102,7 +103,7 @@ public class FunctionExpression {
     /// <summary>
     /// The expression type
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -118,7 +119,7 @@ public class FunctionCallArgument {
     /// <summary>
     /// The argument name or expression name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
 
     /// <summary>
@@ -129,7 +130,7 @@ public class FunctionCallArgument {
     /// <summary>
     /// The value type
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     [JsonIgnore]
     public AnySchemeType? TypeNode { get; set; }
 }

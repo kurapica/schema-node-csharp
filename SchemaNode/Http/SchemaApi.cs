@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
@@ -17,6 +16,7 @@ using SchemaNode.Context;
 using SchemaNode.Components;
 using SchemaNode.Components.Provider;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Http;
 
@@ -405,20 +405,6 @@ public static class SchemaApiExtension
     
     static readonly AsyncLocal<Stopwatch> StopWatch = new ();
 
-    static readonly JsonSerializerOptions JsonOptions = new ()
-    {
-        WriteIndented = false,
-        Converters =
-        {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
-            new Extension.JsonDateTimeIsoConverter(),
-            new Extension.JsonDateTimeOffsetIsoConverter(),
-            new Extension.ForceStringConverter(),
-        },
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-    
     static async Task<IResult> ProcessSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
         where TApi: SchemaApi<TRequest, TResponse>
         where TRequest: SchemaApiRequest
@@ -457,7 +443,7 @@ public static class SchemaApiExtension
         }
         catch
         {
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.ParseError, "Failed to read the request data."), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.ParseError, "Failed to read the request data."), NoIndentJsonOption);
         }
         SchemaApiRequestMessage<TRequest> requestMessage;
         try
@@ -467,7 +453,7 @@ public static class SchemaApiExtension
         }
         catch(Exception ex)
         {
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, $"Failed to parse the request data - {ex.GetInnermostException().Message}"), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, $"Failed to parse the request data - {ex.GetInnermostException().Message}"), NoIndentJsonOption);
         }
         try
         {
@@ -478,7 +464,7 @@ public static class SchemaApiExtension
         }
         catch (Exception ex)
         {
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, ex.Message), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidRequest, ex.Message), NoIndentJsonOption);
         }
         TRequest request = requestMessage.Params;
 
@@ -488,12 +474,12 @@ public static class SchemaApiExtension
             List<ValidationResult> results = new();
             if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
             {
-                return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: GetValidationErrors(results)), JsonOptions);
+                return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InvalidParams, "The request parameters are invalid.", data: GetValidationErrors(results)), NoIndentJsonOption);
             }
         }
         catch (Exception ex)
         {
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message), NoIndentJsonOption);
         }
 
         // Call main.
@@ -508,12 +494,12 @@ public static class SchemaApiExtension
         catch (SchemaApiException ex)
         {
             logger.LogDebug($"A business logic error occurred: {ex.Message}");
-            return Results.Json(GenErrorResponseMessage(requestId, ex.Code, ex.Message, data: ex.AdditionalData), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, ex.Code, ex.Message, data: ex.AdditionalData), NoIndentJsonOption);
         }
         catch (Exception ex)
         {
             logger.LogDebug($"An unknown error occurred: {ex.GetInnermostException()}");
-            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message), JsonOptions);
+            return Results.Json(GenErrorResponseMessage(requestId, SchemaApiResponseErrorCode.InternalError, ex.GetInnermostException().Message), NoIndentJsonOption);
         }
 
         // Generate response.
@@ -543,7 +529,7 @@ public static class SchemaApiExtension
             Result = response,
             Id = requestId,
             ExecuteTime = StopWatch.Value?.ElapsedMilliseconds
-        }, JsonOptions);
+        }, NoIndentJsonOption);
     }
 
     /// <summary>

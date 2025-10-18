@@ -7,25 +7,25 @@ namespace SchemaNode.Function;
 /// <summary>
 /// System.Str apis
 /// </summary>
-[SchemaNameSpace("system.str")]
+[SchemaType("system.str")]
 public static class SystemStr
 {
-    [SchemaFunc]
+    [SchemaType]
     public static string Concat(string str1, string str2) => string.Concat(str1, str2);
     
-    [SchemaFunc]
+    [SchemaType]
     public static long Len(string str) => long.CreateChecked(str.Length);
     
-    [SchemaFunc]
+    [SchemaType]
     public static string[] Split(string str, string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
     
-    [SchemaFunc]
+    [SchemaType]
     public static string Substr(string str, int startIndex, int stop) => str.Substring(startIndex, stop - startIndex);
 
-    [SchemaFunc]
+    [SchemaType]
     public static LocaleString ToLocale(string? str) => new LocaleString { Key = str ?? "" };
 
-    [SchemaFunc]
+    [SchemaType]
     public static Entry ToEntry(StructTypeNode node, string valueField, string labelField)
     {
         AnySchemaNode? val = node.GetValueByPaths(valueField);
@@ -41,9 +41,12 @@ public static class SystemStr
         };
     }
 
-    [SchemaFunc]
+    [SchemaType]
     public static List<Entry> ToEntrys(ArrayTypeNode array, string valueField, string labelField) => array
         .OfType<StructTypeNode>()
         .Select(node => ToEntry(node, valueField, labelField))
         .ToList();
+
+    [SchemaType]
+    public static string NewGuid() => Guid.NewGuid().ToString();
 }

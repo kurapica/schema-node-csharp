@@ -10,21 +10,21 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The array schema
 /// </summary>
-[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class ArraySchema
 {
     /// <summary>
     /// The struct name
     /// </summary>
+    [Index]
     [JsonIgnore]
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
 
     /// <summary>
     /// The element type of the array.
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Element { get; set; }
 
     /// <summary>
@@ -68,7 +68,7 @@ public class DataCombine
     /// <summary>
     /// The field
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
@@ -82,7 +82,7 @@ public class DataIndex
     /// <summary>
     /// The index name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

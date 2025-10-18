@@ -93,7 +93,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value.GetType() == CsharpType)
             {
-                IReadOnlyList<PropertyInfo>? props = StructType.GetStructFieldCSharpProperties(Type.Name);
+                IReadOnlyList<PropertyInfo>? props = (Type as StructType)!.GetCSharpProperties();
                 if (props != null)
                 {
                     _csharpObject = value;

@@ -14,7 +14,7 @@ internal static class App
     /// <summary>
     /// Gets the type's system app and field
     /// </summary>
-    internal static (string app, string field, PropertyInfo[] primarys)? GetSystemAppField(this Type type)
+    internal static (string app, string field)? GetSystemAppField(this Type type)
     {
         if (TypeAppFieldMap.TryGetValue(type, out var result)) return result;
         return null;
@@ -82,24 +82,14 @@ internal static class App
         app.Fields = app.Fields.Where(f => !f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
             .Concat([field]).ToArray();
 
-        if (type != null) {
-            SchemaStructAttribute? structAttr = type.GetCustomAttribute<SchemaStructAttribute>();
-            if (structAttr?.Primary is { Length: > 0 })
-            {
-                PropertyInfo[] props = type.GetProperties();
-                TypeAppFieldMap[type] = (appName, field.Name,
-                    structAttr.Primary.Select(p =>
-                        props.FirstOrDefault(s => s.Name.Equals(p, StringComparison.OrdinalIgnoreCase))
-                        ?? throw new Exception($"The {p} has no match property in {type.FullName}")).ToArray());
-            }
-        }
+        if (type != null) TypeAppFieldMap[type] = (appName, field.Name);
     }
 
     #endregion
 
     #region Utility
 
-    static readonly ConcurrentDictionary<Type, (string app, string field, PropertyInfo[] primay)> TypeAppFieldMap = [];
+    static readonly ConcurrentDictionary<Type, (string app, string field)> TypeAppFieldMap = [];
 
     #endregion
 

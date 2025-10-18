@@ -114,12 +114,12 @@ public static class Injection
     {
         if (assembly == null) return services;
         
-        SchemaNameSpaceAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaNameSpaceAttribute>();
+        SchemaTypeAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaTypeAttribute>();
         if (rootNamespaceAttr != null)
         {
             SaveSystemNodeSchema(new NodeSchema
             {
-                Name = rootNamespaceAttr.Name,
+                Name = rootNamespaceAttr.Name ?? assembly.GetName().Name ?? "",
                 Type = SchemaType.Namespace,
                 Display = rootNamespaceAttr.Display,
             });
@@ -144,18 +144,12 @@ public static class Injection
                 SchemaAppAttribute? attr = type.GetCustomAttribute<SchemaAppAttribute>();
                 if (attr != null)
                 {
-                    SchemaStructAttribute? structAttr = type.GetCustomAttribute<SchemaStructAttribute>();
-                    if (structAttr?.Primary is { Length: > 0 })
-                    {
-                        typeName = $"{typeName}s";
-                    }
-
                     string fieldName = attr.Field ?? type.Name.ToLower();
                     string application = attr.Application ?? appName;
                     SaveSystemAppField(application, new AppFieldSchema
                     {
                         Name = fieldName,
-                        Type = typeName,
+                        Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any()) ? $"{typeName}s" : typeName,
                         Display = attr.Display,
                     }, type: type);
                 }

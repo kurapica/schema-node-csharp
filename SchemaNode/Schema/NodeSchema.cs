@@ -3,7 +3,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
-using System.Reflection.Metadata;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchemaNode.Schema;
 
@@ -11,20 +11,22 @@ namespace SchemaNode.Schema;
 /// The data node schema
 /// The schema is used to describe the data node
 /// </summary>
-[SchemaStruct([nameof(Name)], [nameof(Namespace), nameof(Name)])]
 [SchemaApp]
 public class NodeSchema
 {
     /// <summary>
     /// The parent schema name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index("IX_SUB_NS")]
     public string Namespace { get; set; } = string.Empty;
-    
+
     /// <summary>
     /// The schema name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [Index("IX_SUB_NS", 1)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -40,37 +42,37 @@ public class NodeSchema
     /// <summary>
     /// The scalar schema if type is scalar
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public ScalarSchema? Scalar { get; set; }
 
     /// <summary>
     /// The enum schema if type is enum
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public EnumSchema? Enum  { get; set; }
 
     /// <summary>
     /// The struct schema if type is struct
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public StructSchema? Struct { get; set; }
 
     /// <summary>
     /// The array schema if type is array
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public ArraySchema? Array  { get; set; }
 
     /// <summary>
     /// The function schema if type is function
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public FunctionSchema? Func { get; set; }
 
     /// <summary>
     /// The load state
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public SchemaLoadState? LoadState
     {
         get => _schemaLoadState;
@@ -88,38 +90,38 @@ public class NodeSchema
     /// <summary>
     /// Has sub schemas
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool? HasSchemas { get; set; }
     
     /// <summary>
     /// The schema is used, can't be deleted
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool? Used { get; set; }
     
     /// <summary>
     /// Used by other types
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public string[]? UsedBy { get; set; }
     
     /// <summary>
     /// Used by other apps
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public string[]? UsedByApp { get; set; }
 
     /// <summary>
     /// The sub schemas of the namespace
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public NodeSchema[]? Schemas  { get; set; }
 
     /// <summary>
     /// The schema provider used to fetch the node schema
     /// </summary>
     [JsonIgnore]
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public Type? SchemaProvider
     {
         get => _schemaProvider;
@@ -145,15 +147,15 @@ public class NodeSchema
 /// </summary>
 /// <param name="Lang">Language</param>
 /// <param name="Tran">Translate</param>
-[SchemaNameSpace(NS_SYSTEM_LOCALE_TRAN)]
-[SchemaStruct([nameof(Lang)])]
+[SchemaType(NS_SYSTEM_LOCALE_TRAN)]
 public class LocaleTran
 {
     /// <summary>
     /// The language
     /// </summary>
-    [SchemaStructMem(type: NS_SYSTEM_LANGUAGE)]
+    [SchemaType(NS_SYSTEM_LANGUAGE)]
     [MaxLength(8)]
+    [Index]
     public required string Lang { get; set; }
 
     /// <summary>
@@ -165,14 +167,14 @@ public class LocaleTran
 /// <summary>
 /// The locale string
 /// </summary>
-[SchemaNameSpace(NS_SYSTEM_LOCALE_STRING)]
-[SchemaStruct([nameof(Key)])]
+[SchemaType(NS_SYSTEM_LOCALE_STRING)]
 public class LocaleString: ICloneable
 {
     /// <summary>
     /// The default key
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
     
     /// <summary>
@@ -201,11 +203,11 @@ public class LocaleString: ICloneable
     }
 }
 
-[SchemaNameSpace(NS_SYSTEM_ENTRY)]
-[SchemaStruct([nameof(Value)])]
+[SchemaType(NS_SYSTEM_ENTRY)]
 public class Entry
 {
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     public LocaleString? Label { get; set; }

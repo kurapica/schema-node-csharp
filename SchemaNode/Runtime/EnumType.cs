@@ -317,16 +317,15 @@ public class EnumType: AnySchemeType
     /// </summary>
     public static NodeSchema[] GenerateSystemEnum(Type type, string? ns = null)
     {
-        SchemaEnumAttribute? attr = type.GetCustomAttribute<SchemaEnumAttribute>();
         if (!type.IsEnum) return [];
 
-        EnumValueType valueType = attr?.ValueType ?? EnumValueType.Int;
+        EnumValueType valueType = type.GetCustomAttribute<FlagsAttribute>() != null ? EnumValueType.Flags : EnumValueType.String;
+        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         NodeSchema enumSchema = new NodeSchema
         {
-            Name = type.GetCustomAttribute<SchemaNameSpaceAttribute>()?.Name
-                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{(attr?.Type ?? type.Name).ToLowerInvariant()}",
+            Name = typeName,
             Type = SchemaType.Enum,
-            Display = attr?.Display ?? type.Name,
+            Display = type.GetSummaryFromXmlDoc() ?? typeName,
             Enum = new EnumSchema
             {
                 Type = valueType,

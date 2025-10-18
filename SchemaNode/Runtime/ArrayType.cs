@@ -67,7 +67,7 @@ public class ArrayType: AnySchemeType
     /// <summary>
     /// The element type node
     /// </summary>
-    public AnySchemeType? ElementNode { get; set; }
+    public AnySchemeType? ElementSchemaType { get; set; }
     
     #endregion
     
@@ -100,7 +100,7 @@ public class ArrayType: AnySchemeType
             }
             else
             {
-                ElementNode = node;
+                ElementSchemaType = node;
                 node.AddRef(this);
             }
         }
@@ -125,8 +125,8 @@ public class ArrayType: AnySchemeType
     /// <inheritdoc />
     public override void Release()
     {
-        ElementNode?.RemoveRef(this);
-        ElementNode = null;
+        ElementSchemaType?.RemoveRef(this);
+        ElementSchemaType = null;
 
         if (Relations != null)
         {
@@ -147,11 +147,11 @@ public class ArrayType: AnySchemeType
         // validate elements
         ArrayTypeNode result = new(this);
         JsonObject? error = null;
-        if (ElementNode != null)
+        if (ElementSchemaType != null)
         {
             for (int i = 0; i < array.Count; i++)
             {
-                (AnySchemaNode? v, JsonNode? e) = await ElementNode.ValidateValueAsync(context, array[i]!);
+                (AnySchemaNode? v, JsonNode? e) = await ElementSchemaType.ValidateValueAsync(context, array[i]!);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -177,7 +177,7 @@ public class ArrayType: AnySchemeType
         this == other 
         || Name.Equals(NS_SYSTEM_ARRAY) 
         || other.Name.Equals(NS_SYSTEM_ARRAY) 
-        || (other is ArrayType array && ElementNode != null && array.ElementNode != null && ElementNode.CanBeUseAs(array.ElementNode));
+        || (other is ArrayType array && ElementSchemaType != null && array.ElementSchemaType != null && ElementSchemaType.CanBeUseAs(array.ElementSchemaType));
 
     /// <inheritdoc />
     public override ArrayType? GetArrayNode(bool exactly = false) => null;
@@ -187,7 +187,7 @@ public class ArrayType: AnySchemeType
     /// </summary>
     public string? GetPrimaryKey(JsonObject obj)
     {
-        if (Primary == null || Primary.Length == 0 || ElementNode is not StructType { Fields.Length: > 0 } @struct)
+        if (Primary == null || Primary.Length == 0 || ElementSchemaType is not StructType { Fields.Length: > 0 } @struct)
             return null;
 
         string? key = null;
@@ -213,7 +213,7 @@ public class ArrayType: AnySchemeType
     /// </summary>
     public string? GetPrimaryKey(StructTypeNode obj)
     {
-        if (Primary == null || Primary.Length == 0 || ElementNode is not StructType { Fields.Length: > 0 } @struct)
+        if (Primary == null || Primary.Length == 0 || ElementSchemaType is not StructType { Fields.Length: > 0 } @struct)
             return null;
 
         string? key = null;
@@ -229,8 +229,8 @@ public class ArrayType: AnySchemeType
 
     public override IEnumerable<AnySchemeType> GetDependNodes()
     {
-        if (ElementNode != null)
-            yield return ElementNode;
+        if (ElementSchemaType != null)
+            yield return ElementSchemaType;
         
         if (Relations != null)
         {

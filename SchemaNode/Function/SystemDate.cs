@@ -1,5 +1,4 @@
 using SchemaNode.Attribute;
-using SchemaNode.Utility;
 using TimeZoneConverter;
 
 namespace SchemaNode.Function;
@@ -7,7 +6,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// system.datetime api
 /// </summary>
-[SchemaNameSpace("system.datetime")]
+[SchemaType("system.datetime")]
 public static class SystemDate
 {
     /// <summary>
@@ -19,37 +18,37 @@ public static class SystemDate
     /// Convert from UTC
     /// </summary>
     public static DateTime FromUtc(this DateTime date) => TimeZoneInfo.ConvertTimeFromUtc(date, _timeZone);
-    
+
     /// <summary>
     /// system.datetime.now
     /// </summary>
-    [SchemaFunc("system.datetime.now")]
+    [SchemaType]
     public static DateTime Now(this DateTime dt) => DateTime.UtcNow;
 
     #region Locale Info
-    
+
     /// <summary>
     /// system.datetime.getday
     /// </summary>
-    [SchemaFunc("system.datetime.getday")]
+    [SchemaType]
     public static long GetLocaleDay(this DateTime dt) => dt.FromUtc().Day;
 
     /// <summary>
     /// system.datetime.getmonth
     /// </summary>
-    [SchemaFunc("system.datetime.getmonth")]
+    [SchemaType]
     public static long GetLocaleMonth(this DateTime dt) => dt.FromUtc().Month;
 
     /// <summary>
     /// system.datetime.getyear
     /// </summary>
-    [SchemaFunc("system.datetime.getyear")]
+    [SchemaType]
     public static long GetLocaleYear(this DateTime dt) => dt.FromUtc().Year;
 
     /// <summary>
     /// Gets the first time of the year in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.firsttimeinyear")]
+    [SchemaType]
     public static DateTime GetFirstTimeOfYear(this DateTime date)
     {
         date = FromUtc(date);
@@ -60,7 +59,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.firsttimeinmonth")]
+    [SchemaType]
     public static DateTime GetFirstTimeOfMonth(this DateTime date)
     {
         date = FromUtc(date);
@@ -71,7 +70,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.firsttimeinday")]
+    [SchemaType]
     public static DateTime GetFirstTimeOfDay(this DateTime date)
     {
         date = FromUtc(date);
@@ -82,7 +81,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the year in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.lasttimeinyear")]
+    [SchemaType]
     public static DateTime GetLastTimeOfYear(this DateTime date)
     {
         date = FromUtc(date);
@@ -93,7 +92,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.lasttimeinmonth")]
+    [SchemaType]
     public static DateTime GetLastTimeOfMonth(this DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -104,7 +103,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the mongth in UTC
     /// </summary>
-    [SchemaFunc("system.datetime.lasttimeinday")]
+    [SchemaType]
     public static DateTime GetLastTimeOfDay(this DateTime date)
     {
         date = FromUtc(date).AddDays(1);
@@ -119,7 +118,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getyears
     /// </summary>
-    [SchemaFunc("system.datetime.getyears")]
+    [SchemaType]
     public static long GetLocaleYears(this DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -130,7 +129,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getmonths
     /// </summary>
-    [SchemaFunc("system.datetime.getmonths")]
+    [SchemaType]
     public static long GeLocaleMonths(this DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -141,7 +140,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getdays
     /// </summary>
-    [SchemaFunc("system.datetime.getdays")]
+    [SchemaType]
     public static long GetLocaleDays(this DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -152,7 +151,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the days of a month
     /// </summary>
-    [SchemaFunc("system.datetime.getmonthdays")]
+    [SchemaType]
     public static long GetMonthDays(this DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -166,37 +165,37 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.adddays
     /// </summary>
-    [SchemaFunc("system.datetime.adddays")]
+    [SchemaType]
     public static DateTime AddLocaleDays(this DateTime dt, int days) => dt.FromUtc().AddDays(days).ToUtc();
 
     /// <summary>
     /// system.datetime.addhours
     /// </summary>
-    [SchemaFunc("system.datetime.addhours")]
+    [SchemaType]
     public static DateTime AddLocaleHours(this DateTime dt, int hours) => dt.FromUtc().AddHours(hours).ToUtc();
 
     /// <summary>
     /// system.datetime.addminutes
     /// </summary>
-    [SchemaFunc("system.datetime.addminutes")]
+    [SchemaType]
     public static DateTime AddLocaleMinutes(this DateTime dt, int min) => dt.FromUtc().AddMinutes(min).ToUtc();
 
     /// <summary>
     /// system.datetime.addmonths
     /// </summary>
-    [SchemaFunc("system.datetime.addmonths")]
+    [SchemaType]
     public static DateTime AddLocaleMonths(this DateTime dt, int months) => dt.FromUtc().AddMonths(months).ToUtc();
 
     /// <summary>
     /// system.datetime.addseconds
     /// </summary>
-    [SchemaFunc("system.datetime.addseconds")]
+    [SchemaType]
     public static DateTime AddLocaleSeconds(this DateTime dt, int seconds) => dt.FromUtc().AddSeconds(seconds).ToUtc();
 
     /// <summary>
     /// system.datetime.addyears
     /// </summary>
-    [SchemaFunc("system.datetime.addyears")]
+    [SchemaType]
     public static DateTime AddLocaleYears(this DateTime dt, int year) => dt.FromUtc().AddYears(year).ToUtc();
 
     #endregion
@@ -206,7 +205,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.equal
     /// </summary>
-    [SchemaFunc("system.datetime.equal")]
+    [SchemaType]
     public static bool Equal(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -217,7 +216,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.greateequal
     /// </summary>
-    [SchemaFunc("system.datetime.greateequal")]
+    [SchemaType]
     public static bool GreatEqual(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -228,7 +227,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.greatethan
     /// </summary>
-    [SchemaFunc("system.datetime.greatethan")]
+    [SchemaType]
     public static bool GreateThan(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -239,7 +238,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.lessequal
     /// </summary>
-    [SchemaFunc("system.datetime.lessequal")]
+    [SchemaType]
     public static bool LessEqual(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -250,7 +249,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.lessthan
     /// </summary>
-    [SchemaFunc("system.datetime.lessthan")]
+    [SchemaType]
     public static bool LessThan(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -261,7 +260,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.notequal
     /// </summary>
-    [SchemaFunc("system.datetime.notequal")]
+    [SchemaType]
     public static bool NotEqual(this DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -272,7 +271,7 @@ public static class SystemDate
     /// <summary>
     /// GreateEqual
     /// </summary>
-    [SchemaFunc("system.datetime.between")]
+    [SchemaType]
     public static bool Between(this DateTime date, DateTime min, DateTime max)
     {
         date = FromUtc(date);

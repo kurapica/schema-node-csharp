@@ -106,7 +106,7 @@ public static class BatchQueryExtension
 
                         if (!query.NoSchema ?? false)
                         {
-                            await ScanEnumAccess(context, root, field.TypeNode!, enumsKeys, result);
+                            await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
                         }
                     }
                 }
@@ -197,7 +197,7 @@ public static class BatchQueryExtension
             case ArrayType array:
                 if (value is not ArrayTypeNode arr) return;
 
-                switch (array.ElementNode)
+                switch (array.ElementSchemaType)
                 {
                     case StructType eleStruct:
                     {

@@ -4,21 +4,22 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The enum type schema
 /// </summary>
-[SchemaStruct([nameof(Name)])]
 [SchemaApp]
 public class EnumSchema
 {
     /// <summary>
     /// The struct name
     /// </summary>
+    [Index]
     [JsonIgnore]
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
     
     /// <summary>
@@ -46,31 +47,35 @@ public class EnumSchema
 /// <summary>
 /// The enum value info
 /// </summary>
-[SchemaStruct(["enum", "value"], index: ["enum", "root", "value"] )]
 [SchemaApp]
 public class EnumValueInfo
 {
     /// <summary>
     /// The enum name
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [Index("IX_SUB_LIST")]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Enum { get; set; } = string.Empty;
     
     /// <summary>
     /// The enum value sequence number
     /// </summary>
     public int Seqno { get; set; } = 0;
-    
+
     /// <summary>
     /// The root value
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index("IX_SUB_LIST")]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
 
     /// <summary>
     /// The value
     /// </summary>
-    [MaxLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Index]
+    [Index("IX_SUB_LIST")]
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
@@ -92,20 +97,20 @@ public class EnumValueInfo
     /// <summary>
     /// Whether the enum value has sub enum values
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool? HasSubList { get; set; }
     
     /// <summary>
     /// The sub enum values
     /// </summary>
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public EnumValueInfo[]? SubList { get; set; }
 
     /// <summary>
     /// Whether the enum value is fully loaded
     /// </summary>
     [JsonIgnore]
-    [SchemaStructMemIgnore]
+    [NotMapped]
     public bool IsFullyLoaded { get; set; }
 
     /// <summary>

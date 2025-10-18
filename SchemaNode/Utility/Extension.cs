@@ -1,9 +1,12 @@
 using SchemaNode.Node;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Xml;
 
 namespace SchemaNode.Utility;
 
@@ -126,6 +129,66 @@ internal static class Extension
         {
             writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
         }
+    }
+
+    internal class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, System.Enum
+    {       
+        public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.String)
+            {
+                var str = reader.GetString();
+                if (System.Enum.TryParse<T>(str, ignoreCase: true, out var result))
+                    return result;
+                throw new JsonException($"Invalid enum value '{str}' for {typeof(T)}");
+            }
+
+            if (reader.TokenType == JsonTokenType.Number)
+            {
+                var val = reader.GetInt64();
+                return (T)System.Enum.ToObject(typeof(T), val);
+            }
+
+            throw new JsonException($"Unexpected token {reader.TokenType} when parsing enum {typeof(T)}");
+        }
+
+        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        {
+            var isFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
+            if (isFlags)
+            {
+                writer.WriteNumberValue(Convert.ToInt64(value));
+            }
+            else
+            {
+                writer.WriteStringValue(value.ToString());
+            }
+        }
+    }
+
+    public class UniversalFlexibleEnumConverter : JsonConverterFactory
+    {
+        public override bool CanConvert(Type typeToConvert) => typeToConvert.IsEnum;
+
+        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
+        {
+            return flagsEnums.GetOrAdd(typeToConvert, t =>
+            {
+                var isFlags = t.IsDefined(typeof(FlagsAttribute), false);
+                if (isFlags)
+                {
+                    var converterType = typeof(FlexibleEnumConverter<>).MakeGenericType(t);
+                    return (JsonConverter)Activator.CreateInstance(converterType)!;
+                }
+                else
+                {
+                    return normalEnumConverter.CreateConverter(t, options);
+                }
+            });
+        }
+
+        static JsonStringEnumConverter normalEnumConverter = new (JsonNamingPolicy.CamelCase);
+        static ConcurrentDictionary<Type, JsonConverter> flagsEnums = [];
     }
 
     /// <summary>
@@ -310,13 +373,13 @@ internal static class Extension
         value = null;
         return false;
     }
-    
-    private static readonly JsonSerializerOptions IndentJsonOption = new()
+
+    internal static readonly JsonSerializerOptions IndentJsonOption = new()
     {
         WriteIndented = true,
         Converters =
         {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+            new UniversalFlexibleEnumConverter(),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffsetIsoConverter(),
             new ForceStringConverter(),
@@ -326,12 +389,12 @@ internal static class Extension
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
     
-    private static readonly JsonSerializerOptions NoIndentJsonOption = new()
+    internal static readonly JsonSerializerOptions NoIndentJsonOption = new()
     {
         WriteIndented = false,
         Converters =
         {
-            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase),
+            new UniversalFlexibleEnumConverter(),
             new JsonDateTimeIsoConverter(),
             new JsonDateTimeOffsetIsoConverter(),
             new ForceStringConverter(),
@@ -606,6 +669,57 @@ internal static class Extension
             throw new InvalidCastException($"Cannot convert the value '{value}' to type '{type.FullName}'", ex);
         }
     }
+
+    /// <summary>
+    /// Get summary contents from XML document.
+    /// </summary>
+    internal static string? GetSummaryFromXmlDoc(this Type type,  PropertyInfo? prop = null)
+    {
+        string preFix = prop != null ? "P:" : "T:";
+        string typeName = prop != null ? prop.DeclaringType!.Name : type.Name;
+        string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
+        string propertyName = prop != null ? prop.Name : string.Empty;
+
+        if (!File.Exists(xmlPath)) return string.Empty;
+
+        if (!XmlFiles.ContainsKey(xmlPath))
+        {
+            XmlDocument document = new();
+            document.Load(xmlPath);
+            XmlFiles[xmlPath] = document;
+        }
+        string xPath = "/doc/members";
+        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
+        foreach (XmlElement node in nodeList!)
+        {
+            if (node.HasChildNodes && node.Attributes.Count > 0)
+            {
+                string name = node.Attributes[0].Value;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    if ((name.StartsWith(preFix) && name.Contains(typeName) && string.IsNullOrEmpty(propertyName))
+                        ||
+                        (name.StartsWith(preFix) && name.Contains(typeName) && name.EndsWith(propertyName))
+                       )
+                    {
+                        string summaryContent = node.InnerText;
+                        return string.Join("\n",
+                            summaryContent
+                                .Split('\n', '\r')
+                                .Where(t =>
+                                    !string.IsNullOrWhiteSpace(t) &&
+                                    !string.IsNullOrEmpty(t))
+                                .Select(p => p.Trim())
+                                .ToArray()
+                        );
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    static readonly Dictionary<string, XmlDocument> XmlFiles = new();
 
     #endregion
 
