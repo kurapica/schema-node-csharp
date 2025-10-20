@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using SchemaNode.Context;
@@ -349,7 +350,7 @@ public static class SchemaApiExtension
     /// <summary>
     /// Enable microservice apis
     /// </summary>
-    public static IEndpointRouteBuilder UseSchemaApis(this IEndpointRouteBuilder app, string prefix = "schema", string suffix = "", bool enableAppDataApi = false)
+    public static WebApplication UseSchemaApis(this WebApplication app, string prefix = "schema", string suffix = "", bool enableAppDataApi = false, bool enableSchemaManage = false)
     {
         UrlPrefix = prefix;
         UrlSuffix = suffix;
@@ -360,7 +361,7 @@ public static class SchemaApiExtension
         Assembly? assembly = Assembly.GetEntryAssembly();
         if (!RegisterAssemblys.Contains(assembly)) RegisterAssemblys.Add(assembly!);
 
-        IServiceProviderIsService service = app.ServiceProvider.GetRequiredService<IServiceProviderIsService>();
+        IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
 
@@ -397,6 +398,33 @@ public static class SchemaApiExtension
                 Console.WriteLine($"<{type.Name}> is now listening.");
             }
         }
+
+        if (enableSchemaManage)
+        {
+            // schema manage web sites
+            EmbeddedFileProvider manProvider = new(typeof(SchemaApi<,>).Assembly, "SchemaNode.www");
+
+            app.MapGet("/schema-node-man", async context =>
+            {
+                using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
+                using var reader = new StreamReader(stream);
+                var html = await reader.ReadToEndAsync();
+
+                // 在 <head> 中插入 meta 标签
+                html = html.Replace("</head>", $"<meta name=\"schema-embedded\" content=\"true\"><meta name=\"api-base-url\" content=\"/{prefix}\"></head>");
+    
+                context.Response.ContentType = "text/html";
+                await context.Response.WriteAsync(html);
+            });
+            
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = manProvider,
+                RequestPath = "/schema-node-man"
+            });
+            
+        }
+
         return app;
     }
 

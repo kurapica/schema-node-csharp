@@ -6,7 +6,6 @@ using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 using System.Data;
 using System.Text;
-using MySqlConnector.Logging;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -36,7 +35,7 @@ builder.Services
 var app = builder.Build();
 app.UseCors("AllowAll");
 
-app.UseSchemaApis(enableAppDataApi:true);
+app.UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true);
 app.PreLoadSchemaNodes(); // for schema server
 
 #region Swagger
