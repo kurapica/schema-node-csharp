@@ -1,2 +1,14 @@
 SchemaNode/bin
 SchemaNode/obj
+/.idea
+/.vs
+/.idea
+/SchemaNodeExample/bin
+/SchemaNodeExample/obj
+/.idea
+SchemaNodeExample/.DS_Store
+SchemaNode.MySql/.DS_Store
+/SchemaNode.MySql/obj
+/SchemaNode.MySql/bin
+.DS_Store
+SchemaNode.sln.DotSettings.user

@@ -1,6 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode", "SchemaNode/SchemaNode.csproj", "{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}"
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode", "SchemaNode\SchemaNode.csproj", "{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNodeExample", "SchemaNodeExample\SchemaNodeExample.csproj", "{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.MySql", "SchemaNode.MySql\SchemaNode.MySql.csproj", "{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +19,19 @@ Global
 		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {70E39E2A-71AC-444B-B681-90063924E494}
 	EndGlobalSection
 EndGlobal

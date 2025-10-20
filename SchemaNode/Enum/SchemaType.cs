@@ -1,4 +1,7 @@
+using SchemaNode.Attribute;
 using System.Runtime.Serialization;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Enum;
 
@@ -31,10 +34,15 @@ public enum SchemaType
     /// The array node
     /// </summary>
     Array,
+    
+    /// <summary>
+    /// The complex json node, we don't care how it organized
+    /// Useful for entities defined in C#
+    /// </summary>
+    Json,
 
     /// <summary>
     /// The function node
     /// </summary>
-    [EnumMember(Value = "func")]
-    Function,
+    Func,
 }

@@ -1,3 +1,5 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -9,6 +11,11 @@ public enum DataCombineType
     /// Assign
     /// </summary>
     Assign,
+    
+    /// <summary>
+    /// Init
+    /// </summary>
+    Init,
 
     /// <summary>
     /// Sum
@@ -19,14 +26,4 @@ public enum DataCombineType
     /// Count
     /// </summary>
     Count,
-
-    /// <summary>
-    /// The min value
-    /// </summary>
-    Min,
-
-    /// <summary>
-    /// The max value
-    /// </summary>
-    Max,
 }

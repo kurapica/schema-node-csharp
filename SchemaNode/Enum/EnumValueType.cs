@@ -1,3 +1,5 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -14,16 +16,6 @@ public enum EnumValueType
     /// The enum value is an integer.
     /// </summary>
     Int,
-
-    /// <summary>
-    /// The enum value is a float.
-    /// </summary>
-    Float,
-
-    /// <summary>
-    /// The enum value is a double.
-    /// </summary>
-    Double,
 
     /// <summary>
     /// The enum value is flags.

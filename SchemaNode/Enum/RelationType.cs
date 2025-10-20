@@ -1,3 +1,5 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -15,6 +17,11 @@ public enum RelationType
     /// </summary>
     Invisible,
 
+    /// <summary>
+    /// Visible
+    /// </summary>
+    Visible,
+    
     /// <summary>
     /// Disable
     /// </summary>
@@ -74,4 +81,9 @@ public enum RelationType
     /// Single flag value for enum
     /// </summary>
     SingleFlag,
+    
+    /// <summary>
+    /// Union validation
+    /// </summary>
+    Validation,
 }

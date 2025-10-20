@@ -1,3 +1,5 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>

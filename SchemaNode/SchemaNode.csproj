@@ -5,16 +5,20 @@
         <RootNamespace>SchemaNode</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
     </PropertyGroup>
 
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
     <ItemGroup>
-      <Folder Include="Api\" />
-      <Folder Include="Attribute\" />
-      <Folder Include="Context\" />
-      <Folder Include="Function\" />
-      <Folder Include="Node\" />
-      <Folder Include="Provider\" />
-      <Folder Include="Utility\" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.1.25451.107" />
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-rc.1.25451.107" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.1.25451.107" />
+      <PackageReference Include="Microsoft.OpenApi" Version="2.3.2" />
+      <PackageReference Include="TimeZoneConverter" Version="7.0.0" />
     </ItemGroup>
 
 </Project>
