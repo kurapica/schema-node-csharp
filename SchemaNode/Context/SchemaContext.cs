@@ -435,7 +435,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
             AppType? parentNode = await GetAppTypeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
             if (parentNode != null)
             {
-                parentNode.Apps = parentNode.Apps == null ? [app] : parentNode.Apps.Concat([app]).ToArray();
+                parentNode.Apps = parentNode.Apps == null ? [app] : parentNode.Apps.Where(p => !p.Name.Equals(app.Name, StringComparison.OrdinalIgnoreCase)).Concat([app]).ToArray();
             }
         }
         await GetAppTypeAsync(app.Name, reload: true); // force reload

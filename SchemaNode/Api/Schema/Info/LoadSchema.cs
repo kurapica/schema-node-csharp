@@ -40,6 +40,12 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
                     };
                 }).ToArray();
             }
+            else
+            {
+                schema.UsedBy = node.UsedBy?.Keys.Select(p => p.Name).ToArray();
+                schema.UsedByApp = node.UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
+
+            }
             schemas.Add(schema);
         }
 

@@ -392,8 +392,6 @@ public class StructType: AnySchemeType
             Display = schema.Display,
             LoadState = schema.LoadState,
             Used = schema.IsUsed,
-            UsedBy = schema.UsedBy?.Keys.Select(p => p.Name).ToArray(),
-            UsedByApp = schema.UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray(),
             Struct = new StructSchema
             {
                 Base = schema.Base,
