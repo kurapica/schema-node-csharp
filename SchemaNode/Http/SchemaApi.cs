@@ -7,7 +7,6 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -348,9 +347,19 @@ public static class SchemaApiExtension
     }
 
     /// <summary>
-    /// Enable microservice apis
+    /// Enable schema apis
     /// </summary>
-    public static WebApplication UseSchemaApis(this WebApplication app, string prefix = "schema", string suffix = "", bool enableAppDataApi = false, bool enableSchemaManage = false)
+    /// <param name="app">The web application</param>
+    /// <param name="prefix">the api prefix, default "schema"</param>
+    /// <param name="suffix">the api suffix, like "action"</param>
+    /// <param name="enableAppDataApi">Whether enable application data api for test</param>
+    /// <param name="enableSchemaManage">Whether enable the embed schema management website</param>
+    /// <param name="authorize">The authorization func</param>
+    /// <param name="managePolicy">The authorization policy</param>
+    /// <returns></returns>
+    public static WebApplication UseSchemaApis(this WebApplication app, string prefix = "schema", string suffix = "", bool enableAppDataApi = false, bool enableSchemaManage = false,
+        Func<HttpContext, Task<bool>>? authorize = null,
+        string? managePolicy = null)
     {
         UrlPrefix = prefix;
         UrlSuffix = suffix;
@@ -404,9 +413,22 @@ public static class SchemaApiExtension
             // schema manage web sites
             EmbeddedFileProvider manProvider = new(typeof(SchemaApi<,>).Assembly, "SchemaNode.www");
 
-            app.MapGet("/schema-node-man", async context =>
+            var endpoint = app.MapGet("/schema-node-man", async context =>
             {
-                using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
+                // authorization
+                if (authorize is not null)
+                {
+                    var ok = await authorize(context);
+                    if (!ok)
+                    {
+                        context.Response.StatusCode = 403;
+                        await context.Response.WriteAsync("Forbidden");
+                        return;
+                    }
+                }
+
+                // add embedded meta
+                await using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
                 using var reader = new StreamReader(stream);
                 var html = await reader.ReadToEndAsync();
 
@@ -416,6 +438,10 @@ public static class SchemaApiExtension
                 context.Response.ContentType = "text/html";
                 await context.Response.WriteAsync(html);
             });
+            
+            // add authorization policy
+            if (!string.IsNullOrEmpty(managePolicy))
+                endpoint.RequireAuthorization(managePolicy);
             
             app.UseStaticFiles(new StaticFileOptions
             {
