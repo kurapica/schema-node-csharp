@@ -25,10 +25,8 @@ public static class Injection
     {
         if (config != null)
         {
-            SchemaNodeConfig nodeConfig = new SchemaNodeConfig();
-            config.Invoke(nodeConfig);
-            services.AddSingleton(nodeConfig);
-            SystemDate.SetTimeZone(nodeConfig.TimeZone);
+            config.Invoke(SchemaContext.Config);
+            SystemDate.SetTimeZone(SchemaContext.Config.TimeZone);
         }
         
         // default logger
@@ -151,6 +149,7 @@ public static class Injection
                         Name = fieldName,
                         Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any()) ? $"{typeName}s" : typeName,
                         Display = attr.Display,
+                        IncrUpdate = attr.IncrUpdate,
                     }, type: type);
                 }
             }

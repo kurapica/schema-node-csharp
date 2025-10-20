@@ -8,6 +8,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -59,9 +60,7 @@ public static class BatchQueryExtension
             if (node == null) continue;
 
             if (!(query.NoSchema ?? false))
-            {
                 node.GetNodeSchemas(root);
-            }
 
             // query fields
             List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
@@ -104,10 +103,16 @@ public static class BatchQueryExtension
                             Total = total
                         };
 
-                        if (!query.NoSchema ?? false)
+                        // limit incr field take count
+                        if (field.IncrUpdate == true)
                         {
-                            await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
+                            infos[field.Name].Take = (infos[field.Name].Take ?? 0) <= 0 
+                                ? SchemaContext.Config.IncrFieldDefaultTakeCount 
+                                : Math.Min(infos[field.Name].Take!.Value, SchemaContext.Config.IncrFieldMaxTakeCount);
                         }
+
+                        if (!query.NoSchema ?? false)
+                            await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
                     }
                 }
             }
