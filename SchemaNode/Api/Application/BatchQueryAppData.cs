@@ -88,29 +88,34 @@ public static class BatchQueryExtension
                 foreach (AppFieldType field in fields)
                 {
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
+                    
+                    // limit incr field take count
+                    int take = q?.Take ?? query.Take ?? 0;
+                    if (field.IncrUpdate == true)
+                    {
+                        take = take <= 0 
+                            ? SchemaContext.Config.IncrFieldDefaultTakeCount 
+                            : Math.Min(take, SchemaContext.Config.IncrFieldMaxTakeCount);
+                    }
+
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
-                        q?.Filter, q?.Skip ?? 0, q?.Take ?? query.Take ?? 0, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                        q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                    
+                    // mark loaded
+                    infos[field.Name] = new AppDataFieldInfo
+                    {
+                        Filter = q?.Filter,
+                        OrderBy = q?.OrderBy,
+                        Skip = q?.Skip ?? 0,
+                        Take = take,
+                        Descend = q?.Descend ?? query.Descend ?? false,
+                        Total = total
+                    };
+
+                    // cover result
                     if (result != null)
                     {
-                        datas[field.Name] = result.ToJson()!;
-                        infos[field.Name] = new AppDataFieldInfo
-                        {
-                            Filter = q?.Filter,
-                            OrderBy = q?.OrderBy,
-                            Skip = q?.Skip ?? 0,
-                            Take = q?.Take ?? query.Take ?? 0,
-                            Descend = q?.Descend ?? query.Descend ?? false,
-                            Total = total
-                        };
-
-                        // limit incr field take count
-                        if (field.IncrUpdate == true)
-                        {
-                            infos[field.Name].Take = (infos[field.Name].Take ?? 0) <= 0 
-                                ? SchemaContext.Config.IncrFieldDefaultTakeCount 
-                                : Math.Min(infos[field.Name].Take!.Value, SchemaContext.Config.IncrFieldMaxTakeCount);
-                        }
-
+                        datas[field.Name] =  result.ToJson()!;
                         if (!query.NoSchema ?? false)
                             await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
                     }
@@ -373,7 +378,7 @@ public class AppDataResult
 }
 
 /// <summary>
-/// The queryfield result info
+/// The query field result info
 /// </summary>
 public class AppDataFieldInfo
 {

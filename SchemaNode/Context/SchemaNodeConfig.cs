@@ -10,10 +10,10 @@ public class SchemaNodeConfig
     /// <summary>
     /// The max take count for increment field
     /// </summary>
-    public int IncrFieldMaxTakeCount { get; set; } = 1000;
+    public int IncrFieldMaxTakeCount { get; set; } = 20;
     
     /// <summary>
     /// The default take count for increment field
     /// </summary>
-    public int IncrFieldDefaultTakeCount { get; set; } = 50;
+    public int IncrFieldDefaultTakeCount { get; set; } = 5;
 }

@@ -26,7 +26,7 @@ public class SchemaAppAttribute: System.Attribute
     /// <summary>
     /// Binding the application & field
     /// </summary>
-    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool? incrUpdate = null)
+    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool incrUpdate = false)
     {
         Application = app;
         Field = field;
