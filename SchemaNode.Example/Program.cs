@@ -4,15 +4,14 @@ using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components.Provider;
 using SchemaNode.Http;
-using System.Data;
 using System.Text;
+using Microsoft.AspNetCore.ResponseCompression;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Mysql
-var connString = builder.Configuration.GetConnectionString("Default");
-builder.Services.AddScoped<IDbConnection>(_ => new MySqlConnection(connString));
+builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
 
 // for test
 builder.Services.AddCors(options =>
@@ -23,6 +22,19 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+});builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json"
+    });
+});
+
+builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+{
+    options.Level = System.IO.Compression.CompressionLevel.Fastest;
 });
 
 // schema
@@ -34,6 +46,7 @@ builder.Services
 
 var app = builder.Build();
 app.UseCors("AllowAll");
+app.UseResponseCompression();
 
 app.UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true);
 app.PreLoadSchemaNodes(); // for schema server

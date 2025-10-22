@@ -97,6 +97,10 @@ public static class BatchQueryExtension
                             ? SchemaContext.Config.IncrFieldDefaultTakeCount 
                             : Math.Min(take, SchemaContext.Config.IncrFieldMaxTakeCount);
                     }
+                    else
+                    {
+                        take = 0;
+                    }
 
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
                         q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
@@ -301,7 +305,7 @@ public class AppDataQuery
     public Dictionary<string, AppDataFieldQuery>? Querys { get; set; }
     
     /// <summary>
-    /// The default take count
+    /// The default take count for incr update field
     /// </summary>
     public int? Take { get; set; }
     
