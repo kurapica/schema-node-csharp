@@ -411,7 +411,7 @@ public static class SchemaApiExtension
         if (enableSchemaManage)
         {
             // schema manage web sites
-            EmbeddedFileProvider manProvider = new(typeof(SchemaApi<,>).Assembly, "SchemaNode.www");
+            var manProvider = new CachedZipFileProvider(typeof(SchemaApi<,>).Assembly, "SchemaNode.www.zip", "dist");
 
             var endpoint = app.MapGet("/schema-node-man", async context =>
             {
