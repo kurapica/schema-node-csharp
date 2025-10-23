@@ -472,7 +472,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            ArrayTypeNode value = new ArrayTypeNode(schema.TypeNode);
+            ArrayTypeNode value = new ArrayTypeNode(schema.SchemaType);
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogDebug(command.CommandText);
