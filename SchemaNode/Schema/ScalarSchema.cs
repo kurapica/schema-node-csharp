@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 public class ScalarSchema
 {
     /// <summary>
-    /// The struct name
+    /// The scalar name
     /// </summary>
     [Index]
     [JsonIgnore]

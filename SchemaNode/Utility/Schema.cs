@@ -943,8 +943,9 @@ internal static class Schema
 
     #endregion
     
-    #region System
+    #region System Schema
 
+    // The basic system schema
     static readonly NodeSchema _root = new NodeSchema
     {
         Name = "",
@@ -961,7 +962,8 @@ internal static class Schema
                 Display = NS_SYSTEM,
                 Schemas =
                 [
-                    // base type
+                    #region base type
+                    
                     new NodeSchema
                     {
                         Name = NS_SYSTEM_ARRAY,
@@ -991,8 +993,11 @@ internal static class Schema
                         LoadState = SchemaLoadState.System,
                         Display = NS_SYSTEM_JSON,
                     },
+                    
+                    #endregion
 
-                    // scalar
+                    #region scalar
+                    
                     new NodeSchema
                     {
                         Name = NS_SYSTEM_BOOL,
@@ -1154,8 +1159,11 @@ internal static class Schema
                             Regex = @"^[a-z]{2}(-[A-Z]{2})?$", // en, en-US
                         }
                     },
+                    
+                    #endregion
 
-                    // struct
+                    #region struct
+                    
                     new NodeSchema
                     {
                         Name = NS_SYSTEM_RANGE_DATE,
@@ -1264,8 +1272,11 @@ internal static class Schema
                             ],
                         },
                     },
+                    
+                    #endregion
 
-                    // array
+                    #region array
+                    
                     new NodeSchema
                     {
                         Name = NS_SYSTEM_STRINGS,
@@ -1299,7 +1310,24 @@ internal static class Schema
                         {
                             Element = NS_SYSTEM_INT
                         },
-                    }
+                    },
+                    
+                    #endregion
+
+                    #region Schema
+
+                    new NodeSchema
+                    {
+                        Name = NS_SYSTEM_SCHEMA,
+                        Type = SchemaType.Namespace,
+                        LoadState = SchemaLoadState.System,
+                        Display = NS_SYSTEM_SCHEMA,
+                        Schemas = [
+                            
+                        ]
+                    },
+
+                    #endregion
                 ]
             }
         ]

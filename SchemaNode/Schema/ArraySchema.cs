@@ -14,7 +14,7 @@ namespace SchemaNode.Schema;
 public class ArraySchema
 {
     /// <summary>
-    /// The struct name
+    /// The array name
     /// </summary>
     [Index]
     [JsonIgnore]

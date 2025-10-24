@@ -15,7 +15,7 @@ namespace SchemaNode.Schema;
 public class EnumSchema
 {
     /// <summary>
-    /// The struct name
+    /// The enum name
     /// </summary>
     [Index]
     [JsonIgnore]

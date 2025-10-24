@@ -145,8 +145,6 @@ public class NodeSchema
 /// <summary>
 /// The locale translate
 /// </summary>
-/// <param name="Lang">Language</param>
-/// <param name="Tran">Translate</param>
 [SchemaType(NS_SYSTEM_LOCALE_TRAN)]
 public class LocaleTran
 {

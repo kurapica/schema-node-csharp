@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 public class FunctionSchema
 {
     /// <summary>
-    /// The struct name
+    /// The function name
     /// </summary>
     [Index]
     [JsonIgnore]

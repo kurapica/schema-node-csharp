@@ -40,9 +40,10 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 // schema
 builder.Services
     .AddSchemaNode()
-    //.AddSchemaStorageProvider<JsonSchemaStorageProvider>()
-    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>()
-    .AddAppSchemaDataProvider<AppSchemaDataProvider>();
+    //.AddSchemaStorageProvider<JsonSchemaStorageProvider>()    // Save schema as json file
+    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>()   // save schema as application data
+    //.AddAppSchemaDataProvider<AppSchemaDataProvider>();       // Mysql application data provider
+    .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>(); // Memory application data provider - for test
 
 var app = builder.Build();
 app.UseCors("AllowAll");

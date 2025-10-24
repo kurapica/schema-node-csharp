@@ -30,24 +30,31 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_FULL_DATE = "system.rangefulldate";
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
+    
+    // array
     public const string NS_SYSTEM_STRINGS = "system.strings";
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
     public const string NS_SYSTEM_INTS = "system.ints";
 
+    // language x translate x entry
     public const string NS_SYSTEM_LANGUAGE = "system.language";
     public const string NS_SYSTEM_LOCALE_STRING = "system.localestring";
     public const string NS_SYSTEM_LOCALE_TRAN = "system.localetran";
 
     public const string NS_SYSTEM_ENTRY = "system.entry";
     public const string NS_SYSTEM_ENTRIES = "system.entrys";
+    
+    // system.schema
+    public const string NS_SYSTEM_SCHEMA = "system.schema";
 
+    // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
     
-    public const string NS_SYSTEM_SCHEMA = "system.schema";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
 
+    // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
     public const int FUNC_SIGN_ASYNC = 2;
     public const int FUNC_SIGN_GENERIC = 4;
