@@ -25,6 +25,7 @@ public class ArraySchema
     /// The element type of the array.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE)]
     public string? Element { get; set; }
 
     /// <summary>

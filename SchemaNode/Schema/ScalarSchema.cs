@@ -24,6 +24,7 @@ public class ScalarSchema
     /// The base type of the scalar
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_SCALAR_TYPE)]
     public string? Base { get; set; }
 
     /// <summary>
@@ -56,6 +57,7 @@ public class ScalarSchema
     /// The white list function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE)]
     public string? WhiteList { get; set; }
     
     /// <summary>
@@ -67,12 +69,14 @@ public class ScalarSchema
     /// The function to validate the scalar value in frontend
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE)]
     public string? PreValid  { get; set; }
 
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE)]
     public string? PostValid  { get; set; }// 用来存放额外的字段
     
     /// <summary>

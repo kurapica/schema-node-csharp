@@ -20,7 +20,7 @@ public static class SystemStr
     public static string[] Split(string str, string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
     
     [SchemaType]
-    public static string Substr(string str, int startIndex, int stop) => str.Substring(startIndex, stop - startIndex);
+    public static string Substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
     [SchemaType]
     public static LocaleString ToLocale(string? str) => new LocaleString { Key = str ?? "" };

@@ -134,6 +134,16 @@ public class NodeSchema
         }
     }
 
+    #region Methods
+
+    internal NodeSchema WithSchemas(NodeSchema[] schemas)
+    {
+        Schemas = schemas;
+        return this;
+    }
+
+    #endregion
+
     #region Utility
 
     private SchemaLoadState? _schemaLoadState;

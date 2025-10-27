@@ -912,7 +912,7 @@ internal static class Schema
     
     #endregion
     
-    #region Utility
+    #region Enumerable Convert
 
     static IEnumerable<T> ConvertToEnumerable<T>(JsonArray arr)
     {
@@ -942,396 +942,149 @@ internal static class Schema
     private static ConcurrentDictionary<Type, string> _typeArrNames = [];
 
     #endregion
+
+    #region Utility
+
+    static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)
+    {
+        return new NodeSchema
+        {
+            Name = name,
+            Type = type,
+            LoadState = SchemaLoadState.System,
+            Display = name,
+        };
+    }
+    
+    static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
+    {
+        return new NodeSchema
+        {
+            Name = name,
+            Type = SchemaType.Scalar,
+            LoadState = SchemaLoadState.System,
+            Display = name,
+            Scalar = new ScalarSchema
+            {
+                Base = baseType,
+                Error = enableError ? $"{name}.error" : null,
+                Regex = regex,
+                UpLimit = upLimit,
+                LowLimit = lowLimit
+            },
+        };
+    }
+
+    static NodeSchema NewSystemStruct(string name, (string name, string type, bool? require)[] fields)
+    {
+        return new NodeSchema
+        {
+            Name = name,
+            Type = SchemaType.Struct,
+            LoadState = SchemaLoadState.System,
+            Display = name,
+            Struct = new StructSchema
+            {
+                Fields = fields.Select(f => new StructFieldConfig
+                {
+                    Name = f.name,
+                    Type = f.type,
+                    Require = f.require ?? false,
+                    Display = $"{name}.{f.name}",
+                }).ToArray()
+            },
+        };
+    }
+    
+    static NodeSchema NewSystemArray(string name, string? eleType = null, params string[] primary)
+    {
+        return new NodeSchema
+        {
+            Name = name,
+            Type = SchemaType.Array,
+            LoadState = SchemaLoadState.System,
+            Display = name,
+            Array = new ArraySchema
+            {
+                Element = eleType,
+                Primary = primary.Length > 0 ? primary : null,
+            },
+        };
+    }
+    
+    #endregion
     
     #region System Schema
 
     // The basic system schema
-    static readonly NodeSchema _root = new NodeSchema
-    {
-        Name = "",
-        Type = SchemaType.Namespace,
-        LoadState = SchemaLoadState.System,
-        Schemas =
-        [
-            // System types
-            new NodeSchema
-            {
-                Name = NS_SYSTEM,
-                Type = SchemaType.Namespace,
-                LoadState = SchemaLoadState.System,
-                Display = NS_SYSTEM,
-                Schemas =
-                [
-                    #region base type
-                    
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_ARRAY,
-                        Type = SchemaType.Array,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_ARRAY,
-                        Array = new ArraySchema
-                        {
-                            Element = "",
-                        }
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_STRUCT,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_STRUCT,
-                        Struct = new StructSchema
-                        {
-                            Fields = []
-                        }
-                    },
-                    new NodeSchema()
-                    {
-                        Name = NS_SYSTEM_JSON,
-                        Type = SchemaType.Json,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_JSON,
-                    },
-                    
-                    #endregion
+    static readonly NodeSchema _root = NewSystemSchema("").WithSchemas([
+        // System types
+        NewSystemSchema(NS_SYSTEM).WithSchemas([
+            #region base type
+            
+            NewSystemArray(NS_SYSTEM_ARRAY, ""),
+            NewSystemStruct(NS_SYSTEM_STRUCT, []),
+            NewSystemSchema(NS_SYSTEM_JSON, SchemaType.Json),
+            
+            #endregion
 
-                    #region scalar
-                    
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_BOOL,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_BOOL,
-                        Scalar = new ScalarSchema
-                        {
-                            Error = "system.bool.error"
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_DATE,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_DATE,
-                        Scalar = new ScalarSchema
-                        {
-                            Error = "system.date.error"
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_NUMBER,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_NUMBER,
-                        Scalar = new ScalarSchema
-                        {
-                            Error = "system.number.error",
-                            Regex = @"^(\\-|\\+)?\\d+(\\.\\d+)?(e\\-\\d+)?$",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_DOUBLE,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_DOUBLE,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_NUMBER,
-                            Error = "system.double.error",
-                            Regex = @"^-?\\d+\\.?\\d+$",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_FLOAT,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_FLOAT,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_DOUBLE,
-                            Error = "system.float.error",
-                            Regex = @"^\\d+(\\.\\d+)?$",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_PERCENT,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_PERCENT,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_FLOAT,
-                            Error = "system.percent.error",
-                            Regex = @"^\\d+(\\.\\d+)?$",
-                            UpLimit = 100,
-                            LowLimit = 0
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_FULL_DATE,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_FULL_DATE,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_DATE,
-                            Error = "system.fulldate.error",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_INT,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_INT,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_NUMBER,
-                            Error = "system.int.error",
-                            Regex = @"^(\\-|\\+)?\\d+$",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_STRING,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_STRING,
-                        Scalar = new ScalarSchema(),
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_YEAR,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_YEAR,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_INT,
-                            Unit = "system.year.unit",
-                            LowLimit = 1900,
-                            Regex = @"^\\d{4}$",
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_YEARMONTH,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_YEARMONTH,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_DATE,
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_GUID,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_GUID,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_STRING,
-                            LowLimit = 36,
-                            UpLimit = 36,
-                            Regex = @"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$",
-                        }
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_LANGUAGE,
-                        Type = SchemaType.Scalar,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_LANGUAGE,
-                        Scalar = new ScalarSchema
-                        {
-                            Base = NS_SYSTEM_STRING,
-                            LowLimit = 2,
-                            UpLimit = 5,
-                            Regex = @"^[a-z]{2}(-[A-Z]{2})?$", // en, en-US
-                        }
-                    },
-                    
-                    #endregion
+            #region scalar
+            
+            NewSystemScalar(NS_SYSTEM_BOOL, enableError: true),
+            NewSystemScalar(NS_SYSTEM_DATE, enableError: true),
+            NewSystemScalar(NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+(\\.\\d+)?(e\\-\\d+)?$"),
+            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^-?\\d+\\.?\\d+$"),
+            NewSystemScalar(NS_SYSTEM_FLOAT, baseType:NS_SYSTEM_DOUBLE,  enableError:true, regex:@"^\\d+(\\.\\d+)?$"),
+            NewSystemScalar(NS_SYSTEM_PERCENT, baseType:NS_SYSTEM_FLOAT, enableError:true, regex:@"^\\d+(\\.\\d+)?$", upLimit:100, lowLimit:0),
+            NewSystemScalar(NS_SYSTEM_FULL_DATE, baseType:NS_SYSTEM_DATE, enableError:true),
+            NewSystemScalar(NS_SYSTEM_INT, baseType:NS_SYSTEM_NUMBER, enableError:true, regex:@"^(\\-|\\+)?\\d+$"),
+            NewSystemScalar(NS_SYSTEM_STRING),
+            NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, regex:@"^\\d{4}$"),
+            NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
+            NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
+            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}(-[A-Z]{2})?$", upLimit:8),
+            
+            #endregion
 
-                    #region struct
-                    
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_RANGE_DATE,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGE_DATE,
-                        Struct = new StructSchema
-                        {
-                            Fields =
-                            [
-                                new StructFieldConfig
-                                {
-                                    Name = "start",
-                                    Require = true,
-                                    Type = NS_SYSTEM_DATE,
-                                    Display = "system.rangedate.start",
-                                },
-                                new StructFieldConfig
-                                {
-                                    Name = "stop",
-                                    Require = true,
-                                    Type = NS_SYSTEM_DATE,
-                                    Display = "system.rangedate.stop",
-                                }
-                            ],
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_RANGE_FULL_DATE,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGE_FULL_DATE,
-                        Struct = new StructSchema
-                        {
-                            Fields =
-                            [
-                                new StructFieldConfig
-                                {
-                                    Name = "start",
-                                    Require = true,
-                                    Type = NS_SYSTEM_FULL_DATE,
-                                    Display = "system.rangedate.start",
-                                },
-                                new StructFieldConfig
-                                {
-                                    Name = "stop",
-                                    Require = true,
-                                    Type = NS_SYSTEM_FULL_DATE,
-                                    Display = "system.rangedate.stop",
-                                }
-                            ],
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_RANGE_MONTH,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGE_MONTH,
-                        Struct = new StructSchema
-                        {
-                            Fields =
-                            [
-                                new StructFieldConfig
-                                {
-                                    Name = "start",
-                                    Require = true,
-                                    Type = NS_SYSTEM_YEARMONTH,
-                                    Display = "system.rangemonth.start",
-                                },
-                                new StructFieldConfig
-                                {
-                                    Name = "stop",
-                                    Require = true,
-                                    Type = NS_SYSTEM_YEARMONTH,
-                                    Display = "system.rangemonth.stop",
-                                }
-                            ],
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_RANGE_YEAR,
-                        Type = SchemaType.Struct,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_RANGE_YEAR,
-                        Struct = new StructSchema
-                        {
-                            Fields =
-                            [
-                                new StructFieldConfig
-                                {
-                                    Name = "start",
-                                    Require = true,
-                                    Type = NS_SYSTEM_YEAR,
-                                    Display = "system.rangeyear.start",
-                                },
-                                new StructFieldConfig
-                                {
-                                    Name = "stop",
-                                    Require = true,
-                                    Type = NS_SYSTEM_YEAR,
-                                    Display = "system.rangeyear.stop",
-                                }
-                            ],
-                        },
-                    },
-                    
-                    #endregion
+            #region struct
+            
+            NewSystemStruct(NS_SYSTEM_RANGE_DATE, [("start", NS_SYSTEM_DATE, true), ("stop", NS_SYSTEM_DATE, true)]),
+            NewSystemStruct(NS_SYSTEM_RANGE_FULL_DATE, [("start", NS_SYSTEM_FULL_DATE, true), ("stop", NS_SYSTEM_FULL_DATE, true)]),
+            NewSystemStruct(NS_SYSTEM_RANGE_MONTH, [("start", NS_SYSTEM_YEARMONTH, true), ("stop", NS_SYSTEM_YEARMONTH, true)]),
+            NewSystemStruct(NS_SYSTEM_RANGE_YEAR, [("start", NS_SYSTEM_YEAR, true), ("stop", NS_SYSTEM_YEAR, true)]),
+            
+            #endregion
 
-                    #region array
-                    
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_STRINGS,
-                        Type = SchemaType.Array,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_STRINGS,
-                        Array = new ArraySchema
-                        {
-                            Element = NS_SYSTEM_STRING,
-                            Primary = [],
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_NUMBERS,
-                        Type = SchemaType.Array,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_NUMBERS,
-                        Array = new ArraySchema
-                        {
-                            Element = NS_SYSTEM_NUMBER,
-                        },
-                    },
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_INTS,
-                        Type = SchemaType.Array,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_INTS,
-                        Array = new ArraySchema
-                        {
-                            Element = NS_SYSTEM_INT
-                        },
-                    },
-                    
-                    #endregion
+            #region array
+            
+            NewSystemArray(NS_SYSTEM_STRINGS, NS_SYSTEM_STRING),
+            NewSystemArray(NS_SYSTEM_NUMBERS, NS_SYSTEM_NUMBER),
+            NewSystemArray(NS_SYSTEM_INTS, NS_SYSTEM_INT),
+            
+            #endregion
 
-                    #region Schema
+            #region System.Schema
 
-                    new NodeSchema
-                    {
-                        Name = NS_SYSTEM_SCHEMA,
-                        Type = SchemaType.Namespace,
-                        LoadState = SchemaLoadState.System,
-                        Display = NS_SYSTEM_SCHEMA,
-                        Schemas = [
-                            
-                        ]
-                    },
-
-                    #endregion
-                ]
-            }
-        ]
-    };
+            // place holder types
+            NewSystemSchema(NS_SYSTEM_SCHEMA).WithSchemas([
+                // scalar
+                NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_SCALAR_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_ENUM_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_STRUCT_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_FUNC_TYPE,NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:64),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_VALUE),
+            ])
+            #endregion
+        ])
+    ]);
 
     #endregion
 }

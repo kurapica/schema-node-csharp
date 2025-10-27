@@ -46,6 +46,19 @@ public static class Constant
     
     // system.schema
     public const string NS_SYSTEM_SCHEMA = "system.schema";
+    public const string NS_SYSTEM_SCHEMA_ANY_TYPE = "system.schema.anytype";
+    public const string NS_SYSTEM_SCHEMA_NAMESPACE = "system.schema.namespace";
+    public const string NS_SYSTEM_SCHEMA_SCALAR_TYPE = "system.schema.scalartype";
+    public const string NS_SYSTEM_SCHEMA_ENUM_TYPE = "system.schema.enumtype";
+    public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
+    public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
+    public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
+    public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
+    public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
+    public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
+    public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
+    public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
+    public const string NS_SYSTEM_SCHEMA_ANY_VALUE = "system.schema.anyvalue";
 
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
