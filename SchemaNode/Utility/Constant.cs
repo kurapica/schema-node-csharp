@@ -59,6 +59,9 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
     public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
     public const string NS_SYSTEM_SCHEMA_ANY_VALUE = "system.schema.anyvalue";
+    
+    public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
+    public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
 
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";

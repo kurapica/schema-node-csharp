@@ -54,10 +54,10 @@ app.PreLoadSchemaNodes(); // for schema server
 
 #region Swagger
 
-EmbeddedFileProvider fileProvider = new(typeof(Program).Assembly, "SchemaNode.Example.Swagger");
+CachedZipFileProvider swaggerProvider = new(typeof(Program).Assembly, "SchemaNode.Example.swagger.zip", "Swagger");
 app.UseDefaultFiles(new DefaultFilesOptions
 {
-    FileProvider = fileProvider,
+    FileProvider = swaggerProvider,
     DefaultFileNames = new List<string>
     {
         "index.html"
@@ -65,7 +65,7 @@ app.UseDefaultFiles(new DefaultFilesOptions
 });
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = fileProvider
+    FileProvider = swaggerProvider
 });
 
 app.MapGet("document.json", () =>

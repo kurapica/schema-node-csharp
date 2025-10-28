@@ -11,7 +11,7 @@ public class CachedZipFileProvider : IFileProvider
     private readonly ConcurrentDictionary<string, CachedFile> _files = new();
     private readonly string _root;
 
-    public CachedZipFileProvider(Assembly assembly, string resourceName, string root)
+    public CachedZipFileProvider(Assembly assembly, string resourceName, string root = "")
     {
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException($"Embedded resource not found: {resourceName}");
