@@ -35,6 +35,7 @@ public class SchemaApiDocumentFilter : IDocumentFilter
                 {
                     [OperationType.Post] = new OpenApiOperation
                     {
+                        Tags = [ new OpenApiTag { Name = string.Join('.', type.FullName!.Split(".", StringSplitOptions.RemoveEmptyEntries).SkipLast(1).Select(s => s.ToLower())) } ],
                         Summary = $"Schema API ({type.Name})",
                         RequestBody = new OpenApiRequestBody
                         {
