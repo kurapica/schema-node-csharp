@@ -246,7 +246,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         }
     }
 
-public override JsonArray? ToJson()
+    public override JsonArray? ToJson()
     {
         JsonArray array = new();
         foreach(var element in _elements)

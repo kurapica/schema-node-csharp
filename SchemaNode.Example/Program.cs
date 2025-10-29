@@ -1,87 +1,83 @@
-using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components.Provider;
 using SchemaNode.Http;
 using System.Text;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.OpenApi.Models;
+using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Mysql
-builder.Services.AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!);
-
-// for test
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-    options.Providers.Add<GzipCompressionProvider>();
-    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
-    {
-        "application/json"
-    });
-});
-
-builder.Services.Configure<GzipCompressionProviderOptions>(options =>
-{
-    options.Level = System.IO.Compression.CompressionLevel.Fastest;
-});
-
-// schema
 builder.Services
+    // Mysql
+    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
+
+    // Cors
+    .AddCors(options =>
+    {
+        options.AddPolicy("AllowAll", policy =>
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        });
+    })
+
+    // Response Compression
+    .AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<GzipCompressionProvider>();
+        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat([
+            "application/json", "text/html", "application/javascript", "text/css"
+        ]);
+    })
+    .Configure<GzipCompressionProviderOptions>(options =>
+    {
+        options.Level = System.IO.Compression.CompressionLevel.Fastest;
+    })
+    // swagger
+    .AddEndpointsApiExplorer()
+    .AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "SchemaNode Example API",
+            Version = "v1"
+        });
+    })
+
+    // schema
     .AddSchemaNode()
     //.AddSchemaStorageProvider<JsonSchemaStorageProvider>()    // Save schema as json file
-    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>()   // save schema as application data
+    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
     //.AddAppSchemaDataProvider<AppSchemaDataProvider>();       // Mysql application data provider
-    .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>(); // Memory application data provider - for test
+    .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>() // Memory application data provider - for test
 
+    // schema api
+    .AddSchemaApiProcessor<JsonRpcSchemaApiProcessor>();
+
+// App
 var app = builder.Build();
-app.UseCors("AllowAll");
-app.UseResponseCompression();
+app
+    .UseCors("AllowAll")
+    .UseResponseCompression();
 
-app.UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true);
-app.PreLoadSchemaNodes(); // for schema server
+app
+    .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)
+    .PreLoadSchemaNodes();
 
-#region Swagger
 
-CachedZipFileProvider swaggerProvider = new(typeof(Program).Assembly, "SchemaNode.Example.swagger.zip", "Swagger");
-app.UseDefaultFiles(new DefaultFilesOptions
+// Swagger
+if (app.Environment.IsDevelopment())
 {
-    FileProvider = swaggerProvider,
-    DefaultFileNames = new List<string>
+    app.UseSwagger(); 
+    app.UseSwaggerUI(c =>
     {
-        "index.html"
-    }
-});
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = swaggerProvider
-});
-
-app.MapGet("document.json", () =>
-{
-    OpenApiDocument document = SchemaApiDocument.Generate();
-
-    // Serialize the document.
-    StringBuilder resultBuilder = new();
-    TextWriter documentTextWriter = new StringWriter(resultBuilder);
-    IOpenApiWriter documentWriter = new OpenApiJsonWriter(documentTextWriter);
-    document.SerializeAsV31(documentWriter);
-
-    // Finish.
-    return Results.Content(resultBuilder.ToString().Replace("$dynamicRef", "$ref"));
-});
-
-#endregion swagger
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = string.Empty;
+    });
+}
 
 app.Run();

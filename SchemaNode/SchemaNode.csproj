@@ -17,7 +17,7 @@
       <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.1.25451.107" />
       <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-rc.1.25451.107" />
       <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.1.25451.107" />
-      <PackageReference Include="Microsoft.OpenApi" Version="2.3.2" />
+      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.6" />
       <PackageReference Include="TimeZoneConverter" Version="7.0.0" />
     </ItemGroup>
 
