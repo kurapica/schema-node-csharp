@@ -18,16 +18,15 @@ public class SchemaApiDocumentFilter : IDocumentFilter
 
     public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
     {
-        ISchemaApiProcessor? processor = _services.GetService<ISchemaApiProcessor>();
+        ISchemaApiProtocol? protocol = _services.GetService<ISchemaApiProtocol>();
 
         foreach (var ((type, request, response), url) in Injection.GetSchemaApis())
         {
             var reqSchema = context.SchemaGenerator.GenerateSchema(request, context.SchemaRepository);
             var resSchema = context.SchemaGenerator.GenerateSchema(response, context.SchemaRepository);
 
-            // 使用 processorDescriptor 生成最终封装
-            var wrappedReq = processor?.WrapRequestSchema(context, reqSchema) ?? reqSchema;
-            var wrappedRes = processor?.WrapResponseSchema(context, resSchema) ?? resSchema;
+            var wrappedReq = protocol?.WrapRequestSchema(context, reqSchema) ?? reqSchema;
+            var wrappedRes = protocol?.WrapResponseSchema(context, resSchema) ?? resSchema;
 
             swaggerDoc.Paths[$"/{url.TrimStart('/')}"] = new OpenApiPathItem
             {

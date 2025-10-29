@@ -1,9 +1,6 @@
 using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components.Provider;
-using SchemaNode.Http;
-using System.Text;
-using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.OpenApi.Models;
 using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
@@ -24,19 +21,6 @@ builder.Services
         });
     })
 
-    // Response Compression
-    .AddResponseCompression(options =>
-    {
-        options.EnableForHttps = true;
-        options.Providers.Add<GzipCompressionProvider>();
-        options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat([
-            "application/json", "text/html", "application/javascript", "text/css"
-        ]);
-    })
-    .Configure<GzipCompressionProviderOptions>(options =>
-    {
-        options.Level = System.IO.Compression.CompressionLevel.Fastest;
-    })
     // swagger
     .AddEndpointsApiExplorer()
     .AddSwaggerGen(c =>
@@ -56,13 +40,11 @@ builder.Services
     .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>() // Memory application data provider - for test
 
     // schema api
-    .AddSchemaApiProcessor<JsonRpcSchemaApiProcessor>();
+    .AddSchemaApis<JsonRpcSchemaApiProtocol>();
 
 // App
 var app = builder.Build();
-app
-    .UseCors("AllowAll")
-    .UseResponseCompression();
+app.UseCors("AllowAll");
 
 app
     .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)

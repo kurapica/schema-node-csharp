@@ -9,7 +9,7 @@ namespace SchemaNode.Http;
 /// <summary>
 /// The default schema api processor
 /// </summary>
-public class DefaultSchemaApiProcessor: ISchemaApiProcessor
+public class DefaultSchemaApiProtocol: ISchemaApiProtocol
 {
     /// <inheritdoc />
     public OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema) => innerSchema;

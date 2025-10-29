@@ -11,7 +11,7 @@ namespace SchemaNode.Http.JsonRpc;
 /// <summary>
 /// The JSON RPC schema API processor
 /// </summary>
-public class JsonRpcSchemaApiProcessor: ISchemaApiProcessor
+public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
 {
     #region Implements ISchemaApiProcessor
     

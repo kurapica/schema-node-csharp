@@ -180,21 +180,11 @@ public static class Injection
     #region Schema Apis
     
     /// <summary>
-    /// Add schema apis in an Assembly of the given type
-    /// </summary>
-    public static IServiceCollection AddSchemaApis<T>(this IServiceCollection services)
-    {
-        return AddSchemaApis(services, typeof(T).Assembly);
-    }
-
-    /// <summary>
     /// Add schema apis in an assembly, the entry assembly and SchemaNode will be added automatically
     /// </summary>
-    public static IServiceCollection AddSchemaApis(this IServiceCollection services, Assembly? assembly = null)
+    public static IServiceCollection AddSchemaApis(this IServiceCollection services, Assembly assembly)
     {
-        assembly ??= Assembly.GetEntryAssembly();
-        if (RegisterAssemblys.Contains(assembly)) return services;
-        RegisterAssemblys.Add(assembly!);
+        if (!RegisterAssemblys.Add(assembly)) return services;
         
         foreach (Type type in assembly!.GetTypes().Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
         {
@@ -202,8 +192,8 @@ public static class Injection
             Type requestType = apiBaseType.GetGenericArguments()[0];
             Type responseType = apiBaseType.GetGenericArguments()[1];
 
-            ApiTypes.Push(new SchemaApiType(type, requestType, responseType));
-            services.AddScoped(type);
+            ApiTypes.Add(new SchemaApiType(type, requestType, responseType));
+            services.AddTransient(type);
         }
     
         return services;
@@ -212,23 +202,26 @@ public static class Injection
     /// <summary>
     /// Register the default schema api processor
     /// </summary>
-    public static IServiceCollection AddSchemaApiProcessor(this IServiceCollection services) 
+    public static IServiceCollection AddSchemaApis(this IServiceCollection services) 
     {
-        return AddSchemaApiProcessor<DefaultSchemaApiProcessor>(services);
+        return AddSchemaApis<DefaultSchemaApiProtocol>(services);
     }
     
     /// <summary>
     /// Register the schema api processor
     /// </summary>
-    public static IServiceCollection AddSchemaApiProcessor<T>(this IServiceCollection services) 
-        where T : class, ISchemaApiProcessor
+    public static IServiceCollection AddSchemaApis<T>(this IServiceCollection services) 
+        where T : class, ISchemaApiProtocol
     {
-        AddSchemaApis(services, typeof(Injection).Assembly);
-        AddSchemaApis(services, Assembly.GetEntryAssembly());
+        Assembly d = typeof(Injection).Assembly;
+        AddSchemaApis(services, d);
+        AddSchemaApis(services, Assembly.GetEntryAssembly() ?? d);
         AddSchemaApis(services, typeof(T).Assembly);
         
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
-        return services.AddTransient<ISchemaApiProcessor, T>().AddTransient<T>();
+        services.TryAddTransient<ISchemaApiProtocol, T>();
+        services.TryAddTransient<T>();
+        return services;
     }
     
     /// <summary>
@@ -332,7 +325,7 @@ public static class Injection
         where TRequest: SchemaApiRequest
         where TResponse: SchemaApiResponse
     {
-        var processor = ctx.RequestServices.GetRequiredService<ISchemaApiProcessor>();
+        var processor = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
         return await processor.ProcessAsync<TApi, TRequest, TResponse>(ctx);
     }
 
@@ -380,8 +373,8 @@ public static class Injection
     /// </summary>
     static string UrlSuffix { get; set; } = "";
 
-    static readonly ConcurrentBag<Assembly> RegisterAssemblys = new();
-    static readonly ConcurrentStack<SchemaApiType> ApiTypes = new();
+    static readonly HashSet<Assembly> RegisterAssemblys = new();
+    static readonly List<SchemaApiType> ApiTypes = new();
     public record SchemaApiType(Type Api, Type Request, Type Response);
 
     #endregion

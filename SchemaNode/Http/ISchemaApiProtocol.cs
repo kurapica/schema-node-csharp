@@ -14,9 +14,9 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 namespace SchemaNode.Http;
 
 /// <summary>
-/// The processor for schema APIs
+/// The protocol for schema APIs
 /// </summary>
-public interface ISchemaApiProcessor
+public interface ISchemaApiProtocol
 {
     /// <summary>
     /// Gets the wrapped response schema.
