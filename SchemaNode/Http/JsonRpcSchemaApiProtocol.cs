@@ -68,18 +68,18 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     /// <inheritdoc />
     public IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse
     {
-        return Results.Json(new JsonRpcResponseMessage<TResponse>
+        return new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }, NoIndentJsonOption);
+        }.ToResult();
     }
 
     public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null)
     {
-        return Results.Json( new JsonRpcResponseMessage<SchemaApiResponse>
+        return new JsonRpcResponseMessage<SchemaApiResponse>
         {
             Jsonrpc = "2.0",
             Error = new JsonRpcResponseError
@@ -95,7 +95,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
                 Data = data,
             },
             Id = _requestId,
-        }, NoIndentJsonOption);
+        }.ToResult();
     }
 
     #endregion

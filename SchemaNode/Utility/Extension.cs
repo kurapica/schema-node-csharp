@@ -7,10 +7,11 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
+using Microsoft.AspNetCore.Http;
 
 namespace SchemaNode.Utility;
 
-internal static class Extension
+public static class Extension
 {
     #region Casing
 
@@ -197,7 +198,7 @@ internal static class Extension
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
-    internal static string ToJson<T>(this T value, bool indent = false)
+    public static string ToJson<T>(this T value, bool indent = false)
     {
         if (value is JsonNode json) return json.ToString();
         
@@ -206,11 +207,19 @@ internal static class Extension
     }
 
     /// <summary>
+    /// To http result
+    /// </summary>
+    public static IResult ToResult<T>(this T value)
+    {
+        return Results.Json(value, NoIndentJsonOption);
+    }
+    
+    /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    internal static T? FromJson<T>(this string value)
+    public static T? FromJson<T>(this string value)
     {
         return JsonSerializer.Deserialize<T>(value, NoIndentJsonOption);
     }
