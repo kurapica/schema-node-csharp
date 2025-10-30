@@ -40,7 +40,7 @@ builder.Services
     .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>() // Memory application data provider - for test
 
     // schema api
-    .AddSchemaApis<JsonRpcSchemaApiProtocol>();
+    .AddSchemaApis();
 
 // App
 var app = builder.Build();

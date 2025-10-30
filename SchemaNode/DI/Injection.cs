@@ -13,6 +13,7 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using SchemaNode.Function;
 using SchemaNode.Http;
+using SchemaNode.Http.JsonRpc;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Schema;
@@ -200,7 +201,7 @@ public static class Injection
     }
 
     /// <summary>
-    /// Register the default schema api processor
+    /// Register the default schema api protocol
     /// </summary>
     public static IServiceCollection AddSchemaApis(this IServiceCollection services) 
     {
@@ -208,7 +209,7 @@ public static class Injection
     }
     
     /// <summary>
-    /// Register the schema api processor
+    /// Register the schema api with protocol, normally we should use JsonRpcSchemaApiProtocol
     /// </summary>
     public static IServiceCollection AddSchemaApis<T>(this IServiceCollection services) 
         where T : class, ISchemaApiProtocol
@@ -242,12 +243,13 @@ public static class Injection
         UrlPrefix = prefix;
         UrlSuffix = suffix;
         
-        // add default Assembly
+        // may disable some apis in this assembly
         Assembly schemaAssembly = typeof(Injection).Assembly;
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
+        bool enableJsonRpcProtocol = service.IsService(typeof(JsonRpcSchemaApiProtocol));
 
         foreach ((SchemaApiType apiType, string url)  in GetSchemaApis())
         {
@@ -298,7 +300,7 @@ public static class Injection
                 var html = await reader.ReadToEndAsync();
 
                 // 在 <head> 中插入 meta 标签
-                html = html.Replace("</head>", $"<meta name=\"schema-embedded\" content=\"true\"><meta name=\"api-base-url\" content=\"/{prefix}\"></head>");
+                html = html.Replace("</head>", $"<meta name=\"schema-embedded\" content=\"true\" jsonrpc=\"{(enableJsonRpcProtocol ? "true" : "false")}\" ><meta name=\"api-base-url\" content=\"/{prefix}\"></head>");
     
                 context.Response.ContentType = "text/html";
                 await context.Response.WriteAsync(html);
