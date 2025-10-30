@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -187,7 +186,7 @@ public static class Injection
     {
         if (!RegisterAssemblys.Add(assembly)) return services;
         
-        foreach (Type type in assembly!.GetTypes().Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
+        foreach (Type type in assembly.GetTypes().Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
         {
             Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
             Type requestType = apiBaseType.GetGenericArguments()[0];
