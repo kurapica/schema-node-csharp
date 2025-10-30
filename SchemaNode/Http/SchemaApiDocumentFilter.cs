@@ -20,13 +20,13 @@ public class SchemaApiDocumentFilter : IDocumentFilter
     {
         ISchemaApiProtocol? protocol = _services.GetService<ISchemaApiProtocol>();
 
-        foreach (var ((type, request, response), url) in Injection.GetSchemaApis())
+        foreach (var ((type, request, response, useDefaultProtocol), url) in Injection.GetSchemaApis())
         {
             var reqSchema = context.SchemaGenerator.GenerateSchema(request, context.SchemaRepository);
             var resSchema = context.SchemaGenerator.GenerateSchema(response, context.SchemaRepository);
 
-            var wrappedReq = protocol?.WrapRequestSchema(context, reqSchema) ?? reqSchema;
-            var wrappedRes = protocol?.WrapResponseSchema(context, resSchema) ?? resSchema;
+            var wrappedReq = useDefaultProtocol ? reqSchema : protocol?.WrapRequestSchema(context, reqSchema) ?? reqSchema;
+            var wrappedRes = useDefaultProtocol ? resSchema : protocol?.WrapResponseSchema(context, resSchema) ?? resSchema;
 
             swaggerDoc.Paths[$"/{url.TrimStart('/')}"] = new OpenApiPathItem
             {

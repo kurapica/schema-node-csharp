@@ -192,7 +192,7 @@ public static class Injection
             Type requestType = apiBaseType.GetGenericArguments()[0];
             Type responseType = apiBaseType.GetGenericArguments()[1];
 
-            ApiTypes.Add(new SchemaApiType(type, requestType, responseType));
+            ApiTypes.Add(new SchemaApiType(type, requestType, responseType, type.GetCustomAttribute<NoProtocolAttribute>() != null));
             services.AddTransient(type);
         }
     
@@ -248,7 +248,9 @@ public static class Injection
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
-        bool enableJsonRpcProtocol = service.IsService(typeof(JsonRpcSchemaApiProtocol));
+        
+        ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();
+        var protocolMeta = apiProtocol.GetProtocolMeta(app.Services);
 
         foreach ((SchemaApiType apiType, string url)  in GetSchemaApis())
         {
@@ -265,7 +267,9 @@ public static class Injection
                 }
             }
             
-            MethodInfo task = typeof(Injection).GetMethod(nameof(ProcessSchemaApiAsync),BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response);
+            MethodInfo task = apiType.UseDefaultProtocol 
+                ? typeof(Injection).GetMethod(nameof(ProcessDefaultSchemaApiAsync),BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response)
+                : typeof(Injection).GetMethod(nameof(ProcessSchemaApiAsync),BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response);
             app.MapPost(url, async (HttpContext ctx) =>
             {
                 Task<IResult> res = (Task<IResult>)task.Invoke(null, [ctx])!;
@@ -299,7 +303,10 @@ public static class Injection
                 var html = await reader.ReadToEndAsync();
 
                 // 在 <head> 中插入 meta 标签
-                html = html.Replace("</head>", $"<meta name=\"schema-embedded\" content=\"true\" jsonrpc=\"{(enableJsonRpcProtocol ? "true" : "false")}\" ><meta name=\"api-base-url\" content=\"/{prefix}\"></head>");
+                html = html.Replace("</head>", string.Join("", [
+                    "<meta name=\"schema-embedded\" content=\"true\">",
+                    $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",
+                    $"<meta name=\"schema-api-protocol\" content='{protocolMeta.ToJson()}'></head>"]));
     
                 context.Response.ContentType = "text/html";
                 await context.Response.WriteAsync(html);
@@ -326,10 +333,19 @@ public static class Injection
         where TRequest: SchemaApiRequest
         where TResponse: SchemaApiResponse
     {
-        var processor = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
-        return await processor.ProcessAsync<TApi, TRequest, TResponse>(ctx);
+        var protocol = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
+        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
     }
 
+    static async Task<IResult> ProcessDefaultSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
+        where TApi: SchemaApi<TRequest, TResponse>
+        where TRequest: SchemaApiRequest
+        where TResponse: SchemaApiResponse
+    {
+        ISchemaApiProtocol protocol = new DefaultSchemaApiProtocol();
+        return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
+    }
+    
     /// <summary>
     /// Gets all apis
     /// </summary>
@@ -376,7 +392,7 @@ public static class Injection
 
     static readonly HashSet<Assembly> RegisterAssemblys = new();
     static readonly List<SchemaApiType> ApiTypes = new();
-    public record SchemaApiType(Type Api, Type Request, Type Response);
+    public record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
 
     #endregion
 }

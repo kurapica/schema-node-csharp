@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -7,9 +8,12 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
+// ReSharper disable CollectionNeverQueried.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Http;
 
@@ -33,6 +37,9 @@ public interface ISchemaApiProtocol
     /// </summary>
     TRequest ReadRequest<TRequest>(string requestBody) where TRequest : SchemaApiRequest;
 
+    /// <summary>
+    /// Generate the result based on the response
+    /// </summary>
     IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse;
 
     /// <summary>
@@ -133,7 +140,7 @@ public interface ISchemaApiProtocol
         logger.LogDebug("{0} API is executed, cost {1}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         
         // Stream
-        if (response?.Output?.Stream != null)
+        if (response.Output?.Stream != null)
         {
             string extension = Path.GetExtension(response.Output.Name);
             if (string.IsNullOrWhiteSpace(extension)) extension = response.Output.Extension;
@@ -149,7 +156,7 @@ public interface ISchemaApiProtocol
             return Results.File(response.Output.Stream);
         }
         
-        return GenerateResult(response!);
+        return GenerateResult(response);
     }
     
     /// <summary>
@@ -166,4 +173,118 @@ public interface ISchemaApiProtocol
         }
         return errors;
     }
+    
+    /// <summary>
+    /// Generate the protocol meta based on openapi schema
+    /// </summary>
+    internal SchemaApiProtocolMeta GetProtocolMeta(IServiceProvider provider)
+    {
+        string name = GetType().Name;
+        if (name.EndsWith("SchemaApiProtocol", StringComparison.OrdinalIgnoreCase))
+            name = name.Substring(0, name.Length - "SchemaApiProtocol".Length);
+        else if (name.EndsWith("ApiProtocol", StringComparison.OrdinalIgnoreCase))
+            name = name.Substring(0, name.Length - "ApiProtocol".Length);
+        else if (name.EndsWith("Protocol", StringComparison.OrdinalIgnoreCase))
+            name = name.Substring(0, name.Length - "Protocol".Length);
+        
+        var schemaGenerator = provider.GetRequiredService<ISchemaGenerator>();
+        var schemaRepository = new SchemaRepository();
+
+        // 这里我们没有 API 描述，所以传空集合即可
+        var context = new DocumentFilterContext(Array.Empty<Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription>(),
+            schemaGenerator, schemaRepository);
+        OpenApiSchema innerSchema = new(); // placeholder
+        
+        OpenApiSchema reqSchema = WrapRequestSchema(context, innerSchema);
+        OpenApiSchema resSchema = WrapResponseSchema(context, innerSchema);
+        
+        var reqMeta = new SchemaApiProtocolRequestMeta();
+        if (reqSchema is { Type: "object", Properties: not null })
+        {
+            foreach (var (key, value) in reqSchema.Properties)
+            {
+                if (value == innerSchema)
+                {
+                    reqMeta.Wrap = key!;
+                }
+                else
+                {
+                    reqMeta.Fields ??= new Dictionary<string, JsonNode>();
+                    reqMeta.Fields[key] = GenerateJsonDesc(value);
+                }
+            }
+        }
+        
+        var resMeta = new SchemaApiProtocolResponseMeta();
+        if (resSchema is { Type: "object", Properties: not null })
+        {
+            foreach (var (key, value) in resSchema.Properties)
+            {
+                if (value == innerSchema)
+                {
+                    resMeta.Unwrap = key!;
+                }
+                else
+                {
+                    resMeta.Fields ??= new Dictionary<string, JsonNode>();
+                    resMeta.Fields[key] = GenerateJsonDesc(value);
+                }
+            }
+        }
+        return new SchemaApiProtocolMeta{
+            Name= name,
+            Request= reqMeta,
+            Response= resMeta
+        };
+    }
+
+    JsonNode GenerateJsonDesc(OpenApiSchema schema)
+    {
+        if (schema is { Type: "object", Properties: not null })
+        {
+            JsonObject obj = new();
+            foreach (var (key, value) in schema.Properties)
+            {
+                obj[key!] = GenerateJsonDesc(value);
+            }
+            return obj;
+        }
+        else if (schema is { Type: "array", Items: not null })
+        {
+            JsonArray arr = new();
+            arr.Add(GenerateJsonDesc(schema.Items));
+            return arr;
+        }
+        else
+        {
+            string? example = schema.Example switch
+            {
+                OpenApiString str => str.Value,
+                OpenApiInteger integer => integer.Value.ToString(),
+                OpenApiFloat flt => flt.Value.ToString(CultureInfo.InvariantCulture),
+                OpenApiBoolean boolean => boolean.Value.ToString(),
+                _ => null
+            };
+            return JsonValue.Create($"{schema.Type}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
+        }
+    }
+}
+
+internal class SchemaApiProtocolRequestMeta
+{
+    public string? Wrap { get; set; }
+    public Dictionary<string, JsonNode>? Fields { get; set; }
+}
+
+internal class SchemaApiProtocolResponseMeta
+{
+    public string? Unwrap { get; set; }
+    public Dictionary<string, JsonNode>? Fields { get; set; }
+}
+
+internal class SchemaApiProtocolMeta
+{
+    public string? Name { get; init; }
+    public SchemaApiProtocolRequestMeta? Request { get; init; } 
+    public SchemaApiProtocolResponseMeta? Response { get; init; }
 }
