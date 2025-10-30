@@ -16,7 +16,7 @@ public class SchemaTypeAttribute: System.Attribute
     /// <summary>
     /// The display
     /// </summary>
-    public string? Display { get; }
+    public LocaleString? Display { get; }
 
     /// <summary>
     /// The constructor
@@ -27,5 +27,22 @@ public class SchemaTypeAttribute: System.Attribute
     {
         Name = name;
         Display = display;
+    }
+    
+    public SchemaTypeAttribute(string name, string key, string lang, string tran)
+    {
+        Name = name;
+        Display = new LocaleString(key, (lang, tran));
+    }
+    
+    public SchemaTypeAttribute(string name, string key, params string[] lang)
+    {
+        Name = name;
+        List<(string lang, string tran)> translations = new();
+        for (int i = 0; i < lang.Length - 2; i += 2)
+        {
+            translations.Add((lang[i], lang[i + 1]));
+        }
+        Display = new LocaleString(key, translations.ToArray());
     }
 }

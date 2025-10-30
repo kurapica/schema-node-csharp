@@ -23,7 +23,7 @@ public static class SystemStr
     public static string Substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
     [SchemaType]
-    public static LocaleString ToLocale(string? str) => new LocaleString { Key = str ?? "" };
+    public static LocaleString ToLocale(string? str) => new LocaleString (str ?? "");
 
     [SchemaType]
     public static Entry ToEntry(StructTypeNode node, string valueField, string labelField)
@@ -36,8 +36,8 @@ public static class SystemStr
             Label = label is StructTypeNode labelNode 
                 ? labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString 
                 : label is ScalarTypeNode or EnumTypeNode                
-                    ? new LocaleString { Key = label.ToTypeValue(typeof(string))?.ToString() ?? "" } 
-                    : new LocaleString { Key = val?.ToTypeValue(typeof(string))?.ToString() ?? ""  }
+                    ? new LocaleString (label.ToTypeValue(typeof(string))?.ToString() ?? "" ) 
+                    : new LocaleString ( val?.ToTypeValue(typeof(string))?.ToString() ?? "" )
         };
     }
 

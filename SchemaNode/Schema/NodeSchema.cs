@@ -156,7 +156,7 @@ public class NodeSchema
 /// The locale translate
 /// </summary>
 [SchemaType(NS_SYSTEM_LOCALE_TRAN)]
-public class LocaleTran
+public class LocaleTran(string lang, string? tran)
 {
     /// <summary>
     /// The language
@@ -164,27 +164,50 @@ public class LocaleTran
     [SchemaType(NS_SYSTEM_LANGUAGE)]
     [MaxLength(8)]
     [Index]
-    public required string Lang { get; set; }
+    public string Lang { get; set; } = lang;
 
     /// <summary>
     /// The translation
     /// </summary>
-    public string? Tran { get; set; }
+    public string? Tran { get; set; } = tran;
+    
+    /// <summary>
+    /// Convert tuple to locale translate
+    /// </summary>
+    public static implicit operator LocaleTran((string lang, string tran) tuple)
+    {
+        return new LocaleTran(tuple.lang, tuple.tran);
+    }
 }
 
 /// <summary>
 /// The locale string
 /// </summary>
 [SchemaType(NS_SYSTEM_LOCALE_STRING)]
-public class LocaleString: ICloneable
+public class LocaleString : ICloneable
 {
+    /// <summary>
+    /// The locale string
+    /// </summary>
+    public LocaleString(string key, LocaleTran[] trans)
+    {
+        Key = key;
+        Trans = trans;
+    }
+
+    public LocaleString(string key, params (string lang, string tran)[]? trans)
+    {
+        Key = key;
+        Trans = trans?.Select(t => new LocaleTran(t.lang, t.tran)).ToArray();
+    }
+
     /// <summary>
     /// The default key
     /// </summary>
     [Index]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string Key { get; set; } = string.Empty;
-    
+    public string Key { get; set; }
+
     /// <summary>
     /// The translations
     /// </summary>
@@ -195,28 +218,49 @@ public class LocaleString: ICloneable
     /// </summary>
     public static implicit operator LocaleString(string? value)
     {
-        return new LocaleString
-        {
-            Key = value ?? string.Empty,
-        };
+        return new LocaleString(value ?? string.Empty);
+    }
+    
+    /// <summary>
+    /// Tuple to locale string
+    /// </summary>
+    public static implicit operator LocaleString((string value, (string lang, string tran) trans) tuple)
+    {
+        return new  LocaleString(tuple.value, tuple.trans);
     }
 
+    /// <summary>
+    /// Tuple to locale string
+    /// </summary>
+    public static implicit operator LocaleString((string value, (string lang, string tran)[] trans) tuple)
+    {
+        return new  LocaleString(tuple.value, tuple.trans);
+    }
+
+    /// <summary>
+    /// Clone the locale string
+    /// </summary>
     public object Clone()
     {
-        return new LocaleString
-        {
-            Key = Key,
-            Trans = Trans?.ToArray(),
-        };
+        return new LocaleString(Key, Trans?.Select(t => new LocaleTran(t.Lang, t.Tran)).ToArray() ?? []);
     }
 }
 
+/// <summary>
+/// The dict entry
+/// </summary>
 [SchemaType(NS_SYSTEM_ENTRY)]
 public class Entry
 {
+    /// <summary>
+    /// The entry value
+    /// </summary>
     [Index]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The entry label
+    /// </summary>
     public LocaleString? Label { get; set; }
 }

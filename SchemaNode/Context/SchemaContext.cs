@@ -57,6 +57,40 @@ public class SchemaContext(IServiceProvider serviceProvider)
 
     #endregion
 
+    #region Services
+
+    /// <summary>
+    /// Gets the required service
+    /// </summary>
+    public T GetRequiredService<T>() where T: notnull => ServiceProvider.GetRequiredService<T>();
+    
+    /// <summary>
+    /// Gets the required service
+    /// </summary>
+    public object GetRequiredService(Type serviceType) => ServiceProvider.GetRequiredService(serviceType);
+    
+    /// <summary>
+    /// Gets the service
+    /// </summary>
+    public T? GetService<T>() where T: notnull => ServiceProvider.GetService<T>();
+    
+    /// <summary>
+    /// Gets the service
+    /// </summary>
+    public object? GetService(Type serviceType) => ServiceProvider.GetService(serviceType);
+    
+    /// <summary>
+    /// Gets the services
+    /// </summary>
+    public IEnumerable<T> GetServices<T>() where T: notnull => ServiceProvider.GetServices<T>();
+    
+    /// <summary>
+    /// Gets the services
+    /// </summary>
+    public IEnumerable<object?> GetServices(Type serviceType) => ServiceProvider.GetServices(serviceType);
+
+    #endregion
+
     #region Schema Provider Apis
 
     /// <summary>

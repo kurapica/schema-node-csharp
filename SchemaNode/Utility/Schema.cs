@@ -17,7 +17,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// Provide the system schema
 /// </summary>
-internal static class Schema
+public static class Schema
 {
     #region Schema <-> CSharp Type
 
@@ -41,7 +41,7 @@ internal static class Schema
     /// <summary>
     /// Save the node schema as system, should only be used to save all system define function
     /// </summary>
-    internal static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
+    public static void SaveSystemNodeSchema(NodeSchema schema, Type? type = null)
     {
         schema.LoadState = SchemaLoadState.System;
 
@@ -51,6 +51,8 @@ internal static class Schema
         foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
+            if (root.Type != SchemaType.Namespace) throw new InvalidOperationException($"Cannot add schema node '{schema.Name}' under non-namespace node '{root.Name}'");
+            
             NodeSchema? node = root.Schemas!.FirstOrDefault(x => x.Name == fullPath);
             if (node == null)
             {
