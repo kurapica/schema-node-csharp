@@ -24,6 +24,15 @@ namespace SchemaNode.Context;
 /// </summary>
 public class SchemaContext(IServiceProvider serviceProvider)
 {
+    #region Static Settings
+
+    /// <summary>
+    /// The max take count for increment field query
+    /// </summary>
+    internal static readonly SchemaNodeConfig Config = new ();
+
+    #endregion
+    
     #region Properties
     
     /// <summary>
@@ -202,6 +211,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
+    /// <param name="target">Call the function with target</param>
     /// <returns>The result</returns>
     public async Task<JsonNode?> CallFunctionAsync(FunctionType node, JsonArray args, string[]? generic = null, string? target = null)
     {
@@ -846,14 +856,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// </summary>
     public async Task<(AppFieldType?, string)> GetSourceFieldNode(AppFieldType? field, string target, bool forPush = false)
     {
-        if (field != null && field.EnablePushTrackTable && !forPush) return (field, target);
+        if (field is { EnablePushTrackTable: true } && !forPush) return (field, target);
         if (field?.SourceAppType == null) return (forPush ? null : field, target);
         AppType? appType = await GetAppTypeAsync(field.App);
 
         // Means the app is front only and use the source node's target as target
         if (appType?.RefField == null) return forPush ? (null, string.Empty) : await GetSourceFieldNode(field.SourceFieldType, target);
 
-        (List<AppRef>? refData, _) = await GetFieldEntitiesAsync<AppRef>(appType.RefField, target, e => e.App == field.SourceAppType.Name);
+        (List<AppRef> refData, _) = await GetFieldEntitiesAsync<AppRef>(appType.RefField, target, e => e.App == field.SourceAppType.Name);
         if (refData is { Count: > 0 })
         {
             if (!string.IsNullOrWhiteSpace(refData[0].Target))
@@ -1188,7 +1198,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<(List<T> value, int total)> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int take, int skip = 0,  bool desc = false, AppSchemaDataOrder[]? orderBy = null)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await AssertAppField<T>();
         if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");

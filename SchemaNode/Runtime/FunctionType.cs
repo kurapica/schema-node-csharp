@@ -267,7 +267,7 @@ public class FunctionType: AnySchemeType
 
             if (exp.Args is { Length: > 0 })
             {
-                foreach (FunctionCallArgument callArg in exp.Args)
+                foreach (FuncCallArg callArg in exp.Args)
                 {
                     if (callArg.TypeNode != null && callArg.TypeNode is not GenericTypeNode)
                         yield return callArg.TypeNode;
@@ -529,12 +529,12 @@ public class FunctionType: AnySchemeType
                 // fill all exp args for checking
                 if (exp.Args.Length < funcNode.Args.Length)
                     exp.Args = exp.Args.Concat(Enumerable.Range(0, funcNode.Args.Length - exp.Args.Length)
-                        .Select(_ => new FunctionCallArgument())).ToArray();
+                        .Select(_ => new FuncCallArg())).ToArray();
                 
                 // check exp use variables first, they provide type infos
                 for (int i = 0; i < funcNode.Args.Length; i++)
                 {
-                    FunctionCallArgument callArg = exp.Args[i];
+                    FuncCallArg callArg = exp.Args[i];
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args[i];
@@ -612,7 +612,7 @@ public class FunctionType: AnySchemeType
                 // Check constant value arguments
                 for (int i = 0; i < funcNode.Args.Length; i++)
                 {
-                    FunctionCallArgument callArg = exp.Args[i];
+                    FuncCallArg callArg = exp.Args[i];
                     if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args[i];
@@ -786,7 +786,7 @@ public class FunctionType: AnySchemeType
             Func = new FunctionSchema
             {
                 Return = string.Empty,
-                Args = new FunctionArgumentInfo[parameters.Length],
+                Args = new FuncArg[parameters.Length],
                 Exps = [],
                 Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } 
                     ? NS_SYSTEM_NUMBER : "").ToArray(),
@@ -833,7 +833,7 @@ public class FunctionType: AnySchemeType
             SchemaParamTypeInfo? pt = paramInfos[i];
             if (pt == null) return null;
             
-            FunctionArgumentInfo arg = new ()
+            FuncArg arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
                 Nullable = pt.Nullable || p.HasDefaultValue || p.GetCustomAttributesData()
@@ -1903,13 +1903,13 @@ public class FunctionType: AnySchemeType
             Func = new FunctionSchema
             {
                 Return = schema.Return,
-                Args = schema.Args.Select(a => new FunctionArgumentInfo
+                Args = schema.Args.Select(a => new FuncArg
                 {
                     Name = a.Name.ToCamelCase(),
                     Type = a.Type,
                     Nullable = a.Nullable
                 }).ToArray(),
-                Exps = schema.Exps.Select(e => new FunctionExpression
+                Exps = schema.Exps.Select(e => new FuncExp
                 {
                     Name = e.Name.ToCamelCase(),
                     Func = e.Func,
@@ -1985,7 +1985,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     
     #region Conversion
 
-    public static implicit operator FunctionNodeArgument(FunctionArgumentInfo arg)
+    public static implicit operator FunctionNodeArgument(FuncArg arg)
     {
         return new FunctionNodeArgument
         {
@@ -2028,7 +2028,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The argument list, should be exp name or argument name.
     /// </summary>
-    public FunctionCallArgument[] Args { get; set; } = [];
+    public FuncCallArg[] Args { get; set; } = [];
 
     #endregion
 
@@ -2057,7 +2057,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
 
     #region Conversion
 
-    public static implicit operator FunctionNodeExpression(FunctionExpression exp)
+    public static implicit operator FunctionNodeExpression(FuncExp exp)
     {
         return new FunctionNodeExpression
         {

@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 public class FunctionSchema
 {
     /// <summary>
-    /// The struct name
+    /// The function name
     /// </summary>
     [Index]
     [JsonIgnore]
@@ -32,12 +32,12 @@ public class FunctionSchema
     /// <summary>
     /// The function arguments
     /// </summary>
-    public FunctionArgumentInfo[] Args { get; set; } = [];
+    public FuncArg[] Args { get; set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    public FunctionExpression[] Exps { get; set; } = [];
+    public FuncExp[] Exps { get; set; } = [];
 
     /// <summary>
     /// The basic type of generic types, provided to T(single generic type),
@@ -59,7 +59,7 @@ public class FunctionSchema
 /**
  * The function argument information
  */
-public class FunctionArgumentInfo
+public class FuncArg
 {
     /// <summary>
     /// The argument name
@@ -82,7 +82,7 @@ public class FunctionArgumentInfo
 /// <summary>
 /// The function expressions
 /// </summary>
-public class FunctionExpression {
+public class FuncExp {
     /// <summary>
     /// The expression name
     /// </summary>
@@ -93,6 +93,7 @@ public class FunctionExpression {
     /// The call function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [SchemaType(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -109,13 +110,13 @@ public class FunctionExpression {
     /// <summary>
     /// The argument list, should be exp name or argument name.
     /// </summary>
-    public FunctionCallArgument[] Args { get; set; } = [];
+    public FuncCallArg[] Args { get; set; } = [];
 }
   
 /// <summary>
 /// The function call argument
 /// </summary>
-public class FunctionCallArgument {
+public class FuncCallArg {
     /// <summary>
     /// The argument name or expression name
     /// </summary>

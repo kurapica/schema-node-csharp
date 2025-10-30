@@ -40,6 +40,16 @@ public enum SchemaType
     /// Useful for entities defined in C#
     /// </summary>
     Json,
+    
+    /// <summary>
+    /// The system event
+    /// </summary>
+    Event,
+    
+    /// <summary>
+    /// The work flow
+    /// </summary>
+    Workflow,
 
     /// <summary>
     /// The function node

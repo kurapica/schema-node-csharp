@@ -48,7 +48,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                 Type = r.Type,
                 Func = r.Func,
-                Args = r.Args.Select(a => new FunctionCallArgument
+                Args = r.Args.Select(a => new FuncCallArg
                 {
                     Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
                     Value = a.Value,

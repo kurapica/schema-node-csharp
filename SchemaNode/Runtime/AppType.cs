@@ -631,7 +631,7 @@ public class AppFieldType
             {
                 Name = DynamicTableName,
                 DataType = Type,
-                TypeNode = node,
+                SchemaType = node,
                 Single = true,
                 Fields = fields,
             };
@@ -772,7 +772,7 @@ public class AppFieldType
         {
             Name = DynamicTableName,
             DataType = Type,
-            TypeNode = node,
+            SchemaType = node,
             Single = single,
             Fields = fields,
             Indexes = indexes,
@@ -1181,7 +1181,7 @@ public class DynamicTableSchema
     /// <summary>
     /// The data type node
     /// </summary>
-    public required AnySchemeType TypeNode { get; init; }
+    public required AnySchemeType SchemaType { get; init; }
 
     /// <summary>
     /// Append the fields to the string builder
@@ -1276,6 +1276,29 @@ public class DynamicTableSchema
         }
     }
 
+    public string? GetPrimaryKey(StructTypeNode pack)
+    {
+        List<string> keys = [];
+        foreach((string field, string? value, bool isString, bool isList) in GetFieldValues(pack, true))
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            keys.Add(value);
+        }
+        return string.Join(":", keys);
+    }
+    
+    public string? GetPrimaryKey(JsonObject pack)
+    {
+        List<string> keys = [];
+        foreach((string field, string? value, bool isString, bool isList) in GetFieldValues(pack, true))
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            keys.Add(value);
+        }
+        return string.Join(":", keys);
+    }
+
+
     public IEnumerable<(string field, string? value, bool isString, bool isList)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
         IEnumerable<DynamicTableField> fields = Fields;
@@ -1286,7 +1309,7 @@ public class DynamicTableSchema
             if (field.Complex == null)
             {
                 AnySchemaNode? fieldNode = pack.GetField(field.Name);
-                if (fieldNode != null && !fieldNode.IsEmpty)
+                if (fieldNode is { IsEmpty: false })
                 {
                     // In value list
                     if (field.Type != DynamicTableFieldType.Json && fieldNode is ArrayTypeNode arr)
@@ -1361,12 +1384,12 @@ public class DynamicTableSchema
     public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0)
     {
         // single value
-        if (Fields.Count == 1 && Fields[0].SchemaType == TypeNode)
+        if (Fields.Count == 1 && Fields[0].SchemaType == SchemaType)
         {
             return Fields[0].FromReader(reader, offset);
         }
 
-        StructTypeNode result = new StructTypeNode((StructType)(TypeNode is ArrayType arr ? arr.ElementSchemaType : TypeNode)!);
+        StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
         foreach (DynamicTableField field in Fields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
@@ -1380,7 +1403,7 @@ public class DynamicTableSchema
                 AnySchemaNode? main = result.GetField(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructTypeNode((StructType)((StructType)TypeNode).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
+                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
                     result.SetField(field.Complex.Main, main);
                 }
                 (main as StructTypeNode)![field.Complex.Field] = val;
@@ -1417,7 +1440,7 @@ public class DynamicTableSchema
     public async Task GenerateDisplayOnlyFields(SchemaContext context, AnySchemaNode? pack)
     {
         // Generate the display only fields
-        if (TypeNode is StructType @struct)
+        if (SchemaType is StructType @struct)
         {
             if (pack is StructTypeNode obj)
                 await GenerateDisplayOnlyStructFields(context, @struct, obj);

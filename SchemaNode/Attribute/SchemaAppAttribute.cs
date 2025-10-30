@@ -21,13 +21,16 @@ public class SchemaAppAttribute: System.Attribute
     /// </summary>
     public string? Display { get; }
     
+    public bool? IncrUpdate { get; }
+    
     /// <summary>
     /// Binding the application & field
     /// </summary>
-    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null)
+    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool incrUpdate = false)
     {
         Application = app;
         Field = field;
         Display = display;
+        IncrUpdate = incrUpdate;
     }
 }

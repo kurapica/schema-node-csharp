@@ -30,24 +30,47 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_FULL_DATE = "system.rangefulldate";
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
+    
+    // array
     public const string NS_SYSTEM_STRINGS = "system.strings";
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
     public const string NS_SYSTEM_INTS = "system.ints";
 
+    // language x translate x entry
     public const string NS_SYSTEM_LANGUAGE = "system.language";
     public const string NS_SYSTEM_LOCALE_STRING = "system.localestring";
     public const string NS_SYSTEM_LOCALE_TRAN = "system.localetran";
 
     public const string NS_SYSTEM_ENTRY = "system.entry";
     public const string NS_SYSTEM_ENTRIES = "system.entrys";
+    
+    // system.schema
+    public const string NS_SYSTEM_SCHEMA = "system.schema";
+    public const string NS_SYSTEM_SCHEMA_ANY_TYPE = "system.schema.anytype";
+    public const string NS_SYSTEM_SCHEMA_NAMESPACE = "system.schema.namespace";
+    public const string NS_SYSTEM_SCHEMA_SCALAR_TYPE = "system.schema.scalartype";
+    public const string NS_SYSTEM_SCHEMA_ENUM_TYPE = "system.schema.enumtype";
+    public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
+    public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
+    public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
+    public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
+    public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
+    public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
+    public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
+    public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
+    public const string NS_SYSTEM_SCHEMA_ANY_VALUE = "system.schema.anyvalue";
+    
+    public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
+    public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
 
+    // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
     
-    public const string NS_SYSTEM_SCHEMA = "system.schema";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
 
+    // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
     public const int FUNC_SIGN_ASYNC = 2;
     public const int FUNC_SIGN_GENERIC = 4;

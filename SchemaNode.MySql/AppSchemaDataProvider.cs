@@ -19,9 +19,9 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
 {
     #region Constructors
 
-    public AppSchemaDataProvider(IDbConnection dbConn, IServiceProvider serviceProvider)
+    public AppSchemaDataProvider(MySqlConnection dbConn, IServiceProvider serviceProvider)
     {
-        _dbConnection = (MySqlConnection)dbConn;
+        _dbConnection = dbConn;
         _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<AppSchemaDataProvider>>);
     }
 
@@ -40,7 +40,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             // Gets the existed fields
             DbCommand command = GetDbCommand();
             command.CommandText = $"DESCRIBE `{schema.Name}`";
-            Logger.LogInformation(command.CommandText);
+            Logger.LogDebug(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync();
             Dictionary<string, string> nameTypes = new();
             try
@@ -214,7 +214,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             sb.Append(") engine=InnoDB;");
             DbCommand command = GetDbCommand();
             command.CommandText = sb.ToString();
-            Logger.LogInformation(command.CommandText);
+            Logger.LogDebug(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             // Create the indexes
@@ -229,7 +229,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 
                 command = GetDbCommand();
                 command.CommandText = sb.ToString();
-                Logger.LogInformation(command.CommandText);
+                Logger.LogDebug(command.CommandText);
                 await command.ExecuteNonQueryAsync();
             }
         }
@@ -263,7 +263,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 // Single value
                 DbCommand command = GetDbCommand();
                 command.CommandText = $"SELECT `{DYNAMIC_TABLE_VALUE_FIELD}` FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                Logger.LogInformation(command.CommandText);
+                Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
                 {
@@ -290,7 +290,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 // Get data
                 DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
-                Logger.LogInformation(command.CommandText);
+                Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
                 {
@@ -472,10 +472,10 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            ArrayTypeNode value = new ArrayTypeNode(schema.TypeNode);
+            ArrayTypeNode value = new ArrayTypeNode(schema.SchemaType);
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
-            Logger.LogInformation(command.CommandText);
+            Logger.LogDebug(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync();
             try
             {
@@ -518,7 +518,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                 {
                     DbCommand command = GetDbCommand();
                     command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                    Logger.LogInformation(command.CommandText);
+                    Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                     return (true, origin);
                 }
@@ -542,7 +542,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                         command.CommandText = schema.Fields[0].IsString
                             ? $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", \"{MySqlHelper.EscapeString(result)}\" )"
                             : $"INSERT INTO `{schema.Name}` (`{DYNAMIC_TABLE_TARG_FIELD}`, `{DYNAMIC_TABLE_VALUE_FIELD}`) VALUES ( \"{target}\", {result} )";
-                        Logger.LogInformation(command.CommandText);
+                        Logger.LogDebug(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -560,7 +560,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     command.CommandText = schema.Fields[0].IsString
                         ? $"UPDATE `{schema.Name}` SET `{DYNAMIC_TABLE_VALUE_FIELD}` = \"{MySqlHelper.EscapeString(result!)}\" WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\""
                         : $"UPDATE `{schema.Name}` SET `{DYNAMIC_TABLE_VALUE_FIELD}` = {result!} WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-                    Logger.LogInformation(command.CommandText);
+                    Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
                 return (true, origin);
@@ -590,7 +590,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                         // Execute
                         DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
-                        Logger.LogInformation(command.CommandText);
+                        Logger.LogDebug(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -622,7 +622,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     // Execute
                     DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
-                    Logger.LogInformation(command.CommandText);
+                    Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
                 return (true, origin);
@@ -733,7 +733,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                         // Execute
                         DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
-                        Logger.LogInformation(command.CommandText);
+                        Logger.LogDebug(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -764,7 +764,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
                     // Execute
                     DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
-                    Logger.LogInformation(command.CommandText);
+                    Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
             }
@@ -788,7 +788,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM `{schema.Name}` WHERE `{DYNAMIC_TABLE_TARG_FIELD}` = \"{target}\"";
-            Logger.LogInformation(command.CommandText);
+            Logger.LogDebug(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             return (true, origin);
@@ -803,7 +803,7 @@ public class AppSchemaDataProvider: IAppSchemaDataProvider
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX(`{DYNAMIC_UNIQUE_INDEX}`)", "")};"; // Can change to deleted flag controls
-            Logger.LogInformation(command.CommandText);
+            Logger.LogDebug(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             return (true, origin);

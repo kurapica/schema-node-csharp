@@ -134,6 +134,16 @@ public class NodeSchema
         }
     }
 
+    #region Methods
+
+    internal NodeSchema WithSchemas(NodeSchema[] schemas)
+    {
+        Schemas = schemas;
+        return this;
+    }
+
+    #endregion
+
     #region Utility
 
     private SchemaLoadState? _schemaLoadState;
@@ -145,8 +155,6 @@ public class NodeSchema
 /// <summary>
 /// The locale translate
 /// </summary>
-/// <param name="Lang">Language</param>
-/// <param name="Tran">Translate</param>
 [SchemaType(NS_SYSTEM_LOCALE_TRAN)]
 public class LocaleTran
 {

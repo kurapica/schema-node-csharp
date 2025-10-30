@@ -8,6 +8,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -59,9 +60,7 @@ public static class BatchQueryExtension
             if (node == null) continue;
 
             if (!(query.NoSchema ?? false))
-            {
                 node.GetNodeSchemas(root);
-            }
 
             // query fields
             List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
@@ -89,25 +88,40 @@ public static class BatchQueryExtension
                 foreach (AppFieldType field in fields)
                 {
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
+                    
+                    // limit incr field take count
+                    int take = q?.Take ?? query.Take ?? 0;
+                    if (field.IncrUpdate == true)
+                    {
+                        take = take <= 0 
+                            ? SchemaContext.Config.IncrFieldDefaultTakeCount 
+                            : Math.Min(take, SchemaContext.Config.IncrFieldMaxTakeCount);
+                    }
+                    else
+                    {
+                        take = 0;
+                    }
+
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
-                        q?.Filter, q?.Skip ?? 0, q?.Take ?? query.Take ?? 0, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                        q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                    
+                    // mark loaded
+                    infos[field.Name] = new AppDataFieldInfo
+                    {
+                        Filter = q?.Filter,
+                        OrderBy = q?.OrderBy,
+                        Skip = q?.Skip ?? 0,
+                        Take = take,
+                        Descend = q?.Descend ?? query.Descend ?? false,
+                        Total = total
+                    };
+
+                    // cover result
                     if (result != null)
                     {
-                        datas[field.Name] = result.ToJson()!;
-                        infos[field.Name] = new AppDataFieldInfo
-                        {
-                            Filter = q?.Filter,
-                            OrderBy = q?.OrderBy,
-                            Skip = q?.Skip ?? 0,
-                            Take = q?.Take ?? query.Take ?? 0,
-                            Descend = q?.Descend ?? query.Descend ?? false,
-                            Total = total
-                        };
-
+                        datas[field.Name] =  result.ToJson()!;
                         if (!query.NoSchema ?? false)
-                        {
                             await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
-                        }
                     }
                 }
             }
@@ -130,7 +144,7 @@ public static class BatchQueryExtension
                         Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                         Type = r.Type,
                         Func = r.Func,
-                        Args = r.Args.Select(a => new FunctionCallArgument
+                        Args = r.Args.Select(a => new FuncCallArg
                         {
                             Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
                             Value = a.Value,
@@ -291,7 +305,7 @@ public class AppDataQuery
     public Dictionary<string, AppDataFieldQuery>? Querys { get; set; }
     
     /// <summary>
-    /// The default take count
+    /// The default take count for incr update field
     /// </summary>
     public int? Take { get; set; }
     
@@ -368,7 +382,7 @@ public class AppDataResult
 }
 
 /// <summary>
-/// The queryfield result info
+/// The query field result info
 /// </summary>
 public class AppDataFieldInfo
 {
