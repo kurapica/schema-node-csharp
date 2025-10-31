@@ -53,7 +53,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// The current category target to be used
     /// </summary>
-    public string Target { get; private set; } = string.Empty;
+    public string? Target { get; private set; }
 
     #endregion
 

@@ -296,12 +296,12 @@ public class AppType
     /// Gets all node schemas used by the application
     /// </summary>
     /// <returns></returns>
-    public NodeSchema[] GetNodeSchemas(NodeSchema? root = null)
+    public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
     {
         if (Fields == null || Fields.Count == 0)
             return [];
 
-        HashSet<string> types = new();
+        types ??= new HashSet<string>();
         root ??= new NodeSchema
         {
             Name = "",
@@ -309,53 +309,24 @@ public class AppType
             Schemas = []
         };
 
-        Action<AnySchemeType?> install = null!;
-        install = (node) =>
-        {
-            if (node == null || !types.Add(node.Name)) return;
-
-            // install
-            string[] paths = node.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
-            string fullPath = string.Empty;
-            NodeSchema parent = root;
-            for (int i = 0; i < paths.Length - 1; i++)
-            {
-                string p = paths[i];
-                fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
-                
-                parent.Schemas ??= [];
-                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
-                if (sub == null)
-                {
-                    sub = new NodeSchema
-                    {
-                        Name = fullPath,
-                        Type = SchemaType.Namespace,
-                        Schemas = []
-                    };
-                    parent.Schemas = parent.Schemas.Append(sub).ToArray();
-                }
-                parent = sub;
-            }
-            parent.Schemas ??= [];
-            parent.Schemas = parent.Schemas.Append((NodeSchema)node!).ToArray();
-
-            // add dependencies
-            foreach (AnySchemeType n in node.GetDependNodes())
-                install(n);
-        };
-
         foreach (AppFieldType fieldNode in Fields)
         {
-            install(fieldNode.SchemaType);
-            install(fieldNode.FuncNode);
+            cancellationToken?.ThrowIfCancellationRequested();
+            
+            if (fieldNode.SchemaType != null)
+             await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            if (fieldNode.FuncNode != null)
+             await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
         }
 
         if (Relations is { Count: > 0 })
         {
             foreach (AppRelationSchema relation in Relations)
             {
-                install(relation.FunctionNode);
+                cancellationToken?.ThrowIfCancellationRequested();
+                
+                if (relation.FunctionNode != null)
+                    await relation.FunctionNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
             }
         }
 
@@ -588,6 +559,7 @@ public class AppFieldType
     {
         return new AppFieldSchema
         {
+            App = entity.App,
             Name = entity.Name,
             Type = entity.Type,
             Seqno = entity.Seqno,

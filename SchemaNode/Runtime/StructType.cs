@@ -256,26 +256,27 @@ public class StructType: AnySchemeType
         List<PropertyInfo> fieldMaps = [];
         string[] primarys = [];
         Dictionary<string, string[]> indexes = [];
-        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name
-                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
 
         NodeSchema structSchema = new ()
         {
             Name = typeName,
             Type = SchemaType.Struct,
-            Display = type.GetSummaryFromXmlDoc() ?? typeName,
+            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Struct = new StructSchema
             {
                 Fields = properties.Select(p =>
                 {
                     fieldMaps.Add(p);
 
+                    SchemaTypeAttribute? fieldAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
                     StructFieldConfig config = new ()
                     {
                         Name = p.Name.ToCamelCase(),
-                        Type = p.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? p.PropertyType.GetSchemaType()!,
+                        Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType()!,
                         Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
-                        Display = type.GetSummaryFromXmlDoc(p) ?? p.Name,
+                        Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? p.Name,
                     };
 
                     // limit check
@@ -291,8 +292,8 @@ public class StructType: AnySchemeType
                         RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
                         if (rangeAttr != null)
                         {
-                            config.LowLimit = rangeAttr.Minimum?.ToLiteral();
-                            config.UpLimit = rangeAttr.Maximum?.ToLiteral();
+                            config.LowLimit = rangeAttr.Minimum.ToLiteral();
+                            config.UpLimit = rangeAttr.Maximum.ToLiteral();
                         }
                     }
 
@@ -353,7 +354,7 @@ public class StructType: AnySchemeType
         {
             Name = $"{structSchema.Name}s",
             Type = SchemaType.Array,
-            Display = $"[Array]{structSchema.Display.Key}",
+            Display = $"{Locale.LIST_PREFIX}{{@{structSchema.Name}}}{Locale.LIST_SUFFIX}",
             Array = new ArraySchema
             {
                 Element = structSchema.Name,

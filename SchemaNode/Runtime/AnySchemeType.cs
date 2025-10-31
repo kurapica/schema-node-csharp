@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Components.Provider;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Node;
@@ -170,6 +169,63 @@ public abstract class AnySchemeType: IDisposable
     public virtual IEnumerable<AnySchemeType> GetDependNodes()
     {
         yield break;
+    }
+
+    /// <summary>
+    /// Gets all node schemas used by the node schema
+    /// </summary>
+    /// <returns></returns>
+    public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
+    {
+        types ??= new HashSet<string>();
+        root ??= new NodeSchema
+        {
+            Name = "",
+            Type = SchemaType.Namespace,
+            Schemas = []
+        };
+        if (!types.Add(Name)) return root.Schemas!;
+        
+        // install
+        string[] paths = Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        string fullPath = string.Empty;
+        NodeSchema parent = root;
+        for (int i = 0; i < paths.Length - 1; i++)
+        {
+            string p = paths[i];
+            fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
+                
+            parent.Schemas ??= [];
+            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+            if (sub == null)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+                
+                AnySchemeType type = await ctx.GetSchemaTypeAsync(fullPath) ?? new TypeNamespace { Name = fullPath };
+                sub = type;
+                parent.Schemas = parent.Schemas == null ? [sub!] : parent.Schemas.Append(sub!).ToArray();
+            }
+            parent = sub!;
+        }
+
+        NodeSchema schema = this!;
+        if (includeUsedBy)
+        {
+            schema.UsedBy = UsedBy?.Keys.Select(p => p.Name).ToArray();
+            schema.UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
+        }
+        
+        parent.Schemas ??= [];
+        parent.Schemas = parent.Schemas.Append(schema).ToArray();
+
+        // add dependencies
+        foreach (AnySchemeType n in GetDependNodes())
+        {
+            cancellationToken?.ThrowIfCancellationRequested();
+            await n.GetNodeSchemas(ctx, root, types);
+        }
+
+        return root.Schemas!;
     }
 
     #endregion

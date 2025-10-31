@@ -156,20 +156,34 @@ public class NodeSchema
 /// The locale translate
 /// </summary>
 [SchemaType(NS_SYSTEM_LOCALE_TRAN)]
-public class LocaleTran(string lang, string? tran)
+public class LocaleTran
 {
+    /// <summary>
+    /// default constructor
+    /// </summary>
+    public LocaleTran(){}
+    
+    /// <summary>
+    /// The locale translate
+    /// </summary>
+    public LocaleTran(string lang, string? tran)
+    {
+        Lang = lang;
+        Tran = tran;
+    }
+
     /// <summary>
     /// The language
     /// </summary>
     [SchemaType(NS_SYSTEM_LANGUAGE)]
     [MaxLength(8)]
     [Index]
-    public string Lang { get; set; } = lang;
+    public string Lang { get; set; } = string.Empty;
 
     /// <summary>
     /// The translation
     /// </summary>
-    public string? Tran { get; set; } = tran;
+    public string? Tran { get; set; }
     
     /// <summary>
     /// Convert tuple to locale translate
@@ -187,6 +201,13 @@ public class LocaleTran(string lang, string? tran)
 public class LocaleString : ICloneable
 {
     /// <summary>
+    /// default constructor
+    /// </summary>
+    public LocaleString()
+    {
+    }
+    
+    /// <summary>
     /// The locale string
     /// </summary>
     public LocaleString(string key, LocaleTran[] trans)
@@ -203,10 +224,15 @@ public class LocaleString : ICloneable
 
     /// <summary>
     /// The default key
+    /// If key is like '{list.prefix}{@schema.path}{list.suffix}', it means to use the schema path to translate and global string for other part
+    /// It has no translation record
+    /// {list.prefix} - global strings
+    /// {@schema.path} - use schema path to translate, default display
+    /// {#appschema.path} - use app schema path to translate
     /// </summary>
     [Index]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string Key { get; set; }
+    public string Key { get; set; } = string.Empty;
 
     /// <summary>
     /// The translations

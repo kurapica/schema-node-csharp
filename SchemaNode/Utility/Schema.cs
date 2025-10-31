@@ -79,6 +79,13 @@ public static class Schema
                 root = node;
                 root.Schemas ??= [];
             }
+            else
+            {
+                // check locale string
+                if ((node.Display == null || string.IsNullOrEmpty(node.Display.Key) || node.Display.Key == node.Name) 
+                    && schema.Display != null && !string.IsNullOrEmpty(schema.Display.Key))
+                    node.Display = schema.Display;
+            }
         }
 
         Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
@@ -193,17 +200,23 @@ public static class Schema
                     {
                         // static class as method container
                         SchemaTypeAttribute? funcNsAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
-                        if (funcNsAttr != null)
+                        if (funcNsAttr != null && !string.IsNullOrEmpty(funcNsAttr.Name))
                         {
-                            List<NodeSchema>? funcNs = null;
+                            List<NodeSchema> funcNs = [new NodeSchema
+                            {
+                                Name = funcNsAttr.Name,
+                                Type = SchemaType.Namespace,
+                                Display = funcNsAttr.Display ?? funcNsAttr.Name,
+                                LoadState = SchemaLoadState.System,
+                                Schemas = []
+                            }];
                             foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaTypeAttribute>() != null))
                             {
                                 NodeSchema? func = FunctionType.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
-                                funcNs ??= [];
                                 funcNs.Add(func);
                             }
-                            if (funcNs != null) schemas = funcNs.ToArray();
+                            schemas = funcNs.ToArray();
                         }
                     }
                 }
@@ -253,7 +266,7 @@ public static class Schema
             Name = $"{typeName}s",
             Type = SchemaType.Array,
             LoadState = SchemaLoadState.System,
-            Display = $"[Array]{typeName}",
+            Display = $"{Locale.LIST_PREFIX}{{@{typeName}}}{Locale.LIST_SUFFIX}",
             Array = new ArraySchema
             {
                 Element = typeName

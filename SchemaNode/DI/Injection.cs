@@ -285,7 +285,7 @@ public static class Injection
                             Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any())
                                 ? $"{typeName}s"
                                 : typeName,
-                            Display = attr.Display,
+                            Display = attr.Display ?? fieldName,
                             IncrUpdate = attr.IncrUpdate,
                         }, type: type);
                     }

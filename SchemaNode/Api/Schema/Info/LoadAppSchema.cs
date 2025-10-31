@@ -56,7 +56,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             }).ToArray();
 
             if(request.IncludeTypes)
-                schema.NodeSchemas = node.GetNodeSchemas();
+                schema.NodeSchemas = await node.GetNodeSchemas(SchemaContext, includeUsedBy: true, cancellationToken: cancellationToken);
         }
 
         return new LoadAppSchemaResponse

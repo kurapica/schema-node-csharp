@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -17,41 +18,33 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
     {
         Logger.LogDebug("[Api]LoadSchema [Request]{request}", request);
 
-        List<NodeSchema> schemas = [];
+        NodeSchema root = new NodeSchema
+        {
+            Name = "",
+            Type = SchemaType.Namespace,
+            Schemas = []
+        };
+        HashSet<string> types = new();
+        
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
             AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(t);
             if (node == null) continue;
-            NodeSchema schema = node!;
-            if (node is TypeNamespace @ns)
-            {
-                // add one level sub nodes
-                schema.Schemas = ns.Schemas.Select(s => {
-                    AnySchemeType? subNode = ns.SchemaNodes.GetValueOrDefault(s.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).Last());
-                    return new NodeSchema
-                    {
-                        Name = s.Name,
-                        Type = s.Type,
-                        Display = s.Display,
-                        LoadState = s.LoadState,
-                        Used = subNode?.IsUsed ?? (s.HasSchemas ?? false) || subNode is TypeNamespace { Schemas.Length: > 0 },
-                        HasSchemas = (s.HasSchemas ?? false) || subNode is TypeNamespace { Schemas.Length: > 0 }
-                    };
-                }).ToArray();
-            }
-            else
-            {
-                schema.UsedBy = node.UsedBy?.Keys.Select(p => p.Name).ToArray();
-                schema.UsedByApp = node.UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
+            await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 
+            if (node is TypeNamespace ns)
+            {
+                foreach (KeyValuePair<string, AnySchemeType> pair in ns.SchemaNodes)
+                {
+                    await pair.Value.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
+                }   
             }
-            schemas.Add(schema);
         }
 
         return new LoadSchemaResponse
         {
-            Schemas = schemas.ToArray()
+            Schemas = root.Schemas
         };
     }
 }

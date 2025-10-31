@@ -75,4 +75,8 @@ public static class Locale
     public const string ZH_CN = "zhCN"; // 简体中文
     public const string ZH_TW = "zhTW"; // 繁體中文
     public const string ZU_ZA = "zuZA"; // isiZul
+    
+    // useful global string
+    public const string LIST_PREFIX = "{[LIST.PREFIX]}";
+    public const string LIST_SUFFIX = "{[LIST.SUFFIX]}";
 }
