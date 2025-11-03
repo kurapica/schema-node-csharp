@@ -568,7 +568,70 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             return false;
         }
     }
-    
+
+    /// <inheritdoc />
+    public async Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow)
+    {
+        try
+        {            
+            AppType? appNode = await context.GetAppTypeAsync(app);
+            if (appNode == null) return false;
+            
+            AppFieldType? exist = appNode.GetField(workflow.Name);
+            workflow.App = appNode.Name;
+            if (exist == null)
+            {
+                // new
+                workflow.Seqno = (appNode.Workflows?.Count ?? 0);
+            }
+            else
+            {
+                workflow.Seqno = exist.Seqno;
+            }
+            
+            await context.BeginTransactionAsync();
+            await context.SaveEntityAsync(Target, workflow);
+            await context.CommitTransactionAsync();
+            
+            return true;
+        }
+        catch (Exception e)
+        {
+            context.Logger.LogError(e, "Failed to save app workflow schema: {app} - {field}", app, workflow.Name);
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAppWorkflowSchemaAsync(string app, string workflow)
+    {
+        try
+        {
+            List<AppWorkflowSchema> fields = await context.GetEntitiesAsync<AppWorkflowSchema>(Target, e => e.App == app);
+            int exist = fields.FindIndex(f => f.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
+            if (exist < 0) return false;
+
+            await context.BeginTransactionAsync();
+            await context.DeleteEntityAsync(Target, fields[exist]);
+
+            fields = fields.Skip(exist + 1).ToList();
+            for(int i = 0; i < fields.Count; i++)
+            {
+                fields[i].Seqno = exist + i;
+            }
+            await context.SaveEntitiesAsync(Target, fields);
+
+            await context.CommitTransactionAsync();
+
+            return true;
+        }
+        catch(Exception ex)
+        {
+            context.Logger.LogError(ex, "Failed to delete app workflow schema: {app} - {field}", app, workflow);
+            return false;
+        }
+    }
+
     #endregion
 
     #region Property

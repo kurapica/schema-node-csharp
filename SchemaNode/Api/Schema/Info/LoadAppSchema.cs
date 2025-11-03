@@ -27,6 +27,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             Desc = node.Desc,
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
+            Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
             Apps = node.Apps?.Select(a => {
                 AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
                 return new AppSchema

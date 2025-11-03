@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -68,6 +69,18 @@ public class NodeSchema
     /// </summary>
     [NotMapped]
     public FunctionSchema? Func { get; set; }
+    
+    /// <summary>
+    /// The event schema if type is event
+    /// </summary>
+    [NotMapped]
+    public EventSchema? Event  { get; set; }
+    
+    /// <summary>
+    /// The workflow schema if type is workflow
+    /// </summary>
+    [NotMapped]
+    public WorkflowSchema? Workflow  { get; set; }
 
     /// <summary>
     /// The load state

@@ -275,7 +275,7 @@ public class StructType: AnySchemeType
                     {
                         Name = p.Name.ToCamelCase(),
                         Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType()!,
-                        Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
+                        Require = p.GetCustomAttribute<RequiredAttribute>() != null,
                         Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? p.Name,
                     };
 

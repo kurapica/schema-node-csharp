@@ -575,6 +575,46 @@ public class SchemaContext(IServiceProvider serviceProvider)
         return true;
     }
 
+    /// <summary>
+    /// Save app workflow schema
+    /// </summary>
+    public async Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow)
+    {
+        AppType? node = await GetAppTypeAsync(app);
+        if (node == null) return false;
+
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        if (!await provider.SaveAppWorkflowSchemaAsync(app, workflow)) return false;
+
+        await GetAppTypeAsync(app, reload: true);
+        await this.PublishMessageAsync(new SchemaChangeMessage
+        {
+            Apps = [app]
+        });
+        return true;
+    }
+
+    /// <summary>
+    /// Delete app workflow schema
+    /// </summary>
+    public async Task<bool> DeleteAppWorkflowSchemaAsync(string app, string workflow)
+    {
+        AppType? node = await GetAppTypeAsync(app);
+        if (node == null) return false;
+
+        ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
+        if (provider == null) return false;
+        if (!await provider.DeleteAppWorkflowSchemaAsync(app, workflow)) return false;
+
+        await GetAppTypeAsync(app, reload: true);
+        await this.PublishMessageAsync(new SchemaChangeMessage
+        {
+            Apps = [app]
+        });
+        return true;
+    }
+
     #endregion
 
     #region Schema Methods
