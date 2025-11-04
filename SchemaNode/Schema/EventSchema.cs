@@ -22,9 +22,9 @@ public class EventSchema
     public string? Name { get; set; }
     
     /// <summary>
-    /// The event type
+    /// The event scope
     /// </summary>
-    public Event Event { get; set; }
+    public EventScope Scope { get; set; }
     
     /// <summary>
     /// The event value type

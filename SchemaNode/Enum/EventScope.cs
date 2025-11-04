@@ -3,12 +3,12 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The system event type
 /// </summary>
-public enum Event
+public enum EventScope
 {
     /// <summary>
     /// The workflow event
     /// </summary>
-    Workflow,
+    Workflow = 1,
     
     /// <summary>
     /// The application event

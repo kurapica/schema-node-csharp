@@ -1,8 +1,12 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Runtime;
 
@@ -16,7 +20,7 @@ public class WorkflowType: AnySchemeType
     /// <summary>
     /// The workflow type
     /// </summary>
-    public Workflow Workflow { get; set; } = Workflow.Function;
+    public Enum.WorkflowMode WorkflowMode { get; set; } = Enum.WorkflowMode.Function;
     
     /// <summary>
     /// The workflow return type
@@ -71,7 +75,7 @@ public class WorkflowType: AnySchemeType
         WorkflowSchema? workflow = schema.Workflow;
         
         // Data
-        Workflow = workflow?.Workflow ?? Enum.Workflow.Function;
+        WorkflowMode = workflow?.Mode ?? Enum.WorkflowMode.Function;
         Return = workflow?.Return;
         Func = workflow?.Func;
         Event = workflow?.Event;
@@ -95,9 +99,31 @@ public class WorkflowType: AnySchemeType
     
     #region Static Feature
 
-    public static NodeSchema[] GenerateSystemStruct(Type type, string? ns = null)
+    /// <summary>
+    /// Generate the system workflow schemas from type
+    /// </summary>
+    public static NodeSchema[] GenerateSystemWorkflow(Type type, string? ns = null)
     {
-        return [];
+        if (!type.IsAssignableTo(typeof(Workflow))) return [];
+        
+        // Common
+        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        NodeSchema workflowSchema = new NodeSchema
+        {
+            Name = typeName,
+            Type = SchemaType.Workflow,
+            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
+            Workflow = new WorkflowSchema
+            {
+                Mode = type.IsSubclassOf(typeof(EventWorkflow)) ? WorkflowMode.Event 
+                    : type.IsSubclassOf(typeof(FunctionWorkflow)) 
+                        ? WorkflowMode.Function 
+                        : WorkflowMode.Workflow,
+            }
+        };
+        
+        return [ workflowSchema ];
     }
     
     #endregion
@@ -119,7 +145,7 @@ public class WorkflowType: AnySchemeType
             Used = schema.IsUsed,
             Workflow = new WorkflowSchema
             {
-                Workflow = schema.Workflow,
+                Mode = schema.WorkflowMode,
                 Return = schema.Return,
                 Func = schema.Func,
                 Event = schema.Event,

@@ -318,12 +318,13 @@ public class EnumType: AnySchemeType
         if (!type.IsEnum) return [];
 
         EnumValueType valueType = type.GetCustomAttribute<FlagsAttribute>() != null ? EnumValueType.Flags : EnumValueType.String;
-        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         NodeSchema enumSchema = new NodeSchema
         {
             Name = typeName,
             Type = SchemaType.Enum,
-            Display = type.GetSummaryFromXmlDoc() ?? typeName,
+            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Enum = new EnumSchema
             {
                 Type = valueType,

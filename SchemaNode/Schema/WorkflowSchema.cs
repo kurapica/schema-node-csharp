@@ -22,9 +22,9 @@ public class WorkflowSchema
     public string? Name { get; set; }
     
     /// <summary>
-    /// The workflow type
+    /// The workflow mode
     /// </summary>
-    public Workflow Workflow { get; set;  }
+    public WorkflowMode Mode { get; set;  }
     
     /// <summary>
     /// The workflow return type

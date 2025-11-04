@@ -67,8 +67,13 @@ public static class Constant
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
-    
     public const string NS_SYSTEM_COLLECTION = "system.collection";
+    
+    // workflow namespace
+    public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    
+    // event namespace
+    public const string NS_SYSTEM_EVENT = "system.event";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;

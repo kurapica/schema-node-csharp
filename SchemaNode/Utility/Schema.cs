@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SchemaNode.Components;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -132,6 +133,19 @@ public static class Schema
         if (isArray ? _typeArrNames.TryGetValue(type, out var typeName) : _typeNames.TryGetValue(type, out typeName)) return typeName;
         
         // Common
+        if (type == typeof(object)) return "T";
+        if (type.IsAssignableTo(typeof(AnySchemaNode)))
+        {
+            if (type.IsAssignableTo(typeof(ArrayTypeNode)))
+            {
+                return NS_SYSTEM_ARRAY;
+            }
+            else if( type.IsAssignableTo(typeof(StructTypeNode)))
+            {
+                return NS_SYSTEM_STRUCT;
+            }
+            return "T"; // generic type
+        }
         if (type == typeof(JsonArray) || type == typeof(ArrayTypeNode))
         {
             return NS_SYSTEM_ARRAY;
@@ -191,6 +205,8 @@ public static class Schema
             // try generate
             NodeSchema[]? schemas = null;
             bool shouldConv = autoConv || type.GetCustomAttribute<SchemaTypeAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
+            
+            // common
             if (type.IsClass)
             {
                 // static class as api container
@@ -219,6 +235,13 @@ public static class Schema
                             schemas = funcNs.ToArray();
                         }
                     }
+                }
+                else if (type.IsAssignableTo(typeof(Event<>)))
+                {
+                    // system event
+                    schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
+                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
                 }
                 else
                 {
