@@ -29,11 +29,6 @@ public class EventType: AnySchemeType
     public string Return { get; private set; } = string.Empty;
     
     /// <summary>
-    /// The event arguments
-    /// </summary>
-    public FuncArg[] Args { get; private set; } = [];
-    
-    /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]
@@ -57,8 +52,7 @@ public class EventType: AnySchemeType
         
         // Data
         Scope = @event?.Scope ?? EventScope.Server;
-        Return = @event?.Return ?? string.Empty;
-        Args = @event?.Args ?? [];
+        Return = @event?.Payload ?? string.Empty;
         Additional = @event?.Additional;
 
         if (@event == null) Status = SchemaNodeStatus.NoDefinition;
@@ -81,11 +75,12 @@ public class EventType: AnySchemeType
     /// </summary>
     public static NodeSchema[] GenerateSystemEvent(Type type, string? ns = null)
     {
-        if (!type.IsAssignableTo(typeof(Event<>))) return [];
+        if (!type.IsAssignableTo(typeof(Event))) return [];
         
         // Common
         SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
         NodeSchema eventSchema = new NodeSchema
         {
             Name = typeName,
@@ -93,70 +88,16 @@ public class EventType: AnySchemeType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Event = new EventSchema
             {
-                Scope = EventScope.Workflow,
-                Return = "",
-                Args = [],
+                Scope = type.IsSubclassOf(typeof(WorkflowEvent)) 
+                    ? EventScope.Workflow 
+                    : type.IsSubclassOf(typeof(ApplicationEvent))
+                        ? EventScope.Application
+                        : type.IsSubclassOf(typeof(ServerEvent))
+                            ? EventScope.Server
+                            : EventScope.Cluster,
+                Payload = payloadType?.GetSchemaType(true) ?? "",
             }
         };
-        
-        // Arguments
-        ConstructorInfo[] constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.Instance);
-        if (constructors.Length > 0)
-        {
-            // only use the first constructor
-            ConstructorInfo constructor = constructors[0];
-            ParameterInfo[] parameters = constructor.GetParameters();
-            eventSchema.Event.Args = new FuncArg[parameters.Length];
-            for(int i = 0; i < parameters.Length; i++)
-            {
-                ParameterInfo parameter = parameters[i];
-                SchemaTypeAttribute? paramAttr = parameter.GetCustomAttribute<SchemaTypeAttribute>();
-                eventSchema.Event.Args[i] = new FuncArg
-                {
-                    Name = parameter.Name ?? $"arg{i}",
-                    Type = paramAttr?.Name ?? parameter.ParameterType.GetSchemaType(true) ?? "T",
-                };
-            }
-        }
-
-        // Scope & Return Type
-        Type? checkType = type;
-        while (checkType != null)
-        {
-            if (type.IsGenericType)
-            {
-                Type genericDef = type.GetGenericTypeDefinition();
-                if (genericDef == typeof(WorkflowEvent<>))
-                {
-                    Type dataType = type.GetGenericArguments()[0];
-                    eventSchema.Event.Return = dataType.GetSchemaType(true) ?? "T";
-                    eventSchema.Event.Scope = EventScope.Workflow;
-                    break;
-                }
-                else if (genericDef == typeof(ApplicationEvent<>))
-                {
-                    Type dataType = type.GetGenericArguments()[0];
-                    eventSchema.Event.Return = dataType.GetSchemaType(true) ?? "T";
-                    eventSchema.Event.Scope = EventScope.Application;
-                }
-                else if (genericDef == typeof(ServerEvent<>))
-                {
-                    Type dataType = type.GetGenericArguments()[0];
-                    eventSchema.Event.Return = dataType.GetSchemaType(true) ?? "T";
-                    eventSchema.Event.Scope = EventScope.Server;
-                    break;
-                }
-                else if (genericDef == typeof(ClusterEvent<>))
-                {
-                    Type dataType = type.GetGenericArguments()[0];
-                    eventSchema.Event.Return = dataType.GetSchemaType(true) ?? "T";
-                    eventSchema.Event.Scope = EventScope.Cluster;
-                    break;
-                }
-            }
-            checkType = checkType.BaseType;
-        }
-        if (checkType == null) return [];
         
         EventTypeNames[type] = typeName;
         
@@ -166,7 +107,7 @@ public class EventType: AnySchemeType
     /// <summary>
     /// Gets the schema event name for the given event type
     /// </summary>
-    public static string? GetEventName<T>(T obj)
+    public static string? GetSystemEventName<T>(T obj)
     {
         return EventTypeNames.GetValueOrDefault(typeof(T));
     }
@@ -174,7 +115,7 @@ public class EventType: AnySchemeType
     /// <summary>
     /// Gets the schema event name for the given event type
     /// </summary>
-    public static string? GetEventName(Type type)
+    public static string? GetSystemEventName(Type type)
     {
         return EventTypeNames.GetValueOrDefault(type);
     }
@@ -201,8 +142,7 @@ public class EventType: AnySchemeType
             Event = new EventSchema
             {
                 Scope = schema.Scope,
-                Return = schema.Return,
-                Args = schema.Args.ToArray(),
+                Payload = schema.Return,
                 Additional = schema.Additional,
             }
         };

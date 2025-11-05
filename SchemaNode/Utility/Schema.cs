@@ -236,10 +236,17 @@ public static class Schema
                         }
                     }
                 }
-                else if (type.IsAssignableTo(typeof(Event<>)))
+                else if (type.IsAssignableTo(typeof(Event)))
                 {
                     // system event
                     schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
+                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                }
+                else if (type.IsAssignableTo(typeof(Workflow)))
+                {
+                    // system workflow
+                    schemas = WorkflowType.GenerateSystemWorkflow(type, ((type.DeclaringType?.IsClass ?? false) 
                         ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
                         : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
                 }

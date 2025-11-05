@@ -29,17 +29,7 @@ public class WorkflowSchema
     /// <summary>
     /// The workflow return type
     /// </summary>
-    public string? Return { get; set; }
-    
-    /// <summary>
-    /// The function name if type is Function
-    /// </summary>
-    public string? Func { get; set; }
-    
-    /// <summary>
-    /// The event name if type is Event
-    /// </summary>
-    public string? Event { get; set; }
+    public string? Payload { get; set; }
     
     /// <summary>
     /// The workflow arguments
@@ -47,12 +37,12 @@ public class WorkflowSchema
     public FuncArg[] Args { get; set; } = [];
     
     /// <summary>
-    /// The state schema type for constructor
+    /// The state schema type for creation
     /// </summary>
     public string? State { get; set; }
     
     /// <summary>
-    /// The session schema type
+    /// The session schema type for processing
     /// </summary>
     public string? Session { get; set; }
     

@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -31,6 +32,11 @@ public class AppWorkflowSchema
     /// The seqno
     /// </summary>
     public int Seqno { get; set; }
+    
+    /// <summary>
+    /// Active the workflow
+    /// </summary>
+    public bool Active { get; set; }
     
     /// <summary>
     /// The workflow nodes
@@ -63,9 +69,9 @@ public class AppWorkflowNodeSchema
     public string Type { get; set; } = string.Empty;
     
     /// <summary>
-    /// The workflow node return type
+    /// The workflow node payload type
     /// </summary>
-    public string Return { get; set; } = string.Empty;
+    public string Payload { get; set; } = string.Empty;
     
     /// <summary>
     /// The function name if type is Function
@@ -80,7 +86,7 @@ public class AppWorkflowNodeSchema
     /// <summary>
     /// The workflow arguments
     /// </summary>
-    public FuncArg[] Args { get; set; } = [];
+    public FuncCallArg[] Args { get; set; } = [];
     
     /// <summary>
     /// The state schema type for constructor

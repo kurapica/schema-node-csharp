@@ -5,6 +5,7 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.Features;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -139,6 +140,7 @@ public class AppType
             foreach (AppFieldType field in Fields)
             {
                 field.App = Name;
+                field.Application = this;
                 field.Status = SchemaNodeStatus.Ready;
 
                 // Valid the type
@@ -282,7 +284,13 @@ public class AppType
         }
         
         // load workflows
-        Workflows = schema.Workflows?.Select(w => (AppWorkflowType)w).ToList();
+        Workflows = schema.Workflows?.Select(w =>
+        {
+            var wft = (AppWorkflowType)w;
+            wft.App = Name;
+            wft.Application = this;
+            return wft;
+        }).ToList();
     }
 
     /// <summary>

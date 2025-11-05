@@ -1,4 +1,3 @@
-using SchemaNode.Enum;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
@@ -6,7 +5,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The base event
 /// </summary>
-public abstract class Event<T>
+public abstract class Event
 {
     private string _topic = "";
 
@@ -19,11 +18,6 @@ public abstract class Event<T>
     /// The event timestamp
     /// </summary>
     public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
-
-    /// <summary>
-    /// The event scope
-    /// </summary>
-    public abstract EventScope Scope { get; }
     
     /// <summary>
     /// The topic name
@@ -33,13 +27,21 @@ public abstract class Event<T>
         set => _topic = value;
         get {
             if (string.IsNullOrEmpty(_topic))
-                _topic = EventType.GetEventName(this)!.Replace(".", "_").ToLower();
+                _topic = EventType.GetSystemEventName(this)!.Replace(".", "_").ToLower();
             return _topic;
         }
     }
-    
+}
+
+public interface IEventPayload<T>
+{
     /// <summary>
     /// The event data
     /// </summary>
-    public T? Payload { get; set; }
+    T? Payload { get; set; }
+    
+    /// <summary>
+    /// The origin data, only usable when the event is triggered by data change
+    /// </summary>
+    T? Origin { get; set; }
 }

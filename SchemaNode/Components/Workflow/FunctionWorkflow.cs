@@ -1,4 +1,5 @@
-using System.Text.Json.Nodes;
+using SchemaNode.Runtime;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Components;
 
@@ -8,7 +9,12 @@ namespace SchemaNode.Components;
 public abstract class FunctionWorkflow: Workflow
 {
     /// <summary>
-    /// Call the given function with arguments
+    /// The given function
     /// </summary>
-    public abstract Task<JsonNode?> ExecuteAsync(string func, JsonArray args);
+    public FunctionType Function { get; set; } = null!;
+    
+    /// <summary>
+    /// The call function arguments
+    /// </summary>
+    public FuncCallArg[] Args { get; set; } = [];
 }

@@ -2,6 +2,7 @@ using SchemaNode.Components;
 
 namespace SchemaNode.Context;
 
+[Obsolete]
 public class SchemaChangeMessage
 {
     /// <summary>

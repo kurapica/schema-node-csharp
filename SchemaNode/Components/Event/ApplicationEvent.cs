@@ -1,22 +1,17 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using SchemaNode.Context;
-using SchemaNode.Enum;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
 
-public abstract class ApplicationEvent<T>: Event<T>
+/// <summary>
+/// The application scope event
+/// </summary>
+public abstract class ApplicationEvent: Event
 {
-    /// <summary>
-    /// The event scope
-    /// </summary>
-    public override EventScope Scope => EventScope.Application;
-    
-    /// <summary>
-    /// The application name
-    /// </summary>
-    public string Application { get; set; } = string.Empty;
-    
     /// <summary>
     /// The application target
     /// </summary>
@@ -26,16 +21,58 @@ public abstract class ApplicationEvent<T>: Event<T>
     /// The application field
     /// </summary>
     public string? Field { get; set; }
+}
+
+public static class ApplicationEventExtensions
+{
+    /// <summary>
+    /// Raise the application event
+    /// </summary>
+    public static void RaiseAppEvent<T>(this SchemaContext context, AppType app, T @event) where T : ApplicationEvent
+    {
+        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
+        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
+        Task.Run(async () =>
+        {
+            await Task.Yield();
+            subject.OnNext(@event);
+        });
+    }
     
     /// <summary>
     /// Raise the application event
     /// </summary>
-    public void Raise(SchemaContext context)
+    public static void RaiseAppEvent<T>(this SchemaContext context, AppFieldType field, string target) where T: ApplicationEvent
     {
-        IApplicationEventScheduler? handler = context.ServiceProvider.GetService<IApplicationEventScheduler>();
-        handler?.Schedule(this);
-        
-        context.Logger.LogInformation("[ClusterEvent]{EventId} [Topic]{Topic} [App]{Application} [Target]{Target} [Field]{Field}"
-            , Id, Topic, Application, Target, Field);
+        T @event = Activator.CreateInstance<T>();
+        @event.Target = target;
+        @event.Field = field.Name;
+        context.RaiseAppEvent(field.Application, @event);
     }
+
+    /// <summary>
+    /// Raise event with payload
+    /// </summary>
+    public static void RaiseAppEvent<T, D>(this SchemaContext context, AppFieldType field, string target, D payload,
+        D? origin = default) where T : ApplicationEvent, IEventPayload<D>
+    {
+        T @event = Activator.CreateInstance<T>();
+        @event.Target = target;
+        @event.Field = field.Name;
+        @event.Payload = payload;
+        @event.Origin = origin;
+        context.RaiseAppEvent(field.Application, @event);
+    }
+
+    /// <summary>
+    /// Subscribe to the application event
+    /// </summary>
+    public static IDisposable SubscribeApplicationEvent<T>(this SchemaContext context, AppType app, Action<ApplicationEvent> handler) where T : ApplicationEvent
+    {
+        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
+        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
+    }
+    
+    static readonly ConcurrentDictionary<string, ConcurrentDictionary<Type, Subject<ApplicationEvent>>> AppEventSubjects = new();
 }

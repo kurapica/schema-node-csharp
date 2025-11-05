@@ -54,6 +54,7 @@ public static class Injection
 
         // The schema context
         services.AddScoped<SchemaContext>();
+        services.AddTransient<WorkflowContext>();
         
         // api protocol
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());

@@ -1164,8 +1164,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         {
             if (query.Count == 0) return;
             (bool result, AnySchemaNode? origin) = await AppDataProvider.DeleteDynamicTableDataAsync(schema, target, query);
-            if (result)
-                OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
+            if (result) OnFieldDataChanged(target, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
@@ -1343,7 +1342,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
 
         DynamicTableSchema schema = await PrepareFieldDataAsync(field);
 
-        string original = Target;
+        string original = Target!;
         try
         {
             Target = target;
@@ -1352,6 +1351,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
             
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(this, result);
+            
+            // raise event
+            this.RaiseAppEvent<AppDataVisitEvent>(field, target);
             
             return (result, total);
         }
@@ -1397,6 +1399,32 @@ public class SchemaContext(IServiceProvider serviceProvider)
         }
 
         await AppDataProvider.CommitTransactionAsync();
+        
+        // Event after commit
+        foreach (var (target, value) in _transChangedData)
+        {
+            foreach(var (field, changes) in value.Changes)
+            {
+                foreach (var change in changes)
+                {
+                    switch (change.Operation)
+                    {
+                        case TransactionChangeOperation.Create:
+                            this.RaiseAppEvent<AppFieldDataCreateEvent, AnySchemaNode>(field, target, change.Value!);
+                            break;
+                        case TransactionChangeOperation.Modify:
+                            this.RaiseAppEvent<AppFieldDataUpdateEvent, AnySchemaNode>(field, target, change.Value!, change.Origin);
+                            break;
+                        case TransactionChangeOperation.Delete:
+                        case TransactionChangeOperation.DropAll:
+                            this.RaiseAppEvent<AppFieldDataDeleteEvent, AnySchemaNode>(field, target, change.Origin!);
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>

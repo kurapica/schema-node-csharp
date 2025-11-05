@@ -29,12 +29,7 @@ public class EventSchema
     /// <summary>
     /// The event value type
     /// </summary>
-    public string Return { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// The event arguments
-    /// </summary>
-    public FuncArg[] Args { get; set; } = [];
+    public string Payload { get; set; } = string.Empty;
     
     /// <summary>
     /// The additional data

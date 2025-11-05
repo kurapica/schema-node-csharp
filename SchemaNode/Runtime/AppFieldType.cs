@@ -146,6 +146,11 @@ public class AppFieldType
     #region Relationship
 
     /// <summary>
+    /// The application node
+    /// </summary>
+    public AppType Application { get; set; } = default!;
+    
+    /// <summary>
     /// The field type node
     /// </summary>
     public AnySchemeType? SchemaType { get; set; }

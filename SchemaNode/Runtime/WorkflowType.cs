@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -20,12 +21,12 @@ public class WorkflowType: AnySchemeType
     /// <summary>
     /// The workflow type
     /// </summary>
-    public Enum.WorkflowMode WorkflowMode { get; set; } = Enum.WorkflowMode.Function;
+    public WorkflowMode WorkflowMode { get; set; } = WorkflowMode.Workflow;
     
     /// <summary>
-    /// The workflow return type
+    /// The workflow payload type
     /// </summary>
-    public string? Return { get; set; }
+    public string? Payload { get; set; }
     
     /// <summary>
     /// The function name if type is Function
@@ -75,10 +76,8 @@ public class WorkflowType: AnySchemeType
         WorkflowSchema? workflow = schema.Workflow;
         
         // Data
-        WorkflowMode = workflow?.Mode ?? Enum.WorkflowMode.Function;
-        Return = workflow?.Return;
-        Func = workflow?.Func;
-        Event = workflow?.Event;
+        WorkflowMode = workflow?.Mode ?? WorkflowMode.Workflow;
+        Payload = workflow?.Payload;
         Args = workflow?.Args ?? [];
         State = workflow?.State;
         Session = workflow?.Session;
@@ -123,6 +122,45 @@ public class WorkflowType: AnySchemeType
             }
         };
         
+        // State
+        Type? stateType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowState<>))?.GetGenericArguments()[0];
+        workflowSchema.Workflow.State = stateType?.GetSchemaType(true);
+        
+        // Session
+        Type? sessionType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>))?.GetGenericArguments()[0];
+        workflowSchema.Workflow.Session = sessionType?.GetSchemaType(true);
+        
+        // Payload
+        Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
+        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true);
+        
+        // If normal workflow, need check arguments from ProcessAsync
+        if (workflowSchema.Workflow.Mode == WorkflowMode.Workflow)
+        {
+            // The normal workflow should declare the arguments in ProcessAsync
+            MethodInfo? processMethod = type.GetMethod(nameof(Workflow.ProcessAsync), BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
+            if (processMethod != null)
+            {
+                ParameterInfo[] parameters = processMethod.GetParameters();
+                workflowSchema.Workflow.Args = new FuncArg[parameters.Length - 1];
+                if (parameters.Length > 1)
+                {
+                    for (int i = 1; i < parameters.Length; i++)
+                    {
+                        ParameterInfo param = parameters[i];
+                        SchemaTypeAttribute? paramType = param.GetCustomAttribute<SchemaTypeAttribute>();
+                        var info = param.ParameterType.GetSchemaTypeInfo();
+                        workflowSchema.Workflow.Args[i - 1] = new FuncArg
+                        {
+                            Name = param.Name ?? $"arg{i}",
+                            Type = paramType?.Name ?? info?.GetSchemaType(true) ?? "T",
+                            Nullable = info?.Nullable
+                        };
+                    }
+                }
+            }
+        }
+        
         return [ workflowSchema ];
     }
     
@@ -146,9 +184,7 @@ public class WorkflowType: AnySchemeType
             Workflow = new WorkflowSchema
             {
                 Mode = schema.WorkflowMode,
-                Return = schema.Return,
-                Func = schema.Func,
-                Event = schema.Event,
+                Payload = schema.Payload,
                 Args = schema.Args,
                 State = schema.State,
                 Session = schema.Session,

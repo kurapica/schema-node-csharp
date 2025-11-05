@@ -26,8 +26,4 @@
       <None Remove="www.zip" />
       <EmbeddedResource Include="www.zip" />
     </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Event\" />
-    </ItemGroup>
 </Project>
