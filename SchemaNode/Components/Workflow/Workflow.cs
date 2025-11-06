@@ -1,7 +1,6 @@
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Schema;
 using SchemaNode.Utility;
 // ReSharper disable SuspiciousTypeConversion.Global
 
@@ -18,12 +17,7 @@ public abstract class Workflow
     /// The workflow name
     /// </summary>
     internal string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The workflow context
-    /// </summary>
-    internal WorkflowContext Context { get; set; } = default!;
-    
+        
     /// <summary>
     /// The previous workflows
     /// </summary>
@@ -48,15 +42,42 @@ public abstract class Workflow
     /// The error
     /// </summary>
     internal Exception? Error { get; set; }
-    
+
+    /// <summary>
+    /// Whether the node can be triggered multiple times
+    /// So we need fork the work flow
+    /// </summary>
+    internal bool Fork { get; set; } = false;
+
     #endregion
-    
+
+    #region Method
+
+    /// <summary>
+    /// Find the next workflow by name(include self)
+    /// </summary>
+    public Workflow? FindByName(string name)
+    {
+        if (Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            return this;
+        
+        if (Next == null || Next.Length == 0) return null;
+        foreach (Workflow next in Next)
+        {
+            Workflow? found = next.FindByName(name);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    #endregion
+
     #region Abstract
 
     /// <summary>
     /// Process the workflow
     /// </summary>
-    public abstract Task ProcessAsync();
+    public abstract Task ProcessAsync(WorkflowContext context);
 
     #endregion
 }
@@ -78,9 +99,9 @@ public interface IWorkflowState<T>
 public interface IWorkflowSession<T>
 {
     /// <summary>
-    /// The workflow session
+    /// Process with the session
     /// </summary>
-    T Session { get; set; }
+    public abstract Task<T> ProcessAsync(WorkflowContext context, T session);
 }
 
 public interface IWorkflowPayload
@@ -88,10 +109,10 @@ public interface IWorkflowPayload
     /// <summary>
     /// Sets the payload and done the workflow
     /// </summary>
-    public void SetPayload(AnySchemaNode? payload)
+    public void SetPayload(WorkflowContext context, AnySchemaNode? payload)
     {
         Workflow? workflow = this as Workflow;
-        workflow?.Context.Done(workflow, payload);
+        context.Done(workflow, payload);
     }
 }
 
@@ -100,10 +121,10 @@ public interface IWorkflowPayload<in T>: IWorkflowPayload
     /// <summary>
     /// Sets the payload and done the workflow
     /// </summary>
-    public void SetPayload(T? payload)
+    public void SetPayload(WorkflowContext context, T? payload)
     {
         if (this is not Workflow workflow) return;
-        SetPayload(workflow.Context.GetSchemaTypeAsync(typeof(T).GetSchemaType()!)
+        SetPayload(context, context.GetSchemaTypeAsync(typeof(T).GetSchemaType()!)
             .GetAwaiter().GetResult()!
             .CreateNode(payload));
     }

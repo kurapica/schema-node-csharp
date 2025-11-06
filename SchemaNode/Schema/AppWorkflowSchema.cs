@@ -97,6 +97,12 @@ public class AppWorkflowNodeSchema
     /// The state schema type for constructor
     /// </summary>
     public JsonNode? State { get; set; }
+
+    /// <summary>
+    /// The node could be triggered multiple times
+    /// fork the workflow for next nodes
+    /// </summary>
+    public bool? Fork { get; set; }
     
     /// <summary>
     /// The additional data

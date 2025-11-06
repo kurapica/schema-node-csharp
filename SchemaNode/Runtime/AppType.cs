@@ -291,6 +291,10 @@ public class AppType
             wft.Application = this;
             return wft;
         }).ToList();
+        foreach(var wf in Workflows ?? [])
+        {
+            await wf.LoadAsync(context);
+        }
     }
 
     /// <summary>

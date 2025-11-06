@@ -1,11 +1,9 @@
-using System.Reflection;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
 
 namespace SchemaNode.Context;
 
@@ -16,21 +14,25 @@ public class WorkflowContext: SchemaContext, IDisposable
 {
     #region Private Fields
     
-    protected readonly IServiceScope Scope;
-    private Workflow[] _workflows = [];
+    protected WorkflowContext? _root;
+    readonly IServiceScope _scope;
+    protected Workflow? _workflow;
+    readonly IWorkflowScheduler _scheduler;
+    internal ConcurrentDictionary<string, WorkflowState> _states = [];
     
     #endregion
     
     #region Constructors
 
-    public WorkflowContext(AppType app, IServiceScopeFactory scopeFactory): this(app, scopeFactory.CreateScope())
+    public WorkflowContext(AppType app, IServiceScopeFactory scopeFactory, IWorkflowScheduler scheduler): this(app, scopeFactory.CreateScope(), scheduler)
     {
     }
     
-    private WorkflowContext(AppType app, IServiceScope scope): base(scope.ServiceProvider)
+    private WorkflowContext(AppType app, IServiceScope scope, IWorkflowScheduler scheduler) : base(scope.ServiceProvider)
     {
         Application = app;
-        Scope = scope;
+        _scope = scope;
+        _scheduler = scheduler;
     }
     
     #endregion
@@ -41,7 +43,12 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// The workflow unique identifier
     /// </summary>
     public Guid Id { get; private set; } = Guid.CreateVersion7();
-    
+
+    /// <summary>
+    /// The root workflow context id
+    /// </summary>
+    public Guid? RootId => _root?.Id;
+
     /// <summary>
     /// The application
     /// </summary>
@@ -54,75 +61,15 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// Init the workflow context with app workflow node schemas
     /// </summary>
-    public async Task InitializeAsync(AppWorkflowNodeSchema[] nodeSchemas)
+    public void Initialize(Workflow workflow, WorkflowContext? root = null)
     {
-        // init the state for nodes
-        List<Workflow> topNodes = [];
-        
-        for (int i = 0; i < nodeSchemas.Length; i++)
-        {
-            var node = nodeSchemas[i];
-            var workflowType = await GetSchemaTypeAsync(node.Type) as WorkflowType;
-            Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"Workflow type {node.Type} not found");
-
-            Workflow wNode = (Workflow)Activator.CreateInstance(csharpType)!; // All constructors parameters goto state
-            wNode.Name = node.Name;
-            wNode.Context = this;
-            
-            // state
-            if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
-            {
-                var stateSchemaType = await GetSchemaTypeAsync(workflowType.State);
-                var stateType = stateSchemaType?.ToCSharpType();
-                if (stateType != null)
-                {
-                    csharpType.GetProperty("State", BindingFlags.Public | BindingFlags.Instance)
-                        ?.SetValue(wNode, stateType.TryConvert(node.State));
-                }
-            }
-            
-            // details
-            switch (wNode)
-            {
-                case FunctionWorkflow funcWorkflow:
-                    funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
-                        ? await GetSchemaTypeAsync(node.Func) as FunctionType
-                        : null)
-                    ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
-                    break;
-                
-                case EventWorkflow evWorkflow:
-                    evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
-                        ? await GetSchemaTypeAsync(node.Event) as EventType
-                        : null)
-                    ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
-                    break;
-            }
-            
-            // Relations
-            if (node.Previous is { Length: > 0 })
-            {
-                wNode.Previous = new Workflow[node.Previous.Length];
-                for (int j = 0; j < node.Previous.Length; j++)
-                {
-                    var prevNodeState = _workflows.FirstOrDefault(ns 
-                            => ns.Name.Equals( node.Previous[j], StringComparison.OrdinalIgnoreCase));
-                    if (prevNodeState == null)
-                        throw new InvalidOperationException(
-                            $"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
-                    wNode.Previous[j] = prevNodeState;
-                    prevNodeState.Next ??= [];
-                    prevNodeState.Next = prevNodeState.Next.Append(wNode).ToArray();
-                }
-            }
-            else
-            {
-                topNodes.Add(wNode);
-            }
-        }
-        
         // record the first nodes
-        _workflows = topNodes.ToArray();
+        _root = root;
+        _workflow = workflow;
+        _states.Clear();
+
+        // schedule the workflow context for processing
+        if (root == null) _scheduler.Schedule(this);
     }
     
     /// <summary>
@@ -130,9 +77,29 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public void Done(string name, AnySchemaNode? payload = null)
     {
-        Workflow? workflow = _workflows.FirstOrDefault(w => w.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (workflow == null) throw new InvalidOperationException($"Workflow node {name} not found in the context");
-        Done(workflow, payload);
+        Workflow workflow = _workflow?.FindByName(name)
+            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+
+        // fork the workflow context for next nodes
+        if (workflow.Fork && workflow != _workflow && workflow.Next != null && workflow.Next.Length > 0)
+        {
+            // Fork a new workflow context for next nodes
+            WorkflowContext context = new WorkflowContext(Application, _scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler);
+            context.Initialize(workflow, this);
+            context.Done(workflow.Name, payload);
+            _scheduler.Schedule(context); // schedule the new workflow context for next processing
+            return;
+        }
+
+        // record the done state
+        _states[workflow.Name] = new WorkflowState
+        {
+            Status = WorkflowStatus.Done,
+            Payload = payload
+        };
+
+        // schedule the workflow context for next processing
+        _scheduler.Schedule(this); 
     }
     
     /// <summary>
@@ -140,8 +107,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public void Done(Workflow workflow, AnySchemaNode? payload = null)
     {
-        workflow.Status = WorkflowStatus.Done;
-        workflow.Payload = payload;
+        Done(workflow.Name, payload);
     }
     
     /// <summary>
@@ -149,8 +115,8 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public void Error(string name, Exception exception)
     {
-        Workflow? workflow = _workflows.FirstOrDefault(w => w.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (workflow == null) throw new InvalidOperationException($"Workflow node {name} not found in the context");
+        Workflow workflow = _workflow?.FindByName(name) 
+            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
         Error(workflow, exception);
     }
     
@@ -174,7 +140,24 @@ public class WorkflowContext: SchemaContext, IDisposable
 
     #region IDisposable
     
-    public void Dispose() => Scope.Dispose();
+    public void Dispose() => _scope.Dispose();
+
+    #endregion
+
+    #region Inner Type
+
+    internal class WorkflowState
+    {
+        /// <summary>
+        /// The workflow status
+        /// </summary>
+        public WorkflowStatus Status { get; set; } = WorkflowStatus.Waiting;
+
+        /// <summary>
+        /// The workflow payload
+        /// </summary>
+        public AnySchemaNode? Payload { get; set; }
+    }
 
     #endregion
 }
