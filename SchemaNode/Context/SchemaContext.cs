@@ -22,7 +22,7 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The schema context
 /// </summary>
-public class SchemaContext(IServiceProvider serviceProvider)
+public class SchemaContext(IServiceProvider serviceProvider)    
 {
     #region Static Settings
 
@@ -1410,14 +1410,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
                     switch (change.Operation)
                     {
                         case TransactionChangeOperation.Create:
-                            this.RaiseAppEvent<AppFieldDataCreateEvent, AnySchemaNode>(field, target, change.Value!);
+                            this.RaiseAppEvent<AppFieldDataCreateEvent>(field, target, change.Value!);
                             break;
                         case TransactionChangeOperation.Modify:
-                            this.RaiseAppEvent<AppFieldDataUpdateEvent, AnySchemaNode>(field, target, change.Value!, change.Origin);
+                            this.RaiseAppEvent<AppFieldDataUpdateEvent>(field, target, change.Value!, change.Origin);
                             break;
                         case TransactionChangeOperation.Delete:
                         case TransactionChangeOperation.DropAll:
-                            this.RaiseAppEvent<AppFieldDataDeleteEvent, AnySchemaNode>(field, target, change.Origin!);
+                            this.RaiseAppEvent<AppFieldDataDeleteEvent>(field, target, change.Origin!);
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();

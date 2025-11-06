@@ -1,3 +1,4 @@
+using SchemaNode.Node;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
@@ -33,15 +34,25 @@ public abstract class Event
     }
 }
 
-public interface IEventPayload<T>
+/// <summary>
+/// The event payload with any type
+/// </summary>
+public interface IEventPayload
 {
     /// <summary>
     /// The event data
     /// </summary>
-    T? Payload { get; set; }
+    public AnySchemaNode? Payload { get; set; }
     
     /// <summary>
     /// The origin data, only usable when the event is triggered by data change
     /// </summary>
-    T? Origin { get; set; }
+    public AnySchemaNode? Origin { get; set; }
+}
+
+/// <summary>
+/// The event payload with given type
+/// </summary>
+public interface IEventPayload<T> : IEventPayload
+{
 }

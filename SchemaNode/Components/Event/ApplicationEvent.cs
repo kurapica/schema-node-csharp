@@ -3,7 +3,9 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Runtime;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 
@@ -53,8 +55,8 @@ public static class ApplicationEventExtensions
     /// <summary>
     /// Raise event with payload
     /// </summary>
-    public static void RaiseAppEvent<T, D>(this SchemaContext context, AppFieldType field, string target, D payload,
-        D? origin = default) where T : ApplicationEvent, IEventPayload<D>
+    public static void RaiseAppEvent<T>(this SchemaContext context, AppFieldType field, string target, AnySchemaNode payload,
+        AnySchemaNode? origin = null) where T : ApplicationEvent, IEventPayload
     {
         T @event = Activator.CreateInstance<T>();
         @event.Target = target;
@@ -73,6 +75,17 @@ public static class ApplicationEventExtensions
         var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
     }
+    
+    /// <summary>
+    /// Subscribe to the application event
+    /// </summary>
+    public static IDisposable SubscribeApplicationEvent(this SchemaContext context, Type appEventType, AppType app, Action<ApplicationEvent> handler) 
+    {
+        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
+        var subject = appEventSubjects.GetOrAdd(appEventType, _ => new Subject<ApplicationEvent>());
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
+    }
+
     
     static readonly ConcurrentDictionary<string, ConcurrentDictionary<Type, Subject<ApplicationEvent>>> AppEventSubjects = new();
 }

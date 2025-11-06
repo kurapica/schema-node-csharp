@@ -69,9 +69,14 @@ public class AppWorkflowNodeSchema
     public string Type { get; set; } = string.Empty;
     
     /// <summary>
-    /// The workflow node payload type
+    /// The workflow node payload schema type
     /// </summary>
     public string Payload { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// THe previous nodes
+    /// </summary>
+    public string[]? Previous { get; set; }
     
     /// <summary>
     /// The function name if type is Function

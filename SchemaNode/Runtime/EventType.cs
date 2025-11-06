@@ -95,7 +95,8 @@ public class EventType: AnySchemeType
                         : type.IsSubclassOf(typeof(ServerEvent))
                             ? EventScope.Server
                             : EventScope.Cluster,
-                Payload = payloadType?.GetSchemaType(true) ?? "",
+                // "T" means generic payload, choose in front-end, "" means no payload
+                Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IEventPayload)) ? "T" : ""),
             }
         };
         

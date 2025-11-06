@@ -9,12 +9,7 @@ namespace SchemaNode.Components;
 public abstract class FunctionWorkflow: Workflow
 {
     /// <summary>
-    /// The given function
+    /// The function type
     /// </summary>
     public FunctionType Function { get; set; } = null!;
-    
-    /// <summary>
-    /// The call function arguments
-    /// </summary>
-    public FuncCallArg[] Args { get; set; } = [];
 }

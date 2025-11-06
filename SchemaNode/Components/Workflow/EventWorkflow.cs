@@ -6,12 +6,7 @@ namespace SchemaNode.Components;
 public abstract class EventWorkflow: Workflow
 {
     /// <summary>
-    /// The given event
+    /// The event type
     /// </summary>
     public EventType Event { get; set; } = null!;
-    
-    /// <summary>
-    /// The event arguments
-    /// </summary>
-    public FuncCallArg[] Args { get; set; } = [];
 }

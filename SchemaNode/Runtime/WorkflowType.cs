@@ -132,10 +132,10 @@ public class WorkflowType: AnySchemeType
         
         // Payload
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
-        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true);
+        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IEventPayload)) ? "T" : "");
         
         // If normal workflow, need check arguments from ProcessAsync
-        if (workflowSchema.Workflow.Mode == WorkflowMode.Workflow)
+        if (workflowSchema.Workflow.Mode != WorkflowMode.Function)
         {
             // The normal workflow should declare the arguments in ProcessAsync
             MethodInfo? processMethod = type.GetMethod(nameof(Workflow.ProcessAsync), BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
