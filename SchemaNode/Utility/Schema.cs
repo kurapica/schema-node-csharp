@@ -1130,7 +1130,15 @@ public static class Schema
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_STRING, upLimit:32),
-            ])
+            ]),
+            #endregion
+
+            #region System.Workflow
+
+            NewSystemSchema(NS_SYSTEM_WORKFLOW).WithSchemas([
+                NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING)
+            ]),
+
             #endregion
         ])
     ]);

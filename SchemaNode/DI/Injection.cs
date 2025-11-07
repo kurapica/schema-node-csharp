@@ -45,10 +45,6 @@ public static class Injection
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
         services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
         
-        // message handlers
-        SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers<SchemaContext>(services);
-        SchemaMessageHandlerExtensions.RegisterSchemaMessageHandlers(services, Assembly.GetEntryAssembly());
-
         // critical region
         services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
 
@@ -67,6 +63,9 @@ public static class Injection
         RegisterAssemblyFeatures(services, typeof(T).Assembly);
         foreach (Assembly assembly in assemblies)
             RegisterAssemblyFeatures(services, assembly);
+        
+        // workflow scheduler
+        services.TryAddSingleton<IWorkflowScheduler, DefaultWorkflowScheduler>();
         
         return services;
     }

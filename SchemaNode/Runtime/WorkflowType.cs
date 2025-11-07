@@ -134,30 +134,27 @@ public class WorkflowType: AnySchemeType
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
         workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IEventPayload)) ? "T" : "");
         
-        // If normal workflow, need check arguments from ProcessAsync
-        if (workflowSchema.Workflow.Mode != WorkflowMode.Function)
+        // Workflow Args
+        ConstructorInfo[] constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.DeclaredOnly);
+        if (constructors.Length > 0)
         {
-            // The normal workflow should declare the arguments in ProcessAsync
-            MethodInfo? processMethod = type.GetMethod(nameof(Workflow.ProcessAsync), BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly);
-            if (processMethod != null)
+            if (constructors.Length > 1)
+                throw new InvalidOperationException($"The workflow type '{type.FullName}' has multiple public constructors. Only one public constructor is allowed.");
+            
+            ConstructorInfo constructor = constructors[0];
+            ParameterInfo[] parameters = constructor.GetParameters();
+            workflowSchema.Workflow.Args = new FuncArg[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
             {
-                ParameterInfo[] parameters = processMethod.GetParameters();
-                workflowSchema.Workflow.Args = new FuncArg[parameters.Length - 1];
-                if (parameters.Length > 1)
+                ParameterInfo param = parameters[i];
+                SchemaTypeAttribute? paramType = param.GetCustomAttribute<SchemaTypeAttribute>();
+                var info = param.ParameterType.GetSchemaTypeInfo();
+                workflowSchema.Workflow.Args[i] = new FuncArg
                 {
-                    for (int i = 1; i < parameters.Length; i++)
-                    {
-                        ParameterInfo param = parameters[i];
-                        SchemaTypeAttribute? paramType = param.GetCustomAttribute<SchemaTypeAttribute>();
-                        var info = param.ParameterType.GetSchemaTypeInfo();
-                        workflowSchema.Workflow.Args[i - 1] = new FuncArg
-                        {
-                            Name = param.Name ?? $"arg{i}",
-                            Type = paramType?.Name ?? info?.GetSchemaType(true) ?? "T",
-                            Nullable = info?.Nullable
-                        };
-                    }
-                }
+                    Name = param.Name ?? $"arg{i}",
+                    Type = paramType?.Name ?? info?.GetSchemaType(true) ?? "T",
+                    Nullable = info?.Nullable
+                };
             }
         }
         

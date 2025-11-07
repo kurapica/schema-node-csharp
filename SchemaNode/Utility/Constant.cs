@@ -71,6 +71,7 @@ public static class Constant
     
     // workflow namespace
     public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    public const string NS_SYSTEM_WORKFLOW_NODE = "system.workflow.node";
     
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";

@@ -86,6 +86,28 @@ public static class ApplicationEventExtensions
         return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
     }
 
+    /// <summary>
+    /// Subscribe to the application event
+    /// </summary>
+    public static IDisposable SubscribeApplicationEventOnce<T>(this SchemaContext context, AppType app, Action<ApplicationEvent> handler) where T : ApplicationEvent
+    {
+        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
+        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
+        var singleSubject = SingleSubjects.GetOrAdd(subject, _ => new SingleSubject<ApplicationEvent>());
+        return singleSubject.SubscribeOn(Scheduler.Default).Subscribe(handler);
+    }
     
-    static readonly ConcurrentDictionary<string, ConcurrentDictionary<Type, Subject<ApplicationEvent>>> AppEventSubjects = new();
+    /// <summary>
+    /// Subscribe to the application event
+    /// </summary>
+    public static IDisposable SubscribeApplicationEventOnce(this SchemaContext context, Type appEventType, AppType app, Action<ApplicationEvent> handler) 
+    {
+        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
+        var subject = appEventSubjects.GetOrAdd(appEventType, _ => new Subject<ApplicationEvent>());
+        var singleSubject = SingleSubjects.GetOrAdd(subject, _ => new SingleSubject<ApplicationEvent>());
+        return singleSubject.SubscribeOn(Scheduler.Default).Subscribe(handler);
+    }
+
+    private static readonly ConcurrentDictionary<Subject<ApplicationEvent>, SingleSubject<ApplicationEvent>> SingleSubjects = [];
+    static readonly ConcurrentDictionary<string, ConcurrentDictionary<Type, Subject<ApplicationEvent>>> AppEventSubjects = [];
 }

@@ -84,6 +84,11 @@ public class AppWorkflowNodeSchema
     public string? Func { get; set; }
     
     /// <summary>
+    /// The function call arguments
+    /// </summary>
+    public FuncCallArg[]? FuncArgs { get; set; }
+    
+    /// <summary>
     /// The event name if type is Event
     /// </summary>
     public string? Event { get; set; }

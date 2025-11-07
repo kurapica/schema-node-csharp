@@ -61,7 +61,7 @@ public class AppWorkflowType: IDisposable
     /// <summary>
     /// The application
     /// </summary>
-    public AppType Application { get; set; } = null!;
+    public AppType Application { get; internal set; } = null!;
 
     #endregion
 
@@ -77,19 +77,31 @@ public class AppWorkflowType: IDisposable
         // Init the entry workflow context
         if (Nodes.Length <= 1 || !Active) return;
 
-        // init the state for nodes
+        // init the workflow nodes
         List<Workflow> topNodes = [];
-        Dictionary<string, Workflow> _workflows = [];
+        Dictionary<string, Workflow> workflows = [];
 
-        for (int i = 0; i < Nodes.Length; i++)
+        foreach (var node in Nodes)
         {
-            var node = Nodes[i];
             var workflowType = await context.GetSchemaTypeAsync(node.Type) as WorkflowType;
             Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"Workflow type {node.Type} not found");
 
-            Workflow wNode = (Workflow)Activator.CreateInstance(csharpType)!; // All constructors parameters goto state
+            // All constructors parameters goto state, init directly
+            Workflow wNode = (Workflow)Activator.CreateInstance(csharpType)!;
+            wNode.Application = Application;
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
+            wNode.Args = node.Args.Select(n => new FuncCallArg
+            {
+                Name = n.Name,
+                Value = n.Value,
+            }).ToArray();
+            
+            // payload type
+            if (!string.IsNullOrWhiteSpace(node.Payload))
+            {
+                wNode.PayloadType = await context.GetSchemaTypeAsync(node.Payload);
+            }
 
             // state
             if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
@@ -108,20 +120,25 @@ public class AppWorkflowType: IDisposable
             {
                 case FunctionWorkflow funcWorkflow:
                     funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
-                        ? await context.GetSchemaTypeAsync(node.Func) as FunctionType
-                        : null)
-                    ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
+                                                ? await context.GetSchemaTypeAsync(node.Func) as FunctionType
+                                                : null)
+                                            ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
+                    funcWorkflow.FuncArgs = node.FuncArgs?.Select(n => new FuncCallArg
+                    {
+                        Name = n.Name,
+                        Value = n.Value,
+                    }).ToArray() ?? [];
                     break;
 
                 case EventWorkflow evWorkflow:
                     evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
-                        ? await context.GetSchemaTypeAsync(node.Event) as EventType
-                        : null)
-                    ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
+                                           ? await context.GetSchemaTypeAsync(node.Event) as EventType
+                                           : null)
+                                       ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
                     break;
             }
 
-            _workflows.Add(wNode.Name, wNode);
+            workflows.Add(wNode.Name, wNode);
 
             // Relations
             if (node.Previous is { Length: > 0 })
@@ -129,8 +146,8 @@ public class AppWorkflowType: IDisposable
                 wNode.Previous = new Workflow[node.Previous.Length];
                 for (int j = 0; j < node.Previous.Length; j++)
                 {
-                    var prevNode = _workflows[node.Previous[j]] 
-                        ?? throw new InvalidOperationException($"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
+                    var prevNode = workflows[node.Previous[j]] 
+                                   ?? throw new InvalidOperationException($"Previous workflow node {node.Previous[j]} not found for node {node.Name}");
                     wNode.Previous[j] = prevNode;
                     prevNode.Next ??= [];
                     prevNode.Next = prevNode.Next.Append(wNode).ToArray();
@@ -141,18 +158,22 @@ public class AppWorkflowType: IDisposable
                 topNodes.Add(wNode);
             }
         }
+        
+        // TODO: maybe support multiple entry nodes
+        if (topNodes.Count != 1)
+            throw new InvalidOperationException($"Workflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
-        entryContext?.Dispose();
-        entryContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider, this);
-        entryContext.Initialize(topNodes.First());
+        _workflowContext?.Dispose();
+        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider, Application);
+        _workflowContext.Initialize(topNodes.First());
     }
 
     public void Dispose()
     {
-        entryContext?.Dispose();
+        _workflowContext?.Dispose();
     }
 
-    private WorkflowContext? entryContext;
+    private WorkflowContext? _workflowContext;
 
     #endregion
 

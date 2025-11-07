@@ -32,13 +32,7 @@ public abstract class Event
             return _topic;
         }
     }
-}
-
-/// <summary>
-/// The event payload with any type
-/// </summary>
-public interface IEventPayload
-{
+    
     /// <summary>
     /// The event data
     /// </summary>
@@ -48,6 +42,13 @@ public interface IEventPayload
     /// The origin data, only usable when the event is triggered by data change
     /// </summary>
     public AnySchemaNode? Origin { get; set; }
+}
+
+/// <summary>
+/// The event payload with any type
+/// </summary>
+public interface IEventPayload
+{
 }
 
 /// <summary>
