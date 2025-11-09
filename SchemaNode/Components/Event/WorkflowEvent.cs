@@ -1,8 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SchemaNode.Context;
-using SchemaNode.Enum;
-
 namespace SchemaNode.Components;
 
 /// <summary>
@@ -14,4 +9,11 @@ public abstract class WorkflowEvent: Event
     /// The workflow identifier
     /// </summary>
     public Guid WorkflowId { get; set; }
+}
+
+/// <summary>
+/// The workflow event dispatcher
+/// </summary>
+public interface IWorkflowEventDispatcher: IEventDispatcher<WorkflowEvent>
+{
 }

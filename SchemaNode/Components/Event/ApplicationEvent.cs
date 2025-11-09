@@ -2,9 +2,6 @@ using System.Collections.Concurrent;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using SchemaNode.Context;
-using SchemaNode.Node;
-using SchemaNode.Runtime;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
@@ -12,102 +9,74 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The application scope event
 /// </summary>
-public abstract class ApplicationEvent: Event
+public abstract class ApplicationEvent(string app): Event
 {
     /// <summary>
-    /// The application target
+    /// The application
     /// </summary>
-    public string Target { get; set; } = string.Empty;
-    
+    public string Application { get; set; } = app;
+
     /// <summary>
-    /// The application field
+    /// The topic
     /// </summary>
-    public string? Field { get; set; }
+    public override string Topic => Application.Replace(".", "_");
 }
 
-public static class ApplicationEventExtensions
+public abstract class ApplicationDataEvent(string app, string target): ApplicationEvent(app)
 {
     /// <summary>
-    /// Raise the application event
+    /// The target identifier
     /// </summary>
-    public static void RaiseAppEvent<T>(this SchemaContext context, AppType app, T @event) where T : ApplicationEvent
+    public string Target { get; set; } = target;
+
+    /// <summary>
+    /// The topic
+    /// </summary>
+    public override string Topic => $"{base.Topic}/{Target}";
+}
+
+public abstract class  ApplicationFieldDataEvent(string app, string target, string field): ApplicationDataEvent(app, target)
+{
+    /// <summary>
+    /// The application field name
+    /// </summary>
+    public string Field { get; set; } = field;
+
+    public override string Topic => $"{base.Topic}/{Field}";
+}
+
+/// <summary>
+/// The application event dispatcher
+/// </summary>
+public interface IApplicationEventDispatcher: IEventDispatcher<ApplicationEvent>
+{
+}
+
+public class DefaultApplicationEventDispatcher : IApplicationEventDispatcher
+{
+    /// <summary>
+    /// Dispatch the event
+    /// </summary>
+    public void DispatchEvent<E>(E @event) where E : ApplicationEvent
     {
-        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
-        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
-        Task.Run(async () =>
+        if (AppEventSubjects.TryGetValue(@event.GetType(), out var subject))
         {
-            await Task.Yield();
-            subject.OnNext(@event);
-        });
-    }
-    
-    /// <summary>
-    /// Raise the application event
-    /// </summary>
-    public static void RaiseAppEvent<T>(this SchemaContext context, AppFieldType field, string target) where T: ApplicationEvent
-    {
-        T @event = Activator.CreateInstance<T>();
-        @event.Target = target;
-        @event.Field = field.Name;
-        context.RaiseAppEvent(field.Application, @event);
-    }
-
-    /// <summary>
-    /// Raise event with payload
-    /// </summary>
-    public static void RaiseAppEvent<T>(this SchemaContext context, AppFieldType field, string target, AnySchemaNode payload,
-        AnySchemaNode? origin = null) where T : ApplicationEvent, IEventPayload
-    {
-        T @event = Activator.CreateInstance<T>();
-        @event.Target = target;
-        @event.Field = field.Name;
-        @event.Payload = payload;
-        @event.Origin = origin;
-        context.RaiseAppEvent(field.Application, @event);
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                subject.OnNext(@event);
+            });
+        }
     }
 
     /// <summary>
     /// Subscribe to the application event
     /// </summary>
-    public static IDisposable SubscribeApplicationEvent<T>(this SchemaContext context, AppType app, Action<ApplicationEvent> handler) where T : ApplicationEvent
+    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E : ApplicationEvent
     {
-        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
-        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
-        return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
-    }
-    
-    /// <summary>
-    /// Subscribe to the application event
-    /// </summary>
-    public static IDisposable SubscribeApplicationEvent(this SchemaContext context, Type appEventType, AppType app, Action<ApplicationEvent> handler) 
-    {
-        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
-        var subject = appEventSubjects.GetOrAdd(appEventType, _ => new Subject<ApplicationEvent>());
-        return subject.SubscribeOn(Scheduler.Default).Subscribe(handler);
+        var subject = AppEventSubjects.GetOrAdd(typeof(E), _ => new Subject<ApplicationEvent>());
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
     }
 
-    /// <summary>
-    /// Subscribe to the application event
-    /// </summary>
-    public static IDisposable SubscribeApplicationEventOnce<T>(this SchemaContext context, AppType app, Action<ApplicationEvent> handler) where T : ApplicationEvent
-    {
-        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
-        var subject = appEventSubjects.GetOrAdd(typeof(T), _ => new Subject<ApplicationEvent>());
-        var singleSubject = SingleSubjects.GetOrAdd(subject, _ => new SingleSubject<ApplicationEvent>());
-        return singleSubject.SubscribeOn(Scheduler.Default).Subscribe(handler);
-    }
-    
-    /// <summary>
-    /// Subscribe to the application event
-    /// </summary>
-    public static IDisposable SubscribeApplicationEventOnce(this SchemaContext context, Type appEventType, AppType app, Action<ApplicationEvent> handler) 
-    {
-        var appEventSubjects = AppEventSubjects.GetOrAdd(app.Name, _ => new ConcurrentDictionary<Type, Subject<ApplicationEvent>>());
-        var subject = appEventSubjects.GetOrAdd(appEventType, _ => new Subject<ApplicationEvent>());
-        var singleSubject = SingleSubjects.GetOrAdd(subject, _ => new SingleSubject<ApplicationEvent>());
-        return singleSubject.SubscribeOn(Scheduler.Default).Subscribe(handler);
-    }
-
-    private static readonly ConcurrentDictionary<Subject<ApplicationEvent>, SingleSubject<ApplicationEvent>> SingleSubjects = [];
-    static readonly ConcurrentDictionary<string, ConcurrentDictionary<Type, Subject<ApplicationEvent>>> AppEventSubjects = [];
+    static readonly ConcurrentDictionary<Type, Subject<ApplicationEvent>> AppEventSubjects = [];
 }

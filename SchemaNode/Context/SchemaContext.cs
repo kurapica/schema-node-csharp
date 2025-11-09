@@ -408,10 +408,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
                 ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
         }
         await GetSchemaTypeAsync(schema.Name, reload: true); // force reload
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Schemas = [schema.Name]
-        });
+
+        // cluster event
+        this.RaiseEvent<SchemaChangeEvent>(schema.Name);
         return true;
     }
 
@@ -430,10 +429,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
         RemoveSchemaType(name);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            DeleteSchemas = [name]
-        });
+
+        // cluster event
+        this.RaiseEvent<SchemaDeleteEvent>(name);
         return true;
     }
 
@@ -455,10 +453,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         
         // save the sub list
         @enum.SaveEnumSubListAsync(value, await provider.SaveEnumSubListAsync(@enum, value, values, append));
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Schemas = [name]
-        });
+
+        // cluster event
+        this.RaiseEvent<SchemaChangeEvent>(node.Name);
         return true;
     }
 
@@ -483,10 +480,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
             }
         }
         await GetAppTypeAsync(app.Name, reload: true); // force reload
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app.Name]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app.Name);
         return true;
     }
 
@@ -504,10 +500,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (provider == null) return false;
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
         RemoveAppType(app);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            DeleteApps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaDeleteEvent>(app);
         return true;
     }
 
@@ -524,10 +519,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.SaveAppFieldSchemaAsync(app, field)) return false;
 
         await GetAppTypeAsync(app, reload: true);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
 
@@ -544,10 +538,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.DeleteAppFieldSchemaAsync(app, field)) return false;
 
         await GetAppTypeAsync(app, reload: true);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
 
@@ -568,10 +561,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.SwapAppFieldSchemaAsync(app, field1, field2)) return false;
 
         await GetAppTypeAsync(app, reload: true);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
 
@@ -588,10 +580,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.SaveAppWorkflowSchemaAsync(app, workflow)) return false;
 
         await GetAppTypeAsync(app, reload: true);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
 
@@ -608,10 +599,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (!await provider.DeleteAppWorkflowSchemaAsync(app, workflow)) return false;
 
         await GetAppTypeAsync(app, reload: true);
-        await this.PublishMessageAsync(new SchemaChangeMessage
-        {
-            Apps = [app]
-        });
+
+        // cluster event
+        this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
 
@@ -801,6 +791,17 @@ public class SchemaContext(IServiceProvider serviceProvider)
         }
         node.Apps = node.Apps?.Where(s => !s.Name.Equals(appName, StringComparison.OrdinalIgnoreCase)).ToArray() ?? [];
         return true;
+    }
+
+    /// <summary>
+    /// Convert the value to schema node
+    /// </summary>
+    public async Task<AnySchemaNode?> GetSchemaNodeAsync<T>(T? value)
+    {
+        if (value is null) return null;
+        string? schemaType = typeof(T).GetSchemaType(true);
+        if (string.IsNullOrEmpty(schemaType)) return null;
+        return (await GetSchemaTypeAsync(schemaType))?.CreateNode(value);
     }
 
     #endregion
@@ -1351,9 +1352,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
             
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(this, result);
-            
+
             // raise event
-            this.RaiseAppEvent<AppDataVisitEvent>(field, target);
+            this.RaiseEvent(new AppDataVisitEvent(field.App, target));
             
             return (result, total);
         }
@@ -1410,14 +1411,15 @@ public class SchemaContext(IServiceProvider serviceProvider)
                     switch (change.Operation)
                     {
                         case TransactionChangeOperation.Create:
-                            this.RaiseAppEvent<AppFieldDataCreateEvent>(field, target, change.Value!);
+                            this.RaiseEvent(new AppFieldDataCreateEvent(field, target), change.Value);
                             break;
                         case TransactionChangeOperation.Modify:
-                            this.RaiseAppEvent<AppFieldDataUpdateEvent>(field, target, change.Value!, change.Origin);
+                            if (change.Value != null) change.Value.Origin = change.Origin;
+                            this.RaiseEvent(new AppFieldDataUpdateEvent(field, target), change.Value);
                             break;
                         case TransactionChangeOperation.Delete:
                         case TransactionChangeOperation.DropAll:
-                            this.RaiseAppEvent<AppFieldDataDeleteEvent>(field, target, change.Origin!);
+                            this.RaiseEvent(new AppFieldDataDeleteEvent(field, target), change.Origin);
                             break;
                         default:
                             throw new ArgumentOutOfRangeException();

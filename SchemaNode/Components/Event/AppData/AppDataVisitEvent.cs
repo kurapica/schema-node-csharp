@@ -8,6 +8,6 @@ namespace SchemaNode.Components;
 /// Fired when query the target data in the application
 /// </summary>
 [SchemaType($"{NS_SYSTEM_EVENT}.app.data.visit")]
-public class AppDataVisitEvent: ApplicationEvent
+public class AppDataVisitEvent(string app, string target) : ApplicationDataEvent(app, target)
 {
 }

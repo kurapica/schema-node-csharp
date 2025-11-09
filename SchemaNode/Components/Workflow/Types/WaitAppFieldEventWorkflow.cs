@@ -7,8 +7,9 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Components;
 
 [SchemaType($"{NS_SYSTEM_WORKFLOW}.event.field")]
-public class WaitAppFieldEventWorkflow([SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]string field)
-    : EventWorkflow, IWorkflowPayload, IWorkflowSession<IDisposable>
+public class WaitAppFieldEventWorkflow([SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]string field): EventWorkflow, 
+    IWorkflowPayload, 
+    IWorkflowSession<IDisposable>
 {
     public async Task<IDisposable> ProcessAsync(WorkflowContext context, IDisposable? session = null)
     {
@@ -17,6 +18,12 @@ public class WaitAppFieldEventWorkflow([SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]s
         
         session?.Dispose();
         IDisposable sub = Disposable.Empty;
+        
+        if (Fork)
+        {
+            sub = context.SubscribeTopicEvent()
+        }
+
         sub = context.SubscribeApplicationEvent(Event.ToCSharpType(), Application, @event =>
         {
             if (!field.Equals(@event.Field, StringComparison.OrdinalIgnoreCase)) return;

@@ -96,7 +96,7 @@ public class EventType: AnySchemeType
                             ? EventScope.Server
                             : EventScope.Cluster,
                 // "T" means generic payload, choose in front-end, "" means no payload
-                Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IEventPayload)) ? "T" : ""),
+                Payload = payloadType?.GetSchemaType(true) ?? "T",
             }
         };
         

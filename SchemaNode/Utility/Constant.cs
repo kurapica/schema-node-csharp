@@ -84,6 +84,12 @@ public static class Constant
     public const int FUNC_SIGN_REMOTE_CALL = 16;
     public const int FUNC_SIGN_NULLABLE_RET = 32;
 
+    // Topic
+    public const char TOPIC_SEP = '/';
+    public const string TOPIC_WILDCARD_SINGLE = "+";
+    public const string TOPIC_WILDCARD_MULTI = "*";
+    public const string TOPIC_WILDCARD_ALL = "#";
+
     /// <summary>
     /// DYNAMIC TABLE TARG FIELD
     /// </summary>

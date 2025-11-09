@@ -1,5 +1,4 @@
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 
 namespace SchemaNode.Components;
 

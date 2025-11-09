@@ -63,7 +63,10 @@ public static class Injection
         RegisterAssemblyFeatures(services, typeof(T).Assembly);
         foreach (Assembly assembly in assemblies)
             RegisterAssemblyFeatures(services, assembly);
-        
+
+        // event dispatcher
+        services.TryAddSingleton<IApplicationEventDispatcher, DefaultApplicationEventDispatcher>();
+
         // workflow scheduler
         services.TryAddSingleton<IWorkflowScheduler, DefaultWorkflowScheduler>();
         
