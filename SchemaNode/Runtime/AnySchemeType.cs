@@ -248,6 +248,8 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Array => new ArrayType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Func => new FunctionType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
+            SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
+            SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -266,6 +268,8 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Array => (schema as ArrayType),
             SchemaType.Func => (schema as FunctionType),
             SchemaType.Json => (schema as JsonType),
+            SchemaType.Event => (schema as EventType),
+            SchemaType.Workflow => (schema as WorkflowType),
             _ => (schema as TypeNamespace)
         };
     }

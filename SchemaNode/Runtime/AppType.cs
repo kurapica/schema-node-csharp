@@ -287,7 +287,6 @@ public class AppType
         Workflows = schema.Workflows?.Select(w =>
         {
             var wft = (AppWorkflowType)w;
-            wft.App = Name;
             wft.Application = this;
             return wft;
         }).ToList();

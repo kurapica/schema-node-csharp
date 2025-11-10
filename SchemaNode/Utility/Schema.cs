@@ -1120,23 +1120,25 @@ public static class Schema
                 NewSystemScalar(NS_SYSTEM_SCHEMA_STRUCT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_FUNC_TYPE,NS_SYSTEM_SCHEMA_NAMESPACE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_EVENT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_WORKFLOW_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 
-                NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:64),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_VALUE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_STRING, upLimit:32),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_SCHEMA_VAR_NAME),
             ]),
             #endregion
 
             #region System.Workflow
 
             NewSystemSchema(NS_SYSTEM_WORKFLOW).WithSchemas([
-                NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING)
+                NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
             ]),
 
             #endregion

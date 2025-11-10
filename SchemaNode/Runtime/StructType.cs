@@ -315,7 +315,7 @@ public class StructType: AnySchemeType
                             {
                                 // follow default order
                                 Array.Resize(ref primarys, primarys.Length + 1);
-                                primarys[primarys.Length - 1] = config.Name;
+                                primarys[^1] = config.Name;
                             }
                         }
                         else
@@ -335,7 +335,7 @@ public class StructType: AnySchemeType
                             {
                                 // follow default order
                                 Array.Resize(ref fields, fields.Length + 1);
-                                fields[fields.Length - 1] = config.Name;
+                                fields[^1] = config.Name;
                             }
                             indexes[attr.Name] = fields;
                         }

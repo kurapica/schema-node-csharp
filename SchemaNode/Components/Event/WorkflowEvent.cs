@@ -3,12 +3,12 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The workflow scope event
 /// </summary>
-public abstract class WorkflowEvent: Event
+public abstract class WorkflowEvent(Guid workflowId): Event
 {
     /// <summary>
     /// The workflow identifier
     /// </summary>
-    public Guid WorkflowId { get; set; }
+    public Guid WorkflowId { get; set; } = workflowId;
 }
 
 /// <summary>

@@ -39,11 +39,6 @@ public class WorkflowType: AnySchemeType
     public string? Event { get; set; }
     
     /// <summary>
-    /// The workflow arguments
-    /// </summary>
-    public FuncArg[] Args { get; set; } = [];
-    
-    /// <summary>
     /// The state schema type for constructor
     /// </summary>
     public string? State { get; set; }
@@ -78,7 +73,6 @@ public class WorkflowType: AnySchemeType
         // Data
         WorkflowMode = workflow?.Mode ?? WorkflowMode.Workflow;
         Payload = workflow?.Payload;
-        Args = workflow?.Args ?? [];
         State = workflow?.State;
         Session = workflow?.Session;
         Additional = workflow?.Additional;
@@ -132,31 +126,7 @@ public class WorkflowType: AnySchemeType
         
         // Payload
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
-        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IEventPayload)) ? "T" : "");
-        
-        // Workflow Args
-        ConstructorInfo[] constructors = type.GetConstructors(BindingFlags.Public | BindingFlags.DeclaredOnly);
-        if (constructors.Length > 0)
-        {
-            if (constructors.Length > 1)
-                throw new InvalidOperationException($"The workflow type '{type.FullName}' has multiple public constructors. Only one public constructor is allowed.");
-            
-            ConstructorInfo constructor = constructors[0];
-            ParameterInfo[] parameters = constructor.GetParameters();
-            workflowSchema.Workflow.Args = new FuncArg[parameters.Length];
-            for (int i = 0; i < parameters.Length; i++)
-            {
-                ParameterInfo param = parameters[i];
-                SchemaTypeAttribute? paramType = param.GetCustomAttribute<SchemaTypeAttribute>();
-                var info = param.ParameterType.GetSchemaTypeInfo();
-                workflowSchema.Workflow.Args[i] = new FuncArg
-                {
-                    Name = param.Name ?? $"arg{i}",
-                    Type = paramType?.Name ?? info?.GetSchemaType(true) ?? "T",
-                    Nullable = info?.Nullable
-                };
-            }
-        }
+        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IWorkflowPayload)) ? "T" : "");
         
         return [ workflowSchema ];
     }
@@ -182,7 +152,6 @@ public class WorkflowType: AnySchemeType
             {
                 Mode = schema.WorkflowMode,
                 Payload = schema.Payload,
-                Args = schema.Args,
                 State = schema.State,
                 Session = schema.Session,
                 Additional = schema.Additional

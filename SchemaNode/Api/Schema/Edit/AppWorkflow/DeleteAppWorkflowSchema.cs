@@ -17,7 +17,7 @@ public class DeleteAppWorkflowSchemaApi : SchemaApi<DeleteAppWorkflowSchemaReque
 
         return new DeleteAppWorkflowSchemaResponse
         {
-            Result = await SchemaContext.DeleteAppWorkflowSchemaAsync(request.App, request.Field)
+            Result = await SchemaContext.DeleteAppWorkflowSchemaAsync(request.App, request.Workflow)
         };
     }
 }
@@ -37,7 +37,7 @@ public class DeleteAppWorkflowSchemaRequest : SchemaApiRequest
     /// The work flow name
     /// </summary>
     [Required]
-    public required string Field { get; set; }
+    public required string Workflow { get; set; }
 }
 
 /// <summary>

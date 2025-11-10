@@ -32,11 +32,6 @@ public class WorkflowSchema
     public string? Payload { get; set; }
     
     /// <summary>
-    /// The workflow arguments
-    /// </summary>
-    public FuncArg[] Args { get; set; } = [];
-    
-    /// <summary>
     /// The state schema type for creation
     /// </summary>
     public string? State { get; set; }

@@ -74,6 +74,14 @@ public class TypeNamespace: AnySchemeType
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
                 await context.GetSchemaTypeAsync(s.Name, preload: true);
             
+            // event
+            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Event))
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
+            
+            // workflow
+            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Workflow))
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
+
             // namespace
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Namespace))
                 await context.GetSchemaTypeAsync(s.Name, preload: true);

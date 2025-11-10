@@ -574,6 +574,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
     {
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
+        
+        AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow.Name, StringComparison.OrdinalIgnoreCase));
+        if (appWorkflowType is { Activated: true }) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
@@ -594,6 +597,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
+        AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
+        if (appWorkflowType is { Activated: true }) return false;
+
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppWorkflowSchemaAsync(app, workflow)) return false;
@@ -603,6 +609,53 @@ public class SchemaContext(IServiceProvider serviceProvider)
         // cluster event
         this.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
+    }
+
+    /// <summary>
+    /// Toggle app workflow schema active state
+    /// </summary>
+    public async Task<bool> ToggleAppWorkflowSchemaAsync(string app, string workflow, bool active)
+    {
+        AppType? node = await GetAppTypeAsync(app);
+        AppWorkflowType? appWorkflowType = node?.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
+        if (appWorkflowType == null) return false;
+
+        if (active)
+        {
+            if (appWorkflowType.Activated) return true;
+            try
+            {
+                await appWorkflowType.ActiveAsync(this);
+                if (!appWorkflowType.Active)
+                {
+                    appWorkflowType.Active = true;
+                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType);
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (!appWorkflowType.Activated) return false;
+            try
+            {
+                await appWorkflowType.DeactivateAsync();
+                if (appWorkflowType.Active)
+                {
+                    appWorkflowType.Active = false;
+                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType);
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 
     #endregion
@@ -1354,7 +1407,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
             await schema.GenerateDisplayOnlyFields(this, result);
 
             // raise event
-            this.RaiseEvent(new AppDataVisitEvent(field.App, target));
+            this.RaiseEvent(new AppDataReadEvent(field.App, target));
             
             return (result, total);
         }

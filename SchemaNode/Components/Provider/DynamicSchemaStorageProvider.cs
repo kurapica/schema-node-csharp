@@ -91,6 +91,8 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         schema.Array = await context.GetEntityAsync<ArraySchema>(Target, name);
                         break;
                     case SchemaType.Json:
+                    case SchemaType.Event:
+                    case SchemaType.Workflow:
                         break;
                     case SchemaType.Func:
                         schema.Func = await context.GetEntityAsync<FunctionSchema>(Target, name);

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using SchemaNode.Context;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Components;
 
@@ -51,9 +52,9 @@ public sealed class DefaultWorkflowScheduler : IWorkflowScheduler, IDisposable
                 {
                     break;
                 }
-                catch
+                catch(Exception ex)
                 {
-                    // skip
+                    Console.WriteLine(ex.GetInnermostException().Message);
                 }
             }
         }

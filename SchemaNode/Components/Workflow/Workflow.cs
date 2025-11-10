@@ -2,6 +2,8 @@ using SchemaNode.Context;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable SuspiciousTypeConversion.Global
+// ReSharper disable UnusedTypeParameter
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 
@@ -31,11 +33,6 @@ public abstract class Workflow
     /// The next workflows
     /// </summary>
     internal Workflow[]? Next { get; set; }
-
-    /// <summary>
-    /// The function call arguments
-    /// </summary>
-    internal FuncCallArg[] Args { get; set; } = [];
     
     /// <summary>
     /// The payload type
@@ -46,7 +43,7 @@ public abstract class Workflow
     /// Whether the node can be triggered multiple times
     /// So we need fork the work flow
     /// </summary>
-    internal bool Fork { get; set; } = false;
+    internal bool Fork { get; set; }
 
     #endregion
 
@@ -57,9 +54,7 @@ public abstract class Workflow
     /// </summary>
     protected void SetPayload(WorkflowContext context, object? payload)
     {
-        context.Done(this, payload != null 
-            ? PayloadType?.CreateNode(payload)
-            : null);
+        context.Done(this, payload != null ? PayloadType?.CreateNode(payload) : null);
     }
     
     /// <summary>
@@ -114,10 +109,7 @@ public interface IWorkflowSession<T>
     /// Process with the session
     /// <summary>
     /// </summary>
-    public virtual Task<T> ProcessAsync(WorkflowContext context, T? session)
-    {
-        throw new NotImplementedException($"The workflow session does not implement the ProcessAsync method.");
-    }
+    Task<T?> ProcessAsync(WorkflowContext context, T? session);
 }
 
 public interface IWorkflowPayload

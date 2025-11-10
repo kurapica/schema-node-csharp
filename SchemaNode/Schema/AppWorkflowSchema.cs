@@ -25,7 +25,7 @@ public class AppWorkflowSchema
     /// The work flow name
     /// </summary>
     [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [StringLength(32)]
     public string Name { get; set; } = default!;
 
     /// <summary>
@@ -92,11 +92,6 @@ public class AppWorkflowNodeSchema
     /// The event name if type is Event
     /// </summary>
     public string? Event { get; set; }
-    
-    /// <summary>
-    /// The workflow arguments
-    /// </summary>
-    public FuncCallArg[] Args { get; set; } = [];
     
     /// <summary>
     /// The state schema type for constructor

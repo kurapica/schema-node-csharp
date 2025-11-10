@@ -10,6 +10,7 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
+using SchemaNode.Components.Context;
 using SchemaNode.Function;
 using SchemaNode.Http;
 using SchemaNode.Utility;
@@ -69,6 +70,9 @@ public static class Injection
 
         // workflow scheduler
         services.TryAddSingleton<IWorkflowScheduler, DefaultWorkflowScheduler>();
+        
+        // workflow persistence
+        services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
         
         return services;
     }

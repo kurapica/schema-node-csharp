@@ -14,12 +14,12 @@ public abstract class ApplicationEvent(string app): Event
     /// <summary>
     /// The application
     /// </summary>
-    public string Application { get; set; } = app;
+    public string Application { get; } = app;
 
     /// <summary>
     /// The topic
     /// </summary>
-    public override string Topic => Application.Replace(".", "_");
+    public override string Topic => Application.ToLower().Replace(".", "_");
 }
 
 public abstract class ApplicationDataEvent(string app, string target): ApplicationEvent(app)
@@ -27,7 +27,7 @@ public abstract class ApplicationDataEvent(string app, string target): Applicati
     /// <summary>
     /// The target identifier
     /// </summary>
-    public string Target { get; set; } = target;
+    public string Target { get; } = target;
 
     /// <summary>
     /// The topic
@@ -40,7 +40,7 @@ public abstract class  ApplicationFieldDataEvent(string app, string target, stri
     /// <summary>
     /// The application field name
     /// </summary>
-    public string Field { get; set; } = field;
+    public string Field { get; } = field;
 
     public override string Topic => $"{base.Topic}/{Field}";
 }
@@ -72,11 +72,11 @@ public class DefaultApplicationEventDispatcher : IApplicationEventDispatcher
     /// <summary>
     /// Subscribe to the application event
     /// </summary>
-    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E : ApplicationEvent
+    public IDisposable SubscribeEvent<E>(Type eventType, Action<E> onEvent) where E : Event
     {
-        var subject = AppEventSubjects.GetOrAdd(typeof(E), _ => new Subject<ApplicationEvent>());
+        var subject = AppEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
     }
-
-    static readonly ConcurrentDictionary<Type, Subject<ApplicationEvent>> AppEventSubjects = [];
+    
+    static readonly ConcurrentDictionary<Type, Subject<Event>> AppEventSubjects = [];
 }

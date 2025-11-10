@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Components.Context;
 
 namespace SchemaNode.Runtime;
 
@@ -20,10 +21,10 @@ public class AppWorkflowType: IDisposable
     /// <summary>
     /// The application name
     /// </summary>
-    public string App { get; set; } = string.Empty;
+    public string App => Application.Name;
     
     /// <summary>
-    /// The seqno
+    /// The seqNo
     /// </summary>
     public int Seqno { get; set; }
 
@@ -35,7 +36,7 @@ public class AppWorkflowType: IDisposable
     /// <summary>
     /// Active the workflow
     /// </summary>
-    public bool Active { get; set; }
+    public bool Active { get; internal set; }
     
     /// <summary>
     /// The workflow nodes
@@ -53,6 +54,11 @@ public class AppWorkflowType: IDisposable
     #region States
 
     public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    
+    /// <summary>
+    /// Whether the workflow is activated
+    /// </summary>
+    public bool Activated { get; private set; }
 
     #endregion
 
@@ -72,11 +78,19 @@ public class AppWorkflowType: IDisposable
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
-        // TODO: restore the saved workflow contexts
-        
         // Init the entry workflow context
         if (Nodes.Length <= 1 || !Active) return;
+        await ActiveAsync(context);
+    }
 
+    /// <summary>
+    /// Active the workflow
+    /// </summary>
+    public async Task ActiveAsync(SchemaContext context)
+    {
+        if (Activated) return;
+        Activated = true;
+        
         // init the workflow nodes
         List<Workflow> topNodes = [];
         Dictionary<string, Workflow> workflows = [];
@@ -91,11 +105,6 @@ public class AppWorkflowType: IDisposable
             wNode.Application = Application;
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
-            wNode.Args = node.Args.Select(n => new FuncCallArg
-            {
-                Name = n.Name,
-                Value = n.Value,
-            }).ToArray();
             
             // payload type
             if (!string.IsNullOrWhiteSpace(node.Payload))
@@ -164,10 +173,42 @@ public class AppWorkflowType: IDisposable
             throw new InvalidOperationException($"Workflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
         _workflowContext?.Dispose();
-        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider, Application);
-        _workflowContext.Initialize(topNodes.First());
+        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider);
+        
+        // restore
+        Workflow first = topNodes.First();
+        IWorkflowContextPersistence? persistence = context.ServiceProvider.GetService<IWorkflowContextPersistence>();
+        if (persistence != null)
+        {
+            var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
+            if (result.Item2 > 0)
+            {
+                // only should have one running context
+                var snapshot = result.Item1.OrderBy(s => s.Id).First();
+                _workflowContext.Initialize(this, first, null, snapshot);
+                return;
+            }
+        }
+        _workflowContext.Initialize(this, first);
     }
 
+    /// <summary>
+    /// Deactivate the workflow
+    /// </summary>
+    public async Task DeactivateAsync()
+    {
+        if (!Activated) return;
+
+        await Task.Yield();
+
+        if (_workflowContext != null)
+        {
+            await _workflowContext.TerminateAsync();
+            _workflowContext = null;
+        }
+        Activated = false;
+    }
+    
     public void Dispose()
     {
         _workflowContext?.Dispose();
@@ -183,7 +224,6 @@ public class AppWorkflowType: IDisposable
     {
         return new AppWorkflowType
         {
-            App = schema.App,
             Name = schema.Name,
             Seqno = schema.Seqno,
             Active = schema.Active,
@@ -199,7 +239,7 @@ public class AppWorkflowType: IDisposable
             App = type.App,
             Name = type.Name,
             Seqno = type.Seqno,
-            Active = type.Active,
+            Active = type.Activated,
             Nodes = type.Nodes.ToArray(),
             Additional = type.Additional
         };

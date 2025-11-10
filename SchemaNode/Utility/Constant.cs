@@ -53,6 +53,8 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
     public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
     public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
+    public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
+    public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
@@ -62,7 +64,8 @@ public static class Constant
     
     public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
-
+    public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
+    
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
