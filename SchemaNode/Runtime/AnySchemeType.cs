@@ -23,7 +23,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// The schema display
     /// </summary>
-    public LocaleString? Display { get; set; }
+    public LocaleString? Display { get; internal set; }
 
     #endregion
     
@@ -47,12 +47,12 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// The schema node status
     /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus Status { get; internal set; } = SchemaNodeStatus.Ready;
         
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public Type? SchemaProvider { get; set; }
+    public Type? SchemaProvider { get; internal set; }
     
     /// <summary>
     /// Whether the node is used
@@ -247,9 +247,9 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Struct => new StructType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Array => new ArrayType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Func => new FunctionType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
-            SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
+            SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             _ => throw new ArgumentOutOfRangeException()
         };
     }

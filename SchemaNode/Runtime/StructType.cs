@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -271,12 +270,13 @@ public class StructType: AnySchemeType
                     fieldMaps.Add(p);
 
                     SchemaTypeAttribute? fieldAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+                    string fieldName = p.Name.ToCamelCase();
                     StructFieldConfig config = new ()
                     {
-                        Name = p.Name.ToCamelCase(),
+                        Name = fieldName,
                         Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType()!,
                         Require = p.GetCustomAttribute<RequiredAttribute>() != null,
-                        Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? p.Name,
+                        Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
                     };
 
                     // limit check

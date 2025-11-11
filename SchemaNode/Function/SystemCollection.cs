@@ -82,27 +82,6 @@ public static class SystemCollection
     }
 
     /// <summary>
-    /// Combine two array and distinct
-    /// </summary>
-    [SchemaType]
-    public static List<T> Combine<T>(IEnumerable<T> left, IEnumerable<T> right)
-    {
-        HashSet<T> temp = [];
-        List<T> res = [];
-        foreach (var item in left)
-        {
-            if (!temp.Add(item)) continue;
-            res.Add(item);
-        }
-        foreach (var item in right)
-        {
-            if (!temp.Add(item)) continue;
-            res.Add(item);
-        }
-        return res;
-    }
-
-    /// <summary>
     /// Calc the average
     /// </summary>
     [SchemaType]

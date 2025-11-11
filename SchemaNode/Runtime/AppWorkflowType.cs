@@ -26,13 +26,23 @@ public class AppWorkflowType: IDisposable
     /// <summary>
     /// The seqNo
     /// </summary>
-    public int Seqno { get; set; }
+    public int Seqno { get; internal set; }
 
     /// <summary>
     /// The workflow name
     /// </summary>
     public required string Name { get; init; }
     
+    /// <summary>
+    /// The workflow display name
+    /// </summary>
+    public LocaleString? Display { get; private set; }
+    
+    /// <summary>
+    /// The workflow description
+    /// </summary>
+    public LocaleString? Desc { get; private set; }
+
     /// <summary>
     /// Active the workflow
     /// </summary>
@@ -41,19 +51,19 @@ public class AppWorkflowType: IDisposable
     /// <summary>
     /// The workflow nodes
     /// </summary>
-    public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
+    public AppWorkflowNodeSchema[] Nodes { get; internal set; } = [];
     
     /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; internal set; }
     
     #endregion
     
     #region States
 
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus Status { get;internal set; } = SchemaNodeStatus.Ready;
     
     /// <summary>
     /// Whether the workflow is activated
@@ -226,6 +236,8 @@ public class AppWorkflowType: IDisposable
         {
             Name = schema.Name,
             Seqno = schema.Seqno,
+            Display = schema.Display,
+            Desc = schema.Desc,
             Active = schema.Active,
             Nodes = schema.Nodes.ToArray(),
             Additional = schema.Additional,
@@ -238,6 +250,8 @@ public class AppWorkflowType: IDisposable
         {
             App = type.App,
             Name = type.Name,
+            Display = type.Display,
+            Desc = type.Desc,
             Seqno = type.Seqno,
             Active = type.Activated,
             Nodes = type.Nodes.ToArray(),

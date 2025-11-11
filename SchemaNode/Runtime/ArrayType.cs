@@ -20,38 +20,38 @@ public class ArrayType: AnySchemeType
     /// <summary>
     /// The element type of the array.
     /// </summary>
-    public string? Element { get; set; }
+    public string? Element { get; private set; }
 
     /// <summary>
     /// Whether the array should be treated as a whole value,
     /// no element schema nodes would be created
     /// </summary>
-    public bool? Single { get; set; }
+    public bool? Single { get; private set; }
 
     /// <summary>
     /// The primary fields of the array if the element is a struct.
     /// </summary>
-    public string[]? Primary { get; set; }
+    public string[]? Primary { get; private set; }
 
     /// <summary>
     /// The indexes
     /// </summary>
-    public DataIndex[]? Indexes { get; set; }
+    public DataIndex[]? Indexes { get; private set; }
 
     /// <summary>
     /// The data combine rule
     /// </summary>
-    public DataCombine[]? Combines { get; set; }
+    public DataCombine[]? Combines { get; private set; }
 
     /// <summary>
     /// The relation between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructFieldRelation[]? Relations { get; private set; }
     
     /// <summary>
     /// The additional data
     /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; private set; }
     
     #endregion
     
@@ -67,7 +67,7 @@ public class ArrayType: AnySchemeType
     /// <summary>
     /// The element type node
     /// </summary>
-    public AnySchemeType? ElementSchemaType { get; set; }
+    public AnySchemeType? ElementSchemaType { get; internal set; }
     
     #endregion
     

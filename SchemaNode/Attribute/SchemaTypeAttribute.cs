@@ -26,7 +26,7 @@ public class SchemaTypeAttribute: System.Attribute
     public SchemaTypeAttribute(string? name = null, string? display = null)
     {
         Name = name;
-        Display = display;
+        Display = display != null ? new LocaleString(display) : null;
     }
     
     public SchemaTypeAttribute(string name, string key, string lang, string tran)

@@ -32,7 +32,7 @@ public class EventType: AnySchemeType
     /// The additional data
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; internal set; }
     
     #endregion
     

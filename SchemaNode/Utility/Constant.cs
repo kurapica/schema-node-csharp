@@ -70,6 +70,7 @@ public static class Constant
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
+    public const string NS_SYSTEM_DATETIME = "system.datetime";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
     
     // workflow namespace

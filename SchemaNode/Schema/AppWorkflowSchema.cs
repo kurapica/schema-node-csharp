@@ -34,6 +34,16 @@ public class AppWorkflowSchema
     public int Seqno { get; set; }
     
     /// <summary>
+    /// The workflow display name
+    /// </summary>
+    public LocaleString? Display { get; set; }
+    
+    /// <summary>
+    /// The workflow description
+    /// </summary>
+    public LocaleString? Desc { get; set; }
+    
+    /// <summary>
     /// Active the workflow
     /// </summary>
     public bool Active { get; set; }
@@ -61,6 +71,11 @@ public class AppWorkflowNodeSchema
     /// </summary>
     [Required]
     public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The workflow display name
+    /// </summary>
+    public LocaleString? Display { get; private set; }
     
     /// <summary>
     /// The work flow node type

@@ -24,12 +24,12 @@ public class AppFieldType
     /// <summary>
     /// The application name
     /// </summary>
-    public string App { get; set; } = string.Empty;
+    public string App { get; internal set; } = string.Empty;
     
     /// <summary>
     /// The seqno
     /// </summary>
-    public int Seqno { get; set; }
+    public int Seqno { get; internal set; }
 
     /// <summary>
     /// The field name.
@@ -54,63 +54,63 @@ public class AppFieldType
     /// <summary>
     /// The source application
     /// </summary>
-    public string? SourceApp { get; set; }
+    public string? SourceApp { get; init; }
 
     /// <summary>
     /// The source field
     /// </summary>
-    public string? SourceField { get; set; }
+    public string? SourceField { get; init; }
 
     /// <summary>
     /// Track the push data to the source field, so toggle the source target, will also re-push the data
     /// </summary>
-    public bool? TrackPush { get; set; }
+    public bool? TrackPush { get; init; }
     
     /// <summary>
     /// The calculate function
     /// </summary>
-    public string? Func { get; set; }
+    public string? Func { get; init; }
 
     /// <summary>
     /// The input fields
     /// </summary>
-    public string[]? Args { get; set; }
+    public string[]? Args { get; init; }
 
     /// <summary>
     /// The field is using increase update, no full data push allowed
     /// </summary>
-    public bool? IncrUpdate { get; set; }
+    public bool? IncrUpdate { get; init; }
 
     /// <summary>
     /// The field is front-end only, no data storage
     /// </summary>
-    public bool? Frontend { get; set; }
+    public bool? Frontend { get; init; }
 
     /// <summary>
     /// The field is disabled
     /// </summary>
-    public bool? Disable { get; set; }
+    public bool? Disable { get; init; }
     
     /// <summary>
     /// The field is readonly
     /// </summary>
-    public bool? Readonly { get; set; }
+    public bool? Readonly { get; init; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    public DataCombineType? Combine { get; set; }
+    public DataCombineType? Combine { get; init; }
 
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    public DataCombine[]? Combines { get; set; }
+    public DataCombine[]? Combines { get; init; }
 
     /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; init; }
 
     #endregion
 
@@ -119,7 +119,7 @@ public class AppFieldType
     /// <summary>
     /// The application field node status
     /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus Status { get; internal set; } = SchemaNodeStatus.Ready;
 
     /// <summary>
     /// Enable dynamic table
@@ -148,17 +148,17 @@ public class AppFieldType
     /// <summary>
     /// The application node
     /// </summary>
-    public AppType Application { get; set; } = default!;
+    public AppType Application { get; internal set; } = default!;
     
     /// <summary>
     /// The field type node
     /// </summary>
-    public AnySchemeType? SchemaType { get; set; }
+    public AnySchemeType? SchemaType { get; internal set; }
 
     /// <summary>
     /// The field function node
     /// </summary>
-    public FunctionType? FuncNode { get; set; }
+    public FunctionType? FuncNode { get; internal set; }
 
     /// <summary>
     /// The fields that subscribe the update of this field.
@@ -173,12 +173,12 @@ public class AppFieldType
     /// <summary>
     /// The call arguments
     /// </summary>
-    public List<AppFieldNodeArgument>? FuncArgs { get; set; }
+    public List<AppFieldNodeArgument>? FuncArgs { get; internal set; }
 
     /// <summary>
     /// The source app type, won't be reloaded
     /// </summary>
-    public AppType? SourceAppType { get; set; }
+    public AppType? SourceAppType { get; internal set; }
 
     /// <summary>
     /// The source node
@@ -188,7 +188,7 @@ public class AppFieldType
     /// <summary>
     /// The dynamic table schema
     /// </summary>
-    public DynamicTableSchema? Schema { get; set; }
+    public DynamicTableSchema? Schema { get; internal set; }
 
     #endregion
     

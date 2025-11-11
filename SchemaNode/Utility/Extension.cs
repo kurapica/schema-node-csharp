@@ -689,7 +689,7 @@ public static class Extension
         string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
         string propertyName = prop != null ? prop.Name : string.Empty;
 
-        if (!File.Exists(xmlPath)) return string.Empty;
+        if (!File.Exists(xmlPath)) return null;
 
         if (!XmlFiles.ContainsKey(xmlPath))
         {
@@ -712,7 +712,7 @@ public static class Extension
                        )
                     {
                         string summaryContent = node.InnerText;
-                        return string.Join("\n",
+                        summaryContent = string.Join("\n",
                             summaryContent
                                 .Split('\n', '\r')
                                 .Where(t =>
@@ -721,6 +721,7 @@ public static class Extension
                                 .Select(p => p.Trim())
                                 .ToArray()
                         );
+                        return string.IsNullOrEmpty(summaryContent) ? null : summaryContent;
                     }
                 }
             }

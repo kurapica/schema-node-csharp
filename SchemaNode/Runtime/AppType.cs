@@ -5,7 +5,6 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.AspNetCore.Http.Features;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -41,13 +40,13 @@ public class AppType
     /// <summary>
     /// The sub applications
     /// </summary>
-    public AppSchema[]? Apps { get; set; }
+    public AppSchema[]? Apps { get; internal set; }
 
     /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; internal set; }
 
     #endregion
 

@@ -729,8 +729,8 @@ public static class Schema
                         {
                             DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                             DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (!ad.Equal(bd))
-                                return ad.LessThan(bd) ? -1 : 1;
+                            if (SystemDate.NotEqual(ad, bd))
+                                return SystemDate.LessThan(ad,bd) ? -1 : 1;
                             break;
                         }
                     case ScalarType { IsNumber: true }:

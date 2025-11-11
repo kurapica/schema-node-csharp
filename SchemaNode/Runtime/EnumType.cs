@@ -25,22 +25,22 @@ public class EnumType: AnySchemeType
     /// <summary>
     /// The enum value type
     /// </summary>
-    public EnumValueType ValueType { get; set; } = EnumValueType.String;
+    public EnumValueType ValueType { get; internal set; } = EnumValueType.String;
 
     /// <summary>
     /// The cascade list
     /// </summary>
-    public LocaleString[]? Cascade { get; set; }
+    public LocaleString[]? Cascade { get; internal set; }
     
     /// <summary>
     /// The root for all enum values
     /// </summary>
-    public EnumValueInfo Root { get; set; } = new ();
+    public EnumValueInfo Root { get; private set; } = new ();
     
     /// <summary>
     /// The additional data
     /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; internal set; }
 
     #endregion
     
@@ -52,7 +52,7 @@ public class EnumType: AnySchemeType
     /// <summary>
     /// The max flags value
     /// </summary>
-    public long MaxFlags { get; set; }
+    public long MaxFlags { get; internal set; }
 
     #endregion
     
