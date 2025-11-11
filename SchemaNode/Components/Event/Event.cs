@@ -25,7 +25,8 @@ public abstract class Event
     public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
 
     /// <summary>
-    /// The topic name
+    /// The event topic name like server/topic/action/guid
+    /// So they can be subscribed by wildcard topic, + for one, *,# for multi
     /// </summary>
     public virtual string Topic => string.Empty;
 
@@ -82,40 +83,26 @@ public interface IEventDispatcher<in T> where T : Event
     /// Subscribe an event
     /// </summary>
     IDisposable SubscribeEvent<E>(Type eventType, Action<E> onEvent) where E: Event;
-    
-    /// <summary>
-    /// Subscribe an event
-    /// </summary>
-    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E : Event
-    {
-        return SubscribeEvent(typeof(E), onEvent);
-    }
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E: Event
-    {
-        void Handler(E @event)
-        {
-            try
-            {
-                if (!@event.MatchTopic(topic)) return;
-                onEvent(@event);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
-            }
-        }
+    IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event;
 
-        return SubscribeEvent((Action<E>)Handler);
-    }
+    /// <summary>
+    /// Subscribe an event
+    /// </summary>
+    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E : Event => SubscribeEvent(typeof(E), onEvent);
+
+    /// <summary>
+    /// Subscribe an event by topic
+    /// </summary>
+    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E: Event => SubscribeTopicEvent(typeof(E), topic, onEvent);
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeEventOnce<E>(Action<E> onEvent) where E : Event
+    public IDisposable SubscribeEventOnce<E>(Type eventType, Action<E> onEvent) where E : Event
     {
         IDisposable? subscription = null;
 
@@ -132,14 +119,19 @@ public interface IEventDispatcher<in T> where T : Event
             }
         }
 
-        subscription = SubscribeEvent((Action<E>)Handler);
+        subscription = SubscribeEvent(eventType, (Action<E>)Handler);
         return subscription;
     }
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeEventOnce<E>(Action<E> onEvent) where E : Event => SubscribeEventOnce(typeof(E), onEvent);
+
+    /// <summary>
+    /// Subscribe an event once
+    /// </summary>
+    public IDisposable SubscribeTopicEventOnce<E>(Type eventType, string topic, Action<E> onEvent) where E : Event
     {
         IDisposable? subscription = null;
 
@@ -147,7 +139,6 @@ public interface IEventDispatcher<in T> where T : Event
         {
             try
             {
-                if (!@event.MatchTopic(topic)) return;
                 subscription?.Dispose();
                 onEvent(@event);
             }
@@ -157,9 +148,14 @@ public interface IEventDispatcher<in T> where T : Event
             }
         }
 
-        subscription = SubscribeEvent((Action<E>)Handler);
+        subscription = SubscribeTopicEvent(eventType, topic, (Action<E>)Handler);
         return subscription;
     }
+
+    /// <summary>
+    /// Subscribe an event once
+    /// </summary>
+    public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E : Event => SubscribeTopicEventOnce(typeof(E), topic, onEvent);
 }
 
 /// <summary>
@@ -349,20 +345,25 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, EventType @event, string topic, Action<E> onEvent) where E : Event
     {
-        return SubscribeEvent<E>(context, @event, Handler);
+        Type type = @event.ToCSharpType();
 
-        void Handler(E e)
+        if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            try
-            {
-                if (!e.MatchTopic(topic)) return;
-                onEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
-            }
+            return context.GetService<IApplicationEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
         }
+        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
+        {
+            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ServerEvent)))
+        {
+            return context.GetService<IServerEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ClusterEvent)))
+        {
+            return context.GetService<IClusterEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+        }
+        return null;
     }
 
     /// <summary>
@@ -370,49 +371,55 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeEventOnce<E>(this SchemaContext context, EventType @event, Action<E> onEvent) where E : Event
     {
-        IDisposable? subscription = null;
+        Type type = @event.ToCSharpType();
 
-        subscription = SubscribeEvent<E>(context, @event, Handler);
-        return subscription;
-
-        void Handler(E e)
+        if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            try
-            {
-                subscription?.Dispose();
-                onEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
-            }
+            return context.GetService<IApplicationEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
         }
+        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
+        {
+            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ServerEvent)))
+        {
+            return context.GetService<IServerEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ClusterEvent)))
+        {
+            return context.GetService<IClusterEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+        }
+        return null;
     }
+
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
     public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, EventType @event, string topic, Action<E> onEvent) where E : Event
     {
-        IDisposable? subscription = null;
-        subscription = SubscribeEvent<E>(context, @event, Handler);
-        return subscription;
+        Type type = @event.ToCSharpType();
 
-        void Handler(E e)
+        if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            try
-            {
-                if (!e.MatchTopic(topic)) return;
-                subscription?.Dispose();
-                onEvent(e);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
-            }
+            return context.GetService<IApplicationEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
         }
+        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
+        {
+            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ServerEvent)))
+        {
+            return context.GetService<IServerEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+        }
+        else if (type.IsSubclassOf(typeof(ClusterEvent)))
+        {
+            return context.GetService<IClusterEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+        }
+        return null;
     }
-    
+
+
 
     #endregion
 }

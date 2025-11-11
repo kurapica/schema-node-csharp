@@ -57,13 +57,13 @@ public class WaitAppEventWorkflow : EventWorkflow,
 public class WaitAppEventWorkflowState
 {
     /// <summary>
-    /// The target node
-    /// </summary>
-    public string? Target { get; set; }
-    
-    /// <summary>
     /// The field to extract from event payload
     /// </summary>
     [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
     public string? Field { get; set; }
+
+    /// <summary>
+    /// The target node
+    /// </summary>
+    public string? Target { get; set; }    
 }
