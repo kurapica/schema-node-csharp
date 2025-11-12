@@ -42,6 +42,11 @@ public class WorkflowSchema
     public string? Session { get; set; }
     
     /// <summary>
+    /// The workflow arguments fetch from workflow context
+    /// </summary>
+    public FuncArg[]? Args { get; set; } = [];
+    
+    /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
@@ -272,5 +273,40 @@ public class ArrayType: AnySchemeType
         };
     }
     
+    #endregion
+    
+    #region Generic type
+    
+    /// <summary>
+    /// Gets the generic type of the array
+    /// </summary>
+    public async Task<ArrayType?> GetGenericTypeAsync(SchemaContext context, string elementType)
+    {
+        if (ElementSchemaType is not GenericType) return null;
+        _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
+        
+        AnySchemeType? eleType = await context.GetSchemaTypeAsync(elementType);
+        if (eleType is null or GenericType or ArrayType) return null;
+        
+        return _genericArrayTypes.GetOrAdd(elementType, _ =>
+        {
+            ArrayType arrayType = new()
+            {
+                Name = $"{Name}<{elementType}>",
+                Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
+                Element = elementType,
+                Single = Single,
+                ElementSchemaType = eleType,
+                Loaded = true,
+                LoadState = LoadState,
+                SchemaProvider = SchemaProvider
+            };
+            eleType.AddRef(arrayType);
+            return arrayType;
+        });
+    }
+
+    private ConcurrentDictionary<string, ArrayType>? _genericArrayTypes;
+
     #endregion
 }

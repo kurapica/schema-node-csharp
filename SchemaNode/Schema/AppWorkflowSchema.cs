@@ -89,6 +89,11 @@ public class AppWorkflowNodeSchema
     public string Payload { get; set; } = string.Empty;
     
     /// <summary>
+    /// The workflow arguments
+    /// </summary>
+    public FuncCallArg[]? Args { get; set; }
+    
+    /// <summary>
     /// THe previous nodes
     /// </summary>
     public string[]? Previous { get; set; }

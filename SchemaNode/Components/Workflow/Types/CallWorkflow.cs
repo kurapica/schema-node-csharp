@@ -14,7 +14,7 @@ public class CallWorkflow: FunctionWorkflow, IWorkflowPayload
     /// <summary>
     /// Process the func call
     /// </summary>
-    public override async Task ProcessAsync(WorkflowContext context)
+    public async Task ProcessAsync(WorkflowContext context)
     {
         if (Function is null)
         {

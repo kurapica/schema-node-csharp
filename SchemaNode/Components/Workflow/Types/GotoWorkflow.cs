@@ -7,49 +7,21 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Components;
 
 [SchemaType($"{NS_SYSTEM_WORKFLOW}.control.goto")]
-public class GotoWorkflow: Workflow, IWorkflowState<GotoWorkflowState>
+public class GotoWorkflow: Workflow
 {
-    public override async Task ProcessAsync(WorkflowContext context)
+    public async Task ProcessAsync(WorkflowContext context, bool flag, 
+        [SchemaType(NS_SYSTEM_WORKFLOW_NODE)] string? trueNode, 
+        [SchemaType(NS_SYSTEM_WORKFLOW_NODE)] string falseNode)
     {
         await Task.Yield();
-        if (string.IsNullOrEmpty(State.Flag))
-            throw new Exception("Goto Workflow State is missing");
 
-        AnySchemaNode? flagPayload = context.GetWorkflowPayload(State.Flag);
-        if (flagPayload != null && flagPayload.ToValue<bool>())
+        if (flag)
         {
-            context.Goto(this, State.TrueNode);
+            context.Goto(this, trueNode);
         }
         else
         {
-            context.Goto(this, State.FalseNode);
+            context.Goto(this, falseNode);
         }
     }
-
-    /// <summary>
-    /// The workflow state
-    /// </summary>
-    public GotoWorkflowState State { get; set; } = new();
-}
-
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.control.gotostate")]
-public class GotoWorkflowState
-{
-    /// <summary>
-    /// Flag result node
-    /// </summary>
-    [SchemaType(NS_SYSTEM_WORKFLOW_NODE)]
-    public string Flag {get; set;} = string.Empty;
-    
-    /// <summary>
-    /// Goto node if true
-    /// </summary>
-    [SchemaType(NS_SYSTEM_WORKFLOW_NODE)]
-    public string? TrueNode { get; set; }
-    
-    /// <summary>
-    /// Goto node if false
-    /// </summary>
-    [SchemaType(NS_SYSTEM_WORKFLOW_NODE)]
-    public string? FalseNode { get; set; }
 }

@@ -157,6 +157,25 @@ public class AppWorkflowType: IDisposable
                     break;
             }
 
+            // args
+            if (workflowType.Args is { Length: > 0 })
+            {
+                wNode.Args = new FuncCallArg[workflowType.Args.Length];
+                if (node.Args == null || node.Args.Length != workflowType.Args.Length)
+                    throw new InvalidOperationException($"Workflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
+                for (int i = 0; i < workflowType.Args.Length; i++)
+                {
+                    var argDef = workflowType.Args[i];
+                    var argNode = node.Args[i];
+                    wNode.Args[i] = new FuncCallArg
+                    {
+                        Name = argNode.Name,
+                        Value = argNode.Value,
+                        TypeNode = await context.GetSchemaTypeAsync(argDef.Type),
+                    };
+                }
+            }
+            
             workflows.Add(wNode.Name, wNode);
 
             // Relations

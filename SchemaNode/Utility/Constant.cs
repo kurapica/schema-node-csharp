@@ -9,9 +9,18 @@ public static class Constant
     #region Schema
 
     public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
+
+    public const string NS_GENERIC_TYPE = "T";
+    public const string NS_GENERIC_TYPE_1 = "T1";
+    public const string NS_GENERIC_TYPE_2 = "T2";
+    public const string NS_GENERIC_TYPE_3 = "T3";
+    public const string NS_GENERIC_TYPE_4 = "T4";
+    public const string REGEX_GENERIC_TYPE = @"^T\d*$";
+    public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
     
     public const string NS_SYSTEM = "system";
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
+    public const string NS_SYSTEM_LIST = "system.list"; // generic array type
     public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
     public const string NS_SYSTEM_JSON = "system.json"; // any value, used by entity
     public const string NS_SYSTEM_BOOL = "system.bool";

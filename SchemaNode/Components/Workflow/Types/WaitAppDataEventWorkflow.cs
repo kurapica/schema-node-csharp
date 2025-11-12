@@ -1,0 +1,61 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace SchemaNode.Components;
+
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.appdata")]
+public class WaitAppDataEventWorkflow : EventWorkflow, 
+    IWorkflowPayload<WaitAppDataEventWorkflowPayload>,
+    IWorkflowSession<IDisposable>
+{
+    public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null, string? target = null)
+    {
+        await Task.Yield();
+        if (Event == null) throw new Exception("Event is null");
+        
+        string topic = Application.Name.ToLower().Replace('.', '_');
+        topic = !string.IsNullOrEmpty(target) ? $"{topic}/{target}" : $"{topic}/#";
+        
+        session?.Dispose();
+        if (Fork)
+        {
+            return context.SubscribeTopicEvent<ApplicationEvent>(Event!, topic, @event =>
+            {
+                string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
+                SetPayload(context, new WaitAppDataEventWorkflowPayload
+                {
+                    Application = Application.Name,
+                    Target = t.Length > 1 ? t[1] : null,
+                });
+            });
+        }
+        else
+        {
+            return context.SubscribeTopicEventOnce<ApplicationEvent>(Event!, topic, @event =>
+            {
+                string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
+                SetPayload(context, new WaitAppDataEventWorkflowPayload
+                {
+                    Application = Application.Name,
+                    Target = t.Length > 1 ? t[1] : null,
+                });
+            });
+        }
+    }
+}
+
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.appdatapayload")]
+public class WaitAppDataEventWorkflowPayload
+{
+    /// <summary>
+    /// The application
+    /// </summary>
+    public required string Application { get; set; }
+    
+    /// <summary>
+    /// The target
+    /// </summary>
+    public string? Target { get; set; }
+}

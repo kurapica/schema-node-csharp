@@ -22,6 +22,11 @@ public abstract class ApplicationEvent(string app): Event
     public override string Topic => Application.ToLower().Replace(".", "_");
 }
 
+/// <summary>
+/// The application data event, normally for target app data access
+/// </summary>
+/// <param name="app"></param>
+/// <param name="target"></param>
 public abstract class ApplicationDataEvent(string app, string target): ApplicationEvent(app)
 {
     /// <summary>
@@ -35,6 +40,12 @@ public abstract class ApplicationDataEvent(string app, string target): Applicati
     public override string Topic => $"{base.Topic}/{Target}";
 }
 
+/// <summary>
+/// The application field data event, normally for specific field data update
+/// </summary>
+/// <param name="app"></param>
+/// <param name="target"></param>
+/// <param name="field"></param>
 public abstract class  ApplicationFieldDataEvent(string app, string target, string field): ApplicationDataEvent(app, target)
 {
     /// <summary>
@@ -93,10 +104,15 @@ public class DefaultApplicationEventDispatcher : IApplicationEventDispatcher
     /// <summary>
     /// Subscribe topic event
     /// </summary>
-    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event
     {
         string app = topic.Split('/')[0];
-        var appSubjects = AppEventSubjects.GetOrAdd(typeof(E), _ => new ConcurrentDictionary<string, Subject<Event>>());
+        if (string.IsNullOrEmpty(app) || app == "*" || app == "#")
+        {
+            // global subscribe
+            return SubscribeEvent(eventType, onEvent);
+        }
+        var appSubjects = AppEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
         var subject = appSubjects.GetOrAdd(app, _ => new Subject<Event>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
     }

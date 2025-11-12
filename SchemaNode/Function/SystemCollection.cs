@@ -2,6 +2,7 @@ using System.Collections;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -152,14 +153,15 @@ public static class SystemCollection
     /// Gets fields from the objects in the array to a new array
     /// </summary>
     [SchemaType]
-    public static ArrayTypeNode GetFields(ArrayTypeNode array, string field)
+    public static async Task<ArrayTypeNode> GetFields(SchemaContext context, ArrayTypeNode array, string field)
     {
         ArrayType arrayType = array.Type as ArrayType ?? throw new  InvalidOperationException("The array type is invalid");
         if (arrayType.ElementSchemaType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
         if (f.TypeNode == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        var arrayNode = f.TypeNode.GetArrayNode() ?? throw new InvalidOperationException($"The field {field} type {f.TypeNode.Name} cannot be used as array element");
+        AnySchemeType arrayNode = await context.GetArraySchemaTypeAsync(f.TypeNode)
+                                  ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);
         foreach (AnySchemaNode item in array)

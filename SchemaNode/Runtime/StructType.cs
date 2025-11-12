@@ -404,4 +404,59 @@ public class StructType: AnySchemeType
     }
     
     #endregion
+    
+    #region Generic Struct Implementations
+
+    /// <summary>
+    /// Get the generic struct type
+    /// </summary>
+    public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
+    {
+        string[] generics = Fields.Where(f => f.TypeNode is GenericType).Select(f => f.Type).Distinct().ToArray();
+        if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not match
+
+        _genericTypes ??= new ConcurrentDictionary<string, StructType>();
+        string key = string.Join('|', types);
+        if (_genericTypes.TryGetValue(key, out StructType? type)) return type;
+        
+        // Generate new struct type
+        StructType newStruct = new()
+        {
+            Name = $"{Name}<{string.Join(',', types)}>",
+            Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
+            Base = Name,
+            Fields = new StructFieldConfig[Fields.Length],
+            Relations = Relations
+        };
+
+        for (int i = 0; i < Fields.Length; i++)
+        {
+            StructFieldConfig f = Fields[i];
+            
+            if (f.TypeNode is GenericType)
+            {
+                StructFieldConfig copy = f.ToJsonNode()!.FromJson<StructFieldConfig>()!;
+                int index = Array.IndexOf(generics, f.Type);
+                copy.Type = types[index];
+                AnySchemeType? typeNode = await context.GetSchemaTypeAsync(copy.Type);
+                if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
+                {
+                    return null;
+                }
+                copy.TypeNode = typeNode;
+                typeNode.AddRef(newStruct);
+                newStruct.Fields[i] = copy;
+            }
+            else
+            {
+                newStruct.Fields[i] = f;
+            }
+        }
+        
+        return _genericTypes.GetOrAdd(key, newStruct);
+    }
+
+    private ConcurrentDictionary<string, StructType>? _genericTypes;
+
+    #endregion
 }

@@ -810,11 +810,13 @@ public class SchemaContext(IServiceProvider serviceProvider)
     public async Task<AnySchemeType?> GetSchemaTypeAsync(string schemaName, bool reload = false, bool preload = false)
     {
         AnySchemeType? node = RootNamespace;
+
+        // generic type holder, types with generic parameters won't be used directly
+        if (Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE)) return GenericType.Instance;
         
         // gets the node
         string fullPath = "";
-        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+")
-            .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\.").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
         for (int i = 0; i < paths.Length - 1; i++)
         {
             if (node is not TypeNamespace parent) return null;
@@ -836,6 +838,21 @@ public class SchemaContext(IServiceProvider serviceProvider)
         {
             par = (TypeNamespace)node;
             node = par.SchemaNodes.GetValueOrDefault(paths.Last());
+
+            // check if generic implementation
+            if (node == null && Regex.IsMatch(paths.Last(), REGEX_GENERIC_IMPLEMENT))
+            {
+                var match = Regex.Match(paths.Last(), REGEX_GENERIC_IMPLEMENT);
+                AnySchemeType? type = await GetSchemaTypeAsync(string.Join('.', paths.SkipLast(1).Append(match.Groups[1].Value)));
+                string[] generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()).ToArray();
+                return type switch
+                {
+                    StructType @struct => await @struct.GetGenericTypeAsync(this, generic),
+                    ArrayType array => await array.GetGenericTypeAsync(this, generic[0]),
+                    _ => null
+                };
+            }
         }
         
         if (!reload && node is { Loaded: true }) return node;
@@ -887,7 +904,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (string.IsNullOrWhiteSpace(schemaName)) return false;
         
         // gets the node
-        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\.").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
         foreach (string path in paths.SkipLast(1))
         {
             // Gets the sub node
@@ -999,6 +1016,31 @@ public class SchemaContext(IServiceProvider serviceProvider)
         return (await GetSchemaTypeAsync(schemaType))?.CreateNode(value);
     }
 
+    /// <summary>
+    /// Gets the array schema type
+    /// </summary>
+    public async Task<AnySchemeType?> GetArraySchemaTypeAsync(AnySchemeType? type)
+    {
+        if (type == null) return null;
+        return type.GetArrayNode()
+               ?? await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name);
+    }
+    
+    /// <summary>
+    /// Gets the array schema type
+    /// </summary>
+    public async Task<AnySchemeType?> GetArraySchemaTypeAsync(string? name)
+    {
+        AnySchemeType? type = !string.IsNullOrEmpty(name) ? await GetSchemaTypeAsync(name) : null;
+        return type switch
+        {
+            null => null,
+            ArrayType arrayType => arrayType,
+            _ => type.GetArrayNode() ??
+                 await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name)
+        };
+    }
+    
     #endregion
 
     #region Lock

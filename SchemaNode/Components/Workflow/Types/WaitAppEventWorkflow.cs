@@ -1,14 +1,14 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 
 [SchemaType($"{NS_SYSTEM_WORKFLOW}.event.app")]
 public class WaitAppEventWorkflow : EventWorkflow, 
-    IWorkflowPayload, 
-    IWorkflowSession<IDisposable>,
-    IWorkflowState<WaitAppEventWorkflowState>
+    IWorkflowPayload<WaitAppEventWorkflowPayload>,
+    IWorkflowSession<IDisposable>
 {
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null)
     {
@@ -16,54 +16,37 @@ public class WaitAppEventWorkflow : EventWorkflow,
         if (Event == null) throw new Exception("Event is null");
         
         string topic = Application.Name.ToLower().Replace('.', '_');
-        if (!string.IsNullOrEmpty(State.Target))
-        {
-            topic = $"{topic}/{State.Target}";
-
-            if (!string.IsNullOrEmpty(State.Field))
-            {
-                topic = $"{topic}/{State.Field}";
-            }
-        }
-        else if (!string.IsNullOrEmpty(State.Field))
-        {
-            topic = $"{topic}/+/{State.Field}";
-        }
         
         session?.Dispose();
         if (Fork)
         {
-            return context.SubscribeTopicEvent<ApplicationEvent>(Event!, topic, @event =>
+            return context.SubscribeTopicEvent<ApplicationEvent>(Event!, topic, _ =>
             {
-                SetPayload(context, @event.Payload);
+                SetPayload(context, new WaitAppEventWorkflowPayload
+                {
+                    Application = Application.Name,
+                });
             });
         }
         else
         {
-            return context.SubscribeTopicEventOnce<ApplicationEvent>(Event!, topic, @event =>
+            return context.SubscribeTopicEventOnce<ApplicationEvent>(Event!, topic, _ =>
             {
-                SetPayload(context, @event.Payload);
+                SetPayload(context, new WaitAppEventWorkflowPayload
+                {
+                    Application = Application.Name,
+                });
             });
         }
     }
-
-    /// <summary>
-    /// The workflow state
-    /// </summary>
-    public WaitAppEventWorkflowState State { get; set; } = new();
 }
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.appstate")]
-public class WaitAppEventWorkflowState
+
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.apppayload")]
+public class WaitAppEventWorkflowPayload
 {
     /// <summary>
-    /// The field to extract from event payload
+    /// The application
     /// </summary>
-    [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-    public string? Field { get; set; }
-
-    /// <summary>
-    /// The target node
-    /// </summary>
-    public string? Target { get; set; }    
+    public required string Application { get; set; }
 }

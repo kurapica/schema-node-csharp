@@ -35,6 +35,11 @@ public abstract class Workflow
     internal Workflow[]? Next { get; set; }
     
     /// <summary>
+    /// The workflow arguments
+    /// </summary>
+    internal FuncCallArg[]? Args { get; set; }
+    
+    /// <summary>
     /// The payload type
     /// </summary>
     internal AnySchemeType? PayloadType { get; set; }
@@ -79,13 +84,9 @@ public abstract class Workflow
 
     #region Abstract
 
-    /// <summary>
-    /// Process the workflow
-    /// </summary>
-    public virtual Task ProcessAsync(WorkflowContext context)
-    {
-        throw new NotImplementedException($"The workflow '{Name}' does not implement the ProcessAsync method.");
-    }
+    // Process the workflow
+    // Just declare it since it may have different signature
+    //abstract Task ProcessAsync(WorkflowContext context);
 
     #endregion
 }
@@ -106,10 +107,6 @@ public interface IWorkflowState<T>
 /// </summary>
 public interface IWorkflowSession<T>
 {
-    /// Process with the session
-    /// <summary>
-    /// </summary>
-    Task<T?> ProcessAsync(WorkflowContext context, T? session);
 }
 
 public interface IWorkflowPayload

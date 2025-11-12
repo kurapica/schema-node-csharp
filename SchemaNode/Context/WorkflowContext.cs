@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
 using SchemaNode.Components.Context;
@@ -52,7 +53,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     public Guid? RootId => _root?.Id;
     
     /// <summary>
-    /// The workflow name
+    /// The workflow
     /// </summary>
     public AppWorkflowType Workflow { get; private set; }
     
@@ -172,13 +173,28 @@ public class WorkflowContext: SchemaContext, IDisposable
         // save
         Persistence();
     }
-    
+
     /// <summary>
     /// Gets the payload by name
     /// </summary>
     public AnySchemaNode? GetWorkflowPayload(string name)
-        => _states.TryGetValue(name, out WorkflowState? state) ? state.Payload : _root?.GetWorkflowPayload(name);
-    
+    {
+        if (!name.Contains('.'))
+            return _states.TryGetValue(name, out WorkflowState? state)
+                ? state.Payload
+                : _root?.GetWorkflowPayload(name);
+        
+        // check nested payload
+        string[] paths = name.Split(".", StringSplitOptions.RemoveEmptyEntries);
+        AnySchemaNode? payload = GetWorkflowPayload(paths[0]);
+        for (int i = 1; i < paths.Length; i++)
+        {
+            if (payload is not StructTypeNode @struct) return null;
+            payload = @struct.GetField(paths[i]);
+        }
+        return payload;
+    }
+
     /// <summary>
     /// Gets the payload by workflow
     /// </summary>
@@ -464,9 +480,30 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// <summary>
         /// Process the workflow without session
         /// </summary>
-        public virtual Task ProcessAsync(WorkflowContext context, Workflow workflow)
+        public virtual async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            return workflow.ProcessAsync(context);
+            MethodInfo processMethod = workflow.GetType().GetMethod("ProcessAsync")!;
+            object?[] args = [context];
+            if (workflow.Args is { Length: > 0 })
+            {
+                args = new object?[workflow.Args.Length + 1];
+                args[0] = context;
+                for (int i = 0; i < workflow.Args.Length; i++)
+                {
+                    var arg = workflow.Args[i];
+                    if (string.IsNullOrEmpty(arg.Name))
+                    {
+                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                    }
+                    else
+                    {
+                        AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
+                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                    }
+                }
+            }
+            Task? task = (Task?)processMethod.Invoke(workflow, args);
+            if (task != null) await task;
         }
     }
 
@@ -482,7 +519,29 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// </summary>
         public override async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            Session = await ((IWorkflowSession<T>)workflow).ProcessAsync(context, Session);
+            MethodInfo processMethod = workflow.GetType().GetMethod("ProcessAsync")!;
+            object?[] args = [context, Session];
+            if (workflow.Args is { Length: > 0 })
+            {
+                args = new object?[workflow.Args.Length + 2];
+                args[0] = context;
+                args[1] = Session;
+                for (int i = 0; i < workflow.Args.Length; i++)
+                {
+                    var arg = workflow.Args[i];
+                    if (string.IsNullOrEmpty(arg.Name))
+                    {
+                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                    }
+                    else
+                    {
+                        AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
+                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                    }
+                }
+            }
+            Task<T>? task = (Task<T>?)processMethod.Invoke(workflow, args);
+            if (task != null) Session = await task;
         }
         
         /// <summary>

@@ -30,7 +30,7 @@ public static class Schema
         schemaName = schemaName.ToLowerInvariant();
         NodeSchema? node = _root;
         string fullPath = "";
-        foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
+        foreach (string path in Regex.Split(schemaName, @"\.").Where(s => !string.IsNullOrWhiteSpace(s)))
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             node = node.Schemas?.FirstOrDefault(x => x.Name == fullPath);
@@ -49,7 +49,7 @@ public static class Schema
         string schemaName = schema.Name.ToLowerInvariant();
         NodeSchema root = _root;
         string fullPath = "";
-        foreach (string path in Regex.Split(schemaName, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)))
+        foreach (string path in Regex.Split(schemaName, @"\.").Where(s => !string.IsNullOrWhiteSpace(s)))
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             if (root.Type != SchemaType.Namespace) throw new InvalidOperationException($"Cannot add schema node '{schema.Name}' under non-namespace node '{root.Name}'");
@@ -1048,7 +1048,7 @@ public static class Schema
             Name = name,
             Type = SchemaType.Array,
             LoadState = SchemaLoadState.System,
-            Display = name,
+            Display = eleType != null ? $"{Locale.LIST_PREFIX}{{@{eleType}}}{Locale.LIST_SUFFIX}" : name,
             Array = new ArraySchema
             {
                 Element = eleType,
@@ -1068,6 +1068,7 @@ public static class Schema
             #region base type
             
             NewSystemArray(NS_SYSTEM_ARRAY, ""),
+            NewSystemArray(NS_SYSTEM_LIST, NS_GENERIC_TYPE),
             NewSystemStruct(NS_SYSTEM_STRUCT, []),
             NewSystemSchema(NS_SYSTEM_JSON, SchemaType.Json),
             

@@ -49,6 +49,11 @@ public class WorkflowType: AnySchemeType
     public string? Session { get; set; }
     
     /// <summary>
+    /// The workflow arguments fetch from workflow context
+    /// </summary>
+    public FuncArg[]? Args { get; set; } = [];
+
+    /// <summary>
     /// The additional data
     /// </summary>
     [JsonExtensionData]
@@ -75,6 +80,7 @@ public class WorkflowType: AnySchemeType
         Payload = workflow?.Payload;
         State = workflow?.State;
         Session = workflow?.Session;
+        Args = workflow?.Args;
         Additional = workflow?.Additional;
 
         if (workflow == null) Status = SchemaNodeStatus.NoDefinition;
@@ -128,6 +134,53 @@ public class WorkflowType: AnySchemeType
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
         workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IWorkflowPayload)) ? "T" : "");
         
+        // Args
+        MethodInfo processMethod = type.GetMethod("ProcessAsync", BindingFlags.Public | BindingFlags.Instance)
+            ?? throw new Exception($"Can't find method ProcessAsync in {type.Name}");
+    
+        // must be async method, the first parameter is WorkflowContext
+        // the second parameter is session if any
+        ParameterInfo[] parameters = processMethod.GetParameters();
+        if (parameters.Length == 0 || !parameters[0].ParameterType.IsAssignableTo(typeof(WorkflowContext)))
+            throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}");
+
+        if (sessionType != null)
+        {
+            if (parameters.Length < 2 || !parameters[1].ParameterType.IsAssignableTo(sessionType))
+                throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}, session parameter mismatch");
+            
+            // check return type
+            if (!processMethod.ReturnType.IsGenericType || processMethod.ReturnType.GetGenericTypeDefinition() != typeof(Task<>) ||
+                !processMethod.ReturnType.GetGenericArguments()[0].IsAssignableTo(sessionType))
+            {
+                throw new Exception($"Invalid ProcessAsync method in workflow type {type.FullName}, return type mismatch");
+            }
+        }
+        
+        // Gather other parameters
+        parameters = parameters.Skip(sessionType != null ? 2 : 1).ToArray();
+        if (parameters.Length > 0)
+        {
+            workflowSchema.Workflow.Args = new FuncArg[parameters.Length];
+            for (int i = 0; i < parameters.Length; i++)
+            {
+                ParameterInfo param = parameters[i];
+                
+                Utility.Schema.SchemaParamTypeInfo? info = param.ParameterType.GetSchemaTypeInfo(true);
+                if (info == null)
+                    throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}");
+
+                SchemaTypeAttribute? attr = param.GetCustomAttribute<SchemaTypeAttribute>();
+                
+                workflowSchema.Workflow.Args[i] = new FuncArg
+                {
+                    Name = param.Name ?? $"arg{i}",
+                    Type = attr?.Name ?? info.SchemaType ?? throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}"),
+                    Nullable = info.Nullable
+                };
+            }
+        }
+
         return [ workflowSchema ];
     }
     
@@ -154,6 +207,7 @@ public class WorkflowType: AnySchemeType
                 Payload = schema.Payload,
                 State = schema.State,
                 Session = schema.Session,
+                Args = schema.Args,
                 Additional = schema.Additional
             }
         };

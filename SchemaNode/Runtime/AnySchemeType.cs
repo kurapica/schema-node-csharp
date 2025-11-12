@@ -145,7 +145,7 @@ public abstract class AnySchemeType: IDisposable
     /// </summary>
     public virtual ArrayType? GetArrayNode(bool exactly = false) =>
         UsedBy?.Keys.FirstOrDefault(p => p is ArrayType array && array.ElementSchemaType == this) as ArrayType
-        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayType array && array.ElementSchemaType != null && CanBeUseAs(array.ElementSchemaType)) as ArrayType : null); 
+        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayType { ElementSchemaType: not null } array && CanBeUseAs(array.ElementSchemaType)) as ArrayType : null); 
     
     /// <summary>
     /// Whether the type can be used as data index
