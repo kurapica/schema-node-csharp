@@ -12,14 +12,9 @@ namespace SchemaNode.Components;
 public abstract class ApplicationEvent(string app): Event
 {
     /// <summary>
-    /// The application
-    /// </summary>
-    public string Application { get; } = app;
-
-    /// <summary>
     /// The topic
     /// </summary>
-    public override string Topic => Application.ToLower().Replace(".", "_");
+    public override string Topic => app.ToLower().Replace(".", "_");
 }
 
 /// <summary>
@@ -30,14 +25,9 @@ public abstract class ApplicationEvent(string app): Event
 public abstract class ApplicationDataEvent(string app, string target): ApplicationEvent(app)
 {
     /// <summary>
-    /// The target identifier
-    /// </summary>
-    public string Target { get; } = target;
-
-    /// <summary>
     /// The topic
     /// </summary>
-    public override string Topic => $"{base.Topic}/{Target}";
+    public override string Topic => $"{base.Topic}/{target}";
 }
 
 /// <summary>
@@ -46,14 +36,9 @@ public abstract class ApplicationDataEvent(string app, string target): Applicati
 /// <param name="app"></param>
 /// <param name="target"></param>
 /// <param name="field"></param>
-public abstract class  ApplicationFieldDataEvent(string app, string target, string field): ApplicationDataEvent(app, target)
+public abstract class ApplicationFieldDataEvent(string app, string target, string field): ApplicationDataEvent(app, target)
 {
-    /// <summary>
-    /// The application field name
-    /// </summary>
-    public string Field { get; } = field;
-
-    public override string Topic => $"{base.Topic}/{Field}";
+    public override string Topic => $"{base.Topic}/{field}";
 }
 
 /// <summary>
@@ -70,9 +55,11 @@ public class DefaultApplicationEventDispatcher : IApplicationEventDispatcher
     /// </summary>
     public void DispatchEvent<E>(E @event) where E : ApplicationEvent
     {
+        string app = @event.Topic.Split('/')[0];
+
         // app subjects
         if (AppEventSubjects.TryGetValue(@event.GetType(), out ConcurrentDictionary<string, Subject<Event>>? appSubjects) 
-            && appSubjects.TryGetValue(@event.Application.ToLower().Replace(".", "_"), out var subject))
+            && appSubjects.TryGetValue(app, out var subject))
         {
             Task.Run(async () =>
             {

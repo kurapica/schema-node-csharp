@@ -115,7 +115,8 @@ public class AppWorkflowType: IDisposable
             wNode.Application = Application;
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
-            
+            wNode.ForkKey = node.ForkKey;
+
             // payload type
             if (!string.IsNullOrWhiteSpace(node.Payload))
             {

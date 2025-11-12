@@ -29,7 +29,7 @@ public class EventSchema
     /// <summary>
     /// The event value type
     /// </summary>
-    public string Payload { get; set; } = string.Empty;
+    public string? Payload { get; set; }
     
     /// <summary>
     /// The additional data

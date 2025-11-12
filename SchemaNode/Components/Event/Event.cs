@@ -38,7 +38,7 @@ public abstract class Event
     /// <summary>
     /// Match the topic with wildcard support
     /// </summary>
-    internal bool MatchTopic(string topic)
+    public bool MatchTopic(string topic)
     {
         if (string.IsNullOrEmpty(Topic) || Topic == "*") return true; // all match
         if (string.IsNullOrEmpty(topic)) return false;
@@ -59,7 +59,14 @@ public abstract class Event
                 return false;
         }
         return true;
-    }
+    } 
+}
+
+/// <summary>
+/// The event has generic payload, determined by usage
+/// </summary>
+public interface IEventPayload
+{
 }
 
 /// <summary>
@@ -74,6 +81,8 @@ public interface IEventPayload<T>
 /// </summary>
 public interface IEventDispatcher<in T> where T : Event
 {
+    #region Abstract
+
     /// <summary>
     /// Dispatch the event
     /// </summary>
@@ -88,6 +97,10 @@ public interface IEventDispatcher<in T> where T : Event
     /// Subscribe an event by topic
     /// </summary>
     IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event;
+
+    #endregion
+
+    #region Method
 
     /// <summary>
     /// Subscribe an event
@@ -156,6 +169,8 @@ public interface IEventDispatcher<in T> where T : Event
     /// Subscribe an event once
     /// </summary>
     public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E : Event => SubscribeTopicEventOnce(typeof(E), topic, onEvent);
+
+    #endregion
 }
 
 /// <summary>
@@ -201,9 +216,9 @@ public static class EventExtensions
         }
 
     }
-    
+
     /// <summary>
-    /// Raise the event
+    /// Raise the event without constructor parameters
     /// </summary>
     public static void RaiseEvent<T>(this SchemaContext context, object? payLoad = null) where T : Event, new()
     {
@@ -223,19 +238,19 @@ public static class EventExtensions
 
         if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            return context.GetService<IApplicationEventDispatcher>()!.SubscribeEvent(onEvent);
+            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEvent(onEvent);
         }
         else if (type.IsSubclassOf(typeof(WorkflowEvent)))
         {
-            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeEvent(onEvent);
+            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEvent(onEvent);
         }
         else if (type.IsSubclassOf(typeof(ServerEvent)))
         {
-            return context.GetService<IServerEventDispatcher>()!.SubscribeEvent(onEvent);
+            return context.GetService<IServerEventDispatcher>()?.SubscribeEvent(onEvent);
         }
         else if (type.IsSubclassOf(typeof(ClusterEvent)))
         {
-            return context.GetService<IClusterEventDispatcher>()!.SubscribeEvent(onEvent);
+            return context.GetService<IClusterEventDispatcher>()?.SubscribeEvent(onEvent);
         }
         return null;
     }
@@ -312,8 +327,7 @@ public static class EventExtensions
     #endregion
 
     #region Subscribe Event with schema type
-
-    
+        
     /// <summary>
     /// Subscribe an event
     /// </summary>
@@ -323,19 +337,19 @@ public static class EventExtensions
 
         if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            return context.GetService<IApplicationEventDispatcher>()!.SubscribeEvent(type, onEvent);
+            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEvent(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(WorkflowEvent)))
         {
-            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeEvent(type, onEvent);
+            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEvent(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ServerEvent)))
         {
-            return context.GetService<IServerEventDispatcher>()!.SubscribeEvent(type, onEvent);
+            return context.GetService<IServerEventDispatcher>()?.SubscribeEvent(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ClusterEvent)))
         {
-            return context.GetService<IClusterEventDispatcher>()!.SubscribeEvent(type, onEvent);
+            return context.GetService<IClusterEventDispatcher>()?.SubscribeEvent(type, onEvent);
         }
         return null;
     }
@@ -349,19 +363,19 @@ public static class EventExtensions
 
         if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            return context.GetService<IApplicationEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+            return context.GetService<IApplicationEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(WorkflowEvent)))
         {
-            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ServerEvent)))
         {
-            return context.GetService<IServerEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+            return context.GetService<IServerEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ClusterEvent)))
         {
-            return context.GetService<IClusterEventDispatcher>()!.SubscribeTopicEvent(type, topic, onEvent);
+            return context.GetService<IClusterEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
         }
         return null;
     }
@@ -375,19 +389,19 @@ public static class EventExtensions
 
         if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            return context.GetService<IApplicationEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(WorkflowEvent)))
         {
-            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ServerEvent)))
         {
-            return context.GetService<IServerEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+            return context.GetService<IServerEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ClusterEvent)))
         {
-            return context.GetService<IClusterEventDispatcher>()!.SubscribeEventOnce(type, onEvent);
+            return context.GetService<IClusterEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
         }
         return null;
     }
@@ -402,24 +416,22 @@ public static class EventExtensions
 
         if (type.IsSubclassOf(typeof(ApplicationEvent)))
         {
-            return context.GetService<IApplicationEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+            return context.GetService<IApplicationEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(WorkflowEvent)))
         {
-            return context.GetService<IWorkflowEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ServerEvent)))
         {
-            return context.GetService<IServerEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+            return context.GetService<IServerEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
         }
         else if (type.IsSubclassOf(typeof(ClusterEvent)))
         {
-            return context.GetService<IClusterEventDispatcher>()!.SubscribeTopicEventOnce(type, topic, onEvent);
+            return context.GetService<IClusterEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
         }
         return null;
     }
-
-
 
     #endregion
 }

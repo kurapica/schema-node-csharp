@@ -17,7 +17,7 @@ public abstract class Workflow
     /// <summary>
     /// The application
     /// </summary>
-    public AppType Application { get; internal set; } = default!;
+    internal AppType Application { get; set; } = default!;
 
     /// <summary>
     /// The workflow name
@@ -50,6 +50,11 @@ public abstract class Workflow
     /// </summary>
     internal bool Fork { get; set; }
 
+    /// <summary>
+    /// Fork primary key
+    /// </summary>
+    internal string? ForkKey { get; set; }
+
     #endregion
 
     #region Method
@@ -65,7 +70,7 @@ public abstract class Workflow
     /// <summary>
     /// Find the next workflow by name(include self)
     /// </summary>
-    public Workflow? FindByName(string name)
+    internal Workflow? FindByName(string name)
     {
         if (Name.Equals(name, StringComparison.OrdinalIgnoreCase))
             return this;
@@ -86,7 +91,8 @@ public abstract class Workflow
 
     // Process the workflow
     // Just declare it since it may have different signature
-    //abstract Task ProcessAsync(WorkflowContext context);
+    //abstract Task ProcessAsync(WorkflowContext context, arg1, arg2, ...);
+    //abstract Task<Session> ProcessAsync<Session>(WorkflowContext context, Session, arg1, arg2, ...);
 
     #endregion
 }
@@ -113,6 +119,6 @@ public interface IWorkflowPayload
 {
 }
 
-public interface IWorkflowPayload<in T>: IWorkflowPayload
+public interface IWorkflowPayload<T>: IWorkflowPayload
 {
 }

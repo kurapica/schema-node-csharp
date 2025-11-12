@@ -123,7 +123,12 @@ public class AppWorkflowNodeSchema
     /// fork the workflow for next nodes
     /// </summary>
     public bool? Fork { get; set; }
-    
+
+    /// <summary>
+    /// The fork key path in the payload
+    /// </summary>
+    public string? ForkKey { get; set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
