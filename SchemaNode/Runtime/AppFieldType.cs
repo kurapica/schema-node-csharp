@@ -189,6 +189,11 @@ public class AppFieldType
     /// The dynamic table schema
     /// </summary>
     public DynamicTableSchema? Schema { get; internal set; }
+    
+    /// <summary>
+    /// The field is single value
+    /// </summary>
+    public bool Single => SchemaType is not ArrayType arr || arr.Primary == null || arr.Primary.Length == 0;
 
     #endregion
     

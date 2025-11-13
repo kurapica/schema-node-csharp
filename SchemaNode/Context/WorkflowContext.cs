@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
 using SchemaNode.Components.Context;
 using SchemaNode.Enum;
@@ -220,6 +221,8 @@ public class WorkflowContext: SchemaContext, IDisposable
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
 
+        Logger.LogInformation($"[WorkflowContext]{Id} Done [Workflow] {name}");
+        
         // get or create the workflow state
         WorkflowState state = GetOrCreateWorkflowState(name);
         
@@ -265,6 +268,8 @@ public class WorkflowContext: SchemaContext, IDisposable
         WorkflowState state = GetOrCreateWorkflowState(name);
         state.Status = WorkflowStatus.Error;
         state.Error = exception;
+        
+        Logger.LogError($"[WorkflowContext]{Id} Error [Workflow] {name} [Exception] {exception}");
         
         // save
         Persistence();
@@ -351,6 +356,8 @@ public class WorkflowContext: SchemaContext, IDisposable
         WorkflowState state = next.Value.Item2;
         try
         {
+            Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+            
             // Process the workflow
             state.Status = WorkflowStatus.Running;
             await state.ProcessAsync(this, workflow);
@@ -368,6 +375,8 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public async Task TerminateAsync()
     {
+        Logger.LogInformation($"[WorkflowContext]{Id} Terminated");
+        
         await PersistenceAsync();
         
         foreach (var (_, value) in _states)
@@ -482,7 +491,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// </summary>
         public virtual async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod("ProcessAsync")!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context];
             if (workflow.Args is { Length: > 0 })
             {
@@ -519,7 +528,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// </summary>
         public override async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod("ProcessAsync")!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context, Session];
             if (workflow.Args is { Length: > 0 })
             {

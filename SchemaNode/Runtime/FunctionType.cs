@@ -845,7 +845,13 @@ public class FunctionType: AnySchemeType
             if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
 
             // Check dynamic type
-            if (pt.Generic != null)
+            SchemaTypeAttribute? schemaTypeAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+            if (schemaTypeAttr != null && !string.IsNullOrWhiteSpace(schemaTypeAttr.Name))
+            {
+                pt.SchemaType = schemaTypeAttr.Name;
+                arg.Type = pt.SchemaType;
+            }
+            else if (pt.Generic != null)
             {
                 if (pt.AnyArray)
                 {
@@ -867,15 +873,7 @@ public class FunctionType: AnySchemeType
             }
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
             {
-                // normally if arg is Object, use func arg attr to specific the schema type
-                if (p.GetCustomAttribute<SchemaTypeAttribute>() != null)
-                {
-                    pt.SchemaType = p.GetCustomAttribute<SchemaTypeAttribute>()!.Name;
-                }
-                else
-                {
-                    return null;
-                }
+                return null;
             }
             else
             {

@@ -81,6 +81,7 @@ public static class Constant
     public const string NS_SYSTEM_LOGIC = "system.logic";
     public const string NS_SYSTEM_DATETIME = "system.datetime";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
+    public const string NS_SYSTEM_DATA = "system.data";
     
     // workflow namespace
     public const string NS_SYSTEM_WORKFLOW = "system.workflow";

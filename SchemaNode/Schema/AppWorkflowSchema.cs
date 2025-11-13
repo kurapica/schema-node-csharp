@@ -75,7 +75,7 @@ public class AppWorkflowNodeSchema
     /// <summary>
     /// The workflow display name
     /// </summary>
-    public LocaleString? Display { get; private set; }
+    public LocaleString? Display { get; set; }
     
     /// <summary>
     /// The work flow node type

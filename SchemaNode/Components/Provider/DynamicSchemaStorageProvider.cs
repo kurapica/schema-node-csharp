@@ -433,6 +433,15 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                 schema.Fields = fields.ToArray();
                 schema.HasFields = schema.Fields.Length > 0;
             }
+            
+            // load workflows
+            List<AppWorkflowSchema> workflows = await context.GetEntitiesAsync<AppWorkflowSchema>(Target, e => e.App == app);
+            if (workflows.Count > 0)
+            {
+                workflows.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
+                schema.Workflows = workflows.ToArray();
+            }
+
             return schema;
         }
         catch (Exception e)

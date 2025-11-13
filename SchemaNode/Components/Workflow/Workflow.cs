@@ -12,6 +12,8 @@ namespace SchemaNode.Components;
 /// </summary>
 public abstract class Workflow
 {
+    public const string WORKFLOW_PROCESS_METHOD = "ProcessAsync";
+    
     #region Properties
 
     /// <summary>

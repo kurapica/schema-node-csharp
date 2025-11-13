@@ -135,7 +135,7 @@ public class WorkflowType: AnySchemeType
         workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IWorkflowPayload)) ? "T" : "");
         
         // Args
-        MethodInfo processMethod = type.GetMethod("ProcessAsync", BindingFlags.Public | BindingFlags.Instance)
+        MethodInfo processMethod = type.GetMethod(Workflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance)
             ?? throw new Exception($"Can't find method ProcessAsync in {type.Name}");
     
         // must be async method, the first parameter is WorkflowContext
@@ -176,7 +176,7 @@ public class WorkflowType: AnySchemeType
                 {
                     Name = param.Name ?? $"arg{i}",
                     Type = attr?.Name ?? info.SchemaType ?? throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}"),
-                    Nullable = info.Nullable
+                    Nullable = info.Nullable || param is { HasDefaultValue: true, DefaultValue: null },
                 };
             }
         }
