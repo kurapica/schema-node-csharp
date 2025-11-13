@@ -814,7 +814,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         }
         else
         {
-            if (!appWorkflowType.Activated) return false;
+            if (!appWorkflowType.Activated) return true;
             try
             {
                 await appWorkflowType.DeactivateAsync();
@@ -844,11 +844,12 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AnySchemeType? node = RootNamespace;
 
         // generic type holder, types with generic parameters won't be used directly
-        if (Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE)) return GenericType.Instance;
+        if (Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE)) 
+            return GenericType.Instance;
         
         // gets the node
         string fullPath = "";
-        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\.").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        string[] paths = schemaName.SplitTypeName();
         for (int i = 0; i < paths.Length - 1; i++)
         {
             if (node is not TypeNamespace parent) return null;
@@ -936,7 +937,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         if (string.IsNullOrWhiteSpace(schemaName)) return false;
         
         // gets the node
-        string[] paths = Regex.Split(schemaName.Trim().ToLowerInvariant(), @"\.").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        string[] paths = schemaName.SplitTypeName();
         foreach (string path in paths.SkipLast(1))
         {
             // Gets the sub node
@@ -1497,7 +1498,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<T?> GetEntityAsync<T>(string target, Expression<Func<T, bool>> cond)
+    public async Task<T?> GetEntityAsync<T>(string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await AssertAppField<T>();
         if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
@@ -1517,14 +1518,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
                 throw new ArgumentException("The condition is not valid");
         }
 
-        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldType,target, query, take: 1);
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldType,target, query, take: 1, forUpdate: forUpdate);
         return result is { Count: > 0 } ? result[0] : default;
     }
     
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<List<T>> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond)
+    public async Task<List<T>> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await AssertAppField<T>();
         if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
@@ -1534,14 +1535,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
         JsonNode filter = visitor.Condition;
         if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
         
-        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldType, target, obj);
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(appFieldType, target, obj, forUpdate: forUpdate);
         return result;
     }
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<(List<T> value, int total)> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int take, int skip = 0,  bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetEntitiesAsync<T>(string target, Expression<Func<T, bool>> cond, int take, int skip = 0,  bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await AssertAppField<T>();
         if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
@@ -1551,13 +1552,13 @@ public class SchemaContext(IServiceProvider serviceProvider)
         JsonNode filter = visitor.Condition;
         if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
 
-        return await GetFieldEntitiesAsync<T>(appFieldType, target, obj, skip, take, desc, orderBy);
+        return await GetFieldEntitiesAsync<T>(appFieldType, target, obj, skip, take, desc, orderBy, forUpdate);
     }
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         AssertType<T>(field);
 
@@ -1566,17 +1567,17 @@ public class SchemaContext(IServiceProvider serviceProvider)
         JsonNode filter = visitor.Condition;
         if (filter is not JsonObject obj || obj.IsEmpty()) throw new ArgumentException("The condition is not valid");
 
-        return await GetFieldEntitiesAsync<T>(field, target, obj, skip, take, desc, orderBy);
+        return await GetFieldEntitiesAsync<T>(field, target, obj, skip, take, desc, orderBy, forUpdate);
     }
 
     /// <summary>
     /// Gets the entity data
     /// </summary>
-    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(AppFieldType field, string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         AssertType<T>(field);
 
-        (AnySchemaNode? result, int total) = await GetFieldDataAsync(field, target, filter, skip, take, desc, orderBy);
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(field, target, filter, skip, take, desc, orderBy, forUpdate);
         List<T> results = [];
         if (result is ArrayTypeNode arr)
         {
@@ -1600,7 +1601,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null)
+    public async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -1617,7 +1618,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         {
             Target = target;
             
-            (AnySchemaNode? result, int total) = await AppDataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy);
+            (AnySchemaNode? result, int total) = await AppDataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy, forUpdate);
             
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(this, result);
@@ -1723,6 +1724,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
                                         
                                         if (originMap.TryGetValue(key, out AnySchemaNode? o))
                                         {
+                                            originMap.Remove(key);
                                             structNode.Origin = o;
                                             this.RaiseEvent(new AppFieldDataUpdateEvent(field, target), structNode);
                                         }
@@ -1731,6 +1733,12 @@ public class SchemaContext(IServiceProvider serviceProvider)
                                             this.RaiseEvent(new AppFieldDataCreateEvent(field, target), structNode);
                                         }
                                     }
+                                }
+
+                                // Raise delete event for remaining origin
+                                foreach (AnySchemaNode node in originMap.Values)
+                                {
+                                    this.RaiseEvent(new AppFieldDataDeleteEvent(field, target), node);
                                 }
                             }
                             else if (changeValues != null)
@@ -2185,325 +2193,327 @@ public class SchemaContext(IServiceProvider serviceProvider)
         }
     }
 
-    async Task SaveIncrementalData(AppFieldType field, string target,
-        AnySchemaNode? newResult, AnySchemaNode? oldResult)
+    /// <summary>
+    /// Save the incremental data
+    /// </summary>
+    async Task SaveIncrementalData(AppFieldType field, string target, AnySchemaNode? newResult, AnySchemaNode? oldResult)
     {
         // Join the result
         AnySchemaNode? result = null;
         switch (field.SchemaType)
         {
             case EnumType:
-                {
-                    DataCombineType method = field.Combine ?? DataCombineType.Assign;
-                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
-                    AnySchemaNode? now = GroupJoin(newResult, method);
+            {
+                DataCombineType method = field.Combine ?? DataCombineType.Assign;
+                (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                AnySchemaNode? now = GroupJoin(newResult, method);
 
-                    // Update with join method
-                    switch (method)
-                    {
-                        case DataCombineType.Assign:
-                            {
-                                result = now is { IsEmpty: false } ? now : origin;
-                                break;
-                            }
-                        case DataCombineType.Init:
-                            {
-                                result = origin is { IsEmpty: false } ? origin : now;
-                                break;
-                            }
-                    }
-                    break;
-                }
-            case ScalarType scalar:
+                // Update with join method
+                switch (method)
                 {
-                    // Gets the join method
-                    DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
-                    
-                    // Part
-                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
-                    AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
-                    AnySchemaNode? now = GroupJoin(scalar, newResult, method);
-
-                    // Update with join method
-                    switch (method)
-                    {
-                        case DataCombineType.Assign:
-                            {
-                                result = now;
-                                break;
-                            }
-                        case DataCombineType.Init:
-                            {
-                                result = origin is { IsEmpty: false } ? origin : now;
-                                break;
-                            }
-                        case DataCombineType.Sum:
-                        case DataCombineType.Count:
-                            {
-                                result = field.SchemaType.CreateNode(
-                                    (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
-                                    (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
-                                    (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
-                                );
-                            }
+                    case DataCombineType.Assign:
+                        {
+                            result = now is { IsEmpty: false } ? now : origin;
                             break;
-                        default:
-                            throw new ArgumentOutOfRangeException();
-                    }
-                    break;
+                        }
+                    case DataCombineType.Init:
+                        {
+                            result = origin is { IsEmpty: false } ? origin : now;
+                            break;
+                        }
                 }
-            case StructType { Fields.Length: > 0 } @struct:
+                break;
+            }
+            case ScalarType scalar:
+            {
+                // Gets the join method
+                DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                    
+                // Part
+                (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
+                AnySchemaNode? now = GroupJoin(scalar, newResult, method);
+
+                // Update with join method
+                switch (method)
                 {
-                    // Gets the join method map
-                    Dictionary<string, DataCombineType> joinMethodMap = new();
+                    case DataCombineType.Assign:
+                        {
+                            result = now;
+                            break;
+                        }
+                    case DataCombineType.Init:
+                        {
+                            result = origin is { IsEmpty: false } ? origin : now;
+                            break;
+                        }
+                    case DataCombineType.Sum:
+                    case DataCombineType.Count:
+                        {
+                            result = field.SchemaType.CreateNode(
+                                (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
+                                (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
+                                (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
+                            );
+                        }
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                break;
+            }
+            case StructType { Fields.Length: > 0 } @struct:
+            {
+                // Gets the join method map
+                Dictionary<string, DataCombineType> joinMethodMap = new();
 
-                    // Default join
-                    foreach (StructFieldConfig f in @struct.Fields)
+                // Default join
+                foreach (StructFieldConfig f in @struct.Fields)
+                {
+                    if (f.TypeNode is ScalarType s)
+                        joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type 
+                            ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                }
+
+                // Gets the result
+                (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
+                AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
+                AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
+
+                // Update with join method
+                if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
+                {
+                    result = now;
+                }
+                else
+                {
+                    StructTypeNode final = new StructTypeNode(@struct);
+                    foreach (StructFieldConfig nodeField in @struct.Fields)
                     {
-                        if (f.TypeNode is ScalarType s)
-                            joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type 
-                                ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                        AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
+                        AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
+                        AnySchemaNode? nowFld = now is StructTypeNode ns ? ns.GetField(nodeField.Name) : null;
+
+                        switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
+                        {
+                            case DataCombineType.Assign:
+                                {
+                                    final[field.Name] = nowFld is { IsEmpty: false } ? nowFld : originFld;
+                                    break;
+                                }
+                            case DataCombineType.Init:
+                                {
+                                    final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
+                                    break;
+                                }
+                            case DataCombineType.Sum when nodeField.TypeNode is ScalarType { IsNumber: true }:
+                            case DataCombineType.Count when nodeField.TypeNode is ScalarType { IsNumber: true }:
+                                {
+                                    final[nodeField.Name] = nodeField.TypeNode.CreateNode(
+                                        (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
+                                        (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                        (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
+                                    );
+                                    break;
+                                }
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
                     }
+                    result = final;
+                }
+                
+                break;
+            }
+            case ArrayType { ElementSchemaType: EnumType or ScalarType }:
+            {
+                result = newResult;
+                break;
+            }
+            case ArrayType { ElementSchemaType: StructType { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
+            {
+                // Gets the join method map
+                Dictionary<string, DataCombineType> joinMethodMap = new();
 
-                    // Gets the result
-                    (AnySchemaNode? origin, _) = await GetFieldDataAsync(field, target);
-                    AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
-                    AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
-
-                    // Update with join method
-                    if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
+                // Gets the value fields
+                List<string> valueFields = new();
+                Dictionary<string, AnySchemeType> primaryNodes = new();
+                foreach (StructFieldConfig fieldType in structNode.Fields)
+                {
+                    if (!array.Primary.Contains(fieldType.Name))
                     {
-                        result = now;
+                        valueFields.Add(fieldType.Name);
+
+                        if (fieldType.TypeNode is ScalarType s)
+                        {
+                            joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
+                        }
                     }
                     else
-                    {
-                        StructTypeNode final = new StructTypeNode(@struct);
-                        foreach (StructFieldConfig nodeField in @struct.Fields)
-                        {
-                            AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
-                            AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
-                            AnySchemaNode? nowFld = now is StructTypeNode ns ? ns.GetField(nodeField.Name) : null;
+                        primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
+                }
 
-                            switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
+                // Based on array join methods
+                if (array.Combines != null)
+                {
+                    foreach (DataCombine combine in array.Combines)
+                    {
+                        joinMethodMap[combine.Field] = combine.Type;
+                    }
+                }
+                // Based on field join methods
+                if (field.Combines != null)
+                {
+                    foreach (DataCombine combine in field.Combines)
+                    {
+                        joinMethodMap[combine.Field] = combine.Type;
+                    }
+                }
+
+                // Generate result map
+                // Group join the old & now data
+                Dictionary<string, StructTypeNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
+                Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
+
+                // Query the original data
+                HashSet<string> keys = new();
+                JsonArray query = new();
+                foreach ((string key, StructTypeNode obj) in oldMap)
+                {
+                    if (!keys.Add(key)) continue;
+                    query.Add(obj.ToJson());
+                }
+                foreach ((string key, StructTypeNode obj) in nowMap)
+                {
+                    if (!keys.Add(key)) continue;
+                    query.Add(obj.ToJson());
+                }
+
+                // Gets the original data
+                Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
+                if (!query.IsEmpty())
+                {
+                    (AnySchemaNode? value, _) = await GetFieldDataAsync(field, target, query);
+                    if (value is ArrayTypeNode arr)
+                    {
+                        foreach (AnySchemaNode token in arr)
+                        {
+                            if (token is not StructTypeNode obj) continue;
+                            string? key = array.GetPrimaryKey(obj);
+                            if (string.IsNullOrWhiteSpace(key)) continue;
+                            resultMap[key] = obj;
+                        }
+                    }
+                }
+
+                // Generate the result map
+                foreach (string key in keys)
+                {
+                    if (resultMap.TryGetValue(key, out var res1))
+                    {
+                        oldMap.TryGetValue(key, out StructTypeNode? old);
+                        nowMap.TryGetValue(key, out StructTypeNode? now);
+                        foreach (string s in valueFields)
+                        {
+                            AnySchemaNode? originFld = res1.GetField(s);
+                            AnySchemaNode? oldFld = old?.GetField(s);
+                            AnySchemaNode? nowFld = now?.GetField(s);
+
+                            switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
                             {
                                 case DataCombineType.Assign:
-                                    {
-                                        final[field.Name] = nowFld is { IsEmpty: false } ? nowFld : originFld;
-                                        break;
-                                    }
+                                    if (nowFld is { IsEmpty: false })
+                                        res1[s] = nowFld;
+                                    break;
                                 case DataCombineType.Init:
-                                    {
-                                        final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
-                                        break;
-                                    }
-                                case DataCombineType.Sum when nodeField.TypeNode is ScalarType { IsNumber: true }:
-                                case DataCombineType.Count when nodeField.TypeNode is ScalarType { IsNumber: true }:
-                                    {
-                                        final[nodeField.Name] = nodeField.TypeNode.CreateNode(
-                                            (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
-                                        );
-                                        break;
-                                    }
+                                    if (originFld == null || originFld.IsEmpty)
+                                        res1[s] = nowFld;
+                                    break;
+                                case DataCombineType.Sum:
+                                case DataCombineType.Count:
+                                    res1[s] = (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
+                                        (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                        (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                    break;
                                 default:
                                     throw new ArgumentOutOfRangeException();
                             }
                         }
-                        result = final;
                     }
-                
-                    break;
-                }
-            case ArrayType { ElementSchemaType: EnumType or ScalarType }:
-                {
-                    result = newResult;
-                    break;
-                }
-            case ArrayType { ElementSchemaType: StructType { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
-                {
-                    // Gets the join method map
-                    Dictionary<string, DataCombineType> joinMethodMap = new();
-
-                    // Gets the value fields
-                    List<string> valueFields = new();
-                    Dictionary<string, AnySchemeType> primaryNodes = new();
-                    foreach (StructFieldConfig fieldType in structNode.Fields)
+                    else if (nowMap.TryGetValue(key, out StructTypeNode? res))
                     {
-                        if (!array.Primary.Contains(fieldType.Name))
-                        {
-                            valueFields.Add(fieldType.Name);
+                        resultMap.Add(key, res);
+                        if (!oldMap.TryGetValue(key, out StructTypeNode? old)) continue;
 
-                            if (fieldType.TypeNode is ScalarType s)
+                        // Shouldn't be but still handle it
+                        foreach (string s in valueFields)
+                        {
+                            AnySchemaNode? oldFld = old?.GetField(s);
+                            AnySchemaNode? nowFld = res?.GetField(s);
+
+                            switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
                             {
-                                joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
-                            }
-                        }
-                        else
-                            primaryNodes.Add(fieldType.Name, fieldType.TypeNode!);
-                    }
-
-                    // Based on array join methods
-                    if (array.Combines != null)
-                    {
-                        foreach (DataCombine combine in array.Combines)
-                        {
-                            joinMethodMap[combine.Field] = combine.Type;
-                        }
-                    }
-                    // Based on field join methods
-                    if (field.Combines != null)
-                    {
-                        foreach (DataCombine combine in field.Combines)
-                        {
-                            joinMethodMap[combine.Field] = combine.Type;
-                        }
-                    }
-
-                    // Generate result map
-                    // Group join the old & now data
-                    Dictionary<string, StructTypeNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
-                    Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
-
-                    // Query the original data
-                    HashSet<string> keys = new();
-                    JsonArray query = new();
-                    foreach ((string key, StructTypeNode obj) in oldMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-                    foreach ((string key, StructTypeNode obj) in nowMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-
-                    // Gets the original data
-                    Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
-                    if (!query.IsEmpty())
-                    {
-                        (AnySchemaNode? value, _) = await GetFieldDataAsync(field, target, query);
-                        if (value is ArrayTypeNode arr)
-                        {
-                            foreach (AnySchemaNode token in arr)
-                            {
-                                if (token is not StructTypeNode obj) continue;
-                                string? key = array.GetPrimaryKey(obj);
-                                if (string.IsNullOrWhiteSpace(key)) continue;
-                                resultMap[key] = obj;
-                            }
-                        }
-                    }
-
-                    // Generate the result map
-                    foreach (string key in keys)
-                    {
-                        if (resultMap.TryGetValue(key, out var res1))
-                        {
-                            oldMap.TryGetValue(key, out StructTypeNode? old);
-                            nowMap.TryGetValue(key, out StructTypeNode? now);
-                            foreach (string s in valueFields)
-                            {
-                                AnySchemaNode? originFld = res1.GetField(s);
-                                AnySchemaNode? oldFld = old?.GetField(s);
-                                AnySchemaNode? nowFld = now?.GetField(s);
-
-                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
-                                {
-                                    case DataCombineType.Assign:
-                                        if (nowFld is { IsEmpty: false })
-                                            res1[s] = nowFld;
-                                        break;
-                                    case DataCombineType.Init:
-                                        if (originFld == null || originFld.IsEmpty)
-                                            res1[s] = nowFld;
-                                        break;
-                                    case DataCombineType.Sum:
-                                    case DataCombineType.Count:
-                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
-                                        break;
-                                    default:
-                                        throw new ArgumentOutOfRangeException();
-                                }
-                            }
-                        }
-                        else if (nowMap.TryGetValue(key, out StructTypeNode? res))
-                        {
-                            resultMap.Add(key, res);
-                            if (!oldMap.TryGetValue(key, out StructTypeNode? old)) continue;
-
-                            // Shouldn't be but still handle it
-                            foreach (string s in valueFields)
-                            {
-                                AnySchemaNode? oldFld = old?.GetField(s);
-                                AnySchemaNode? nowFld = res?.GetField(s);
-
-                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
-                                {
-                                    case DataCombineType.Assign:
-                                        if (nowFld == null || nowFld.IsEmpty)
-                                            res![s] = oldFld;
-                                        break;
-                                    case DataCombineType.Init:
-                                        if (oldFld is { IsEmpty: false })
-                                            res![s] = oldFld;
-                                        break;
-                                    case DataCombineType.Sum:
-                                    case DataCombineType.Count:
-                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
-                                        break;
-                                    default:
-                                        throw new ArgumentOutOfRangeException();
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Convert the map to list, sorted by primary keys
-                    List<StructTypeNode> joinObjs = resultMap.Values.ToList();
-                    joinObjs.Sort((a, b) =>
-                    {
-                        foreach (string s in array.Primary)
-                        {
-                            switch (primaryNodes[s])
-                            {
-                                case ScalarType { IsDate: true }:
-                                    {
-                                        DateTime ad = a.GetField(s)!.ToValue<DateTime>();
-                                        DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                        if (!SystemDate.NotEqual(ad, bd))
-                                            return SystemDate.LessThan(ad, bd) ? -1 : 1;
-                                        break;
-                                    }
-                                case ScalarType { IsNumber: true }:
-                                    {
-                                        decimal ad = a.GetField(s)!.ToValue<decimal>();
-                                        decimal bd = b.GetField(s)!.ToValue<decimal>();
-                                        if (ad != bd)
-                                            return ad < bd ? -1 : 1;
-                                        break;
-                                    }
+                                case DataCombineType.Assign:
+                                    if (nowFld == null || nowFld.IsEmpty)
+                                        res![s] = oldFld;
+                                    break;
+                                case DataCombineType.Init:
+                                    if (oldFld is { IsEmpty: false })
+                                        res![s] = oldFld;
+                                    break;
+                                case DataCombineType.Sum:
+                                case DataCombineType.Count:
+                                    res![s] = (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
+                                        (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                    break;
                                 default:
-                                    {
-                                        string ad = a[s]?.ToString() ?? "";
-                                        string bd = b[s]?.ToString() ?? "";
-                                        if (!ad.Equals(bd))
-                                            return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
-                                        break;
-                                    }
+                                    throw new ArgumentOutOfRangeException();
                             }
                         }
-                        return 0;
-                    });
-
-                    // Save to result
-                    result = field.SchemaType.CreateNode(joinObjs);
-                    break;
+                    }
                 }
+                    
+                // Convert the map to list, sorted by primary keys
+                List<StructTypeNode> joinObjs = resultMap.Values.ToList();
+                joinObjs.Sort((a, b) =>
+                {
+                    foreach (string s in array.Primary)
+                    {
+                        switch (primaryNodes[s])
+                        {
+                            case ScalarType { IsDate: true }:
+                                {
+                                    DateTime ad = a.GetField(s)!.ToValue<DateTime>();
+                                    DateTime bd = b.GetField(s)!.ToValue<DateTime>();
+                                    if (!SystemDate.NotEqual(ad, bd))
+                                        return SystemDate.LessThan(ad, bd) ? -1 : 1;
+                                    break;
+                                }
+                            case ScalarType { IsNumber: true }:
+                                {
+                                    decimal ad = a.GetField(s)!.ToValue<decimal>();
+                                    decimal bd = b.GetField(s)!.ToValue<decimal>();
+                                    if (ad != bd)
+                                        return ad < bd ? -1 : 1;
+                                    break;
+                                }
+                            default:
+                                {
+                                    string ad = a[s]?.ToString() ?? "";
+                                    string bd = b[s]?.ToString() ?? "";
+                                    if (!ad.Equals(bd))
+                                        return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
+                                    break;
+                                }
+                        }
+                    }
+                    return 0;
+                });
+
+                // Save to result
+                result = field.SchemaType.CreateNode(joinObjs);
+                break;
+            }
         }
 
         // Save

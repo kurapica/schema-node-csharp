@@ -30,7 +30,7 @@ public static class Schema
         schemaName = schemaName.ToLowerInvariant();
         NodeSchema? node = _root;
         string fullPath = "";
-        foreach (string path in Regex.Split(schemaName, @"\.").Where(s => !string.IsNullOrWhiteSpace(s)))
+        foreach (string path in schemaName.SplitTypeName())
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             node = node.Schemas?.FirstOrDefault(x => x.Name == fullPath);
@@ -49,7 +49,7 @@ public static class Schema
         string schemaName = schema.Name.ToLowerInvariant();
         NodeSchema root = _root;
         string fullPath = "";
-        foreach (string path in Regex.Split(schemaName, @"\.").Where(s => !string.IsNullOrWhiteSpace(s)))
+        foreach (string path in schemaName.SplitTypeName())
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             if (root.Type != SchemaType.Namespace) throw new InvalidOperationException($"Cannot add schema node '{schema.Name}' under non-namespace node '{root.Name}'");
@@ -92,7 +92,7 @@ public static class Schema
         Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
 
         // Register the type map
-        if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array)
+        if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array or SchemaType.Event or SchemaType.Workflow)
         {
             if (schema.Type != SchemaType.Array)
             {
@@ -466,7 +466,9 @@ public static class Schema
                 node = array.ElementSchemaType;
             }
         }
-        if (type is null && !_systemTypes.TryGetValue(node.Name.ToLowerInvariant(), out type))
+
+        // generic type check
+        if (type is null && !_systemTypes.TryGetValue(node.Name.GetBaseType().ToLower(), out type))
         {
             if (node is EnumType enumNode)
             {
@@ -524,7 +526,7 @@ public static class Schema
         {
             type = typeof(List<>).MakeGenericType(type);
         }
-        if (nullable ?? false)
+        if ((nullable ?? false) && type.IsValueType)
         {
             type = typeof(Nullable<>).MakeGenericType(type);
         }

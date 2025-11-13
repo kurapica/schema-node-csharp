@@ -53,7 +53,6 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             Guid root = rootId ?? Guid.Empty;
             WorkflowStatus chkStatus = status ?? WorkflowStatus.Running;
             
-
             if (status == WorkflowStatus.Running)
             {
                 var list = await context.GetEntitiesAsync<WorkflowContextSnapshot>(app, s =>

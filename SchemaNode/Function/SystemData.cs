@@ -1,9 +1,9 @@
-using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function;
@@ -23,8 +23,7 @@ public static class SystemData
     public static async Task<AnySchemaNode?> GetAppData(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-        string field)
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
     {
         string target = string.IsNullOrEmpty(context.Target)
             ? Guid.Empty.ToString()
@@ -48,8 +47,7 @@ public static class SystemData
     public static async Task<AnySchemaNode?> GetAppDataByOneKey<T1>(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-        string field,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key
         )
     {
@@ -82,8 +80,7 @@ public static class SystemData
     public static async Task<AnySchemaNode?> GetAppDataByTwoKey<T1, T2>(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-        string field,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2
     )
     {
@@ -119,8 +116,7 @@ public static class SystemData
     public static async Task<AnySchemaNode?> GetAppDataByThreeKey<T1, T2, T3>(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-        string field,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2, T3 key3
     )
     {
@@ -159,8 +155,7 @@ public static class SystemData
     public static async Task<AnySchemaNode?> GetAppDataByFourKey<T1, T2, T3, T4>(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)]
-        string field,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2, T3 key3, T4 key4
     )
     {
@@ -193,6 +188,118 @@ public static class SystemData
         };
         var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
         return value is ArrayTypeNode arrayNode ? arrayNode.FirstOrDefault() : null;
+    }
+
+    #endregion
+
+    #region Write App Data
+
+    /// <summary>
+    /// Incr the app field data
+    /// </summary>
+    [SchemaType]
+    public static async Task<JsonNode?> IncrAppData(
+        SchemaContext context,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
+        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        JsonNode data
+    )
+    {
+        string target = string.IsNullOrEmpty(context.Target)
+            ? Guid.Empty.ToString()
+            : context.Target;
+
+        AppType? appType = !string.IsNullOrEmpty(app)
+            ? await context.GetAppTypeAsync(app)
+            : null;
+
+        AppFieldType? fieldType = appType?.GetField(field);
+        if (fieldType == null 
+            || fieldType.SchemaType is EnumType 
+            || fieldType.SchemaType is ScalarType { IsNumber: false } 
+            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.TypeNode is ScalarType {  IsNumber: true })
+            || fieldType.SchemaType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
+            ) return default;
+
+        AnySchemaNode? dataNode = fieldType.SchemaType?.CreateNode(data);
+        if (dataNode == null || dataNode.IsEmpty) return default;
+
+        await context.BeginTransactionAsync();
+        (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(fieldType, target, dataNode.ToJson(), forUpdate: true);
+        if (origin == null) goto ROLLBACK;
+
+        switch (fieldType.SchemaType)
+        {
+            case ScalarType:
+                {
+                    if (dataNode is not ScalarTypeNode) goto ROLLBACK;
+                    origin = fieldType.SchemaType.CreateNode(
+                        (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
+                        (dataNode is { IsEmpty: false } ? dataNode.ToValue<decimal>() : 0m)
+                    );
+                    break;
+                }
+            case StructType @struct:
+                {
+                    if (dataNode is not StructTypeNode structData || origin is not StructTypeNode originStruct) goto ROLLBACK;
+                    foreach (var fld in @struct.Fields)
+                    {
+                        AnySchemaNode? orgFld = originStruct.GetField(fld.Name);
+                        AnySchemaNode? dataFld = structData.GetField(fld.Name);
+
+                        if (orgFld?.Type is ScalarType { IsNumber: true } && dataFld?.Type is ScalarType { IsNumber: true })
+                        {
+                            decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
+                            decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
+                            originStruct.SetField(fld.Name, fld.TypeNode?.CreateNode(orgVal + dataVal));
+                        }
+                    }
+                    break;
+                }
+            case ArrayType arrType:
+                {
+                    if (dataNode is not ArrayTypeNode arrayData || origin is not ArrayTypeNode originArray) goto ROLLBACK;
+                    Dictionary<string, StructTypeNode> arrDict = new();
+                    foreach(StructTypeNode ditem in arrayData)
+                    {
+                        string? pkey = arrType.GetPrimaryKey(ditem);
+                        if (pkey != null)
+                        {
+                            arrDict[pkey] = ditem;
+                        }
+                    }
+                    StructType arrStruct = arrType.ElementSchemaType as StructType 
+                        ?? throw new InvalidOperationException("Array element type is not struct type.");
+                    foreach (StructTypeNode oitem in originArray)
+                    {
+                        string? pkey = arrType.GetPrimaryKey(oitem);
+                        if (pkey != null && arrDict.TryGetValue(pkey, out StructTypeNode? ditem))
+                        {
+                            foreach (var fld in arrStruct.Fields)
+                            {
+                                AnySchemaNode? orgFld = oitem.GetField(fld.Name);
+                                AnySchemaNode? dataFld = ditem.GetField(fld.Name);
+
+                                if (orgFld?.Type is ScalarType { IsNumber: true } && dataFld?.Type is ScalarType { IsNumber: true })
+                                {
+                                    decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
+                                    decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
+                                    oitem.SetField(fld.Name, fld.TypeNode?.CreateNode(orgVal + dataVal));
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
+        }
+
+        await context.SaveFieldDataAsync(fieldType, target, origin?.ToJson());
+        await context.CommitTransactionAsync();
+        return origin?.ToJson();
+
+    ROLLBACK:
+        await context.RollbackTransactionAsync();
+        return default;
     }
 
     #endregion

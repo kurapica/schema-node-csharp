@@ -19,7 +19,14 @@ public class StructTypeNode : AnySchemaNode
             var field = type.Fields[i];
             Fields[i] = field.TypeNode!.CreateNode() ?? throw new NotSupportedException();
         }
-        Value = value;
+        try
+        {
+            Value = value;
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
     }
 
     public object? this[string name]

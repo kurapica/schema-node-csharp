@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -94,7 +95,7 @@ public class StructType: AnySchemeType
         foreach (StructFieldConfig field in Fields)
         {
             AnySchemeType? typeNode = await context.GetSchemaTypeAsync(field.Type, preload: preload);
-            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
+            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
                 continue;
@@ -372,7 +373,7 @@ public class StructType: AnySchemeType
     /// <summary>
     /// Gets the C# properties for the struct type
     /// </summary>
-    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.ToLower());
+    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.GetBaseType().ToLower());
     static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = [];
     static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CSharpTypePrimaryProperties = [];
 

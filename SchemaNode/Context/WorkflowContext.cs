@@ -216,7 +216,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(string name, AnySchemaNode? payload = null)
+    public void Done(string name, AnySchemaNode? payload = null, bool init = false)
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
@@ -227,13 +227,13 @@ public class WorkflowContext: SchemaContext, IDisposable
         WorkflowState state = GetOrCreateWorkflowState(name);
         
         // fork the workflow context for next nodes
-        if (workflow.Fork && workflow != _workflow && workflow.Next is { Length: > 0 })
+        if (workflow.Fork && (workflow != _workflow || _root == null) && workflow.Next is { Length: > 0 })
         {
             // Fork a new workflow context for next nodes
             WorkflowContext context = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                 _scheduler);
             context.Initialize(Workflow, workflow, this);
-            context.Done(workflow.Name, payload);
+            context.Done(workflow.Name, payload, true);
 
             state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
             state.ForkContexts[context] = context.Id; // record the forked context
@@ -246,7 +246,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         state.Payload = payload;
 
         // schedule the workflow context for next processing
-        _scheduler.Schedule(this); 
+        if (!init) _scheduler.Schedule(this); 
         
         // save
         Persistence();
@@ -569,7 +569,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <returns></returns>
     (Workflow, WorkflowState)? GetNextWorkflowToProcess(Workflow workflow)
     {
-        WorkflowState state = _states.GetOrAdd(workflow.Name, new WorkflowState());
+        WorkflowState state = GetOrCreateWorkflowState(workflow.Name);
         if (state.Status == WorkflowStatus.Waiting)
         {
             // check previous
@@ -626,12 +626,13 @@ public class WorkflowContext: SchemaContext, IDisposable
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
-        return _states.GetOrAdd(_workflow!.Name, (_) =>
+        return _states.GetOrAdd(workflow!.Name, (_) =>
         {
             Type workflowType = workflow.GetType();
-            if (workflowType.IsGenericType && workflowType.GetGenericTypeDefinition() == typeof(IWorkflowSession<>))
+            var inter = workflowType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>));
+            if (inter != null)
             {
-                Type sessionType = workflowType.GetGenericArguments()[0];
+                Type sessionType = inter.GetGenericArguments()[0];
                 Type stateType = typeof(WorkflowState<>).MakeGenericType(sessionType);
                 return (WorkflowState)Activator.CreateInstance(stateType)!;
             }

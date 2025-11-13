@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using Microsoft.AspNetCore.Http;
+using System.Runtime.CompilerServices;
 
 namespace SchemaNode.Utility;
 
@@ -53,6 +54,33 @@ public static class Extension
             DateTimeOffset dto => dto.ToString("yyyy-MM-dd hh:mm:ss.fff"),
             _ => input.ToString()
         };
+    }
+
+    /// <summary>
+    /// Split the type path
+    /// </summary>
+    internal static string[] SplitTypeName(this string name)
+    {
+        List<string> paths = name.ToLower().Split('.', StringSplitOptions.RemoveEmptyEntries).Where(f => !string.IsNullOrEmpty(f)).ToList();
+        while (paths.Count > 1 && paths.Last().EndsWith(">") && !paths.Last().Contains("<"))
+        {
+            string last = paths.Last();
+            paths.RemoveAt(paths.Count - 1);
+
+            string secondLast = paths.Last();
+            paths.RemoveAt(paths.Count - 1);
+
+            paths.Add(secondLast + "." + last);
+        }
+        return paths.ToArray();
+    }
+
+    /// <summary>
+    /// Gets the base type
+    /// </summary>
+    internal static string GetBaseType(this string name)
+    {
+        return name.Contains("<") ? name[..name.IndexOf('<')] : name;
     }
     
     #endregion

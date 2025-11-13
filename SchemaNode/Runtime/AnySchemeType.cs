@@ -74,7 +74,9 @@ public abstract class AnySchemeType: IDisposable
     /// <param name="context">The schema context</param>
     /// <param name="schema">The schema</param>
     /// <param name="preload">Whether during preload</param>
-    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { return Task.CompletedTask; }
+    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { 
+        return Task.CompletedTask; 
+    }
     
     /// <summary>
     /// Release the refs

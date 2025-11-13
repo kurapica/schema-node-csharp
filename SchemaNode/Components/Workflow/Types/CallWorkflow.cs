@@ -29,12 +29,12 @@ public class CallWorkflow: FunctionWorkflow, IWorkflowPayload
             {
                 if (string.IsNullOrEmpty(callArg.Name))
                 {
-                    args.Add(callArg.Value);
+                    args.Add(callArg.Value?.DeepClone());
                 }
                 else
                 {
                     AnySchemaNode? payload = context.GetWorkflowPayload(callArg.Name);
-                    args.Add(payload.ToJsonNode());
+                    args.Add(payload?.ToJson());
                 }
             }
             

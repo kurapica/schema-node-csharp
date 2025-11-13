@@ -1460,7 +1460,7 @@ public class FunctionType: AnySchemeType
                     }
 
                     // Build the exp
-                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), memberExp));
+                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(typeof(System.Object), memberExp)));
                 }
                 return resultVar;
             }
