@@ -56,7 +56,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// The workflow
     /// </summary>
-    public AppWorkflowType Workflow { get; private set; }
+    public AppWorkflowType? Workflow { get; private set; }
     
     #endregion
 
@@ -67,7 +67,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public WorkflowContextSnapshot? Backup(bool forks = false)
     {
-        if (_workflow == null) return null;
+        if (_workflow == null || Workflow == null) return null;
         var snapshot = new WorkflowContextSnapshot();
         snapshot.App = Workflow.App;
         snapshot.Workflow = Workflow.Name;
@@ -122,13 +122,12 @@ public class WorkflowContext: SchemaContext, IDisposable
             state.Payload = node.PayloadType?.CreateNode(nodeSnapshot.Payload);
             if (state.HasSession && nodeSnapshot.Session != null)
             {
-                Type stateType = state.GetType();
-                Type sessionType = stateType.GetGenericArguments()[0];
-                ((dynamic)state).Session = nodeSnapshot.Session.FromJson(sessionType);
+                ((dynamic)state).Session = nodeSnapshot.Session.FromJson(state.GetType().GetGenericArguments()[0]);
             }
-
-            // if the node is a fork, set it to waiting
-            if (node.Fork && state.Status == WorkflowStatus.Running) state.Status = WorkflowStatus.Waiting;
+            // if the node is a fork and can't restore the session, set it to waiting
+            // normally they use subscription need re-subscribe
+            else if (node.Fork && state.Status == WorkflowStatus.Running) 
+                state.Status = WorkflowStatus.Waiting;
         }
         
         // restore forked contexts
@@ -143,7 +142,7 @@ public class WorkflowContext: SchemaContext, IDisposable
                 
                 WorkflowContext forkContext = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                     _scheduler);
-                forkContext.Initialize(Workflow, startNode, this, forkSnapshot);
+                forkContext.Initialize(Workflow!, startNode, this, forkSnapshot);
                 
                 state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
                 state.ForkContexts[forkContext] = forkContext.Id; // record the forked context
@@ -241,7 +240,7 @@ public class WorkflowContext: SchemaContext, IDisposable
             // Fork a new workflow context for next nodes
             WorkflowContext context = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                 _scheduler);
-            context.Initialize(Workflow, workflow, this);
+            context.Initialize(Workflow!, workflow, this);
             context.Done(workflow.Name, payload, true);
 
             state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
@@ -388,13 +387,15 @@ public class WorkflowContext: SchemaContext, IDisposable
         
         await PersistenceAsync();
         
-        foreach (var (_, value) in _states)
+        foreach ((string name, WorkflowState value) in _states)
         {
+            // release workflow state
+            Workflow? workflow = _workflow?.FindByName(name);
+            if (workflow != null) await value.ReleaseAsync(this, workflow);
+            
             if (value.ForkContexts is not { Count: > 0 }) continue;
-            foreach (var fork in value.ForkContexts)
-            {
-                await fork.Key.TerminateAsync();
-            }
+            foreach ((WorkflowContext key, _) in value.ForkContexts)
+                await key.TerminateAsync();
         }
         
         Dispose();
@@ -524,6 +525,14 @@ public class WorkflowContext: SchemaContext, IDisposable
             Task? task = (Task?)processMethod.Invoke(workflow, args);
             if (task != null) await task;
         }
+        
+        /// <summary>
+        /// Release the workflow state
+        /// </summary>
+        public virtual Task ReleaseAsync(WorkflowContext context, Workflow workflow)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     /// <summary>
@@ -562,7 +571,15 @@ public class WorkflowContext: SchemaContext, IDisposable
             Task<T>? task = (Task<T>?)processMethod.Invoke(workflow, args);
             if (task != null) Session = await task;
         }
-        
+
+        /// <summary>
+        /// Release the workflow state
+        /// </summary>
+        public override Task ReleaseAsync(WorkflowContext context, Workflow workflow)
+        {
+            return ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session);
+        }
+
         /// <summary>
         /// The session
         /// </summary>
@@ -636,10 +653,10 @@ public class WorkflowContext: SchemaContext, IDisposable
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
-        return _states.GetOrAdd(workflow!.Name, (_) =>
+        return _states.GetOrAdd(workflow.Name, (_) =>
         {
             Type workflowType = workflow.GetType();
-            var inter = workflowType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>));
+            Type? inter = workflowType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>));
             if (inter != null)
             {
                 Type sessionType = inter.GetGenericArguments()[0];

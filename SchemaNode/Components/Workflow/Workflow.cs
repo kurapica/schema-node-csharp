@@ -13,6 +13,7 @@ namespace SchemaNode.Components;
 public abstract class Workflow
 {
     public const string WORKFLOW_PROCESS_METHOD = "ProcessAsync";
+    public const string WORKFLOW_RELEASE_SESSION_METHOD = "ReleaseSessionAsync";
     
     #region Properties
 
@@ -92,10 +93,9 @@ public abstract class Workflow
     #region Abstract
 
     // Process the workflow
-    // Just declare it since it may have different signature
     //abstract Task ProcessAsync(WorkflowContext context, arg1, arg2, ...);
     //abstract Task<Session> ProcessAsync<Session>(WorkflowContext context, Session, arg1, arg2, ...);
-
+    
     #endregion
 }
 
@@ -115,6 +115,10 @@ public interface IWorkflowState<T>
 /// </summary>
 public interface IWorkflowSession<T>
 {
+    /// <summary>
+    /// Release the workflow session
+    /// </summary>
+    Task ReleaseSessionAsync(WorkflowContext context, T? session);
 }
 
 public interface IWorkflowPayload

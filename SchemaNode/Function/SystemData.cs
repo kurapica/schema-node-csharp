@@ -198,7 +198,7 @@ public static class SystemData
     /// Incr the app field data
     /// </summary>
     [SchemaType]
-    public static async Task<AnySchemaNode?> IncrAppData(
+    public static async Task<JsonNode?> IncrAppData(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
         [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -219,10 +219,10 @@ public static class SystemData
             || fieldType.SchemaType is ScalarType { IsNumber: false } 
             || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.TypeNode is ScalarType {  IsNumber: true })
             || fieldType.SchemaType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
-            ) return default;
+            ) return null;
 
         AnySchemaNode? dataNode = fieldType.SchemaType?.CreateNode(data);
-        if (dataNode == null || dataNode.IsEmpty) return default;
+        if (dataNode == null || dataNode.IsEmpty) return null;
 
         await context.BeginTransactionAsync();
         (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(fieldType, target, dataNode.ToJson(), forUpdate: true);
@@ -297,11 +297,12 @@ public static class SystemData
 
         await context.SaveFieldDataAsync(fieldType, target, origin?.ToJson());
         await context.CommitTransactionAsync();
-        return origin is ArrayTypeNode arrayNode ? arrayNode.FirstOrDefault() : origin;
+        return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
+        Console.WriteLine("ROLLBACK");
         await context.RollbackTransactionAsync();
-        return default;
+        return null;
     }
 
     #endregion

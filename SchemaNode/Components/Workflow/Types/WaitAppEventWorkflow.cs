@@ -39,6 +39,15 @@ public class WaitAppEventWorkflow : EventWorkflow,
             });
         }
     }
+    
+    /// <summary>
+    /// Release the subscription
+    /// </summary>
+    public Task ReleaseSessionAsync(WorkflowContext context, IDisposable? session)
+    {
+        session?.Dispose();
+        return Task.CompletedTask;
+    }
 }
 
 
