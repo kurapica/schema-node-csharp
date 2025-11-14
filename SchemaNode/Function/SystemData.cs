@@ -198,11 +198,11 @@ public static class SystemData
     /// Incr the app field data
     /// </summary>
     [SchemaType]
-    public static async Task<JsonNode?> IncrAppData(
+    public static async Task<AnySchemaNode?> IncrAppData(
         SchemaContext context,
         [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
         [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        JsonNode data
+        [SchemaType(NS_GENERIC_TYPE)] JsonNode data
     )
     {
         string target = string.IsNullOrEmpty(context.Target)
@@ -260,8 +260,9 @@ public static class SystemData
                 {
                     if (dataNode is not ArrayTypeNode arrayData || origin is not ArrayTypeNode originArray) goto ROLLBACK;
                     Dictionary<string, StructTypeNode> arrDict = new();
-                    foreach(StructTypeNode ditem in arrayData)
+                    foreach(var i in arrayData)
                     {
+                        var ditem = (StructTypeNode)i;
                         string? pkey = arrType.GetPrimaryKey(ditem);
                         if (pkey != null)
                         {
@@ -270,8 +271,9 @@ public static class SystemData
                     }
                     StructType arrStruct = arrType.ElementSchemaType as StructType 
                         ?? throw new InvalidOperationException("Array element type is not struct type.");
-                    foreach (StructTypeNode oitem in originArray)
+                    foreach (var i in originArray)
                     {
+                        var oitem = (StructTypeNode)i;
                         string? pkey = arrType.GetPrimaryKey(oitem);
                         if (pkey != null && arrDict.TryGetValue(pkey, out StructTypeNode? ditem))
                         {
@@ -295,7 +297,7 @@ public static class SystemData
 
         await context.SaveFieldDataAsync(fieldType, target, origin?.ToJson());
         await context.CommitTransactionAsync();
-        return origin?.ToJson();
+        return origin is ArrayTypeNode arrayNode ? arrayNode.FirstOrDefault() : origin;
 
     ROLLBACK:
         await context.RollbackTransactionAsync();

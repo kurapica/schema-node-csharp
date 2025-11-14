@@ -744,18 +744,20 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Save app workflow schema
     /// </summary>
-    public async Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow)
+    public async Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow, bool forActive = false)
     {
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
         
         AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow.Name, StringComparison.OrdinalIgnoreCase));
-        if (appWorkflowType is { Activated: true }) return false;
+        if (!forActive && appWorkflowType is { Activated: true }) return false;
 
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SaveAppWorkflowSchemaAsync(app, workflow)) return false;
 
+        if (forActive) return true;
+        
         await GetAppTypeAsync(app, reload: true);
 
         // cluster event
@@ -800,10 +802,10 @@ public class SchemaContext(IServiceProvider serviceProvider)
             try
             {
                 await appWorkflowType.ActiveAsync(this);
-                if (!appWorkflowType.Active)
+                if (appWorkflowType.Activated)
                 {
                     appWorkflowType.Active = true;
-                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType);
+                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType, true);
                 }
                 return true;
             }
@@ -818,10 +820,10 @@ public class SchemaContext(IServiceProvider serviceProvider)
             try
             {
                 await appWorkflowType.DeactivateAsync();
-                if (appWorkflowType.Active)
+                if (!appWorkflowType.Activated)
                 {
                     appWorkflowType.Active = false;
-                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType);
+                    await SaveAppWorkflowSchemaAsync(app, appWorkflowType, true);
                 }
                 return true;
             }
@@ -1684,7 +1686,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
                         {
                             // Raise create event
                             AnySchemaNode? newValue = change.Value;
-                            if (newValue is ArrayTypeNode { ElementType: StructType, Type: ArrayType { Primary.Length: > 0 } } arr)
+                            if (newValue is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 })
                             {
                                 foreach (AnySchemaNode item in arr)
                                     this.RaiseEvent(new AppFieldDataCreateEvent(field, target), item);
@@ -1700,7 +1702,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
                         {
                             AnySchemaNode? changeValues = change.Value;
                             AnySchemaNode? originValues = change.Origin;
-                            if (changeValues is ArrayTypeNode { ElementType: StructType, Type: ArrayType { Primary.Length: > 0 } type } arr)
+                            if (changeValues is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 } type)
                             {
                                 Dictionary<string, AnySchemaNode> originMap = [];
                                 if (originValues is ArrayTypeNode oldArr)
@@ -1722,9 +1724,8 @@ public class SchemaContext(IServiceProvider serviceProvider)
                                         string? key = type.GetPrimaryKey(structNode);
                                         if (string.IsNullOrEmpty(key)) continue;
                                         
-                                        if (originMap.TryGetValue(key, out AnySchemaNode? o))
+                                        if (originMap.Remove(key, out AnySchemaNode? o))
                                         {
-                                            originMap.Remove(key);
                                             structNode.Origin = o;
                                             this.RaiseEvent(new AppFieldDataUpdateEvent(field, target), structNode);
                                         }
@@ -1755,7 +1756,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
                         case TransactionChangeOperation.DropAll:
                         {
                             AnySchemaNode? origin = change.Origin;
-                            if (origin is ArrayTypeNode { ElementType: StructType, Type: ArrayType { Primary.Length: > 0 } } arr)
+                            if (origin is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 })
                             {
                                 foreach (AnySchemaNode item in arr)
                                     this.RaiseEvent(new AppFieldDataDeleteEvent(field, target), item);

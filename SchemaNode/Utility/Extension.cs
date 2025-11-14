@@ -293,11 +293,20 @@ public static class Extension
         return value.Deserialize(type, NoIndentJsonOption);
     }
     
-    internal static JsonNode? ToJsonNode<T>(this T? value)
+    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
-        if (value == null) return null;
-        if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
-        return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+        try
+        {
+            if (value == null) return null;
+            if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
+            return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+        }
+        catch 
+        {
+            // not able to convert
+            if (!noError) throw;
+            return null;
+        }
     }
 
     internal static T? ToValue<T>(this JsonNode node)

@@ -67,33 +67,39 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public WorkflowContextSnapshot? Backup(bool forks = false)
     {
-        return _workflow != null 
-            ? new WorkflowContextSnapshot
-                {
-                    App = Workflow.App,
-                    Workflow = Workflow.Name,
-                    Start = _workflow.Name,
-                    RootId = _root?.Id ?? Guid.Empty,
-                    Id = Id,
-                    Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running,
-                    Nodes = _states.Select(kv => new WorkflowSnapshot
-                    {
-                        Name = kv.Key,
-                        Status = kv.Value.Status,
-                        Error = kv.Value.Error,
-                        Payload = kv.Value.Payload?.ToJsonNode(),
-                        Session = kv.Value.HasSession 
-                                ? Extension.ToJsonNode(((dynamic)kv.Value).Session)
-                                : null
-                    }).ToArray(),
-                    Forks = forks ? _states.Values
-                        .Where(s => s.ForkContexts != null)
-                        .SelectMany(s => s.ForkContexts!.Keys)
-                        .Where(c => c._workflow != null)
-                        .Select(c => c.Backup()!)
-                        .ToArray() : null
-                }
-            :null;
+        if (_workflow == null) return null;
+        var snapshot = new WorkflowContextSnapshot();
+        snapshot.App = Workflow.App;
+        snapshot.Workflow = Workflow.Name;
+        snapshot.Start = _workflow.Name;
+        snapshot.RootId = _root?.Id ?? Guid.Empty;
+        snapshot.Id = Id;
+        snapshot.Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running;
+        snapshot.Nodes = new WorkflowSnapshot[_states.Count];
+
+        int idx = 0;
+        foreach (var state in _states)
+        {
+            snapshot.Nodes[idx] = new WorkflowSnapshot();
+            snapshot.Nodes[idx].Name = state.Key;
+            snapshot.Nodes[idx].Status = state.Value.Status;
+            snapshot.Nodes[idx].Error = state.Value.Error;
+            snapshot.Nodes[idx].Payload = state.Value.Payload?.ToJson();
+            snapshot.Nodes[idx].Session = state.Value.HasSession 
+                ? Extension.ToJsonNode((object?)((dynamic)state.Value).Session, true)
+                : null;
+            idx++;
+        }
+        
+        snapshot.Forks = forks
+            ? _states.Values
+                .Where(s => s.ForkContexts != null)
+                .SelectMany(s => s.ForkContexts!.Keys)
+                .Where(c => c._workflow != null)
+                .Select(c => c.Backup()!)
+                .ToArray()
+            : null;
+        return snapshot;
     }
 
     /// <summary>
@@ -120,6 +126,9 @@ public class WorkflowContext: SchemaContext, IDisposable
                 Type sessionType = stateType.GetGenericArguments()[0];
                 ((dynamic)state).Session = nodeSnapshot.Session.FromJson(sessionType);
             }
+
+            // if the node is a fork, set it to waiting
+            if (node.Fork && state.Status == WorkflowStatus.Running) state.Status = WorkflowStatus.Waiting;
         }
         
         // restore forked contexts
@@ -388,7 +397,6 @@ public class WorkflowContext: SchemaContext, IDisposable
             }
         }
         
-        _workflow = null;
         Dispose();
     }
     
@@ -449,6 +457,8 @@ public class WorkflowContext: SchemaContext, IDisposable
                 state.ForkContexts.TryRemove(this, out _);
             }
         }
+        
+        _workflow = null;
         _scope.Dispose();
     }
 

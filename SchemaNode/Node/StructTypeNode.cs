@@ -19,14 +19,7 @@ public class StructTypeNode : AnySchemaNode
             var field = type.Fields[i];
             Fields[i] = field.TypeNode!.CreateNode() ?? throw new NotSupportedException();
         }
-        try
-        {
-            Value = value;
-        }
-        catch(Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
+        Value = value;
     }
 
     public object? this[string name]
@@ -121,7 +114,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else
             {
-                throw new InvalidCastException();
+                throw new InvalidCastException($"Invalid value type {value.GetType()}");
             }
         }
     }
