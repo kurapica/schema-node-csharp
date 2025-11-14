@@ -5,11 +5,14 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 
 [SchemaType($"{NS_SYSTEM_WORKFLOW}.appcall")]
-public class CallAppWorkflow: FunctionWorkflow, IWorkflowPayload
+public class CallAppWorkflow: FunctionWorkflow, 
+    IWorkflowState<CallAppWorkflowState>,
+    IWorkflowPayload
 {
     /// <summary>
     /// Process the func call with app target
@@ -21,29 +24,77 @@ public class CallAppWorkflow: FunctionWorkflow, IWorkflowPayload
             context.Error(this, "The function is not defined.");    
             return;
         }
-
-        try
+        
+        for (int attempt = (State?.Retry ?? 0) + 1; attempt > 0; attempt--)
         {
-            JsonArray args = [];
-            foreach (FuncCallArg callArg in FuncArgs!)
+            try
             {
-                if (string.IsNullOrEmpty(callArg.Name))
+                JsonArray args = [];
+                foreach (FuncCallArg callArg in FuncArgs!)
                 {
-                    args.Add(callArg.Value?.DeepClone());
+                    if (string.IsNullOrEmpty(callArg.Name))
+                    {
+                        args.Add(callArg.Value?.DeepClone());
+                    }
+                    else
+                    {
+                        AnySchemaNode? payload = context.GetWorkflowPayload(callArg.Name);
+                        args.Add(payload?.ToJson());
+                    }
                 }
-                else
+
+                JsonNode? result = await context.CallFunctionAsync(Function, args,
+                    PayloadType != null ? [PayloadType.Name] : null, target);
+                if (State?.Result ?? false)
                 {
-                    AnySchemaNode? payload = context.GetWorkflowPayload(callArg.Name);
-                    args.Add(payload?.ToJson());
+                    if (result == null || result.IsEmpty())
+                    {
+                        if (attempt > 1)
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(State?.Delay ?? 1));
+                            continue;
+                        }
+                        else
+                        {
+                            context.Error(this, "The function call result is empty.");
+                            return;
+                        }
+                    }
                 }
+
+                SetPayload(context, result);
+                break;
             }
-            
-            JsonNode? result = await context.CallFunctionAsync(Function, args, PayloadType != null ? [PayloadType.Name] : null, target);
-            SetPayload(context, result);
-        }
-        catch (Exception e)
-        {
-            context.Error(this, e.GetInnermostException().Message);
+            catch (Exception e)
+            {
+                if (attempt != 1) continue;
+                context.Error(this, e.GetInnermostException().Message);
+                return;
+            }
         }
     }
+
+    public CallAppWorkflowState? State { get; set; }
+}
+
+/// <summary>
+/// The call app workflow state
+/// </summary>
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.appcallstate")]
+public class CallAppWorkflowState
+{
+    /// <summary>
+    /// Result required
+    /// </summary>
+    public bool? Result { get; set; }
+    
+    /// <summary>
+    /// The retry count
+    /// </summary>
+    public int? Retry { get; set; }
+    
+    /// <summary>
+    /// The delay seconds between retries
+    /// </summary>
+    public int? Delay { get; set; }
 }

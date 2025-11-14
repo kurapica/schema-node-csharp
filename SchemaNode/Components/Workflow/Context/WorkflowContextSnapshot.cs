@@ -39,6 +39,11 @@ public class WorkflowContextSnapshot
     /// The start root node
     /// </summary>
     public string Start { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The creation time
+    /// </summary>
+    public DateTime CreateTime { get; set; }
 
     /// <summary>
     /// The root id

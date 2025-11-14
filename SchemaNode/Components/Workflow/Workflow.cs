@@ -107,7 +107,7 @@ public interface IWorkflowState<T>
     /// <summary>
     /// The workflow state
     /// </summary>
-    T State { get; set; }
+    T? State { get; set; }
 }
 
 /// <summary>

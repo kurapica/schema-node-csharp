@@ -300,7 +300,6 @@ public static class SystemData
         return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
-        Console.WriteLine("ROLLBACK");
         await context.RollbackTransactionAsync();
         return null;
     }

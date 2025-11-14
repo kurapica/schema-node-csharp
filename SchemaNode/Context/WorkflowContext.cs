@@ -47,6 +47,11 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// The workflow unique identifier
     /// </summary>
     public Guid Id { get; private set; } = Guid.CreateVersion7();
+    
+    /// <summary>
+    /// The creation time
+    /// </summary>
+    public DateTime CreateTime { get; private set; } = DateTime.UtcNow;
 
     /// <summary>
     /// The root workflow context id
@@ -68,38 +73,34 @@ public class WorkflowContext: SchemaContext, IDisposable
     public WorkflowContextSnapshot? Backup(bool forks = false)
     {
         if (_workflow == null || Workflow == null) return null;
-        var snapshot = new WorkflowContextSnapshot();
-        snapshot.App = Workflow.App;
-        snapshot.Workflow = Workflow.Name;
-        snapshot.Start = _workflow.Name;
-        snapshot.RootId = _root?.Id ?? Guid.Empty;
-        snapshot.Id = Id;
-        snapshot.Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running;
-        snapshot.Nodes = new WorkflowSnapshot[_states.Count];
-
-        int idx = 0;
-        foreach (var state in _states)
+        return new WorkflowContextSnapshot
         {
-            snapshot.Nodes[idx] = new WorkflowSnapshot();
-            snapshot.Nodes[idx].Name = state.Key;
-            snapshot.Nodes[idx].Status = state.Value.Status;
-            snapshot.Nodes[idx].Error = state.Value.Error;
-            snapshot.Nodes[idx].Payload = state.Value.Payload?.ToJson();
-            snapshot.Nodes[idx].Session = state.Value.HasSession 
-                ? Extension.ToJsonNode((object?)((dynamic)state.Value).Session, true)
-                : null;
-            idx++;
-        }
-        
-        snapshot.Forks = forks
-            ? _states.Values
-                .Where(s => s.ForkContexts != null)
-                .SelectMany(s => s.ForkContexts!.Keys)
-                .Where(c => c._workflow != null)
-                .Select(c => c.Backup()!)
-                .ToArray()
-            : null;
-        return snapshot;
+            App = Workflow.App,
+            Workflow = Workflow.Name,
+            Start = _workflow.Name,
+            CreateTime = CreateTime,
+            RootId = _root?.Id ?? Guid.Empty,
+            Id = Id,
+            Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running,
+            Nodes = _states.Select(kv => new WorkflowSnapshot
+            {
+                Name = kv.Key,
+                Status = kv.Value.Status,
+                Error = kv.Value.Error,
+                Payload = kv.Value.Payload?.ToJson(),
+                Session = kv.Value.HasSession 
+                    ? Extension.ToJsonNode((object?)((dynamic)kv.Value).Session, true)
+                    : null
+            }).ToArray(),
+            Forks = forks
+                ? _states.Values
+                    .Where(s => s.ForkContexts != null)
+                    .SelectMany(s => s.ForkContexts!.Keys)
+                    .Where(c => c._workflow != null)
+                    .Select(c => c.Backup()!)
+                    .ToArray()
+                : null,
+        };
     }
 
     /// <summary>
@@ -109,6 +110,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     {
         if (snapshot is not { Status: WorkflowStatus.Running }) return;
         Id = snapshot.Id;
+        CreateTime = snapshot.CreateTime;
         
         // restore states
         foreach (var nodeSnapshot in snapshot.Nodes)
