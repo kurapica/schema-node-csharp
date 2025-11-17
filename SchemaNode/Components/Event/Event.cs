@@ -1,3 +1,8 @@
+using System.Collections.Concurrent;
+using System.Reactive.Concurrency;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
+using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -77,16 +82,16 @@ public interface IEventPayload<T>
 }
 
 /// <summary>
-/// The event dispatcher
+/// The default event dispatcher
 /// </summary>
-public interface IEventDispatcher<in T> where T : Event
+public interface IEventDispatcher
 {
     #region Abstract
 
     /// <summary>
     /// Dispatch the event
     /// </summary>
-    void DispatchEvent<E>(E @event) where E : T;
+    void DispatchEvent<E>(E @event) where E: Event;
     
     /// <summary>
     /// Subscribe an event
@@ -105,19 +110,24 @@ public interface IEventDispatcher<in T> where T : Event
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E : Event => SubscribeEvent(typeof(E), onEvent);
+    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E: Event 
+        => SubscribeEvent(typeof(E), onEvent);
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E: Event => SubscribeTopicEvent(typeof(E), topic, onEvent);
+    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E: Event 
+        => SubscribeTopicEvent(typeof(E), topic, onEvent);
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeEventOnce<E>(Type eventType, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeEventOnce<E>(Type eventType, Action<E> onEvent) where E: Event
     {
         IDisposable? subscription = null;
+
+        subscription = SubscribeEvent(eventType,  (Action<E>)Handler);
+        return subscription;
 
         void Handler(E @event)
         {
@@ -131,46 +141,116 @@ public interface IEventDispatcher<in T> where T : Event
                 Console.WriteLine($"SubscribeEventOnce error: {ex}");
             }
         }
-
-        subscription = SubscribeEvent(eventType, (Action<E>)Handler);
-        return subscription;
     }
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeEventOnce<E>(Action<E> onEvent) where E : Event => SubscribeEventOnce(typeof(E), onEvent);
+    public IDisposable SubscribeEventOnce<E>(Action<E> onEvent) where E: Event => SubscribeEventOnce(typeof(E), onEvent);
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeTopicEventOnce<E>(Type eventType, string topic, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeTopicEventOnce<E>(Type eventType, string topic, Action<E> onEvent) where E: Event
     {
         IDisposable? subscription = null;
-
-        void Handler(E @event)
-        {
-            try
-            {
-                subscription?.Dispose();
-                onEvent(@event);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
-            }
-        }
 
         subscription = SubscribeTopicEvent(eventType, topic, (Action<E>)Handler);
         return subscription;
+
+        void Handler(E @event)
+        {
+            try
+            {
+                subscription?.Dispose();
+                onEvent(@event);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SubscribeEventOnce error: {ex}");
+            }
+        }
     }
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E : Event => SubscribeTopicEventOnce(typeof(E), topic, onEvent);
+    public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E: Event
+        => SubscribeTopicEventOnce(typeof(E), topic, onEvent);
 
     #endregion
+}
+
+/// <summary>
+/// The event dispatcher
+/// </summary>
+public interface IEventDispatcher<in T>: IEventDispatcher where T : Event
+{
+}
+
+/// <summary>
+/// The default event dispatcher
+/// </summary>
+public class DefaultEventDispatcher : IEventDispatcher<Event>
+{
+    /// <summary>
+    /// Dispatch the event
+    /// </summary>
+    public void DispatchEvent<E>(E @event) where E : Event
+    {
+        string? root = !string.IsNullOrEmpty(@event.Topic) ? @event.Topic.Split('/')[0] : null;
+
+        // topic subjects
+        if (!string.IsNullOrEmpty(root)
+            && TopicEventSubjects.TryGetValue(@event.GetType(), out var topicSubjects) 
+            && topicSubjects.TryGetValue(root, out var subject))
+        {
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                subject.OnNext(@event);
+            });
+        }
+
+        // global subjects
+        if (GlobalEventSubjects.TryGetValue(@event.GetType(), out var globalSubject))
+        {
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                globalSubject.OnNext(@event);
+            });
+        }
+    }
+
+    /// <summary>
+    /// Subscribe to the application event
+    /// </summary>
+    public IDisposable SubscribeEvent<E>(Type eventType, Action<E> onEvent) where E : Event
+    {
+        var subject = GlobalEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
+    }
+
+    /// <summary>
+    /// Subscribe topic event
+    /// </summary>
+    public IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event
+    {
+        string? root = !string.IsNullOrEmpty(topic) ? topic.Split('/')[0] : null;
+        
+        // global subscribe
+        if (string.IsNullOrEmpty(root) || root == "*" || root == "#") 
+            return SubscribeEvent(eventType, onEvent);
+        
+        var topicSubjects = TopicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
+        var subject = topicSubjects.GetOrAdd(root, _ => new Subject<Event>());
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
+    }
+
+    static readonly ConcurrentDictionary<Type, Subject<Event>> GlobalEventSubjects = new();
+    static readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, Subject<Event>>> TopicEventSubjects = [];
+
 }
 
 /// <summary>
@@ -178,13 +258,51 @@ public interface IEventDispatcher<in T> where T : Event
 /// </summary>
 public static class EventExtensions
 {
+    #region Utility
+    
+    static readonly ConcurrentDictionary<Type, IEventDispatcher> EventDispatchers = [];
+    static readonly ConcurrentDictionary<Type, AnySchemeType> EventPayloads = [];
+
+    // Gets the event dispatcher by type
+    static IEventDispatcher? GetEventDispatcher(SchemaContext context, Type type)
+    {
+        if (EventDispatchers.TryGetValue(type, out var dispatcher))
+            return dispatcher;
+        
+        // Try to get from service provider
+        Type dispatchType = typeof(IEventDispatcher<>).MakeGenericType(type);
+        dispatcher = context.GetService(dispatchType) as IEventDispatcher;
+        if (dispatcher != null)
+        {
+            EventDispatchers[type] = dispatcher;
+            return dispatcher;
+        }
+        
+        // Try to get from the super class
+        Type? baseType = type.BaseType;
+        if (baseType != null && baseType != typeof(object))
+        {
+            dispatcher = GetEventDispatcher(context, baseType);
+            if (dispatcher != null)
+            {
+                EventDispatchers[type] = dispatcher;
+                return dispatcher;
+            }
+        }
+
+        return null;
+    }
+    
+    #endregion
+    
     #region Raise Event
 
     /// <summary>
     /// Raise the event
     /// </summary>
-    public static void RaiseEvent(this SchemaContext context, Event @event, object? payLoad = null)
+    public static void RaiseEvent<E>(this SchemaContext context, E @event, object? payLoad = null) where E : Event
     {
+        // Convert the payload to any schema node
         if (payLoad != null)
         {
             if (payLoad is AnySchemaNode node)
@@ -193,66 +311,42 @@ public static class EventExtensions
             }
             else
             {
-                string? schemaType = payLoad.GetType().GetSchemaType(true);
-                AnySchemeType? type = !string.IsNullOrEmpty(schemaType) ? context.GetSchemaTypeAsync(schemaType).GetAwaiter().GetResult() : null;
-                @event.Payload = type?.CreateNode(payLoad);
+                Type payLoadType = payLoad.GetType();
+                if (!EventPayloads.TryGetValue(payLoadType, out AnySchemeType? eventPayload))
+                {
+                    string? schemaType = payLoad.GetType().GetSchemaType(true);
+                    eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetSchemaTypeAsync(schemaType).GetAwaiter().GetResult() : null;
+                    if (eventPayload != null)
+                    {
+                        EventPayloads[payLoadType] = eventPayload;
+                    }
+                }
+                @event.Payload = eventPayload?.CreateNode(payLoad);
             }
         }
 
-        switch (@event)
-        {
-            case ApplicationEvent appEvent:
-                context.GetService<IApplicationEventDispatcher>()?.DispatchEvent(appEvent);
-                break;
-            case WorkflowEvent wfEvent:
-                context.GetService<IWorkflowEventDispatcher>()?.DispatchEvent(wfEvent);
-                break;
-            case ServerEvent serEvent:
-                context.GetService<IServerEventDispatcher>()?.DispatchEvent(serEvent);
-                break;
-            case ClusterEvent cEvent:
-                context.GetService<IClusterEventDispatcher>()?.DispatchEvent(cEvent);
-                break;
-        }
-
+        // Dispatch the event
+        GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
     }
 
     /// <summary>
     /// Raise the event without constructor parameters
     /// </summary>
-    public static void RaiseEvent<T>(this SchemaContext context, object? payLoad = null) where T : Event, new()
+    public static void RaiseEvent<E>(this SchemaContext context, object? payLoad = null) where E : Event, new()
     {
-        RaiseEvent(context, new T(), payLoad);
+        RaiseEvent(context, new E(), payLoad);
     }
 
     #endregion
     
-    #region Subscribe Event by type
+    #region Subscribe event by handler
     
     /// <summary>
     /// Subscribe an event
     /// </summary>
     public static IDisposable? SubscribeEvent<E>(this SchemaContext context, Action<E> onEvent) where E : Event
     {
-        Type type = typeof(E);
-
-        if (type.IsSubclassOf(typeof(ApplicationEvent)))
-        {
-            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEvent(onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
-        {
-            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEvent(onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ServerEvent)))
-        {
-            return context.GetService<IServerEventDispatcher>()?.SubscribeEvent(onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ClusterEvent)))
-        {
-            return context.GetService<IClusterEventDispatcher>()?.SubscribeEvent(onEvent);
-        }
-        return null;
+        return GetEventDispatcher(context, typeof(E))?.SubscribeEvent(onEvent);
     }
 
     /// <summary>
@@ -260,8 +354,8 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, string topic, Action<E> onEvent) where E : Event
     {
-        return SubscribeEvent<E>(context, Handler);
-
+        return GetEventDispatcher(context, typeof(E))?.SubscribeTopicEvent(topic, (Action<E>)Handler);
+        
         void Handler(E @event)
         {
             try
@@ -271,7 +365,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
+                context.Logger.LogError("SubscribeTopicEvent error: {Exception}", ex);
             }
         }
     }
@@ -290,12 +384,14 @@ public static class EventExtensions
         {
             try
             {
+                if (subscription == null) return;
                 subscription?.Dispose();
+                subscription = null;
                 onEvent(@event);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
+                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }
@@ -306,131 +402,113 @@ public static class EventExtensions
     public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, string topic, Action<E> onEvent) where E : Event
     {
         IDisposable? subscription = null;
-        subscription = SubscribeEvent<E>(context, Handler);
+        subscription = GetEventDispatcher(context, typeof(E))?.SubscribeTopicEvent(topic, (Action<E>)Handler);
         return subscription;
 
         void Handler(E @event)
         {
             try
             {
+                if (subscription == null) return;
                 if (!@event.MatchTopic(topic)) return;
                 subscription?.Dispose();
+                subscription = null;
                 onEvent(@event);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"SubscribeEventOnce error: {ex}");
+                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }
     
     #endregion
 
-    #region Subscribe Event with schema type
+    #region Subscribe Event with given schema type
         
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    public static IDisposable? SubscribeEvent<E>(this SchemaContext context, EventType @event, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEvent<E>(this SchemaContext context, EventType eventType, Action<E> onEvent) where E : Event
     {
-        Type type = @event.ToCSharpType();
-
-        if (type.IsSubclassOf(typeof(ApplicationEvent)))
-        {
-            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEvent(type, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
-        {
-            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEvent(type, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ServerEvent)))
-        {
-            return context.GetService<IServerEventDispatcher>()?.SubscribeEvent(type, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ClusterEvent)))
-        {
-            return context.GetService<IClusterEventDispatcher>()?.SubscribeEvent(type, onEvent);
-        }
-        return null;
+        Type type = eventType.ToCSharpType();
+        return GetEventDispatcher(context, type)?.SubscribeEvent(type, onEvent);
     }
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, EventType @event, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, EventType eventType, string topic, Action<E> onEvent) where E : Event
     {
-        Type type = @event.ToCSharpType();
-
-        if (type.IsSubclassOf(typeof(ApplicationEvent)))
+        Type type = eventType.ToCSharpType();
+        return GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<E>)Handler);
+        
+        void Handler(E @event)
         {
-            return context.GetService<IApplicationEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
+            try
+            {
+                if (!@event.MatchTopic(topic)) return;
+                onEvent(@event);
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogError("SubscribeTopicEvent error: {Exception}", ex);
+            }
         }
-        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
-        {
-            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ServerEvent)))
-        {
-            return context.GetService<IServerEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ClusterEvent)))
-        {
-            return context.GetService<IClusterEventDispatcher>()?.SubscribeTopicEvent(type, topic, onEvent);
-        }
-        return null;
     }
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeEventOnce<E>(this SchemaContext context, EventType @event, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEventOnce<E>(this SchemaContext context, EventType eventType, Action<E> onEvent) where E : Event
     {
-        Type type = @event.ToCSharpType();
+        IDisposable? subscription = null;
+        subscription = SubscribeEvent<E>(context, eventType, Handler);
+        return subscription;
 
-        if (type.IsSubclassOf(typeof(ApplicationEvent)))
+        void Handler(E @event)
         {
-            return context.GetService<IApplicationEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
+            try
+            {
+                if (subscription == null) return;
+                subscription?.Dispose();
+                subscription = null;
+                onEvent(@event);
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+            }
         }
-        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
-        {
-            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ServerEvent)))
-        {
-            return context.GetService<IServerEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ClusterEvent)))
-        {
-            return context.GetService<IClusterEventDispatcher>()?.SubscribeEventOnce(type, onEvent);
-        }
-        return null;
     }
 
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, EventType @event, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, EventType eventType, string topic, Action<E> onEvent) where E : Event
     {
-        Type type = @event.ToCSharpType();
+        Type type = eventType.ToCSharpType();
+        
+        IDisposable? subscription = null;
+        subscription = GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<E>)Handler);
+        return subscription;
 
-        if (type.IsSubclassOf(typeof(ApplicationEvent)))
+        void Handler(E @event)
         {
-            return context.GetService<IApplicationEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
+            try
+            {
+                if (subscription == null) return;
+                if (!@event.MatchTopic(topic)) return;
+                subscription?.Dispose();
+                subscription = null;
+                onEvent(@event);
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+            }
         }
-        else if (type.IsSubclassOf(typeof(WorkflowEvent)))
-        {
-            return context.GetService<IWorkflowEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ServerEvent)))
-        {
-            return context.GetService<IServerEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
-        }
-        else if (type.IsSubclassOf(typeof(ClusterEvent)))
-        {
-            return context.GetService<IClusterEventDispatcher>()?.SubscribeTopicEventOnce(type, topic, onEvent);
-        }
-        return null;
     }
 
     #endregion

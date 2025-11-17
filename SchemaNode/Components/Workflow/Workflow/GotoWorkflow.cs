@@ -14,14 +14,6 @@ public class GotoWorkflow: Workflow
         [SchemaType(NS_SYSTEM_WORKFLOW_NODE)] string falseNode)
     {
         await Task.Yield();
-
-        if (flag)
-        {
-            context.Goto(this, trueNode);
-        }
-        else
-        {
-            context.Goto(this, falseNode);
-        }
+        context.Goto(this, flag ? trueNode : falseNode);
     }
 }

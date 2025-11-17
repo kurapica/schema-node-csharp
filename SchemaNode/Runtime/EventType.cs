@@ -17,22 +17,11 @@ namespace SchemaNode.Runtime;
 public class EventType: AnySchemeType
 {
     #region Data
-
-    /// <summary>
-    /// The event type
-    /// </summary>
-    public EventScope Scope { get; private set; } = EventScope.Workflow;
     
     /// <summary>
     /// The default event value type, if no should be given when using
     /// </summary>
-    public string Return { get; private set; } = string.Empty;
-    
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; internal set; }
+    public string Payload { get; internal set; } = string.Empty;
     
     #endregion
     
@@ -40,7 +29,10 @@ public class EventType: AnySchemeType
     
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Event;
-    
+
+    /// <inheritdoc />
+    public override bool IsUsed => true;
+
     #endregion
     
     #region Method
@@ -51,9 +43,7 @@ public class EventType: AnySchemeType
         EventSchema? @event = schema.Event;
         
         // Data
-        Scope = @event?.Scope ?? EventScope.Server;
-        Return = @event?.Payload ?? string.Empty;
-        Additional = @event?.Additional;
+        Payload = @event?.Payload ?? string.Empty;
 
         if (@event == null) Status = SchemaNodeStatus.NoDefinition;
 
@@ -88,19 +78,11 @@ public class EventType: AnySchemeType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Event = new EventSchema
             {
-                Scope = type.IsSubclassOf(typeof(WorkflowEvent)) 
-                    ? EventScope.Workflow 
-                    : type.IsSubclassOf(typeof(ApplicationEvent))
-                        ? EventScope.Application
-                        : type.IsSubclassOf(typeof(ServerEvent))
-                            ? EventScope.Server
-                            : EventScope.Cluster,
                 Payload = payloadType?.GetSchemaType(true) ?? (type.IsAssignableTo(typeof(IEventPayload)) ? "T" :  ""),
             }
         };
         
         EventTypeNames[type] = typeName;
-        
         return [ eventSchema ];
     }
 
@@ -141,9 +123,7 @@ public class EventType: AnySchemeType
             Used = schema.IsUsed,
             Event = new EventSchema
             {
-                Scope = schema.Scope,
-                Payload = schema.Return,
-                Additional = schema.Additional,
+                Payload = schema.Payload,
             }
         };
     }

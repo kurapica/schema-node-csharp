@@ -8,7 +8,6 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
-// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Context;
 
@@ -70,7 +69,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// Backup the workflow context state
     /// </summary>
-    public WorkflowContextSnapshot? Backup(bool forks = false)
+    private WorkflowContextSnapshot? Backup(bool forks = false)
     {
         if (_workflow == null || Workflow == null) return null;
         return new WorkflowContextSnapshot
@@ -106,7 +105,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// Restore the workflow context state
     /// </summary>
-    public void Restore(WorkflowContextSnapshot? snapshot)
+    private void Restore(WorkflowContextSnapshot? snapshot)
     {
         if (snapshot is not { Status: WorkflowStatus.Running }) return;
         Id = snapshot.Id;
@@ -197,13 +196,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         
         // check nested payload
         string[] paths = name.Split(".", StringSplitOptions.RemoveEmptyEntries);
-        AnySchemaNode? payload = GetWorkflowPayload(paths[0]);
-        for (int i = 1; i < paths.Length; i++)
-        {
-            if (payload is not StructTypeNode @struct) return null;
-            payload = @struct.GetField(paths[i]);
-        }
-        return payload;
+        return (GetWorkflowPayload(paths[0]) as StructTypeNode)?.GetValueByPaths(paths.Skip(1));
     }
 
     /// <summary>
@@ -239,6 +232,24 @@ public class WorkflowContext: SchemaContext, IDisposable
         // fork the workflow context for next nodes
         if (workflow.Fork && (workflow != _workflow || _root == null) && workflow.Next is { Length: > 0 })
         {
+            // check the fork key
+            if (!string.IsNullOrEmpty(workflow.ForkKey))
+            {
+                AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey);
+                if (forkKeyNode != null && state.ForkContexts != null)
+                {
+                    string key = forkKeyNode.ToString();
+                    // Check existed forks
+                    foreach (var (workflowContext, _) in state.ForkContexts)
+                    {
+                        forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)?.GetValueByPaths(key);
+                        if (forkKeyNode == null || !forkKeyNode.ToString().Equals(key)) continue;
+                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}", Id, name, key);
+                        return; // skip fork for existing key
+                    }
+                }
+            }
+            
             // Fork a new workflow context for next nodes
             WorkflowContext context = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                 _scheduler);
@@ -472,7 +483,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// The workflow state
     /// </summary>
-    internal class WorkflowState
+    private class WorkflowState
     {
         /// <summary>
         /// The workflow status
@@ -540,7 +551,7 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     ///  The workflow state with session
     /// </summary>
-    internal class WorkflowState<T>: WorkflowState
+    private class WorkflowState<T>: WorkflowState
     {
         public override bool HasSession => true;
 
@@ -585,7 +596,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// <summary>
         /// The session
         /// </summary>
-        public T? Session { get; set; }
+        private T? Session { get; set; }
     }
 
     #endregion

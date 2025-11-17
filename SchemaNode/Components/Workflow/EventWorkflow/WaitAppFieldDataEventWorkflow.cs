@@ -36,7 +36,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
         session?.Dispose();
         if (Fork)
         {
-            return context.SubscribeTopicEvent<ApplicationEvent>(Event!, topic, @event =>
+            return context.SubscribeTopicEvent<AppEvent>(Event!, topic, @event =>
             {
                 string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
                 SetPayload(context, new WaitAppFieldDataEventWorkflowPayload
@@ -51,7 +51,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
         }
         else
         {
-            return context.SubscribeTopicEventOnce<ApplicationEvent>(Event!, topic, @event =>
+            return context.SubscribeTopicEventOnce<AppEvent>(Event!, topic, @event =>
             {
                 string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
                 SetPayload(context, new WaitAppFieldDataEventWorkflowPayload

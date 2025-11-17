@@ -9,15 +9,15 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.appcall")]
-public class CallAppWorkflow: FunctionWorkflow, 
-    IWorkflowState<CallAppWorkflowState>,
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.func.call")]
+public class CallWorkflow: FunctionWorkflow, 
+    IWorkflowState<CallWorkflowState>,
     IWorkflowPayload
 {
     /// <summary>
-    /// Process the func call with app target
+    /// Process the func call
     /// </summary>
-    public async Task ProcessAsync(WorkflowContext context, string target)
+    public async Task ProcessAsync(WorkflowContext context)
     {
         if (Function is null)
         {
@@ -44,7 +44,7 @@ public class CallAppWorkflow: FunctionWorkflow,
                 }
 
                 JsonNode? result = await context.CallFunctionAsync(Function, args,
-                    PayloadType != null ? [PayloadType.Name] : null, target);
+                    PayloadType != null ? [PayloadType.Name] : null);
                 if (State?.Result ?? false)
                 {
                     if (result == null || result.IsEmpty())
@@ -74,14 +74,14 @@ public class CallAppWorkflow: FunctionWorkflow,
         }
     }
 
-    public CallAppWorkflowState? State { get; set; }
+    public CallWorkflowState? State { get; set; }
 }
 
 /// <summary>
 /// The call app workflow state
 /// </summary>
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.appcallstate")]
-public class CallAppWorkflowState
+[SchemaType($"{NS_SYSTEM_WORKFLOW}.func.callstate")]
+public class CallWorkflowState
 {
     /// <summary>
     /// Result required

@@ -20,7 +20,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
         session?.Dispose();
         if (Fork)
         {
-            return context.SubscribeTopicEvent<ApplicationEvent>(Event!, topic, _ =>
+            return context.SubscribeTopicEvent<AppEvent>(Event!, topic, _ =>
             {
                 SetPayload(context, new WaitAppEventWorkflowPayload
                 {
@@ -30,7 +30,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
         }
         else
         {
-            return context.SubscribeTopicEventOnce<ApplicationEvent>(Event!, topic, _ =>
+            return context.SubscribeTopicEventOnce<AppEvent>(Event!, topic, _ =>
             {
                 SetPayload(context, new WaitAppEventWorkflowPayload
                 {

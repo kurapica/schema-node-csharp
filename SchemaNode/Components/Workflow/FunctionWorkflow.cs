@@ -4,7 +4,7 @@ using SchemaNode.Schema;
 namespace SchemaNode.Components;
 
 /// <summary>
-/// The function workflow class
+/// The workflow class associated with function call
 /// </summary>
 public abstract class FunctionWorkflow: Workflow
 {

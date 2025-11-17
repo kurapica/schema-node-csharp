@@ -22,18 +22,7 @@ public class EventSchema
     public string? Name { get; set; }
     
     /// <summary>
-    /// The event scope
-    /// </summary>
-    public EventScope Scope { get; set; }
-    
-    /// <summary>
     /// The event value type
     /// </summary>
     public string? Payload { get; set; }
-    
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
