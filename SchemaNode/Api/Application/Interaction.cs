@@ -40,18 +40,17 @@ public class InteractionRequest : SchemaApiRequest
     /// </summary>
     [Required]
     public required string Target { get; set; }
+    
+    /// <summary>
+    /// The interaction workflow name
+    /// </summary>
+    [Required]
+    public required string Workflow { get; set; }
 
     /// <summary>
     /// The work flow id
     /// </summary>
-    [Required]
-    public Guid? Workflow { get; set; }
-    
-    /// <summary>
-    /// The form type
-    /// </summary>
-    [Required]
-    public string FormType { get; set; } = string.Empty;
+    public Guid? WorkflowId { get; set; }
     
     /// <summary>
     /// The form data
