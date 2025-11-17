@@ -9,9 +9,18 @@ public static class Constant
     #region Schema
 
     public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
+
+    public const string NS_GENERIC_TYPE = "T";
+    public const string NS_GENERIC_TYPE_1 = "T1";
+    public const string NS_GENERIC_TYPE_2 = "T2";
+    public const string NS_GENERIC_TYPE_3 = "T3";
+    public const string NS_GENERIC_TYPE_4 = "T4";
+    public const string REGEX_GENERIC_TYPE = @"^T\d*$";
+    public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
     
     public const string NS_SYSTEM = "system";
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
+    public const string NS_SYSTEM_LIST = "system.list"; // generic array type
     public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
     public const string NS_SYSTEM_JSON = "system.json"; // any value, used by entity
     public const string NS_SYSTEM_BOOL = "system.bool";
@@ -53,6 +62,8 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
     public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
     public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
+    public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
+    public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
@@ -62,13 +73,22 @@ public static class Constant
     
     public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
-
+    public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
+    
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
-    
+    public const string NS_SYSTEM_DATETIME = "system.datetime";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
+    public const string NS_SYSTEM_DATA = "system.data";
+    
+    // workflow namespace
+    public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    public const string NS_SYSTEM_WORKFLOW_NODE = "system.workflow.node";
+    
+    // event namespace
+    public const string NS_SYSTEM_EVENT = "system.event";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
@@ -77,6 +97,12 @@ public static class Constant
     public const int FUNC_SIGN_IMMUTABLE = 8;
     public const int FUNC_SIGN_REMOTE_CALL = 16;
     public const int FUNC_SIGN_NULLABLE_RET = 32;
+
+    // Topic
+    public const char TOPIC_SEP = '/';
+    public const string TOPIC_WILDCARD_SINGLE = "+";
+    public const string TOPIC_WILDCARD_MULTI = "*";
+    public const string TOPIC_WILDCARD_ALL = "#";
 
     /// <summary>
     /// DYNAMIC TABLE TARG FIELD

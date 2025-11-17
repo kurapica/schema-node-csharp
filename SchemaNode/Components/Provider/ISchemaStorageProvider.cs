@@ -50,7 +50,7 @@ public interface ISchemaStorageProvider: ISchemaProvider
     /// Save app field schema
     /// </summary>
     Task<bool> SaveAppFieldSchemaAsync(string app, AppFieldSchema field);
-
+    
     /// <summary>
     /// Delete app field schema
     /// </summary>
@@ -59,9 +59,15 @@ public interface ISchemaStorageProvider: ISchemaProvider
     /// <summary>
     /// Swap the field order
     /// </summary>
-    /// <param name="app"></param>
-    /// <param name="field1"></param>
-    /// <param name="field2"></param>
-    /// <returns></returns>
     Task<bool> SwapAppFieldSchemaAsync(string app, string field1, string field2);
+    
+    /// <summary>
+    /// Save app workflow schema
+    /// </summary>
+    Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow);
+
+    /// <summary>
+    /// Delete app workflow schema
+    /// </summary>
+    Task<bool> DeleteAppWorkflowSchemaAsync(string app, string workflow);
 }

@@ -17,22 +17,36 @@ public abstract class AnySchemaNode
     /// <summary>
     /// The schema type representation
     /// </summary>
-    public AnySchemeType Type { get; set; }
+    public AnySchemeType Type { get; internal set; }
 
     /// <summary>
     /// The c# type representation
     /// </summary>
-    public Type CsharpType { get; set; }
+    public Type CsharpType { get; internal set; }
+
+    /// <summary>
+    /// The origin value to track the changes, also simple the event payload
+    /// </summary>
+    public AnySchemaNode? Origin { get; internal set; }
 
     /// <summary>
     /// The schema type
     /// </summary>
     public SchemaType SchemaType => Type.Type;
 
+    /// <summary>
+    /// indicate whether the node is empty
+    /// </summary>
     public virtual bool IsEmpty => _value == null;
 
+    /// <summary>
+    /// Convert to value
+    /// </summary>
     public virtual T? ToValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
 
+    /// <summary>
+    /// Convert to type value
+    /// </summary>
     public virtual object? ToTypeValue(Type type) => type.TryConvert(_value);
 
     /// <summary>
@@ -64,5 +78,6 @@ public abstract class AnySchemaNode
     /// </summary>
     public override string ToString() => _value?.ToLiteral() ?? string.Empty;
 
+    // The internal value
     internal object? _value;
 }

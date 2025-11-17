@@ -8,21 +8,25 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The message handler
 /// </summary>
+[Obsolete]
 public interface ISchemaMessageHandler<in T>
 {
     Task HandleAsync(SchemaContext context, T message);
 }
 
+[Obsolete]
 public interface ISchemaMessagePublisher
 {
     Task PublishAsync<T>(T message);
 }
 
+[Obsolete]
 static class SchemaMessageHandlerExtensions
 {
     /// <summary>
     /// Register all message handlers in the assembly of the type
     /// </summary>
+    [Obsolete]
     public static void RegisterSchemaMessageHandlers<T>(IServiceCollection services)
     {
         RegisterSchemaMessageHandlers(services, typeof(T).Assembly);
@@ -31,6 +35,7 @@ static class SchemaMessageHandlerExtensions
     /// <summary>
     /// Register all message handlers in the assembly
     /// </summary>
+    [Obsolete]
     public static void RegisterSchemaMessageHandlers(IServiceCollection services, Assembly? assembly)
     {
         if (assembly == null) return;
@@ -48,6 +53,7 @@ static class SchemaMessageHandlerExtensions
     /// <param name="context">The schema context</param>
     /// <param name="message">The message</param>
     /// <typeparam name="T">The message type</typeparam>
+    [Obsolete]
     public static async Task<bool> HandleMessageAsync<T>(this SchemaContext context, T message)
     {
         var handler = context.ServiceProvider.GetService<ISchemaMessageHandler<T>>();
@@ -62,6 +68,7 @@ static class SchemaMessageHandlerExtensions
     /// <param name="context">The context</param>
     /// <param name="message">The message</param>
     /// <typeparam name="T">The message type</typeparam>
+    [Obsolete]
     public static async Task<bool> PublishMessageAsync<T>(this SchemaContext context, T message)
     {
         var publisher = context.ServiceProvider.GetService<ISchemaMessagePublisher>();

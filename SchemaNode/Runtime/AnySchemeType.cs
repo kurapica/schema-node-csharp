@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Components.Provider;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Node;
@@ -24,7 +23,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// The schema display
     /// </summary>
-    public LocaleString? Display { get; set; }
+    public LocaleString? Display { get; internal set; }
 
     #endregion
     
@@ -48,12 +47,12 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// The schema node status
     /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus Status { get; internal set; } = SchemaNodeStatus.Ready;
         
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    public Type? SchemaProvider { get; set; }
+    public Type? SchemaProvider { get; internal set; }
     
     /// <summary>
     /// Whether the node is used
@@ -75,7 +74,9 @@ public abstract class AnySchemeType: IDisposable
     /// <param name="context">The schema context</param>
     /// <param name="schema">The schema</param>
     /// <param name="preload">Whether during preload</param>
-    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { return Task.CompletedTask; }
+    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { 
+        return Task.CompletedTask; 
+    }
     
     /// <summary>
     /// Release the refs
@@ -146,7 +147,7 @@ public abstract class AnySchemeType: IDisposable
     /// </summary>
     public virtual ArrayType? GetArrayNode(bool exactly = false) =>
         UsedBy?.Keys.FirstOrDefault(p => p is ArrayType array && array.ElementSchemaType == this) as ArrayType
-        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayType array && array.ElementSchemaType != null && CanBeUseAs(array.ElementSchemaType)) as ArrayType : null); 
+        ?? (!exactly ? UsedBy?.Keys.FirstOrDefault(p => p is ArrayType { ElementSchemaType: not null } array && CanBeUseAs(array.ElementSchemaType)) as ArrayType : null); 
     
     /// <summary>
     /// Whether the type can be used as data index
@@ -172,6 +173,63 @@ public abstract class AnySchemeType: IDisposable
         yield break;
     }
 
+    /// <summary>
+    /// Gets all node schemas used by the node schema
+    /// </summary>
+    /// <returns></returns>
+    public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
+    {
+        types ??= new HashSet<string>();
+        root ??= new NodeSchema
+        {
+            Name = "",
+            Type = SchemaType.Namespace,
+            Schemas = []
+        };
+        if (!types.Add(Name)) return root.Schemas!;
+        
+        // install
+        string[] paths = Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        string fullPath = string.Empty;
+        NodeSchema parent = root;
+        for (int i = 0; i < paths.Length - 1; i++)
+        {
+            string p = paths[i];
+            fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
+                
+            parent.Schemas ??= [];
+            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+            if (sub == null)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+                
+                AnySchemeType type = await ctx.GetSchemaTypeAsync(fullPath) ?? new TypeNamespace { Name = fullPath };
+                sub = type;
+                parent.Schemas = parent.Schemas == null ? [sub!] : parent.Schemas.Append(sub!).ToArray();
+            }
+            parent = sub!;
+        }
+
+        NodeSchema schema = this!;
+        if (includeUsedBy)
+        {
+            schema.UsedBy = UsedBy?.Keys.Select(p => p.Name).ToArray();
+            schema.UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
+        }
+        
+        parent.Schemas ??= [];
+        parent.Schemas = parent.Schemas.Append(schema).ToArray();
+
+        // add dependencies
+        foreach (AnySchemeType n in GetDependNodes())
+        {
+            cancellationToken?.ThrowIfCancellationRequested();
+            await n.GetNodeSchemas(ctx, root, types);
+        }
+
+        return root.Schemas!;
+    }
+
     #endregion
     
     #region Conversion
@@ -191,7 +249,9 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Struct => new StructType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Array => new ArrayType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
             SchemaType.Func => new FunctionType { Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider },
-            SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server },
+            SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -210,6 +270,8 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Array => (schema as ArrayType),
             SchemaType.Func => (schema as FunctionType),
             SchemaType.Json => (schema as JsonType),
+            SchemaType.Event => (schema as EventType),
+            SchemaType.Workflow => (schema as WorkflowType),
             _ => (schema as TypeNamespace)
         };
     }

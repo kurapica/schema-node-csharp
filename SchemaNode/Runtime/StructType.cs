@@ -2,10 +2,10 @@ using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -95,7 +95,7 @@ public class StructType: AnySchemeType
         foreach (StructFieldConfig field in Fields)
         {
             AnySchemeType? typeNode = await context.GetSchemaTypeAsync(field.Type, preload: preload);
-            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
+            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
             {
                 Status = SchemaNodeStatus.StructMemberWrongType;
                 continue;
@@ -256,26 +256,28 @@ public class StructType: AnySchemeType
         List<PropertyInfo> fieldMaps = [];
         string[] primarys = [];
         Dictionary<string, string[]> indexes = [];
-        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name
-                ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
 
         NodeSchema structSchema = new ()
         {
             Name = typeName,
             Type = SchemaType.Struct,
-            Display = type.GetSummaryFromXmlDoc() ?? typeName,
+            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Struct = new StructSchema
             {
                 Fields = properties.Select(p =>
                 {
                     fieldMaps.Add(p);
 
+                    SchemaTypeAttribute? fieldAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+                    string fieldName = p.Name.ToCamelCase();
                     StructFieldConfig config = new ()
                     {
-                        Name = p.Name.ToCamelCase(),
-                        Type = p.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? p.PropertyType.GetSchemaType()!,
-                        Require = p.GetCustomAttribute<RequiredMemberAttribute>() != null,
-                        Display = type.GetSummaryFromXmlDoc(p) ?? p.Name,
+                        Name = fieldName,
+                        Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType()!,
+                        Require = p.GetCustomAttribute<RequiredAttribute>() != null,
+                        Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
                     };
 
                     // limit check
@@ -291,8 +293,8 @@ public class StructType: AnySchemeType
                         RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
                         if (rangeAttr != null)
                         {
-                            config.LowLimit = rangeAttr.Minimum?.ToLiteral();
-                            config.UpLimit = rangeAttr.Maximum?.ToLiteral();
+                            config.LowLimit = rangeAttr.Minimum.ToLiteral();
+                            config.UpLimit = rangeAttr.Maximum.ToLiteral();
                         }
                     }
 
@@ -314,7 +316,7 @@ public class StructType: AnySchemeType
                             {
                                 // follow default order
                                 Array.Resize(ref primarys, primarys.Length + 1);
-                                primarys[primarys.Length - 1] = config.Name;
+                                primarys[^1] = config.Name;
                             }
                         }
                         else
@@ -334,7 +336,7 @@ public class StructType: AnySchemeType
                             {
                                 // follow default order
                                 Array.Resize(ref fields, fields.Length + 1);
-                                fields[fields.Length - 1] = config.Name;
+                                fields[^1] = config.Name;
                             }
                             indexes[attr.Name] = fields;
                         }
@@ -353,7 +355,7 @@ public class StructType: AnySchemeType
         {
             Name = $"{structSchema.Name}s",
             Type = SchemaType.Array,
-            Display = $"[Array]{structSchema.Display.Key}",
+            Display = $"{Locale.LIST_PREFIX}{{@{structSchema.Name}}}{Locale.LIST_SUFFIX}",
             Array = new ArraySchema
             {
                 Element = structSchema.Name,
@@ -371,7 +373,7 @@ public class StructType: AnySchemeType
     /// <summary>
     /// Gets the C# properties for the struct type
     /// </summary>
-    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.ToLower());
+    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.GetBaseType().ToLower());
     static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = [];
     static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CSharpTypePrimaryProperties = [];
 
@@ -402,5 +404,60 @@ public class StructType: AnySchemeType
         };
     }
     
+    #endregion
+    
+    #region Generic Struct Implementations
+
+    /// <summary>
+    /// Get the generic struct type
+    /// </summary>
+    public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
+    {
+        string[] generics = Fields.Where(f => f.TypeNode is GenericType).Select(f => f.Type).Distinct().ToArray();
+        if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not match
+
+        _genericTypes ??= new ConcurrentDictionary<string, StructType>();
+        string key = string.Join('|', types);
+        if (_genericTypes.TryGetValue(key, out StructType? type)) return type;
+        
+        // Generate new struct type
+        StructType newStruct = new()
+        {
+            Name = $"{Name}<{string.Join(',', types)}>",
+            Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
+            Base = Name,
+            Fields = new StructFieldConfig[Fields.Length],
+            Relations = Relations
+        };
+
+        for (int i = 0; i < Fields.Length; i++)
+        {
+            StructFieldConfig f = Fields[i];
+            
+            if (f.TypeNode is GenericType)
+            {
+                StructFieldConfig copy = f.ToJsonNode()!.FromJson<StructFieldConfig>()!;
+                int index = Array.IndexOf(generics, f.Type);
+                copy.Type = types[index];
+                AnySchemeType? typeNode = await context.GetSchemaTypeAsync(copy.Type);
+                if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
+                {
+                    return null;
+                }
+                copy.TypeNode = typeNode;
+                typeNode.AddRef(newStruct);
+                newStruct.Fields[i] = copy;
+            }
+            else
+            {
+                newStruct.Fields[i] = f;
+            }
+        }
+        
+        return _genericTypes.GetOrAdd(key, newStruct);
+    }
+
+    private ConcurrentDictionary<string, StructType>? _genericTypes;
+
     #endregion
 }

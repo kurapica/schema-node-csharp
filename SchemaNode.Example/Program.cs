@@ -33,14 +33,10 @@ builder.Services
     })
 
     // schema
-    .AddSchemaNode()
-    //.AddSchemaStorageProvider<JsonSchemaStorageProvider>()    // Save schema as json file
+    .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    //.AddAppSchemaDataProvider<AppSchemaDataProvider>();       // Mysql application data provider
-    .AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>() // Memory application data provider - for test
-
-    // schema api
-    .AddSchemaApis();
+    .AddAppSchemaDataProvider<AppSchemaDataProvider>();       // Mysql application data provider
+    //.AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>(); // Memory application data provider - for test
 
 // App
 var app = builder.Build();
@@ -49,7 +45,6 @@ app.UseCors("AllowAll");
 app
     .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)
     .PreLoadSchemaNodes();
-
 
 // Swagger
 if (app.Environment.IsDevelopment())

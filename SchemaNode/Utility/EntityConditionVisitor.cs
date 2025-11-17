@@ -82,7 +82,7 @@ public class EntityConditionVisitor: ExpressionVisitor
             if (node.Member.MemberType == MemberTypes.Property)
             {
                 PropertyInfo info = (PropertyInfo)node.Member;
-                object? value = info.GetValue(node.Type);
+                object? value = info.GetValue(null);
                 _expNodes.Push(new ExpNode
                 {
                     Value = value
@@ -92,7 +92,7 @@ public class EntityConditionVisitor: ExpressionVisitor
             if (node.Member.MemberType == MemberTypes.Field)
             {
                 FieldInfo info = (FieldInfo)node.Member;
-                object? value = info.GetValue(node.Type);
+                object? value = info.GetValue(null);
                 _expNodes.Push(new ExpNode()
                 {
                     Value = value
@@ -123,7 +123,7 @@ public class EntityConditionVisitor: ExpressionVisitor
             Type = ExpressionType.MemberAccess,
             Value = node.Member.Name
         });
-        return base.VisitMember(node);
+        return node;
     }
 
     /// <inheritdoc />

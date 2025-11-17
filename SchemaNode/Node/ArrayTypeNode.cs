@@ -1,14 +1,13 @@
 ﻿using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Collections;
-using System.Data;
 using System.Text.Json.Nodes;
 
 namespace SchemaNode.Node;
 
 public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type, null)
+    public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type)
     {
         ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;
@@ -236,7 +235,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
             }
 
             if (type == null) return null;
-            AnySchemaNode? result = new ArrayTypeNode(type);
+            AnySchemaNode result = new ArrayTypeNode(type);
             result.Value = _elements.Select(p => ((StructTypeNode)p).GetValueByPaths(paths)).Where(p => p != null).ToList();
             return result;
         }

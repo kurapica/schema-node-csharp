@@ -23,7 +23,7 @@ public class BatchQueryAppDataApi : SchemaApi<BatchQueryAppDataRequest, BatchQue
     {
         Logger.LogDebug("[Api]BatchQueryAppData [Request]{request}", request);
         
-        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries);
+        (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries, cancellationToken);
         
         return new BatchQueryAppDataResponse
         {
@@ -42,7 +42,7 @@ public static class BatchQueryExtension
     /// Batch query app data with schemas
     /// </summary>
     
-    public static async Task<(AppDataResult[] Result, NodeSchema[]? Schemas)> BatchQueryAppDataAsync(this SchemaContext context, AppDataQuery[] queries)
+    public static async Task<(AppDataResult[] Result, NodeSchema[]? Schemas)> BatchQueryAppDataAsync(this SchemaContext context, AppDataQuery[] queries, CancellationToken? cancellationToken = null)
     {
         List<AppDataResult> results = [];
         NodeSchema root = new NodeSchema
@@ -54,13 +54,15 @@ public static class BatchQueryExtension
         RootEnumValueInfo.Value = new EnumValueInfo();
         foreach (AppDataQuery query in queries)
         {
+            cancellationToken?.ThrowIfCancellationRequested();
+            
             if (string.IsNullOrWhiteSpace(query.App)) continue;
             if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
             AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
 
             if (!(query.NoSchema ?? false))
-                node.GetNodeSchemas(root);
+                await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
             // query fields
             List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];

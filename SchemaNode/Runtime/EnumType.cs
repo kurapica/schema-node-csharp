@@ -25,22 +25,22 @@ public class EnumType: AnySchemeType
     /// <summary>
     /// The enum value type
     /// </summary>
-    public EnumValueType ValueType { get; set; } = EnumValueType.String;
+    public EnumValueType ValueType { get; internal set; } = EnumValueType.String;
 
     /// <summary>
     /// The cascade list
     /// </summary>
-    public LocaleString[]? Cascade { get; set; }
+    public LocaleString[]? Cascade { get; internal set; }
     
     /// <summary>
     /// The root for all enum values
     /// </summary>
-    public EnumValueInfo Root { get; set; } = new ();
+    public EnumValueInfo Root { get; private set; } = new ();
     
     /// <summary>
     /// The additional data
     /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Additional { get; internal set; }
 
     #endregion
     
@@ -52,7 +52,7 @@ public class EnumType: AnySchemeType
     /// <summary>
     /// The max flags value
     /// </summary>
-    public long MaxFlags { get; set; }
+    public long MaxFlags { get; internal set; }
 
     #endregion
     
@@ -318,12 +318,13 @@ public class EnumType: AnySchemeType
         if (!type.IsEnum) return [];
 
         EnumValueType valueType = type.GetCustomAttribute<FlagsAttribute>() != null ? EnumValueType.Flags : EnumValueType.String;
-        string typeName = type.GetCustomAttribute<SchemaTypeAttribute>()?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         NodeSchema enumSchema = new NodeSchema
         {
             Name = typeName,
             Type = SchemaType.Enum,
-            Display = type.GetSummaryFromXmlDoc() ?? typeName,
+            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Enum = new EnumSchema
             {
                 Type = valueType,

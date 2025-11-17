@@ -7,13 +7,15 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
+// ReSharper disable InconsistentNaming
+// ReSharper disable UnusedMember.Local
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
 
@@ -27,33 +29,33 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    public string Return { get; set; } = string.Empty;
+    public string Return { get; private set; } = string.Empty;
 
     /// <summary>
     /// The function arguments
     /// </summary>
-    public FunctionNodeArgument[] Args { get; set; } = [];
+    public FunctionNodeArgument[] Args { get; private set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    public FunctionNodeExpression[] Exps { get; set; } = [];
+    public FunctionNodeExpression[] Exps { get; private set; } = [];
 
     /// <summary>
     /// The basic type of generic types, provided to T(single generic type),
     /// T1, T2(for multi generic type)
     /// </summary>
-    public AnySchemeType?[] Generic { get; set; } = [];
+    public AnySchemeType?[] Generic { get; private set; } = [];
 
     /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; set; }
+    public bool? Server  { get; private set; }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; set; }
+    public bool? Nocache  { get; private set; }
     
     #endregion
     
@@ -65,27 +67,27 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// Whether the function will be used to construct the object
     /// </summary>
-    public bool IsStructConstructor { get; set; }
+    public bool IsStructConstructor { get; private set; }
 
     /// <summary>
     /// Whether the function is remote call only
     /// </summary>
-    public bool IsRemoteCall { get; set; }
+    public bool IsRemoteCall { get; private set; }
 
     /// <summary>
     /// Whether the function require call server
     /// </summary>
-    public bool RequireRemoteCall { get; set; }
+    public bool RequireRemoteCall { get; private set; }
 
     /// <summary>
     /// Whether the function is defined as system, direct call
     /// </summary>
-    public bool IsSystemCall { get; set; }
+    public bool IsSystemCall { get; private set; }
     
     /// <summary>
     /// The function info
     /// </summary>
-    internal SchemaFuncInfo? FuncInfo { get; set; }
+    internal SchemaFuncInfo? FuncInfo { get; private set; }
     
     #endregion
     
@@ -94,7 +96,7 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type node
     /// </summary>
-    public AnySchemeType? ReturnNode { get; set; }
+    public AnySchemeType? ReturnNode { get; private set; }
 
     /// <summary>
     /// The root expression trees
@@ -843,7 +845,13 @@ public class FunctionType: AnySchemeType
             if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
 
             // Check dynamic type
-            if (pt.Generic != null)
+            SchemaTypeAttribute? schemaTypeAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+            if (schemaTypeAttr != null && !string.IsNullOrWhiteSpace(schemaTypeAttr.Name))
+            {
+                pt.SchemaType = schemaTypeAttr.Name;
+                arg.Type = pt.SchemaType;
+            }
+            else if (pt.Generic != null)
             {
                 if (pt.AnyArray)
                 {
@@ -865,15 +873,7 @@ public class FunctionType: AnySchemeType
             }
             else if (string.IsNullOrWhiteSpace(pt.SchemaType))
             {
-                // normally if arg is Object, use func arg attr to specific the schema type
-                if (p.GetCustomAttribute<SchemaTypeAttribute>() != null)
-                {
-                    pt.SchemaType = p.GetCustomAttribute<SchemaTypeAttribute>()!.Name;
-                }
-                else
-                {
-                    return null;
-                }
+                return null;
             }
             else
             {
@@ -1136,7 +1136,7 @@ public class FunctionType: AnySchemeType
                         if (callFuncInfo.Return.Generic == p.Generic)
                         {
                             info = callFuncInfo.Return;
-                            type = epxReturnElement?.GetNotNullType();
+                            type = epxReturnElement.GetNotNullType();
                         }
                         else
                         {
@@ -1298,7 +1298,7 @@ public class FunctionType: AnySchemeType
                             int sumIndex = useContext > 0 ? (arrayIndex == 1 ? 2 : 1) : (arrayIndex == 1 ? 0 : 1);
 
                             // init ??= array.Length > 0 ? array[start++] : default;
-                            Expression init = innerCallArgs[sumIndex] ?? Expression.Condition(
+                            Expression init = innerCallArgs.Length > sumIndex ? innerCallArgs[sumIndex] : Expression.Condition(
                                 Expression.GreaterThan(arrayLen, Expression.Constant(0)),
                                 innerCallArgs[arrayIndex],
                                 Expression.Default(callMethodReturn)
@@ -1460,7 +1460,7 @@ public class FunctionType: AnySchemeType
                     }
 
                     // Build the exp
-                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), memberExp));
+                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(typeof(System.Object), memberExp)));
                 }
                 return resultVar;
             }
@@ -1707,72 +1707,72 @@ public class FunctionType: AnySchemeType
     static TR? CallDynamicFunc1<TR, T1>(Delegate method, T1 arg1)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1! });
+        return CallDynamicFunc<TR>(method, [arg1!]);
     }
     static TR? CallDynamicFunc2<TR, T1, T2>(Delegate method, T1 arg1, T2 arg2)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!]);
     }
     static TR? CallDynamicFunc3<TR, T1, T2, T3>(Delegate method, T1 arg1, T2 arg2, T3 arg3)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!]);
     }
     static TR? CallDynamicFunc4<TR, T1, T2, T3, T4>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!]);
     }
     static TR? CallDynamicFunc5<TR, T1, T2, T3, T4, T5>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!]);
     }
     static TR? CallDynamicFunc6<TR, T1, T2, T3, T4, T5, T6>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!]);
     }
     static TR? CallDynamicFunc7<TR, T1, T2, T3, T4, T5, T6, T7>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!]);
     }
     static TR? CallDynamicFunc8<TR, T1, T2, T3, T4, T5, T6, T7, T8>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!]);
     }
     static TR? CallDynamicFunc9<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!]);
     }
     static TR? CallDynamicFunc10<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!]);
     }
     static TR? CallDynamicFunc11<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11! ]);
     }
     static TR? CallDynamicFunc12<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12! ]);
     }
     static TR? CallDynamicFunc13<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13! ]);
     }
     static TR? CallDynamicFunc14<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14! ]);
     }
     static TR? CallDynamicFunc15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15)
     {
@@ -1782,12 +1782,12 @@ public class FunctionType: AnySchemeType
     static TR? CallDynamicFunc16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!]);
     }
     static TR? CallDynamicFunc17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(Delegate method, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13, T14 arg14, T15 arg15, T16 arg16, T17 arg17)
     {
         // Invoke the dynamic method
-        return CallDynamicFunc<TR>(method, new object[] { arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!, arg17! });
+        return CallDynamicFunc<TR>(method, [arg1!, arg2!, arg3!, arg4!, arg5!, arg6!, arg7!, arg8!, arg9!, arg10!, arg11!, arg12!, arg13!, arg14!, arg15!, arg16!, arg17!]);
     }
     #endregion
 
@@ -1861,7 +1861,7 @@ public class FunctionType: AnySchemeType
     static MethodInfo GetCallDynamicFunc(Type ret, params Type[] inputs)
     {
         MethodInfo method = typeof(FunctionType).GetMethod($"CallDynamicFunc{inputs.Length}", BindingFlags.Static | BindingFlags.NonPublic)!;
-        return method!.MakeGenericMethod(inputs.Prepend(ret).ToArray());
+        return method.MakeGenericMethod(inputs.Prepend(ret).ToArray());
     }
     
     #endregion
@@ -2008,22 +2008,22 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The expression name, normally be E1, E2, E3.
     /// </summary>
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
     /// <summary>
     /// The function to be called.
     /// </summary>
-    public required string Func { get; set; }
+    public required string Func { get; init; }
 
     /// <summary>
     /// The function used to map array elements
     /// </summary>
-    public ExpressionType? Type { get; set; } = ExpressionType.Call;
+    public ExpressionType? Type { get; init; } = ExpressionType.Call;
 
     /// <summary>
     /// The namespace.
     /// </summary>
-    public required string Return { get; set; }
+    public required string Return { get; init; }
 
     /// <summary>
     /// The argument list, should be exp name or argument name.

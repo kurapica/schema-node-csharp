@@ -219,4 +219,14 @@ public enum SchemaNodeStatus
     /// The relation has wrong func
     /// </summary>
     ApplicationRelationWrongFunc,
+    
+    /// <summary>
+    /// The workflow has wrong func
+    /// </summary>
+    WorkflowWrongFunc,
+    
+    /// <summary>
+    /// The workflow has wrong event
+    /// </summary>
+    WorkflowWrongEvent
 }

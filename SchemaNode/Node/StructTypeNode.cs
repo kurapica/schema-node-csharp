@@ -114,7 +114,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else
             {
-                throw new InvalidCastException();
+                throw new InvalidCastException($"Invalid value type {value.GetType()}");
             }
         }
     }

@@ -24,8 +24,8 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
             Properties = new Dictionary<string, OpenApiSchema>
             {
                 ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
-                ["id"] = new OpenApiSchema { Type = "string", Example = new OpenApiString(Guid.NewGuid().ToString()) },
-                ["method"] = new OpenApiSchema { Type = "string" },
+                ["id"] = new OpenApiSchema { Type = "string", Format="uuid", Example = new OpenApiString(Guid.NewGuid().ToString()) },
+                ["method"] = new OpenApiSchema { Type = "string", Format="url" },
                 ["params"] = innerSchema
             },
             Required = new HashSet<string> { "jsonrpc", "id", "params" }
@@ -34,7 +34,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
 
     /// <inheritdoc />
     public OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema)
-    {
+    {   
         return new OpenApiSchema
         {
             Type = "object",
@@ -43,7 +43,12 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
                 ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
                 ["id"] = new OpenApiSchema { Type = "string" },
                 ["code"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(0) },
-                ["error"] = context.SchemaGenerator.GenerateSchema(typeof(JsonRpcResponseError), context.SchemaRepository),
+                ["error"] = new OpenApiSchema { Type = "object", Properties = new Dictionary<string, OpenApiSchema>
+                {
+                    ["code"] = new OpenApiSchema { Type = "integer" },
+                    ["message"] = new OpenApiSchema { Type = "string", Format = "error"},
+                    ["data"] = new OpenApiSchema { Type = "object" },
+                }},
                 ["result"] = innerSchema,
             },
         };
@@ -63,18 +68,18 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     /// <inheritdoc />
     public IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse
     {
-        return Results.Json(new JsonRpcResponseMessage<TResponse>
+        return new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }, NoIndentJsonOption);
+        }.ToResult();
     }
 
     public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null)
     {
-        return Results.Json( new JsonRpcResponseMessage<SchemaApiResponse>
+        return new JsonRpcResponseMessage<SchemaApiResponse>
         {
             Jsonrpc = "2.0",
             Error = new JsonRpcResponseError
@@ -90,7 +95,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
                 Data = data,
             },
             Id = _requestId,
-        }, NoIndentJsonOption);
+        }.ToResult();
     }
 
     #endregion

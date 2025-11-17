@@ -6,6 +6,7 @@ using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 

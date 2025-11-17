@@ -382,6 +382,28 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                     };
             }   
         }
+        
+        // load workflows
+        var workflows = Directory.GetFiles(folder, "*.workflow", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$"))
+            .Select(p =>
+            {
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1).ToArray();
+        if (workflows.Length > 0)
+        {
+            schema.Workflows = new AppWorkflowSchema[workflows.Length];
+            for(int i = 0; i < workflows.Length; i++)
+            {
+                schema.Workflows[i] = await LoadSchemaFile<AppWorkflowSchema>(Path.Combine(folder, $"{workflows[i].Item1.ToString("D3")}.{workflows[i].Item2}.workflow")) 
+                    ?? new AppWorkflowSchema
+                    {
+                        Name = workflows[i].Item2,
+                    };
+            }   
+        }
         return schema;
     }
 
@@ -518,6 +540,69 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         return true;
     }
 
+    /// <inheritdoc />
+    public async Task<bool> SaveAppWorkflowSchemaAsync(string app, AppWorkflowSchema workflow)
+    {
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        Directory.CreateDirectory(folder);
+
+        int maxOrder = 0;
+        foreach (var file in Directory.GetFiles(folder, "*.workflow", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$" ))
+            .Select(p => {
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1))
+        {
+            if (file.Item2.Equals(workflow.Name, StringComparison.OrdinalIgnoreCase)) break;
+            maxOrder = file.Item1;
+        }
+
+        // save
+        string fileName = $"{(maxOrder + 1):D3}.{workflow.Name}.workflow";
+
+        await WriteSchemaFile(Path.Combine(folder, fileName), workflow);
+        return true;
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> DeleteAppWorkflowSchemaAsync(string app, string workflow)
+    {
+        await Task.Yield();
+
+        string[] paths = app.ToLowerInvariant().Split(".").Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string root = Path.Combine(AppContext.BaseDirectory, AppFolder);
+        string folder = Path.Combine(paths.Prepend(root).ToArray());
+        if (!Directory.Exists(folder)) return false;
+
+        int maxOrder = 1;
+        foreach (var file in Directory.GetFiles(folder, "*.workflow", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileNameWithoutExtension)
+            .Where(p => Regex.IsMatch(p!, @"^\d{3}\..+$"))
+            .Select(p => {
+                string[] path = p!.Split('.', StringSplitOptions.RemoveEmptyEntries);
+                return (int.Parse(path[0]), path[1]);
+            }).OrderBy(v => v.Item1))
+        {
+            if (file.Item2.Equals(workflow, StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(Path.Combine(folder, $"{file.Item1:D3}.{file.Item2}.json"));
+                continue;
+            }
+            else if(file.Item1 != maxOrder)
+            {
+                // re-order
+                File.Move(Path.Combine(folder, $"{file.Item1:D3}.{file.Item2}.json"),
+                    Path.Combine(folder, $"{maxOrder:D3}.{file.Item2}.json"));
+            }
+            maxOrder += 1;
+        }
+        return true;
+    }
+    
     #endregion
     
     #region Property

@@ -295,7 +295,7 @@ public class ScalarType: AnySchemeType
                 }
                 else if (DateTime.TryParse(strVal, out DateTime dateTime))
                 {
-                    year = dateTime.GetLocaleYear();
+                    year = SystemDate.GetYear(dateTime);
                 }
                 else
                 {
@@ -388,11 +388,11 @@ public class ScalarType: AnySchemeType
           {
                ScalarType scalar =>
                 scalar.IsString || 
-                scalar.IsInt 
+                (scalar.IsInt 
                     ? IsInt
                     : (scalar.IsNumber 
                             ? IsNumber 
-                            : scalar.ValueType == ValueType),
+                            : scalar.ValueType == ValueType)),
                EnumType @enum => @enum.ValueType switch
                {
                     EnumValueType.String => IsSingle,

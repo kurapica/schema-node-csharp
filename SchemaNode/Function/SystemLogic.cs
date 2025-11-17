@@ -1,5 +1,9 @@
+using System.Collections;
 using System.Numerics;
+using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Node;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Function;
 
@@ -54,6 +58,47 @@ public static class SystemLogic
     /// </summary>
     [SchemaType]
     public static bool IsNull<T>(T? a) => a is null;
+    
+    /// <summary>
+    /// system.logic.notnull
+    /// </summary>
+    [SchemaType]
+    public static bool NotNull<T>(T? a) => a is not null;
+
+    /// <summary>
+    /// system.logic.isempty
+    /// </summary>
+    public static bool IsEmpty<T>(T? a)
+    {
+        if (a is null) return true;
+        switch (a)
+        {
+            case AnySchemaNode n:
+                return n.IsEmpty;
+            case JsonNode j:
+                return j.IsEmpty();
+            case string s:
+                return s.Length == 0;
+            case IEnumerable e:
+            {
+                IEnumerator enumerator = e.GetEnumerator();
+                try
+                {
+                    return !enumerator.MoveNext();
+                }
+                finally
+                {
+                    (enumerator as IDisposable)?.Dispose();
+                }
+            }
+        }
+        return false;
+    }
+    
+    /// <summary>
+    /// system.logic.notempty
+    /// </summary>
+    public static bool NotEmpty<T>(T? a) => !IsEmpty(a);
 
     /// <summary>
     /// system.logic.lessequal
@@ -81,12 +126,6 @@ public static class SystemLogic
     [SchemaType]
     public static bool NotEqual<T>(T a, T b) where T: IComparable
         => a.CompareTo(b) != 0;
-
-    /// <summary>
-    /// system.logic.notnull
-    /// </summary>
-    [SchemaType]
-    public static bool NotNull<T>(T? a) => a is not null;
 
     /// <summary>
     /// system.logic.orelse

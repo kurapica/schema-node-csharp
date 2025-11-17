@@ -7,10 +7,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
+using Microsoft.AspNetCore.Http;
+using System.Runtime.CompilerServices;
 
 namespace SchemaNode.Utility;
 
-internal static class Extension
+public static class Extension
 {
     #region Casing
 
@@ -52,6 +54,33 @@ internal static class Extension
             DateTimeOffset dto => dto.ToString("yyyy-MM-dd hh:mm:ss.fff"),
             _ => input.ToString()
         };
+    }
+
+    /// <summary>
+    /// Split the type path
+    /// </summary>
+    internal static string[] SplitTypeName(this string name)
+    {
+        List<string> paths = name.ToLower().Split('.', StringSplitOptions.RemoveEmptyEntries).Where(f => !string.IsNullOrEmpty(f)).ToList();
+        while (paths.Count > 1 && paths.Last().EndsWith(">") && !paths.Last().Contains("<"))
+        {
+            string last = paths.Last();
+            paths.RemoveAt(paths.Count - 1);
+
+            string secondLast = paths.Last();
+            paths.RemoveAt(paths.Count - 1);
+
+            paths.Add(secondLast + "." + last);
+        }
+        return paths.ToArray();
+    }
+
+    /// <summary>
+    /// Gets the base type
+    /// </summary>
+    internal static string GetBaseType(this string name)
+    {
+        return name.Contains("<") ? name[..name.IndexOf('<')] : name;
     }
     
     #endregion
@@ -197,7 +226,7 @@ internal static class Extension
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
-    internal static string ToJson<T>(this T value, bool indent = false)
+    public static string ToJson<T>(this T value, bool indent = false)
     {
         if (value is JsonNode json) return json.ToString();
         
@@ -206,11 +235,19 @@ internal static class Extension
     }
 
     /// <summary>
+    /// To http result
+    /// </summary>
+    public static IResult ToResult<T>(this T value)
+    {
+        return Results.Json(value, NoIndentJsonOption);
+    }
+    
+    /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    internal static T? FromJson<T>(this string value)
+    public static T? FromJson<T>(this string value)
     {
         return JsonSerializer.Deserialize<T>(value, NoIndentJsonOption);
     }
@@ -256,11 +293,20 @@ internal static class Extension
         return value.Deserialize(type, NoIndentJsonOption);
     }
     
-    internal static JsonNode? ToJsonNode<T>(this T? value)
+    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
-        if (value == null) return null;
-        if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
-        return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+        try
+        {
+            if (value == null) return null;
+            if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
+            return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+        }
+        catch 
+        {
+            // not able to convert
+            if (!noError) throw;
+            return null;
+        }
     }
 
     internal static T? ToValue<T>(this JsonNode node)
@@ -680,7 +726,7 @@ internal static class Extension
         string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
         string propertyName = prop != null ? prop.Name : string.Empty;
 
-        if (!File.Exists(xmlPath)) return string.Empty;
+        if (!File.Exists(xmlPath)) return null;
 
         if (!XmlFiles.ContainsKey(xmlPath))
         {
@@ -703,7 +749,7 @@ internal static class Extension
                        )
                     {
                         string summaryContent = node.InnerText;
-                        return string.Join("\n",
+                        summaryContent = string.Join("\n",
                             summaryContent
                                 .Split('\n', '\r')
                                 .Where(t =>
@@ -712,6 +758,7 @@ internal static class Extension
                                 .Select(p => p.Trim())
                                 .ToArray()
                         );
+                        return string.IsNullOrEmpty(summaryContent) ? null : summaryContent;
                     }
                 }
             }
