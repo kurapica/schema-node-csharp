@@ -235,17 +235,38 @@ public class WorkflowContext: SchemaContext, IDisposable
             // check the fork key
             if (!string.IsNullOrEmpty(workflow.ForkKey))
             {
-                AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey);
-                if (forkKeyNode != null && state.ForkContexts != null)
+                if (workflow.ForkKey.Equals("$self"))
                 {
-                    string key = forkKeyNode.ToString();
-                    // Check existed forks
-                    foreach (var (workflowContext, _) in state.ForkContexts)
+                    string? key = payload?.ToString();
+                    if (!string.IsNullOrEmpty(key) && state.ForkContexts != null)
                     {
-                        forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)?.GetValueByPaths(key);
-                        if (forkKeyNode == null || !forkKeyNode.ToString().Equals(key)) continue;
-                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}", Id, name, key);
-                        return; // skip fork for existing key
+                        foreach (var (workflowContext, _) in state.ForkContexts)
+                        {
+                            if (!key.Equals(workflowContext.GetWorkflowPayload(workflow.Name)?.ToString())) continue;
+                            Logger.LogDebug(
+                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                                Id, name, key);
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey);
+                    if (forkKeyNode != null && state.ForkContexts != null)
+                    {
+                        string key = forkKeyNode.ToString();
+                        // Check existed forks
+                        foreach (var (workflowContext, _) in state.ForkContexts)
+                        {
+                            forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)
+                                ?.GetValueByPaths(key);
+                            if (forkKeyNode == null || !forkKeyNode.ToString().Equals(key)) continue;
+                            Logger.LogDebug(
+                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                                Id, name, key);
+                            return; // skip fork for existing key
+                        }
                     }
                 }
             }
