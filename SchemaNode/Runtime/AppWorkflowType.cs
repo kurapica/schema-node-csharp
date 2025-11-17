@@ -142,7 +142,7 @@ public class AppWorkflowType: IDisposable
                     funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
                                                 ? await context.GetSchemaTypeAsync(node.Func) as FunctionType
                                                 : null)
-                                            ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
+                        ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
                     funcWorkflow.FuncArgs = node.FuncArgs?.Select(n => new FuncCallArg
                     {
                         Name = n.Name,
@@ -154,7 +154,13 @@ public class AppWorkflowType: IDisposable
                     evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
                                            ? await context.GetSchemaTypeAsync(node.Event) as EventType
                                            : null)
-                                       ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
+                        ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
+                    break;
+                
+                case InteractionWorkflow interWorkflow:
+                    interWorkflow.FormType = !string.IsNullOrWhiteSpace(node.FormType)
+                                                ? await context.GetSchemaTypeAsync(node.FormType)
+                                                : null;
                     break;
             }
 

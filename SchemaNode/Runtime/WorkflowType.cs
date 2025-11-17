@@ -118,7 +118,9 @@ public class WorkflowType: AnySchemeType
                 Mode = type.IsSubclassOf(typeof(EventWorkflow)) ? WorkflowMode.Event 
                     : type.IsSubclassOf(typeof(FunctionWorkflow)) 
                         ? WorkflowMode.Function 
-                        : WorkflowMode.Workflow,
+                        : type.IsSubclassOf(typeof(InteractionWorkflow))
+                            ? WorkflowMode.Interaction 
+                            : WorkflowMode.Workflow,
             }
         };
         
