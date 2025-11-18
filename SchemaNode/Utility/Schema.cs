@@ -8,7 +8,6 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using SchemaNode.Components;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -327,7 +326,7 @@ public static class Schema
                     BaseType = typeof(JsonNode),
                     SchemaType = NS_SYSTEM_JSON,
                 };
-            };
+            }
             
             result = GetSchemaTypeInfo(args[0]);
             if (result == null) return null;
@@ -919,12 +918,12 @@ public static class Schema
             else if (Type != null)
             {
                 // list JsonArray for IList
-                if (Type.IsAssignableFrom(node.GetType())) return (node, Type, null);
+                if (Type.IsInstanceOfType(node)) return (node, Type, null);
 
                 // not generic
                 try
                 {
-                    return (node?.FromJson(Type), Type, null);
+                    return (node.FromJson(Type), Type, null);
                 }
                 catch
                 {
@@ -1125,6 +1124,7 @@ public static class Schema
                 NewSystemScalar(NS_SYSTEM_SCHEMA_FUNC_TYPE,NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_EVENT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WORKFLOW_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_POLICY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
@@ -1142,6 +1142,13 @@ public static class Schema
 
             NewSystemSchema(NS_SYSTEM_WORKFLOW).WithSchemas([
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
+            ]),
+
+            #endregion
+
+            #region System.Auth
+
+            NewSystemSchema(NS_SYSTEM_AUTH).WithSchemas([
             ]),
 
             #endregion

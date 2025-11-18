@@ -1,4 +1,5 @@
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -80,7 +81,12 @@ public abstract class Workflow
         => Name.Equals(name, StringComparison.OrdinalIgnoreCase)
             ? this
             : Next?.Select(next => next.FindByName(name)).OfType<Workflow>().FirstOrDefault();
-
+    
+    /// <summary>
+    /// Whether it has forks in next nodes
+    /// </summary>
+    internal bool HasForksInNextNodes => Next != null && Next.Any(n => n.HasForksInNextNodes);
+    
     #endregion
 
     #region Abstract

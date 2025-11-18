@@ -24,7 +24,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
             {
                 SetPayload(context, new WaitAppEventWorkflowPayload
                 {
-                    Application = Application.Name,
+                    App = Application.Name,
                 });
             });
         }
@@ -34,7 +34,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
             {
                 SetPayload(context, new WaitAppEventWorkflowPayload
                 {
-                    Application = Application.Name,
+                    App = Application.Name,
                 });
             });
         }
@@ -57,5 +57,5 @@ public class WaitAppEventWorkflowPayload
     /// <summary>
     /// The application
     /// </summary>
-    public required string Application { get; set; }
+    public required string App { get; set; }
 }

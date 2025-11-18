@@ -906,6 +906,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
             node!.Loaded = true;
             node.Display = newSchema.Display;
             node.Release();
+            node.Auth = !string.IsNullOrEmpty(newSchema.Auth)
+                ? await GetSchemaTypeAsync(newSchema.Auth) as PolicyType
+                : null;
             node.Status = SchemaNodeStatus.Ready;
             await node.LoadAsync(this, newSchema, preload);
             if (par != null)

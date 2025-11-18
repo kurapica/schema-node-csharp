@@ -41,6 +41,12 @@ public class NodeSchema
     public LocaleString? Display { get; set; }
 
     /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    [SchemaType(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    public string? Auth { get; set; }
+
+    /// <summary>
     /// The scalar schema if type is scalar
     /// </summary>
     [NotMapped]
@@ -81,7 +87,13 @@ public class NodeSchema
     /// </summary>
     [NotMapped]
     public WorkflowSchema? Workflow  { get; set; }
-
+    
+    /// <summary>
+    /// The permission policy schema
+    /// </summary>
+    [NotMapped]
+    public PolicySchema? Policy  { get; set; }
+    
     /// <summary>
     /// The load state
     /// </summary>

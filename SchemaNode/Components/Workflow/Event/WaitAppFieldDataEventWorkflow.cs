@@ -41,7 +41,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
                 string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
                 SetPayload(context, new WaitAppFieldDataEventWorkflowPayload
                 {
-                    Application = Application.Name,
+                    App = Application.Name,
                     Field = t.Length > 2 ? t[2] : null,
                     Target = t.Length > 1 ? t[1] : null,
                     Data = @event.Payload,
@@ -56,7 +56,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
                 string[] t = @event.Topic.Split("/", StringSplitOptions.RemoveEmptyEntries);
                 SetPayload(context, new WaitAppFieldDataEventWorkflowPayload
                 {
-                    Application = Application.Name,
+                    App = Application.Name,
                     Field = t.Length > 2 ? t[2] : null,
                     Target = t.Length > 1 ? t[1] : null,
                     Data = @event.Payload,
@@ -82,7 +82,7 @@ public class WaitAppFieldDataEventWorkflowPayload
     /// <summary>
     /// The application
     /// </summary>
-    public required string Application { get; set; }
+    public required string App { get; set; }
     
     /// <summary>
     /// The field

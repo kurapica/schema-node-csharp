@@ -62,6 +62,11 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     public AppWorkflowType? Workflow { get; private set; }
     
+    /// <summary>
+    /// The entry workflow node
+    /// </summary>
+    public Workflow? EntryWorkflow => _workflow;
+    
     #endregion
 
     #region Backup & Restore
@@ -94,7 +99,7 @@ public class WorkflowContext: SchemaContext, IDisposable
             Forks = forks
                 ? _states.Values
                     .Where(s => s.ForkContexts != null)
-                    .SelectMany(s => s.ForkContexts!.Keys)
+                    .SelectMany(s => s.ForkContexts!.Values)
                     .Where(c => c._workflow != null)
                     .Select(c => c.Backup()!)
                     .ToArray()
@@ -145,8 +150,8 @@ public class WorkflowContext: SchemaContext, IDisposable
                     _scheduler);
                 forkContext.Initialize(Workflow!, startNode, this, forkSnapshot);
                 
-                state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
-                state.ForkContexts[forkContext] = forkContext.Id; // record the forked context
+                state.ForkContexts ??= new ConcurrentDictionary<Guid, WorkflowContext>();
+                state.ForkContexts[forkContext.Id] = forkContext; // record the forked context
             }
         }
         
@@ -212,6 +217,33 @@ public class WorkflowContext: SchemaContext, IDisposable
             ?? WorkflowStatus.Waiting;
     
     /// <summary>
+    /// Gets the forked workflow context by id
+    /// </summary>
+    public WorkflowContext? GetForkedWorkflowContextById(Guid id)
+    {
+        if (Id == id) return this;
+        
+        foreach ((string name, WorkflowState value) in _states)
+        {
+            Workflow? workflow = _workflow?.FindByName(name);
+            if (workflow == null) continue;
+            if (value.ForkContexts == null) continue;
+            if (value.ForkContexts.TryGetValue(id, out WorkflowContext? ctx)) return ctx;
+
+            // full check has forks in next nodes
+            if (workflow.HasForksInNextNodes)
+            {
+                foreach (var (_, forkContext) in value.ForkContexts)
+                {
+                    ctx = forkContext.GetForkedWorkflowContextById(id);
+                    if (ctx != null) return ctx;
+                }
+            }
+        }
+        return null;
+    }
+    
+    /// <summary>
     /// Gets teh workflow status by workflow
     /// </summary>
     public WorkflowStatus GetWorkflowStatus(Workflow workflow) => GetWorkflowStatus(workflow.Name);
@@ -240,7 +272,7 @@ public class WorkflowContext: SchemaContext, IDisposable
                     string? key = payload?.ToString();
                     if (!string.IsNullOrEmpty(key) && state.ForkContexts != null)
                     {
-                        foreach (var (workflowContext, _) in state.ForkContexts)
+                        foreach (var (_, workflowContext) in state.ForkContexts)
                         {
                             if (!key.Equals(workflowContext.GetWorkflowPayload(workflow.Name)?.ToString())) continue;
                             Logger.LogDebug(
@@ -257,7 +289,7 @@ public class WorkflowContext: SchemaContext, IDisposable
                     {
                         string key = forkKeyNode.ToString();
                         // Check existed forks
-                        foreach (var (workflowContext, _) in state.ForkContexts)
+                        foreach (var (_, workflowContext) in state.ForkContexts)
                         {
                             forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)
                                 ?.GetValueByPaths(key);
@@ -277,8 +309,8 @@ public class WorkflowContext: SchemaContext, IDisposable
             context.Initialize(Workflow!, workflow, this);
             context.Done(workflow.Name, payload, true);
 
-            state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
-            state.ForkContexts[context] = context.Id; // record the forked context
+            state.ForkContexts ??= new  ConcurrentDictionary<Guid, WorkflowContext>();
+            state.ForkContexts[context.Id] = context; // record the forked context
             _scheduler.Schedule(context); // schedule the new workflow context for next processing
             return;
         }
@@ -428,7 +460,7 @@ public class WorkflowContext: SchemaContext, IDisposable
             if (workflow != null) await value.ReleaseAsync(this, workflow);
             
             if (value.ForkContexts is not { Count: > 0 }) continue;
-            foreach ((WorkflowContext key, _) in value.ForkContexts)
+            foreach ((_, WorkflowContext key) in value.ForkContexts)
                 await key.TerminateAsync();
         }
         
@@ -466,13 +498,15 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     async Task PersistenceAsync()
     {
+        Interlocked.Increment(ref _version);
+        if (_version > 10e6) Interlocked.Exchange(ref _version, 1); // reset version to avoid overflow
+        
         using IServiceScope scope = _scope.ServiceProvider.CreateScope();
-        IWorkflowContextPersistence? persistence = scope.ServiceProvider.GetService<IWorkflowContextPersistence>();
+        var persistence = scope.ServiceProvider.GetService<IWorkflowContextPersistence>();
         if (persistence != null)
         {
             WorkflowContextSnapshot? snapshot = Backup();
-            if (snapshot != null)
-                await persistence.SaveAsync(snapshot);
+            if (snapshot != null) await persistence.SaveAsync(snapshot);
         }
     }
 
@@ -484,13 +518,11 @@ public class WorkflowContext: SchemaContext, IDisposable
 
     public void Dispose()
     {
-        if (_root != null)
+        // remove from root fork contexts
+        if (_root != null && _root._states.TryGetValue(_workflow!.Name, out WorkflowState? state) 
+                          && state.ForkContexts != null)
         {
-            // remove from root fork contexts
-            if (_root._states.TryGetValue(_workflow!.Name, out WorkflowState? state) && state.ForkContexts != null)
-            {
-                state.ForkContexts.TryRemove(this, out _);
-            }
+            state.ForkContexts.TryRemove(Id, out _);
         }
         
         _workflow = null;
@@ -524,7 +556,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// <summary>
         /// The forked workflow contexts
         /// </summary>
-        public ConcurrentDictionary<WorkflowContext, Guid>? ForkContexts { get; set; }
+        public ConcurrentDictionary<Guid, WorkflowContext>? ForkContexts { get; set; }
         
         /// <summary>
         /// Has session

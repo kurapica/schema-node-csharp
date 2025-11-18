@@ -24,6 +24,11 @@ public abstract class AnySchemeType: IDisposable
     /// The schema display
     /// </summary>
     public LocaleString? Display { get; internal set; }
+    
+    /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    public PolicyType? Auth { get; set; }
 
     #endregion
     
@@ -252,6 +257,7 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Json => new JsonType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Policy => new PolicyType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -272,6 +278,7 @@ public abstract class AnySchemeType: IDisposable
             SchemaType.Json => (schema as JsonType),
             SchemaType.Event => (schema as EventType),
             SchemaType.Workflow => (schema as WorkflowType),
+            SchemaType.Policy => (schema as PolicyType),
             _ => (schema as TypeNamespace)
         };
     }

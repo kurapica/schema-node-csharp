@@ -1899,6 +1899,7 @@ public class FunctionType: AnySchemeType
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Auth = schema.Auth?.Name,
             Used = schema.IsUsed,
             Func = new FunctionSchema
             {

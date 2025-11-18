@@ -64,6 +64,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
     public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
     public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
+    public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
@@ -89,6 +90,9 @@ public static class Constant
     
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";
+    
+    // auth namespace
+    public const string NS_SYSTEM_AUTH = "system.auth";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
@@ -206,6 +210,12 @@ public static class Constant
     public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
     public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";
     public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
+
+    public const string WORKFLOW_NOT_FOUND = "WORKFLOW_NOT_FOUND";
+    public const string WORKFLOW_NODE_NOT_FOUND = "WORKFLOW_NODE_NOT_FOUND";
+    public const string WORKFLOW_NOT_START = "WORKFLOW_NOT_START";
+    public const string WORKFLOW_NODE_NOT_RUNNING = "WORKFLOW_NODE_NOT_RUNNING";
+    public const string WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID = "WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID";
 
     #endregion
 }

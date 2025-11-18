@@ -70,6 +70,11 @@ public class AppWorkflowType: IDisposable
     /// </summary>
     public bool Activated { get; private set; }
 
+    /// <summary>
+    /// Gets the root workflow context
+    /// </summary>
+    public WorkflowContext? RootWorkflowContext => _workflowContext;
+    
     #endregion
 
     #region Relationship

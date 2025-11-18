@@ -73,6 +73,16 @@ public class AppFieldSchema
     public string[]? Args { get; set; }
 
     /// <summary>
+    /// The authentication policy, normally row policy
+    /// </summary>
+    public PolicyItem[]? Auths { get; set; }
+    
+    /// <summary>
+    /// The struct field auths, normally column policy
+    /// </summary>
+    public FieldPolicy[]? FieldAuths { get; set; }
+
+    /// <summary>
     /// The field flags
     /// </summary>
     public AppFieldFlags Flags { get; set; } = AppFieldFlags.None;
@@ -207,4 +217,17 @@ public class AppFieldSchema
     }
 
     #endregion
+}
+
+public class FieldPolicy
+{
+    /// <summary>
+    /// The struct field name
+    /// </summary>
+    public required string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    public PolicyItem[]? Auths { get; set; }
 }

@@ -50,6 +50,10 @@ public class TypeNamespace: AnySchemeType
         {
             if (schema.Schemas == null || schema.Schemas.Length == 0) return;
 
+            // policy
+            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Policy))
+                await context.GetSchemaTypeAsync(s.Name, preload: true);
+
             // json
             foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
                 await context.GetSchemaTypeAsync(s.Name, preload: true);
@@ -109,6 +113,7 @@ public class TypeNamespace: AnySchemeType
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Auth = schema.Auth?.Name,
             Used = schema.IsUsed,
             HasSchemas = schema.Schemas.Length > 0
         };

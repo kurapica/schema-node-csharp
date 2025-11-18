@@ -118,7 +118,7 @@ public class WorkflowType: AnySchemeType
                 Mode = type.IsSubclassOf(typeof(EventWorkflow)) ? WorkflowMode.Event 
                     : type.IsSubclassOf(typeof(FunctionWorkflow)) 
                         ? WorkflowMode.Function 
-                        : type.IsSubclassOf(typeof(InteractionWorkflow))
+                        : type == typeof(InteractionWorkflow) || type.IsSubclassOf(typeof(InteractionWorkflow))
                             ? WorkflowMode.Interaction 
                             : WorkflowMode.Workflow,
             }
@@ -202,6 +202,7 @@ public class WorkflowType: AnySchemeType
             Type = schema.Type,
             Display = schema.Display,
             LoadState = schema.LoadState,
+            Auth = schema.Auth?.Name,
             Used = schema.IsUsed,
             Workflow = new WorkflowSchema
             {

@@ -295,6 +295,7 @@ public class EnumType: AnySchemeType
             Type = Type,
             Display = Display,
             LoadState = LoadState,
+            Auth = Auth?.Name,
             Used = IsUsed,
             Enum = new EnumSchema
             {

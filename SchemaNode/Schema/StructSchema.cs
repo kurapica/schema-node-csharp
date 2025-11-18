@@ -82,6 +82,12 @@ public class StructFieldConfig
     public LocaleString? Error { get; set; }
 
     /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    [SchemaType(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    public string? Auth { get; set; }
+
+    /// <summary>
     /// The struct field flags
     /// </summary>
     public StructFieldFlags Flags { get; set; }
