@@ -289,22 +289,15 @@ public class EnumType: AnySchemeType
     /// </summary>
     public NodeSchema ToNodeSchema(int limitLevel = 0)
     {
-        return new NodeSchema
+        NodeSchema nodeSchema = ToSchema();
+        nodeSchema.Enum = new EnumSchema
         {
-            Name = Name,
-            Type = Type,
-            Display = Display,
-            LoadState = LoadState,
-            Auth = Auth?.Name,
-            Used = IsUsed,
-            Enum = new EnumSchema
-            {
-                Type = ValueType,
-                Cascade = Cascade,
-                Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? [],
-                Additional = Additional,
-            }
+            Type = ValueType,
+            Cascade = Cascade,
+            Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? [],
+            Additional = Additional,
         };
+        return nodeSchema;
     }
 
     #endregion

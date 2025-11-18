@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
@@ -253,25 +254,18 @@ public class ArrayType: AnySchemeType
     public static implicit operator NodeSchema?(ArrayType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Array = new ArraySchema
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Array = new ArraySchema
-            {
-                Element = schema.Element,
-                Single = schema.Single,
-                Primary = schema.Primary,
-                Indexes = schema.Indexes,
-                Combines = schema.Combines,
-                Relations = schema.Relations,
-                Additional = schema.Additional,
-            }
+            Element = schema.Element,
+            Single = schema.Single,
+            Primary = schema.Primary,
+            Indexes = schema.Indexes,
+            Combines = schema.Combines,
+            Relations = schema.Relations,
+            Additional = schema.Additional,
         };
+        return nodeSchema;
     }
     
     #endregion

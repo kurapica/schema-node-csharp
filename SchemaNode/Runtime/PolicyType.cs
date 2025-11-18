@@ -56,19 +56,12 @@ public class PolicyType: AnySchemeType
     public static implicit operator NodeSchema?(PolicyType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Policy = new PolicySchema
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Policy = new PolicySchema
-            {
-                Items = schema.Items.ToArray()
-            }
+            Items = schema.Items.ToArray()
         };
+        return nodeSchema;
     }
     #endregion
 }

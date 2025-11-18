@@ -283,6 +283,19 @@ public abstract class AnySchemeType: IDisposable
         };
     }
     
+    protected NodeSchema ToSchema()
+    {
+        return new NodeSchema
+        {
+            Name = Name.ToLower(),
+            Type = Type,
+            Display = Display,
+            LoadState = LoadState,
+            Auth = Auth?.Name,
+            Used = IsUsed,
+        };
+    }
+    
     #endregion
 
     #region Utility

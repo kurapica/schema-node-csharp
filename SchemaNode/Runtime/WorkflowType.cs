@@ -196,24 +196,17 @@ public class WorkflowType: AnySchemeType
     public static implicit operator NodeSchema?(WorkflowType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Workflow = new WorkflowSchema
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Workflow = new WorkflowSchema
-            {
-                Mode = schema.WorkflowMode,
-                Payload = schema.Payload,
-                State = schema.State,
-                Session = schema.Session,
-                Args = schema.Args,
-                Additional = schema.Additional
-            }
+            Mode = schema.WorkflowMode,
+            Payload = schema.Payload,
+            State = schema.State,
+            Session = schema.Session,
+            Args = schema.Args,
+            Additional = schema.Additional
         };
+        return nodeSchema;
     }
      
     #endregion

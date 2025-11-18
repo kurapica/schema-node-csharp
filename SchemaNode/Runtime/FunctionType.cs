@@ -1893,36 +1893,29 @@ public class FunctionType: AnySchemeType
     public static implicit operator NodeSchema?(FunctionType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Func = new FunctionSchema
         {
-            Name = schema.Name.ToLower(),
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Func = new FunctionSchema
+            Return = schema.Return,
+            Args = schema.Args.Select(a => new FuncArg
             {
-                Return = schema.Return,
-                Args = schema.Args.Select(a => new FuncArg
-                {
-                    Name = a.Name.ToCamelCase(),
-                    Type = a.Type,
-                    Nullable = a.Nullable
-                }).ToArray(),
-                Exps = schema.Exps.Select(e => new FuncExp
-                {
-                    Name = e.Name.ToCamelCase(),
-                    Func = e.Func,
-                    Type = e.Type ?? ExpressionType.Call,
-                    Return = e.Return,
-                    Args = e.Args
-                }).ToArray(),
-                Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
-                Server = schema.Server,
-                Nocache = schema.Nocache,
-            }
+                Name = a.Name.ToCamelCase(),
+                Type = a.Type,
+                Nullable = a.Nullable
+            }).ToArray(),
+            Exps = schema.Exps.Select(e => new FuncExp
+            {
+                Name = e.Name.ToCamelCase(),
+                Func = e.Func,
+                Type = e.Type ?? ExpressionType.Call,
+                Return = e.Return,
+                Args = e.Args
+            }).ToArray(),
+            Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
+            Server = schema.Server,
+            Nocache = schema.Nocache,
         };
+        return nodeSchema;
     }
     
     #endregion

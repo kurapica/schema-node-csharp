@@ -107,16 +107,9 @@ public class TypeNamespace: AnySchemeType
     public static implicit operator NodeSchema?(TypeNamespace? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
-        {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            HasSchemas = schema.Schemas.Length > 0
-        };
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.HasSchemas = schema.Schemas.Length > 0;
+        return nodeSchema;
     }
 
     #endregion

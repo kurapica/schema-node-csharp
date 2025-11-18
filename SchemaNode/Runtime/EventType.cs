@@ -114,19 +114,12 @@ public class EventType: AnySchemeType
     public static implicit operator NodeSchema?(EventType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Event = new EventSchema
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Event = new EventSchema
-            {
-                Payload = schema.Payload,
-            }
+            Payload = schema.Payload,
         };
+        return nodeSchema;
     }
      
     #endregion

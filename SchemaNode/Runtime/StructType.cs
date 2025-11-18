@@ -387,22 +387,15 @@ public class StructType: AnySchemeType
     public static implicit operator NodeSchema?(StructType? schema)
     {
         if (schema == null) return null;
-        return new NodeSchema
+        NodeSchema nodeSchema = schema.ToSchema();
+        nodeSchema.Struct = new StructSchema
         {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-            Struct = new StructSchema
-            {
-                Base = schema.Base,
-                Relations = schema.Relations,
-                Fields = schema.Fields,
-                Additional = schema.Additional,
-            }
+            Base = schema.Base,
+            Relations = schema.Relations,
+            Fields = schema.Fields,
+            Additional = schema.Additional,
         };
+        return nodeSchema;
     }
     
     #endregion

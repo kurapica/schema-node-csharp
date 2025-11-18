@@ -459,29 +459,22 @@ public class ScalarType: AnySchemeType
     public static implicit operator NodeSchema?(ScalarType? schema)
      {
           if (schema == null) return null;
-          return new NodeSchema
+          NodeSchema nodeSchema = schema.ToSchema();
+          nodeSchema.Scalar = new ScalarSchema
           {
-               Name = schema.Name,
-               Type = schema.Type,
-               Display = schema.Display,
-               LoadState = schema.LoadState,
-               Auth = schema.Auth?.Name,
-               Used = schema.IsUsed,
-               Scalar = new ScalarSchema
-               {
-                    Base = schema.Base,
-                    Unit = schema.Unit,
-                    LowLimit = schema.LowLimit,
-                    UpLimit = schema.UpLimit,
-                    Error = schema.Error,
-                    Regex = schema.Regex,
-                    WhiteList = schema.WhiteList,
-                    AsSuggest = schema.AsSuggest,
-                    PreValid = schema.PreValid,
-                    PostValid = schema.PostValid,
-                    Additional = schema.Additional,
-               }
+              Base = schema.Base,
+              Unit = schema.Unit,
+              LowLimit = schema.LowLimit,
+              UpLimit = schema.UpLimit,
+              Error = schema.Error,
+              Regex = schema.Regex,
+              WhiteList = schema.WhiteList,
+              AsSuggest = schema.AsSuggest,
+              PreValid = schema.PreValid,
+              PostValid = schema.PostValid,
+              Additional = schema.Additional,
           };
+          return nodeSchema;
      }
      
      #endregion

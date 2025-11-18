@@ -36,16 +36,7 @@ public class JsonType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(JsonType? schema)
     {
-        if (schema == null) return null;
-        return new NodeSchema
-        {
-            Name = schema.Name,
-            Type = schema.Type,
-            Display = schema.Display,
-            LoadState = schema.LoadState,
-            Auth = schema.Auth?.Name,
-            Used = schema.IsUsed,
-        };
+        return schema?.ToSchema();
     }
 
     #endregion
