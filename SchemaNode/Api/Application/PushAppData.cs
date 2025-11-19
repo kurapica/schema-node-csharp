@@ -56,6 +56,9 @@ public static class PushDataExtenstion
             AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
 
+            // Set app access
+            context.SetAppAccess(appField.App, target, appField.Name);
+
             if (!hasData)
             {
                 hasData = true;

@@ -1,8 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -42,12 +45,14 @@ public class PolicyItem
     public required string Evaluator { get; set; }
 
     /// <summary>
-    /// The evaluator arguments
-    /// </summary>
-    public FuncCallArg[] Args { get; set; } = [];
-    
-    /// <summary>
     /// The policy combine method
     /// </summary>
     public required PolicyCombine Combine { get; set; }
+    
+    /// <summary>
+    /// The function type of the evaluator
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public FunctionType? Function { get; set; }
 }

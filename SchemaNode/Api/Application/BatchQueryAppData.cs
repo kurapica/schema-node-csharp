@@ -57,7 +57,7 @@ public static class BatchQueryExtension
             cancellationToken?.ThrowIfCancellationRequested();
             
             if (string.IsNullOrWhiteSpace(query.App)) continue;
-            if (string.IsNullOrWhiteSpace(query.Target)) continue; // @TODO: allow standalone app
+            if (string.IsNullOrWhiteSpace(query.Target)) continue;
             AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
 
@@ -103,6 +103,9 @@ public static class BatchQueryExtension
                     {
                         take = 0;
                     }
+                    
+                    // Set the current access
+                    context.SetAppAccess(field.App, query.Target, field.Name);
 
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
                         q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);

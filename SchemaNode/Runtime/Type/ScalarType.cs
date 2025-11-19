@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -457,25 +456,22 @@ public class ScalarType: AnySchemeType
     /// Convert the node to schema
     /// </summary>
     public static implicit operator NodeSchema?(ScalarType? schema)
-     {
-          if (schema == null) return null;
-          NodeSchema nodeSchema = schema.ToSchema();
-          nodeSchema.Scalar = new ScalarSchema
-          {
-              Base = schema.Base,
-              Unit = schema.Unit,
-              LowLimit = schema.LowLimit,
-              UpLimit = schema.UpLimit,
-              Error = schema.Error,
-              Regex = schema.Regex,
-              WhiteList = schema.WhiteList,
-              AsSuggest = schema.AsSuggest,
-              PreValid = schema.PreValid,
-              PostValid = schema.PostValid,
-              Additional = schema.Additional,
-          };
-          return nodeSchema;
-     }
+    {
+        return schema?.ToSchema().With(new ScalarSchema
+        {
+            Base = schema.Base,
+            Unit = schema.Unit,
+            LowLimit = schema.LowLimit,
+            UpLimit = schema.UpLimit,
+            Error = schema.Error,
+            Regex = schema.Regex,
+            WhiteList = schema.WhiteList,
+            AsSuggest = schema.AsSuggest,
+            PreValid = schema.PreValid,
+            PostValid = schema.PostValid,
+            Additional = schema.Additional,
+        });
+    }
      
      #endregion
 }

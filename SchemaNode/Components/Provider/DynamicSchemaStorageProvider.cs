@@ -97,6 +97,9 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     case SchemaType.Func:
                         schema.Func = await context.GetEntityAsync<FunctionSchema>(Target, name);
                         break;
+                    case SchemaType.Policy:
+                        schema.Policy = await context.GetEntityAsync<PolicySchema>(Target, name);
+                        break;
                 }
                 
                 result.Add(schema);
@@ -175,6 +178,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         await context.SaveEntityAsync(Target, schema.Func);
                     }
                     break;
+                case SchemaType.Policy:
+                    if (schema.Policy != null)
+                    {
+                        schema.Policy.Name = schema.Name;
+                        await context.SaveEntityAsync(Target, schema.Policy);
+                    }
+                    break;
             }
             
             await context.CommitTransactionAsync();
@@ -196,7 +206,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
         {
             AnySchemeType? delNode = await context.GetSchemaTypeAsync(schema);
             if (delNode == null) return false;
-            NodeSchema nodeSchema = (NodeSchema)delNode!;
+            NodeSchema nodeSchema = delNode!;
 
             await context.BeginTransactionAsync();
             await context.DeleteEntityAsync(Target, nodeSchema);
@@ -239,6 +249,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     {
                         nodeSchema.Func.Name = nodeSchema.Name;
                         await context.DeleteEntityAsync(Target, nodeSchema.Func);
+                    }
+                    break;
+                case SchemaType.Policy:
+                    if (nodeSchema.Policy != null)
+                    {
+                        nodeSchema.Policy.Name = nodeSchema.Name;
+                        await context.DeleteEntityAsync(Target, nodeSchema.Policy);
                     }
                     break;
             }

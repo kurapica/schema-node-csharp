@@ -790,6 +790,8 @@ public class FunctionType: AnySchemeType
                 Return = string.Empty,
                 Args = new FuncArg[parameters.Length],
                 Exps = [],
+                Nocache = method.GetCustomAttribute<NoCacheAttribute>() != null,
+                Server = method.GetCustomAttribute<ServerOnlyAttribute>() != null,
                 Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } 
                     ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
@@ -1460,7 +1462,7 @@ public class FunctionType: AnySchemeType
                     }
 
                     // Build the exp
-                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(typeof(System.Object), memberExp)));
+                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(typeof(Object), memberExp)));
                 }
                 return resultVar;
             }
@@ -1892,9 +1894,7 @@ public class FunctionType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(FunctionType? schema)
     {
-        if (schema == null) return null;
-        NodeSchema nodeSchema = schema.ToSchema();
-        nodeSchema.Func = new FunctionSchema
+        return schema?.ToSchema().With(new FunctionSchema
         {
             Return = schema.Return,
             Args = schema.Args.Select(a => new FuncArg
@@ -1914,8 +1914,7 @@ public class FunctionType: AnySchemeType
             Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
             Server = schema.Server,
             Nocache = schema.Nocache,
-        };
-        return nodeSchema;
+        });
     }
     
     #endregion

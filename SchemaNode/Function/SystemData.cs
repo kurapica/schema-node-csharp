@@ -14,6 +14,20 @@ namespace SchemaNode.Function;
 [SchemaType(NS_SYSTEM_DATA)]
 public static class SystemData
 {
+    #region Context Item
+
+    /// <summary>
+    /// Gets the context item
+    /// </summary>
+    [SchemaType]
+    [NoCache]
+    public static AnySchemaNode? GetContextItem(SchemaContext context, string item)
+    {
+        return context.GetContextItem(item);
+    }
+
+    #endregion
+    
     #region Get Application Data
 
     /// <summary>

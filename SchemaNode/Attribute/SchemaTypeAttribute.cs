@@ -29,7 +29,7 @@ public class SchemaTypeAttribute: System.Attribute
         Display = display != null ? new LocaleString(display) : null;
     }
     
-    public SchemaTypeAttribute(string name, string key, string lang, string tran)
+    public SchemaTypeAttribute(string? name, string key, string lang, string tran)
     {
         Name = name;
         Display = new LocaleString(key, (lang, tran));

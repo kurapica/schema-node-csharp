@@ -195,9 +195,7 @@ public class WorkflowType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(WorkflowType? schema)
     {
-        if (schema == null) return null;
-        NodeSchema nodeSchema = schema.ToSchema();
-        nodeSchema.Workflow = new WorkflowSchema
+        return schema?.ToSchema().With(new WorkflowSchema
         {
             Mode = schema.WorkflowMode,
             Payload = schema.Payload,
@@ -205,8 +203,7 @@ public class WorkflowType: AnySchemeType
             Session = schema.Session,
             Args = schema.Args,
             Additional = schema.Additional
-        };
-        return nodeSchema;
+        });
     }
      
     #endregion

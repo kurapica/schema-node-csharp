@@ -91,8 +91,8 @@ public static class Constant
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";
     
-    // auth namespace
-    public const string NS_SYSTEM_AUTH = "system.auth";
+    // context struct
+    public const string NS_SYSTEM_CONTEXT = "system.context";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;

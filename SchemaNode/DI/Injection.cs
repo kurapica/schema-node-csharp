@@ -17,6 +17,7 @@ using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Schema;
 using static SchemaNode.Utility.App;
+using static SchemaNode.Utility.Constant;
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace SchemaNode;
@@ -73,6 +74,36 @@ public static class Injection
         
         // workflow persistence
         services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
+        
+        // Register system.context
+        NodeSchema contextSchema = NewSystemStruct(NS_SYSTEM_CONTEXT, []);
+        services.AddScoped<AppAccessContextItemProvider>();
+
+        // context item scan
+        foreach(ServiceDescriptor desc in services)
+        {
+            Type serviceType = desc.ServiceType;
+            if (serviceType.GetInterfaces().FirstOrDefault(i 
+                    => i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>))) is { } @interface)
+            {
+                Type itemType = @interface.GetGenericArguments()[0];
+                string? schemaType = itemType.GetSchemaType(true);
+                if (string.IsNullOrEmpty(schemaType)) continue;
+
+                // use the last part as field name
+                string field = schemaType.SplitTypeName().Last().ToLower();
+                contextSchema.Struct!.Fields = contextSchema.Struct!.Fields.Append(new StructFieldConfig
+                {
+                    Name = field,
+                    Type = schemaType,
+                    Display = $"{{@{schemaType}}}",
+                }).ToArray();
+                SchemaContext.ItemProvider[field] = (schemaType, serviceType);
+            }
+        }
+        
+        // Add the system.context
+        SaveSystemNodeSchema(contextSchema);
         
         return services;
     }
@@ -229,7 +260,7 @@ public static class Injection
             });
             
         }
-
+        
         return app;
     }
 
@@ -365,6 +396,7 @@ public static class Injection
 
     static readonly HashSet<Assembly> RegisterAssemblys = new();
     static readonly List<SchemaApiType> ApiTypes = new();
+
     public record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
 
     #endregion

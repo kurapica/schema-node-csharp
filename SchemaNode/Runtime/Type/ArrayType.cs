@@ -253,9 +253,7 @@ public class ArrayType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(ArrayType? schema)
     {
-        if (schema == null) return null;
-        NodeSchema nodeSchema = schema.ToSchema();
-        nodeSchema.Array = new ArraySchema
+        return schema?.ToSchema().With(new ArraySchema
         {
             Element = schema.Element,
             Single = schema.Single,
@@ -264,8 +262,7 @@ public class ArrayType: AnySchemeType
             Combines = schema.Combines,
             Relations = schema.Relations,
             Additional = schema.Additional,
-        };
-        return nodeSchema;
+        });
     }
     
     #endregion

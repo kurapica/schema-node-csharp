@@ -22,14 +22,27 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
     {
         Logger.LogDebug("[Api]Interaction [Request]{request}", request);
 
-        await Task.Yield();
-        
+        // Done
+        return new InteractionResponse { Result = await SchemaContext.Interaction(request) };
+    }
+}
+
+public static class InteractionExtensions
+{
+    /// <summary>
+    /// Process the interaction request
+    /// </summary>
+    public static async Task<bool> Interaction(this SchemaContext context, InteractionRequest request)
+    {
         // Indicate the workflow node
-        AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
+        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
         AppWorkflowType workflowType = app.Workflows?
             .FirstOrDefault(w => w.Name.Equals(request.Workflow, StringComparison.InvariantCultureIgnoreCase))
             ?? throw new Exception(WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
+        
+        // Set app access
+        context.SetAppAccess(request.App, request.Target);
 
         // build the payload
         InteractionWorkflowPayload payload = new()
@@ -64,17 +77,16 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
         // Continue an existing workflow
         else
         {
-            WorkflowContext context = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId.Value)
+            WorkflowContext workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId.Value)
                 ?? throw new Exception(WORKFLOW_NOT_FOUND);
             
             // Check if still working
-            WorkflowStatus status = context.GetWorkflowStatus(request.Node);
+            WorkflowStatus status = workContext.GetWorkflowStatus(request.Node);
             if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
-            context.Done(request.Node, node.PayloadType.CreateNode(payload));
+            workContext.Done(request.Node, node.PayloadType.CreateNode(payload));
         }
-        
-        // Done
-        return new InteractionResponse { Result = true };
+
+        return true;
     }
 }
 

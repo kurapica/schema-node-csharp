@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Schema;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Edit;
 
@@ -88,6 +89,11 @@ public class NodeSchemaData
     /// The function schema if type is function
     /// </summary>
     public FunctionSchema? Func { get; set; }
+    
+    /// <summary>
+    /// The policy schema if type is policy
+    /// </summary>
+    public PolicySchema? Policy { get; set; }
 
     #region Conversion
 
@@ -103,6 +109,7 @@ public class NodeSchemaData
             Struct = schema.Type == SchemaType.Struct ? schema.Struct : null,
             Array = schema.Type == SchemaType.Array ? schema.Array : null,
             Func = schema.Type == SchemaType.Func ? schema.Func : null,
+            Policy = schema.Type == SchemaType.Policy ? schema.Policy : null,
             LoadState = SchemaLoadState.Server
         };
     }

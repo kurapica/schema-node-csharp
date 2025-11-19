@@ -31,6 +31,16 @@ public class AppType
     /// The description
     /// </summary>
     public LocaleString? Desc { get; private set; }
+    
+    /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    public PolicyType? Auth { get; set; }
+    
+    /// <summary>
+    /// The data authentication policy type
+    /// </summary>
+    public PolicyType? DataAuth { get; set; }
 
     /// <summary>
     /// The application field relations
@@ -126,6 +136,12 @@ public class AppType
         // data
         Display = schema.Display;
         Desc = schema.Desc;
+        Auth = !string.IsNullOrEmpty(schema.Auth)
+            ? await context.GetSchemaTypeAsync(schema.Auth) as PolicyType
+            : null;
+        DataAuth = !string.IsNullOrEmpty(schema.DataAuth)
+            ? await context.GetSchemaTypeAsync(schema.DataAuth) as PolicyType
+            : null;
         Apps = schema.Apps;
         Additional = schema.Additional;
 

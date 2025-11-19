@@ -23,6 +23,9 @@ public class SetSourceTargetApi : SchemaApi<SetSourceTargetRequest, SetSourceTar
         AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
         AppFieldType field = app.Fields?.FirstOrDefault(f => f.SourceApp != null && f.SourceApp.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
+        // Set app access
+        SchemaContext.SetAppAccess(request.App, request.Target, field.Name);
+
         await SchemaContext.SetSourceFieldNode(field, request.Target, request.SourceTarget);
 
         return new SetSourceTargetResponse

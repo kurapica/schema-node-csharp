@@ -14,36 +14,60 @@ public class PolicyType: AnySchemeType
     /// <summary>
     /// The policy items
     /// </summary>
-    public PolicyItem[] Items { get; set; } = [];
+    public PolicyItem[] Items { get; private set; } = [];
 
     #endregion
     
     #region Status
     
     /// <inheritdoc />
-    public override SchemaType Type => SchemaType.Workflow;
+    public override SchemaType Type => SchemaType.Policy;
     
     #endregion
     
     #region Method
     
     /// <inheritdoc />
-    public override Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
     {
         PolicySchema? policy = schema.Policy;
         
         // Data
         Items = policy?.Items ?? [];
-
         if (policy == null) Status = SchemaNodeStatus.NoDefinition;
 
-        return Task.CompletedTask;
+        // Ref
+        foreach (PolicyItem item in Items)
+        {
+            FunctionType? func = !string.IsNullOrEmpty(item.Evaluator)
+                ? await context.GetSchemaTypeAsync(item.Evaluator) as FunctionType
+                : null;
+            if (func == null)
+            {
+                Status = SchemaNodeStatus.PolicyWrongFunc;
+            }
+            else
+            {
+                func.AddRef(this);
+                item.Function = func;
+            }
+        }
     }
     
     /// <inheritdoc />
     public override ArrayType? GetArrayNode(bool exactly = false)
     {
         return null;
+    }
+    
+    /// <inheritdoc />
+    public override void Release()
+    {
+        foreach (PolicyItem item in Items)
+        {
+            item.Function?.RemoveRef(this);
+            item.Function = null;
+        }
     }
 
     #endregion
@@ -55,13 +79,10 @@ public class PolicyType: AnySchemeType
     /// </summary>
     public static implicit operator NodeSchema?(PolicyType? schema)
     {
-        if (schema == null) return null;
-        NodeSchema nodeSchema = schema.ToSchema();
-        nodeSchema.Policy = new PolicySchema
+        return schema?.ToSchema().With(new PolicySchema
         {
             Items = schema.Items.ToArray()
-        };
-        return nodeSchema;
+        });
     }
     #endregion
 }

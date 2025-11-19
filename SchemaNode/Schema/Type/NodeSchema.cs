@@ -161,9 +161,65 @@ public class NodeSchema
 
     #region Methods
 
-    internal NodeSchema WithSchemas(NodeSchema[] schemas)
+    internal NodeSchema With(NodeSchema[] schemas)
     {
         Schemas = schemas;
+        return this;
+    }
+
+    internal NodeSchema With(ScalarSchema scalar)
+    {
+        if (Type != SchemaType.Scalar) return this;
+        Scalar = scalar;
+        return this;
+    }
+
+    internal NodeSchema With(EnumSchema enumSchema)
+    {
+        if (Type != SchemaType.Enum) return this;
+        Enum = enumSchema;
+        return this;
+    }
+
+    internal NodeSchema With(StructSchema structSchema)
+    {
+        if (Type != SchemaType.Struct) return this;
+        Struct = structSchema;
+        return this;
+    }
+
+    internal NodeSchema With(ArraySchema arraySchema)
+    {
+        if (Type != SchemaType.Array) return this;
+        Array = arraySchema;
+        return this;
+    }
+
+    internal NodeSchema With(FunctionSchema functionSchema)
+    {
+        if (Type != SchemaType.Func) return this;
+        Func = functionSchema;
+        return this;
+    }
+
+    internal NodeSchema With(EventSchema eventSchema)
+    {
+        if (Type != SchemaType.Event) return this;
+        Event = eventSchema;
+        return this;
+    }
+
+    internal NodeSchema With(WorkflowSchema workflowSchema)
+    {
+        if (Type != SchemaType.Workflow) return this;
+        Workflow = workflowSchema;
+        return this;
+    }
+
+    internal NodeSchema With(PolicySchema policySchema)
+    {
+        if (Type != SchemaType.Policy) return this;
+        Policy = policySchema;
         return this;
     }
 

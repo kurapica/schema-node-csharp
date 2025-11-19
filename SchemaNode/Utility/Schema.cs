@@ -277,6 +277,7 @@ public static class Schema
             }
 
             if (schemas is not { Length: > 0 }) return null;
+            
             foreach (NodeSchema schema in schemas)
             {
                 schema.LoadState = SchemaLoadState.System;
@@ -978,20 +979,20 @@ public static class Schema
         return arr.Select(a => (T)type.TryConvert(a)!).ToList();
     }
 
-    static ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
-    static ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
-    static ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
 
     // System type maps
-    private static ConcurrentDictionary<string, Type> _systemTypes = [];
-    private static ConcurrentDictionary<Type, string> _typeNames  = [];
-    private static ConcurrentDictionary<Type, string> _typeArrNames = [];
+    private static readonly ConcurrentDictionary<string, Type> _systemTypes = [];
+    private static readonly ConcurrentDictionary<Type, string> _typeNames  = [];
+    private static readonly ConcurrentDictionary<Type, string> _typeArrNames = [];
 
     #endregion
 
     #region Utility
 
-    static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)
+    internal static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)
     {
         return new NodeSchema
         {
@@ -1002,7 +1003,7 @@ public static class Schema
         };
     }
     
-    static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
+    internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
         return new NodeSchema
         {
@@ -1021,7 +1022,7 @@ public static class Schema
         };
     }
 
-    static NodeSchema NewSystemStruct(string name, (string name, string type, bool? require)[] fields)
+    internal static NodeSchema NewSystemStruct(string name, (string name, string type, bool? require)[] fields)
     {
         return new NodeSchema
         {
@@ -1042,7 +1043,7 @@ public static class Schema
         };
     }
     
-    static NodeSchema NewSystemArray(string name, string? eleType = null, params string[] primary)
+    internal static NodeSchema NewSystemArray(string name, string? eleType = null, params string[] primary)
     {
         return new NodeSchema
         {
@@ -1063,9 +1064,9 @@ public static class Schema
     #region System Schema
 
     // The basic system schema
-    static readonly NodeSchema _root = NewSystemSchema("").WithSchemas([
+    static readonly NodeSchema _root = NewSystemSchema("").With([
         // System types
-        NewSystemSchema(NS_SYSTEM).WithSchemas([
+        NewSystemSchema(NS_SYSTEM).With([
             #region base type
             
             NewSystemArray(NS_SYSTEM_ARRAY, ""),
@@ -1113,7 +1114,7 @@ public static class Schema
             #region System.Schema
 
             // place holder types
-            NewSystemSchema(NS_SYSTEM_SCHEMA).WithSchemas([
+            NewSystemSchema(NS_SYSTEM_SCHEMA).With([
                 // scalar
                 NewSystemScalar(NS_SYSTEM_SCHEMA_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
@@ -1140,15 +1141,8 @@ public static class Schema
 
             #region System.Workflow
 
-            NewSystemSchema(NS_SYSTEM_WORKFLOW).WithSchemas([
+            NewSystemSchema(NS_SYSTEM_WORKFLOW).With([
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
-            ]),
-
-            #endregion
-
-            #region System.Auth
-
-            NewSystemSchema(NS_SYSTEM_AUTH).WithSchemas([
             ]),
 
             #endregion

@@ -228,5 +228,10 @@ public enum SchemaNodeStatus
     /// <summary>
     /// The workflow has wrong event
     /// </summary>
-    WorkflowWrongEvent
+    WorkflowWrongEvent,
+    
+    /// <summary>
+    /// The policy has wrong func
+    /// </summary>
+    PolicyWrongFunc,
 }

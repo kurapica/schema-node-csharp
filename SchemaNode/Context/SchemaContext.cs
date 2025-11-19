@@ -13,6 +13,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SchemaNode.Components.Context;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 using static SchemaNode.Utility.App;
@@ -30,6 +31,11 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// The max take count for increment field query
     /// </summary>
     internal static readonly SchemaNodeConfig Config = new ();
+    
+    /// <summary>
+    /// The context item providers
+    /// </summary>
+    internal static readonly ConcurrentDictionary<string, (string schemaType, Type providerType)> ItemProvider = new ();
 
     #endregion
     
@@ -51,9 +57,19 @@ public class SchemaContext(IServiceProvider serviceProvider)
     IAppSchemaDataProvider? AppDataProvider => _dataProviderThunk.Value;
 
     /// <summary>
-    /// The current category target to be used
+    /// The current application to be used
     /// </summary>
-    public string? Target { get; private set; }
+    internal string? App { get; private set; }
+    
+    /// <summary>
+    /// The current app target to be used
+    /// </summary>
+    internal string? Target { get; private set; }
+    
+    /// <summary>
+    /// The current field to be used
+    /// </summary>
+    internal string? Field { get; private set; }
 
     #endregion
 
@@ -1081,6 +1097,75 @@ public class SchemaContext(IServiceProvider serviceProvider)
     
     #endregion
 
+    #region Schema Context Items
+    
+    /// <summary>
+    /// Sets the current app access
+    /// </summary>
+    public void SetAppAccess(string? app = null, string? target = null, string? field = null)
+    {
+        App = app;
+        Target = target;
+        Field = field;
+    }
+
+    /// <summary>
+    /// Gets the context item by field name, like @user.name
+    /// </summary>
+    public AnySchemaNode? GetContextItem(string field)
+    {
+        if (field.StartsWith("@")) field = field[1..]; // remove @ prefix
+        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length == 0) return null;
+        
+        if (!ItemProvider.TryGetValue(paths[0], out (string schemaType, Type providerType) set)) return null;
+        
+        // Gets the field type
+        AnySchemeType type = GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
+        
+        // Gets the item provider
+        if (ServiceProvider.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } providerInstance
+            && providerInstance.TryGetItem(out object? item))
+        {
+            AnySchemaNode? node = type.CreateNode(item);
+            if (paths.Length > 1)
+            {
+                return node is StructTypeNode @struct
+                    ? @struct.GetValueByPaths(paths.Skip(1))
+                    : null;
+            }
+            return node;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the context item type by field name, like @user.name
+    /// </summary>
+    public AnySchemeType? GetContextItemType(string field)
+    {
+        if (field.StartsWith("@")) field = field[1..]; // remove @ prefix
+        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length == 0) return null;
+        
+        if (!ItemProvider.TryGetValue(paths[0], out (string schemaType, Type providerType) set)) return null;
+        
+        // Gets the field type
+        AnySchemeType? type = GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
+        for (int i = 1; i < paths.Length; i++)
+        {
+            while (type is StructType @struct)
+            {
+                StructFieldConfig? f = @struct.Fields?.FirstOrDefault(f => f.Name.Equals(paths[i], StringComparison.OrdinalIgnoreCase));
+                if (f == null) return null;
+                type = f.TypeNode;
+            }
+        }
+        return type;
+    }
+    
+    #endregion
+    
     #region Lock
 
     /// <summary>
@@ -1611,7 +1696,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
         if (AppDataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
-
+        
         (AppFieldType? sourceField, target) = await GetSourceFieldNode(field, target);
         if (sourceField == null) return (null, 0);
         field = sourceField;

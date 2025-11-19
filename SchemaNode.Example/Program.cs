@@ -2,6 +2,7 @@ using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components.Provider;
 using Microsoft.OpenApi.Models;
+using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
 
@@ -31,6 +32,9 @@ builder.Services
             Version = "v1"
         });
     })
+    
+    // schema context items
+    .AddScoped<UserInfoProvider>()
 
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
