@@ -21,7 +21,7 @@ public static class SystemData
     /// </summary>
     [Schema]
     [NoCache]
-    public static AnySchemaNode? GetContextItem(SchemaContext context, string item)
+    public static AnySchemaNode? getcontextitem(SchemaContext context, string item)
     {
         return context.GetContextItem(item);
     }
@@ -34,7 +34,7 @@ public static class SystemData
     /// Gets the application data if single value
     /// </summary>
     [Schema]
-    public static async Task<AnySchemaNode?> GetAppData(
+    public static async Task<AnySchemaNode?> getappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
@@ -58,7 +58,7 @@ public static class SystemData
     /// Gets the application data by one key
     /// </summary>
     [Schema]
-    public static async Task<AnySchemaNode?> GetAppDataByOneKey<T1>(
+    public static async Task<AnySchemaNode?> getappdatabyonekey<T1>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -91,7 +91,7 @@ public static class SystemData
     /// Gets the application data by one key
     /// </summary>
     [Schema]
-    public static async Task<AnySchemaNode?> GetAppDataByTwoKey<T1, T2>(
+    public static async Task<AnySchemaNode?> getappdatabytwokey<T1, T2>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -127,7 +127,7 @@ public static class SystemData
     /// Gets the application data by one key
     /// </summary>
     [Schema]
-    public static async Task<AnySchemaNode?> GetAppDataByThreeKey<T1, T2, T3>(
+    public static async Task<AnySchemaNode?> getappdatabythreekey<T1, T2, T3>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -166,7 +166,7 @@ public static class SystemData
     /// Gets the application data by one key
     /// </summary>
     [Schema]
-    public static async Task<AnySchemaNode?> GetAppDataByFourKey<T1, T2, T3, T4>(
+    public static async Task<AnySchemaNode?> getappdatabyfourkey<T1, T2, T3, T4>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -212,7 +212,7 @@ public static class SystemData
     /// Incr the app field data
     /// </summary>
     [Schema]
-    public static async Task<JsonNode?> IncrAppData(
+    public static async Task<JsonNode?> incrappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,

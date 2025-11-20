@@ -19,7 +19,7 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [Schema]
-    public static long ArrLen([Schema(NS_SYSTEM_ARRAY)] object array)
+    public static long arrlen([Schema(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is JsonArray jsonArray)
         {
@@ -44,7 +44,7 @@ public static class SystemCollection
     /// Create a new array
     /// </summary>
     [Schema]
-    public static List<T> NewArray<T>()
+    public static List<T> newarray<T>()
     {
         return new List<T>();
     }
@@ -53,7 +53,7 @@ public static class SystemCollection
     /// Push to the list
     /// </summary>
     [Schema]
-    public static List<T> Push<T>(IEnumerable<T> arr, T value)
+    public static List<T> push<T>(IEnumerable<T> arr, T value)
     {
         List<T> res = new (arr);
         res.Add(value);
@@ -64,7 +64,7 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
-    public static bool Contains<T>(IEnumerable<T> array, T value) where T: IComparable
+    public static bool contains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
         foreach (var item in array)
         {
@@ -77,16 +77,16 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
-    public static bool NotContains<T>(IEnumerable<T> array, T value) where T: IComparable
+    public static bool notcontains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
-        return !Contains(array, value);
+        return !contains(array, value);
     }
 
     /// <summary>
     /// Calc the average
     /// </summary>
     [Schema]
-    public static T Average<T>(IEnumerable<T> array) where T : INumber<T>
+    public static T average<T>(IEnumerable<T> array) where T : INumber<T>
     {
         T sum = T.Zero;
         int count = 0;
@@ -102,7 +102,7 @@ public static class SystemCollection
     /// Calc the sum
     /// </summary>
     [Schema]
-    public static T Sum<T>(IEnumerable<T> array) where T : INumber<T>
+    public static T sum<T>(IEnumerable<T> array) where T : INumber<T>
     {
         T sum = T.Zero;
         foreach (T item in array)
@@ -116,7 +116,7 @@ public static class SystemCollection
     /// Delete a field from the json object
     /// </summary>
     [Schema]
-    public static StructTypeNode DelField(StructTypeNode obj, string field)
+    public static StructTypeNode delfield(StructTypeNode obj, string field)
     {
         obj[field] = null;
         return obj;
@@ -126,7 +126,7 @@ public static class SystemCollection
     /// Whether the object has the field
     /// </summary>
     [Schema]
-    public static bool ContainsKey(StructTypeNode obj, string field)
+    public static bool containskey(StructTypeNode obj, string field)
     {
         return obj[field] != null;
     }
@@ -135,7 +135,7 @@ public static class SystemCollection
     /// Whether the object not has the field
     /// </summary>
     [Schema]
-    public static bool NotContainsKey(StructTypeNode obj, string field)
+    public static bool notcontainskey(StructTypeNode obj, string field)
     {
         return obj[field] == null;
     }
@@ -144,7 +144,7 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static T? GetField<T>(StructTypeNode obj, string field)
+    public static T? getfield<T>(StructTypeNode obj, string field)
     {
         return (T?)(obj.GetField(field)?.ToTypeValue(typeof(T)));
     }
@@ -153,7 +153,7 @@ public static class SystemCollection
     /// Gets fields from the objects in the array to a new array
     /// </summary>
     [Schema]
-    public static async Task<ArrayTypeNode> GetFields(SchemaContext context, ArrayTypeNode array, string field)
+    public static async Task<ArrayTypeNode> getfields(SchemaContext context, ArrayTypeNode array, string field)
     {
         ArrayType arrayType = array.Type as ArrayType ?? throw new  InvalidOperationException("The array type is invalid");
         if (arrayType.ElementSchemaType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
@@ -182,7 +182,7 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [Schema]
-    public static StructTypeNode SetField(StructTypeNode obj, string field, object? value)
+    public static StructTypeNode setfield(StructTypeNode obj, string field, object? value)
     {
         obj[field] = value;
         return obj;
@@ -192,7 +192,7 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [Schema]
-    public static bool FieldEqual<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    public static bool fieldequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
         if (node == null || node.IsEmpty) return false;

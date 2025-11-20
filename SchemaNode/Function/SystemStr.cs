@@ -11,22 +11,22 @@ namespace SchemaNode.Function;
 public static class SystemStr
 {
     [Schema]
-    public static string Concat(string str1, string str2) => string.Concat(str1, str2);
+    public static string concat(string str1, string str2) => string.Concat(str1, str2);
     
     [Schema]
-    public static long Len(string str) => long.CreateChecked(str.Length);
+    public static long len(string str) => long.CreateChecked(str.Length);
     
     [Schema]
-    public static string[] Split(string str, string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
+    public static string[] split(string str, string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
     
     [Schema]
-    public static string Substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
+    public static string substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
     [Schema]
-    public static LocaleString ToLocale(string? str) => new LocaleString (str ?? "");
+    public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");
 
     [Schema]
-    public static Entry ToEntry(StructTypeNode node, string valueField, string labelField)
+    public static Entry toentry(StructTypeNode node, string valueField, string labelField)
     {
         AnySchemaNode? val = node.GetValueByPaths(valueField);
         AnySchemaNode? label = node.GetValueByPaths(labelField);
@@ -42,11 +42,11 @@ public static class SystemStr
     }
 
     [Schema]
-    public static List<Entry> ToEntrys(ArrayTypeNode array, string valueField, string labelField) => array
+    public static List<Entry> toentrys(ArrayTypeNode array, string valueField, string labelField) => array
         .OfType<StructTypeNode>()
-        .Select(node => ToEntry(node, valueField, labelField))
+        .Select(node => toentry(node, valueField, labelField))
         .ToList();
 
     [Schema]
-    public static string NewGuid() => Guid.NewGuid().ToString();
+    public static string newguid() => Guid.NewGuid().ToString();
 }

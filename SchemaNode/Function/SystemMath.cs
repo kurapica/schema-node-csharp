@@ -11,150 +11,150 @@ namespace SchemaNode.Function;
 public static class SystemMath
 {
     [Schema]
-    public static decimal E() => (decimal)Math.E;
+    public static decimal e() => (decimal)Math.E;
     
     [Schema]
-    public static decimal Pi() => (decimal)Math.PI;
+    public static decimal pi() => (decimal)Math.PI;
 
     [Schema]
-    public static T Add<T>(T x, T y) where T : INumber<T> => x + y;
+    public static T add<T>(T x, T y) where T : INumber<T> => x + y;
     
     [Schema]
-    public static T AddNull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) + (y ?? T.Zero);
+    public static T addnull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) + (y ?? T.Zero);
         
     [Schema]
-    public static T Divide<T>(T x, T y) where T : INumber<T> => x / y;
+    public static T divide<T>(T x, T y) where T : INumber<T> => x / y;
         
     [Schema]
-    public static T Modulo<T>(T x, T y) where T : INumber<T> => x % y;
+    public static T modulo<T>(T x, T y) where T : INumber<T> => x % y;
         
     [Schema]
-    public static T Multiply<T>(T x, T y) where T : INumber<T> => x * y;
+    public static T multiply<T>(T x, T y) where T : INumber<T> => x * y;
 
     [Schema]
-    public static T MultiplyNull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) * (y ?? T.Zero);
+    public static T multiplynull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) * (y ?? T.Zero);
 
     [Schema]
-    public static T Subtract<T>(T x, T y) where T : INumber<T> => x - y;
+    public static T subtract<T>(T x, T y) where T : INumber<T> => x - y;
 
     [Schema]
-    public static T SubtractNull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) - (y ?? T.Zero);
+    public static T subtractnull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) - (y ?? T.Zero);
 
     [Schema]
-    public static decimal Percent(decimal x, decimal y, int? decimals) => Math.Round(x / y * 100, decimals ?? 2);
+    public static decimal percent(decimal x, decimal y, int? decimals) => Math.Round(x / y * 100, decimals ?? 2);
 
     [Schema]
-    public static T Abs<T>(T x) where T: INumber<T> => T.Abs(x);
+    public static T abs<T>(T x) where T: INumber<T> => T.Abs(x);
 
     [Schema]
-    public static long Ceiling<T>(T x) where T : IFloatingPoint<T> => long.CreateChecked(T.Ceiling(x));
+    public static long ceiling<T>(T x) where T : IFloatingPoint<T> => long.CreateChecked(T.Ceiling(x));
 
     [Schema]
-    public static T Clamp<T>(T x, T min, T max) where T: INumber<T> => T.Clamp(x, min, max);
+    public static T clamp<T>(T x, T min, T max) where T: INumber<T> => T.Clamp(x, min, max);
 
     [Schema]
-    public static long Floor<T>(T x) where T: IFloatingPoint<T> => long.CreateChecked(T.Floor(x));
+    public static long floor<T>(T x) where T: IFloatingPoint<T> => long.CreateChecked(T.Floor(x));
 
     [Schema]
-    public static T Max<T>(T x, T y) where T : INumber<T> => T.Max(x, y);
+    public static T max<T>(T x, T y) where T : INumber<T> => T.Max(x, y);
 
     [Schema]
-    public static T Min<T>(T x, T y) where T : INumber<T> => T.Min(x, y);
+    public static T min<T>(T x, T y) where T : INumber<T> => T.Min(x, y);
 
     [Schema]
-    public static T PercentToNumber<T>([Schema(NS_SYSTEM_FLOAT)] float x) where T : IFloatingPoint<T>
+    public static T percenttonumber<T>([Schema(NS_SYSTEM_FLOAT)] float x) where T : IFloatingPoint<T>
         => T.CreateChecked(x) / T.CreateChecked(100);
 
     [Schema]
-    public static T Round<T, T1>(T1 x, int? decimals) 
+    public static T round<T, T1>(T1 x, int? decimals) 
         where T: INumber<T>
         where T1: IFloatingPoint<T1>
         => T.CreateChecked(T1.Round(x, decimals ?? 0));
 
     [Schema]
-    public static decimal ToDecimal<T>(T x) where T : INumber<T> => decimal.CreateChecked(x);
+    public static decimal todecimal<T>(T x) where T : INumber<T> => decimal.CreateChecked(x);
 
     [Schema]
-    public static double ToDouble<T>(T x) where T : INumber<T> => double.CreateChecked(x);
+    public static double todouble<T>(T x) where T : INumber<T> => double.CreateChecked(x);
 
     [Schema]
-    public static long ToInteger<T>(T x) where T : INumber<T> => long.CreateChecked(x);
+    public static long tointeger<T>(T x) where T : INumber<T> => long.CreateChecked(x);
 
     [Schema]
-    public static float ToSingle<T>(T x) where T : INumber<T> => float.CreateChecked(x);
+    public static float tosingle<T>(T x) where T : INumber<T> => float.CreateChecked(x);
 
     [Schema]
-    public static double Acos(double x) => Math.Acos(x);
+    public static double acos(double x) => Math.Acos(x);
 
     [Schema]
-    public static double Asin(double x) => Math.Asin(x);
+    public static double asin(double x) => Math.Asin(x);
 
     [Schema]
-    public static double Atan(double x) => Math.Atan(x);
+    public static double atan(double x) => Math.Atan(x);
 
     [Schema]
-    public static double Cos(double x) => Math.Cos(x);
+    public static double cos(double x) => Math.Cos(x);
 
     [Schema]
-    public static double Sin(double x) => Math.Sin(x);
+    public static double sin(double x) => Math.Sin(x);
 
     [Schema]
-    public static double Tan(double x) => Math.Tan(x);
+    public static double tan(double x) => Math.Tan(x);
 
     [Schema]
-    public static double Acosh(double x) => Math.Acosh(x);
+    public static double acosh(double x) => Math.Acosh(x);
 
     [Schema]
-    public static double Asinh(double x) => Math.Asinh(x);
+    public static double asinh(double x) => Math.Asinh(x);
 
     [Schema]
-    public static double Atanh(double x) => Math.Atanh(x);
+    public static double atanh(double x) => Math.Atanh(x);
 
     [Schema]
-    public static double Cosh(double x) => Math.Cosh(x);
+    public static double cosh(double x) => Math.Cosh(x);
 
     [Schema]
-    public static double Sinh(double x) => Math.Sinh(x);
+    public static double sinh(double x) => Math.Sinh(x);
 
     [Schema]
-    public static double Tanh(double x) => Math.Tanh(x);
+    public static double tanh(double x) => Math.Tanh(x);
 
     [Schema]
-    public static double Exp(double x) => Math.Exp(x);
+    public static double exp(double x) => Math.Exp(x);
 
     [Schema]
-    public static double Log(double x) => Math.Log(x);
+    public static double log(double x) => Math.Log(x);
 
     [Schema]
-    public static double Sqrt(double x) => Math.Sqrt(x);
+    public static double sqrt(double x) => Math.Sqrt(x);
 
     [Schema]
-    public static double Cbrt(double x) => Math.Cbrt(x);
+    public static double cbrt(double x) => Math.Cbrt(x);
 
     [Schema]
-    public static double Log10(double x) => Math.Log10(x);
+    public static double log10(double x) => Math.Log10(x);
 
     [Schema]
-    public static double Log2(double x) => Math.Log2(x);
+    public static double log2(double x) => Math.Log2(x);
 
     [Schema]
-    public static double Pow(double x, double y) => Math.Pow(x, y);
+    public static double pow(double x, double y) => Math.Pow(x, y);
 
     [Schema]
-    public static long BitAnd(long x, long y) => x & y;
+    public static long bitand(long x, long y) => x & y;
 
     [Schema]
-    public static long BitLeftShift(long x, int shift) => x << shift;
+    public static long bitleftshift(long x, int shift) => x << shift;
 
     [Schema]
-    public static long BitOr(long x, long y) => x | y;
+    public static long bitor(long x, long y) => x | y;
 
     [Schema]
-    public static long BitRightShift(long x, int shift) => x >> shift;
+    public static long bitrightshift(long x, int shift) => x >> shift;
 
     [Schema]
-    public static long BitUnary(long x) => ~x;
+    public static long bitunary(long x) => ~x;
 
     [Schema]
-    public static long BitXor(long x, long y) => x ^ y;
+    public static long bitxor(long x, long y) => x ^ y;
 }

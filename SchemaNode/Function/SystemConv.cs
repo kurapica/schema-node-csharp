@@ -13,7 +13,7 @@ public static class SystemConv
     /// Assign value
     /// </summary>
     [Schema]
-    public static T Assign<T>(T value) => value;
+    public static T assign<T>(T value) => value;
 
     /// <summary>
     /// Gets the default value if value is null

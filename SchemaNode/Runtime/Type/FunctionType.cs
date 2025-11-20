@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -1589,31 +1590,31 @@ public class FunctionType: AnySchemeType
             return callFuncInfo.Name switch
             {
                 // system.arth
-                $"{NS_SYSTEM_MATH}.e" => Expression.Constant(Math.E),
-                $"{NS_SYSTEM_MATH}.pi" => Expression.Constant(Math.PI),
-                $"{NS_SYSTEM_MATH}.add" => Expression.Add(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_MATH}.subtract" => Expression.Subtract(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_MATH}.multiply" => Expression.Multiply(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_MATH}.divide" => Expression.Divide(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_MATH}.modulo" => Expression.Modulo(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.e)}" => Expression.Constant(Math.E),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.pi)}" => Expression.Constant(Math.PI),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.add)}" => Expression.Add(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.subtract)}" => Expression.Subtract(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.multiply)}" => Expression.Multiply(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.divide)}" => Expression.Divide(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_MATH}.{nameof(SystemMath.modulo)}" => Expression.Modulo(callArgs[0], callArgs[1]),
                 
                 // system.conv
-                $"{NS_SYSTEM_CONV}.assign" => callArgs[0],
+                $"{NS_SYSTEM_CONV}.{nameof(SystemConv.assign)}" => callArgs[0],
                 $"{NS_SYSTEM_CONV}.null" => Expression.Constant(null, callMethod.ReturnType.GetNullableType()),
 
                 // system.logic
-                $"{NS_SYSTEM_LOGIC}.isnull" => Expression.Call(null, callMethod, Expression.Convert(callArgs[0], typeof(object))),
-                $"{NS_SYSTEM_LOGIC}.cond" => Expression.Condition(callArgs[0], callArgs[1], callArgs[2]),
-                $"{NS_SYSTEM_LOGIC}.lessthan" => Expression.LessThan(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.lessequal" => Expression.LessThanOrEqual(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.equal" => Expression.Equal(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.notequal" => Expression.NotEqual(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.greatethan" => Expression.GreaterThan(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.greateequal" => Expression.GreaterThanOrEqual(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.andalso" => Expression.AndAlso(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.orelse" => Expression.OrElse(callArgs[0], callArgs[1]),
-                $"{NS_SYSTEM_LOGIC}.not" => Expression.Not(callArgs[0]),
-                $"{NS_SYSTEM_LOGIC}.between" => Expression.AndAlso( // (value, min, max, includeMin, includeMax)
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}" => Expression.Call(null, callMethod, Expression.Convert(callArgs[0], typeof(object))),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.cond)}" => Expression.Condition(callArgs[0], callArgs[1], callArgs[2]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessthan)}" => Expression.LessThan(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessequal)}" => Expression.LessThanOrEqual(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.equal)}" => Expression.Equal(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notequal)}" => Expression.NotEqual(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greatethan)}" => Expression.GreaterThan(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greateequal)}" => Expression.GreaterThanOrEqual(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.andalso)}" => Expression.AndAlso(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.orelse)}" => Expression.OrElse(callArgs[0], callArgs[1]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}" => Expression.Not(callArgs[0]),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}" => Expression.AndAlso( // (value, min, max, includeMin, includeMax)
                     Expression.Condition(callArgs[3], Expression.GreaterThanOrEqual(callArgs[0], callArgs[1]), Expression.GreaterThan(callArgs[0], callArgs[1])),
                     Expression.Condition(callArgs[4], Expression.LessThanOrEqual(callArgs[0], callArgs[2]), Expression.LessThan(callArgs[0], callArgs[2]))
                     ),
