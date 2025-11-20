@@ -41,7 +41,7 @@ public class AppType
     /// <summary>
     /// The data authentication policy type
     /// </summary>
-    public PolicyType? DataAuth { get; set; }
+    public PolicyItem[]? Auths { get; set; }
 
     /// <summary>
     /// The application field relations
@@ -73,7 +73,9 @@ public class AppType
     /// </summary>
     public SchemaNodeStatus Status => Fields is { Count: > 0 } && Fields.Any(p => p.Status != SchemaNodeStatus.Ready)
         ? SchemaNodeStatus.ApplicationInvalidField
-        : SchemaNodeStatus.Ready;
+        : Auths != null && Auths.Any(p => p.Status != SchemaNodeStatus.Ready)
+            ? SchemaNodeStatus.ApplicationDataAuthWrongFunc
+            : SchemaNodeStatus.Ready;
 
     /// <summary>
     /// The application is used
@@ -127,9 +129,7 @@ public class AppType
         Auth = !string.IsNullOrEmpty(schema.Auth)
             ? await context.GetSchemaTypeAsync(schema.Auth) as PolicyType
             : null;
-        DataAuth = !string.IsNullOrEmpty(schema.DataAuth)
-            ? await context.GetSchemaTypeAsync(schema.DataAuth) as PolicyType
-            : null;
+        Auths = schema.Auths;
         Apps = schema.Apps;
         Additional = schema.Additional;
 
@@ -146,7 +146,7 @@ public class AppType
                 field.Application = this;
                 field.Status = SchemaNodeStatus.Ready;
 
-                // Valid the type
+                // valid the type
                 AnySchemeType? node = await context.GetSchemaTypeAsync(field.Type);
                 if (node == null)
                     field.Status = SchemaNodeStatus.ApplicationFieldWrongType;
@@ -156,7 +156,7 @@ public class AppType
                     field.SchemaType = node;
                 }
 
-                // Valid the function
+                // valid the function
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
                     node = await context.GetSchemaTypeAsync(field.Func);
@@ -195,7 +195,7 @@ public class AppType
                     }
                 }
 
-                // Valid source
+                // valid source
                 if (!string.IsNullOrWhiteSpace(field.SourceApp) && !string.IsNullOrWhiteSpace(field.SourceField))
                 {
                     AppType? sourceApp = await context.GetAppTypeAsync(field.SourceApp);
@@ -212,6 +212,50 @@ public class AppType
                 
                 if (field.EnableDynamicTable)
                     requireDb = true;
+                
+                // valid the auths
+                if (field.Auths != null)
+                {
+                    foreach (PolicyItem item in field.Auths)
+                    {
+                        FunctionType? funcType = !string.IsNullOrEmpty(item.Evaluator)
+                            ? await context.GetSchemaTypeAsync(item.Evaluator) as FunctionType
+                            : null;
+                        if (funcType != null)
+                        {
+                            item.Function = funcType;
+                        }
+                        else
+                        {
+                            field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                        }
+                    }
+                }
+                
+                // valid the field auths
+                if (field.FieldAuths != null)
+                {
+                    foreach (FieldPolicy fieldAuth in field.FieldAuths)
+                    {
+                        if (fieldAuth.Auths != null)
+                        {
+                            foreach (PolicyItem item in fieldAuth.Auths)
+                            {
+                                FunctionType? funcType = !string.IsNullOrEmpty(item.Evaluator)
+                                    ? await context.GetSchemaTypeAsync(item.Evaluator) as FunctionType
+                                    : null;
+                                if (funcType != null)
+                                {
+                                    item.Function = funcType;
+                                }
+                                else
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // Check the relations
@@ -297,6 +341,26 @@ public class AppType
         {
             await wf.LoadAsync(context);
         }
+        
+        // load data auths
+        if (Auths != null)
+        {
+            foreach (var item in Auths)
+            {
+                AnySchemeType? node = !string.IsNullOrEmpty(item.Evaluator)
+                    ? await context.GetSchemaTypeAsync(item.Evaluator)
+                    : null;
+                if (node is FunctionType funcNode)
+                {
+                    item.Function = funcNode;
+                    item.Status = SchemaNodeStatus.Ready;
+                }
+                else
+                {
+                    item.Status = SchemaNodeStatus.PolicyWrongFunc;
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -328,47 +392,19 @@ public class AppType
                 yield return item;
         }
 
-        if (Auth == null) yield break;
+        if (Auth != null)
         {
             var item = Auth.Items.FirstOrDefault(p => p.Scope == scope);
             if (item != null) yield return item;
         }
+
+        if (Auths != null)
+        {
+            var item = Auths.FirstOrDefault(p => p.Scope == scope);
+            if (item != null) yield return item;
+        }
     }
     
-    /// <summary>
-    /// authorize the schema with the policy scope
-    /// </summary>
-    public async Task<bool> AuthorizeAsync(SchemaContext context, PolicyScope scope)
-    {
-        // if no policy, authorized
-        bool authorized = true;
-        
-        // check policies in order
-        foreach (PolicyItem item in GetAuthPolicies(scope))
-        {
-            try
-            {
-                JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
-                if (result is JsonValue val && val.TryGetValue(out authorized))
-                {
-                    switch (authorized)
-                    {
-                        case true when item.Combine == PolicyCombine.OrElse:
-                            return true;
-                        case false when item.Combine == PolicyCombine.AndAlso:
-                            return false;
-                    }
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-
-        return authorized;
-    }
-
     /// <summary>
     /// Gets the app field by name
     /// </summary>

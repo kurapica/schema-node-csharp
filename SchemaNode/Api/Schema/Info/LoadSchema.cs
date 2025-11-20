@@ -31,6 +31,11 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             cancellationToken.ThrowIfCancellationRequested();
             AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(t);
             if (node == null) continue;
+            
+            // authorize
+            await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
+            
+            // Generate schema
             await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 
             if (node is TypeNamespace ns)

@@ -170,7 +170,7 @@ public class FunctionType: AnySchemeType
         else
         {
             ReturnNode = await context.GetSchemaTypeAsync(Return);
-            if (ReturnNode == null || !ReturnNode.IsValueType) Status = SchemaNodeStatus.FunctionWrongReturnType;
+            if (ReturnNode is not { IsValueType: true }) Status = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
         // Generate the exp trees

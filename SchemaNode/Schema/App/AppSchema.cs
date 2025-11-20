@@ -47,10 +47,9 @@ public class AppSchema
     public string? Auth { get; set; }
 
     /// <summary>
-    /// The data authentication policy type
+    /// The app authentication policy type
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
-    public string? DataAuth { get; set; }
+    public PolicyItem[]? Auths { get; set; }
     
     /// <summary>
     /// Whether it has sub-applications

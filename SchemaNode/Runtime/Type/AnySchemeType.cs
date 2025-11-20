@@ -112,40 +112,6 @@ public abstract class AnySchemeType: IDisposable
     }
 
     /// <summary>
-    /// authorize the schema with the policy scope
-    /// </summary>
-    public async Task<bool> AuthorizeAsync(SchemaContext context, PolicyScope scope)
-    {
-        // if no policy, authorized
-        bool authorized = true;
-        
-        // check policies in order
-        foreach (PolicyItem item in GetAuthPolicies(scope))
-        {
-            try
-            {
-                JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
-                if (result is JsonValue val && val.TryGetValue(out authorized))
-                {
-                    switch (authorized)
-                    {
-                        case true when item.Combine == PolicyCombine.OrElse:
-                            return true;
-                        case false when item.Combine == PolicyCombine.AndAlso:
-                            return false;
-                    }
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-        }
-
-        return authorized;
-    }
-    
-    /// <summary>
     /// Used by another node
     /// </summary>
     public void AddRef(AnySchemeType node)

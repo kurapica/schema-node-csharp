@@ -55,4 +55,11 @@ public class PolicyItem
     [NotMapped]
     [JsonIgnore]
     public FunctionType? Function { get; set; }
+    
+    /// <summary>
+    /// The status
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public SchemaNodeStatus? Status { get; set; }
 }

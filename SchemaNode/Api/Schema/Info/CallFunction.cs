@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 
@@ -18,10 +19,14 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
         AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
+        if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
+        
+        // authorize
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
         
         return new CallFunctionResponse
         {
-            Result = node is FunctionType func ? await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target) : null
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target)
         };
     }
 }

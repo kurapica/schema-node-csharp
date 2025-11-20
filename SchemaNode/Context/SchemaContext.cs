@@ -107,6 +107,69 @@ public class SchemaContext(IServiceProvider serviceProvider)
 
     #endregion
 
+    #region Authorize
+    
+    /// <summary>
+    /// authorize the schema with the policy scope
+    /// </summary>
+    public async Task AuthorizeAsync(IEnumerable<PolicyItem> items)
+    {
+        // if no policy, authorized
+        bool authorized = true;
+        
+        // check policies in order
+        foreach (PolicyItem item in items)
+        {
+            try
+            {
+                JsonNode? result = await CallFunctionAsync(item.Evaluator, new JsonArray());
+                if (result is JsonValue val && val.TryGetValue(out authorized))
+                {
+                    switch (authorized)
+                    {
+                        case true when item.Combine == PolicyCombine.OrElse:
+                        case false when item.Combine == PolicyCombine.AndAlso:
+                            break;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        // throw if not authorized
+        if (!authorized)
+            throw new UnauthorizedAccessException();
+    }
+
+    /// <summary>
+    /// Authorize the schema type with the policy scope
+    /// </summary>
+    public Task AuthorizeAsync(AnySchemeType type, PolicyScope scope)
+        => AuthorizeAsync(type.GetAuthPolicies(scope));
+    
+    /// <summary>
+    /// Authorize the app type with the policy scope
+    /// </summary>
+    public Task AuthorizeAsync(AppType app, PolicyScope scope)
+        => AuthorizeAsync(app.GetAuthPolicies(scope));
+
+    /// <summary>
+    /// Authorize the app field with the policy scope
+    /// </summary>
+    public Task AuthorizeAsync(AppFieldType appField, PolicyScope scope)
+        => AuthorizeAsync(appField.GetAuthPolicies(scope));
+
+    /// <summary>
+    /// Authorize the app field with the field name and policy scope
+    /// </summary>
+    public Task AuthorizeAsync(AppFieldType appField, string field, PolicyScope scope)
+        => AuthorizeAsync(appField.GetAuthPolicies(field, scope));
+    
+    #endregion
+    
     #region Schema Provider Apis
 
     /// <summary>
@@ -579,15 +642,36 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// <summary>
     /// Save the schema to the storage
     /// </summary>
-    /// <param name="schema">The schema</param>
-    /// <returns>true if saved</returns>
     public async Task<bool> SaveSchemaAsync(NodeSchema schema)
     {
         AnySchemeType? node = await GetSchemaTypeAsync(schema.Name);
         
-        // save the schema
+        // authorize
+        if (node == null)
+        {
+            string[] paths = schema.Name.SplitTypeName().SkipLast(1).ToArray();
+            AnySchemeType? parentNode = null;
+            for (int i = paths.Length - 1; i >= 0; i--)
+            {
+                string path = string.Join('.', paths.Take(i + 1));
+                parentNode = await GetSchemaTypeAsync(path);
+                if (parentNode != null) break;
+            }
+
+            // check parent if creation
+            parentNode ??= RootNamespace;
+            await AuthorizeAsync(parentNode, PolicyScope.SchemaCreate);
+        }
+        else
+        {
+            await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        }
+        
+        // Gets storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // save schema
         if (!await provider.SaveSchemaAsync(schema)) return false;
 
         // save runtime
@@ -614,10 +698,17 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AnySchemeType? node = await GetSchemaTypeAsync(name);
         if (node == null || node.IsUsed) return false;
         
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaDelete);
+        
+        // get storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // delete the schema
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
+        // runtime remove
         RemoveSchemaType(name);
 
         // cluster event
@@ -638,6 +729,10 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AnySchemeType? node = await GetSchemaTypeAsync(name);
         if (node is not EnumType @enum) return false;
         
+        // authorize
+        await AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
+        
+        // gets storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         
@@ -657,10 +752,35 @@ public class SchemaContext(IServiceProvider serviceProvider)
     public async Task<bool> SaveAppSchemaAsync(AppSchema app)
     {
         AppType? node = await GetAppTypeAsync(app.Name);
+        
+        // authorize
+        if (node == null)
+        {
+            string[] paths = app.Name.SplitTypeName().SkipLast(1).ToArray();
+            AppType? appParent = null;
+            for (int i = paths.Length - 1; i >= 0; i--)
+            {
+                string path = string.Join('.', paths.Take(i + 1));
+                appParent = await GetAppTypeAsync(path);
+                if (appParent != null) break;
+            }
+
+            appParent ??= RootAppType;
+            await AuthorizeAsync(appParent, PolicyScope.SchemaCreate);
+        }
+        else
+        {
+            await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        }
+        
+        // Ges the storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // save the schema
         if (!await provider.SaveAppSchemaAsync(app)) return false;
 
+        // runtime save
         if (node == null)
         {
             AppType? parentNode = await GetAppTypeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
@@ -685,7 +805,11 @@ public class SchemaContext(IServiceProvider serviceProvider)
     {
         AppType? node = await GetAppTypeAsync(app);
         if (node == null || node.IsUsed) return false;
+        
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaDelete);
 
+        // delete the schema
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
@@ -704,8 +828,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        
+        // Gets the storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // save the field schema
         if (!await provider.SaveAppFieldSchemaAsync(app, field)) return false;
 
         await GetAppTypeAsync(app, reload: true);
@@ -723,8 +853,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        
+        // Gets the storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // delete the field schema
         if (!await provider.DeleteAppFieldSchemaAsync(app, field)) return false;
 
         await GetAppTypeAsync(app, reload: true);
@@ -746,8 +882,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
 
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        
+        // Gets the storage provider
         ISchemaStorageProvider? provider = ServiceProvider.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+        
+        // swap the field schema
         if (!await provider.SwapAppFieldSchemaAsync(app, field1, field2)) return false;
 
         await GetAppTypeAsync(app, reload: true);
@@ -764,6 +906,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
     {
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
+        
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
         
         AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow.Name, StringComparison.OrdinalIgnoreCase));
         if (!forActive && appWorkflowType is { Activated: true }) return false;
@@ -788,6 +933,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
     {
         AppType? node = await GetAppTypeAsync(app);
         if (node == null) return false;
+        
+        // authorize
+        await AuthorizeAsync(node, PolicyScope.SchemaUpdate);
 
         AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
         if (appWorkflowType is { Activated: true }) return false;
@@ -812,6 +960,9 @@ public class SchemaContext(IServiceProvider serviceProvider)
         AppWorkflowType? appWorkflowType = node?.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
         if (appWorkflowType == null) return false;
 
+        // authorize
+        await AuthorizeAsync(node!, PolicyScope.SchemaUpdate);
+        
         if (active)
         {
             if (appWorkflowType.Activated) return true;

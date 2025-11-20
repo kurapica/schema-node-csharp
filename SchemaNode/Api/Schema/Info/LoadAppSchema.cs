@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -18,6 +19,9 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
 
         AppType? node = await SchemaContext.GetAppTypeAsync(request.Name);
         if (node == null) return new LoadAppSchemaResponse();
+        
+        // authorize
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
 
         // Generate schema
         AppSchema schema = new()

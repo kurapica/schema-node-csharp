@@ -132,7 +132,4 @@ public static class SystemLogic
     /// </summary>
     [Schema]
     public static bool OrElse(bool a, bool b) => a || b;
-
-
-
 }

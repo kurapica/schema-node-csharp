@@ -186,6 +186,21 @@ public enum SchemaNodeStatus
     FunctionExpsHasCompileError,
 
     /// <summary>
+    /// The workflow has wrong func
+    /// </summary>
+    WorkflowWrongFunc,
+    
+    /// <summary>
+    /// The workflow has wrong event
+    /// </summary>
+    WorkflowWrongEvent,
+    
+    /// <summary>
+    /// The policy has wrong func
+    /// </summary>
+    PolicyWrongFunc,
+    
+    /// <summary>
     /// The application invalid field
     /// </summary>
     ApplicationInvalidField,
@@ -221,17 +236,12 @@ public enum SchemaNodeStatus
     ApplicationRelationWrongFunc,
     
     /// <summary>
-    /// The workflow has wrong func
+    /// The application data auth wrong func
     /// </summary>
-    WorkflowWrongFunc,
+    ApplicationDataAuthWrongFunc,
     
     /// <summary>
-    /// The workflow has wrong event
+    /// The application field data auth wrong func
     /// </summary>
-    WorkflowWrongEvent,
-    
-    /// <summary>
-    /// The policy has wrong func
-    /// </summary>
-    PolicyWrongFunc,
+    ApplicationFieldDataAuthWrongFunc,
 }

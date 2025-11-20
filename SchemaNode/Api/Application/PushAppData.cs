@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -48,13 +49,18 @@ public static class PushDataExtenstion
 
         AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, Constant.APP_NOT_FOUND);
+        
+        // authorize
+        await context.AuthorizeAsync(appNode, PolicyScope.DataWrite);
 
         bool hasData = false;
-
         foreach((string field, AppDataFieldPushQuery push) in data)
         {
             AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
+            
+            // authorize
+            await context.AuthorizeAsync(appField, PolicyScope.DataWrite);
 
             // Set app access
             context.SetAppAccess(appField.App, target, appField.Name);

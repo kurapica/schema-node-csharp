@@ -8,6 +8,8 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+using SchemaNode.Utility;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
@@ -61,8 +63,11 @@ public static class BatchQueryExtension
             AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
 
-            if (!(query.NoSchema ?? false))
-                await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
+            // authorize
+            await context.AuthorizeAsync(node, PolicyScope.SchemaRead);
+            
+            // load schema
+            if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
             // query fields
             List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
@@ -89,6 +94,10 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldType field in fields)
                 {
+                    // authorize field
+                    await context.AuthorizeAsync(field, PolicyScope.DataRead);
+                    
+                    // prepare field query
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
                     
                     // limit incr field take count
@@ -104,11 +113,55 @@ public static class BatchQueryExtension
                         take = 0;
                     }
                     
+                    // row access check
+                    JsonObject? filter = q?.Filter;
+                    if (field.SchemaType is ArrayType { ElementSchemaType: StructType structType })
+                    {
+                        PolicyItem[] rowAccess = field.GetAuthPolicies(field.Name, PolicyScope.RowAccess).ToArray();
+                        if (rowAccess.Length > 0)
+                        {
+                            JsonObject? rowFilter = null;
+                            for (int i = rowAccess.Length - 1; i >= 0; i--)
+                            {
+                                try
+                                {
+                                    FunctionType func = rowAccess[i].Function ?? throw new InvalidOperationException();
+                                    
+                                    // check type
+                                    if (func.Args.Length != 1 
+                                        || func.Args[0].TypeNode == null 
+                                        || !func.Args[0].TypeNode!.CanBeUseAs(structType)) 
+                                        continue;
+                                    
+                                    // visite the function exp tree for where clause
+                                    
+                                }
+                                catch
+                                {
+                                    rowFilter = null;
+                                }
+                                if (rowFilter != null) break;
+                            }
+                            if (rowFilter == null || rowFilter.IsEmpty()) continue; // no filter get, skip the field
+                            if (filter == null) 
+                                filter = rowFilter;
+                            else
+                            {
+                                foreach (var (key, value) in rowFilter)
+                                {
+                                    if (value != null && !value.IsEmpty())
+                                        filter[key] = value.DeepClone();
+                                }
+                            }
+                        }
+                    }
+                    
                     // Set the current access
                     context.SetAppAccess(field.App, query.Target, field.Name);
 
+                    // query app field data
                     (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
-                        q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                        filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                     
                     // mark loaded
                     infos[field.Name] = new AppDataFieldInfo
@@ -125,6 +178,55 @@ public static class BatchQueryExtension
                     if (result != null)
                     {
                         datas[field.Name] =  result.ToJson()!;
+                        
+                        // column access check
+                        var @struct = result switch
+                        {
+                            ArrayTypeNode arr => arr.ElementType as StructType,
+                            StructTypeNode st => st.Type as StructType,
+                            _ => null
+                        };
+                        if (@struct != null)
+                        {
+                            List<string>? ignoreFields = null;
+                            foreach (StructFieldConfig f in @struct.Fields)
+                            {
+                                try
+                                {
+                                    await context.AuthorizeAsync(field, f.Name, PolicyScope.ColumnAccess);
+                                }
+                                catch
+                                {
+                                    ignoreFields ??= [];
+                                    ignoreFields.Add(f.Name);
+                                }
+                            }
+
+                            // remove ignore fields
+                            if (ignoreFields != null)
+                            {
+                                if (datas[field.Name] is JsonArray jsonArray)
+                                {
+                                    foreach(var obj in jsonArray)
+                                    {
+                                        if (obj is not JsonObject jsonObj) continue;
+                                        foreach (string ig in ignoreFields)
+                                        {
+                                            jsonObj.Remove(ig);
+                                        }
+                                    }
+                                }
+                                else if (datas[field.Name] is JsonObject jsonObject)
+                                {
+                                    foreach (string ig in ignoreFields)
+                                    {
+                                        jsonObject.Remove(ig);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // scan enum access
                         if (!query.NoSchema ?? false)
                             await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
                     }

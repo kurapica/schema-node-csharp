@@ -41,6 +41,9 @@ public static class InteractionExtensions
             ?? throw new Exception(WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
         
+        // authorize
+        await context.AuthorizeAsync(app, PolicyScope.DataWrite);
+        
         // Set app access
         context.SetAppAccess(request.App, request.Target);
 

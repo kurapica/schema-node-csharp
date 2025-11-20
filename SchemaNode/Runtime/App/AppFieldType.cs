@@ -77,6 +77,16 @@ public class AppFieldType
     public string[]? Args { get; init; }
 
     /// <summary>
+    /// The authentication policy, normally row policy
+    /// </summary>
+    public PolicyItem[]? Auths { get; init; }
+    
+    /// <summary>
+    /// The struct field auths, normally column policy
+    /// </summary>
+    public FieldPolicy[]? FieldAuths { get; init; }
+
+    /// <summary>
     /// The field is using increase update, no full data push allowed
     /// </summary>
     public bool? IncrUpdate { get; init; }
@@ -204,9 +214,35 @@ public class AppFieldType
     /// </summary>
     public void AddObserver(AppFieldType observer)
     {
-        _observers ??= new List<AppFieldType>();
+        _observers ??= [];
         if (!_observers.Contains(observer))
             _observers.Add(observer);
+    }
+    
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
+    {
+        // Application policy first
+        foreach (var i in Application.GetAuthPolicies(scope)) yield return i;
+        
+        // self policies
+        var item = Auths?.FirstOrDefault(i => i.Scope == scope);
+        if (item != null) yield return item;
+    }
+
+    /// <summary>
+    /// Gets the field authentication policies with the scope
+    /// </summary>
+    public IEnumerable<PolicyItem> GetAuthPolicies(string fieldName, PolicyScope scope)
+    {
+        foreach (var i in GetAuthPolicies(scope)) yield return i;
+        
+        // struct field policies
+        var fieldPolicy = FieldAuths?.FirstOrDefault(i => i.Name == fieldName);
+        var item = fieldPolicy?.Auths?.FirstOrDefault(i => i.Scope == scope);
+        if (item != null) yield return item;
     }
     
     #endregion
@@ -230,6 +266,8 @@ public class AppFieldType
             TrackPush = entity.TrackPush,
             Func = entity.Func,
             Args = entity.Args,
+            Auths = entity.Auths,
+            FieldAuths = entity.FieldAuths,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -258,6 +296,8 @@ public class AppFieldType
             TrackPush = entity.TrackPush,
             Func = entity.Func,
             Args = entity.Args,
+            Auths = entity.Auths,
+            FieldAuths = entity.FieldAuths,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,

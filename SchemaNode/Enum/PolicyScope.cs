@@ -13,45 +13,35 @@ public enum PolicyScope
     /// <summary>
     /// Read Schema
     /// </summary>
-    SchemaRead = 2,
+    SchemaRead,
     
     /// <summary>
     /// Update Schema
     /// </summary>
-    SchemaUpdate = 3,
+    SchemaUpdate,
     
     /// <summary>
     /// Delete Schema
     /// </summary>
-    SchemaDelete = 4,
-    
-    /// <summary>
-    /// Create App Data
-    /// </summary>
-    DataCreate = 5,
+    SchemaDelete,
     
     /// <summary>
     /// Read App Data
     /// </summary>
-    DataRead = 6,
+    DataRead,
     
     /// <summary>
-    /// Update App Data
+    /// Write App Data
     /// </summary>
-    DataUpdate = 7,
-    
-    /// <summary>
-    /// Delete App Data
-    /// </summary>
-    DataDelete = 8,
+    DataWrite,
     
     /// <summary>
     /// Row access filter
     /// </summary>
-    RowAccess = 9,
+    RowAccess,
     
     /// <summary>
     /// Column access filter
     /// </summary>
-    ColumnAccess = 10,
+    ColumnAccess,
 }
