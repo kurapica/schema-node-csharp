@@ -68,7 +68,7 @@ public class EventType: AnySchemeType
         if (!type.IsAssignableTo(typeof(Event))) return [];
         
         // Common
-        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
         NodeSchema eventSchema = new NodeSchema

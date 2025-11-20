@@ -4,6 +4,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -57,6 +58,11 @@ public class AppType
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; internal set; }
+    
+    /// <summary>
+    /// The root application
+    /// </summary>
+    public AppType? RootApp { get; set; }
 
     #endregion
 
@@ -106,24 +112,6 @@ public class AppType
     #endregion
 
     #region Methods
-
-    /// <summary>
-    /// Release usages
-    /// </summary>
-    public void Release()
-    {
-        // Release the old field relationships
-        Fields?.ForEach(p =>
-        {
-            p.SchemaType?.RemoveRef(p);
-            p.FuncNode?.RemoveRef(p);
-        });
-        Relations?.ForEach(r =>
-        {
-            if (r.FieldNode != null)
-                r.FunctionNode?.RemoveRef(r.FieldNode);
-        });
-    }
 
     /// <summary>
     /// Load the data
@@ -309,6 +297,76 @@ public class AppType
         {
             await wf.LoadAsync(context);
         }
+    }
+
+    /// <summary>
+    /// Release usages
+    /// </summary>
+    public void Release()
+    {
+        // Release the old field relationships
+        Fields?.ForEach(p =>
+        {
+            p.SchemaType?.RemoveRef(p);
+            p.FuncNode?.RemoveRef(p);
+        });
+        Relations?.ForEach(r =>
+        {
+            if (r.FieldNode != null)
+                r.FunctionNode?.RemoveRef(r.FieldNode);
+        });
+    }
+
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
+    {
+        if (RootApp != null)
+        {
+            foreach (var item in RootApp.GetAuthPolicies(scope))
+                yield return item;
+        }
+
+        if (Auth == null) yield break;
+        {
+            var item = Auth.Items.FirstOrDefault(p => p.Scope == scope);
+            if (item != null) yield return item;
+        }
+    }
+    
+    /// <summary>
+    /// authorize the schema with the policy scope
+    /// </summary>
+    public async Task<bool> AuthorizeAsync(SchemaContext context, PolicyScope scope)
+    {
+        // if no policy, authorized
+        bool authorized = true;
+        
+        // check policies in order
+        foreach (PolicyItem item in GetAuthPolicies(scope))
+        {
+            try
+            {
+                JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
+                if (result is JsonValue val && val.TryGetValue(out authorized))
+                {
+                    switch (authorized)
+                    {
+                        case true when item.Combine == PolicyCombine.OrElse:
+                            return true;
+                        case false when item.Combine == PolicyCombine.AndAlso:
+                            return false;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return authorized;
     }
 
     /// <summary>

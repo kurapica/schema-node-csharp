@@ -6,12 +6,12 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.control.goto")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.control.goto")]
 public class GotoWorkflow: Workflow
 {
     public async Task ProcessAsync(WorkflowContext context, bool flag, 
-        [SchemaType(NS_SYSTEM_WORKFLOW_NODE)] string? trueNode, 
-        [SchemaType(NS_SYSTEM_WORKFLOW_NODE)] string falseNode)
+        [Schema(NS_SYSTEM_WORKFLOW_NODE)] string? trueNode, 
+        [Schema(NS_SYSTEM_WORKFLOW_NODE)] string falseNode)
     {
         await Task.Yield();
         context.Goto(this, flag ? trueNode : falseNode);

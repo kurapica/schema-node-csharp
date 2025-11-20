@@ -203,7 +203,7 @@ public static class Schema
         {
             // try generate
             NodeSchema[]? schemas = null;
-            bool shouldConv = autoConv || type.GetCustomAttribute<SchemaTypeAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
+            bool shouldConv = autoConv || type.GetCustomAttribute<SchemaAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
             
             // common
             if (type.IsClass)
@@ -214,7 +214,7 @@ public static class Schema
                     if (type.IsSealed)
                     {
                         // static class as method container
-                        SchemaTypeAttribute? funcNsAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+                        SchemaAttribute? funcNsAttr = type.GetCustomAttribute<SchemaAttribute>();
                         if (funcNsAttr != null && !string.IsNullOrEmpty(funcNsAttr.Name))
                         {
                             List<NodeSchema> funcNs = [new NodeSchema
@@ -225,7 +225,7 @@ public static class Schema
                                 LoadState = SchemaLoadState.System,
                                 Schemas = []
                             }];
-                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaTypeAttribute>() != null))
+                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaAttribute>() != null))
                             {
                                 NodeSchema? func = FunctionType.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
@@ -239,22 +239,22 @@ public static class Schema
                 {
                     // system event
                     schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else if (type.IsAssignableTo(typeof(Workflow)))
                 {
                     // system workflow
                     schemas = WorkflowType.GenerateSystemWorkflow(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else
                 {
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
             }
             else if (type.IsValueType)
@@ -263,16 +263,16 @@ public static class Schema
                 {
                     if (shouldConv) 
                         schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
                     // struct
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
             }
 

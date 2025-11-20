@@ -106,7 +106,7 @@ public class WorkflowType: AnySchemeType
         if (!type.IsAssignableTo(typeof(Workflow))) return [];
         
         // Common
-        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         NodeSchema workflowSchema = new NodeSchema
         {
@@ -172,7 +172,7 @@ public class WorkflowType: AnySchemeType
                 if (info == null)
                     throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}");
 
-                SchemaTypeAttribute? attr = param.GetCustomAttribute<SchemaTypeAttribute>();
+                SchemaAttribute? attr = param.GetCustomAttribute<SchemaAttribute>();
                 
                 workflowSchema.Workflow.Args[i] = new FuncArg
                 {

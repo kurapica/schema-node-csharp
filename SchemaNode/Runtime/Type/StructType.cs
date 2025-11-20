@@ -248,7 +248,7 @@ public class StructType: AnySchemeType
             p.GetMethod?.IsPrivate != true &&
             p.GetCustomAttribute<NotMappedAttribute>() == null &&
             p is { CanRead: true, CanWrite: true } && (
-                p.GetCustomAttribute<SchemaTypeAttribute>() != null ||
+                p.GetCustomAttribute<SchemaAttribute>() != null ||
                 !string.IsNullOrWhiteSpace(p.PropertyType.GetSchemaType(true)))
             ).OrderBy(p => p.MetadataToken).ToArray();
         if (properties.Length == 0) return [];
@@ -256,7 +256,7 @@ public class StructType: AnySchemeType
         List<PropertyInfo> fieldMaps = [];
         string[] primarys = [];
         Dictionary<string, string[]> indexes = [];
-        SchemaTypeAttribute? typeAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+        SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
 
         NodeSchema structSchema = new ()
@@ -270,7 +270,7 @@ public class StructType: AnySchemeType
                 {
                     fieldMaps.Add(p);
 
-                    SchemaTypeAttribute? fieldAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+                    SchemaAttribute? fieldAttr = p.GetCustomAttribute<SchemaAttribute>();
                     string fieldName = p.Name.ToCamelCase();
                     StructFieldConfig config = new ()
                     {
@@ -418,6 +418,7 @@ public class StructType: AnySchemeType
             Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
             Base = Name,
             Fields = new StructFieldConfig[Fields.Length],
+            Namespace = Namespace,
             Relations = Relations
         };
 

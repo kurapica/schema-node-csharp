@@ -56,6 +56,6 @@ public class InteractionWorkflowPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [SchemaType(NS_GENERIC_TYPE)]
+    [Schema(NS_GENERIC_TYPE)]
     public AnySchemaNode? Data { get; set; }
 }

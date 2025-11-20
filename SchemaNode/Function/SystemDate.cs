@@ -7,7 +7,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// system.datetime api
 /// </summary>
-[SchemaType(NS_SYSTEM_DATETIME)]
+[Schema(NS_SYSTEM_DATETIME)]
 public static class SystemDate
 {
     /// <summary>
@@ -23,7 +23,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.now
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime Now() => DateTime.UtcNow;
 
     #region Locale Info
@@ -36,19 +36,19 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getmonth
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetMonth(DateTime dt) => dt.FromUtc().Month;
 
     /// <summary>
     /// system.datetime.getyear
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetYear(DateTime dt) => dt.FromUtc().Year;
 
     /// <summary>
     /// Gets the first time of the year
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetFirstTimeOfYear(DateTime date)
     {
         date = FromUtc(date);
@@ -59,7 +59,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the month
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetFirstTimeOfMonth(DateTime date)
     {
         date = FromUtc(date);
@@ -70,7 +70,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the first time of the day
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetFirstTimeOfDay(DateTime date)
     {
         date = FromUtc(date);
@@ -81,7 +81,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the last time of the year
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetLastTimeOfYear(DateTime date)
     {
         date = FromUtc(date);
@@ -92,7 +92,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the last time of the month
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetLastTimeOfMonth(DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -103,7 +103,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the last time of the day
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime GetLastTimeOfDay(DateTime date)
     {
         date = FromUtc(date).AddDays(1);
@@ -118,7 +118,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getyears
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetYears(DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -129,7 +129,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getmonths
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetMonths(DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -140,7 +140,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getdays
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetDays(DateTime start, DateTime stop)
     {
         start = FromUtc(start);
@@ -151,7 +151,7 @@ public static class SystemDate
     /// <summary>
     /// Gets the days of a month
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static long GetMonthDays(DateTime date)
     {
         date = FromUtc(date).AddMonths(1);
@@ -165,37 +165,37 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.adddays
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddDays(DateTime dt, int days) => dt.FromUtc().AddDays(days).ToUtc();
 
     /// <summary>
     /// system.datetime.addhours
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddHours(DateTime dt, int hours) => dt.FromUtc().AddHours(hours).ToUtc();
 
     /// <summary>
     /// system.datetime.addminutes
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddMinutes(DateTime dt, int min) => dt.FromUtc().AddMinutes(min).ToUtc();
 
     /// <summary>
     /// system.datetime.addmonths
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddMonths(DateTime dt, int months) => dt.FromUtc().AddMonths(months).ToUtc();
 
     /// <summary>
     /// system.datetime.addseconds
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddSeconds(DateTime dt, int seconds) => dt.FromUtc().AddSeconds(seconds).ToUtc();
 
     /// <summary>
     /// system.datetime.addyears
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static DateTime AddYears(DateTime dt, int year) => dt.FromUtc().AddYears(year).ToUtc();
 
     #endregion
@@ -205,7 +205,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.equal
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool Equal(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -216,7 +216,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.greateequal
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool GreateEqual(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -227,7 +227,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.greatethan
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool GreateThan(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -238,7 +238,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.lessequal
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool LessEqual(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -249,7 +249,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.lessthan
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool LessThan(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -260,7 +260,7 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.notequal
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool NotEqual(DateTime left, DateTime right)
     {
         left = left.FromUtc();
@@ -271,7 +271,7 @@ public static class SystemDate
     /// <summary>
     /// Between
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static bool Between(DateTime date, DateTime min, DateTime max)
     {
         date = FromUtc(date);

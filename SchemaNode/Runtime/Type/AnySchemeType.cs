@@ -29,6 +29,11 @@ public abstract class AnySchemeType: IDisposable
     /// The authentication policy type
     /// </summary>
     public PolicyType? Auth { get; set; }
+    
+    /// <summary>
+    /// The namespace that holds the type
+    /// </summary>
+    public TypeNamespace? Namespace { get; set; }
 
     #endregion
     
@@ -87,7 +92,59 @@ public abstract class AnySchemeType: IDisposable
     /// Release the refs
     /// </summary>
     public virtual void Release() { }
+    
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
+    {
+        if (Namespace != null)
+        {
+            foreach (var item in Namespace.GetAuthPolicies(scope))
+                yield return item;
+        }
 
+        if (Auth == null) yield break;
+        {
+            var item = Auth.Items.FirstOrDefault(p => p.Scope == scope);
+            if (item != null) yield return item;
+        }
+    }
+
+    /// <summary>
+    /// authorize the schema with the policy scope
+    /// </summary>
+    public async Task<bool> AuthorizeAsync(SchemaContext context, PolicyScope scope)
+    {
+        // if no policy, authorized
+        bool authorized = true;
+        
+        // check policies in order
+        foreach (PolicyItem item in GetAuthPolicies(scope))
+        {
+            try
+            {
+                JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
+                if (result is JsonValue val && val.TryGetValue(out authorized))
+                {
+                    switch (authorized)
+                    {
+                        case true when item.Combine == PolicyCombine.OrElse:
+                            return true;
+                        case false when item.Combine == PolicyCombine.AndAlso:
+                            return false;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        return authorized;
+    }
+    
     /// <summary>
     /// Used by another node
     /// </summary>

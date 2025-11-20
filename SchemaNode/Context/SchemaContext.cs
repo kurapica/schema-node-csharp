@@ -878,7 +878,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
             if (parent.SchemaNodes.TryGetValue(path, out node)) continue;
             
             // Must be a namespace
-            node = new TypeNamespace { Name = fullPath };
+            node = new TypeNamespace { Name = fullPath, Namespace = parent };
 
             if (!parent.SchemaNodes.TryAdd(path, node))
                 node = parent.SchemaNodes[path];
@@ -921,6 +921,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
             }
             node!.Loaded = true;
             node.Display = newSchema.Display;
+            node.Namespace = par;
             node.Release();
             node.Auth = !string.IsNullOrEmpty(newSchema.Auth)
                 ? await GetSchemaTypeAsync(newSchema.Auth) as PolicyType
@@ -999,7 +1000,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
             if (parent.SubAppList != null && parent.SubAppList.TryGetValue(path, out node)) continue;
 
-            node = new AppType { Name = fullPath };
+            node = new AppType { Name = fullPath, RootApp = parent };
             parent.SubAppList ??= new ConcurrentDictionary<string, AppType>();
             if (!parent.SubAppList.TryAdd(path, node))
                 node = parent.SubAppList[path];
@@ -1022,7 +1023,7 @@ public class SchemaContext(IServiceProvider serviceProvider)
         
         if (node == null)
         {
-            node = new AppType{ Name = name };
+            node = new AppType{ Name = name, RootApp = par };
             par!.SubAppList ??= new ConcurrentDictionary<string, AppType>();
             par.SubAppList.TryAdd(paths.Last(), node);
         }

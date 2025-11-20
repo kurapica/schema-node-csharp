@@ -6,13 +6,13 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.appfielddata")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.event.appfielddata")]
 public class WaitAppFieldDataEventWorkflow : EventWorkflow, 
     IWorkflowPayload<WaitAppFieldDataEventWorkflowPayload>,
     IWorkflowSession<IDisposable>
 {
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field = "", 
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field = "", 
         string? target = null)
     {
         await Task.Yield();
@@ -76,7 +76,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
     }
 }
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.appfielddatapayload")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.event.appfielddatapayload")]
 public class WaitAppFieldDataEventWorkflowPayload
 {
     /// <summary>
@@ -97,12 +97,12 @@ public class WaitAppFieldDataEventWorkflowPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [SchemaType(NS_GENERIC_TYPE)]
+    [Schema(NS_GENERIC_TYPE)]
     public AnySchemaNode? Data { get; set; }
     
     /// <summary>
     /// The origin data
     /// </summary>
-    [SchemaType(NS_GENERIC_TYPE)]
+    [Schema(NS_GENERIC_TYPE)]
     public AnySchemaNode? Origin { get; set; }
 }

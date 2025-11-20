@@ -27,7 +27,7 @@ public class AppAccessContextItemProvider(SchemaContext schemaContext)
 /// <summary>
 /// The application data access context item
 /// </summary>
-[SchemaType($"{NS_SYSTEM_SCHEMA}.appaccess")]
+[Schema($"{NS_SYSTEM_SCHEMA}.appaccess")]
 public class AppAccessContextItem
 {
     /// <summary>

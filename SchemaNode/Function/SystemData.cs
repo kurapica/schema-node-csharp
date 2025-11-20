@@ -11,7 +11,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// The system.data api
 /// </summary>
-[SchemaType(NS_SYSTEM_DATA)]
+[Schema(NS_SYSTEM_DATA)]
 public static class SystemData
 {
     #region Context Item
@@ -19,7 +19,7 @@ public static class SystemData
     /// <summary>
     /// Gets the context item
     /// </summary>
-    [SchemaType]
+    [Schema]
     [NoCache]
     public static AnySchemaNode? GetContextItem(SchemaContext context, string item)
     {
@@ -33,11 +33,11 @@ public static class SystemData
     /// <summary>
     /// Gets the application data if single value
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<AnySchemaNode?> GetAppData(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
     {
         string target = string.IsNullOrEmpty(context.Target)
             ? Guid.Empty.ToString()
@@ -57,11 +57,11 @@ public static class SystemData
     /// <summary>
     /// Gets the application data by one key
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<AnySchemaNode?> GetAppDataByOneKey<T1>(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key
         )
     {
@@ -90,11 +90,11 @@ public static class SystemData
     /// <summary>
     /// Gets the application data by one key
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<AnySchemaNode?> GetAppDataByTwoKey<T1, T2>(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2
     )
     {
@@ -126,11 +126,11 @@ public static class SystemData
     /// <summary>
     /// Gets the application data by one key
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<AnySchemaNode?> GetAppDataByThreeKey<T1, T2, T3>(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2, T3 key3
     )
     {
@@ -165,11 +165,11 @@ public static class SystemData
     /// <summary>
     /// Gets the application data by one key
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<AnySchemaNode?> GetAppDataByFourKey<T1, T2, T3, T4>(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         T1 key1, T2 key2, T3 key3, T4 key4
     )
     {
@@ -211,12 +211,12 @@ public static class SystemData
     /// <summary>
     /// Incr the app field data
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static async Task<JsonNode?> IncrAppData(
         SchemaContext context,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP)] string app,
-        [SchemaType(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        [SchemaType(NS_GENERIC_TYPE)] JsonNode data
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_GENERIC_TYPE)] JsonNode data
     )
     {
         string target = string.IsNullOrEmpty(context.Target)

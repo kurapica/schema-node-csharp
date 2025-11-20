@@ -60,7 +60,7 @@ public interface ISchemaApiProtocol
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
 
         // Parse request.
-        logger.LogDebug("{0} API is being executed ...", typeof(TApi).Name);
+        logger.LogDebug("{name} API is being executed ...", typeof(TApi).Name);
         ctx.Request.EnableBuffering();
         
         string requestBody = "";
@@ -125,9 +125,14 @@ public interface ISchemaApiProtocol
             request.Files = files;
             response = await api._ExecuteAsync(request, logger);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            logger.LogError(ex, "{name} API execution failed - Unauthorized.", typeof(TApi).Name);
+            return Results.Forbid();
+        }
         catch (Exception ex)
         {
-            logger.LogError(ex, "{0} API execution failed.", typeof(TApi).Name);
+            logger.LogError(ex, "{name} API execution failed.", typeof(TApi).Name);
             return GenerateErrorResponse(SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
         }
         finally
@@ -137,7 +142,7 @@ public interface ISchemaApiProtocol
 
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
-        logger.LogDebug("{0} API is executed, cost {1}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
+        logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         
         // Stream
         if (response.Output?.Stream != null)

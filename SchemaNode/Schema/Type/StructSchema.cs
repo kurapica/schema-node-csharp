@@ -28,7 +28,7 @@ public class StructSchema
     /// The base struct type to be inherited from.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [SchemaType(NS_SYSTEM_SCHEMA_STRUCT_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_STRUCT_TYPE)]
     public string? Base { get; set; }
     
     /// <summary>
@@ -63,7 +63,7 @@ public class StructFieldConfig
     /// The type name of the node.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [SchemaType(NS_SYSTEM_SCHEMA_VALUE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_VALUE_TYPE)]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -370,7 +370,7 @@ public class StructFieldRelation
     /// The relation function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [SchemaType(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

@@ -94,7 +94,7 @@ public class FuncExp {
     /// The call function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [SchemaType(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

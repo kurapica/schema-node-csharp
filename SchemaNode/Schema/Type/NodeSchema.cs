@@ -43,7 +43,7 @@ public class NodeSchema
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [SchemaType(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
     public string? Auth { get; set; }
 
     /// <summary>
@@ -236,7 +236,7 @@ public class NodeSchema
 /// <summary>
 /// The locale translate
 /// </summary>
-[SchemaType(NS_SYSTEM_LOCALE_TRAN)]
+[Schema(NS_SYSTEM_LOCALE_TRAN)]
 public class LocaleTran
 {
     /// <summary>
@@ -256,7 +256,7 @@ public class LocaleTran
     /// <summary>
     /// The language
     /// </summary>
-    [SchemaType(NS_SYSTEM_LANGUAGE)]
+    [Schema(NS_SYSTEM_LANGUAGE)]
     [MaxLength(8)]
     [Index]
     public string Lang { get; set; } = string.Empty;
@@ -278,7 +278,7 @@ public class LocaleTran
 /// <summary>
 /// The locale string
 /// </summary>
-[SchemaType(NS_SYSTEM_LOCALE_STRING)]
+[Schema(NS_SYSTEM_LOCALE_STRING)]
 public class LocaleString : ICloneable
 {
     /// <summary>
@@ -356,7 +356,7 @@ public class LocaleString : ICloneable
 /// <summary>
 /// The dict entry
 /// </summary>
-[SchemaType(NS_SYSTEM_ENTRY)]
+[Schema(NS_SYSTEM_ENTRY)]
 public class Entry
 {
     /// <summary>

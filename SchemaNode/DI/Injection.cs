@@ -268,7 +268,7 @@ public static class Injection
     {
         if (assembly == null || !RegisterAssemblys.Add(assembly)) return;
         
-        SchemaTypeAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaTypeAttribute>();
+        SchemaAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaAttribute>();
         if (rootNamespaceAttr != null)
         {
             SaveSystemNodeSchema(new NodeSchema
@@ -340,7 +340,7 @@ public static class Injection
         var protocol = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
         return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
     }
-
+ 
     static async Task<IResult> ProcessDefaultSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
         where TApi: SchemaApi<TRequest, TResponse>
         where TRequest: SchemaApiRequest

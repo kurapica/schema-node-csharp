@@ -6,24 +6,24 @@ namespace SchemaNode.Function;
 /// <summary>
 /// system.conv apis
 /// </summary>
-[SchemaType("system.conv")]
+[Schema("system.conv")]
 public static class SystemConv
 {
     /// <summary>
     /// Assign value
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static T Assign<T>(T value) => value;
 
     /// <summary>
     /// Gets the default value if value is null
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static T Default<T>(T? a, T d) => a ?? d;
 
     /// <summary>
     /// Return the null value of the given type
     /// </summary>
-    [SchemaType]
+    [Schema]
     public static T? Null<T>() => default;
 }

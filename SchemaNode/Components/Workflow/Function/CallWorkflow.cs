@@ -9,7 +9,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.func.call")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.func.call")]
 public class CallWorkflow: FunctionWorkflow, 
     IWorkflowState<CallWorkflowState>,
     IWorkflowPayload
@@ -80,7 +80,7 @@ public class CallWorkflow: FunctionWorkflow,
 /// <summary>
 /// The call app workflow state
 /// </summary>
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.func.callstate")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.func.callstate")]
 public class CallWorkflowState
 {
     /// <summary>

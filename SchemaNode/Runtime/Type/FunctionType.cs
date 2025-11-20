@@ -760,7 +760,7 @@ public class FunctionType: AnySchemeType
     public static NodeSchema? GenerateSystemFunction(MethodInfo method, string? ns = null)
     {
         if (!method.IsStatic) return null;
-        SchemaTypeAttribute? funcAttr = method.GetCustomAttribute<SchemaTypeAttribute>();
+        SchemaAttribute? funcAttr = method.GetCustomAttribute<SchemaAttribute>();
         if (funcAttr == null) return null;
 
         int sign = FUNC_SIGN_IMMUTABLE; // The system method won't be changed and already compiled
@@ -847,7 +847,7 @@ public class FunctionType: AnySchemeType
             if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
 
             // Check dynamic type
-            SchemaTypeAttribute? schemaTypeAttr = p.GetCustomAttribute<SchemaTypeAttribute>();
+            SchemaAttribute? schemaTypeAttr = p.GetCustomAttribute<SchemaAttribute>();
             if (schemaTypeAttr != null && !string.IsNullOrWhiteSpace(schemaTypeAttr.Name))
             {
                 pt.SchemaType = schemaTypeAttr.Name;

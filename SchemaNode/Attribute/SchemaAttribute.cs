@@ -6,7 +6,7 @@ namespace SchemaNode.Attribute;
 /// Declare system namespace
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method)]
-public class SchemaTypeAttribute: System.Attribute
+public class SchemaAttribute: System.Attribute
 {
     /// <summary>
     /// The namespace name
@@ -23,19 +23,19 @@ public class SchemaTypeAttribute: System.Attribute
     /// </summary>
     /// <param name="name">The namespace</param>
     /// <param name="display">The display</param>
-    public SchemaTypeAttribute(string? name = null, string? display = null)
+    public SchemaAttribute(string? name = null, string? display = null)
     {
         Name = name;
         Display = display != null ? new LocaleString(display) : null;
     }
     
-    public SchemaTypeAttribute(string? name, string key, string lang, string tran)
+    public SchemaAttribute(string? name, string key, string lang, string tran)
     {
         Name = name;
         Display = new LocaleString(key, (lang, tran));
     }
     
-    public SchemaTypeAttribute(string name, string key, params string[] lang)
+    public SchemaAttribute(string name, string key, params string[] lang)
     {
         Name = name;
         List<(string lang, string tran)> translations = new();

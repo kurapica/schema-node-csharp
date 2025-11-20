@@ -5,7 +5,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.app")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.event.app")]
 public class WaitAppEventWorkflow : EventWorkflow, 
     IWorkflowPayload<WaitAppEventWorkflowPayload>,
     IWorkflowSession<IDisposable>
@@ -51,7 +51,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
 }
 
 
-[SchemaType($"{NS_SYSTEM_WORKFLOW}.event.apppayload")]
+[Schema($"{NS_SYSTEM_WORKFLOW}.event.apppayload")]
 public class WaitAppEventWorkflowPayload
 {
     /// <summary>

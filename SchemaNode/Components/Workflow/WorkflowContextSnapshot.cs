@@ -69,7 +69,7 @@ public class WorkflowContextSnapshot
     public WorkflowContextSnapshot[]? Forks { get; set; }
 }
 
-[SchemaType]
+[Schema]
 public class WorkflowSnapshot
 {
     /// <summary>

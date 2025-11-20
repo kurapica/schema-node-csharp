@@ -286,6 +286,7 @@ public class ArrayType: AnySchemeType
             {
                 Name = $"{Name}<{elementType}>",
                 Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
+                Namespace = Namespace,
                 Element = elementType,
                 Single = Single,
                 ElementSchemaType = eleType,

@@ -43,13 +43,13 @@ public class AppSchema
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [SchemaType(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
     public string? Auth { get; set; }
 
     /// <summary>
     /// The data authentication policy type
     /// </summary>
-    [SchemaType(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
     public string? DataAuth { get; set; }
     
     /// <summary>
