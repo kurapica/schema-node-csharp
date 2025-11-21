@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Schema;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 
@@ -22,6 +23,15 @@ public static class SystemStr
     [Schema]
     public static string substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
+    [Schema]
+    public static bool startswith(string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    
+    [Schema]
+    public static bool endswith(string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+    
+    [Schema]
+    public static bool contains(string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
+    
     [Schema]
     public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");
 

@@ -8,11 +8,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using SchemaNode.Components.Provider;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Components;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 /// <summary>
 /// The in-memory application field schema representation
@@ -29,7 +30,7 @@ public class AppFieldType
     /// <summary>
     /// The seqno
     /// </summary>
-    public int Seqno { get; internal set; }
+    public int Seqno { get; private init; }
 
     /// <summary>
     /// The field name.
@@ -39,7 +40,7 @@ public class AppFieldType
     /// <summary>
     /// The field type.
     /// </summary>
-    public string Type { get; init; } = default!;
+    public string Type { get; init; } = null!;
 
     /// <summary>
     /// The field chinese name.
@@ -49,22 +50,22 @@ public class AppFieldType
     /// <summary>
     /// The description of the field.
     /// </summary>
-    public LocaleString? Desc { get; init; }
+    public LocaleString? Desc { get; private init; }
 
     /// <summary>
     /// The source application
     /// </summary>
-    public string? SourceApp { get; init; }
+    public string? SourceApp { get; private init; }
 
     /// <summary>
     /// The source field
     /// </summary>
-    public string? SourceField { get; init; }
+    public string? SourceField { get; private init; }
 
     /// <summary>
     /// Track the push data to the source field, so toggle the source target, will also re-push the data
     /// </summary>
-    public bool? TrackPush { get; init; }
+    public bool? TrackPush { get; private init; }
     
     /// <summary>
     /// The calculate function
@@ -79,48 +80,47 @@ public class AppFieldType
     /// <summary>
     /// The authentication policy, normally row policy
     /// </summary>
-    public PolicyItem[]? Auths { get; init; }
+    public PolicyItem[]? Auths { get; private init; }
     
     /// <summary>
     /// The struct field auths, normally column policy
     /// </summary>
-    public FieldPolicy[]? FieldAuths { get; init; }
+    public FieldPolicy[]? FieldAuths { get; private init; }
 
     /// <summary>
     /// The field is using increase update, no full data push allowed
     /// </summary>
-    public bool? IncrUpdate { get; init; }
+    public bool? IncrUpdate { get; private init; }
 
     /// <summary>
     /// The field is front-end only, no data storage
     /// </summary>
-    public bool? Frontend { get; init; }
+    public bool? Frontend { get; private init; }
 
     /// <summary>
     /// The field is disabled
     /// </summary>
-    public bool? Disable { get; init; }
+    public bool? Disable { get; private init; }
     
     /// <summary>
     /// The field is readonly
     /// </summary>
-    public bool? Readonly { get; init; }
+    public bool? Readonly { get; private init; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    public DataCombineType? Combine { get; init; }
+    public DataCombineType? Combine { get; private init; }
 
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    public DataCombine[]? Combines { get; init; }
+    public DataCombine[]? Combines { get; private init; }
 
     /// <summary>
     /// The additional data
     /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; init; }
+    public Dictionary<string, JsonElement>? Additional { get; private init; }
 
     #endregion
 
@@ -158,7 +158,7 @@ public class AppFieldType
     /// <summary>
     /// The application node
     /// </summary>
-    public AppType Application { get; internal set; } = default!;
+    public AppType Application { get; internal set; } = null!;
     
     /// <summary>
     /// The field type node
@@ -320,7 +320,7 @@ public class AppFieldType
     {
         // Generate the fields
         AnySchemeType node = SchemaType!;
-        List<DynamicTableField> fields = new();
+        List<DynamicTableField> fields = [];
         DataIndex[]? indexes = null;
         bool single = true;
         DataTypeInfo info;
@@ -342,46 +342,108 @@ public class AppFieldType
             case SchemaNode.Enum.SchemaType.Scalar:
             case SchemaNode.Enum.SchemaType.Enum:
             case SchemaNode.Enum.SchemaType.Json:
+            {
+                info = GetDataTypeInfo(node);
+                fields.Add(new DynamicTableField
                 {
-                    info = GetDataTypeInfo(node);
-                    fields.Add(new DynamicTableField
-                    {
-                        Name = DYNAMIC_TABLE_VALUE_FIELD,
-                        Type = info.Type,
-                        MaxLength = info.MaxLength,
-                        SchemaType = node
-                    });
-                    break;
-                }
+                    Name = DYNAMIC_TABLE_VALUE_FIELD,
+                    Type = info.Type,
+                    MaxLength = info.MaxLength,
+                    SchemaType = node
+                });
+                break;
+            }
             case SchemaNode.Enum.SchemaType.Struct:
+            {
+                StructType structNode = (StructType)node;
+                foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                 {
-                    StructType structNode = (StructType)node;
-                    foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                    if (sField.TypeNode?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
                     {
-                        if (sField.TypeNode?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
+                        // As complex fields
+                        StructType subStructNode = (StructType)sField.TypeNode;
+                        foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                        {
+                            info = GetDataTypeInfo(iField.TypeNode!, iField);
+                            fields.Add(new DynamicTableField
+                            {
+                                Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
+                                Complex = new DataFieldComplexInfo
+                                {
+                                    Main = sField.Name,
+                                    Field = iField.Name
+                                },
+                                Type = info.Type,
+                                MaxLength = info.MaxLength,
+                                SchemaType = iField.TypeNode!
+                            });
+                        }
+                    }
+                    else
+                    {
+                        info = GetDataTypeInfo(sField.TypeNode!, sField);
+                        fields.Add(new DynamicTableField
+                        {
+                            Name = sField.Name,
+                            Type = info.Type,
+                            MaxLength = info.MaxLength,
+                            SchemaType = sField.TypeNode!
+                        });
+                    }
+                }
+                break;
+            }
+            case SchemaNode.Enum.SchemaType.Array:
+            {
+                ArrayType arrayNode = (ArrayType)node;
+                node = arrayNode.ElementSchemaType!; // Record the base node for array
+                indexes = arrayNode.Indexes;
+                if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
+                {
+                    single = false;
+
+                    // Add primary fields
+                    foreach (string n in arrayNode.Primary)
+                    {
+                        var sField = structNode.Fields.First(p => p.Name == n);
+                        info = GetDataTypeInfo(sField.TypeNode!, sField);
+                        fields.Add(new DynamicTableField
+                        {
+                            Name = sField.Name,
+                            Type = info.Type,
+                            Primary = true,
+                            MaxLength = info.MaxLength,
+                            SchemaType = sField.TypeNode!,
+                            StructFieldNode = sField,
+                        });
+                    }
+                    // Add normal fields
+                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
+                    {
+                        // Check if the sfield use a struct type
+                        if (sField.TypeNode!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {
                             // As complex fields
-                            StructType subStructNode = (StructType)sField.TypeNode;
-                            foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            foreach (var ifield in ((StructType)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
-                                info = GetDataTypeInfo(iField.TypeNode!, iField);
+                                info = GetDataTypeInfo(ifield.TypeNode!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
-                                    Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
+                                    Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
                                     Complex = new DataFieldComplexInfo
                                     {
                                         Main = sField.Name,
-                                        Field = iField.Name
+                                        Field = ifield.Name
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = iField.TypeNode!
+                                    SchemaType = ifield.TypeNode!
                                 });
                             }
                         }
                         else
                         {
-                            info = GetDataTypeInfo(sField.TypeNode!, sField);
+                            info = GetDataTypeInfo(sField.TypeNode, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
@@ -391,80 +453,18 @@ public class AppFieldType
                             });
                         }
                     }
-                    break;
                 }
-            case SchemaNode.Enum.SchemaType.Array:
+                else
                 {
-                    ArrayType arrayNode = (ArrayType)node;
-                    node = arrayNode.ElementSchemaType!; // Record the base node for array
-                    indexes = arrayNode.Indexes;
-                    if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
+                    fields.Add(new DynamicTableField
                     {
-                        single = false;
-
-                        // Add primary fields
-                        foreach (string n in arrayNode.Primary)
-                        {
-                            var sField = structNode.Fields.First(p => p.Name == n);
-                            info = GetDataTypeInfo(sField.TypeNode!, sField);
-                            fields.Add(new DynamicTableField
-                            {
-                                Name = sField.Name,
-                                Type = info.Type,
-                                Primary = true,
-                                MaxLength = info.MaxLength,
-                                SchemaType = sField.TypeNode!,
-                                StructFieldNode = sField,
-                            });
-                        }
-                        // Add normal fields
-                        foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
-                        {
-                            // Check if the sfield use a struct type
-                            if (sField.TypeNode!.Type == SchemaNode.Enum.SchemaType.Struct)
-                            {
-                                // As complex fields
-                                foreach (var ifield in ((StructType)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
-                                {
-                                    info = GetDataTypeInfo(ifield.TypeNode!, ifield);
-                                    fields.Add(new DynamicTableField
-                                    {
-                                        Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
-                                        Complex = new DataFieldComplexInfo
-                                        {
-                                            Main = sField.Name,
-                                            Field = ifield.Name
-                                        },
-                                        Type = info.Type,
-                                        MaxLength = info.MaxLength,
-                                        SchemaType = ifield.TypeNode!
-                                    });
-                                }
-                            }
-                            else
-                            {
-                                info = GetDataTypeInfo(sField.TypeNode, sField);
-                                fields.Add(new DynamicTableField
-                                {
-                                    Name = sField.Name,
-                                    Type = info.Type,
-                                    MaxLength = info.MaxLength,
-                                    SchemaType = sField.TypeNode!
-                                });
-                            }
-                        }
-                    }
-                    else
-                    {
-                        fields.Add(new DynamicTableField
-                        {
-                            Name = DYNAMIC_TABLE_VALUE_FIELD,
-                            Type = DynamicTableFieldType.Json,
-                            SchemaType = node
-                        });
-                    }
-                    break;
+                        Name = DYNAMIC_TABLE_VALUE_FIELD,
+                        Type = DynamicTableFieldType.Json,
+                        SchemaType = node
+                    });
                 }
+                break;
+            }
             default:
                 throw new ArgumentOutOfRangeException();
         }
@@ -722,42 +722,42 @@ public enum DynamicTableFieldType
     Bool,
 
     /// <summary>
-    /// The small int field type, (-32768��32767)
+    /// The small int field type, (-32768 ~ 32767)
     /// </summary>
     Smallint,
 
     /// <summary>
-    /// The unsigned small int field type, (0��65535)
+    /// The unsigned small int field type, (0 ~ 65535)
     /// </summary>
     USmallint,
 
     /// <summary>
-    /// The medium int field type, 	(-8388608��8388607)
+    /// The medium int field type, 	(-8388608 ~ 8388607)
     /// </summary>
     Mediumint,
 
     /// <summary>
-    /// The unsigned medium int field type, (0��16777215)
+    /// The unsigned medium int field type, (0 ~ 16777215)
     /// </summary>
     UMediumint,
 
     /// <summary>
-    /// The int field type, (-2147483648��2147483647)
+    /// The int field type, (-2147483648 ~ 2147483647)
     /// </summary>
     Int,
 
     /// <summary>
-    /// The unsigned int field type, (0��4294967295)
+    /// The unsigned int field type, (0 ~ 4294967295)
     /// </summary>
     UInt,
 
     /// <summary>
-    /// The big int field type, (-9,223,372,036,854,775,808��9223372036854775807)
+    /// The big int field type, (-9,223,372,036,854,775,808 ~ 9223372036854775807)
     /// </summary>
     BigInt,
 
     /// <summary>
-    /// The unsigned big int field type, (0��18446744073709551615)
+    /// The unsigned big int field type, (0 ~ 18446744073709551615)
     /// </summary>
     UBigInt,
 
@@ -889,12 +889,12 @@ public class DynamicTableSchema
     public StringBuilder AppendFields(StringBuilder sb, string prefix="")
     {
         bool appendComma = false;
-        foreach (DynamicTableField dyfld in Fields)
+        foreach (DynamicTableField field in Fields)
         {
             if (appendComma)
                 sb.Append(", ");
             appendComma = true;
-            sb.Append($"{prefix}`{dyfld.Name}`");
+            sb.Append($"{prefix}`{field.Name}`");
         }
         return sb;
     }
@@ -1206,6 +1206,11 @@ public class DynamicTableSchema
 /// </summary>
 public class DynamicTableField
 {
+    /// <summary>
+    /// The sql provider
+    /// </summary>
+    internal static ISqlProvider SqlProvider = new DefaultSqlProvider();
+    
     /// <summary>
     /// The field name
     /// </summary>

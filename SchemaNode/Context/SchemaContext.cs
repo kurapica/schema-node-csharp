@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
-using SchemaNode.Components.Provider;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
@@ -70,6 +69,11 @@ public class SchemaContext(IServiceProvider serviceProvider)
     /// The current field to be used
     /// </summary>
     internal string? Field { get; private set; }
+    
+    /// <summary>
+    /// The root call function
+    /// </summary>
+    internal string? RootCall { get; private set; }
 
     #endregion
 
@@ -1259,6 +1263,14 @@ public class SchemaContext(IServiceProvider serviceProvider)
         App = app;
         Target = target;
         Field = field;
+    }
+
+    /// <summary>
+    /// Sets the root call for policy evaluation
+    /// </summary>
+    public void SetRootCall(string? call = null)
+    {
+        RootCall = call;
     }
 
     /// <summary>
@@ -2726,8 +2738,8 @@ public class SchemaContext(IServiceProvider serviceProvider)
                                 {
                                     DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                                     DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                    if (!SystemDate.NotEqual(ad, bd))
-                                        return SystemDate.LessThan(ad, bd) ? -1 : 1;
+                                    if (!SystemDate.notequal(ad, bd))
+                                        return SystemDate.lessthan(ad, bd) ? -1 : 1;
                                     break;
                                 }
                             case ScalarType { IsNumber: true }:

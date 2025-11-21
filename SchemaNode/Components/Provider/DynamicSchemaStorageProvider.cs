@@ -5,7 +5,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// Use application storage to store type schemas

@@ -6,7 +6,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The default json schema storage provider, which save schema in json files

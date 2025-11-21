@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Rewrite;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The in memory app schema data provider, for unit test only

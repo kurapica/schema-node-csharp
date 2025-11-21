@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -23,6 +24,11 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.DataRead);
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.DataWrite);
+        
+        // set root call
+        SchemaContext.SetRootCall(func.Name);
         
         return new CallFunctionResponse
         {

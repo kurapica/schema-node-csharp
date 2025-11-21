@@ -1,6 +1,7 @@
 using System.Numerics;
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 

@@ -1,7 +1,7 @@
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The schema storage provider

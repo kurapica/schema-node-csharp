@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The schema provider, used to load schema from storages, network or other resources

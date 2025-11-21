@@ -398,7 +398,7 @@ public static class Schema
                        (isNumber ? ParameterTypeKind.Number : isFloat ? ParameterTypeKind.Float : ParameterTypeKind.Normal)
             };
         }
-        else if (input.IsArray)
+        else if (input.IsArray && input != typeof(string))
         {
             // only allow one-level array
             if (!input.IsSZArray) return null;
@@ -731,8 +731,8 @@ public static class Schema
                         {
                             DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                             DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (SystemDate.NotEqual(ad, bd))
-                                return SystemDate.LessThan(ad,bd) ? -1 : 1;
+                            if (SystemDate.notequal(ad, bd))
+                                return SystemDate.lessthan(ad,bd) ? -1 : 1;
                             break;
                         }
                     case ScalarType { IsNumber: true }:

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components.Provider;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;

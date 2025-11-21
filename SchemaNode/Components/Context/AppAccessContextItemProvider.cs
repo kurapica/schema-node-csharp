@@ -18,7 +18,8 @@ public class AppAccessContextItemProvider(SchemaContext schemaContext)
         {
             App = schemaContext.App!,
             Target = schemaContext.Target,
-            Field = schemaContext.Field
+            Field = schemaContext.Field,
+            Call = schemaContext.RootCall
         }
         : throw new InvalidOperationException();
     }
@@ -44,4 +45,9 @@ public class AppAccessContextItem
     /// The access field
     /// </summary>
     public string? Field { get; set; }
+    
+    /// <summary>
+    /// The root call identifier
+    /// </summary>
+    public string? Call { get; set; }
 }

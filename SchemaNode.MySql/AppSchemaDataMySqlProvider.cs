@@ -5,9 +5,8 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
-using SchemaNode.Components.Provider;
+using SchemaNode.Components;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -15,14 +14,14 @@ namespace SchemaNode.MySql;
 /// <summary>
 /// The implementation of IAppSchemaDataProvider for MySQL
 /// </summary>
-public class AppSchemaDataProvider: IAppSchemaDataProvider
+public class AppSchemaDataMySqlProvider: IAppSchemaDataSqlProvider<MySqlProvider>
 {
     #region Constructors
 
-    public AppSchemaDataProvider(MySqlConnection dbConn, IServiceProvider serviceProvider)
+    public AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider serviceProvider)
     {
         _dbConnection = dbConn;
-        _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<AppSchemaDataProvider>>);
+        _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<AppSchemaDataMySqlProvider>>);
     }
 
     #endregion

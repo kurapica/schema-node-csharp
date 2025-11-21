@@ -5,6 +5,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 

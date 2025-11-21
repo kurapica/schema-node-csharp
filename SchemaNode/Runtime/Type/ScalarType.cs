@@ -294,7 +294,7 @@ public class ScalarType: AnySchemeType
                 }
                 else if (DateTime.TryParse(strVal, out DateTime dateTime))
                 {
-                    year = SystemDate.GetYear(dateTime);
+                    year = SystemDate.getyear(dateTime);
                 }
                 else
                 {

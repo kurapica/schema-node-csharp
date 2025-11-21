@@ -1,0 +1,59 @@
+namespace SchemaNode.Components;
+
+/// <summary>
+/// The default implementation of ISqlProvider, which uses minimal SQL syntax.
+/// </summary>
+public class DefaultSqlProvider: ISqlProvider
+{
+    public string QuoteField(string fieldName) => fieldName;
+    public string QuoteTable(string tableName) => tableName;
+    public string GenParameterName(int index) => $"@p{index}";
+    public string Concat(string left, string right) => $"CONCAT({left}, {right})";
+    public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {param}, '%')";
+    public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({param}, '%')";
+    public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {param})";
+    public string In(string field, IReadOnlyList<string> paramNames) => $"{field} IN ({string.Join(", ", paramNames)})";
+    public string NotIn(string field, IReadOnlyList<string> paramNames) => $"{field} NOT IN ({string.Join(", ", paramNames)})";
+    public string IsNull(string field) => $"{field} IS NULL";
+    public string IsNotNull(string field) => $"{field} IS NOT NULL";
+    public string FinalizeExpression(string whereSql) => whereSql;
+    
+    public string Literal(object? value)
+    {
+        return value switch
+        {
+            null => "NULL",
+            bool b => b ? "1" : "0",
+            int or long or float or double or decimal => value.ToString()!,
+            DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
+            _ => $"'{value}'"
+        };
+    }
+
+    public string Binary(BinaryExpType type, string left, string right)
+    {
+        var op = type switch
+        {
+            BinaryExpType.Equal => "=",
+            BinaryExpType.NotEqual => "<>",
+            BinaryExpType.GreaterThan => ">",
+            BinaryExpType.GreaterEqual => ">=",
+            BinaryExpType.LessThan => "<",
+            BinaryExpType.LessEqual => "<=",
+            BinaryExpType.AndAlso => "AND",
+            BinaryExpType.OrElse => "OR",
+            _ => throw new NotSupportedException($"Unsupported BinaryExpType: {type}")
+        };
+
+        return $"({left} {op} {right})";
+    }
+
+    public string Unary(UnaryExpType type, string operand)
+    {
+        return type switch
+        {
+            UnaryExpType.Not => $"(NOT {operand})",
+            _ => throw new NotSupportedException($"Unsupported UnaryExpType: {type}")
+        };
+    }
+}

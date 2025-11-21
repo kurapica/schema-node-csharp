@@ -2,7 +2,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Components.Provider;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The application data storage provider

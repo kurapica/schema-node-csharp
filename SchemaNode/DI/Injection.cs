@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
-using SchemaNode.Components.Provider;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -139,6 +138,15 @@ public static class Injection
         services.TryAddScoped<IAppSchemaDataProvider, T>();
         if (typeof(ISchemaStorageProvider).IsAssignableFrom(typeof(T)))
             services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
+        
+        // sql provider check
+        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppSchemaDataSqlProvider<>)));
+        if (interfaceType != null)
+        {
+            // keep it simple, just set it
+            DynamicTableField.SqlProvider = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
+        }
+        
         return services.AddScoped<T>();
     }
     

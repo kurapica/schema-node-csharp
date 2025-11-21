@@ -6,6 +6,7 @@ using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 

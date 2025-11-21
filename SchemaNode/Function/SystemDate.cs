@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using TimeZoneConverter;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 

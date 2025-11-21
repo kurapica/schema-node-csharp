@@ -1,6 +1,6 @@
 using MySqlConnector;
 using SchemaNode;
-using SchemaNode.Components.Provider;
+using SchemaNode.Components;
 using Microsoft.OpenApi.Models;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
@@ -39,7 +39,7 @@ builder.Services
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    .AddAppSchemaDataProvider<AppSchemaDataProvider>();       // Mysql application data provider
+    .AddAppSchemaDataProvider<AppSchemaDataMySqlProvider>();       // Mysql application data provider
     //.AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>(); // Memory application data provider - for test
 
 // App

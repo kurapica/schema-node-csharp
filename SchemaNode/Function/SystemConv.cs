@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using System.ComponentModel.DataAnnotations;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 
@@ -19,11 +20,11 @@ public static class SystemConv
     /// Gets the default value if value is null
     /// </summary>
     [Schema]
-    public static T Default<T>(T? a, T d) => a ?? d;
+    public static T @default<T>(T? a, T d) => a ?? d;
 
     /// <summary>
     /// Return the null value of the given type
     /// </summary>
     [Schema]
-    public static T? Null<T>() => default;
+    public static T? @null<T>() => default;
 }
