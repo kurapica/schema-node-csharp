@@ -1,15 +1,13 @@
 using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
-using Microsoft.AspNetCore.Rewrite;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
 
 /// <summary>
 /// The in memory app schema data provider, for unit test only
 /// </summary>
-public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
+public class InMemoryAppDataProvider: IAppDataProvider
 {
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
@@ -17,7 +15,7 @@ public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
         return true;
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null, int skip = 0,
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, JsonNode? filter = null, int skip = 0,
         int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         await Task.Yield();
@@ -52,12 +50,10 @@ public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
                 case JsonObject jsonObject:
                 {
                     Dictionary<string, string> query = [];
-                    foreach ((string field, string? value, bool _, bool _) in schema.GetFieldValues(jsonObject))
+                    foreach ((string field, AnySchemaNode? value) in schema.GetFieldValues(jsonObject))
                     {
-                        if (!string.IsNullOrEmpty(value))
-                        {
-                            query[field] = value;
-                        }
+                        if (value != null && !value.IsEmpty)
+                            query[field] = value.ToString();
                     }
                     
                     // clear by filter
@@ -107,7 +103,12 @@ public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
         }
     }
 
-    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", AnySchemaNode? data = null)
+    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, ExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
@@ -170,7 +171,7 @@ public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
         }
     }
 
-    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null)
+    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
@@ -215,10 +216,10 @@ public class InMemoryAppSchemaDataProvider: IAppSchemaDataProvider
                 case JsonObject jsonObject:
                 {
                     Dictionary<string, string> query = [];
-                    foreach ((string field, string? value, bool _, bool _) in schema.GetFieldValues(jsonObject, true))
+                    foreach ((string field, AnySchemaNode? value) in schema.GetFieldValues(jsonObject, true))
                     {
-                        if (string.IsNullOrEmpty(value)) continue;
-                        query[field] = value;
+                        if (value != null && !value.IsEmpty)
+                            query[field] = value.ToString();
                     }
 
                     // all clear

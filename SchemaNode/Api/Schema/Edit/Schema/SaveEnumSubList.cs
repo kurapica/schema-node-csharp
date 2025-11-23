@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Schema;
 

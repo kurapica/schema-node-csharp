@@ -1,0 +1,212 @@
+﻿using Microsoft.Extensions.Logging;
+using SchemaNode.Context;
+using SchemaNode.Node;
+using SchemaNode.Utility;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Text.Json.Nodes;
+using static SchemaNode.Utility.Constant;
+
+namespace SchemaNode.Components;
+
+public static class AppDataQueryExtension
+{
+    #region Entity Query
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
+    {
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
+        if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
+
+        if (keys.Length != primarys.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+
+        JsonObject query = [];
+        for (int i = 0; i < keys.Length; i++)
+        {
+            query[primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
+        }
+
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(context, appFieldType, target, query, take: 1);
+        return result is { Count: > 0 } ? result[0] : default;
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
+    {
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
+        if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
+
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
+
+        JsonObject query = [];
+        foreach (PropertyInfo t in primarys)
+        {
+            string key = t.Name.ToCamelCase();
+            if (obj.TryGetPropertyValue(key, out JsonNode? val) && val is JsonValue v && !v.IsEmpty())
+                query[key] = v.DeepClone();
+            else
+                throw new ArgumentException("The condition is not valid");
+        }
+
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(context, appFieldType, target, query, take: 1, forUpdate: forUpdate);
+        return result is { Count: > 0 } ? result[0] : default;
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
+    {
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
+        if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
+
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
+
+        (List<T> result, _) = await GetFieldEntitiesAsync<T>(context, appFieldType, target, obj, forUpdate: forUpdate);
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static async Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
+        if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
+
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj) throw new ArgumentException("The condition is not valid");
+
+        return await GetFieldEntitiesAsync<T>(context, appFieldType, target, obj, skip, take, desc, orderBy, forUpdate);
+    }
+
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        context.AssertType<T>(field);
+
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
+        if (filter is not JsonObject obj || obj.IsEmpty()) throw new ArgumentException("The condition is not valid");
+
+        return await GetFieldEntitiesAsync<T>(context, field, target, obj, skip, take, desc, orderBy, forUpdate);
+    }
+
+    /// <summary>
+    /// Gets the entity data
+    /// </summary>
+    public static async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, JsonNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        context.AssertType<T>(field);
+
+        (AnySchemaNode? result, int total) = await GetFieldDataAsync(context, field, target, filter, skip, take, desc, orderBy, forUpdate);
+        List<T> results = [];
+        if (result is ArrayTypeNode arr)
+        {
+            foreach (AnySchemaNode item in arr)
+            {
+                if (item is StructTypeNode obj)
+                {
+                    T? val = obj.ToValue<T>();
+                    if (val != null) results.Add(val);
+                }
+            }
+        }
+        else if (result is StructTypeNode obj)
+        {
+            T? val = obj.ToValue<T>();
+            if (val != null) results.Add(val);
+        }
+        return (results, total);
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Gets the field data
+    /// </summary>
+    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        // Front end only
+        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
+
+        var dataProvider = context.GetService<IAppDataProvider>();
+        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+
+        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        if (sourceField == null) return (null, 0);
+        field = sourceField;
+
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+
+        try
+        {
+            (AnySchemaNode? result, int total) = await dataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy, forUpdate);
+
+            // Generate display only fields
+            await schema.GenerateDisplayOnlyFields(context, result);
+
+            // raise event
+            context.RaiseEvent(new AppDataReadEvent(field.App, target));
+
+            return (result, total);
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError(ex.Message);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Gets the field data
+    /// </summary>
+    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, string target, ExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        // Front end only
+        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
+
+        var dataProvider = context.GetService<IAppDataProvider>();
+        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+
+        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        if (sourceField == null) return (null, 0);
+        field = sourceField;
+
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+
+        try
+        {
+            (AnySchemaNode? result, int total) = await dataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy, forUpdate);
+
+            // Generate display only fields
+            await schema.GenerateDisplayOnlyFields(context, result);
+
+            // raise event
+            context.RaiseEvent(new AppDataReadEvent(field.App, target));
+
+            return (result, total);
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError(ex.Message);
+            throw;
+        }
+    }
+}

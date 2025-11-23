@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
@@ -24,8 +25,6 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
-        await SchemaContext.AuthorizeAsync(node, PolicyScope.DataRead);
-        await SchemaContext.AuthorizeAsync(node, PolicyScope.DataWrite);
         
         // set root call
         SchemaContext.SetRootCall(func.Name);

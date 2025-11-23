@@ -2,6 +2,10 @@ using SchemaNode.Context;
 using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
+using System.ComponentModel;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable NotAccessedPositionalProperty.Global
@@ -18,12 +22,12 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Visit the function type
     /// </summary>
-    public static async Task<ExpNode> Visit(SchemaContext context, FunctionType func)
+    public static async Task<ExpNode> Visit(SchemaContext context, FunctionType func, JsonObject? filter = null)
     {
         if (func.Args.Length != 1)
             throw new NotSupportedException("Only support one parameter function");
 
-        if (func.Args[0].TypeNode is not StructType)
+        if (func.Args[0].TypeNode is not StructType structType)
             throw new NotSupportedException("Only support struct type parameter");
 
         if (func.ReturnNode is not ScalarType { IsBool: true })
@@ -34,11 +38,62 @@ public static class RowAccessExpTreeVisitor
             ?? throw new NotSupportedException("The function exp tree is invalid");
         
         // visit the exp tree
-        return await VisitExp(context, last, 
+        ExpNode exp =  await VisitExp(context, last, 
             new Dictionary<FunctionNodeExpTree, ExpNode>
                 { { func.Args[0], new StructExpNode((func.Args[0].TypeNode as StructType)!) } } );
+
+        // combine the filter
+        if ((filter != null && !filter.IsEmpty()))
+        {
+            foreach((string key, JsonNode? value) in filter)
+            {
+                if (value == null || value.IsEmpty()) continue;
+                StructFieldConfig? field = structType.Fields.FirstOrDefault(f => f.Name.Equals(key, StringComparison.OrdinalIgnoreCase));
+                if (field == null || field.TypeNode is not ScalarType) continue;
+
+                BinaryExpNode? fieldExp = exp.FindFieldAccessOper(key);
+
+                // additional filter
+                if (fieldExp == null || fieldExp.Type != BinaryExpType.Equal)
+                {
+                    if (value is JsonArray arr)
+                    {
+                        exp = new BinaryExpNode(
+                            BinaryExpType.AndAlso,
+                            exp,
+                            new BinaryExpNode(
+                                BinaryExpType.Contains,
+                                new ValueExpNode(new ArrayTypeNode(field.TypeNode!, arr)),
+                                new FieldAccessExpNode(key)
+                            )
+                        );
+                    }
+                    else if (value is JsonValue val)
+                    {
+                        exp = new BinaryExpNode(
+                            BinaryExpType.AndAlso,
+                            exp,
+                            new BinaryExpNode(
+                                BinaryExpType.Equal,
+                                new FieldAccessExpNode(key),
+                                new ValueExpNode(field.TypeNode!.CreateNode(val))
+                            )
+                        );
+                    }
+                }
+
+                // write back to the filter
+                else
+                {
+                    filter[key] = fieldExp.Right is ValueExpNode valNode
+                        ? JsonValue.Create(valNode.Value)
+                        : null;
+                }
+            }
+        }
+        return exp;
     }
-    
+        
     /// <summary>
     /// Visit the exp tree
     /// </summary>
@@ -124,66 +179,68 @@ public static class RowAccessExpTreeVisitor
             // a == b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.equal)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.Equal,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (right is FieldAccessExpNode) (left, right) = (right, left);
+                result = new BinaryExpNode(BinaryExpType.Equal, left, right);
                 break;
             }
             
             // a >= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greateequal)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.GreaterEqual,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (left is FieldAccessExpNode)
+                    result = new BinaryExpNode(BinaryExpType.GreaterEqual, left, right);
+                else
+                    result = new BinaryExpNode(BinaryExpType.LessEqual, right, left);
                 break;
             }
             
             // a > b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greatethan)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.GreaterThan,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (left is FieldAccessExpNode)
+                    result = new BinaryExpNode(BinaryExpType.GreaterThan, left, right);
+                else
+                    result = new BinaryExpNode(BinaryExpType.LessThan, right, left);
                 break;
             }
             
             // a <= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessequal)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.LessEqual,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (left is FieldAccessExpNode)
+                    result = new BinaryExpNode(BinaryExpType.LessEqual, left, right);
+                else
+                    result = new BinaryExpNode(BinaryExpType.GreaterEqual, right, left);
                 break;
             }
             
             // a < b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessthan)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.LessThan,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (left is FieldAccessExpNode)
+                    result = new BinaryExpNode(BinaryExpType.LessThan, left, right);
+                else
+                    result = new BinaryExpNode(BinaryExpType.GreaterThan, right, left);
                 break;
             }
             
             // a != b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notequal)}":
             {
-                result = new BinaryExpNode(
-                    BinaryExpType.NotEqual,
-                    await VisitExp(context, exp.LeafNodes[0], expMap),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
+                var left = await VisitExp(context, exp.LeafNodes[0], expMap);
+                var right = await VisitExp(context, exp.LeafNodes[1], expMap);
+                if (right is FieldAccessExpNode) (left, right) = (right, left);
+                result = new BinaryExpNode(BinaryExpType.NotEqual, left, right);
                 break;
             }
             
@@ -201,10 +258,39 @@ public static class RowAccessExpTreeVisitor
             // !a
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}":
             {
-                result = new UnaryExpNode(
-                    UnaryExpType.Not,
-                    await VisitExp(context, exp.LeafNodes[0], expMap)
-                );
+                // try convert the exp to [not] part
+                var notExp = await VisitExp(context, exp.LeafNodes[0], expMap);
+                if (notExp is not BinaryExpNode binaryNotExp) throw new NotSupportedException("The system.logic.not expression not supported");
+
+                switch (binaryNotExp.Type)
+                {
+                    case BinaryExpType.Equal:
+                        result = new BinaryExpNode(BinaryExpType.NotEqual, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.NotEqual:
+                        result = new BinaryExpNode(BinaryExpType.Equal, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.GreaterThan:
+                        result = new BinaryExpNode(BinaryExpType.LessEqual, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.GreaterEqual:
+                        result = new BinaryExpNode(BinaryExpType.LessThan, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.LessThan:
+                        result = new BinaryExpNode(BinaryExpType.GreaterEqual, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.LessEqual:
+                        result = new BinaryExpNode(BinaryExpType.GreaterThan, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.Contains:
+                        result = new BinaryExpNode(BinaryExpType.NotContains, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    case BinaryExpType.NotContains:
+                        result = new BinaryExpNode(BinaryExpType.Contains, binaryNotExp.Left, binaryNotExp.Right);
+                        break;
+                    default:
+                        throw new NotSupportedException("The system.logic.not expression not supported");
+                }
                 break;
             }
             
@@ -219,19 +305,7 @@ public static class RowAccessExpTreeVisitor
                 );
                 break;
             }
-            
-            // !a[b]
-            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}":
-            {
-                result = new BinaryExpNode(
-                    BinaryExpType.NotContains,
-                    await VisitExp(context, exp.LeafNodes[0], expMap) as ValueExpNode 
-                           ?? throw new NotSupportedException($"The list of ${exp.Name} can't be resolved"),
-                    await VisitExp(context, exp.LeafNodes[1], expMap)
-                );
-                break;
-            }
-            
+                        
             // a.b
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
             {
@@ -273,6 +347,7 @@ public static class RowAccessExpTreeVisitor
                 break;
             }
 
+            // a.startsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}":
             {
                 if (leafNodes[0] is FieldAccessExpNode
@@ -292,7 +367,8 @@ public static class RowAccessExpTreeVisitor
                 }
                 break;
             }
-            
+
+            // a.endsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}":
             {
                 if (leafNodes[0] is FieldAccessExpNode
@@ -312,7 +388,8 @@ public static class RowAccessExpTreeVisitor
                 }
                 break;
             }
-            
+
+            // a.contains(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.contains)}":
             {
                 if (leafNodes[0] is FieldAccessExpNode
@@ -352,6 +429,78 @@ public static class RowAccessExpTreeVisitor
             : new ValueExpNode(await context.CallFunctionAsync(exp.FuncNode!, 
                 args.Select(a => (a as ValueExpNode)?.Value).ToArray()));
     }
+
+    /// <summary>
+    /// Gets the expression node by field name
+    /// </summary>
+    static BinaryExpNode? FindFieldAccessOper(this ExpNode exp, string fieldName)
+    {
+        if (exp is BinaryExpNode binaryExpNode)
+        {
+            if (binaryExpNode.Left is FieldAccessExpNode leftField && leftField.FieldName.Equals(fieldName, StringComparison.OrdinalIgnoreCase) 
+                || binaryExpNode.Right is FieldAccessExpNode rightField && rightField.FieldName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                return binaryExpNode;
+            
+            return FindFieldAccessOper(binaryExpNode.Left, fieldName) ?? FindFieldAccessOper(binaryExpNode.Right, fieldName);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Convert the exp tree to SQL
+    /// </summary>
+    public static string ToSql(this ExpNode exp, ISqlProvider sqlProvider, string prefix = "")
+    {
+        switch(exp)
+        {
+            case FieldAccessExpNode access:
+                return $"{prefix}.{sqlProvider.QuoteField(access.FieldName)}";
+            case BinaryExpNode binary:
+                switch (binary.Type)
+                {
+                    case BinaryExpType.AndAlso:
+                    case BinaryExpType.OrElse:
+                    case BinaryExpType.Equal:
+                    case BinaryExpType.NotEqual:
+                    case BinaryExpType.GreaterThan:
+                    case BinaryExpType.GreaterEqual:
+                    case BinaryExpType.LessThan:
+                    case BinaryExpType.LessEqual:
+                        return sqlProvider.Binary(binary.Type, 
+                            ToSql(binary.Left, sqlProvider, prefix), 
+                            ToSql(binary.Right, sqlProvider, prefix));
+                    case BinaryExpType.Contains:
+                        return sqlProvider.In(
+                            ToSql(binary.Right, sqlProvider, prefix),
+                            ((binary.Left as ValueExpNode)!.Value as ArrayTypeNode)!);
+                    case BinaryExpType.NotContains:
+                        return sqlProvider.NotIn(
+                            ToSql(binary.Right, sqlProvider, prefix),
+                            ((binary.Left as ValueExpNode)!.Value as ArrayTypeNode)!);
+                    case BinaryExpType.StartsWith:
+                        return sqlProvider.LikeStartsWith(
+                            ToSql(binary.Left, sqlProvider, prefix),
+                            (binary.Right as ValueExpNode)?.Value?.ToValue<string>() 
+                                ?? throw new NotSupportedException("The startswith right value must be string"));
+                    case BinaryExpType.EndsWith:
+                        return sqlProvider.LikeEndsWith(
+                            ToSql(binary.Left, sqlProvider, prefix),
+                            (binary.Right as ValueExpNode)?.Value?.ToValue<string>() 
+                                ?? throw new NotSupportedException("The endswith right value must be string"));
+                    case BinaryExpType.ContainsStr:
+                        return sqlProvider.LikeContains(
+                            ToSql(binary.Left, sqlProvider, prefix),
+                            (binary.Right as ValueExpNode)?.Value?.ToValue<string>() 
+                                ?? throw new NotSupportedException("The contains right value must be string"));
+                    default:
+                        throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
+                }
+            case ValueExpNode value:
+                return sqlProvider.Literal(value.Value);
+        }
+
+        throw new NotSupportedException("The expression type not supported");
+    }
 }
 
 #region Exp access type
@@ -369,16 +518,12 @@ public enum BinaryExpType
     GreaterEqual,
     LessThan,
     LessEqual,
+
     Contains,
     NotContains,
     StartsWith,
     EndsWith,
     ContainsStr,
-}
-
-public enum UnaryExpType
-{
-    Not,
 }
 
 /// <summary>
@@ -400,11 +545,6 @@ public record FieldAccessExpNode(string FieldName) : ExpNode;
 /// The binary expression node
 /// </summary>
 public record BinaryExpNode(BinaryExpType Type, ExpNode Left, ExpNode Right) : ExpNode;
-
-/// <summary>
-/// Teh unary expression node
-/// </summary>
-public record UnaryExpNode(UnaryExpType Type, ExpNode Operand) : ExpNode;
 
 /// <summary>
 /// The value expression node

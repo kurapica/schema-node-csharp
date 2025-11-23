@@ -3,6 +3,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;

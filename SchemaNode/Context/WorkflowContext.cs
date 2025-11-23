@@ -14,7 +14,7 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The workflow context
 /// </summary>
-public class WorkflowContext: SchemaContext, IDisposable
+public class WorkflowContext: SchemaContext
 {
     #region Private Fields
     
@@ -516,8 +516,10 @@ public class WorkflowContext: SchemaContext, IDisposable
 
     #region IDisposable
 
-    public void Dispose()
+    public new void Dispose()
     {
+        base.Dispose();
+
         // remove from root fork contexts
         if (_root != null && _root._states.TryGetValue(_workflow!.Name, out WorkflowState? state) 
                           && state.ForkContexts != null)

@@ -7,13 +7,14 @@ public class DefaultSqlProvider: ISqlProvider
 {
     public string QuoteField(string fieldName) => fieldName;
     public string QuoteTable(string tableName) => tableName;
+    public string QuoteIndex(string indexName) => indexName;
     public string GenParameterName(int index) => $"@p{index}";
     public string Concat(string left, string right) => $"CONCAT({left}, {right})";
     public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {param}, '%')";
     public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({param}, '%')";
     public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {param})";
-    public string In(string field, IReadOnlyList<string> paramNames) => $"{field} IN ({string.Join(", ", paramNames)})";
-    public string NotIn(string field, IReadOnlyList<string> paramNames) => $"{field} NOT IN ({string.Join(", ", paramNames)})";
+    public string In(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} IN ({string.Join(", ", paramNames.Select(Literal))})";
+    public string NotIn(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} NOT IN ({string.Join(", ", paramNames.Select(Literal))})";
     public string IsNull(string field) => $"{field} IS NULL";
     public string IsNotNull(string field) => $"{field} IS NOT NULL";
     public string FinalizeExpression(string whereSql) => whereSql;
@@ -46,14 +47,5 @@ public class DefaultSqlProvider: ISqlProvider
         };
 
         return $"({left} {op} {right})";
-    }
-
-    public string Unary(UnaryExpType type, string operand)
-    {
-        return type switch
-        {
-            UnaryExpType.Not => $"(NOT {operand})",
-            _ => throw new NotSupportedException($"Unsupported UnaryExpType: {type}")
-        };
     }
 }

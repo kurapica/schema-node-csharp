@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -24,7 +25,7 @@ public static class SystemData
     [NoCache]
     public static AnySchemaNode? getcontextitem(SchemaContext context, string item)
     {
-        return context.GetContextItem(item);
+        return context.GetSchemaContextItem(item);
     }
 
     #endregion

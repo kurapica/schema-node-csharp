@@ -97,7 +97,7 @@ public static class Injection
                     Type = schemaType,
                     Display = $"{{@{schemaType}}}",
                 }).ToArray();
-                SchemaContext.ItemProvider[field] = (schemaType, serviceType);
+                ContextExtension.ItemProvider[field] = (schemaType, serviceType);
             }
         }
         
@@ -133,9 +133,9 @@ public static class Injection
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public static IServiceCollection AddAppSchemaDataProvider<T>(this IServiceCollection services)
-        where T : class, IAppSchemaDataProvider
+        where T : class, IAppDataProvider
     {
-        services.TryAddScoped<IAppSchemaDataProvider, T>();
+        services.TryAddScoped<IAppDataProvider, T>();
         if (typeof(ISchemaStorageProvider).IsAssignableFrom(typeof(T)))
             services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
         
@@ -144,7 +144,9 @@ public static class Injection
         if (interfaceType != null)
         {
             // keep it simple, just set it
-            DynamicTableField.SqlProvider = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
+            ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
+            services.AddSingleton<ISqlProvider>(instance);
+            DynamicTableSchema.SqlProvider = instance;
         }
         
         return services.AddScoped<T>();
@@ -192,7 +194,7 @@ public static class Injection
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
-        bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
+        bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
         
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();
         var protocolMeta = apiProtocol.GetProtocolMeta(app.Services);

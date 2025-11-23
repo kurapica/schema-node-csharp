@@ -40,7 +40,7 @@ builder.Services
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
     .AddAppSchemaDataProvider<AppSchemaDataMySqlProvider>();       // Mysql application data provider
-    //.AddAppSchemaDataProvider<InMemoryAppSchemaDataProvider>(); // Memory application data provider - for test
+    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
 
 // App
 var app = builder.Build();

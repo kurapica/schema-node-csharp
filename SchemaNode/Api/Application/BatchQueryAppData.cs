@@ -8,7 +8,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
-using SchemaNode.Utility;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -95,7 +94,7 @@ public static class BatchQueryExtension
                 foreach (AppFieldType field in fields)
                 {
                     // authorize field
-                    await context.AuthorizeAsync(field, PolicyScope.DataRead);
+                    if (!await context.AuthorizeAsync(field, PolicyScope.DataRead, true)) continue;
                     
                     // prepare field query
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
@@ -114,13 +113,12 @@ public static class BatchQueryExtension
                     }
                     
                     // row access check
-                    JsonObject? filter = q?.Filter;
+                    ExpNode? rowFilter = null;
                     if (field.SchemaType is ArrayType { ElementSchemaType: StructType structType })
                     {
                         PolicyItem[] rowAccess = field.GetAuthPolicies(field.Name, PolicyScope.RowAccess).ToArray();
                         if (rowAccess.Length > 0)
                         {
-                            JsonObject? rowFilter = null;
                             for (int i = rowAccess.Length - 1; i >= 0; i--)
                             {
                                 try
@@ -132,27 +130,18 @@ public static class BatchQueryExtension
                                         || func.Args[0].TypeNode == null 
                                         || !func.Args[0].TypeNode!.CanBeUseAs(structType)) 
                                         continue;
-                                    
+
                                     // visite the function exp tree for where clause
-                                    
+                                    rowFilter = await RowAccessExpTreeVisitor.Visit(context, func, q?.Filter);
+                                    break;
                                 }
                                 catch
                                 {
                                     rowFilter = null;
                                 }
-                                if (rowFilter != null) break;
                             }
-                            if (rowFilter == null || rowFilter.IsEmpty()) continue; // no filter get, skip the field
-                            if (filter == null) 
-                                filter = rowFilter;
-                            else
-                            {
-                                foreach (var (key, value) in rowFilter)
-                                {
-                                    if (value != null && !value.IsEmpty())
-                                        filter[key] = value.DeepClone();
-                                }
-                            }
+                            // get nothing 
+                            if (rowFilter == null) continue;
                         }
                     }
                     
@@ -160,8 +149,9 @@ public static class BatchQueryExtension
                     context.SetAppAccess(field.App, query.Target, field.Name);
 
                     // query app field data
-                    (AnySchemaNode? result, int total) = await context.GetFieldDataAsync(field, query.Target!,
-                        filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                    (AnySchemaNode? result, int total) = rowFilter != null
+                        ? await context.GetFieldDataAsync(field, query.Target!, rowFilter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy)
+                        : await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                     
                     // mark loaded
                     infos[field.Name] = new AppDataFieldInfo

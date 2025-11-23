@@ -1,13 +1,12 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
 
 /// <summary>
 /// The application data storage provider
 /// </summary>
-public interface IAppSchemaDataProvider
+public interface IAppDataProvider
 {
     /// <summary>
     /// Add or update the data table with the dynamic table schema
@@ -17,19 +16,26 @@ public interface IAppSchemaDataProvider
     /// <summary>
     /// Query dynamic table data with the filter and paging
     /// </summary>
-    Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target = "", 
+    Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false);
-    
+
+    /// <summary>
+    /// Query dynamic table data with the filter and paging
+    /// </summary>
+    Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target,
+        ExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
+        bool forUpdate = false);
+
     /// <summary>
     /// Save the dynamic table data
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target = "", AnySchemaNode? data = null);
+    Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null);
     
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target = "", JsonNode? filter = null);
+    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null);
     
     /// <summary>
     /// Begin a transaction

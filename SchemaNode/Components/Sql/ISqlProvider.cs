@@ -27,6 +27,13 @@ public interface ISqlProvider
     string QuoteTable(string tableName);
 
     /// <summary>
+    /// Quotes an index name.
+    /// </summary>
+    /// <param name="indexName"></param>
+    /// <returns></returns>
+    string QuoteIndex(string indexName);
+
+    /// <summary>
     /// Generates a provider-specific parameter name based on an index.
     /// Example:
     /// - MySQL: @p0
@@ -50,11 +57,6 @@ public interface ISqlProvider
     /// Example: (a = b), (a > b)
     /// </summary>
     string Binary(BinaryExpType type, string left, string right);
-
-    /// <summary>
-    /// Formats a unary expression such as NOT (...)
-    /// </summary>
-    string Unary(UnaryExpType type, string operand);
 
     /* ===========================
      *      Text / Pattern Matching
@@ -90,12 +92,12 @@ public interface ISqlProvider
     /// <summary>
     /// field IN (param1, param2, ...)
     /// </summary>
-    string In(string field, IReadOnlyList<string> paramNames);
+    string In(string field, IEnumerable<object> paramNames);
 
     /// <summary>
     /// field NOT IN (param1, param2, ...)
     /// </summary>
-    string NotIn(string field, IReadOnlyList<string> paramNames);
+    string NotIn(string field, IEnumerable<object> paramNames);
 
     /* ===========================
      *       NULL handling
