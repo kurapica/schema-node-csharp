@@ -62,8 +62,7 @@ public static class Injection
         RegisterAssemblyFeatures(services, typeof(SchemaContext).Assembly);
         RegisterAssemblyFeatures(services, Assembly.GetEntryAssembly());
         RegisterAssemblyFeatures(services, typeof(T).Assembly);
-        foreach (Assembly assembly in assemblies)
-            RegisterAssemblyFeatures(services, assembly);
+        foreach (Assembly assembly in assemblies) RegisterAssemblyFeatures(services, assembly);
 
         // event dispatcher
         services.TryAddSingleton<IEventDispatcher<Event>, DefaultEventDispatcher>();
@@ -86,7 +85,7 @@ public static class Injection
                     => i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>))) is { } @interface)
             {
                 Type itemType = @interface.GetGenericArguments()[0];
-                string? schemaType = itemType.GetSchemaType(true);
+                string? schemaType = itemType.GetSchemaType(true, serviceType.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 if (string.IsNullOrEmpty(schemaType)) continue;
 
                 // use the last part as field name
@@ -145,7 +144,7 @@ public static class Injection
         {
             // keep it simple, just set it
             ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
-            services.AddSingleton<ISqlProvider>(instance);
+            services.AddSingleton(instance);
             DynamicTableSchema.SqlProvider = instance;
         }
         

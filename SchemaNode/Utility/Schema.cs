@@ -110,16 +110,17 @@ public static class Schema
     /// </summary>
     /// <param name="type">The type</param>
     /// <param name="autoConv">Whether auto convert the type no matter the attribute existed</param>
+    /// <param name="defaultNs">The default namespace</param>
     /// <returns>The schema name be registered</returns>
-    internal static string? GetSchemaType(this Type type, bool autoConv = false)
+    internal static string? GetSchemaType(this Type type, bool autoConv = false, string? defaultNs = null)
     {
-        return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv);
+        return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv, defaultNs);
     }
 
     /// <summary>
     /// Try get the schema name of a assembly type, with auto register
     /// </summary>
-    internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
+    internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false, string? defaultNs = null)
     {
         if (typeInfo.Complex) return NS_SYSTEM_JSON; // Complex type, use JsonNode
         if (typeInfo.BaseType == null) return null; // Generic, no schema type
@@ -240,21 +241,21 @@ public static class Schema
                     // system event
                     schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
                         ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else if (type.IsAssignableTo(typeof(Workflow)))
                 {
                     // system workflow
                     schemas = WorkflowType.GenerateSystemWorkflow(type, ((type.DeclaringType?.IsClass ?? false) 
                         ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else
                 {
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name : null) 
+                            ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
             }
             else if (type.IsValueType)
@@ -264,7 +265,7 @@ public static class Schema
                     if (shouldConv) 
                         schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
                             ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
@@ -272,7 +273,7 @@ public static class Schema
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
                             ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
             }
 
@@ -309,7 +310,7 @@ public static class Schema
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false, string? defaultNs = null)
     {
         if (input == null) return null;
 
@@ -416,7 +417,7 @@ public static class Schema
 
         // auto conv type to schema type
         result.Type = input;
-        if (autoConv && result.BaseType != null) result.SchemaType = GetSchemaType(result, true);
+        if (autoConv && result.BaseType != null) result.SchemaType = GetSchemaType(result, true, defaultNs);
         return result;
     }
 

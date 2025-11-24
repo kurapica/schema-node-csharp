@@ -770,7 +770,7 @@ public class FunctionType: AnySchemeType
         
         // Generate the arguments and result type
         ParameterInfo[] parameters = method.GetParameters();
-        SchemaParamTypeInfo[] genInfos = method.GetGenericArguments().Select(g => g.GetSchemaTypeInfo(true)!).ToArray(); // The generic type infos
+        SchemaParamTypeInfo[] genInfos = method.GetGenericArguments().Select(g => g.GetSchemaTypeInfo(true, ns)!).ToArray(); // The generic type infos
 
         // The schema context must be the first if used
         if (parameters.Length > 0 && (parameters[0].ParameterType == typeof(SchemaContext) || 
@@ -800,7 +800,7 @@ public class FunctionType: AnySchemeType
         };
 
         // Return type
-        SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true);
+        SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true, ns);
         if (retInfo == null) return null;
         if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
         if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
@@ -832,7 +832,7 @@ public class FunctionType: AnySchemeType
         }
         
         // Parameter types
-        SchemaParamTypeInfo?[] paramInfos = parameters.Select(p => p.ParameterType.GetSchemaTypeInfo(true)).ToArray();
+        SchemaParamTypeInfo?[] paramInfos = parameters.Select(p => p.ParameterType.GetSchemaTypeInfo(true, ns)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
             ParameterInfo p = parameters[i];
@@ -1579,7 +1579,7 @@ public class FunctionType: AnySchemeType
     static Expression GenMethodCallExp(SchemaFuncInfo callFuncInfo, MethodInfo callMethod, Expression[] callArgs, Type? returnType = null)
     {
         // Call the method
-        Expression result = Expression.Empty();
+        Expression result;
         if ((callFuncInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC)
         {
             // Gets the task result

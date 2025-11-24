@@ -275,7 +275,7 @@ public class StructType: AnySchemeType
                     StructFieldConfig config = new ()
                     {
                         Name = fieldName,
-                        Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType()!,
+                        Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType(defaultNs: ns)!,
                         Require = p.GetCustomAttribute<RequiredAttribute>() != null,
                         Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
                     };
