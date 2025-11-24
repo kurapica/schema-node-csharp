@@ -98,7 +98,18 @@ public abstract class AnySchemeType: IDisposable
     /// </summary>
     public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
     {
-        if (Namespace != null)
+        // root
+        if (Namespace == null)
+        {
+            // use system instead
+            if (this is TypeNamespace ns && ns.SchemaNodes[NS_SYSTEM] is TypeNamespace system)
+            {
+                foreach (var item in system.GetAuthPolicies(scope))
+                    yield return item;
+            }
+        }
+        // system don't check parent
+        else if (!Name.Equals(NS_SYSTEM)) 
         {
             foreach (var item in Namespace.GetAuthPolicies(scope))
                 yield return item;

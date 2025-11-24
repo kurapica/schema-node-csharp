@@ -5,13 +5,11 @@ namespace SchemaNode.Example.Components;
 /// <summary>
 /// The user info provider
 /// </summary>
-public class UserInfoProvider: ISchemaContextItemProvider<UserInfo>
+public class UserInfoProvider(UserInfo? userInfo): ISchemaContextItemProvider<UserInfo>
 {
-    private readonly UserInfo _user = new();
-    
-    public bool HasItem => true;
+    public bool HasItem => userInfo != null ;
     public UserInfo GetItem()
     {
-        return _user;
+        return userInfo ?? throw new InvalidOperationException("UserInfo is not available");
     }
 }

@@ -7,7 +7,7 @@ using System.Collections.Concurrent;
 
 namespace SchemaNode.Components;
 
-public static class ContextExtension
+public static class SchemaContextItemExtension
 {
     /// <summary>
     /// Gets the context item by field name, like @user.name

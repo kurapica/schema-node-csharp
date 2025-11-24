@@ -1,4 +1,3 @@
-using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
@@ -8,7 +7,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The entity schema condition visitor, only support equal, since schema is designed without complex query
 /// </summary>
-public class EntityConditionVisitor: ExpressionVisitor
+internal class EntityConditionVisitor: ExpressionVisitor
 {
     
     #region Implementations

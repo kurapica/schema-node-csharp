@@ -386,7 +386,17 @@ public class AppType
     /// </summary>
     public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
     {
-        if (RootApp != null)
+        // use system for root
+        if (RootApp == null)
+        {
+            if (SubAppList?[NS_SYSTEM] is { } system)
+            {
+                foreach (var item in system.GetAuthPolicies(scope))
+                    yield return item;
+            }
+        }
+        // system won't inherit auth from root app
+        else if (!Name.Equals(NS_SYSTEM))
         {
             foreach (var item in RootApp.GetAuthPolicies(scope))
                 yield return item;

@@ -1217,7 +1217,7 @@ public class FunctionType: AnySchemeType
 
                 // Generate call body
                 if (exp.Type == ExpressionType.Call)
-                    return GenMethodCallExp(callFuncInfo, callMethod, callArgs);
+                    return GenMethodCallExp(callFuncInfo, callMethod, callArgs, epxReturnElement);
 
                 // Generate the lambda for collection operations
                 Type callMethodReturn = callMethod.ReturnType;
@@ -1487,77 +1487,77 @@ public class FunctionType: AnySchemeType
         {
             case TypeCode.Boolean:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(bool)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(bool)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToBoolean), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Char:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(char)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(char)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToChar), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.SByte:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(sbyte)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(sbyte)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSByte), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Byte:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(byte)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(byte)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToByte), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Int16:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(Int16)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int16)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt16), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.UInt16:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(UInt16)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt16)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt16), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Int32:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(Int32)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int32)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.UInt32:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(UInt32)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt32)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt32), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Int64:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(Int64)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int64)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.UInt64:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(UInt64)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt64)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt64), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Single:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(Single)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Single)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Double:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(double)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(double)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.Decimal:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(decimal)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(decimal)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.DateTime:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(DateTime)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(DateTime)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDateTime), [notNullExp.Type])!, notNullExp);
                 break;
             case TypeCode.String:
                 resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToTypeValue))!, Expression.Constant(typeof(string)))
+                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(string)))
                     : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToString), [notNullExp.Type])!, notNullExp);
                 break;
         }
@@ -1576,19 +1576,20 @@ public class FunctionType: AnySchemeType
     }
 
     // Gen method call
-    static Expression GenMethodCallExp(SchemaFuncInfo callFuncInfo, MethodInfo callMethod, Expression[] callArgs)
+    static Expression GenMethodCallExp(SchemaFuncInfo callFuncInfo, MethodInfo callMethod, Expression[] callArgs, Type? returnType = null)
     {
         // Call the method
+        Expression result = Expression.Empty();
         if ((callFuncInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC)
         {
             // Gets the task result
             MethodCallExpression callExp = Expression.Call(null, callMethod, callArgs);
             callExp = Expression.Call(callExp, callExp.Type.GetMethod(nameof(Task.GetAwaiter), System.Type.EmptyTypes)!);
-            return Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
+            result = Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
         }
         else if ((callFuncInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
         {
-            return callFuncInfo.Name switch
+            result = callFuncInfo.Name switch
             {
                 // system.arth
                 $"{NS_SYSTEM_MATH}.{nameof(SystemMath.e)}" => Expression.Constant(Math.E),
@@ -1626,8 +1627,14 @@ public class FunctionType: AnySchemeType
         }
         else
         {
-            return GenDynamicCallExp(callMethod.ReturnType, callFuncInfo.DynamicMethod!, callArgs);
+            result = GenDynamicCallExp(callMethod.ReturnType, callFuncInfo.DynamicMethod!, callArgs);
         }
+
+        if (returnType != null && returnType != result.Type)
+        {
+            result = ConvertExp(returnType, result);
+        }
+        return result;
     }
 
     // Gen dynamic method call

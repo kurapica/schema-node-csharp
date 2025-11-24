@@ -72,6 +72,11 @@ public abstract class AnySchemaNode
     /// Convert to json node
     /// </summary>
     public virtual JsonNode? ToJson() => _value?.ToJsonNode();
+    
+    /// <summary>
+    /// Convert to literal value
+    /// </summary>
+    public virtual object? LiteralValue => Value;
 
     /// <summary>
     /// To string

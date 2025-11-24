@@ -135,8 +135,9 @@ public static class BatchQueryExtension
                                     rowFilter = await RowAccessExpTreeVisitor.Visit(context, func, q?.Filter);
                                     break;
                                 }
-                                catch
+                                catch(Exception e)
                                 {
+                                    context.Logger.LogError(e, "BatchQueryAppDataAsync row access check error");
                                     rowFilter = null;
                                 }
                             }

@@ -87,9 +87,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
                 {
                     origins.Sort((a, b) =>
                     {
-                        string akey = ((JsonObject)a)[t.Field]!.GetValue<string>() ?? "";
-                        string bkey = ((JsonObject)b)[t.Field]!.GetValue<string>() ?? "";
-                        int result = String.Compare(akey, bkey, StringComparison.Ordinal);
+                        string aKey = ((JsonObject)a)[t.Field]!.GetValue<string>();
+                        string bKey = ((JsonObject)b)[t.Field]!.GetValue<string>();
+                        int result = String.Compare(aKey, bKey, StringComparison.Ordinal);
                         return t.Desc ? -1 * result : result;
                     });
                 }

@@ -29,8 +29,6 @@ public interface ISqlProvider
     /// <summary>
     /// Quotes an index name.
     /// </summary>
-    /// <param name="indexName"></param>
-    /// <returns></returns>
     string QuoteIndex(string indexName);
 
     /// <summary>

@@ -1,6 +1,5 @@
 ﻿namespace SchemaNode.Components;
 
-
 /// <summary>
 /// The complex field info
 /// </summary>

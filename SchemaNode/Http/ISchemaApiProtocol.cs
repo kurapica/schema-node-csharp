@@ -128,7 +128,7 @@ public interface ISchemaApiProtocol
         catch (UnauthorizedAccessException ex)
         {
             logger.LogError(ex, "{name} API execution failed - Unauthorized.", typeof(TApi).Name);
-            return Results.Forbid();
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
         catch (Exception ex)
         {

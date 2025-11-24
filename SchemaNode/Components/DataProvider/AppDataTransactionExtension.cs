@@ -284,19 +284,19 @@ public static class AppDataTransactionExtension
     public static async Task CommitTransactionAsync(this SchemaContext context, bool pushAll = false, bool pushAllFields = false)
     {
         IAppDataProvider dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
-        var _transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
 
         // Process data field push
-        foreach (string target in _transChangedData.Keys.ToArray())
+        foreach (string target in transChangedData.Keys.ToArray())
         {
             // process data push
-            await ProcessDataPush(context, target, _transChangedData[target], pushAll, pushAllFields);
+            await ProcessDataPush(context, target, transChangedData[target], pushAll, pushAllFields);
         }
 
         await dataProvider.CommitTransactionAsync();
 
         // Event after commit
-        foreach (var (target, value) in _transChangedData)
+        foreach (var (target, value) in transChangedData)
         {
             foreach (var (field, changes) in value.Changes)
             {
@@ -811,8 +811,8 @@ public static class AppDataTransactionExtension
         // Process other targets
         foreach (string tar in otherTargets)
         {
-            var _transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
-            if (_transChangedData.TryGetValue(tar, out TransactionChangeData? val))
+            var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+            if (transChangedData.TryGetValue(tar, out TransactionChangeData? val))
                 await ProcessDataPush(context, tar, val);
         }
     }
@@ -1147,11 +1147,11 @@ public static class AppDataTransactionExtension
     // Record the changed fields with changed values
     static void OnFieldDataChanged(SchemaContext context, string target, AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
     {
-        var _transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
-        if (!_transChangedData.TryGetValue(target, out TransactionChangeData? changeData))
+        var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        if (!transChangedData.TryGetValue(target, out TransactionChangeData? changeData))
         {
             changeData = new TransactionChangeData();
-            _transChangedData.Add(target, changeData);
+            transChangedData.Add(target, changeData);
         }
         if (changeData.Changes.TryGetValue(field, out List<FieldDataChangeData>? changes))
         {

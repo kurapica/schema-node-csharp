@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.Logging;
 
 namespace SchemaNode.Components;
 
@@ -32,9 +33,9 @@ public static class PolicyExtension
                     }
                 }
             }
-            catch
+            catch(Exception ex)
             {
-                // ignore
+                context.Logger.LogError(ex, "Policy evaluation error for {policy}", item.Evaluator);
             }
         }
 

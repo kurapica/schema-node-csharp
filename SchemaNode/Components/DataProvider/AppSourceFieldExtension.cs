@@ -5,7 +5,7 @@ using SchemaNode.Schema;
 
 namespace SchemaNode.Components;
 
-public static class AppSourceFieldExension
+public static class AppSourceFieldExtension
 {
     /// <summary>
     /// Sets the ref target of the field

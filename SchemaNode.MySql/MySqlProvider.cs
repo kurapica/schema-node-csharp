@@ -1,6 +1,8 @@
 using MySqlConnector;
 using SchemaNode.Components;
+using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.MySql;
 
@@ -25,7 +27,7 @@ public class MySqlProvider : ISqlProvider
 
     public string Literal(object? value)
     {
-        if (value is AnySchemaNode node) value = node.Value;
+        if (value is AnySchemaNode node) value = node.LiteralValue;
 
         return value switch
         {

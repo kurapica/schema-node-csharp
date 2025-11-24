@@ -5,7 +5,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components.Context;
 
-public class AppAccessContextItemProvider(SchemaContext schemaContext)
+public class AppSchemaContextItemProvider(SchemaContext schemaContext)
     : ISchemaContextItemProvider<AppAccessContextItem>
 {
     /// <inheritdoc />

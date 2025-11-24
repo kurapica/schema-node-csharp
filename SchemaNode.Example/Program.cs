@@ -7,6 +7,7 @@ using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
+
 builder.Services
     // Mysql
     .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
@@ -34,17 +35,19 @@ builder.Services
     })
     
     // schema context items
+    .AddScoped<UserInfo>()
     .AddScoped<UserInfoProvider>()
 
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    .AddAppSchemaDataProvider<AppSchemaDataMySqlProvider>();       // Mysql application data provider
+    .AddAppSchemaDataProvider<AppDataMySqlProvider>();       // Mysql application data provider
     //.AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
 
 // App
 var app = builder.Build();
 app.UseCors("AllowAll");
+app.UseMiddleware<UserInfoMiddleware>();
 
 app
     .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)

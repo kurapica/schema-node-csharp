@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using System.Data.Common;
-using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,10 +14,13 @@ namespace SchemaNode.MySql;
 /// <summary>
 /// The implementation of IAppSchemaDataProvider for MySQL
 /// </summary>
-public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider serviceProvider, ISqlProvider sqlProvider) : IAppSchemaDataSqlProvider<MySqlProvider>
+public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider serviceProvider, ISqlProvider sqlProvider) : IAppDataSqlProvider<MySqlProvider>
 {
+    #region Properties and Fields
 
-    #region Constructors
+    readonly string _refTarget = sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD);
+    readonly string _refIndex = sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX);
+    readonly string _refSeqNo = sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD);
 
     #endregion
 
@@ -27,6 +29,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
     /// <inheritdoc />
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         
         // Check to update the data table
@@ -34,7 +37,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
         {
             // Gets the existed fields
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DESCRIBE {sqlProvider.QuoteTable(schema.Name)}";
+            command.CommandText = $"DESCRIBE {tableName}";
             Logger.LogDebug(command.CommandText);
             DbDataReader reader = await command.ExecuteReaderAsync();
             Dictionary<string, string> nameTypes = new();
@@ -56,18 +59,18 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 if (!nameTypes.ContainsKey(dyFld.Name))
                 {
                     sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {sqlProvider.QuoteTable(schema.Name)} ADD {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
+                    sb.Append($"ALTER TABLE {tableName} ADD {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
                 }
                 else if (!nameTypes[dyFld.Name].Equals(dataType, StringComparison.OrdinalIgnoreCase))
                 {
                     sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {sqlProvider.QuoteTable(schema.Name)} MODIFY COLUMN {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
+                    sb.Append($"ALTER TABLE {tableName} MODIFY COLUMN {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
                 }
             }
 
             // Check the existed indexes
             command = GetDbCommand();
-            command.CommandText = $"SHOW INDEXES FROM {sqlProvider.QuoteTable(schema.Name)}";
+            command.CommandText = $"SHOW INDEXES FROM {tableName}";
             reader = await command.ExecuteReaderAsync();
             Dictionary<string, bool> names = []; // name => unique
 
@@ -110,12 +113,12 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                     if (uniqueIndex.Count > 0)
                     {
                         sb ??= new StringBuilder();
-                        sb.Append($"DROP INDEX {sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)} ON {sqlProvider.QuoteTable(schema.Name)};");
+                        sb.Append($"DROP INDEX {_refIndex} ON {tableName};");
                     }
 
                     // Add the unique index
                     sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {sqlProvider.QuoteTable(schema.Name)} ADD UNIQUE INDEX {sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)}({string.Join(',', chkUniqueIndex.Select(sqlProvider.QuoteField))});");
+                    sb.Append($"ALTER TABLE {tableName} ADD UNIQUE INDEX {_refIndex}({string.Join(',', chkUniqueIndex.Select(sqlProvider.QuoteField))});");
                 }
             }
 
@@ -128,7 +131,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                     if (!names.Remove(key))
                     {
                         sb ??= new StringBuilder();
-                        sb.Append($"ALTER TABLE {sqlProvider.QuoteTable(schema.Name)} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField))});");
+                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField))});");
                     }
                 }
             }
@@ -137,7 +140,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             foreach (string name in names.Keys.Where(p => !p.Equals(DYNAMIC_UNIQUE_INDEX)))
             {
                 sb ??= new StringBuilder();
-                sb.Append($"DROP INDEX {sqlProvider.QuoteIndex(name)} ON {sqlProvider.QuoteTable(schema.Name)};");
+                sb.Append($"DROP INDEX {sqlProvider.QuoteIndex(name)} ON {tableName};");
             }
 
             // Update the table
@@ -169,12 +172,12 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             StringBuilder sb = new();
 
             // Create the data table
-            sb.Append($"CREATE TABLE IF NOT EXISTS {sqlProvider.QuoteTable(schema.Name)} (");
+            sb.Append($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
             // The primary key
             if (!schema.Single)
-                sb.Append($"{sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD)} BIGINT UNSIGNED AUTO_INCREMENT,");
-            sb.Append($"{sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
+                sb.Append($"{_refSeqNo} BIGINT UNSIGNED AUTO_INCREMENT,");
+            sb.Append($"{_refTarget} VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
 
             // Generate the column lists
             foreach (DynamicTableField tableField in schema.Fields)
@@ -191,14 +194,14 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
 
             // Append primary key
             if (schema.Single)
-                sb.Append($"PRIMARY KEY({sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)})");
+                sb.Append($"PRIMARY KEY({_refTarget})");
             else
             {
                 // Use auto-incr seqno as primary key
-                sb.Append($"PRIMARY KEY({sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD)})");
+                sb.Append($"PRIMARY KEY({_refSeqNo})");
 
                 // Use target and other primary key as unique index
-                sb.Append($", UNIQUE INDEX {sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)} ({sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)}");
+                sb.Append($", UNIQUE INDEX {_refIndex} ({_refTarget}");
                 foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                     sb.Append($", {sqlProvider.QuoteField(tableField.Name)}");
                 sb.Append(")");
@@ -218,7 +221,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 foreach (var index in schema.Indexes)
                 {
                     string key = $"IDX_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
-                    sb.Append($"ALTER TABLE {sqlProvider.QuoteTable(schema.Name)} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField))});");
+                    sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField))});");
                 }
                 
                 command = GetDbCommand();
@@ -241,6 +244,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false)
     {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();        
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
 
@@ -254,7 +258,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             {
                 // Single value
                 DbCommand command = GetDbCommand();
-                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {sqlProvider.QuoteTable(schema.Name)} WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}";
+                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                 Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
@@ -276,7 +280,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 StringBuilder sb = new();
                 sb.Append($"SELECT ");
                 AppendFields(sb, schema);
-                sb.Append($" FROM {sqlProvider.QuoteTable(schema.Name)} WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}");
+                sb.Append($" FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}");
                 sb.Append(forUpdate ? " FOR UPDATE;" : ";");
 
                 // Get data
@@ -307,10 +311,10 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             // Build sql
             bool fullFill = false;
             StringBuilder sb = new();
-            sb.Append($" From {sqlProvider.QuoteTable(schema.Name)} FORCE INDEX({sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)}) ");
+            sb.Append($" From {tableName} FORCE INDEX({_refIndex}) ");
 
             // Conditions
-            sb.Append($" WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}");
+            sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
             switch (filter)
             {
                 // Query based on the conditions
@@ -447,13 +451,13 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             select.Append(" FROM ");
             select.Append(schema.Name);
             select.Append(" o JOIN (SELECT ");
-            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(_refSeqNo);
             select.Append(" ");
             select.Append(sb.ToString());
             select.Append(") t ON o.");
-            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(_refSeqNo);
             select.Append(" = t.");
-            select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+            select.Append(_refSeqNo);
             select.Append(" ORDER BY ");
             first = false;
             foreach(var (field, d) in schema.GetOrderBys(desc, orderBy))
@@ -495,16 +499,17 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);
 
+        string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
 
         // Build sql
         bool fullFill = false;
         StringBuilder sb = new();
-        sb.Append($" From {sqlProvider.QuoteTable(schema.Name)} FORCE INDEX({sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)}) ");
+        sb.Append($" From {tableName} FORCE INDEX({_refIndex}) ");
 
         // Conditions
-        sb.Append($" WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}");
+        sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
 
         // exp node -> sql
         string sql = filter.ToSql(sqlProvider);
@@ -558,13 +563,13 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
         select.Append(" FROM ");
         select.Append(schema.Name);
         select.Append(" o JOIN (SELECT ");
-        select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+        select.Append(_refSeqNo);
         select.Append(" ");
         select.Append(sb.ToString());
         select.Append(") t ON o.");
-        select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+        select.Append(_refSeqNo);
         select.Append(" = t.");
-        select.Append(DYNAMIC_TABLE_SEQNO_FIELD);
+        select.Append(_refSeqNo);
         select.Append(" ORDER BY ");
         first = false;
         foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
@@ -603,6 +608,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
     /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null)
     {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
@@ -620,7 +626,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 if (origin != null)
                 {
                     DbCommand command = GetDbCommand();
-                    command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.Name)} WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}";
+                    command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                     Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                     return (true, origin);
@@ -642,7 +648,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                     try
                     {
                         DbCommand command = GetDbCommand();
-                        command.CommandText = $"INSERT INTO {sqlProvider.QuoteTable(schema.Name)} ({sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)}, {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)}) VALUES ( {sqlProvider.Literal(target)}, {sqlProvider.Literal(result)} )";
+                        command.CommandText = $"INSERT INTO {tableName} ({_refTarget}, {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)}) VALUES ( {sqlProvider.Literal(target)}, {sqlProvider.Literal(result)} )";
                         Logger.LogDebug(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
@@ -658,7 +664,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 if (!isInsert)
                 {
                     DbCommand command = GetDbCommand();
-                    command.CommandText = $"UPDATE {sqlProvider.QuoteTable(schema.Name)} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(result)} WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}";
+                    command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(result)} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                     Logger.LogDebug(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
@@ -674,7 +680,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 if (origin == null)
                 {
                     // Header
-                    sb.Append($"INSERT INTO {sqlProvider.QuoteTable(schema.Name)} ({sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)}, ");
+                    sb.Append($"INSERT INTO {tableName} ({_refTarget}, ");
                     AppendFields(sb, schema);
                     sb.Append($") VALUES ( {sqlProvider.Literal(target)}");
 
@@ -705,7 +711,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 {
                     // Header
                     sb.Clear();
-                    sb.Append($"UPDATE {sqlProvider.QuoteTable(schema.Name)} SET ");
+                    sb.Append($"UPDATE {tableName} SET ");
 
                     // Body
                     bool preCond = false;
@@ -716,7 +722,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                     }
 
                     // Footer
-                    sb.Append($" WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}");
+                    sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
 
                     // Execute
                     DbCommand command = GetDbCommand();
@@ -791,7 +797,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 bool fullFill = true;
                 keys.Clear();
                 sb.Clear();
-                sb.Append($" WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}");
+                sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
                 foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
                 {
                     // Check value
@@ -814,7 +820,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 {
                     // Header
                     sb.Clear();
-                    sb.Append($"INSERT INTO {sqlProvider.QuoteTable(schema.Name)} ({sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)}, ");
+                    sb.Append($"INSERT INTO {tableName} ({_refTarget}, ");
                     AppendFields(sb, schema);
                     sb.Append($") VALUES ( {sqlProvider.Literal(target)}");
 
@@ -843,7 +849,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
                 {
                     // Header
                     sb.Clear();
-                    sb.Append($"UPDATE {sqlProvider.QuoteTable(schema.Name)} SET ");
+                    sb.Append($"UPDATE {tableName} SET ");
 
                     // Body
                     bool preCond = false;
@@ -871,6 +877,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
     /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
     {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
@@ -883,7 +890,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE FROM {sqlProvider.QuoteTable(schema.Name)} WHERE {sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD)} = {sqlProvider.Literal(target)}";
+            command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
             Logger.LogDebug(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -898,7 +905,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX)})", "")};"; // Can change to deleted flag controls
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
             Logger.LogDebug(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -945,7 +952,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
     /// <summary>
     /// Append the fields to the string builder
     /// </summary>
-    StringBuilder AppendFields(StringBuilder sb, DynamicTableSchema schema, string prefix = "")
+    void AppendFields(StringBuilder sb, DynamicTableSchema schema, string prefix = "")
     {
         bool appendComma = false;
         foreach (DynamicTableField field in schema.Fields)
@@ -954,7 +961,6 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
             appendComma = true;
             sb.Append($"{prefix}{sqlProvider.QuoteField(field.Name)}");
         }
-        return sb;
     }
 
     // Get DbCommand
@@ -1004,7 +1010,7 @@ public class AppSchemaDataMySqlProvider(MySqlConnection dbConn, IServiceProvider
     private DbTransaction? _transaction;
     private ILogger Logger => _loggerThunk.Value;
 
-    private readonly Lazy<ILogger> _loggerThunk = new Lazy<ILogger>(serviceProvider.GetRequiredService<ILogger<AppSchemaDataMySqlProvider>>);
+    private readonly Lazy<ILogger> _loggerThunk = new (serviceProvider.GetRequiredService<ILogger<AppDataMySqlProvider>>);
     private string? _whereClause;
 
     #endregion

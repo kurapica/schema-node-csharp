@@ -18,6 +18,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Load the schema information
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="schemaName">The schema name</param>
     /// <returns>The schema</returns>
     public static async Task<NodeSchema?> LoadSchemaAsync(this SchemaContext context, string schemaName)
@@ -46,12 +47,21 @@ public static class SchemaProviderExtension
                 {
                     schema = loadSchema;
                 }
-                else if (loadSchema is { Type: SchemaType.Namespace, Schemas: not null } && loadSchema.Schemas.Length != 0)
+                else if (loadSchema is { Type: SchemaType.Namespace })
                 {
                     // combine
+                    loadSchema.Schemas ??= [];
                     loadSchema.Schemas = schema.Schemas == null || schema.Schemas?.Length == 0
                         ? loadSchema.Schemas
                         : schema.Schemas!.Concat(loadSchema.Schemas.Where(s => !schema.Schemas!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
+                    
+                    // display
+                    if (loadSchema.Display == null || string.IsNullOrEmpty(loadSchema.Display.Key))
+                        loadSchema.Display = schema.Display;
+                    
+                    // auth
+                    if (string.IsNullOrEmpty(loadSchema.Auth)) loadSchema.Auth = schema.Auth;
+                    
                     schema = loadSchema;
                 }
                 if (schema.Type != SchemaType.Namespace) return schema;
@@ -67,6 +77,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Load the app schema information
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="schemaName">The app schema name</param>
     /// <returns>The app schema</returns>
     public static async Task<AppSchema?> LoadAppSchemaAsync(this SchemaContext context, string schemaName)
@@ -86,12 +97,28 @@ public static class SchemaProviderExtension
                 {
                     schema = loadSchema;
                 }
-                else if ((schema.Fields == null || schema.Fields.Length == 0) && loadSchema.Apps is { Length: > 0 })
+                else if (schema.Fields == null || schema.Fields.Length == 0)
                 {
                     // combine
+                    loadSchema.Apps ??= [];
                     schema.Apps = schema.Apps == null || schema.Apps?.Length == 0
                         ? loadSchema.Apps
                         : schema.Apps!.Concat(loadSchema.Apps.Where(s => !schema.Apps!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
+                    
+                    // display
+                    if (schema.Display == null || string.IsNullOrEmpty(schema.Display.Key))
+                        schema.Display = loadSchema.Display;
+                    
+                    // desc
+                    if (schema.Desc == null || string.IsNullOrEmpty(schema.Desc.Key))
+                        schema.Desc = loadSchema.Desc;
+                    
+                    // auth
+                    if (string.IsNullOrEmpty(schema.Auth)) schema.Auth = loadSchema.Auth;
+                    
+                    // auths
+                    if (schema.Auths == null || schema.Auths.Length == 0)
+                        schema.Auths = loadSchema.Auths;
                 }
             }
             catch
@@ -105,6 +132,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Load the enum value sub list
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="node">The enum schema node</param>
     /// <param name="value">The root enum value, optional</param>
     /// <param name="fullList">Whether load the full list</param>
@@ -134,6 +162,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Load the enum value access list from the server
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="node">The enum schema node</param>
     /// <param name="value">The enum value for access</param>
     /// <param name="noSubList">no sub list should be loaded</param>
@@ -164,6 +193,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Call the function with arguments and given generic type
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
@@ -307,6 +337,7 @@ public static class SchemaProviderExtension
     /// <summary>
     /// Call the function with arguments and given generic type
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
@@ -488,7 +519,7 @@ public static class SchemaProviderExtension
     }
 
     // Gets the call async method
-    static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(SchemaContext).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
+    static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(SchemaProviderExtension).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
     static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
 
     #endregion

@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 

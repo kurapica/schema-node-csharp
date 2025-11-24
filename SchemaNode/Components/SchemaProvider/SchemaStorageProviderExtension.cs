@@ -60,6 +60,7 @@ public static class SchemaStorageProviderExtension
     /// <summary>
     /// Delete the schema from the storage
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="name">The schema</param>
     /// <returns>true if deleted</returns>
     public static async Task<bool> DeleteSchemaAsync(this SchemaContext context, string name)
@@ -88,6 +89,7 @@ public static class SchemaStorageProviderExtension
     /// <summary>
     /// Save the sub list for an enum value
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="name">The schema name</param>
     /// <param name="value">The enum value</param>
     /// <param name="values">The enum sub list</param>
@@ -116,6 +118,7 @@ public static class SchemaStorageProviderExtension
     /// <summary>
     /// Save the app schema
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="app"></param>
     /// <returns></returns>
     public static async Task<bool> SaveAppSchemaAsync(this SchemaContext context, AppSchema app)
@@ -168,6 +171,7 @@ public static class SchemaStorageProviderExtension
     /// <summary>
     /// Delete an app schema
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="app"></param>
     /// <returns></returns>
     public static async Task<bool> DeleteAppSchemaAsync(this SchemaContext context, string app)
@@ -242,6 +246,7 @@ public static class SchemaStorageProviderExtension
     /// <summary>
     /// Swap the field order
     /// </summary>
+    /// <param name="context">The schema context</param>
     /// <param name="app"></param>
     /// <param name="field1"></param>
     /// <param name="field2"></param>

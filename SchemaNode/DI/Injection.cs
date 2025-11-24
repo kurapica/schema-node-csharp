@@ -76,7 +76,7 @@ public static class Injection
         
         // Register system.context
         NodeSchema contextSchema = NewSystemStruct(NS_SYSTEM_CONTEXT, []);
-        services.AddScoped<AppAccessContextItemProvider>();
+        services.AddScoped<AppSchemaContextItemProvider>();
 
         // context item scan
         foreach(ServiceDescriptor desc in services)
@@ -97,7 +97,7 @@ public static class Injection
                     Type = schemaType,
                     Display = $"{{@{schemaType}}}",
                 }).ToArray();
-                ContextExtension.ItemProvider[field] = (schemaType, serviceType);
+                SchemaContextItemExtension.ItemProvider[field] = (schemaType, serviceType);
             }
         }
         
@@ -140,7 +140,7 @@ public static class Injection
             services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
         
         // sql provider check
-        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppSchemaDataSqlProvider<>)));
+        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
         if (interfaceType != null)
         {
             // keep it simple, just set it

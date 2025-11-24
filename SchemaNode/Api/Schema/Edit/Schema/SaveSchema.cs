@@ -65,6 +65,11 @@ public class NodeSchemaData
     /// The schema display
     /// </summary>
     public LocaleString? Display { get; set; }
+    
+    /// <summary>
+    /// The auth policy type
+    /// </summary>
+    public string? Auth { get; set; }
 
     /// <summary>
     /// The scalar schema if type is scalar
@@ -105,6 +110,7 @@ public class NodeSchemaData
             Name = schema.Name,
             Type = schema.Type,
             Display = schema.Display,
+            Auth = schema.Auth,
             Scalar = schema.Type == SchemaType.Scalar ? schema.Scalar : null,
             Enum = schema.Type == SchemaType.Enum ? schema.Enum : null,
             Struct = schema.Type == SchemaType.Struct ? schema.Struct : null,

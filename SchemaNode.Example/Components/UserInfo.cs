@@ -6,8 +6,10 @@ namespace SchemaNode.Example.Components;
 public class UserInfo
 {
     [Schema(null, "id", Locale.ZH_CN, "用户ID")]
-    public Guid UserId { get; set; } = Guid.NewGuid();
+    public string? UserId { get; set; }
 
     [Schema(null, "name", Locale.ZH_CN, "用户名")]
-    public string UserName { get; set; } = "Test";
+    public string? UserName { get; set; } = "Test";
+    
+    public bool IsAdmin { get; set; }
 }
