@@ -303,8 +303,8 @@ public class FunctionType: AnySchemeType
     /// </summary>
     async Task<(List<FunctionNodeExpTree>, string? error)> BuildExpTrees(SchemaContext context)
     {
-        List<FunctionNodeExpTree> trees = new();
-        Dictionary<string, FunctionNodeExpTree> treeMap = new();
+        List<FunctionNodeExpTree> trees = [];
+        Dictionary<string, FunctionNodeExpTree> treeMap = [];
         
         // Validate the arguments and reset the states
         foreach(FunctionNodeArgument arg in Args)
@@ -555,7 +555,18 @@ public class FunctionType: AnySchemeType
                                 exp.LeafNodes[i] = rArg; // Add to leaf
                                 argTypeNode = rArg.TypeNode;
                                 if (argTypeNode is GenericTypeNode generic)
+                                {
                                     argTypeNode = genericTypes[generic.GenericIndex - 1];
+                                    if (argTypeNode == null && !string.IsNullOrEmpty(callArg.Type))
+                                    {
+                                        AnySchemeType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
+                                        if (givenType != null)
+                                        {
+                                            genericTypes[generic.GenericIndex - 1] = givenType;
+                                            argTypeNode = givenType;
+                                        }
+                                    }
+                                }
                                 if (argTypeNode == null)
                                 {
                                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
@@ -622,8 +633,18 @@ public class FunctionType: AnySchemeType
                     FunctionNodeArgument funcArg = funcNode.Args[i];
                     AnySchemeType? funcArgType = funcArg.TypeNode;
                     if (funcArgType is GenericTypeNode g)
-                    {
                         funcArgType = genericTypes[g.GenericIndex - 1];
+                    
+                    // check given type
+                    if (funcArgType == null && !string.IsNullOrEmpty(callArg.Type))
+                    {
+                        AnySchemeType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
+                        if (givenType != null)
+                        {
+                            if (funcArg.TypeNode is GenericTypeNode generic)
+                                genericTypes[generic.GenericIndex - 1] = givenType;
+                            funcArgType = givenType;
+                        }
                     }
 
                     // for safe, couldn't be
@@ -825,6 +846,10 @@ public class FunctionType: AnySchemeType
         else if (string.IsNullOrEmpty(retInfo.SchemaType))
         {
             return null;
+        }
+        else if (Regex.IsMatch(retInfo.SchemaType, REGEX_GENERIC_TYPE)) // AnySchemaNode
+        {
+            funcSchema.Func.Return = $"T{genInfos.Length + 1}";
         }
         else
         {

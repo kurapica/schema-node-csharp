@@ -220,16 +220,16 @@ public abstract class AnySchemeType: IDisposable
     /// Gets all node schemas used by the node schema
     /// </summary>
     /// <returns></returns>
-    public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
+    public async Task<NodeSchema> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
     {
-        types ??= new HashSet<string>();
+        types ??= [];
         root ??= new NodeSchema
         {
             Name = "",
             Type = SchemaType.Namespace,
             Schemas = []
         };
-        if (!types.Add(Name)) return root.Schemas!;
+        if (!types.Add(Name) || this is GenericType) return root;
         
         // install
         string[] paths = Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
@@ -241,12 +241,14 @@ public abstract class AnySchemeType: IDisposable
             fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
                 
             parent.Schemas ??= [];
-            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => s.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+            NodeSchema? sub =
+                parent.Schemas.FirstOrDefault(s => fullPath.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
             if (sub == null)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                
-                AnySchemeType type = await ctx.GetSchemaTypeAsync(fullPath) ?? new TypeNamespace { Name = fullPath };
+
+                AnySchemeType type = await ctx.GetSchemaTypeAsync(fullPath) ??
+                                     new TypeNamespace { Name = fullPath };
                 sub = type;
                 parent.Schemas = parent.Schemas == null ? [sub!] : parent.Schemas.Append(sub!).ToArray();
             }
@@ -259,18 +261,29 @@ public abstract class AnySchemeType: IDisposable
             schema.UsedBy = UsedBy?.Keys.Select(p => p.Name).ToArray();
             schema.UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
         }
-        
-        parent.Schemas ??= [];
-        parent.Schemas = parent.Schemas.Append(schema).ToArray();
+
+        if (parent != root)
+        {
+            parent.Schemas ??= [];
+            parent.Schemas = parent.Schemas.Append(schema).ToArray();
+        }
+        else if (this is TypeNamespace ns)
+        {
+            foreach (var s in ns.SchemaNodes)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+                await s.Value.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            }
+        }
 
         // add dependencies
         foreach (AnySchemeType n in GetDependNodes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
-            await n.GetNodeSchemas(ctx, root, types);
+            await n.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
         }
 
-        return root.Schemas!;
+        return root;
     }
 
     #endregion

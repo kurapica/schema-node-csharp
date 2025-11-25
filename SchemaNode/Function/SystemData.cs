@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
+// ReSharper disable UnusedMember.Global
 
 namespace SchemaNode.Function;
 
@@ -39,12 +40,10 @@ public static class SystemData
     public static async Task<AnySchemaNode?> getappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
+        string field,
+        string? target)
     {
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
-
+        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;
@@ -63,16 +62,15 @@ public static class SystemData
     public static async Task<AnySchemaNode?> getappdatabyonekey<T1>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        T1 key
+        string field,
+        T1 key,
+        string? target
         )
     {
         JsonValue? jsonKey = JsonValue.Create(key);
         if (jsonKey == null || jsonKey.IsEmpty()) return null;
         
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
+        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
 
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -96,8 +94,9 @@ public static class SystemData
     public static async Task<AnySchemaNode?> getappdatabytwokey<T1, T2>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        T1 key1, T2 key2
+        string field,
+        T1 key1, T2 key2,
+        string? target
     )
     {
         JsonValue? jsonKey1 = JsonValue.Create(key1);
@@ -105,9 +104,7 @@ public static class SystemData
         if (jsonKey1 == null || jsonKey1.IsEmpty()) return null;
         if (jsonKey2 == null || jsonKey2.IsEmpty()) return null;
         
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
+        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
 
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -132,8 +129,9 @@ public static class SystemData
     public static async Task<AnySchemaNode?> getappdatabythreekey<T1, T2, T3>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        T1 key1, T2 key2, T3 key3
+        string field,
+        T1 key1, T2 key2, T3 key3,
+        string? target
     )
     {
         JsonValue? jsonKey1 = JsonValue.Create(key1);
@@ -143,9 +141,7 @@ public static class SystemData
         if (jsonKey2 == null || jsonKey2.IsEmpty()) return null;
         if (jsonKey3 == null || jsonKey3.IsEmpty()) return null;
         
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
+        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
 
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -171,8 +167,9 @@ public static class SystemData
     public static async Task<AnySchemaNode?> getappdatabyfourkey<T1, T2, T3, T4>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        T1 key1, T2 key2, T3 key3, T4 key4
+        string field,
+        T1 key1, T2 key2, T3 key3, T4 key4,
+        string? target
     )
     {
         JsonValue? jsonKey1 = JsonValue.Create(key1);
@@ -184,9 +181,7 @@ public static class SystemData
         if (jsonKey3 == null || jsonKey3.IsEmpty()) return null;
         if (jsonKey4 == null || jsonKey4.IsEmpty()) return null;
         
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
+        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
 
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)

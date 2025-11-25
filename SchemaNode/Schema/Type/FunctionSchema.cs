@@ -142,6 +142,11 @@ public class FuncCallArg {
     public JsonNode? Value { get; set; }
     
     /// <summary>
+    /// The given exp type if function can't infer the type
+    /// </summary>
+    public string? Type { get; set; }
+    
+    /// <summary>
     /// The value type
     /// </summary>
     [NotMapped]
