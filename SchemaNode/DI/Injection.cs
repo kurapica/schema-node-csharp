@@ -280,12 +280,32 @@ public static class Injection
         SchemaAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaAttribute>();
         if (rootNamespaceAttr != null)
         {
-            SaveSystemNodeSchema(new NodeSchema
+            string name = rootNamespaceAttr.Name ?? assembly.GetName().Name ?? "";
+            string[] displaySeg = rootNamespaceAttr.Display?.Key.Split('.') ?? [];
+            string[] nameSeg = name.Split('.');
+            
+            if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)
             {
-                Name = rootNamespaceAttr.Name ?? assembly.GetName().Name ?? "",
-                Type = SchemaType.Namespace,
-                Display = rootNamespaceAttr.Display,
-            });
+                // multi-level namespace
+                for (int i = 0; i < nameSeg.Length; i++)
+                {
+                    SaveSystemNodeSchema(new NodeSchema
+                    {
+                        Name = string.Join('.', nameSeg[..(i + 1)]),
+                        Type = SchemaType.Namespace,
+                        Display = displaySeg[i],
+                    });
+                }
+            }
+            else
+            {
+                SaveSystemNodeSchema(new NodeSchema
+                {
+                    Name = name,
+                    Type = SchemaType.Namespace,
+                    Display = rootNamespaceAttr.Display,
+                });
+            }
         }
         
         SchemaAppAttribute? appAttr = assembly.GetCustomAttribute<SchemaAppAttribute>();
@@ -293,7 +313,19 @@ public static class Injection
         if (appAttr?.Application != null)
         {
             appName = appAttr.Application;
-            SaveSystemAppField(appAttr.Application, display: appAttr.Display);
+            string[] displaySeg = appAttr.Display?.Split('.') ?? [];
+            string[] nameSeg = appName.Split('.');
+            if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)
+            {
+                for (int i = 0; i < nameSeg.Length; i++)
+                {
+                    SaveSystemAppField(string.Join('.', nameSeg[..(i + 1)]), display: displaySeg[i]);
+                }
+            }
+            else
+            {
+                SaveSystemAppField(appAttr.Application, display: appAttr.Display);
+            }
         }
 
         // scan all
@@ -332,7 +364,7 @@ public static class Injection
                             Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any())
                                 ? $"{typeName}s"
                                 : typeName,
-                            Display = attr.Display ?? fieldName,
+                            Display = attr.Display ?? type.GetSummaryFromXmlDoc() ?? fieldName,
                             IncrUpdate = attr.IncrUpdate,
                         }, type: type);
                     }

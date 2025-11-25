@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text.RegularExpressions;
-using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 
