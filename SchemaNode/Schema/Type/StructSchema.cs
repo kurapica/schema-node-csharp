@@ -203,6 +203,12 @@ public class StructFieldConfig
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
     
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
+
     #region Scalar
 
     /// <summary>
@@ -383,6 +389,12 @@ public class StructFieldRelation
     /// </summary>
     public RelationType Type { get; set; } = RelationType.Default;
     
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
+
     /// <summary>
     /// The function node ref
     /// </summary>

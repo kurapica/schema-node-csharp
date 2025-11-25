@@ -97,9 +97,12 @@ public class StructType: AnySchemeType
             AnySchemeType? typeNode = await context.GetSchemaTypeAsync(field.Type, preload: preload);
             if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
             {
+                field.Status = SchemaNodeStatus.StructMemberWrongType;
                 Status = SchemaNodeStatus.StructMemberWrongType;
                 continue;
             }
+
+            field.Status = null;
             field.TypeNode = typeNode;
             typeNode.AddRef(this);
         }
@@ -112,9 +115,11 @@ public class StructType: AnySchemeType
                 AnySchemeType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (funcNode is not FunctionType node)
                 {
+                    relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     continue;
                 }
+                relation.Status = null;
                 relation.FuncNode = node;
                 node.AddRef(this);
             }

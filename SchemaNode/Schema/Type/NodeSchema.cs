@@ -158,6 +158,12 @@ public class NodeSchema
                 schema.SchemaProvider = value;
         }
     }
+    
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 
     #region Methods
 

@@ -2,6 +2,8 @@
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+// ReSharper disable InconsistentNaming
+// ReSharper disable VirtualMemberCallInConstructor
 
 namespace SchemaNode.Node;
 
@@ -84,5 +86,5 @@ public abstract class AnySchemaNode
     public override string ToString() => _value?.ToLiteral() ?? string.Empty;
 
     // The internal value
-    internal object? _value;
+    protected object? _value;
 }

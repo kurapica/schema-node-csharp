@@ -310,7 +310,7 @@ public class FunctionType: AnySchemeType
         foreach(FunctionNodeArgument arg in Args)
         {
             arg.Used = 0;
-            arg.Status = SchemaNodeStatus.Ready;
+            arg.Status = null;
             
             // Check argument name
             if (string.IsNullOrWhiteSpace(arg.Name))
@@ -387,7 +387,7 @@ public class FunctionType: AnySchemeType
 
             // reset
             exp.Used = 0;
-            exp.Status = SchemaNodeStatus.Ready;
+            exp.Status = null;
 
             // Check exp name
             if (string.IsNullOrWhiteSpace(exp.Name))
@@ -1910,7 +1910,8 @@ public class FunctionType: AnySchemeType
             {
                 Name = a.Name.ToCamelCase(),
                 Type = a.Type,
-                Nullable = a.Nullable
+                Nullable = a.Nullable,
+                Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
             }).ToArray(),
             Exps = schema.Exps.Select(e => new FuncExp
             {
@@ -1918,7 +1919,8 @@ public class FunctionType: AnySchemeType
                 Func = e.Func,
                 Type = e.Type ?? ExpressionType.Call,
                 Return = e.Return,
-                Args = e.Args
+                Args = e.Args,
+                Status = e.Status != null && e.Status != SchemaNodeStatus.Ready ? e.Status : null,
             }).ToArray(),
             Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
             Server = schema.Server,
@@ -1981,7 +1983,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// <summary>
     /// The status
     /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus? Status { get; set; }
     
     #endregion
     
@@ -2039,7 +2041,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The status
     /// </summary>
-    public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus? Status { get; set; }
 
     /// <summary>
     /// The index of the array used for Map/Reduce/First

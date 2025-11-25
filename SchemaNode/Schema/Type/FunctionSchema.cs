@@ -78,6 +78,12 @@ public class FuncArg
     /// Whether the argument is nullable
     /// </summary>
     public bool? Nullable { get; set; }
+    
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 }
 
 /// <summary>
@@ -112,6 +118,12 @@ public class FuncExp {
     /// The argument list, should be exp name or argument name.
     /// </summary>
     public FuncCallArg[] Args { get; set; } = [];
+    
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 }
   
 /// <summary>

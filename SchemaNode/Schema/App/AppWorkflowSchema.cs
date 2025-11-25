@@ -1,8 +1,10 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -58,7 +60,6 @@ public class AppWorkflowSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
-
 }
 
 /// <summary>
@@ -139,4 +140,10 @@ public class AppWorkflowNodeSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+    
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 }

@@ -103,6 +103,12 @@ public class AppSchema
     /// </summary>
     [NotMapped]
     public SchemaLoadState? LoadState { get; set; }
+    
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 }
 
 /// <summary>

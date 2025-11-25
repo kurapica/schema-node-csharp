@@ -5,7 +5,7 @@ namespace SchemaNode.Attribute;
 /// <summary>
 /// Declare system namespace
 /// </summary>
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method)]
 public class SchemaAttribute: System.Attribute
 {
     /// <summary>

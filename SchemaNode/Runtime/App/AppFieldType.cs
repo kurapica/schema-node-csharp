@@ -127,7 +127,7 @@ public class AppFieldType
     /// <summary>
     /// The application field node status
     /// </summary>
-    public SchemaNodeStatus Status { get; internal set; } = SchemaNodeStatus.Ready;
+    public SchemaNodeStatus? Status { get; internal set; }
 
     /// <summary>
     /// Enable dynamic table
@@ -289,6 +289,7 @@ public class AppFieldType
             Seqno = entity.Seqno,
             Display = entity.Display,
             Desc = entity.Desc,
+            Status = entity.Status,
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,

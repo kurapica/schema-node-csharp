@@ -96,7 +96,7 @@ public class ArrayType: AnySchemeType
         if (!string.IsNullOrWhiteSpace(Element))
         {
             AnySchemeType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
-            if (node == null || node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
+            if (node == null || node is not GenericType && node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
             }
@@ -115,6 +115,7 @@ public class ArrayType: AnySchemeType
                 AnySchemeType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (node is not FunctionType funcNode)
                 {
+                    relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     continue;
                 }

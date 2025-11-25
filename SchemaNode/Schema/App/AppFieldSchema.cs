@@ -203,6 +203,12 @@ public class AppFieldSchema
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
 
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
+    
     #region Inner Type
 
     [Flags]

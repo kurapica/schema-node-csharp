@@ -4,7 +4,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -71,9 +70,9 @@ public class AppType
     /// <summary>
     /// The application node status
     /// </summary>
-    public SchemaNodeStatus Status => Fields is { Count: > 0 } && Fields.Any(p => p.Status != SchemaNodeStatus.Ready)
+    public SchemaNodeStatus Status => Fields is { Count: > 0 } && Fields.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
         ? SchemaNodeStatus.ApplicationInvalidField
-        : Auths != null && Auths.Any(p => p.Status != SchemaNodeStatus.Ready)
+        : Auths != null && Auths.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
             ? SchemaNodeStatus.ApplicationDataAuthWrongFunc
             : SchemaNodeStatus.Ready;
 
@@ -144,7 +143,7 @@ public class AppType
             {
                 field.App = Name;
                 field.Application = this;
-                field.Status = SchemaNodeStatus.Ready;
+                field.Status = null;
 
                 // valid the type
                 AnySchemeType? node = await context.GetSchemaTypeAsync(field.Type);

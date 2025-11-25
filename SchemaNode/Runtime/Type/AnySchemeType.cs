@@ -127,6 +127,8 @@ public abstract class AnySchemeType: IDisposable
     /// </summary>
     public void AddRef(AnySchemeType node)
     {
+        // system types are not tracked
+        if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System) return;
         UsedBy ??= new ConcurrentDictionary<AnySchemeType, bool>();
         UsedBy.TryAdd(node, true);
     }
@@ -136,6 +138,8 @@ public abstract class AnySchemeType: IDisposable
     /// </summary>
     public void AddRef(AppFieldType type)
     {
+        // system types are not tracked
+        if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System) return;
         UsedByApp ??= new ConcurrentDictionary<AppFieldType, bool>();
         UsedByApp.TryAdd(type, true);
     }
@@ -325,6 +329,7 @@ public abstract class AnySchemeType: IDisposable
             Type = Type,
             Display = Display,
             LoadState = LoadState,
+            Status = Status == SchemaNodeStatus.Ready ? null : Status,
             Auth = Auth?.Name,
             Used = IsUsed,
         };

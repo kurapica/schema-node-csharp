@@ -1,8 +1,12 @@
+using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
-/// The schema node status, for system diagnois
+/// The schema node status, for system diagnosis
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA}.status")]
 public enum SchemaNodeStatus
 {
     /// <summary>
