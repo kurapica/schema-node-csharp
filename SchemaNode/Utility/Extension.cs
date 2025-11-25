@@ -766,6 +766,91 @@ public static class Extension
         return null;
     }
 
+    /// <summary>
+    /// Get summary contents from XML document.
+    /// </summary>
+    internal static string? GetSummaryFromXmlDoc(this MethodInfo method)
+    {
+        const string preFix = "M:";
+
+        Type declaringType = method.DeclaringType!;
+        string xmlPath = declaringType.Assembly.Location.Replace(".dll", ".xml");
+        if (!File.Exists(xmlPath)) return null;
+
+        if (!XmlFiles.ContainsKey(xmlPath))
+        {
+            XmlDocument document = new();
+            document.Load(xmlPath);
+            XmlFiles[xmlPath] = document;
+        }
+
+        // "M:Namespace.Type.MethodName(Type1,Type2)"
+        string typeFullName = declaringType.FullName!.Replace('+', '.'); // 处理 nested class
+        string methodName = method.Name;
+
+        // 处理泛型方法名，如 Method``1
+        if (method.IsGenericMethodDefinition)
+        {
+            methodName += "``" + method.GetGenericArguments().Length;
+        }
+
+        // param list
+        string paramList = string.Join(",", method.GetParameters()
+            .Select(p => GetXmlDocTypeName(p.ParameterType)));
+
+        string fullMemberName = $"{preFix}{typeFullName}.{methodName}";
+        if (paramList.Length > 0)
+            fullMemberName += $"({paramList})";
+
+        // find the node
+        string xPath = "/doc/members";
+        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
+
+        foreach (XmlElement node in nodeList!)
+        {
+            if (node.HasChildNodes && node.Attributes.Count > 0)
+            {
+                string? name = node.Attributes[0].Value;
+                if (name == fullMemberName)
+                {
+                    string summaryContent = node.InnerText;
+                    summaryContent = string.Join("\n",
+                        summaryContent
+                            .Split('\n', '\r')
+                            .Where(t =>
+                                !string.IsNullOrWhiteSpace(t) &&
+                                !string.IsNullOrEmpty(t))
+                            .Select(p => p.Trim())
+                    );
+                    return string.IsNullOrEmpty(summaryContent) ? null : summaryContent;
+                }
+            }
+        }
+
+        return null;
+    }
+    private static string GetXmlDocTypeName(Type type)
+    {
+        if (type.IsGenericParameter)
+        {
+            return $"``{type.GenericParameterPosition}";
+        }
+
+        if (!type.IsGenericType)
+        {
+            return type.FullName!.Replace('+', '.');
+        }
+
+        string typeName = type.GetGenericTypeDefinition().FullName!;
+        typeName = typeName.Substring(0, typeName.IndexOf('`'));
+        typeName = typeName.Replace('+', '.');
+
+        string genericArgs = string.Join(",", type.GetGenericArguments()
+            .Select(GetXmlDocTypeName));
+
+        return $"{typeName}{{{genericArgs}}}";
+    }
+    
     static readonly Dictionary<string, XmlDocument> XmlFiles = new();
 
     #endregion

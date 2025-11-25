@@ -786,7 +786,7 @@ public class FunctionType: AnySchemeType
         {
             Name = name,
             Type = SchemaType.Func,
-            Display = funcAttr.Display ?? name,
+            Display = funcAttr.Display?? method.GetSummaryFromXmlDoc() ?? name,
             Func = new FunctionSchema
             {
                 Return = string.Empty,
