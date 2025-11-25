@@ -8,7 +8,6 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using Microsoft.AspNetCore.Http;
-using System.Runtime.CompilerServices;
 
 namespace SchemaNode.Utility;
 
@@ -109,7 +108,7 @@ public static class Extension
 
     internal class JsonDateTimeIsoConverter : JsonConverter<DateTime>
     {
-        private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
         public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -118,7 +117,7 @@ public static class Extension
 
         public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
+            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
         }
     }
     internal class ForceStringConverter : JsonConverter<string>
@@ -147,7 +146,7 @@ public static class Extension
 
     internal class JsonDateTimeOffsetIsoConverter : JsonConverter<DateTimeOffset>
     {
-        private const string FORMAT = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
 
         public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -156,7 +155,7 @@ public static class Extension
 
         public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
         {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(FORMAT));
+            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
         }
     }
 
@@ -201,7 +200,7 @@ public static class Extension
 
         public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
         {
-            return flagsEnums.GetOrAdd(typeToConvert, t =>
+            return FlagsEnums.GetOrAdd(typeToConvert, t =>
             {
                 var isFlags = t.IsDefined(typeof(FlagsAttribute), false);
                 if (isFlags)
@@ -211,13 +210,13 @@ public static class Extension
                 }
                 else
                 {
-                    return normalEnumConverter.CreateConverter(t, options);
+                    return NormalEnumConverter.CreateConverter(t, options);
                 }
             });
         }
 
-        static JsonStringEnumConverter normalEnumConverter = new (JsonNamingPolicy.CamelCase);
-        static ConcurrentDictionary<Type, JsonConverter> flagsEnums = [];
+        static readonly JsonStringEnumConverter NormalEnumConverter = new (JsonNamingPolicy.CamelCase);
+        private static readonly ConcurrentDictionary<Type, JsonConverter> FlagsEnums = [];
     }
 
     /// <summary>
@@ -339,7 +338,7 @@ public static class Extension
                     return (db, typeof(double));
                 else if (val.TryGetValue(out float f))
                     return (f, typeof(float));
-                else if (val.TryGetValue(out decimal dec))
+                else if (val.TryGetValue(out decimal _))
                     return (val.GetValue<decimal>(), typeof(decimal));
                 throw new InvalidCastException("Can't be converted to a number");
             case JsonValueKind.True:
@@ -719,139 +718,130 @@ public static class Extension
     /// <summary>
     /// Get summary contents from XML document.
     /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this Type type,  PropertyInfo? prop = null)
+    internal static string? GetSummaryFromXmlDoc(this Type type, PropertyInfo? prop = null)
     {
-        string preFix = prop != null ? "P:" : "T:";
-        string typeName = prop != null ? prop.DeclaringType!.Name : type.Name;
-        string xmlPath = prop != null ? prop.DeclaringType!.Assembly.Location.Replace(".dll", ".xml") : type.Assembly.Location.Replace(".dll", ".xml");
-        string propertyName = prop != null ? prop.Name : string.Empty;
+        string prefix = prop == null ? "T:" : "P:";
+        string memberName = $"{prefix}{type.FullName!.Replace('+', '.')}";
+        if (prop != null)
+            memberName += $".{prop.Name}";
 
-        if (!File.Exists(xmlPath)) return null;
+        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
+    }
 
-        if (!XmlFiles.ContainsKey(xmlPath))
+    /// <summary>
+    /// Get summary contents of enum field from XML doc.
+    /// </summary>
+    internal static string? GetSummaryFromXmlDoc(this Type type, FieldInfo field)
+    {
+        if (!type.IsEnum) return null;
+
+        string memberName = $"F:{type.FullName!.Replace('+', '.')}.{field.Name}";
+        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
+    }
+
+    /// <summary>
+    /// Get summary contents of method from XML doc.
+    /// </summary>
+    internal static string? GetSummaryFromXmlDoc(this MethodInfo method)
+    {
+        const string prefix = "M:";
+        var type = method.DeclaringType!;
+
+        string typeName = type.FullName!.Replace('+', '.');
+        string methodName = method.Name;
+
+        // Generic method: Method``1
+        if (method.IsGenericMethodDefinition)
+            methodName += $"``{method.GetGenericArguments().Length}";
+
+        // Parameters
+        string paramList = string.Join(",", method.GetParameters()
+            .Select(p => GetXmlDocTypeName(p.ParameterType)));
+
+        string memberName = $"{prefix}{typeName}.{methodName}";
+        if (!string.IsNullOrEmpty(paramList))
+            memberName += $"({paramList})";
+
+        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
+    }
+
+    #region ---------- Shared Internal Helpers ----------
+
+    /// <summary>
+    /// Load XML once and query the node by name.
+    /// </summary>
+    private static string? GetSummaryFromXmlDocInternal(Assembly asm, string memberName)
+    {
+        string xmlPath = asm.Location.Replace(".dll", ".xml");
+        XmlDocument? doc = LoadXml(xmlPath);
+        if (doc == null) return null;
+
+        XmlNode? members = doc.SelectSingleNode("/doc/members");
+        if (members == null) return null;
+
+        foreach (XmlElement node in members)
         {
-            XmlDocument document = new();
-            document.Load(xmlPath);
-            XmlFiles[xmlPath] = document;
+            string? name = node.Attributes?[0]?.Value;
+            if (name == memberName)
+                return CleanupSummary(node.InnerText);
         }
-        string xPath = "/doc/members";
-        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
-        foreach (XmlElement node in nodeList!)
-        {
-            if (node.HasChildNodes && node.Attributes.Count > 0)
-            {
-                string name = node.Attributes[0].Value;
-                if (!string.IsNullOrEmpty(name))
-                {
-                    if ((name.StartsWith(preFix) && name.Contains(typeName) && string.IsNullOrEmpty(propertyName))
-                        ||
-                        (name.StartsWith(preFix) && name.Contains(typeName) && name.EndsWith(propertyName))
-                       )
-                    {
-                        string summaryContent = node.InnerText;
-                        summaryContent = string.Join("\n",
-                            summaryContent
-                                .Split('\n', '\r')
-                                .Where(t =>
-                                    !string.IsNullOrWhiteSpace(t) &&
-                                    !string.IsNullOrEmpty(t))
-                                .Select(p => p.Trim())
-                                .ToArray()
-                        );
-                        return string.IsNullOrEmpty(summaryContent) ? null : summaryContent;
-                    }
-                }
-            }
-        }
+
         return null;
     }
 
     /// <summary>
-    /// Get summary contents from XML document.
+    /// Load xml with caching
     /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this MethodInfo method)
+    private static XmlDocument? LoadXml(string xmlPath)
     {
-        const string preFix = "M:";
+        if (!File.Exists(xmlPath))
+            return null;
 
-        Type declaringType = method.DeclaringType!;
-        string xmlPath = declaringType.Assembly.Location.Replace(".dll", ".xml");
-        if (!File.Exists(xmlPath)) return null;
-
-        if (!XmlFiles.ContainsKey(xmlPath))
+        if (!XmlFiles.TryGetValue(xmlPath, out XmlDocument? doc))
         {
-            XmlDocument document = new();
-            document.Load(xmlPath);
-            XmlFiles[xmlPath] = document;
+            doc = new XmlDocument();
+            doc.Load(xmlPath);
+            XmlFiles[xmlPath] = doc;
         }
 
-        // "M:Namespace.Type.MethodName(Type1,Type2)"
-        string typeFullName = declaringType.FullName!.Replace('+', '.'); // 处理 nested class
-        string methodName = method.Name;
-
-        // 处理泛型方法名，如 Method``1
-        if (method.IsGenericMethodDefinition)
-        {
-            methodName += "``" + method.GetGenericArguments().Length;
-        }
-
-        // param list
-        string paramList = string.Join(",", method.GetParameters()
-            .Select(p => GetXmlDocTypeName(p.ParameterType)));
-
-        string fullMemberName = $"{preFix}{typeFullName}.{methodName}";
-        if (paramList.Length > 0)
-            fullMemberName += $"({paramList})";
-
-        // find the node
-        string xPath = "/doc/members";
-        XmlNode? nodeList = XmlFiles[xmlPath].SelectSingleNode(xPath);
-
-        foreach (XmlElement node in nodeList!)
-        {
-            if (node.HasChildNodes && node.Attributes.Count > 0)
-            {
-                string? name = node.Attributes[0].Value;
-                if (name == fullMemberName)
-                {
-                    string summaryContent = node.InnerText;
-                    summaryContent = string.Join("\n",
-                        summaryContent
-                            .Split('\n', '\r')
-                            .Where(t =>
-                                !string.IsNullOrWhiteSpace(t) &&
-                                !string.IsNullOrEmpty(t))
-                            .Select(p => p.Trim())
-                    );
-                    return string.IsNullOrEmpty(summaryContent) ? null : summaryContent;
-                }
-            }
-        }
-
-        return null;
+        return doc;
     }
+
+    /// <summary>
+    /// Cleanup whitespace of xml summary.
+    /// </summary>
+    private static string? CleanupSummary(string content)
+    {
+        string cleaned = string.Join("\n",
+            content.Split('\n', '\r')
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Select(t => t.Trim()));
+
+        return string.IsNullOrEmpty(cleaned) ? null : cleaned;
+    }
+
+    /// <summary>
+    /// Get XML doc formatted type name.
+    /// </summary>
     private static string GetXmlDocTypeName(Type type)
     {
         if (type.IsGenericParameter)
-        {
             return $"``{type.GenericParameterPosition}";
-        }
 
         if (!type.IsGenericType)
-        {
             return type.FullName!.Replace('+', '.');
-        }
 
         string typeName = type.GetGenericTypeDefinition().FullName!;
-        typeName = typeName.Substring(0, typeName.IndexOf('`'));
-        typeName = typeName.Replace('+', '.');
+        typeName = typeName[..typeName.IndexOf('`')].Replace('+', '.');
 
-        string genericArgs = string.Join(",", type.GetGenericArguments()
-            .Select(GetXmlDocTypeName));
-
+        string genericArgs = string.Join(",", type.GetGenericArguments().Select(GetXmlDocTypeName));
         return $"{typeName}{{{genericArgs}}}";
     }
-    
-    static readonly Dictionary<string, XmlDocument> XmlFiles = new();
+
+    static readonly ConcurrentDictionary<string, XmlDocument> XmlFiles = [];
+
+    #endregion
+
 
     #endregion
 

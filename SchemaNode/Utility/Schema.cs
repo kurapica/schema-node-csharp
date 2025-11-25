@@ -222,7 +222,7 @@ public static class Schema
                             {
                                 Name = funcNsAttr.Name,
                                 Type = SchemaType.Namespace,
-                                Display = funcNsAttr.Display ?? funcNsAttr.Name,
+                                Display = funcNsAttr.Display ?? type.GetSummaryFromXmlDoc() ?? funcNsAttr.Name,
                                 LoadState = SchemaLoadState.System,
                                 Schemas = []
                             }];

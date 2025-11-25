@@ -326,7 +326,7 @@ public class EnumType: AnySchemeType
                     string name = f.Name.ToLower();
                     return new EnumValueInfo
                     {
-                        Name = $"{typeName}.{name}",
+                        Name = type.GetSummaryFromXmlDoc(f) ?? $"{typeName}.{name}",
                         Value = valueType switch
                         {
                             EnumValueType.String => (f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? name).ToLower(),
