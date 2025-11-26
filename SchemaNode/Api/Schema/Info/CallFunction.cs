@@ -24,7 +24,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
         
         // authorize
-        await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
         
         // set root call
         SchemaContext.SetRootCall(func.Name);

@@ -34,6 +34,11 @@ public enum PolicyScope
     /// Write App Data
     /// </summary>
     DataWrite,
+
+    /// <summary>
+    /// Execute Function
+    /// </summary>
+    FuncExecute,
     
     /// <summary>
     /// Row access filter
