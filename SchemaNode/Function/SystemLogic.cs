@@ -16,6 +16,13 @@ namespace SchemaNode.Function;
 public static class SystemLogic
 {
     /// <summary>
+    /// system.logic.ifret
+    /// if match the condition, return the value and stop the execution
+    /// </summary>
+    [Schema]
+    public static T? ifret<T>(bool cond, T? value) => cond ? value : default;
+    
+    /// <summary>
     /// system.logic.andalso
     /// </summary>
     [Schema]
@@ -70,6 +77,7 @@ public static class SystemLogic
     /// <summary>
     /// system.logic.isempty
     /// </summary>
+    [Schema]
     public static bool isempty<T>(T? a)
     {
         if (a is null) return true;
@@ -100,6 +108,7 @@ public static class SystemLogic
     /// <summary>
     /// system.logic.notempty
     /// </summary>
+    [Schema]
     public static bool notempty<T>(T? a) => !isempty(a);
 
     /// <summary>

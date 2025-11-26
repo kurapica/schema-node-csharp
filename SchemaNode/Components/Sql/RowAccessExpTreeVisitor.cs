@@ -23,7 +23,7 @@ public static class RowAccessExpTreeVisitor
     /// </summary>
     public static async Task<ExpNode> Visit(SchemaContext context, FunctionType func, JsonObject? filter = null)
     {
-        SchemaFuncInfo funcInfo = func.GetSchemaFuncInfo() ?? throw new Exception($"Function {func.Name} can't be complied");
+        SchemaFuncInfo funcInfo = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
         if (func.Args.Length != 1)
             throw new NotSupportedException("Only support one parameter function");

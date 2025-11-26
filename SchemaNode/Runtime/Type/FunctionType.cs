@@ -344,7 +344,7 @@ public class FunctionType: AnySchemeType
                 }
                 else
                 {
-                    int index = Return.Length > 1 && int.TryParse(Return[1..], out int idx) ? idx : 1;
+                    int index = arg.Type.Length > 1 && int.TryParse(arg.Type[1..], out int idx) ? idx : 1;
                     ResizeGeneric(index);
                     arg.TypeNode = new GenericTypeNode
                     {
@@ -825,6 +825,10 @@ public class FunctionType: AnySchemeType
         if (retInfo == null) return null;
         if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
         if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
+        var nullabilityContext = new NullabilityInfoContext();
+        var returnNullability = nullabilityContext.Create(method.ReturnParameter);
+        if (returnNullability.ReadState == NullabilityState.Nullable)
+            sign |= FUNC_SIGN_NULLABLE_RET;
 
         if (retInfo.Generic != null)
         {
@@ -931,7 +935,7 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// Compile a custom function node to dynamic method
     /// </summary>
-    SchemaFuncInfo CompileFunction()
+    SchemaFuncInfo CompileFunction(SchemaContext context)
     {
         // Only full-filled function can be complied
         if (Status != SchemaNodeStatus.Ready)
@@ -979,17 +983,23 @@ public class FunctionType: AnySchemeType
             }
 
             // Expression Tree -> Function Body
-            List<Expression> expBlocks = new();
+            List<Expression> expBlocks = [];
+            LabelTarget? returnLabel = ExpTrees.Any(e => e is FunctionNodeExpression exp && exp.Func.Equals($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}", StringComparison.OrdinalIgnoreCase))
+                ? Expression.Label(ReturnNode!.ToCSharpType(funcInfo.Return.Nullable)!) : null;
+            
             int expCount = 0;
             foreach (FunctionNodeExpTree exp in ExpTrees)
             {
-                Expression result = CompileFunctionNodeExpression(paramExps[0], paramExpMap, variableExpMap, expBlocks, exp);
+                Expression result = CompileFunctionNodeExpression(context, paramExps[0], paramExpMap, variableExpMap, expBlocks, exp, returnLabel);
                 if (result == null) throw new Exception($"The {Name} can't be compiled - expression compile failed");
 
                 // exp = result
                 string expName = exp is FunctionNodeExpression nodeExp ? nodeExp.Name : $"_expResult{++expCount}";
                 ParameterExpression expRes = Expression.Parameter(result.Type);
                 variableExpMap.Add(expName, expRes);
+                // Logger @TODO
+                // if (exp is FunctionNodeExpression callexp)
+                // expBlocks.Add(Expression.Call(paramExps[0], typeof(SchemaContext).GetMethod(nameof(SchemaContext.LogInformation))!, Expression.Constant($"Calling expression '{callexp.Name}")));
                 expBlocks.Add(Expression.Assign(expRes, result));
             }
 
@@ -1002,7 +1012,13 @@ public class FunctionType: AnySchemeType
                 string expName = "_final";
                 ParameterExpression expRes = Expression.Parameter(lastType);
                 variableExpMap.Add(expName, expRes);
-                expBlocks.Add(Expression.Assign(expRes, ConvertExp(lastType, lastExp)));
+                expBlocks.Add(Expression.Assign(expRes, ConvertExp(context, lastType, lastExp)));
+            }
+
+            if (returnLabel != null)
+            {
+                expBlocks.Add(Expression.Return(returnLabel, expBlocks.Last()));
+                expBlocks.Add(Expression.Label(returnLabel, Expression.Default(returnLabel.Type)));
             }
 
             // Build block
@@ -1065,13 +1081,13 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// Compile a function node expression to expression
     /// </summary>
-    static Expression CompileFunctionNodeExpression(Expression contextExp, IReadOnlyDictionary<string, Expression> paramMap, Dictionary<string, ParameterExpression> expMap, List<Expression> blocks, FunctionNodeExpTree expTree)
+    static Expression CompileFunctionNodeExpression(SchemaContext context, Expression contextExp, IReadOnlyDictionary<string, Expression> paramMap, Dictionary<string, ParameterExpression> expMap, List<Expression> blocks, FunctionNodeExpTree expTree, LabelTarget? returnLabel = null)
     {
         switch (expTree)
         {
             case FunctionNodeExpression exp:
             {
-                SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo()
+                SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo(context)
                     ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
                 int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
 
@@ -1089,7 +1105,8 @@ public class FunctionType: AnySchemeType
                 for (int i = 0; i < exp.LeafNodes.Length; i++)
                 {
                     // Gets the type
-                    Type callType = exp.Args[i].TypeNode?.ToCSharpType(exp.FuncNode!.Args[i].Nullable)
+                    Type callType = (exp.FuncNode.Args[i].TypeNode is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].TypeNode)
+                                    ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable)
                         ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
                     // Build the call arguments
@@ -1121,7 +1138,7 @@ public class FunctionType: AnySchemeType
                             if (otherExp.Used == 1)
                             {
                                 // Embed the other expression
-                                callArgs[i + useContext] = CompileFunctionNodeExpression(contextExp, paramMap, expMap, blocks, otherExp);
+                                callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp, returnLabel);
                             }
                             else
                             {
@@ -1135,7 +1152,7 @@ public class FunctionType: AnySchemeType
                     if (exp.ArrayIndex != i) // !exp.LeafNodes[i].UseAsArray)
                     {
                         // Add Conversion
-                        callArgs[i + useContext] = ConvertExp(callType, callArgs[i + useContext]);
+                        callArgs[i + useContext] = ConvertExp(context, callType, callArgs[i + useContext]);
                         callArgTypes[i + useContext] = callArgs[i + useContext].Type;
                     }
                     else
@@ -1242,7 +1259,7 @@ public class FunctionType: AnySchemeType
 
                 // Generate call body
                 if (exp.Type == ExpressionType.Call)
-                    return GenMethodCallExp(callFuncInfo, callMethod, callArgs, epxReturnElement);
+                    return GenMethodCallExp(context, callFuncInfo, callMethod, callArgs, epxReturnElement, returnLabel: returnLabel);
 
                 // Generate the lambda for collection operations
                 Type callMethodReturn = callMethod.ReturnType;
@@ -1276,12 +1293,14 @@ public class FunctionType: AnySchemeType
                 else
                 {
                     // array.get_item(start++)
-                    innerCallArgs[arrayIndex] = Expression.MakeIndex(jarray, jarray.Type.GetProperty("Item", new[] { typeof(int) })!, new[] { exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start) });
+                    innerCallArgs[arrayIndex] = Expression.MakeIndex(jarray, jarray.Type.GetProperty("Item", [typeof(int)
+                    ])!, [exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)
+                    ]);
                 }
 
                 // Conversion
                 Type ctype = callMethod.GetParameters()[arrayIndex + (hasClosure ? 1 : 0)].ParameterType;
-                innerCallArgs[arrayIndex] = ConvertExp(ctype, innerCallArgs[arrayIndex]);
+                innerCallArgs[arrayIndex] = ConvertExp(context, ctype, innerCallArgs[arrayIndex]);
                 callArgTypes[arrayIndex] = innerCallArgs[arrayIndex].Type;
 
                 // Generate call body
@@ -1297,7 +1316,7 @@ public class FunctionType: AnySchemeType
                     case ExpressionType.Map:
                         {
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, final },
+                                [resExp, start, stop, final],
                                 Expression.Assign(resExp, ctor),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
@@ -1306,11 +1325,12 @@ public class FunctionType: AnySchemeType
                                         Expression.LessThan(start, stop),
                                         resExp.Type.IsArrayType() 
                                             ? callMethodReturn.IsArrayType()
-                                                ? Expression.Call(resExp, resExp.Type.GetMethod("AddRange", new[] { typeof(IEnumerable<>).MakeGenericType(expReturnType) })!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                : Expression.Call(resExp, resExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
+                                                ? Expression.Call(resExp, resExp.Type.GetMethod("AddRange", [typeof(IEnumerable<>).MakeGenericType(expReturnType)
+                                                ])!, GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel))
+                                                : Expression.Call(resExp, resExp.Type.GetMethod("Add")!, GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel))
                                             : callMethodReturn == typeof(ArrayTypeNode)
-                                                ? Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs))
-                                                : Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.Add))!, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
+                                                ? Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel))
+                                                : Expression.Call(resExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.Add))!, GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel)),
                                         Expression.Break(forLabel, stop)
                                     ),
                                     forLabel
@@ -1336,16 +1356,16 @@ public class FunctionType: AnySchemeType
                             // Replace the sum exp
                             innerCallArgs[sumIndex] = resExp;
 
-                            // Complie
+                            // Compile
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, final },
+                                [resExp, start, stop, final],
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
                                 Expression.Assign(resExp, init),
                                 Expression.Loop(
                                     Expression.IfThenElse(
                                         Expression.LessThan(start, stop),
-                                        Expression.Assign(resExp, GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs)),
+                                        Expression.Assign(resExp, GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel)),
                                         Expression.Break(forLabel, stop)
                                     ),
                                     forLabel
@@ -1365,9 +1385,9 @@ public class FunctionType: AnySchemeType
                             // New init parameter
                             ParameterExpression init = Expression.Parameter(resExp.Type, "_init");
 
-                            // Complie
+                            // Compile
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, init, final },
+                                [resExp, start, stop, init, final],
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
                                 Expression.Assign(init, Expression.Default(callArgTypes[arrayIndex])),
@@ -1378,7 +1398,7 @@ public class FunctionType: AnySchemeType
                                         Expression.Block(new List<Expression>()
                                         {
                                             Expression.Assign(resExp, temp),
-                                            Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
+                                            Expression.IfThenElse(GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
                                         }),
                                         Expression.Break(forLabel, stop)
                                     ),
@@ -1399,9 +1419,9 @@ public class FunctionType: AnySchemeType
                             // New init parameter
                             ParameterExpression init = Expression.Parameter(resExp.Type, "_init");
 
-                            // Complie
+                            // Compile
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, init, final },
+                                [resExp, start, stop, init, final],
                                 Expression.Assign(stop, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(start, arrayLen),
                                 Expression.Assign(init, Expression.Default(callArgTypes[arrayIndex])),
@@ -1412,7 +1432,7 @@ public class FunctionType: AnySchemeType
                                         Expression.Block(new List<Expression>()
                                         {
                                             Expression.Assign(resExp, temp),
-                                            Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
+                                            Expression.IfThenElse(GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel), Expression.Break(forLabel, stop), Expression.Assign(resExp, init))
                                         }),
                                         Expression.Break(forLabel, stop)
                                     ),
@@ -1431,7 +1451,7 @@ public class FunctionType: AnySchemeType
                             innerCallArgs[arrayIndex] = curr;
 
                             innerCall = CompileMethod(resExp.Type, innerParams, Expression.Block(
-                                new[] { resExp, start, stop, final, curr },
+                                [resExp, start, stop, final, curr],
                                 Expression.Assign(resExp, ctor),
                                 Expression.Assign(start, Expression.Constant(0, typeof(int))),
                                 Expression.Assign(stop, arrayLen),
@@ -1441,7 +1461,7 @@ public class FunctionType: AnySchemeType
                                         Expression.Block(new List<Expression>()
                                         {
                                             Expression.Assign(curr, temp),
-                                            Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, innerCallArgs),
+                                            Expression.IfThen(GenMethodCallExp(context, callFuncInfo, callMethod, innerCallArgs, returnLabel: returnLabel),
                                                 Expression.Call(resExp, resExp.Type.GetMethod("Add")!, curr)
                                             )
                                         }),
@@ -1489,7 +1509,7 @@ public class FunctionType: AnySchemeType
                     }
 
                     // Build the exp
-                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(typeof(Object), memberExp)));
+                    blocks.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(name, typeof(string)), ConvertExp(context, typeof(Object), memberExp)));
                 }
                 return resultVar;
             }
@@ -1499,7 +1519,7 @@ public class FunctionType: AnySchemeType
     }
 
     // Convert expression
-    static Expression ConvertExp(Type ctype, Expression exp)
+    static Expression ConvertExp(SchemaContext context, Type ctype, Expression exp)
     {
         if (ctype == exp.Type) return exp;
         if (ctype.IsAssignableFrom(exp.Type)) return Expression.Convert(exp, ctype);
@@ -1507,84 +1527,38 @@ public class FunctionType: AnySchemeType
         Expression notNullExp = exp.Type.IsNullable() ? Expression.Call(exp, exp.Type.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!) : exp;
         Expression? resExp = null;
         Type rctype = ctype.GetNotNullType();
-
-        switch (System.Type.GetTypeCode(rctype))
+        
+        // convert csharp type to schema type node
+        if (ctype.IsAssignableTo(typeof(AnySchemaNode)))
         {
-            case TypeCode.Boolean:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(bool)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToBoolean), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Char:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(char)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToChar), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.SByte:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(sbyte)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSByte), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Byte:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(byte)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToByte), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Int16:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int16)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt16), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.UInt16:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt16)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt16), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Int32:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int32)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.UInt32:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt32)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt32), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Int64:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Int64)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.UInt64:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(UInt64)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt64), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Single:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(Single)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Double:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(double)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.Decimal:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(decimal)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.DateTime:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(DateTime)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDateTime), [notNullExp.Type])!, notNullExp);
-                break;
-            case TypeCode.String:
-                resExp = notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode))
-                    ? Expression.Call(notNullExp, notNullExp.Type.GetMethod(nameof(AnySchemaNode.ToValue))!.MakeGenericMethod(typeof(string)))
-                    : Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToString), [notNullExp.Type])!, notNullExp);
-                break;
+            string schema = exp.Type.GetSchemaType(true) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
+            AnySchemeType schemaType = context.GetSchemaTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
+            MethodInfo method = typeof(AnySchemeType).GetMethod(nameof(CreateNode))!;
+            return Expression.Convert(Expression.Call(Expression.Constant(schemaType), method, notNullExp), ctype);
+        }
+
+        // simple type conversion
+        if (!notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode)))
+        {
+            resExp = System.Type.GetTypeCode(rctype) switch
+            {
+                TypeCode.Boolean => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToBoolean), [notNullExp.Type])!, notNullExp),
+                TypeCode.Char => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToChar), [notNullExp.Type])!, notNullExp),
+                TypeCode.SByte => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSByte), [notNullExp.Type])!, notNullExp),
+                TypeCode.Byte => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToByte), [notNullExp.Type])!, notNullExp),
+                TypeCode.Int16 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt16), [notNullExp.Type])!, notNullExp),
+                TypeCode.UInt16 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt16), [notNullExp.Type])!, notNullExp),
+                TypeCode.Int32 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt32), [notNullExp.Type])!, notNullExp),
+                TypeCode.UInt32 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt32), [notNullExp.Type])!, notNullExp),
+                TypeCode.Int64 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToInt64), [notNullExp.Type])!, notNullExp),
+                TypeCode.UInt64 => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToUInt64), [notNullExp.Type])!, notNullExp),
+                TypeCode.Single => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToSingle), [notNullExp.Type])!, notNullExp),
+                TypeCode.Double => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDouble), [notNullExp.Type])!, notNullExp),
+                TypeCode.Decimal => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDecimal), [notNullExp.Type])!, notNullExp),
+                TypeCode.DateTime => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToDateTime), [notNullExp.Type])!, notNullExp),
+                TypeCode.String => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToString), [notNullExp.Type])!, notNullExp),
+                _ => resExp
+            };
         }
 
         // for complex types
@@ -1601,7 +1575,7 @@ public class FunctionType: AnySchemeType
     }
 
     // Gen method call
-    static Expression GenMethodCallExp(SchemaFuncInfo callFuncInfo, MethodInfo callMethod, Expression[] callArgs, Type? returnType = null)
+    static Expression GenMethodCallExp(SchemaContext context, SchemaFuncInfo callFuncInfo, MethodInfo callMethod, Expression[] callArgs, Type? returnType = null, LabelTarget? returnLabel = null)
     {
         // Call the method
         Expression result;
@@ -1616,7 +1590,7 @@ public class FunctionType: AnySchemeType
         {
             result = callFuncInfo.Name switch
             {
-                // system.arth
+                // system.math
                 $"{NS_SYSTEM_MATH}.{nameof(SystemMath.e)}" => Expression.Constant(Math.E),
                 $"{NS_SYSTEM_MATH}.{nameof(SystemMath.pi)}" => Expression.Constant(Math.PI),
                 $"{NS_SYSTEM_MATH}.{nameof(SystemMath.add)}" => Expression.Add(callArgs[0], callArgs[1]),
@@ -1630,7 +1604,7 @@ public class FunctionType: AnySchemeType
                 $"{NS_SYSTEM_CONV}.null" => Expression.Constant(null, callMethod.ReturnType.GetNullableType()),
 
                 // system.logic
-                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}" => Expression.Call(null, callMethod, Expression.Convert(callArgs[0], typeof(object))),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}" => Expression.Equal(callArgs[0], Expression.Constant(null, callArgs[0].Type)),
                 $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.cond)}" => Expression.Condition(callArgs[0], callArgs[1], callArgs[2]),
                 $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessthan)}" => Expression.LessThan(callArgs[0], callArgs[1]),
                 $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessequal)}" => Expression.LessThanOrEqual(callArgs[0], callArgs[1]),
@@ -1645,7 +1619,14 @@ public class FunctionType: AnySchemeType
                     Expression.Condition(callArgs[3], Expression.GreaterThanOrEqual(callArgs[0], callArgs[1]), Expression.GreaterThan(callArgs[0], callArgs[1])),
                     Expression.Condition(callArgs[4], Expression.LessThanOrEqual(callArgs[0], callArgs[2]), Expression.LessThan(callArgs[0], callArgs[2]))
                     ),
-
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}" => Expression.Block(
+                    Expression.IfThen(
+                        callArgs[0],
+                        Expression.Return(returnLabel!, callArgs[1])
+                    ),
+                    callArgs[1]
+                ),
+                
                 // default
                 _ => Expression.Call(null, callMethod, callArgs)
             };
@@ -1657,7 +1638,7 @@ public class FunctionType: AnySchemeType
 
         if (returnType != null && returnType != result.Type)
         {
-            result = ConvertExp(returnType, result);
+            result = ConvertExp(context, returnType, result);
         }
         return result;
     }
@@ -1876,7 +1857,7 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// Gets the info from data dict func
     /// </summary>
-    internal SchemaFuncInfo? GetSchemaFuncInfo()
+    internal SchemaFuncInfo? GetSchemaFuncInfo(SchemaContext context)
     {
         if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
 
@@ -1889,7 +1870,7 @@ public class FunctionType: AnySchemeType
         }
 
         // Compile
-        FuncInfo = CompileFunction();
+        FuncInfo = CompileFunction(context);
         return FuncInfo;
     }
 
@@ -2181,7 +2162,7 @@ public class GenericTypeNode: AnySchemeType
     /// <summary>
     /// The index in generic array
     /// </summary>
-    public int GenericIndex { get; set; }
+    public int GenericIndex { get; init; }
 }
 
 #endregion

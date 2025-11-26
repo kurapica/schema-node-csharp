@@ -9,7 +9,6 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode.Context;
 
@@ -95,6 +94,15 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 
     #endregion
 
+    #region Log
+
+    public void LogDebug(string message) => Logger.LogDebug(message);
+    public void LogInformation(string message) => Logger.LogInformation(message);
+    public void LogWarning(string message) => Logger.LogWarning(message);
+    public void LogError(string message) => Logger.LogError(message);
+
+    #endregion
+    
     #region Schema Methods
 
     /// <summary>

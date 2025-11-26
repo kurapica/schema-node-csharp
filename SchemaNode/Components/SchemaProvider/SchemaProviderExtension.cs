@@ -56,7 +56,7 @@ public static class SchemaProviderExtension
                         : schema.Schemas!.Concat(loadSchema.Schemas.Where(s => !schema.Schemas!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
                     
                     // display
-                    if (loadSchema.Display == null || string.IsNullOrEmpty(loadSchema.Display.Key))
+                    if (loadSchema.Display == null || string.IsNullOrEmpty(loadSchema.Display.Key) || (loadSchema.Display.Key == schema.Name))
                         loadSchema.Display = schema.Display;
                     
                     // auth
@@ -214,7 +214,7 @@ public static class SchemaProviderExtension
             if (!string.IsNullOrWhiteSpace(target)) context.Target = target;
 
             // Argument validation
-            SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo() ??
+            SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
                                       throw new Exception($"Function {node.Name} can't be complied");
 
             // fill generic if provided
@@ -362,7 +362,7 @@ public static class SchemaProviderExtension
             if (!string.IsNullOrWhiteSpace(target)) context.Target = target;
 
             // Argument validation
-            SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo() ??
+            SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
                                       throw new Exception($"Function {node.Name} can't be complied");
 
             // fill generic if provided

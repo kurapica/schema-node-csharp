@@ -147,9 +147,18 @@ public static class SystemCollection
     [Schema]
     public static T? getfield<T>(StructTypeNode obj, string field)
     {
-        return (T?)(obj.GetField(field)?.ToTypeValue(typeof(T)));
+        return (T?)obj.GetField(field)?.ToTypeValue(typeof(T));
     }
 
+    /// <summary>
+    /// Gets the field value from the object
+    /// </summary>
+    [Schema]
+    public static T? getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
+    {
+        return (T?)obj.GetField(field)?.ToTypeValue(typeof(T)) ?? defaultValue;
+    }
+    
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>

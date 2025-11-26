@@ -161,7 +161,7 @@ public abstract class AnySchemeType: IDisposable
         UsedByApp?.TryRemove(type, out _);
     }
 
-    public virtual AnySchemaNode? CreateNode(object? value = null) => Type switch
+    public AnySchemaNode? CreateNode(object? value = null) => Type switch
     {
         SchemaType.Scalar => new ScalarTypeNode((ScalarType)this, value),
         SchemaType.Enum => new EnumTypeNode((EnumType)this, value),

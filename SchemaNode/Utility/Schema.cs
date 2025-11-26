@@ -88,7 +88,7 @@ public static class Schema
             }
         }
 
-        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
+        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) {schema.Display?.Key ?? ""} - saved");
 
         // Register the type map
         if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array or SchemaType.Event or SchemaType.Workflow)
