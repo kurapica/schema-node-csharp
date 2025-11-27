@@ -162,10 +162,7 @@ public class AppWorkflowType: IDisposable
                         ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
                     break;
                 
-                case InteractionWorkflow interWorkflow:
-                    interWorkflow.FormType = !string.IsNullOrWhiteSpace(node.FormType)
-                                                ? await context.GetSchemaTypeAsync(node.FormType)
-                                                : null;
+                case InteractionWorkflow:
                     break;
             }
 

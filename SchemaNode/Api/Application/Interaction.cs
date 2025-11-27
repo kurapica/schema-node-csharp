@@ -5,6 +5,7 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
+using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -46,35 +47,28 @@ public static class InteractionExtensions
         
         // Set app access
         context.SetAppAccess(request.App, request.Target);
-
-        // build the payload
-        InteractionWorkflowPayload payload = new()
-        {
-            App = request.App,
-            Target = request.Target,
-            Workflow = request.Workflow,
-            Node = request.Node,
-            WorkflowId = request.WorkflowId,
-        };
         
         // Find the match node
-        Workflow node = workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node)
+        Workflow node = (string.IsNullOrEmpty(request.Node) 
+            ? workflowType.RootWorkflowContext.EntryWorkflow
+            : workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node))
             ?? throw new Exception(WORKFLOW_NODE_NOT_FOUND);
 
-        // Gets the payload type
-        AnySchemeType dataType = ((node.PayloadType as StructType)?.Fields.FirstOrDefault(
-                f => f.Name.Equals(nameof(InteractionWorkflowPayload.Data), StringComparison.OrdinalIgnoreCase))
-            ?.TypeNode) ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
-        payload.Data = dataType.CreateNode(request.Data);
+        // build the payload
+        StructTypeNode payload = (node.PayloadType as StructType)?.CreateNode() as StructTypeNode
+                                 ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
+        payload[nameof(InteractionPayload.App)] = request.App;
+        payload[nameof(InteractionPayload.Target)] = request.Target;
+        payload["Data"] = request.Data; // placeholder for Data
         
         // Start a new workflow
         if (request.WorkflowId == null)
         {
-            if (!workflowType.Nodes[0].Name.Equals(request.Node, StringComparison.InvariantCultureIgnoreCase))
+            if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
                 throw new Exception(WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
-            workflowType.RootWorkflowContext.Done(request.Node, node.PayloadType.CreateNode(payload));
+            workflowType.RootWorkflowContext.Done(node.Name, payload);
         }
         
         // Continue an existing workflow
@@ -84,9 +78,9 @@ public static class InteractionExtensions
                 ?? throw new Exception(WORKFLOW_NOT_FOUND);
             
             // Check if still working
-            WorkflowStatus status = workContext.GetWorkflowStatus(request.Node);
+            WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
             if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
-            workContext.Done(request.Node, node.PayloadType.CreateNode(payload));
+            workContext.Done(node.Name, payload);
         }
 
         return true;
@@ -119,8 +113,7 @@ public class InteractionRequest : SchemaApiRequest
     /// <summary>
     /// The workflow node name
     /// </summary>
-    [Required]
-    public required string Node { get; set; }
+    public string? Node { get; set; }
     
     /// <summary>
     /// If the start node is not the first node, the workflow id should be provided

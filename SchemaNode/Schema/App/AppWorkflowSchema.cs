@@ -115,11 +115,6 @@ public class AppWorkflowNodeSchema
     public string? Event { get; set; }
     
     /// <summary>
-    /// The form type of the interaction if type is Interaction
-    /// </summary>
-    public string? FormType { get; set; }
-    
-    /// <summary>
     /// The workflow state data
     /// </summary>
     public JsonNode? State { get; set; }

@@ -1082,7 +1082,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_BOOL, enableError: true),
             NewSystemScalar(NS_SYSTEM_DATE, enableError: true),
             NewSystemScalar(NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+(\\.\\d+)?(e\\-\\d+)?$"),
-            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^-?\\d+\\.?\\d+$"),
+            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+\\.?\\d+$"),
             NewSystemScalar(NS_SYSTEM_FLOAT, baseType:NS_SYSTEM_DOUBLE,  enableError:true, regex:@"^\\d+(\\.\\d+)?$"),
             NewSystemScalar(NS_SYSTEM_PERCENT, baseType:NS_SYSTEM_FLOAT, enableError:true, regex:@"^\\d+(\\.\\d+)?$", upLimit:100, lowLimit:0),
             NewSystemScalar(NS_SYSTEM_FULL_DATE, baseType:NS_SYSTEM_DATE, enableError:true),
@@ -1091,7 +1091,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, regex:@"^\\d{4}$"),
             NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
             NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
-            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}(-[A-Z]{2})?$", upLimit:8),
+            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}-?[A-Z]{2}$", upLimit:8),
             
             #endregion
 

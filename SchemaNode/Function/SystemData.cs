@@ -213,12 +213,11 @@ public static class SystemData
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
-        [Schema(NS_GENERIC_TYPE)] JsonNode data
+        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        string target
     )
     {
-        string target = string.IsNullOrEmpty(context.Target)
-            ? Guid.Empty.ToString()
-            : context.Target;
+        if (string.IsNullOrEmpty(target)) return null;
 
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -315,5 +314,30 @@ public static class SystemData
         return null;
     }
 
+    [Schema]
+    public static async Task<bool> saveappdata(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        string target
+    )
+    {
+        if (string.IsNullOrEmpty(target)) return false;
+
+        AppType? appType = !string.IsNullOrEmpty(app)
+            ? await context.GetAppTypeAsync(app)
+            : null;
+
+        AppFieldType? fieldType = appType?.GetField(field);
+        AnySchemaNode? dataNode = fieldType?.SchemaType?.CreateNode(data);
+        if (dataNode == null || dataNode.IsEmpty) return false;
+
+        await context.BeginTransactionAsync();
+        await context.SaveFieldDataAsync(fieldType!, target, dataNode);
+        await context.CommitTransactionAsync();
+        return true;
+    }
+    
     #endregion
 }

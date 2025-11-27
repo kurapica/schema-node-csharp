@@ -59,4 +59,7 @@ public static class SystemStr
 
     [Schema]
     public static string newguid() => Guid.NewGuid().ToString();
+    
+    [Schema]
+    public static string replace(string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
 }

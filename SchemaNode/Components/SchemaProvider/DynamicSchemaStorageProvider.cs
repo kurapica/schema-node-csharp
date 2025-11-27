@@ -428,7 +428,6 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             {
                 schema = await context.GetEntityAsync<AppSchema>(Target, app);
             }
-            if (schema == null) return null;
 
             // load apps
             List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == app);
@@ -440,6 +439,14 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                 // check fields
                 subApp.HasFields = (await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == subApp.Name, take: 1)).total != 0;
             }
+
+            // provide container app
+            if (schema == null)
+            {
+                if (app.Length > 0) schema = new AppSchema { Name = app, Apps = apps.ToArray() };
+                return schema;
+            }
+            
             schema.Apps = apps.Count > 0 ? apps.ToArray() : null;
             
             // load fields
