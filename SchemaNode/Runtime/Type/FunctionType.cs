@@ -356,7 +356,7 @@ public class FunctionType: AnySchemeType
             else
             {
                 AnySchemeType? node = await context.GetSchemaTypeAsync(arg.Type);
-                if (node == null || !node.IsValueType)
+                if (node is not { IsValueType: true })
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
                     Status = SchemaNodeStatus.FunctionArgumentWrongType;

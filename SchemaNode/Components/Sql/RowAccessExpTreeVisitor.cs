@@ -106,7 +106,7 @@ public static class RowAccessExpTreeVisitor
         // const value
         if (expTree is ConstantExpNode constNode)
         {
-            result = new ValueExpNode(constNode.Value is AnySchemaNode node ? node : constNode.TypeNode?.CreateNode(constNode.Value));
+            result = new ValueExpNode(constNode.Value as AnySchemaNode ?? constNode.TypeNode?.CreateNode(constNode.Value));
             expMap.Add(constNode, result);
             return result;
         }
@@ -259,35 +259,26 @@ public static class RowAccessExpTreeVisitor
                 var notExp = await VisitExp(context, exp.LeafNodes[0], expMap);
                 if (notExp is not BinaryExpNode binaryNotExp) throw new NotSupportedException("The system.logic.not expression not supported");
 
-                switch (binaryNotExp.Type)
+                result = binaryNotExp.Type switch
                 {
-                    case BinaryExpType.Equal:
-                        result = new BinaryExpNode(BinaryExpType.NotEqual, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.NotEqual:
-                        result = new BinaryExpNode(BinaryExpType.Equal, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.GreaterThan:
-                        result = new BinaryExpNode(BinaryExpType.LessEqual, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.GreaterEqual:
-                        result = new BinaryExpNode(BinaryExpType.LessThan, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.LessThan:
-                        result = new BinaryExpNode(BinaryExpType.GreaterEqual, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.LessEqual:
-                        result = new BinaryExpNode(BinaryExpType.GreaterThan, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.Contains:
-                        result = new BinaryExpNode(BinaryExpType.NotContains, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    case BinaryExpType.NotContains:
-                        result = new BinaryExpNode(BinaryExpType.Contains, binaryNotExp.Left, binaryNotExp.Right);
-                        break;
-                    default:
-                        throw new NotSupportedException("The system.logic.not expression not supported");
-                }
+                    BinaryExpType.Equal => new BinaryExpNode(BinaryExpType.NotEqual, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.NotEqual => new BinaryExpNode(BinaryExpType.Equal, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.GreaterThan => new BinaryExpNode(BinaryExpType.LessEqual, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.GreaterEqual => new BinaryExpNode(BinaryExpType.LessThan, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.LessThan => new BinaryExpNode(BinaryExpType.GreaterEqual, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.LessEqual => new BinaryExpNode(BinaryExpType.GreaterThan, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.Contains => new BinaryExpNode(BinaryExpType.NotContains, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    BinaryExpType.NotContains => new BinaryExpNode(BinaryExpType.Contains, binaryNotExp.Left,
+                        binaryNotExp.Right),
+                    _ => throw new NotSupportedException("The system.logic.not expression not supported")
+                };
                 break;
             }
             
@@ -313,6 +304,26 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName))
                 {
                     result = new FieldAccessExpNode(fieldName);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+            
+            // a[b] = c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldequal)}":
+            {
+                var valNode = await VisitExp(context, exp.LeafNodes[2], expMap);
+                if (leafNodes[0] is StructExpNode structNode 
+                    && leafNodes[1] is ValueExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode } 
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueExpNode)
+                {
+                    result = new BinaryExpNode(BinaryExpType.Equal, new FieldAccessExpNode(fieldName), valNode);
                 }
                 else
                 {
