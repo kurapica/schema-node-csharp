@@ -68,4 +68,9 @@ public static class PolicyExtension
     public static Task<bool> AuthorizeAsync(this SchemaContext context, AppFieldType appField, string field, PolicyScope scope, bool chkOnly = false)
         => AuthorizeAsync(context, appField.GetAuthPolicies(field, scope), chkOnly);
 
+    /// <summary>
+    /// Authorize the app workflow with the policy scope
+    /// </summary>
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppWorkflowType appWorkflow, PolicyScope scope, bool chkOnly = false)
+        => AuthorizeAsync(context, appWorkflow.GetAuthPolicies(scope), chkOnly);
 }

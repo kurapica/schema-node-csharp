@@ -44,6 +44,11 @@ public class AppWorkflowType: IDisposable
     public LocaleString? Desc { get; private set; }
 
     /// <summary>
+    /// The authentication policy, normally row policy
+    /// </summary>
+    public PolicyItem[]? Auths { get; private init; }
+
+    /// <summary>
     /// Active the workflow
     /// </summary>
     public bool Active { get; internal set; }
@@ -96,6 +101,19 @@ public class AppWorkflowType: IDisposable
         // Init the entry workflow context
         if (Nodes.Length <= 1 || !Active) return;
         await ActiveAsync(context);
+    }
+
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
+    {
+        // Application policy first
+        foreach (var i in Application.GetAuthPolicies(scope)) yield return i;
+        
+        // self policies
+        var item = Auths?.FirstOrDefault(i => i.Scope == scope);
+        if (item != null) yield return item;
     }
 
     /// <summary>
@@ -266,6 +284,7 @@ public class AppWorkflowType: IDisposable
             Seqno = schema.Seqno,
             Display = schema.Display,
             Desc = schema.Desc,
+            Auths = schema.Auths,
             Active = schema.Active,
             Nodes = schema.Nodes.ToArray(),
             Additional = schema.Additional,
@@ -280,6 +299,7 @@ public class AppWorkflowType: IDisposable
             Name = type.Name,
             Display = type.Display,
             Desc = type.Desc,
+            Auths = type.Auths,
             Seqno = type.Seqno,
             Active = type.Activated,
             Nodes = type.Nodes.ToArray(),

@@ -29,6 +29,11 @@ public class AppWorkflowSchema
     [Index]
     [StringLength(32)]
     public string Name { get; set; } = default!;
+    
+    /// <summary>
+    /// The authentication policy, normally row policy
+    /// </summary>
+    public PolicyItem[]? Auths { get; set; }
 
     /// <summary>
     /// The seqno
