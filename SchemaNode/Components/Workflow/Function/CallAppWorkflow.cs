@@ -51,7 +51,7 @@ public class CallAppWorkflow: FunctionWorkflow,
                     {
                         if (attempt > 1)
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(State?.Delay ?? 1));
+                            await Task.Delay(TimeSpan.FromMilliseconds(State?.Delay ?? 1));
                             continue;
                         }
                         else

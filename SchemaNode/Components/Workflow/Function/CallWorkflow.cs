@@ -51,7 +51,7 @@ public class CallWorkflow: FunctionWorkflow,
                     {
                         if (attempt > 1)
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(State?.Delay ?? 1));
+                            await Task.Delay(TimeSpan.FromMilliseconds(State?.Delay ?? 1));
                             continue;
                         }
                         else
@@ -94,7 +94,7 @@ public class CallWorkflowState
     public int? Retry { get; set; }
     
     /// <summary>
-    /// The delay seconds between retries
+    /// The delay milliseconds between retries
     /// </summary>
     public int? Delay { get; set; }
 }
