@@ -68,12 +68,14 @@ public class AppWorkflowType: IDisposable
     
     #region States
 
+    private int _activated;
+
     public SchemaNodeStatus Status { get;internal set; } = SchemaNodeStatus.Ready;
-    
+
     /// <summary>
     /// Whether the workflow is activated
     /// </summary>
-    public bool Activated { get; private set; }
+    public bool Activated => _activated > 0;
 
     /// <summary>
     /// Gets the root workflow context
@@ -121,8 +123,8 @@ public class AppWorkflowType: IDisposable
     /// </summary>
     public async Task ActiveAsync(SchemaContext context)
     {
-        if (Activated) return;
-        Activated = true;
+        // Active only once
+        if (Interlocked.CompareExchange(ref _activated, 1, 0) != 0) return;
         
         // init the workflow nodes
         List<Workflow> topNodes = [];
@@ -139,12 +141,12 @@ public class AppWorkflowType: IDisposable
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
             wNode.ForkKey = node.ForkKey;
+            wNode.UnCancelable = node.UnCancelable ?? false; // normally all cancelable
+            wNode.CancelPre = node.CancelPre ?? false;
 
             // payload type
             if (!string.IsNullOrWhiteSpace(node.Payload))
-            {
                 wNode.PayloadType = await context.GetSchemaTypeAsync(node.Payload);
-            }
 
             // state
             if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
@@ -152,10 +154,8 @@ public class AppWorkflowType: IDisposable
                 var stateSchemaType = await context.GetSchemaTypeAsync(workflowType.State);
                 var stateType = stateSchemaType?.ToCSharpType();
                 if (stateType != null)
-                {
-                    csharpType.GetProperty("State", BindingFlags.Public | BindingFlags.Instance)
+                    csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
                         ?.SetValue(wNode, stateType.TryConvert(node.State));
-                }
             }
 
             // details
@@ -224,12 +224,13 @@ public class AppWorkflowType: IDisposable
             }
         }
         
-        // TODO: maybe support multiple entry nodes
+        // should have only one entry node
         if (topNodes.Count != 1)
             throw new InvalidOperationException($"Workflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
         _workflowContext?.Dispose();
         _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider);
+        _workflowContext.CopySchemaContextItem(context); // copy context items
         
         // restore
         Workflow first = topNodes.First();
@@ -253,7 +254,8 @@ public class AppWorkflowType: IDisposable
     /// </summary>
     public async Task DeactivateAsync()
     {
-        if (!Activated) return;
+        if (Interlocked.CompareExchange(ref _activated, 0, 1) != 1)
+            return;
 
         await Task.Yield();
 
@@ -262,13 +264,9 @@ public class AppWorkflowType: IDisposable
             await _workflowContext.TerminateAsync();
             _workflowContext = null;
         }
-        Activated = false;
     }
     
-    public void Dispose()
-    {
-        _workflowContext?.Dispose();
-    }
+    public void Dispose() => _workflowContext?.Dispose();
 
     private WorkflowContext? _workflowContext;
 

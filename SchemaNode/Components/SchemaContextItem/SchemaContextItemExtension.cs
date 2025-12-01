@@ -1,12 +1,14 @@
-﻿using SchemaNode.Components.Context;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.Collections.Concurrent;
 
 namespace SchemaNode.Components;
 
+/// <summary>
+/// The schema context item extension
+/// Unlike context item, the schema context is registered with item providers
+/// </summary>
 public static class SchemaContextItemExtension
 {
     /// <summary>
@@ -14,7 +16,6 @@ public static class SchemaContextItemExtension
     /// </summary>
     public static AnySchemaNode? GetSchemaContextItem(this SchemaContext context, string field)
     {
-        if (field.StartsWith("@")) field = field[1..]; // remove @ prefix
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
 
@@ -23,6 +24,21 @@ public static class SchemaContextItemExtension
         // Gets the field type
         AnySchemeType type = context.GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
 
+        // Check context item first
+        if (context.TryGetContextItem(set.providerType, out object? setItem))
+        {
+            AnySchemaNode? node = setItem is AnySchemaNode n 
+                ? n
+                : type.CreateNode(setItem!);
+            if (paths.Length > 1)
+            {
+                return node is StructTypeNode @struct
+                    ? @struct.GetValueByPaths(paths.Skip(1))
+                    : null;
+            }
+            return node;
+        }
+        
         // Gets the item provider
         if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } providerInstance
             && providerInstance.TryGetItem(out object? item))
@@ -40,30 +56,18 @@ public static class SchemaContextItemExtension
     }
 
     /// <summary>
-    /// Gets the context item type by field name, like @user.name
+    /// Copys the schema context item from source to target
     /// </summary>
-    public static AnySchemeType? GetSchemaContextItemType(this SchemaContext context, string field)
+    public static void CopySchemaContextItem(this SchemaContext context, SchemaContext source)
     {
-        if (field.StartsWith("@")) field = field[1..]; // remove @ prefix
-        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        if (paths.Length == 0) return null;
-
-        if (!ItemProvider.TryGetValue(paths[0], out (string schemaType, Type providerType) set)) return null;
-
-        // Gets the field type
-        AnySchemeType? type = context.GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
-        for (int i = 1; i < paths.Length; i++)
+        foreach (var (key, (_, providerType)) in ItemProvider)
         {
-            while (type is StructType @struct)
-            {
-                StructFieldConfig? f = @struct.Fields?.FirstOrDefault(f => f.Name.Equals(paths[i], StringComparison.OrdinalIgnoreCase));
-                if (f == null) return null;
-                type = f.TypeNode;
-            }
+            var node = source.GetSchemaContextItem(key);
+            if (node == null) continue;
+            context.SetContextItem(providerType, node);
         }
-        return type;
     }
-
+    
     /// <summary>
     /// The context item providers
     /// </summary>

@@ -38,26 +38,6 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// </summary>
     internal ILogger Logger => _loggerThunk.Value;
     
-    /// <summary>
-    /// The current application to be used
-    /// </summary>
-    internal string? App { get; private set; }
-    
-    /// <summary>
-    /// The current app target to be used
-    /// </summary>
-    internal string? Target { get; set; }
-    
-    /// <summary>
-    /// The current field to be used
-    /// </summary>
-    internal string? Field { get; private set; }
-    
-    /// <summary>
-    /// The root call function
-    /// </summary>
-    internal string? RootCall { get; private set; }
-
     #endregion
 
     #region Services
@@ -349,26 +329,8 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     
     #endregion
 
-    #region Schema Context Items
+    #region Context Items
     
-    /// <summary>
-    /// Sets the current app access
-    /// </summary>
-    public void SetAppAccess(string? app = null, string? target = null, string? field = null)
-    {
-        App = app;
-        Target = target;
-        Field = field;
-    }
-
-    /// <summary>
-    /// Sets the root call for policy evaluation
-    /// </summary>
-    public void SetRootCall(string? call = null)
-    {
-        RootCall = call;
-    }
-
     /// <summary>
     /// Sets the context item
     /// </summary>
@@ -386,11 +348,57 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     }
 
     /// <summary>
+    /// Sets the context item
+    /// </summary>
+    public void SetContextItem(Type type, object? value)
+    {
+        if (value == null)
+        {
+            if (_contextItems.TryRemove(type, out object? org))
+                (org as IDisposable)?.Dispose();
+        }
+        else
+        {
+            _contextItems[type] = value;
+        }
+    }
+    
+    /// <summary>
     /// Gets the context item
     /// </summary>
     public T? GetContextItem<T>() where T : class
     {
         return _contextItems.TryGetValue(typeof(T), out object? value) ? value as T : null;
+    }
+    
+    /// <summary>
+    /// Gets the context item
+    /// </summary>
+    public object? GetContextItem(Type type)
+    {
+        return _contextItems.TryGetValue(type, out object? value) ? value : null;
+    }
+    
+    /// <summary>
+    /// Try gets the context item
+    /// </summary>
+    public bool TryGetContextItem<T>(out T? value) where T : class
+    {
+        if (_contextItems.TryGetValue(typeof(T), out object? obj) && obj is T t)
+        {
+            value = t;
+            return true;
+        }
+        value = null;
+        return false;
+    }
+    
+    /// <summary>
+    /// Try gets the context item
+    /// </summary>
+    public bool TryGetContextItem(Type type, out object? value)
+    {
+        return _contextItems.TryGetValue(type, out value);
     }
 
     /// <summary>

@@ -28,14 +28,12 @@ public class GetSourceTargetApi : SchemaApi<GetSourceTargetRequest, GetSourceTar
         // authorize
         await SchemaContext.AuthorizeAsync(field, PolicyScope.SchemaRead);
         
-        // Set app access
-        SchemaContext.SetAppAccess(field.App, request.Target, field.Name);
-        
-        var result = await SchemaContext.GetSourceFieldNode(field, request.Target, true);
+        // Get the source target
+        var (_, target) = await SchemaContext.GetSourceFieldNode(field, request.Target, true);
 
         return new GetSourceTargetResponse
         {
-            Target = result.Item2,
+            Target = target,
         };
     }
 }

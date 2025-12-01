@@ -17,7 +17,7 @@ public class CallAppWorkflow: FunctionWorkflow,
     /// <summary>
     /// Process the func call with app target
     /// </summary>
-    public async Task ProcessAsync(WorkflowContext context, string target)
+    public async Task ProcessAsync(WorkflowContext context)
     {
         if (Function is null)
         {
@@ -44,7 +44,7 @@ public class CallAppWorkflow: FunctionWorkflow,
                 }
 
                 JsonNode? result = await context.CallFunctionAsync(Function, args,
-                    PayloadType != null ? [PayloadType.Name] : null, target);
+                    PayloadType != null ? [PayloadType.Name] : null);
                 if (State?.Result ?? false)
                 {
                     if (result == null || result.IsEmpty())

@@ -1,8 +1,8 @@
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Components;
 
@@ -63,6 +63,16 @@ public abstract class Workflow
     /// If a new workflow comes with the same fork key that not terminated, the new one will be ignored
     /// </summary>
     internal string? ForkKey { get; set; }
+    
+    /// <summary>
+    /// Whether the current workflow is un-cancelable
+    /// </summary>
+    internal bool UnCancelable { get; set; }
+    
+    /// <summary>
+    /// Cancel the previous workflow(s) when this workflow is triggered
+    /// </summary>
+    internal bool CancelPre { get; set; }
 
     #endregion
 

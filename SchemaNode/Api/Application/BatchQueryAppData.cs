@@ -146,9 +146,6 @@ public static class BatchQueryExtension
                         }
                     }
                     
-                    // Set the current access
-                    context.SetAppAccess(field.App, query.Target, field.Name);
-
                     // query app field data
                     (AnySchemaNode? result, int total) = rowFilter != null
                         ? await context.GetFieldDataAsync(field, query.Target!, rowFilter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy)

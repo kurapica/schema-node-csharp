@@ -63,15 +63,14 @@ public static class PushDataExtenstion
             // authorize
             await context.AuthorizeAsync(appField, PolicyScope.DataWrite);
 
-            // Set app access
-            context.SetAppAccess(appField.App, target, appField.Name);
-
+            // begin transaction if have data
             if (!hasData)
             {
                 hasData = true;
                 await context.BeginTransactionAsync();
             }
 
+            // validate and save data
             if (push.Data != null)
             {
                 (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);

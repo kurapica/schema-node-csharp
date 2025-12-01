@@ -45,9 +45,6 @@ public static class InteractionExtensions
         // authorize
         await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
         
-        // Set app access
-        context.SetAppAccess(request.App, request.Target);
-        
         // Find the match node
         Workflow node = (string.IsNullOrEmpty(request.Node) 
             ? workflowType.RootWorkflowContext.EntryWorkflow

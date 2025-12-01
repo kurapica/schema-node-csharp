@@ -1,4 +1,4 @@
-namespace SchemaNode.Components.Context;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The schema context item provider, don't implement directly

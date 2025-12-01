@@ -60,7 +60,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow
     /// </summary>
-    public AppWorkflowType? Workflow { get; private set; }
+    public AppWorkflowType? WorkflowType { get; private set; }
     
     /// <summary>
     /// The entry workflow node
@@ -76,11 +76,11 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     private WorkflowContextSnapshot? Backup(bool forks = false)
     {
-        if (_workflow == null || Workflow == null) return null;
+        if (_workflow == null || WorkflowType == null) return null;
         return new WorkflowContextSnapshot
         {
-            App = Workflow.App,
-            Workflow = Workflow.Name,
+            App = WorkflowType.App,
+            Workflow = WorkflowType.Name,
             Start = _workflow.Name,
             CreateTime = CreateTime,
             RootId = _root?.Id ?? Guid.Empty,
@@ -148,7 +148,7 @@ public class WorkflowContext: SchemaContext
                 
                 WorkflowContext forkContext = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                     _scheduler);
-                forkContext.Initialize(Workflow!, startNode, this, forkSnapshot);
+                forkContext.Initialize(WorkflowType!, startNode, this, forkSnapshot);
                 
                 state.ForkContexts ??= new ConcurrentDictionary<Guid, WorkflowContext>();
                 state.ForkContexts[forkContext.Id] = forkContext; // record the forked context
@@ -166,13 +166,16 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Init the workflow context with app workflow node schemas
     /// </summary>
-    internal void Initialize(AppWorkflowType appWorkFlow, Workflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
+    internal void Initialize(AppWorkflowType workflowType, Workflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
     {
         // init the workflow context
-        Workflow = appWorkFlow;
+        WorkflowType = workflowType;
         _workflow = workflow;
         _root = root;
         _states.Clear();
+        
+        // copy schema context item from root
+        if (root != null) this.CopySchemaContextItem(root);
 
         // restore from snapshot
         if (snapshot != null)
@@ -267,6 +270,7 @@ public class WorkflowContext: SchemaContext
             // check the fork key
             if (!string.IsNullOrEmpty(workflow.ForkKey))
             {
+                // $self means the whole payload as the fork key
                 if (workflow.ForkKey.Equals("$self"))
                 {
                     string? key = payload?.ToString();
@@ -275,15 +279,23 @@ public class WorkflowContext: SchemaContext
                         foreach (var (_, workflowContext) in state.ForkContexts)
                         {
                             if (!key.Equals(workflowContext.GetWorkflowPayload(workflow.Name)?.ToString())) continue;
-                            Logger.LogDebug(
-                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
-                                Id, name, key);
-                            return;
+                            if (workflow.CancelPre)
+                            {
+                                workflowContext.TryCancel();
+                            }
+                            else
+                            {
+                                Logger.LogDebug(
+                                    "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                                    Id, name, key);
+                                return; // skip fork
+                            }
                         }
                     }
                 }
                 else
                 {
+                    // Gets the for key by paths
                     AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey);
                     if (forkKeyNode != null && state.ForkContexts != null)
                     {
@@ -291,22 +303,27 @@ public class WorkflowContext: SchemaContext
                         // Check existed forks
                         foreach (var (_, workflowContext) in state.ForkContexts)
                         {
-                            forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)
-                                ?.GetValueByPaths(key);
+                            forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)?.GetValueByPaths(key);
                             if (forkKeyNode == null || !forkKeyNode.ToString().Equals(key)) continue;
-                            Logger.LogDebug(
-                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
-                                Id, name, key);
-                            return; // skip fork for existing key
+                            if (workflow.CancelPre)
+                            {
+                                workflowContext.TryCancel();
+                            }
+                            else
+                            {
+                                Logger.LogDebug(
+                                    "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                                    Id, name, key);
+                                return; // skip fork
+                            }
                         }
                     }
                 }
             }
             
             // Fork a new workflow context for next nodes
-            WorkflowContext context = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
-                _scheduler);
-            context.Initialize(Workflow!, workflow, this);
+            WorkflowContext context = new (_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler);
+            context.Initialize(WorkflowType!, workflow, this);
             context.Done(workflow.Name, payload, true);
 
             state.ForkContexts ??= new  ConcurrentDictionary<Guid, WorkflowContext>();
@@ -329,10 +346,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(Workflow workflow, AnySchemaNode? payload = null)
-    {
-        Done(workflow.Name, payload);
-    }
+    public void Done(Workflow workflow, AnySchemaNode? payload = null) => Done(workflow.Name, payload);
     
     /// <summary>
     /// The workflow node has error
@@ -410,6 +424,22 @@ public class WorkflowContext: SchemaContext
     public void Goto(Workflow workflow, string? newName = null) => Goto(workflow.Name, newName);
     
     /// <summary>
+    /// Whether the workflow is un-cancelled
+    /// </summary>
+    bool IsUnCancellable(Workflow? workflow = null)
+    {
+        workflow ??= _workflow;
+        if (workflow == null) return false;
+        
+        return GetOrCreateWorkflowState(workflow).Status switch
+        {
+            WorkflowStatus.Running => workflow.UnCancelable,
+            WorkflowStatus.Waiting => false,
+            _ => workflow.Next != null && workflow.Next.Any(IsUnCancellable)
+        };
+    }
+    
+    /// <summary>
     /// Try process the workflow
     /// </summary>
     public async Task ProcessAsync()
@@ -441,6 +471,18 @@ public class WorkflowContext: SchemaContext
             // Mark error
             state.Status = WorkflowStatus.Error;
             state.Error = ex.GetInnermostException().Message;
+        }
+    }
+    
+    void TryCancel()
+    {
+        if (!IsUnCancellable())
+        {
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                await TerminateAsync();
+            });
         }
     }
 
@@ -570,7 +612,7 @@ public class WorkflowContext: SchemaContext
         /// </summary>
         public virtual async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context];
             if (workflow.Args is { Length: > 0 })
             {
@@ -615,7 +657,7 @@ public class WorkflowContext: SchemaContext
         /// </summary>
         public override async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context, Session];
             if (workflow.Args is { Length: > 0 })
             {
@@ -734,6 +776,8 @@ public class WorkflowContext: SchemaContext
             return new WorkflowState();
         });
     }
+    
+    WorkflowState GetOrCreateWorkflowState(Workflow workflow) => GetOrCreateWorkflowState(workflow.Name);
     
     #endregion
 }

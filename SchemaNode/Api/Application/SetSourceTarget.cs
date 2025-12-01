@@ -28,9 +28,7 @@ public class SetSourceTargetApi : SchemaApi<SetSourceTargetRequest, SetSourceTar
         // Authorize
         await SchemaContext.AuthorizeAsync(field, PolicyScope.DataWrite);
         
-        // Set app access
-        SchemaContext.SetAppAccess(request.App, request.Target, field.Name);
-
+        // Set the source target
         await SchemaContext.SetSourceFieldNode(field, request.Target, request.SourceTarget);
 
         return new SetSourceTargetResponse

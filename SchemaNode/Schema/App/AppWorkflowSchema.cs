@@ -134,6 +134,16 @@ public class AppWorkflowNodeSchema
     /// The fork key path in the payload
     /// </summary>
     public string? ForkKey { get; set; }
+    
+    /// <summary>
+    /// The node can't be canceled
+    /// </summary>
+    public bool? UnCancelable { get; set; }
+    
+    /// <summary>
+    /// Cancel the previous fork branches
+    /// </summary>
+    public bool? CancelPre { get; set; }
 
     /// <summary>
     /// The additional data

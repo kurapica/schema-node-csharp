@@ -26,12 +26,9 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
         
-        // set root call
-        SchemaContext.SetRootCall(func.Name);
-        
         return new CallFunctionResponse
         {
-            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target)
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic)
         };
     }
 }
@@ -57,11 +54,6 @@ public class CallFunctionRequest : SchemaApiRequest
     /// The generic types
     /// </summary>
     public string[] Generic { get; set; } = [];
-
-    /// <summary>
-    /// The app target to be queried
-    /// </summary>
-    public string? Target { get; set; }
 }
 
 /// <summary>
