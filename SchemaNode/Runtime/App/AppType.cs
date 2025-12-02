@@ -423,6 +423,16 @@ public class AppType
             ? Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
             : null;
     }
+
+    /// <summary>
+    /// Gets the workflow by name
+    /// </summary>
+    public AppWorkflowType? GetWorkflow(string? name)
+    {
+        return !string.IsNullOrWhiteSpace(name)
+            ? Workflows?.FirstOrDefault(w => w.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            : null;
+    }
     
     /// <summary>
     /// Gets all node schemas used by the application

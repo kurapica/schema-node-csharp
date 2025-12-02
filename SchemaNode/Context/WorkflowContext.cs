@@ -213,6 +213,15 @@ public class WorkflowContext: SchemaContext
     public AnySchemaNode? GetWorkflowPayload(Workflow workflow) => GetWorkflowPayload(workflow.Name);
     
     /// <summary>
+    /// Gets the current workflow status
+    /// </summary>
+    /// <returns></returns>
+    public WorkflowStatus GetWorkflowStatus()
+        => _workflow == null
+            ? WorkflowStatus.Terminated
+            : GetNextWorkflowToProcess(_workflow)?.Item2.Status ?? WorkflowStatus.Terminated;
+    
+    /// <summary>
     /// Gets the workflow status by name
     /// </summary>
     public WorkflowStatus GetWorkflowStatus(string name) 
@@ -253,8 +262,9 @@ public class WorkflowContext: SchemaContext
     
     /// <summary>
     /// The workflow node is done with payload
+    /// <returns>The fork workflow context if created</returns>
     /// </summary>
-    public void Done(string name, AnySchemaNode? payload = null, bool init = false)
+    public WorkflowContext? Done(string name, AnySchemaNode? payload = null, bool init = false)
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
@@ -288,7 +298,7 @@ public class WorkflowContext: SchemaContext
                                 Logger.LogDebug(
                                     "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
                                     Id, name, key);
-                                return; // skip fork
+                                return null; // skip fork
                             }
                         }
                     }
@@ -314,7 +324,7 @@ public class WorkflowContext: SchemaContext
                                 Logger.LogDebug(
                                     "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
                                     Id, name, key);
-                                return; // skip fork
+                                return null; // skip fork
                             }
                         }
                     }
@@ -329,7 +339,7 @@ public class WorkflowContext: SchemaContext
             state.ForkContexts ??= new  ConcurrentDictionary<Guid, WorkflowContext>();
             state.ForkContexts[context.Id] = context; // record the forked context
             _scheduler.Schedule(context); // schedule the new workflow context for next processing
-            return;
+            return context;
         }
 
         // record the done state
@@ -341,6 +351,8 @@ public class WorkflowContext: SchemaContext
         
         // save
         Persistence();
+
+        return null;
     }
     
     /// <summary>

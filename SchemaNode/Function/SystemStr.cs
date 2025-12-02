@@ -56,6 +56,18 @@ public static class SystemStr
         .OfType<StructTypeNode>()
         .Select(node => toentry(node, valueField, labelField))
         .ToList();
+    
+    [Schema]
+    public static LocaleString rectifylocale(LocaleString locale, string? defaultLang = null)
+    {
+        if (string.IsNullOrWhiteSpace(locale.Key))
+        {
+            locale.Key = (string.IsNullOrWhiteSpace(defaultLang)
+                ? locale.Trans?.FirstOrDefault()?.Tran
+                : locale.Trans?.FirstOrDefault(t => t.Lang.Equals(defaultLang, StringComparison.OrdinalIgnoreCase))?.Tran ?? locale.Key) ?? "";
+        }
+        return locale;
+    }
 
     [Schema]
     public static string newguid() => Guid.NewGuid().ToString();

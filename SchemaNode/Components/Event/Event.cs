@@ -91,17 +91,17 @@ public interface IEventDispatcher
     /// <summary>
     /// Dispatch the event
     /// </summary>
-    void DispatchEvent<E>(E @event) where E: Event;
+    void DispatchEvent<TE>(TE @event) where TE: Event;
     
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    IDisposable SubscribeEvent<E>(Type eventType, Action<E> onEvent) where E: Event;
+    IDisposable SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE: Event;
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event;
+    IDisposable SubscribeTopicEvent<TE>(Type eventType, string topic, Action<TE> onEvent) where TE : Event;
 
     #endregion
 
@@ -110,26 +110,26 @@ public interface IEventDispatcher
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    public IDisposable SubscribeEvent<E>(Action<E> onEvent) where E: Event 
-        => SubscribeEvent(typeof(E), onEvent);
+    public IDisposable SubscribeEvent<TE>(Action<TE> onEvent) where TE: Event 
+        => SubscribeEvent(typeof(TE), onEvent);
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public IDisposable SubscribeTopicEvent<E>(string topic, Action<E> onEvent) where E: Event 
-        => SubscribeTopicEvent(typeof(E), topic, onEvent);
+    public IDisposable SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE: Event 
+        => SubscribeTopicEvent(typeof(TE), topic, onEvent);
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeEventOnce<E>(Type eventType, Action<E> onEvent) where E: Event
+    public IDisposable SubscribeEventOnce<TE>(Type eventType, Action<TE> onEvent) where TE: Event
     {
         IDisposable? subscription = null;
 
-        subscription = SubscribeEvent(eventType,  (Action<E>)Handler);
+        subscription = SubscribeEvent(eventType,  (Action<TE>)Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -146,19 +146,19 @@ public interface IEventDispatcher
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeEventOnce<E>(Action<E> onEvent) where E: Event => SubscribeEventOnce(typeof(E), onEvent);
+    public IDisposable SubscribeEventOnce<TE>(Action<TE> onEvent) where TE: Event => SubscribeEventOnce(typeof(TE), onEvent);
 
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeTopicEventOnce<E>(Type eventType, string topic, Action<E> onEvent) where E: Event
+    public IDisposable SubscribeTopicEventOnce<TE>(Type eventType, string topic, Action<TE> onEvent) where TE: Event
     {
         IDisposable? subscription = null;
 
-        subscription = SubscribeTopicEvent(eventType, topic, (Action<E>)Handler);
+        subscription = SubscribeTopicEvent(eventType, topic, (Action<TE>)Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -175,8 +175,8 @@ public interface IEventDispatcher
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public IDisposable SubscribeTopicEventOnce<E>(string topic, Action<E> onEvent) where E: Event
-        => SubscribeTopicEventOnce(typeof(E), topic, onEvent);
+    public IDisposable SubscribeTopicEventOnce<TE>(string topic, Action<TE> onEvent) where TE: Event
+        => SubscribeTopicEventOnce(typeof(TE), topic, onEvent);
 
     #endregion
 }
@@ -196,7 +196,7 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
     /// <summary>
     /// Dispatch the event
     /// </summary>
-    public void DispatchEvent<E>(E @event) where E : Event
+    public void DispatchEvent<TE>(TE @event) where TE : Event
     {
         string? root = !string.IsNullOrEmpty(@event.Topic) ? @event.Topic.Split('/')[0] : null;
 
@@ -226,16 +226,16 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
     /// <summary>
     /// Subscribe to the application event
     /// </summary>
-    public IDisposable SubscribeEvent<E>(Type eventType, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE : Event
     {
         var subject = GlobalEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
-        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
 
     /// <summary>
     /// Subscribe topic event
     /// </summary>
-    public IDisposable SubscribeTopicEvent<E>(Type eventType, string topic, Action<E> onEvent) where E : Event
+    public IDisposable SubscribeTopicEvent<TE>(Type eventType, string topic, Action<TE> onEvent) where TE : Event
     {
         string? root = !string.IsNullOrEmpty(topic) ? topic.Split('/')[0] : null;
         
@@ -245,7 +245,7 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
         
         var topicSubjects = TopicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
         var subject = topicSubjects.GetOrAdd(root, _ => new Subject<Event>());
-        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((E)e));
+        return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
 
     static readonly ConcurrentDictionary<Type, Subject<Event>> GlobalEventSubjects = new();
@@ -300,7 +300,7 @@ public static class EventExtensions
     /// <summary>
     /// Raise the event
     /// </summary>
-    public static void RaiseEvent<E>(this SchemaContext context, E @event, object? payLoad = null) where E : Event
+    public static void RaiseEvent<TE>(this SchemaContext context, TE @event, object? payLoad = null) where TE : Event
     {
         // Convert the payload to any schema node
         if (payLoad != null)
@@ -332,9 +332,9 @@ public static class EventExtensions
     /// <summary>
     /// Raise the event without constructor parameters
     /// </summary>
-    public static void RaiseEvent<E>(this SchemaContext context, object? payLoad = null) where E : Event, new()
+    public static void RaiseEvent<TE>(this SchemaContext context, object? payLoad = null) where TE : Event, new()
     {
-        RaiseEvent(context, new E(), payLoad);
+        RaiseEvent(context, new TE(), payLoad);
     }
 
     #endregion
@@ -344,19 +344,19 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    public static IDisposable? SubscribeEvent<E>(this SchemaContext context, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEvent<TE>(this SchemaContext context, Action<TE> onEvent) where TE : Event
     {
-        return GetEventDispatcher(context, typeof(E))?.SubscribeEvent(onEvent);
+        return GetEventDispatcher(context, typeof(TE))?.SubscribeEvent(onEvent);
     }
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEvent<TE>(this SchemaContext context, string topic, Action<TE> onEvent) where TE : Event
     {
-        return GetEventDispatcher(context, typeof(E))?.SubscribeTopicEvent(topic, (Action<E>)Handler);
+        return GetEventDispatcher(context, typeof(TE))?.SubscribeTopicEvent(topic, (Action<TE>)Handler);
         
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -373,14 +373,14 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeEventOnce<E>(this SchemaContext context, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEventOnce<TE>(this SchemaContext context, Action<TE> onEvent) where TE : Event
     {
         IDisposable? subscription = null;
 
-        subscription = SubscribeEvent<E>(context, Handler);
+        subscription = SubscribeEvent<TE>(context, Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -399,13 +399,13 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEventOnce<TE>(this SchemaContext context, string topic, Action<TE> onEvent) where TE : Event
     {
         IDisposable? subscription = null;
-        subscription = GetEventDispatcher(context, typeof(E))?.SubscribeTopicEvent(topic, (Action<E>)Handler);
+        subscription = GetEventDispatcher(context, typeof(TE))?.SubscribeTopicEvent(topic, (Action<TE>)Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -429,7 +429,7 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    public static IDisposable? SubscribeEvent<E>(this SchemaContext context, EventType eventType, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEvent<TE>(this SchemaContext context, EventType eventType, Action<TE> onEvent) where TE : Event
     {
         Type type = eventType.ToCSharpType();
         return GetEventDispatcher(context, type)?.SubscribeEvent(type, onEvent);
@@ -438,12 +438,12 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    public static IDisposable? SubscribeTopicEvent<E>(this SchemaContext context, EventType eventType, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEvent<TE>(this SchemaContext context, EventType eventType, string topic, Action<TE> onEvent) where TE : Event
     {
         Type type = eventType.ToCSharpType();
-        return GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<E>)Handler);
+        return GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<TE>)Handler);
         
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -460,13 +460,13 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeEventOnce<E>(this SchemaContext context, EventType eventType, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeEventOnce<TE>(this SchemaContext context, EventType eventType, Action<TE> onEvent) where TE : Event
     {
         IDisposable? subscription = null;
-        subscription = SubscribeEvent<E>(context, eventType, Handler);
+        subscription = SubscribeEvent<TE>(context, eventType, Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {
@@ -486,15 +486,15 @@ public static class EventExtensions
     /// <summary>
     /// Subscribe an event once
     /// </summary>
-    public static IDisposable? SubscribeTopicEventOnce<E>(this SchemaContext context, EventType eventType, string topic, Action<E> onEvent) where E : Event
+    public static IDisposable? SubscribeTopicEventOnce<TE>(this SchemaContext context, EventType eventType, string topic, Action<TE> onEvent) where TE : Event
     {
         Type type = eventType.ToCSharpType();
         
         IDisposable? subscription = null;
-        subscription = GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<E>)Handler);
+        subscription = GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<TE>)Handler);
         return subscription;
 
-        void Handler(E @event)
+        void Handler(TE @event)
         {
             try
             {

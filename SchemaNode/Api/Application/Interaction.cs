@@ -24,7 +24,7 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
         Logger.LogDebug("[Api]Interaction [Request]{request}", request);
 
         // Done
-        return new InteractionResponse { Result = await SchemaContext.Interaction(request) };
+        return new InteractionResponse { WorkflowId = await SchemaContext.Interaction(request) };
     }
 }
 
@@ -33,13 +33,11 @@ public static class InteractionExtensions
     /// <summary>
     /// Process the interaction request
     /// </summary>
-    public static async Task<bool> Interaction(this SchemaContext context, InteractionRequest request)
+    public static async Task<Guid?> Interaction(this SchemaContext context, InteractionRequest request)
     {
         // Indicate the workflow node
         AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
-        AppWorkflowType workflowType = app.Workflows?
-            .FirstOrDefault(w => w.Name.Equals(request.Workflow, StringComparison.InvariantCultureIgnoreCase))
-            ?? throw new Exception(WORKFLOW_NOT_FOUND);
+        AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
         
         // authorize
@@ -56,7 +54,7 @@ public static class InteractionExtensions
                                  ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
         payload[nameof(InteractionPayload.App)] = request.App;
         payload[nameof(InteractionPayload.Target)] = request.Target;
-        payload["Data"] = request.Data; // placeholder for Data
+        payload[nameof(InteractionRequest.Data)] = request.Data; // placeholder for Data
         
         // Start a new workflow
         if (request.WorkflowId == null)
@@ -65,22 +63,19 @@ public static class InteractionExtensions
                 throw new Exception(WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
-            workflowType.RootWorkflowContext.Done(node.Name, payload);
+            return workflowType.RootWorkflowContext.Done(node.Name, payload)?.Id;
         }
         
         // Continue an existing workflow
-        else
-        {
-            WorkflowContext workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId.Value)
-                ?? throw new Exception(WORKFLOW_NOT_FOUND);
-            
-            // Check if still working
-            WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
-            if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
-            workContext.Done(node.Name, payload);
-        }
+        WorkflowContext workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId.Value)
+            ?? throw new Exception(WORKFLOW_NOT_FOUND);
+        
+        // Check if still working
+        WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
+        if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
+        workContext.Done(node.Name, payload);
 
-        return true;
+        return null;
     }
 }
 
@@ -129,7 +124,7 @@ public class InteractionRequest : SchemaApiRequest
 public class InteractionResponse : SchemaApiResponse
 {
     /// <summary>
-    /// The result
+    /// The workflow id
     /// </summary>
-    public bool Result { get; set; }
+    public Guid? WorkflowId { get; set; }
 }
