@@ -75,6 +75,8 @@ public static class Injection
         
         // Register system.context
         NodeSchema contextSchema = NewSystemStruct(NS_SYSTEM_CONTEXT, []);
+        services.AddScoped<Access>();
+        services.AddScoped<AccessContextItemProvider>();
 
         // context item scan
         foreach(ServiceDescriptor desc in services)

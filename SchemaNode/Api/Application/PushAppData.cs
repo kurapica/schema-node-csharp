@@ -8,6 +8,7 @@ using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -51,6 +52,9 @@ public static class PushDataExtenstion
         AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, Constant.APP_NOT_FOUND);
         
+        // set access
+        context.SetAccess(appNode.Name, target);
+        
         // authorize
         await context.AuthorizeAsync(appNode, PolicyScope.DataWrite);
 
@@ -59,6 +63,9 @@ public static class PushDataExtenstion
         {
             AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
+            
+            // set access
+            context.SetAccess(appNode.Name, target, appField.Name);
             
             // authorize
             await context.AuthorizeAsync(appField, PolicyScope.DataWrite);

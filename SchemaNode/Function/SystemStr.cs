@@ -55,6 +55,7 @@ public static class SystemStr
     public static List<Entry> toentrys(ArrayTypeNode array, string valueField, string labelField) => array
         .OfType<StructTypeNode>()
         .Select(node => toentry(node, valueField, labelField))
+        .DistinctBy(p => p.Value)
         .ToList();
     
     [Schema]

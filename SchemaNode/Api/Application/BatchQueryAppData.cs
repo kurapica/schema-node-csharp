@@ -61,6 +61,9 @@ public static class BatchQueryExtension
             if (string.IsNullOrWhiteSpace(query.Target)) continue;
             AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
+            
+            // set access
+            context.SetAccess(node.Name, query.Target);
 
             // authorize
             await context.AuthorizeAsync(node, PolicyScope.SchemaRead);
@@ -93,6 +96,9 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldType field in fields)
                 {
+                    // set access
+                    context.SetAccess(node.Name, query.Target, field.Name);
+
                     // authorize field
                     if (!await context.AuthorizeAsync(field, PolicyScope.DataRead, true)) continue;
                     

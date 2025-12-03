@@ -40,6 +40,9 @@ public static class InteractionExtensions
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
         
+        // set access
+        context.SetAccess(app.Name, request.Target);
+        
         // authorize
         await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
         

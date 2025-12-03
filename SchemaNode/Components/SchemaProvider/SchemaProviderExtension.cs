@@ -197,13 +197,14 @@ public static class SchemaProviderExtension
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
+    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string[]? generic = null)
+    public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string[]? generic = null, string? target = null)
     {
         if (node.IsRemoteCall)
         {
             return node.SchemaProvider != null
-                ? await ((ISchemaProvider)context.GetRequiredService(node.SchemaProvider)).CallFunctionAsync(node.Name, args, generic)
+                ? await ((ISchemaProvider)context.GetRequiredService(node.SchemaProvider)).CallFunctionAsync(node.Name, args, generic, target)
                 : null;
         }
 
@@ -265,6 +266,10 @@ public static class SchemaProviderExtension
         {
             callArgs = callArgs.Prepend(context).ToArray();
         }
+
+        // only provided when call from web api
+        if (!string.IsNullOrWhiteSpace(target))
+            context.SetAccess(null, target);
 
         // Call the method
         object? result;
@@ -330,12 +335,13 @@ public static class SchemaProviderExtension
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="generic">The generic types</param>
+    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null)
+    public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null, string? target = null)
     {
         AnySchemeType? node = await context.GetSchemaTypeAsync(name);
         if (node is not FunctionType funcNode) throw new Exception($"Function {name} not found");
-        return await CallFunctionAsync(context, funcNode, args, generic);
+        return await CallFunctionAsync(context, funcNode, args, generic, target);
     }
 
     /// <summary>
@@ -346,6 +352,10 @@ public static class SchemaProviderExtension
         // Argument validation
         SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
                                   throw new Exception($"Function {node.Name} can't be complied");
+
+        // only provided when call from web api
+        if (!string.IsNullOrWhiteSpace(target))
+            context.SetAccess(null, target);
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -387,9 +397,7 @@ public static class SchemaProviderExtension
         }
 
         if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
-        {
             callArgs = callArgs.Prepend(context).ToArray();
-        }
 
         // Gets the return type
         AnySchemeType? retType;

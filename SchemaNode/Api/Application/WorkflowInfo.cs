@@ -43,6 +43,9 @@ public static class WorkflowInfoExtensions
         AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
         if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
         
+        // set access
+        context.SetAccess(app.Name);
+        
         // authorize
         await context.AuthorizeAsync(workflowType, PolicyScope.DataRead);
         
