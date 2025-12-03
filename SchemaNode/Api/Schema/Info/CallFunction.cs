@@ -22,7 +22,11 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
 
         AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
         if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
-        
+
+        // set target
+        if (!string.IsNullOrWhiteSpace(request.Target))
+            SchemaContext.SetAccess(null, request.Target);
+
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
         

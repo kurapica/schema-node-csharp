@@ -56,6 +56,32 @@ public static class SchemaContextItemExtension
     }
 
     /// <summary>
+    /// Gets the schema context item by type
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    public static T? GetSchemaContextItem<T>(this SchemaContext context)
+    {
+        if (!typeFieldMap.TryGetValue(typeof(T), out string? field)) return null;
+        if (!ItemProvider.TryGetValue(field, out (string schemaType, Type providerType) set)) return null;
+
+        // Check context item first
+        if (context.TryGetContextItem(set.providerType, out object? setItem))
+        {
+            return setItem is AnySchemaNode n
+                ? n.ToValue<T>()
+                : setItem as T;
+        }
+
+        // Gets the item provider
+        if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } provider
+            && provider.TryGetItem(out object? item))
+            return item as T;
+        return default;
+    }
+
+    /// <summary>
     /// Copys the schema context item from source to target
     /// </summary>
     public static void CopySchemaContextItem(this SchemaContext context, SchemaContext source)
@@ -67,9 +93,16 @@ public static class SchemaContextItemExtension
             context.SetContextItem(providerType, node);
         }
     }
-    
+
+    internal static void BindSchemaContextItemProvider(string field, string schemaType, Type providerType, Type itemType)
+    {
+        ItemProvider[field] = (schemaType, providerType);
+        typeFieldMap[itemType] = field;
+    }
+
     /// <summary>
     /// The context item providers
     /// </summary>
-    internal static readonly ConcurrentDictionary<string, (string schemaType, Type providerType)> ItemProvider = new();
+    static readonly ConcurrentDictionary<string, (string schemaType, Type providerType)> ItemProvider = new();
+    static readonly ConcurrentDictionary<Type, string> typeFieldMap = new();
 }

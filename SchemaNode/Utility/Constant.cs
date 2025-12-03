@@ -75,7 +75,8 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
     public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
-    
+    public const string NS_SYSTEM_SCHEMA_APP_TARGET = "system.schema.apptarget";
+
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";

@@ -81,12 +81,12 @@ public static class Injection
         // context item scan
         foreach(ServiceDescriptor desc in services)
         {
-            Type serviceType = desc.ServiceType;
-            if (serviceType.GetInterfaces().FirstOrDefault(i 
+            Type providerType = desc.ServiceType;
+            if (providerType.GetInterfaces().FirstOrDefault(i 
                     => i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>))) is { } @interface)
             {
                 Type itemType = @interface.GetGenericArguments()[0];
-                string? schemaType = itemType.GetSchemaType(true, serviceType.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                string? schemaType = itemType.GetSchemaType(true, providerType.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 if (string.IsNullOrEmpty(schemaType)) continue;
 
                 // use the last part as field name
@@ -97,7 +97,9 @@ public static class Injection
                     Type = schemaType,
                     Display = $"{{@{schemaType}}}",
                 }).ToArray();
-                SchemaContextItemExtension.ItemProvider[field] = (schemaType, serviceType);
+
+                // record the binding
+                SchemaContextItemExtension.BindSchemaContextItemProvider(field, schemaType, providerType, itemType);
             }
         }
         

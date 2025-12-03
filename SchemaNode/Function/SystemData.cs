@@ -24,10 +24,8 @@ public static class SystemData
     /// </summary>
     [Schema]
     [NoCache]
-    public static AnySchemaNode? getcontextitem(SchemaContext context, string item)
-    {
-        return context.GetSchemaContextItem(item);
-    }
+    public static AnySchemaNode? getcontextitem(SchemaContext context, string item) 
+        => context.GetSchemaContextItem(item);
 
     #endregion
     
@@ -41,13 +39,15 @@ public static class SystemData
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         string field,
-        string? target)
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string ? target)
     {
-        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
 
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType is not { EnableDynamicTable: true } || !fieldType.Single) return null;
 
@@ -64,14 +64,17 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         string field,
         T1 key,
-        string? target
-        )
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
     {
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
+
         JsonValue? jsonKey = JsonValue.Create(key);
         if (jsonKey == null || jsonKey.IsEmpty()) return null;
         
-        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
-
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;
@@ -96,16 +99,19 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         string field,
         T1 key1, T2 key2,
-        string? target
-    )
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
     {
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
+
         JsonValue? jsonKey1 = JsonValue.Create(key1);
         JsonValue? jsonKey2 = JsonValue.Create(key2);
         if (jsonKey1 == null || jsonKey1.IsEmpty()) return null;
         if (jsonKey2 == null || jsonKey2.IsEmpty()) return null;
         
-        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
-
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;
@@ -131,9 +137,14 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         string field,
         T1 key1, T2 key2, T3 key3,
-        string? target
-    )
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
     {
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
+
         JsonValue? jsonKey1 = JsonValue.Create(key1);
         JsonValue? jsonKey2 = JsonValue.Create(key2);
         JsonValue? jsonKey3 = JsonValue.Create(key3);
@@ -141,8 +152,6 @@ public static class SystemData
         if (jsonKey2 == null || jsonKey2.IsEmpty()) return null;
         if (jsonKey3 == null || jsonKey3.IsEmpty()) return null;
         
-        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
-
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;
@@ -169,9 +178,14 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         string field,
         T1 key1, T2 key2, T3 key3, T4 key4,
-        string? target
-    )
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
     {
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
+
         JsonValue? jsonKey1 = JsonValue.Create(key1);
         JsonValue? jsonKey2 = JsonValue.Create(key2);
         JsonValue? jsonKey3 = JsonValue.Create(key3);
@@ -181,8 +195,6 @@ public static class SystemData
         if (jsonKey3 == null || jsonKey3.IsEmpty()) return null;
         if (jsonKey4 == null || jsonKey4.IsEmpty()) return null;
         
-        target = string.IsNullOrEmpty(target) ? Guid.Empty.ToString() : target;
-
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;

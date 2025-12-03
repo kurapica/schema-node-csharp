@@ -267,10 +267,6 @@ public static class SchemaProviderExtension
             callArgs = callArgs.Prepend(context).ToArray();
         }
 
-        // only provided when call from web api
-        if (!string.IsNullOrWhiteSpace(target))
-            context.SetAccess(null, target);
-
         // Call the method
         object? result;
         if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
@@ -352,10 +348,6 @@ public static class SchemaProviderExtension
         // Argument validation
         SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
                                   throw new Exception($"Function {node.Name} can't be complied");
-
-        // only provided when call from web api
-        if (!string.IsNullOrWhiteSpace(target))
-            context.SetAccess(null, target);
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];

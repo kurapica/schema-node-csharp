@@ -1018,7 +1018,7 @@ public static class Schema
                 Error = enableError ? $"{name}.error" : null,
                 Regex = regex,
                 UpLimit = upLimit,
-                LowLimit = lowLimit
+                LowLimit = lowLimit,
             },
         };
     }
@@ -1137,6 +1137,7 @@ public static class Schema
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_SCHEMA_VAR_NAME),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_TARGET, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
             ]),
             #endregion
 
