@@ -1,4 +1,4 @@
-using SchemaNode.Components.Context;
+using SchemaNode.Components;
 
 namespace SchemaNode.Example.Components;
 
