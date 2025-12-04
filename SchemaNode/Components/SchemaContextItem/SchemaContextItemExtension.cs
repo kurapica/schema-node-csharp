@@ -61,9 +61,9 @@ public static class SchemaContextItemExtension
     /// <typeparam name="T"></typeparam>
     /// <param name="context"></param>
     /// <returns></returns>
-    public static T? GetSchemaContextItem<T>(this SchemaContext context)
+    public static T? GetSchemaContextItem<T>(this SchemaContext context) where T : class
     {
-        if (!typeFieldMap.TryGetValue(typeof(T), out string? field)) return null;
+        if (!TypeFieldMap.TryGetValue(typeof(T), out string? field)) return null;
         if (!ItemProvider.TryGetValue(field, out (string schemaType, Type providerType) set)) return null;
 
         // Check context item first
@@ -78,7 +78,7 @@ public static class SchemaContextItemExtension
         if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } provider
             && provider.TryGetItem(out object? item))
             return item as T;
-        return default;
+        return null;
     }
 
     /// <summary>
@@ -97,12 +97,12 @@ public static class SchemaContextItemExtension
     internal static void BindSchemaContextItemProvider(string field, string schemaType, Type providerType, Type itemType)
     {
         ItemProvider[field] = (schemaType, providerType);
-        typeFieldMap[itemType] = field;
+        TypeFieldMap[itemType] = field;
     }
 
     /// <summary>
     /// The context item providers
     /// </summary>
     static readonly ConcurrentDictionary<string, (string schemaType, Type providerType)> ItemProvider = new();
-    static readonly ConcurrentDictionary<Type, string> typeFieldMap = new();
+    static readonly ConcurrentDictionary<Type, string> TypeFieldMap = new();
 }

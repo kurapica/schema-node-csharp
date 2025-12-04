@@ -916,6 +916,17 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
+    public async Task DropDynamicTableAsync(string dynamicTableName)
+    {
+        string tableName = sqlProvider.QuoteTable(dynamicTableName);
+        await EnsureOpenConnectionAsync();
+        DbCommand command = GetDbCommand();
+        command.CommandText = $"DROP TABLE IF EXISTS {tableName};";
+        Logger.LogDebug(command.CommandText);
+        await command.ExecuteNonQueryAsync();
+    }
+    
+    /// <inheritdoc />
     public async Task BeginTransactionAsync()
     {
         if (_transaction != null)

@@ -323,13 +323,12 @@ public class EnumType: AnySchemeType
                 Type = valueType,
                 Values = type.GetFields(BindingFlags.Public | BindingFlags.Static).Select(f =>
                 {
-                    string name = f.Name.ToLower();
                     return new EnumValueInfo
                     {
-                        Name = type.GetSummaryFromXmlDoc(f) ?? $"{typeName}.{name}",
+                        Name = type.GetSummaryFromXmlDoc(f) ?? $"{typeName}.{f.Name.ToLower()}",
                         Value = valueType switch
                         {
-                            EnumValueType.String => (f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? name).ToLower(),
+                            EnumValueType.String => (f.GetCustomAttribute<EnumMemberAttribute>()?.Value ?? f.Name).ToCamelCase(),
                             _ => $"{f.GetValue(null)}"
                         },
                         HasSubList = false,

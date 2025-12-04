@@ -154,7 +154,7 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static T? getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
+    public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
     {
         return (T?)obj.GetField(field)?.ToTypeValue(typeof(T)) ?? defaultValue;
     }

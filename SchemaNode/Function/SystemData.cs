@@ -215,6 +215,90 @@ public static class SystemData
 
     #endregion
 
+    #region Get Application Data For field
+
+    
+    /// <summary>
+    /// Gets the application data for field if single value
+    /// </summary>
+    [Schema]
+    public static async Task<AnySchemaNode?> getappfdata(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        string dataField,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string ? target)
+    {
+        AnySchemaNode? result = await getappdata(context, app, field, target);
+        return (result as StructTypeNode)?.GetField(dataField);
+    }
+    
+    /// <summary>
+    /// Gets the application data by one key
+    /// </summary>
+    [Schema]
+    public static async Task<AnySchemaNode?> getappfdatabyonekey<T1>(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        string dataField,
+        T1 key,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+    {
+        AnySchemaNode? result = await getappdatabyonekey(context, app, field, key, target);
+        return (result as StructTypeNode)?.GetField(dataField);
+    }
+
+    /// <summary>
+    /// Gets the application data by one key
+    /// </summary>
+    [Schema]
+    public static async Task<AnySchemaNode?> getappfdatabytwokey<T1, T2>(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        string dataField,
+        T1 key1, T2 key2,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+    {
+        AnySchemaNode? result = await getappdatabytwokey(context, app, field, key1, key2, target);
+        return (result as StructTypeNode)?.GetField(dataField);
+    }
+
+    /// <summary>
+    /// Gets the application data by one key
+    /// </summary>
+    [Schema]
+    public static async Task<AnySchemaNode?> getappfdatabythreekey<T1, T2, T3>(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        string dataField,
+        T1 key1, T2 key2, T3 key3,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+    {
+        AnySchemaNode? result = await getappdatabythreekey(context, app, field, key1, key2, key3, target);
+        return (result as StructTypeNode)?.GetField(dataField);
+    }
+
+    /// <summary>
+    /// Gets the application data by one key
+    /// </summary>
+    [Schema]
+    public static async Task<AnySchemaNode?> getappfdatabyfourkey<T1, T2, T3, T4>(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        string dataField,
+        T1 key1, T2 key2, T3 key3, T4 key4,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+    {
+        AnySchemaNode? result = await getappdatabyfourkey(context, app, field, key1, key2, key3, key4, target);
+        return (result as StructTypeNode)?.GetField(dataField);
+    }
+
+    #endregion
+    
     #region Write App Data
 
     /// <summary>

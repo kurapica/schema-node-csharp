@@ -38,6 +38,11 @@ public interface IAppDataProvider
     Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null);
     
     /// <summary>
+    /// Drop the dynamic table
+    /// </summary>
+    Task DropDynamicTableAsync(string dynamicTableName);
+    
+    /// <summary>
     /// Begin a transaction
     /// </summary>
     Task BeginTransactionAsync();

@@ -8,7 +8,7 @@ namespace SchemaNode.Components;
 /// </summary>
 public class AccessContextItemProvider(Access access): ISchemaContextItemProvider<Access>
 {
-    public bool HasItem => !string.IsNullOrEmpty(access.App);
+    public bool HasItem => true;
     public Access GetItem() => access;
 }
 

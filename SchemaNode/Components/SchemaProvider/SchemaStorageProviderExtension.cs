@@ -52,7 +52,7 @@ public static class SchemaStorageProviderExtension
         }
         await context.GetSchemaTypeAsync(schema.Name, reload: true); // force reload
 
-        // cluster event
+        // event
         context.RaiseEvent<SchemaChangeEvent>(schema.Name);
         return true;
     }
@@ -81,7 +81,7 @@ public static class SchemaStorageProviderExtension
         // runtime remove
         context.RemoveSchemaType(name);
 
-        // cluster event
+        // event
         context.RaiseEvent<SchemaDeleteEvent>(name);
         return true;
     }
@@ -110,7 +110,7 @@ public static class SchemaStorageProviderExtension
         // save the sub list
         @enum.SaveEnumSubListAsync(value, await provider.SaveEnumSubListAsync(@enum, value, values, append));
 
-        // cluster event
+        // event
         context.RaiseEvent<SchemaChangeEvent>(node.Name);
         return true;
     }
@@ -163,7 +163,7 @@ public static class SchemaStorageProviderExtension
         }
         await context.GetAppTypeAsync(app.Name, reload: true); // force reload
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app.Name);
         return true;
     }
@@ -188,7 +188,7 @@ public static class SchemaStorageProviderExtension
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
         context.RemoveAppType(app);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaDeleteEvent>(app);
         return true;
     }
@@ -213,7 +213,7 @@ public static class SchemaStorageProviderExtension
 
         await context.GetAppTypeAsync(app, reload: true);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
@@ -224,10 +224,11 @@ public static class SchemaStorageProviderExtension
     public static async Task<bool> DeleteAppFieldSchemaAsync(this SchemaContext context, string app, string field)
     {
         AppType? node = await context.GetAppTypeAsync(app);
-        if (node == null) return false;
+        var appField = node?.GetField(field);
+        if (appField == null) return false;
 
         // authorize
-        await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+        await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate);
 
         // Gets the storage provider
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
@@ -238,8 +239,16 @@ public static class SchemaStorageProviderExtension
 
         await context.GetAppTypeAsync(app, reload: true);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app);
+        
+        // try drop the app field table
+        if (appField.EnableDynamicTable)
+        {
+            var dataProvider = context.GetService<IAppDataProvider>();
+            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.DynamicTableName);
+        }
+
         return true;
     }
 
@@ -268,7 +277,7 @@ public static class SchemaStorageProviderExtension
 
         await context.GetAppTypeAsync(app, reload: true);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
@@ -295,7 +304,7 @@ public static class SchemaStorageProviderExtension
 
         await context.GetAppTypeAsync(app, reload: true);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }
@@ -320,7 +329,7 @@ public static class SchemaStorageProviderExtension
 
         await context.GetAppTypeAsync(app, reload: true);
 
-        // cluster event
+        // event
         context.RaiseEvent<AppSchemaChangeEvent>(app);
         return true;
     }

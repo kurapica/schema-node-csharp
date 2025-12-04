@@ -290,7 +290,7 @@ public class DynamicTableSchema
                 JsonArray args = new();
                 foreach (var arg in relation.Args)
                 {
-                    args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value);
+                    args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
                 }
                 JsonNode? result = await context.CallFunctionAsync(relation.Func, args);
                 if (!result.IsEmpty()) pack[field.Name] = result;

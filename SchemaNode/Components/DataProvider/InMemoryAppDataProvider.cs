@@ -270,6 +270,12 @@ public class InMemoryAppDataProvider: IAppDataProvider
             return (true, schema.SchemaType.CreateNode(origin));
         }
     }
+    
+    public async Task DropDynamicTableAsync(string dynamicTableName)
+    {
+        await Task.Yield();
+        _dynamicTables.TryRemove(dynamicTableName, out _);
+    }
 
     public Task BeginTransactionAsync()
     {
