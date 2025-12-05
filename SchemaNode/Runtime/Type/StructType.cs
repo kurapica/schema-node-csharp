@@ -235,6 +235,12 @@ public class StructType: AnySchemeType
     {
         return GetStructFieldCSharpProperties(Name, primary);
     }
+    
+    /// <summary>
+    /// Gets the field by name
+    /// </summary>
+    public StructFieldConfig? GetField(string fieldName) 
+        => Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
 
     #endregion
 

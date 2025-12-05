@@ -31,18 +31,18 @@ public class DefaultSqlProvider: ISqlProvider
         };
     }
 
-    public string Binary(BinaryExpType type, string left, string right)
+    public string Binary(BinaryAccessExpType type, string left, string right)
     {
         var op = type switch
         {
-            BinaryExpType.Equal => "=",
-            BinaryExpType.NotEqual => "<>",
-            BinaryExpType.GreaterThan => ">",
-            BinaryExpType.GreaterEqual => ">=",
-            BinaryExpType.LessThan => "<",
-            BinaryExpType.LessEqual => "<=",
-            BinaryExpType.AndAlso => "AND",
-            BinaryExpType.OrElse => "OR",
+            BinaryAccessExpType.Equal => "=",
+            BinaryAccessExpType.NotEqual => "<>",
+            BinaryAccessExpType.GreaterThan => ">",
+            BinaryAccessExpType.GreaterEqual => ">=",
+            BinaryAccessExpType.LessThan => "<",
+            BinaryAccessExpType.LessEqual => "<=",
+            BinaryAccessExpType.AndAlso => "AND",
+            BinaryAccessExpType.OrElse => "OR",
             _ => throw new NotSupportedException($"Unsupported BinaryExpType: {type}")
         };
 

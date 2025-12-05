@@ -15,13 +15,38 @@ namespace SchemaNode.Function;
 [Schema(NS_SYSTEM_LOGIC)]
 public static class SystemLogic
 {
+    #region Terminator Functions
+    
     /// <summary>
     /// system.logic.ifret
     /// if match the condition, return the value and stop the execution
     /// </summary>
     [Schema]
-    public static T? ifret<T>(bool cond, T? value) => cond ? value : default;
+    public static T? ifret<T>(bool cond, T? value) => value;
     
+    /// <summary>
+    /// system.logic.ifnot
+    /// if not match the condition, return the value and stop the execution
+    /// </summary>
+    [Schema]
+    public static T? ifnot<T>(bool cond, T? value) => value;
+    
+    /// <summary>
+    /// system.logic.ifnull
+    /// if the value is null, return the value and stop the execution
+    /// </summary>
+    [Schema]
+    public static T2? ifnull<T1, T2>(T1? val, T2? value) => value;
+    
+    /// <summary>
+    /// system.logic.ifempty
+    /// if the value is empty, return the value and stop the execution
+    /// </summary>
+    [Schema]
+    public static T2? ifempty<T1, T2>(T1? val, T2? value) => value;
+    
+    #endregion
+
     /// <summary>
     /// system.logic.andalso
     /// </summary>
@@ -78,7 +103,7 @@ public static class SystemLogic
     /// system.logic.isempty
     /// </summary>
     [Schema]
-    public static bool isempty<T>(T? a)
+    public static bool isempty(object? a)
     {
         if (a is null) return true;
         switch (a)

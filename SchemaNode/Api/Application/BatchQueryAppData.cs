@@ -53,6 +53,7 @@ public static class BatchQueryExtension
             Schemas = []
         };
         RootEnumValueInfo.Value = new EnumValueInfo();
+        
         foreach (AppDataQuery query in queries)
         {
             cancellationToken?.ThrowIfCancellationRequested();
@@ -119,7 +120,7 @@ public static class BatchQueryExtension
                     }
                     
                     // row access check
-                    ExpNode? rowFilter = null;
+                    AccessExpNode? rowFilter = null;
                     if (field.SchemaType is ArrayType { ElementSchemaType: StructType structType })
                     {
                         PolicyItem[] rowAccess = field.GetAuthPolicies(field.Name, PolicyScope.RowAccess).ToArray();
@@ -255,8 +256,10 @@ public static class BatchQueryExtension
             };
             results.Add(appResult);
 
+            // raise event
+            context.RaiseEvent(new AppDataReadEvent(node.Name, query.Target));
         }
-                
+        
         return (results.ToArray(), root.Schemas);
     }
 

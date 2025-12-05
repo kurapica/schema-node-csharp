@@ -6,6 +6,8 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
+using System.Transactions;
+using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -250,69 +252,242 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public async Task GenerateDisplayOnlyFields(SchemaContext context, AnySchemaNode? pack)
+    public Task GenerateDisplayOnlyFields(SchemaContext context, AnySchemaNode? pack)
     {
         // Generate the display only fields
-        if (SchemaType is StructType @struct)
-        {
-            if (pack is StructTypeNode obj)
-                await GenerateDisplayOnlyStructFields(context, @struct, obj);
-            else if (pack is ArrayTypeNode arr)
-            {
-                foreach (AnySchemaNode item in arr)
-                {
-                    if (item is StructTypeNode aObj)
-                        await GenerateDisplayOnlyStructFields(context, @struct, aObj);
-                }
-            }
-        }
+        return SchemaType is StructType @struct 
+            ? GenerateDisplayOnlyFields(context, @struct, pack)
+            : Task.CompletedTask;
     }
 
     #region Utility
 
-    StructTypeNode? ToStructTypeNode(JsonObject? obj)
+    private static readonly string[] JoinFuncs =
+    [
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}",
+    ];
+
+    private StructTypeNode? ToStructTypeNode(JsonObject? obj)
     {
         if (obj == null || obj.IsEmpty()) return null;
         return (SchemaType is ArrayType array ? array.ElementSchemaType : SchemaType)?.CreateNode(obj) as StructTypeNode;
     }
 
     // Generate the display only fields
-    static async Task GenerateDisplayOnlyStructFields(SchemaContext context, StructType node, StructTypeNode pack)
+    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
     {
-        if (node.Fields.Length == 0) return;
-        foreach (var field in node.Fields)
+        if (type.Fields.Length == 0) return;
+        switch (node)
         {
-            if (field.DisplayOnly ?? false)
+            case ArrayTypeNode array:
             {
-                var relation = node.Relations?.FirstOrDefault(f => f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && f.Type == RelationType.Default);
-                if (relation == null) continue;
+                // batch process for join functions
+                if (type.Relations != null)
+                {
+                    foreach (StructFieldRelation relation in (type.Relations.Where(r =>
+                                 r.Type == RelationType.Default && JoinFuncs.Contains(r.Func) &&
+                                 type.GetField(r.Field) != null && (type.GetField(r.Field)?.DisplayOnly ?? false))))
+                    {
+                        // app
+                        string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(app)) continue; // no app
+                        AppType? appType = await context.GetAppTypeAsync(app);
+                        if (appType == null) continue; // app not exist
 
-                JsonArray args = new();
-                foreach (var arg in relation.Args)
-                {
-                    args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
+                        // app field
+                        string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(field)) continue; // no app field
+                        AppFieldType? appField = appType.GetField(field);
+                        if (appField == null) continue; // app field not exist
+
+                        // primary & struct
+                        string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
+                        StructType? structType =
+                            (appField.SchemaType is ArrayType arr
+                                ? arr.ElementSchemaType
+                                : appField.SchemaType) as StructType;
+                        if (structType == null || structType.Fields.Length == 0) continue;
+                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not match
+
+                        // data field
+                        string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
+                        StructFieldConfig? dataFieldType = structType.GetField(dataField);
+                        if (dataFieldType == null) continue; // data field not exist
+
+                        // target
+                        var targetArg = relation.Args.Last();
+                        string? target = targetArg.Value?.ToValue<string>() ??
+                                         context.GetSchemaContextItem<Access>()?.Target;
+                        if (string.IsNullOrWhiteSpace(target)) continue; // no app target
+
+                        // collect keys
+                        Dictionary<string, List<AnySchemaNode>> keyMap = new();
+                        JsonArray queries = [];
+                        if (primary.Length > 0)
+                        {
+                            foreach (AnySchemaNode row in array)
+                            {
+                                if (row is not StructTypeNode pack) continue;
+
+                                // build primary key
+                                List<string> keys = [];
+                                JsonObject query = [];
+                                for (int i = 3; i < relation.Args.Length - 1; i++)
+                                {
+                                    string? key = !string.IsNullOrEmpty(relation.Args[i].Name)
+                                        ? pack.GetValueByPaths(relation.Args[i].Name!)?.ToString()
+                                        : relation.Args[i].Value?.ToValue<string>();
+                                    
+                                    if (string.IsNullOrEmpty(key))
+                                    {
+                                        keys.Clear();
+                                        break;
+                                    }
+                                    query[primary[i - 3]] = key;
+                                    keys.Add(key);
+                                }
+                                
+                                if (keys.Count == 0) continue; // no valid primary key
+                                string pkey = string.Join(":", keys);
+
+                                // add to map
+                                if (!keyMap.ContainsKey(pkey))
+                                {
+                                    keyMap[pkey] = [];
+                                    queries.Add(query);
+                                }
+
+                                keyMap[pkey].Add(pack);
+                            }
+                        }
+
+                        // query the dynamic data
+                        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(appField, target, queries);
+
+                        // set the display only field value
+                        switch (primary.Length)
+                        {
+                            case > 0 when value is ArrayTypeNode resultArray:
+                            {
+                                foreach (AnySchemaNode resultRow in resultArray)
+                                {
+                                    if (resultRow is not StructTypeNode resultStruct) continue;
+
+                                    // build primary key
+                                    List<string> keys = [];
+                                    foreach (string path in primary)
+                                    {
+                                        AnySchemaNode? n = resultStruct.GetValueByPaths(path);
+                                        if (n == null || n.IsEmpty)
+                                        {
+                                            keys.Clear();
+                                            break;
+                                        }
+
+                                        keys.Add(n.ToString());
+                                    }
+
+                                    if (keys.Count == 0) continue; // no valid primary key
+                                    string pkey = string.Join(":", keys);
+
+                                    // get data node
+                                    AnySchemaNode? dataNode = resultStruct.GetValueByPaths(dataField);
+                                    if (dataNode == null || dataNode.IsEmpty) continue;
+
+                                    // set value
+                                    if (!keyMap.TryGetValue(pkey, out List<AnySchemaNode>? packs)) continue;
+                                    foreach (AnySchemaNode row in packs)
+                                    {
+                                        if (row is not StructTypeNode pack) continue;
+                                        AnySchemaNode? fld = pack.GetField(relation.Field);
+                                        if (fld is not { IsEmpty: true }) continue;
+
+                                        // set value
+                                        fld.Value = dataNode;
+                                    }
+                                }
+
+                                break;
+                            }
+                            case 0 when value is StructTypeNode resultStruct:
+                            {
+                                // single key
+                                AnySchemaNode? dataNode = resultStruct.GetValueByPaths(dataField);
+                                if (dataNode == null || dataNode.IsEmpty) continue;
+
+                                foreach (AnySchemaNode row in array)
+                                {
+                                    if (row is not StructTypeNode pack) continue;
+                                    AnySchemaNode? fld = pack.GetField(relation.Field);
+                                    if (fld is not { IsEmpty: true }) continue;
+
+                                    // set value
+                                    fld.Value = dataNode;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
                 }
-                JsonNode? result = await context.CallFunctionAsync(relation.Func, args);
-                if (!result.IsEmpty()) pack[field.Name] = result;
+                
+                // generate for each row
+                foreach (AnySchemaNode row in array)
+                    await GenerateDisplayOnlyFields(context, type, row, true);
+                break;
             }
-            else if (field.TypeNode is StructType @struct && pack.GetField(field.Name) is StructTypeNode spack)
+            case StructTypeNode pack:
             {
-                await GenerateDisplayOnlyStructFields(context, @struct, spack);
-            }
-            else if (field.TypeNode is ArrayType { ElementSchemaType: StructType arrayStruct } && pack.GetField(field.Name) is ArrayTypeNode { Count: > 0 } arrayPack)
-            {
-                foreach (var token in arrayPack)
+                foreach (var field in type.Fields)
                 {
-                    if (token is StructTypeNode apack)
-                        await GenerateDisplayOnlyStructFields(context, arrayStruct, apack);
+                    // Gets the field node
+                    AnySchemaNode? fld = pack.GetField(field.Name);
+                    if (fld == null) continue; // impossible
+                    
+                    if (field.DisplayOnly ?? false)
+                    {
+                        if (!fld.IsEmpty) continue; // already set value
+                
+                        // default for display only
+                        var relation = type.Relations?.FirstOrDefault(f => f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && f.Type == RelationType.Default);
+                        if (relation == null) continue;
+                        
+                        // handled by array node
+                        if (joinHandled && JoinFuncs.Contains(relation.Func)) continue; 
+
+                        // call function to get value
+                        JsonArray args = [];
+                        foreach (var arg in relation.Args)
+                            args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
+                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, [fld.Type.Name]);
+                        if (!result.IsEmpty()) fld.Value = result;
+                    }
+                    else switch (field.TypeNode)
+                    {
+                        case StructType @struct:
+                            await GenerateDisplayOnlyFields(context, @struct, fld);
+                            break;
+                        case ArrayType { ElementSchemaType: StructType arrayStruct }:
+                            await GenerateDisplayOnlyFields(context, arrayStruct, fld);
+                            break;
+                        // Fill empty field with default value
+                        default:
+                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && !string.IsNullOrWhiteSpace(field.Default))
+                            {
+                                (AnySchemaNode? val, JsonNode? err) = await fld.Type.ValidateValueAsync(context, field.Default);
+                                if (err == null || err.IsEmpty())
+                                    fld.Value = val;
+                            }
+                            break;
+                    }
                 }
-            }
-            // Fill empty field with default value
-            else if (field.TypeNode is ScalarType scalar && !string.IsNullOrWhiteSpace(field.Default) && (pack.GetField(field.Name)?.IsEmpty ?? false))
-            {
-                (AnySchemaNode? val, JsonNode? err) = await scalar.ValidateValueAsync(context, field.Default);
-                if (err == null || err.IsEmpty())
-                    pack[field.Name] = val;
+                
+                break;
             }
         }
     }

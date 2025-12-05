@@ -162,9 +162,6 @@ public static class AppDataQueryExtension
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(context, result);
 
-            // raise event
-            context.RaiseEvent(new AppDataReadEvent(field.App, target));
-
             return (result, total);
         }
         catch (Exception ex)
@@ -177,7 +174,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, string target, ExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -197,9 +194,6 @@ public static class AppDataQueryExtension
 
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(context, result);
-
-            // raise event
-            context.RaiseEvent(new AppDataReadEvent(field.App, target));
 
             return (result, total);
         }

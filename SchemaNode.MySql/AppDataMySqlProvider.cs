@@ -494,7 +494,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, ExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);

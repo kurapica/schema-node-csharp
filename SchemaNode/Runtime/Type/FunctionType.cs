@@ -105,6 +105,11 @@ public class FunctionType: AnySchemeType
     /// </summary>
     public List<FunctionNodeExpTree> ExpTrees { get; private set; } = [];
     
+    /// <summary>
+    /// The access expression node for dynamic table access
+    /// </summary>
+    internal AccessExpNode? AccessExpNode { get; set; }
+    
     #endregion
     
     #region Methods
@@ -238,6 +243,9 @@ public class FunctionType: AnySchemeType
         Args = [];
         Exps = [];
         ExpTrees = [];
+
+        // Clear access node
+        AccessExpNode = null;
 
         // Clear function info to be re-compiled
         ClearFunctionInfo();
@@ -984,8 +992,8 @@ public class FunctionType: AnySchemeType
 
             // Expression Tree -> Function Body
             List<Expression> expBlocks = [];
-            LabelTarget? returnLabel = ExpTrees.Any(e => e is FunctionNodeExpression exp && exp.Func.Equals($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}", StringComparison.OrdinalIgnoreCase))
-                ? Expression.Label(ReturnNode!.ToCSharpType(funcInfo.Return.Nullable)!) : null;
+            LabelTarget? returnLabel = ExpTrees.Any(e => e is FunctionNodeExpression exp && RetFunc.Contains(exp.Func, StringComparer.OrdinalIgnoreCase))
+                ? Expression.Label(ReturnNode!.ToCSharpType(funcInfo.Return.Nullable)) : null;
             
             int expCount = 0;
             foreach (FunctionNodeExpTree exp in ExpTrees)
@@ -1626,6 +1634,27 @@ public class FunctionType: AnySchemeType
                     ),
                     callArgs[1]
                 ),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}" => Expression.Block(
+                    Expression.IfThen(
+                        Expression.Not(callArgs[0]),
+                        Expression.Return(returnLabel!, callArgs[1])
+                    ),
+                    callArgs[1]
+                ),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}" => Expression.Block(
+                    Expression.IfThen(
+                        Expression.Equal(callArgs[0], Expression.Constant(null, callArgs[0].Type)),
+                        Expression.Return(returnLabel!, callArgs[1])
+                    ),
+                    callArgs[1]
+                ),
+                $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}" => Expression.Block(
+                    Expression.IfThen(
+                        Expression.Call(typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty))!, callArgs[0]),
+                        Expression.Return(returnLabel!, callArgs[1])
+                    ),
+                    callArgs[1]
+                ),
                 
                 // default
                 _ => Expression.Call(null, callMethod, callArgs)
@@ -1897,6 +1926,14 @@ public class FunctionType: AnySchemeType
     // staitc mappings
     private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
     private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
+
+    private static readonly string[] RetFunc =
+    [
+        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}",
+        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}",
+        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}",
+        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}",
+    ];
 
     #endregion
 

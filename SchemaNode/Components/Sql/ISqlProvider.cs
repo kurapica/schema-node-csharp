@@ -54,7 +54,7 @@ public interface ISqlProvider
     /// Formats a binary expression: (left OP right)
     /// Example: (a = b), (a > b)
     /// </summary>
-    string Binary(BinaryExpType type, string left, string right);
+    string Binary(BinaryAccessExpType type, string left, string right);
 
     /* ===========================
      *      Text / Pattern Matching
