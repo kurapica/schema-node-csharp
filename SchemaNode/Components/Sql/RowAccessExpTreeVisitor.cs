@@ -21,9 +21,9 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Visit the function type, the table must be the first parameter
     /// </summary>
-    public static async Task<AccessExpNode> Visit(SchemaContext context, FunctionType func)
+    public static async Task<AccessExpNode> Visit(SchemaContext context, FunctionType func, JsonObject? filter = null)
     {
-        if (func.AccessExpNode != null) return func.AccessExpNode;
+        if (func.AccessExpNode != null) return func.AccessExpNode.Combine(filter);
         
         // check the function
         SchemaFuncInfo _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
@@ -39,7 +39,7 @@ public static class RowAccessExpTreeVisitor
             ?? throw new NotSupportedException("The function exp tree is invalid");
         
         // init the exp map
-        var expMap = new Dictionary<FunctionNodeExpTree, AccessExpNode>();
+        Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
         expMap[func.Args[0]] = new StructAccessExpNode(structType);
         for (int i = 1; i < func.Args.Length; i++)
             expMap[func.Args[i]] = new ArgNode(func.Args[i].TypeNode, i - 1);
@@ -47,7 +47,7 @@ public static class RowAccessExpTreeVisitor
         // visit the exp tree
         AccessExpNode accessExp =  await VisitExp(context, last, expMap);
         func.AccessExpNode = accessExp;
-        return accessExp;
+        return accessExp.Combine(filter);
     }
     
     /// <summary>
@@ -55,44 +55,51 @@ public static class RowAccessExpTreeVisitor
     /// </summary>
     public static string ToSql(this AccessExpNode accessExp, ISqlProvider sqlProvider, string prefix = "", JsonObject? filter = null, params object[] args)
     {
-        if (filter != null)
+        return ToSql(sqlProvider, accessExp.Combine(filter), prefix, args);
+    }
+
+    /// <summary>
+    /// Combine the access exp with the filter
+    /// </summary>
+    public static AccessExpNode Combine(this AccessExpNode accessExp, JsonObject? filter = null)
+    {
+        if (filter == null || filter.IsEmpty()) return accessExp;
+        
+        StructAccessExpNode structAccess = GetStructAccessExpNode(accessExp) ?? throw new NotSupportedException("The access expression tree is invalid");
+        foreach((string key, JsonNode? value) in filter)
         {
-            StructAccessExpNode structAccess = GetStructAccessExpNode(accessExp) ?? throw new NotSupportedException("The access expression tree is invalid");
-            foreach((string key, JsonNode? value) in filter)
+            if (value == null || value.IsEmpty()) continue;
+            StructFieldConfig? field = structAccess.StructType.Fields.FirstOrDefault(f => f.Name.Equals(key, StringComparison.OrdinalIgnoreCase));
+            if (field is not { TypeNode: ScalarType }) continue;
+
+            BinaryAccessExpNode? fieldExp = accessExp.FindFieldAccessOper(key);
+
+            // additional filter
+            if (fieldExp is not { Type: BinaryAccessExpType.Equal })
             {
-                if (value == null || value.IsEmpty()) continue;
-                StructFieldConfig? field = structAccess.StructType.Fields.FirstOrDefault(f => f.Name.Equals(key, StringComparison.OrdinalIgnoreCase));
-                if (field is not { TypeNode: ScalarType }) continue;
-
-                BinaryAccessExpNode? fieldExp = accessExp.FindFieldAccessOper(key);
-
-                // additional filter
-                if (fieldExp is not { Type: BinaryAccessExpType.Equal })
+                accessExp = value switch
                 {
-                    accessExp = value switch
-                    {
-                        JsonArray arr => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
-                            new BinaryAccessExpNode(BinaryAccessExpType.Contains,
-                                new ValueAccessExpNode(new ArrayTypeNode(field.TypeNode!, arr)),
-                                new FieldAccessAccessExpNode(structAccess, key))),
-                        JsonValue val => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
-                            new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
-                                new ValueAccessExpNode(field.TypeNode!.CreateNode(val)))),
-                        _ => accessExp
-                    };
-                }
+                    JsonArray arr => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
+                        new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                            new ValueAccessExpNode(new ArrayTypeNode(field.TypeNode!, arr)),
+                            new FieldAccessAccessExpNode(structAccess, key))),
+                    JsonValue val => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
+                        new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
+                            new ValueAccessExpNode(field.TypeNode!.CreateNode(val)))),
+                    _ => accessExp
+                };
+            }
 
-                // write back to the filter
-                else
-                {
-                    filter[key] = fieldExp.Right is ValueAccessExpNode valNode
-                        ? JsonValue.Create(valNode.Value)
-                        : null;
-                }
+            // write back to the filter
+            else
+            {
+                filter[key] = fieldExp.Right is ValueAccessExpNode valNode
+                    ? JsonValue.Create(valNode.Value)
+                    : null;
             }
         }
 
-        return ToSql(sqlProvider, accessExp, prefix, args);
+        return accessExp;
     }
     
     /// <summary>
