@@ -12,6 +12,15 @@ namespace SchemaNode.Function;
 public static class SystemMath
 {
     [Schema]
+    public static T addmulti<T>(params T[] values) where T : INumber<T>
+    {
+        T result = T.Zero;
+        foreach (var value in values)
+            result += value;
+        return result;
+    }
+
+    [Schema]
     public static decimal e() => (decimal)Math.E;
     
     [Schema]

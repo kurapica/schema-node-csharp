@@ -13,7 +13,7 @@ namespace SchemaNode.Components;
 
 /// <summary>
 /// The function node expression tree visitor
-/// only support (arg: struct) => bool
+/// support (arg: struct, ...) => bool
 /// Generate the struct access where clause
 /// </summary>
 public static class RowAccessExpTreeVisitor
@@ -21,12 +21,12 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Visit the function type, the table must be the first parameter
     /// </summary>
-    public static async Task<AccessExpNode> Visit(SchemaContext context, FunctionType func, JsonObject? filter = null)
+    public static async Task<AccessExpNode> Visit(SchemaContext context, FunctionType func)
     {
-        if (func.AccessExpNode != null) return func.AccessExpNode.Combine(filter);
+        if (func.AccessExpNode != null) return func.AccessExpNode;
         
-        // check the function
-        SchemaFuncInfo _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
+        // verify the function
+        var _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
         if (func.Args.Length < 1 || func.Args[0].TypeNode is not StructType structType)
             throw new NotSupportedException("The struct type must be the first parameter");
@@ -47,16 +47,14 @@ public static class RowAccessExpTreeVisitor
         // visit the exp tree
         AccessExpNode accessExp =  await VisitExp(context, last, expMap);
         func.AccessExpNode = accessExp;
-        return accessExp.Combine(filter);
+        return accessExp;
     }
     
     /// <summary>
     /// Convert the exp tree to SQL
     /// </summary>
-    public static string ToSql(this AccessExpNode accessExp, ISqlProvider sqlProvider, string prefix = "", JsonObject? filter = null, params object[] args)
-    {
-        return ToSql(sqlProvider, accessExp.Combine(filter), prefix, args);
-    }
+    public static string ToSql(this AccessExpNode accessExp, ISqlProvider sqlProvider, string prefix = "", params object[] args)
+        => ToSql(sqlProvider, accessExp, prefix, args);
 
     /// <summary>
     /// Combine the access exp with the filter
@@ -435,7 +433,7 @@ public static class RowAccessExpTreeVisitor
             case ValueAccessExpNode value:
                 return sqlProvider.Literal(value.Value);
             case ArgNode arg:
-                return sqlProvider.Literal(args[arg.Index]);
+                return sqlProvider.Literal(args.ElementAtOrDefault(arg.Index) ?? throw new NotSupportedException($"The argument {arg.Index + 1} not provided"));
         }
 
         throw new NotSupportedException("The expression type not supported");

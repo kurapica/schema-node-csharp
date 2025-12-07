@@ -19,6 +19,7 @@ public static class Constant
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
     
     public const string NS_SYSTEM = "system";
+    public const string NS_SYSTEM_OBJECT = "system.object"; // any value
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
     public const string NS_SYSTEM_LIST = "system.list"; // generic array type
     public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
@@ -67,10 +68,10 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
+    public const string NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE = "system.schema.predicatefunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
     public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
     public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
-    public const string NS_SYSTEM_SCHEMA_ANY_VALUE = "system.schema.anyvalue";
     
     public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";

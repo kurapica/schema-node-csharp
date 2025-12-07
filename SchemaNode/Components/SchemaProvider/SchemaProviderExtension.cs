@@ -6,6 +6,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Linq;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.App;
 using static SchemaNode.Utility.Constant;
@@ -209,8 +210,7 @@ public static class SchemaProviderExtension
         }
 
         // Argument validation
-        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
-                                  throw new Exception($"Function {node.Name} can't be complied");
+        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {node.Name} can't be complied");
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -229,9 +229,27 @@ public static class SchemaProviderExtension
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
+            Type? eleType = null;
+
             if (args.Count <= i || args[i] == null)
             {
                 if (arg.Nullable) continue;
+                if (arg.Params)
+                {
+                    if (arg.Generic != null)
+                    {
+                        int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
+                        if (idx < 0) throw new Exception("The function not valid");
+                        eleType = generics[idx] ?? throw new Exception($"The generic type must be provided");
+                        callArgs[i] = Array.CreateInstance(eleType, 0);
+                        continue;
+                    }
+                    else if (arg.Type != null)
+                    {
+                        callArgs[i] = Array.CreateInstance(arg.Type, 0);
+                        continue;
+                    }
+                }
                 throw new Exception($"The {i + 1} argument must be provided");
             }
 
@@ -244,28 +262,52 @@ public static class SchemaProviderExtension
                 (object? o, Type? _, Type? gen) = arg.ParseValue(args[i], generics[idx]);
                 callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                 if (generics[idx] is null && gen is not null) generics[idx] = gen; // scan for generic
+                eleType = gen ?? o.GetType();
             }
             else if (arg.Type != null && arg.Type.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
             {
                 callArgs[i] = (await context.GetSchemaTypeAsync(arg.SchemaType))
                               ?.CreateNode(args[i]) ??
                               throw new Exception($"The {i + 1} argument must be provided and valid");
+                eleType = typeof(AnySchemaNode);
             }
             else if (arg.Type != null)
             {
                 (object? o, Type? _, Type? _) = arg.ParseValue(args[i]);
                 callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                eleType = arg.Type;
             }
             else
             {
                 throw new Exception("The function not valid");
             }
+
+            // params check
+            if (arg.Params)
+            {
+                var array = Array.CreateInstance(eleType, args.Count - funcInfo.Args.Length + 1);
+                array.SetValue(callArgs[i], 0);
+                int count = 1;
+                for (int j = funcInfo.Args.Length; j < args.Count; j++)
+                {
+                    if (args[j] == null || args[j].IsEmpty()) continue;
+                    if (eleType.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
+                    {
+                        var nodeArg = (await context.GetSchemaTypeAsync(arg.SchemaType))?.CreateNode(args[j]) ??
+                                      throw new Exception($"The {j + 1} argument must be provided and valid");
+                        array.SetValue(nodeArg, j - funcInfo.Args.Length + 1);
+                        continue;
+                    }
+
+                    (object? o, Type? _, Type? _) = arg.ParseValue(args[j], eleType);
+                    array.SetValue(o ?? throw new Exception($"The {j + 1} argument must be provided and valid"), count++);
+                }
+                callArgs[i] = array.Length == count ? array : array.SliceArray(count);
+            }
         }
 
         if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
-        {
             callArgs = callArgs.Prepend(context).ToArray();
-        }
 
         // Call the method
         object? result;
@@ -284,8 +326,7 @@ public static class SchemaProviderExtension
                 if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
 
                 string genSign = string.Join('|', generics.Select(p => p!.Name));
-                callMethod =
-                    funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
+                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
             }
 
             // Call the method
@@ -346,8 +387,7 @@ public static class SchemaProviderExtension
     public static async Task<AnySchemaNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, AnySchemaNode?[] args, string? target = null)
     {
         // Argument validation
-        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ??
-                                  throw new Exception($"Function {node.Name} can't be complied");
+        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {node.Name} can't be complied");
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -357,9 +397,27 @@ public static class SchemaProviderExtension
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
+            Type? eleType = null;
+
             if (args.Length <= i || args[i] == null)
             {
                 if (arg.Nullable) continue;
+                if (arg.Params)
+                {
+                    if (arg.Generic != null)
+                    {
+                        int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
+                        if (idx < 0) throw new Exception("The function not valid");
+                        eleType = generics[idx] ?? throw new Exception($"The generic type must be provided");
+                        callArgs[i] = Array.CreateInstance(eleType, 0);
+                        continue;
+                    }
+                    else if (arg.Type != null)
+                    {
+                        callArgs[i] = Array.CreateInstance(arg.Type, 0);
+                        continue;
+                    }
+                }
                 throw new Exception($"The {i + 1} argument must be provided");
             }
 
@@ -369,22 +427,44 @@ public static class SchemaProviderExtension
                 int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
                 if (idx < 0) throw new Exception("The function not valid");
 
-                callArgs[i] = args[i]!.Value ??
-                              throw new Exception($"The {i + 1} argument must be provided and valid");
+                callArgs[i] = args[i]!.Value ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                 generics[idx] ??= args[i]!.CsharpType;
+                eleType = generics[idx] ?? throw new Exception($"The generic type {i + 1} must be provided");
             }
             else if (arg.Type != null && arg.Type.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
             {
                 callArgs[i] = args[i];
+                eleType = typeof(AnySchemaNode);
             }
             else if (arg.Type != null)
             {
-                callArgs[i] = args[i]?.ToTypeValue(arg.Type) ??
-                              throw new Exception($"The {i + 1} argument must be provided and valid");
+                callArgs[i] = args[i]?.ToTypeValue(arg.Type) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                eleType = arg.Type;
             }
             else
             {
                 throw new Exception("The function not valid");
+            }
+
+            // params check
+            if (arg.Params)
+            {
+                var array = Array.CreateInstance(eleType, args.Length - funcInfo.Args.Length + 1);
+                array.SetValue(callArgs[i], 0);
+                int count = 1;
+                for (int j = funcInfo.Args.Length; j < args.Length; j++)
+                {
+                    if (args[j] == null || args[j]!.IsEmpty) continue;
+                    if (eleType.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
+                    {
+                        array.SetValue(args[j], j - funcInfo.Args.Length + 1);
+                        continue;
+                    }
+
+                    array.SetValue(args[i]?.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid")
+                        ?? throw new Exception($"The {j + 1} argument must be provided and valid"), count++);
+                }
+                callArgs[i] = array.Length == count ? array : array.SliceArray(count);
             }
         }
 
@@ -420,9 +500,7 @@ public static class SchemaProviderExtension
 
             JsonArray cargs = new JsonArray();
             foreach (AnySchemaNode? arg in args)
-            {
                 cargs.Add(arg.ToJsonNode()!);
-            }
 
             JsonNode? res = node.SchemaProvider != null
                 ? await ((ISchemaProvider)context.GetRequiredService(node.SchemaProvider))
@@ -441,9 +519,7 @@ public static class SchemaProviderExtension
             if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
             {
                 for (int i = 0; i < generics.Length; i++)
-                {
                     generics[i] ??= typeof(JsonNode);
-                }
 
                 if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
 

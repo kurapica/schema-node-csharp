@@ -173,12 +173,16 @@ public class WorkflowType: AnySchemeType
                     throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}");
 
                 SchemaAttribute? attr = param.GetCustomAttribute<SchemaAttribute>();
-                
+                bool isParams = param.IsDefined(typeof(ParamArrayAttribute), false);
+
                 workflowSchema.Workflow.Args[i] = new FuncArg
                 {
                     Name = param.Name ?? $"arg{i}",
-                    Type = attr?.Name ?? info.SchemaType ?? throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}"),
+                    Type = attr?.Name 
+                        ?? (isParams && info.SchemaType != null && info.SchemaType.EndsWith("s") && Utility.Schema.GetSystemNodeSchema(info.SchemaType)?.Type == SchemaType.Array ? info.SchemaType[..^1] : info.SchemaType)
+                        ?? throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}"),
                     Nullable = info.Nullable || param is { HasDefaultValue: true, DefaultValue: null },
+                    Params = isParams ? true : null,
                 };
             }
         }

@@ -828,6 +828,17 @@ public static class Extension
         if (type.IsGenericParameter)
             return $"``{type.GenericParameterPosition}";
 
+        if (type.IsArray)
+        {
+            string elementName = GetXmlDocTypeName(type.GetElementType()!);
+            int rank = type.GetArrayRank();
+
+            if (rank == 1)
+                return elementName + "[]";
+
+            return elementName + "[" + new string(',', rank - 1) + "]";
+        }
+
         if (!type.IsGenericType)
             return type.FullName!.Replace('+', '.');
 
@@ -842,6 +853,24 @@ public static class Extension
 
     #endregion
 
+
+    #endregion
+
+    #region Array
+
+    internal static Array SliceArray(this Array source, int count)
+    {
+        if (source == null) throw new ArgumentNullException(nameof(source));
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+
+        int len = Math.Min(count, source.Length);
+        Type elementType = source.GetType().GetElementType()!;
+
+        Array result = Array.CreateInstance(elementType, len);
+        Array.Copy(source, result, len);
+
+        return result;
+    }
 
     #endregion
 

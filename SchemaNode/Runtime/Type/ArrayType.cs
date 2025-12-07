@@ -177,7 +177,7 @@ public class ArrayType: AnySchemeType
 
     /// <inheritdoc />
     public override bool CanBeUseAs(AnySchemeType other) => 
-        this == other 
+        base.CanBeUseAs(other)
         || Name.Equals(NS_SYSTEM_ARRAY) 
         || other.Name.Equals(NS_SYSTEM_ARRAY) 
         || (other is ArrayType array && ElementSchemaType != null && array.ElementSchemaType != null && ElementSchemaType.CanBeUseAs(array.ElementSchemaType));

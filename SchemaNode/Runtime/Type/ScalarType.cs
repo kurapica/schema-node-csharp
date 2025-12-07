@@ -382,25 +382,25 @@ public class ScalarType: AnySchemeType
 
     /// <inheritdoc />
     public override bool CanBeUseAs(AnySchemeType other) =>
-          base.CanBeUseAs(other) ||
-          other switch
-          {
-               ScalarType scalar =>
-                scalar.IsString || 
-                (scalar.IsInt 
-                    ? IsInt
-                    : (scalar.IsNumber 
-                            ? IsNumber 
-                            : scalar.ValueType == ValueType)),
-               EnumType @enum => @enum.ValueType switch
-               {
-                    EnumValueType.String => IsSingle,
-                    EnumValueType.Int => IsInt,
-                    EnumValueType.Flags => IsInt,
-                    _ => false
-               },
-               _ => false
-          };
+        base.CanBeUseAs(other) 
+        || other switch
+        {
+            ScalarType scalar =>
+            scalar.IsString || 
+            (scalar.IsInt 
+                ? IsInt
+                : (scalar.IsNumber 
+                        ? IsNumber 
+                        : scalar.ValueType == ValueType)),
+            EnumType @enum => @enum.ValueType switch
+            {
+                EnumValueType.String => IsSingle,
+                EnumValueType.Int => IsInt,
+                EnumValueType.Flags => IsInt,
+                _ => false
+            },
+            _ => false
+        };
 
     /// <inheritdoc />
     public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 

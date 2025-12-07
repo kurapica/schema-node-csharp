@@ -269,8 +269,8 @@ public class EnumType: AnySchemeType
 
     /// <inheritdoc />
     public override bool CanBeUseAs(AnySchemeType other) => 
-        base.CanBeUseAs(other) ||
-        other switch
+        base.CanBeUseAs(other) 
+        || other switch
         {
             ScalarType scalar => ValueType switch
             {

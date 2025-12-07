@@ -6,10 +6,13 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System;
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Security.Principal;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
@@ -210,9 +213,7 @@ public class FunctionType: AnySchemeType
         {
             ReturnNode?.AddRef(this);
             foreach (FunctionNodeArgument arg in Args)
-            {
                 arg.TypeNode?.AddRef(this);
-            }
 
             foreach (FunctionNodeExpression exp in Exps)
             {
@@ -533,6 +534,25 @@ public class FunctionType: AnySchemeType
 
             // exp leaf
             exp.LeafNodes = new FunctionNodeExpTree[funcNode.Args.Length];
+            void setLeafNodes(int index, FunctionNodeExpTree node)
+            {
+                index = Math.Min(index, exp.LeafNodes.Length - 1);
+                if (!(funcNode.Args[index].Params ?? false))
+                {
+                    exp.LeafNodes[index] = node;
+                }
+                else if (exp.LeafNodes[index] is ParamsExpNode paramsExp)
+                {
+                    paramsExp.LeafNodes = paramsExp.LeafNodes.Append(node).ToArray();
+                }
+                else
+                {
+                    exp.LeafNodes[index] = new ParamsExpNode
+                    {
+                        LeafNodes = [node]
+                    };
+                }
+            }
 
             // Check function call arguments and gets the return type
             // Also bind the type node to the expression call arguments, before compile
@@ -544,12 +564,12 @@ public class FunctionType: AnySchemeType
                         .Select(_ => new FuncCallArg())).ToArray();
                 
                 // check exp use variables first, they provide type infos
-                for (int i = 0; i < funcNode.Args.Length; i++)
+                for (int i = 0; i < exp.Args.Length; i++)
                 {
                     FuncCallArg callArg = exp.Args[i];
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
-                    FunctionNodeArgument funcArg = funcNode.Args[i];
+                    FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
                     AnySchemeType? funcArgType = funcArg.TypeNode;
                     if (funcArgType is GenericTypeNode gn) funcArgType = genericTypes[gn.GenericIndex - 1];
                     
@@ -560,7 +580,7 @@ public class FunctionType: AnySchemeType
                         switch (value)
                         {
                             case FunctionNodeArgument rArg:
-                                exp.LeafNodes[i] = rArg; // Add to leaf
+                                setLeafNodes(i, rArg); // Add to leaf
                                 argTypeNode = rArg.TypeNode;
                                 if (argTypeNode is GenericTypeNode generic)
                                 {
@@ -584,7 +604,7 @@ public class FunctionType: AnySchemeType
                                 break;
                             
                             case FunctionNodeExpression rExp:
-                                exp.LeafNodes[i] = rExp; // Add to leaf
+                                setLeafNodes(i, rExp); // Add to leaf
                                 argTypeNode = rExp.TypeNode; // always exist
                                 break;
                             
@@ -633,12 +653,12 @@ public class FunctionType: AnySchemeType
                 }
                 
                 // Check constant value arguments
-                for (int i = 0; i < funcNode.Args.Length; i++)
+                for (int i = 0; i < exp.Args.Length; i++)
                 {
                     FuncCallArg callArg = exp.Args[i];
                     if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
-                    FunctionNodeArgument funcArg = funcNode.Args[i];
+                    FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
                     AnySchemeType? funcArgType = funcArg.TypeNode;
                     if (funcArgType is GenericTypeNode g)
                         funcArgType = genericTypes[g.GenericIndex - 1];
@@ -671,10 +691,10 @@ public class FunctionType: AnySchemeType
                     {
                         if ((funcNode.Args[i].Nullable ?? true) || (exp.Type == ExpressionType.Reduce && i == 1)) // Nullable or Reduce
                         {
-                            exp.LeafNodes[i] = new ConstantExpNode
+                            setLeafNodes(i, new ConstantExpNode
                             {
                                 Value = null
-                            };
+                            });
                         }
                         else
                         {
@@ -692,15 +712,14 @@ public class FunctionType: AnySchemeType
                             exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                             Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                             return (trees, TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALID);
-                        }
-                        
+                        }                        
                         callArg.Value = r?.ToJson();
 
                         // Add to leaf
-                        exp.LeafNodes[i] = new ConstantExpNode
+                        setLeafNodes(i, new ConstantExpNode
                         {
                             Value = r
-                        };
+                        });
                     }
                 }
             }
@@ -823,8 +842,7 @@ public class FunctionType: AnySchemeType
                 Exps = [],
                 Nocache = method.GetCustomAttribute<NoCacheAttribute>() != null,
                 Server = method.GetCustomAttribute<ServerOnlyAttribute>() != null,
-                Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } 
-                    ? NS_SYSTEM_NUMBER : "").ToArray(),
+                Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
 
@@ -879,11 +897,18 @@ public class FunctionType: AnySchemeType
             FuncArg arg = new ()
             {
                 Name = p.Name ?? $"arg{i}",
-                Nullable = pt.Nullable || p.HasDefaultValue || p.GetCustomAttributesData()
-                    .FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null
+                Nullable = pt.Nullable || p.HasDefaultValue || 
+                    p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null
             };
             funcSchema.Func.Args[i] = arg;
             if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
+
+            // Params
+            if (p.IsDefined(typeof(ParamArrayAttribute), false))
+            {
+                arg.Params = true;
+                pt.Kind |= ParameterTypeKind.Params;
+            }
 
             // Check dynamic type
             SchemaAttribute? schemaTypeAttr = p.GetCustomAttribute<SchemaAttribute>();
@@ -894,7 +919,7 @@ public class FunctionType: AnySchemeType
             }
             else if (pt.Generic != null)
             {
-                if (pt.AnyArray)
+                if (pt.AnyArray && !(arg.Params ?? false))
                 {
                     arg.Type = NS_SYSTEM_ARRAY;
                 }
@@ -918,7 +943,9 @@ public class FunctionType: AnySchemeType
             }
             else
             {
-                arg.Type = pt.SchemaType;
+                arg.Type = (arg.Params ?? false) && pt.SchemaType.EndsWith("s") && GetSystemNodeSchema(pt.SchemaType)?.Type == SchemaType.Array 
+                    ? pt.SchemaType[..^1] 
+                    : pt.SchemaType;
             }
         }
 
@@ -946,8 +973,7 @@ public class FunctionType: AnySchemeType
     SchemaFuncInfo CompileFunction(SchemaContext context)
     {
         // Only full-filled function can be complied
-        if (Status != SchemaNodeStatus.Ready)
-            throw new Exception($"The {Name} can't be compiled because of {Status}");
+        if (Status != SchemaNodeStatus.Ready) throw new Exception($"The {Name} can't be compiled because of {Status}");
 
         SchemaFuncInfo funcInfo = new SchemaFuncInfo
         {
@@ -1095,8 +1121,7 @@ public class FunctionType: AnySchemeType
         {
             case FunctionNodeExpression exp:
             {
-                SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo(context)
-                    ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
+                SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo(context) ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
                 int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
 
                 // Prepare the call arguments
@@ -1114,8 +1139,7 @@ public class FunctionType: AnySchemeType
                 {
                     // Gets the type
                     Type callType = (exp.FuncNode.Args[i].TypeNode is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].TypeNode)
-                                    ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable)
-                        ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
+                                    ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable) ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
                     // Build the call arguments
                     switch (exp.LeafNodes[i])
@@ -1140,6 +1164,44 @@ public class FunctionType: AnySchemeType
                         
                         case FunctionNodeArgument argExp:
                             callArgs[i + useContext] = paramMap[argExp.Name];
+                            break;
+
+                        case ParamsExpNode paramsExp:
+                            List<Expression> paramExps = [];
+                            foreach (var p in paramsExp.LeafNodes)
+                            {
+                                switch (p)
+                                {
+                                    case ConstantExpNode constP:
+                                        object? value = constP.Value;
+                                        if (value == null) continue;
+
+                                        value = callType.GetNotNullType().TryConvert(value);
+                                        if (value != null && value.GetType().IsSafeConstantValue())
+                                            paramExps.Add(Expression.Constant(value, callType));
+                                        else
+                                            paramExps.Add(Expression.Default(callType));
+                                        break;
+                                    case FunctionNodeArgument argP:
+                                        paramExps.Add(paramMap[argP.Name]);
+                                        break;
+
+                                    case FunctionNodeExpression otherP:
+                                        if (otherP.Used == 1)
+                                        {
+                                            // Embed the other expression
+                                            paramExps.Add(CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherP, returnLabel));
+                                        }
+                                        else
+                                        {
+                                            // Use variable expression
+                                            paramExps.Add(expMap[otherP.Name]);
+                                        }
+                                        break;
+                                }
+                            }
+                            callArgs[i + useContext] = Expression.NewArrayInit(callType, paramExps);
+                            callType = callType.MakeArrayType();
                             break;
                         
                         case FunctionNodeExpression otherExp:
@@ -1488,6 +1550,7 @@ public class FunctionType: AnySchemeType
                 // Gets the call
                 return GenDynamicCallExp(resExp.Type, innerCall, callArgs);
             }
+
             // Generate the result
             case StructResultExpNode strt:
             {
@@ -1954,6 +2017,7 @@ public class FunctionType: AnySchemeType
                 Name = a.Name.ToCamelCase(),
                 Type = a.Type,
                 Nullable = a.Nullable,
+                Params = a.Params,
                 Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
             }).ToArray(),
             Exps = schema.Exps.Select(e => new FuncExp
@@ -2019,6 +2083,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// </summary>
     public bool? Nullable { get; set; }
 
+    /// <summary>
+    /// Whether params argument
+    /// </summary>
+    public bool? Params { get; set; }
+
     #endregion
 
     #region State
@@ -2039,6 +2108,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
             Name = arg.Name,
             Type = arg.Type,
             Nullable = arg.Nullable,
+            Params = arg.Params,
         };
     }
     
@@ -2135,6 +2205,13 @@ public class ConstantExpNode : FunctionNodeExpTree
     /// The constant value
     /// </summary>
     public object? Value { get; init; }
+}
+
+/// <summary>
+/// The params expression tree
+/// </summary>
+public class ParamsExpNode : FunctionNodeExpTree
+{
 }
 
 /// <summary>

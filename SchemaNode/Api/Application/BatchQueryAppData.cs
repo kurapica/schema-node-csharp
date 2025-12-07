@@ -139,12 +139,12 @@ public static class BatchQueryExtension
                                         continue;
 
                                     // visite the function exp tree for where clause
-                                    rowFilter = await RowAccessExpTreeVisitor.Visit(context, func, q?.Filter);
+                                    rowFilter = (await RowAccessExpTreeVisitor.Visit(context, func)).Combine(q?.Filter);
                                     break;
                                 }
                                 catch(Exception e)
                                 {
-                                    context.Logger.LogError(e, "BatchQueryAppDataAsync row access check error");
+                                    context.Logger.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${rowAccess[i].Function?.Name}");
                                     rowFilter = null;
                                 }
                             }

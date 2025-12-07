@@ -796,14 +796,16 @@ public static class Schema
         #region State
 
         public bool Nullable => (Kind & ParameterTypeKind.Nullable) > 0;
-        
+
+        public bool Params => (Kind & ParameterTypeKind.Params) > 0;
+
         public bool List => (Kind & (ParameterTypeKind.List)) > 0;
 
         public bool Enumerable => (Kind & (ParameterTypeKind.Enumerable)) > 0;
 
         public bool Array => (Kind & ParameterTypeKind.Array) > 0;
 
-        public bool AnyArray => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Array | ParameterTypeKind.Enumerable)) > 0;
+        public bool AnyArray => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Array | ParameterTypeKind.Enumerable)) > 0 && !Params;
         
         public bool Task => (Kind & ParameterTypeKind.Task) > 0;
         
@@ -955,7 +957,8 @@ public static class Schema
         Task = 1 << 6,
         GenericType = 1 << 7,
         GenericParameter = 1 << 8,
-        Complex = 1 << 9, // Dict<TK, TV> || JsonNode || other complex type
+        Params = 1 << 9, // params T[]
+        Complex = 1 << 10, // Dict<TK, TV> || JsonNode || other complex type
     }
     
     #endregion
@@ -1070,6 +1073,7 @@ public static class Schema
         NewSystemSchema(NS_SYSTEM).With([
             #region base type
             
+            NewSystemScalar(NS_SYSTEM_OBJECT),
             NewSystemArray(NS_SYSTEM_ARRAY, ""),
             NewSystemArray(NS_SYSTEM_LIST, NS_GENERIC_TYPE),
             NewSystemStruct(NS_SYSTEM_STRUCT, []),
@@ -1133,7 +1137,6 @@ public static class Schema
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_VALUE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_SCHEMA_VAR_NAME),

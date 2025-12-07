@@ -183,7 +183,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Whether the schema type can be used as the other
     /// </summary>
-    public virtual bool CanBeUseAs(AnySchemeType other) => Name.Equals(other.Name);
+    public virtual bool CanBeUseAs(AnySchemeType other) => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT);
     
     /// <summary>
     /// Gets the array node that use this node as element
