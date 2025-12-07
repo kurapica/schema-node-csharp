@@ -12,15 +12,6 @@ namespace SchemaNode.Function;
 public static class SystemMath
 {
     [Schema]
-    public static T addmulti<T>(params T[] values) where T : INumber<T>
-    {
-        T result = T.Zero;
-        foreach (var value in values)
-            result += value;
-        return result;
-    }
-
-    [Schema]
     public static decimal e() => (decimal)Math.E;
     
     [Schema]
@@ -30,25 +21,88 @@ public static class SystemMath
     public static T add<T>(T x, T y) where T : INumber<T> => x + y;
     
     [Schema]
+    public static T adds<T>(params T[] values) where T : INumber<T>
+    {
+        T result = T.Zero;
+        foreach (var value in values)
+            result += value;
+        return result;
+    }
+
+    [Schema]
     public static T addnull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) + (y ?? T.Zero);
-        
+
+    [Schema]
+    public static T addnulls<T>(params T?[] values) where T : INumber<T>
+    {
+        T result = T.Zero;
+        foreach (var value in values)
+            result += value ?? T.Zero;
+        return result;
+    }
+
+
     [Schema]
     public static T divide<T>(T x, T y) where T : INumber<T> => x / y;
-        
+
+
+    [Schema]
+    public static T divides<T>(params T[] values) where T : INumber<T>
+    {
+        if (values.Length == 0) return T.One;
+        T result = values[0];
+        for (int i = 1; i < values.Length; i++) result /= values[i];
+        return result;
+    }
+
     [Schema]
     public static T modulo<T>(T x, T y) where T : INumber<T> => x % y;
-        
+
     [Schema]
     public static T multiply<T>(T x, T y) where T : INumber<T> => x * y;
+
+    [Schema]
+    public static T multiplys<T>(params T[] values) where T : INumber<T>
+    {
+        T result = T.One;
+        foreach (var value in values) result *= value;
+        return result;
+    }
 
     [Schema]
     public static T multiplynull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) * (y ?? T.Zero);
 
     [Schema]
+    public static T multiplynulls<T>(params T?[] values) where T : INumber<T>
+    {
+        T result = T.One;
+        foreach (var value in values) result *= (value ?? T.Zero);
+        return result;
+    }
+
+    [Schema]
     public static T subtract<T>(T x, T y) where T : INumber<T> => x - y;
 
     [Schema]
+    public static T subtracts<T>(params T[] values) where T : INumber<T>
+    {
+        if (values.Length == 0) return T.Zero;
+        T result = values[0];
+        for (int i = 1; i < values.Length; i++) result -= values[i];
+        return result;
+    }
+
+    [Schema]
     public static T subtractnull<T>(T? x, T? y) where T : INumber<T> => (x ?? T.Zero) - (y ?? T.Zero);
+
+    [Schema]
+    public static T subtractnulls<T>(params T?[] values) where T : INumber<T>
+    {
+        if (values.Length == 0) return T.Zero;
+        T result = values[0] ?? T.Zero;
+        for (int i = 1; i < values.Length; i++) result -= (values[i] ?? T.Zero);
+        return result;
+    }
 
     [Schema]
     public static decimal percent(decimal x, decimal y, int? decimals) => Math.Round(x / y * 100, decimals ?? 2);
@@ -69,7 +123,25 @@ public static class SystemMath
     public static T max<T>(T x, T y) where T : INumber<T> => T.Max(x, y);
 
     [Schema]
+    public static T maxs<T>(params T[] values) where T : INumber<T>
+    {
+        if (values.Length == 0) return T.Zero;
+        T result = values[0];
+        for (int i = 1; i < values.Length; i++) result = T.Max(result, values[i]);
+        return result;
+    }
+
+    [Schema]
     public static T min<T>(T x, T y) where T : INumber<T> => T.Min(x, y);
+
+    [Schema]
+    public static T mins<T>(params T[] values) where T : INumber<T>
+    {
+        if (values.Length == 0) return T.Zero;
+        T result = values[0];
+        for (int i = 1; i < values.Length; i++) result = T.Min(result, values[i]);
+        return result;
+    }
 
     [Schema]
     public static T percenttonumber<T>([Schema(NS_SYSTEM_FLOAT)] float x) where T : IFloatingPoint<T>
