@@ -15,7 +15,7 @@ namespace SchemaNode.Function;
 [Schema(NS_SYSTEM_LOGIC)]
 public static class SystemLogic
 {
-    #region Terminator Functions
+    #region Terminate Functions
     
     /// <summary>
     /// system.logic.ifret
@@ -36,14 +36,14 @@ public static class SystemLogic
     /// if the value is null, return the value and stop the execution
     /// </summary>
     [Schema]
-    public static T2? ifnull<T1, T2>(T1? val, T2? value) => value;
+    public static T1? ifnull<T1, T2>(T2? val, T1? value) => value;
     
     /// <summary>
     /// system.logic.ifempty
     /// if the value is empty, return the value and stop the execution
     /// </summary>
     [Schema]
-    public static T2? ifempty<T1, T2>(T1? val, T2? value) => value;
+    public static T1? ifempty<T1, T2>(T2? val, T1? value) => value;
     
     #endregion
 

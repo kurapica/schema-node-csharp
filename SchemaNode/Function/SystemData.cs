@@ -302,6 +302,30 @@ public static class SystemData
     }
 
     #endregion
+
+    #region Data Source
+
+    /// <summary>
+    /// Generate a data source for the app field, waiting for query
+    /// </summary>
+    [Schema]
+    public static async Task<ArrayTypeNode> getdatasource(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+    {
+        AppType? appType = !string.IsNullOrEmpty(app)
+            ? await context.GetAppTypeAsync(app)
+            : null;
+
+        AppFieldType? fieldType = appType?.GetField(field);
+        if (fieldType?.SchemaType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
+        if (fieldType.SchemaType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
+        return new ArrayTypeNode(fieldType.SchemaType!);
+    }
+
+    #endregion
     
     #region Write App Data
 

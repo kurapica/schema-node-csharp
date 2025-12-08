@@ -20,6 +20,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
     {
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
+        // get function node
         AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
         if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
 
@@ -30,6 +31,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
         
+        // call function
         return new CallFunctionResponse
         {
             Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target)
