@@ -308,7 +308,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     public async Task<AnySchemeType?> GetArraySchemaTypeAsync(AnySchemeType? type)
     {
         if (type == null) return null;
-        return type.GetArrayNode()
+        return type.GetArrayType()
                ?? await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name);
     }
     
@@ -322,7 +322,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         {
             null => null,
             ArrayType arrayType => arrayType,
-            _ => type.GetArrayNode() ??
+            _ => type.GetArrayType() ??
                  await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name)
         };
     }

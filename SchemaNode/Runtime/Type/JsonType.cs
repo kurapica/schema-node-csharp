@@ -22,7 +22,7 @@ public class JsonType: AnySchemeType
         return Task.FromResult<(AnySchemaNode? value, JsonNode? error)>((new JsonTypeNode(this, value), null));
     }
 
-    public override ArrayType? GetArrayNode(bool exactly = false)
+    public override ArrayType? GetArrayType(bool exactly = false)
     {
         return null;
     }

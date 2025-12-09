@@ -254,7 +254,7 @@ public class FunctionType: AnySchemeType
     public override bool CanBeUseAs(AnySchemeType other) => false;
 
     /// <inheritdoc />
-    public override ArrayType? GetArrayNode(bool exactly = false) => null;
+    public override ArrayType? GetArrayType(bool exactly = false) => null;
 
     /// <inheritdoc />
     public override IEnumerable<AnySchemeType> GetDependNodes()
@@ -775,46 +775,14 @@ public class FunctionType: AnySchemeType
                 }
                 leaf.Used++;
             }
-            
-            // app data source access
-            if (exp.Func.Equals(GET_DATA_SOURCE, StringComparison.OrdinalIgnoreCase))
-            {
-                string? app = exp.LeafNodes.ElementAtOrDefault(0) is ConstantExpNode appExp ? appExp.Value?.ToValue<string>() :  null;
-                string? field = exp.LeafNodes.ElementAtOrDefault(1) is ConstantExpNode fldExp ? fldExp.Value?.ToValue<string>() :  null;
 
-                // App & Field must be provided
-                if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(field))
-                {
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    return (trees, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                }
-                
-                AppDataSourceAccessExpNode accessExp = new()
-                {
-                    App = app,
-                    Field = field,
-                    Target = exp.LeafNodes.ElementAtOrDefault(2),
-                    
-                    // copy
-                    Name = exp.Name,
-                    Func = exp.Func,
-                    Type = exp.Type,
-                    Return = exp.Return,
-                    Args = exp.Args,
-                    Status = exp.Status,
-                    ArrayIndex = exp.ArrayIndex,
-                    FuncNode = exp.FuncNode
-                };
-
-                // replace for access
-                Exps[k] = accessExp;
-            }
-            
-            // record action or process the query
-            else if (exp.LeafNodes.Any(i => i is AppDataSourceAccessExpNode))
+            // App data source access check
+            exp = await VisitAppDataSourceAccessExp(context, exp);
+            Exps[k] = exp;
+            if (exp.Status != null && exp.Status != SchemaNodeStatus.Ready)
             {
-                
+                Status = exp.Status.Value;
+                return (trees, TYPE_FUNC_EXP_ARGS_NOT_VALID);
             }
             
             #endregion
@@ -873,9 +841,153 @@ public class FunctionType: AnySchemeType
         trees = Exps.Where(e => e.Used is > 1 or 0)
             .Select(p => (FunctionNodeExpTree)p).ToList();
         if (structResultNode != null) trees.Add(structResultNode);
+        
+        // Pre-compile done
         return (trees, null);
     }
+    
+    /// <summary>
+    /// Visit app data source access expression and return the replacement
+    /// </summary>
+    async Task<FunctionNodeExpression> VisitAppDataSourceAccessExp(SchemaContext context, FunctionNodeExpression exp)
+    {
+        // app data source access
+        if (exp.Func.Equals(GET_DATA_SOURCE, StringComparison.OrdinalIgnoreCase))
+        {
+            string? app = exp.LeafNodes.ElementAtOrDefault(0) is ConstantExpNode appExp ? appExp.Value?.ToValue<string>() :  null;
+            string? field = exp.LeafNodes.ElementAtOrDefault(1) is ConstantExpNode fldExp ? fldExp.Value?.ToValue<string>() :  null;
 
+            // App & Field must be provided
+            if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(field))
+            {
+                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                return exp;
+            }
+            
+            AppType? appType = await context.GetAppTypeAsync(app);
+            AppFieldType? appField = appType?.GetField(field);
+            if (appField is not { SchemaType: ArrayType { ElementSchemaType: StructType structType } })
+            {
+                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                return exp;
+            }
+
+            AppDataSourceAccessExpNode accessExp = new(exp)
+            {
+                App = app,
+                Field = field,
+                Target = exp.LeafNodes.ElementAtOrDefault(2),
+                StructType = structType,
+                Result = AppDataSourceAccessResult.List
+            };
+
+            // replace for access
+            exp = accessExp;
+        }
+        
+        // record action or process the query
+        else if (exp.LeafNodes.ElementAtOrDefault(0) is AppDataSourceAccessExpNode accessExp)
+        {
+            switch (exp.Type)
+            {
+                case ExpressionType.Call:
+                {
+                    switch (exp.FuncNode?.Name ?? exp.Func)
+                    {
+                        // source.length
+                        case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
+                        {
+                            // replace for access
+                            exp = new AppDataSourceAccessExpNode(exp, accessExp)
+                            {
+                                Result = AppDataSourceAccessResult.Count
+                            };
+                            break;
+                        }
+                        
+                        // source.orderby(field, desc)
+                        case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
+                        {
+                            string orderField = exp.LeafNodes.ElementAtOrDefault(1) is ConstantExpNode fieldExp ? fieldExp.Value?.ToValue<string>() ?? "" : "";
+                            bool descending = exp.LeafNodes.ElementAtOrDefault(2) is ConstantExpNode descExp && descExp.Value?.ToValue<bool>() == true;
+
+                            if (string.IsNullOrEmpty(orderField))
+                            {
+                                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                                return exp;
+                            }
+                            
+                            // replace for access
+                            exp = new AppDataSourceAccessExpNode(exp, accessExp)
+                            {
+                                Order = new AppSchemaDataOrder(orderField, descending),
+                            };
+                            break;
+                        }
+                        
+                        // source.skip(n)
+                        case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.skip)}":
+                        {
+                            // replace for access
+                            exp = new AppDataSourceAccessExpNode(exp, accessExp)
+                            {
+                                Skip = exp.LeafNodes.ElementAtOrDefault(1)
+                            };
+                            break;
+                        }
+                        
+                        // source.take(n)
+                        case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.take)}":
+                        {
+                            // replace for access
+                            exp = new AppDataSourceAccessExpNode(exp, accessExp)
+                            {
+                                Take = exp.LeafNodes.ElementAtOrDefault(1)
+                            };
+                            break;
+                        }
+                    }
+                    break;
+                }
+                case ExpressionType.First:
+                case ExpressionType.Last:
+                case ExpressionType.Filter:
+                {
+                    // init the exp map
+                    Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
+                    expMap[accessExp] = new StructAccessExpNode(accessExp.StructType!);
+                    // use arg node to block deep visit
+                    for(int i = 1; i < exp.LeafNodes.Length; i++)
+                        expMap[exp.LeafNodes[i]!] = new ArgNode(exp.LeafNodes[i]?.TypeNode ?? throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"), i - 1);
+
+                    try
+                    {
+                        AccessExpNode filter = await context.VisitExp(exp, expMap, true);
+
+                        // replace for access
+                        exp = new AppDataSourceAccessExpNode(exp, accessExp)
+                        {
+                            Filter = filter,
+                            Result = exp.Type switch
+                            {
+                                ExpressionType.First => AppDataSourceAccessResult.First,
+                                ExpressionType.Last => AppDataSourceAccessResult.Last,
+                                _ => AppDataSourceAccessResult.List
+                            },
+                        };
+                    }
+                    catch
+                    {
+                        // pass
+                    }
+                    break;
+                }
+            }
+        }
+        
+        return exp;
+    }
+    
     #endregion
 
     #region Complie
@@ -1196,10 +1308,150 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// Compile a function node expression to expression
     /// </summary>
-    static Expression CompileFunctionNodeExpression(SchemaContext context, Expression contextExp, IReadOnlyDictionary<string, Expression> paramMap, Dictionary<string, ParameterExpression> expMap, List<Expression> blocks, FunctionNodeExpTree expTree, LabelTarget? returnLabel = null)
+    static Expression CompileFunctionNodeExpression(SchemaContext context, Expression contextExp, IReadOnlyDictionary<string, Expression> paramMap, Dictionary<string, ParameterExpression> expMap, List<Expression> blocks, FunctionNodeExpTree expTree, LabelTarget? returnLabel = null, Type? expectedType = null)
     {
         switch (expTree)
         {
+            // App data source access, like Linq
+            case AppDataSourceAccessExpNode access:
+            {
+                AppDataSourceAccessExpNode? currentAcc = access;
+                string app = access.App;
+                string field = access.Field;
+                FunctionNodeExpTree? target = null;
+                FunctionNodeExpTree? skip = null;
+                FunctionNodeExpTree? take = null;
+                List<AppSchemaDataOrder> orders = [];
+                Expression? filter = null;
+                    
+                while (currentAcc != null)
+                {
+                    // Collect the access info
+                    target ??= currentAcc.Target;
+                    skip ??= currentAcc.Skip;
+                    take ??= currentAcc.Take;
+                    if (currentAcc.Order != null && !orders.Any(o => o.Field.Equals(currentAcc.Order.Field, StringComparison.OrdinalIgnoreCase)))
+                        orders.Add(currentAcc.Order);
+                    
+                    // combine filter
+                    if (currentAcc.Filter != null)
+                    {
+                        if (currentAcc.LeafNodes.Length > 1)
+                        {
+                            Expression[] args = new Expression[currentAcc.LeafNodes.Length - 1];
+                            args[0] = Expression.Constant(currentAcc.Filter, typeof(AccessExpNode));
+                            for (int i = 1; i < currentAcc.LeafNodes.Length; i++)
+                            {
+                                var leaf = currentAcc.LeafNodes[i]!;
+                                // Gets the type
+                                Type callType = leaf.TypeNode?.ToCSharpType() 
+                                                ?? throw new Exception($"The expression {currentAcc.Name}'s {i} argument type not valid.");
+                               
+                                // Build the call arguments
+                                switch (leaf)
+                                {
+                                    case ParamsExpNode:
+                                        args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        callType = callType.MakeArrayType();
+                                        break;
+                                    case ConstantExpNode:
+                                    case FunctionNodeArgument:
+                                    case FieldAccessExpNode:
+                                        args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        break;
+                                    
+                                    case FunctionNodeExpression otherExp:
+                                        // Embed the other expression
+                                        args[i] = otherExp.Used == 1
+                                            ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp,
+                                                returnLabel)
+                                            :
+                                            // Use variable expression
+                                            expMap[otherExp.Name];
+                                        break;
+                                }
+
+                                // Add Conversion
+                                args[i] = ConvertExp(context, callType, args[i]);
+                            }
+                            filter = Expression.Call(null,
+                                typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.Clone))!,
+                                args);
+                        }
+                        else
+                        {
+                            filter = Expression.Constant(currentAcc.Filter, typeof(AccessExpNode));
+                        }
+                    }
+                    
+                    currentAcc = currentAcc.LeafNodes[0] as AppDataSourceAccessExpNode;
+                }
+                break;
+            }
+            
+            // Const exp
+            case ConstantExpNode constExp:
+            {
+                // For reduce
+                if (constExp.Value == null && expectedType != null && !expectedType.IsNullable())
+                    return Expression.Default(expectedType);
+                object? value = constExp.Value;
+                if (expectedType != null)
+                {
+                    if (value != null)
+                        value = expectedType.GetNotNullType().TryConvert(value);
+                    if (value != null && value.GetType().IsSafeConstantValue())
+                        return Expression.Constant(value, expectedType);
+                    return Expression.Default(expectedType);
+                }
+                if (value != null && value.GetType().IsSafeConstantValue())
+                    return Expression.Constant(value);
+                throw new Exception("Constant expression value type not supported");
+            }
+            
+            // Argument exp
+            case FunctionNodeArgument argExp:
+            {
+                return paramMap.TryGetValue(argExp.Name, out Expression? arg) ? arg : throw new Exception($"The argument {argExp.Name} not found in parameter map");
+            }
+            
+            // Params exp
+            case ParamsExpNode paramsExp:
+            {
+                if (expectedType == null) throw new Exception("Params expression must have expected type");
+                List<Expression> paramExps = [];
+                foreach (var p in paramsExp.LeafNodes)
+                {
+                    switch (p)
+                    {
+                        case ConstantExpNode constP:
+                            object? value = constP.Value;
+                            if (value == null) continue;
+
+                            value = expectedType.GetNotNullType().TryConvert(value);
+                            if (value != null && value.GetType().IsSafeConstantValue())
+                                paramExps.Add(Expression.Constant(value, expectedType));
+                            else
+                                paramExps.Add(Expression.Default(expectedType));
+                            break;
+                        case FunctionNodeArgument argP:
+                            paramExps.Add(paramMap[argP.Name]);
+                            break;
+
+                        case FunctionNodeExpression otherP:
+                            // Embed the other expression
+                            paramExps.Add(otherP.Used == 1
+                                ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap,
+                                    blocks, otherP, returnLabel)
+                                // Use variable expression
+                                : expMap[otherP.Name]);
+                            break;
+                    }
+                }
+                return Expression.NewArrayInit(expectedType, paramExps);
+            }
+            
+            // Common function call
             case FunctionNodeExpression exp:
             {
                 SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo(context) ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
@@ -1218,84 +1470,33 @@ public class FunctionType: AnySchemeType
                 // Add leaf nodes
                 for (int i = 0; i < exp.LeafNodes.Length; i++)
                 {
+                    FunctionNodeExpTree leaf = exp.LeafNodes[i] ?? throw new Exception($"The expression {exp.Name}'s {i} argument not valid.");
+                    
                     // Gets the type
                     Type callType = (exp.FuncNode.Args[i].TypeNode is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].TypeNode)
                                     ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable) ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
                     // Build the call arguments
-                    switch (exp.LeafNodes[i])
+                    switch (leaf)
                     {
-                        case ConstantExpNode constExp:
-                            if (constExp.Value == null && !callType.IsNullable())
-                            {
-                                // For reduce
-                                callArgs[i + useContext] = Expression.Default(callType);
-                            }
-                            else
-                            {
-                                object? value = constExp.Value;
-                                if (value != null)
-                                    value = callType.GetNotNullType().TryConvert(value);
-                                if (value != null && value.GetType().IsSafeConstantValue())
-                                    callArgs[i + useContext] = Expression.Constant(value, callType);
-                                else
-                                    callArgs[i + useContext] = Expression.Default(callType);
-                            }
-                            break;
-                        
-                        case FunctionNodeArgument argExp:
-                            callArgs[i + useContext] = paramMap[argExp.Name];
-                            break;
-
-                        case ParamsExpNode paramsExp:
-                            List<Expression> paramExps = [];
-                            foreach (var p in paramsExp.LeafNodes)
-                            {
-                                switch (p)
-                                {
-                                    case ConstantExpNode constP:
-                                        object? value = constP.Value;
-                                        if (value == null) continue;
-
-                                        value = callType.GetNotNullType().TryConvert(value);
-                                        if (value != null && value.GetType().IsSafeConstantValue())
-                                            paramExps.Add(Expression.Constant(value, callType));
-                                        else
-                                            paramExps.Add(Expression.Default(callType));
-                                        break;
-                                    case FunctionNodeArgument argP:
-                                        paramExps.Add(paramMap[argP.Name]);
-                                        break;
-
-                                    case FunctionNodeExpression otherP:
-                                        // Embed the other expression
-                                        paramExps.Add(otherP.Used == 1
-                                            ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap,
-                                                blocks, otherP, returnLabel)
-                                            // Use variable expression
-                                            : expMap[otherP.Name]);
-                                        break;
-                                }
-                            }
-                            callArgs[i + useContext] = Expression.NewArrayInit(callType, paramExps);
+                        case ParamsExpNode:
+                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                             callType = callType.MakeArrayType();
                             break;
-                        
-                        case FieldAccessExpNode fieldExp:
-                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, fieldExp, returnLabel);
+                        case ConstantExpNode:
+                        case FunctionNodeArgument:
+                        case FieldAccessExpNode:
+                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                             break;
                         
                         case FunctionNodeExpression otherExp:
-                            if (otherExp.Used == 1)
-                            {
-                                // Embed the other expression
-                                callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp, returnLabel);
-                            }
-                            else
-                            {
+                            // Embed the other expression
+                            callArgs[i + useContext] = otherExp.Used == 1
+                                ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp,
+                                    returnLabel)
+                                :
                                 // Use variable expression
-                                callArgs[i + useContext] = expMap[otherExp.Name];
-                            }
+                                expMap[otherExp.Name];
                             break;
                     }
 
@@ -2258,12 +2459,12 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The expression name, normally be E1, E2, E3.
     /// </summary>
-    public required string Name { get; init; }
+    public string Name { get; internal set; } = string.Empty;
 
     /// <summary>
     /// The function to be called.
     /// </summary>
-    public required string Func { get; init; }
+    public string Func { get; internal set; } = string.Empty;
 
     /// <summary>
     /// The function used to map array elements
@@ -2273,7 +2474,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The namespace.
     /// </summary>
-    public required string Return { get; init; }
+    public string Return { get; internal set; } = string.Empty;
 
     /// <summary>
     /// The argument list, should be exp name or argument name.
@@ -2358,22 +2559,102 @@ public class ParamsExpNode : FunctionNodeExpTree
 /// <summary>
 /// The app data source access expression tree
 /// </summary>
-public class AppDataSourceAccessExpNode : FunctionNodeExpression
+public class AppDataSourceAccessExpNode: FunctionNodeExpression
 {
     /// <summary>
     /// The app
     /// </summary>
-    public required string App { get; init; }
+    public string App { get; internal set; }
 
     /// <summary>
     /// The app field
     /// </summary>
-    public required string Field { get; init; }
+    public string Field { get; internal set; }
 
     /// <summary>
     /// The app target
     /// </summary>
-    public FunctionNodeExpTree? Target { get; init; }
+    public FunctionNodeExpTree? Target { get; internal set; }
+    
+    /// <summary>
+    /// The struct type of the data source
+    /// </summary>
+    public StructType? StructType { get; internal set; }
+
+    /// <summary>
+    /// The filter expression
+    /// </summary>
+    public AccessExpNode? Filter { get; set; }
+    
+    /// <summary>
+    /// The result access type
+    /// </summary>
+    public AppDataSourceAccessResult Result { get; internal set; }
+    
+    /// <summary>
+    /// The skip count
+    /// </summary>
+    public FunctionNodeExpTree? Skip { get; set; }
+    
+    /// <summary>
+    /// The take count
+    /// </summary>
+    public FunctionNodeExpTree? Take { get; set; }
+    
+    /// <summary>
+    /// The order
+    /// </summary>
+    public AppSchemaDataOrder? Order { get; set; }
+    
+    #region Constructor
+
+    public AppDataSourceAccessExpNode(FunctionNodeExpression exp, AppDataSourceAccessExpNode? prev = null)
+    {
+        Name = exp.Name;
+        Func = exp.Func;
+        Type = exp.Type;
+        Return = exp.Return;
+        Args = exp.Args;
+        Status = exp.Status;
+        ArrayIndex = exp.ArrayIndex;
+        FuncNode = exp.FuncNode;
+        LeafNodes = exp.LeafNodes;
+        TypeNode = exp.TypeNode;
+        Used = exp.Used;
+
+        App = prev?.App ?? string.Empty;
+        Field = prev?.Field ?? string.Empty;
+        StructType = prev?.StructType;
+        Result = prev?.Result ?? AppDataSourceAccessResult.List;
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// The app data source access result
+/// </summary>
+public enum AppDataSourceAccessResult
+{
+    /// <summary>
+    /// The list of records
+    /// </summary>
+    List,
+    
+    /// <summary>
+    /// The first record
+    /// </summary>
+    First,
+    
+    /// <summary>
+    /// The last record
+    /// </summary>
+    Last,
+    
+    /// <summary>
+    /// The count of records
+    /// </summary>
+    Count,
 }
 
 /// <summary>

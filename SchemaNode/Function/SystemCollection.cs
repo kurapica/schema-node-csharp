@@ -208,4 +208,109 @@ public static class SystemCollection
         if (node == null || node.IsEmpty) return false;
         return EqualityComparer<T>.Default.Equals(node.ToValue<T>(), value);
     }
+    
+    /// <summary>
+    /// system.collection.notequal
+    /// </summary>
+    [Schema]
+    public static bool fieldnotequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
+        => !fieldequal(obj, field, value);
+
+    /// <summary>
+    /// system.collection.greateequal
+    /// </summary>
+    [Schema]
+    public static bool fieldgreateequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        T? res = node.ToValue<T>();
+        if (res == null) return false;
+        return res.CompareTo(value) >= 0;
+    }
+
+    /// <summary>
+    /// system.collection.greatethan
+    /// </summary>
+    [Schema]
+    public static bool fieldgreatethan<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        T? res = node.ToValue<T>();
+        if (res == null) return false;
+        return res.CompareTo(value) > 0;
+    }
+
+    /// <summary>
+    /// system.collection.lessequal
+    /// </summary>
+    [Schema]
+    public static bool fieldlessequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        T? res = node.ToValue<T>();
+        if (res == null) return false;
+        return res.CompareTo(value) <= 0;
+    }
+
+    /// <summary>
+    /// system.collection.lessthan
+    /// </summary>
+    [Schema]
+    public static bool fieldlessthan<T>(StructTypeNode obj, string field, T value) where T: IComparable
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        T? res = node.ToValue<T>();
+        if (res == null) return false;
+        return res.CompareTo(value) < 0;
+    }
+
+    /// <summary>
+    /// order by the given field
+    /// </summary>
+    [Schema]
+    public static ArrayTypeNode orderby(ArrayTypeNode obj, string field, bool descending)
+    {
+        var list = new List<AnySchemaNode>(obj);
+        list.Sort((a, b) =>
+        {
+            if (a is not StructTypeNode sa || b is not StructTypeNode sb) return 0;
+            var fa = sa.GetField(field);
+            var fb = sb.GetField(field);
+            if ((fa == null || fa.IsEmpty) && (fb == null || fb.IsEmpty)) return 0;
+            if (fa == null || fa.IsEmpty) return descending ? 1 : -1;
+            if (fb == null || fb.IsEmpty) return descending ? -1 : 1;
+            if (fa.Value is IComparable ca && fb.Value is IComparable cb)
+                return descending ? cb.CompareTo(ca) : ca.CompareTo(cb);
+            return 0;
+        });
+        return new ArrayTypeNode(obj.Type, list);
+    }
+    
+    /// <summary>
+    /// Skip the given count items
+    /// </summary>
+    [Schema]
+    public static ArrayTypeNode skip(ArrayTypeNode obj, int count)
+    {
+        if (count <= 0) return obj;
+        return count > obj.Count 
+            ? new ArrayTypeNode(obj.Type) 
+            : new ArrayTypeNode(obj.Type, obj.Skip(count));
+    }
+
+    /// <summary>
+    /// Take the given count items
+    /// </summary>
+    [Schema]
+    public static ArrayTypeNode take(ArrayTypeNode obj, int count)
+    {
+        if (count >= obj.Count) return obj;
+        return count <= 0 
+            ? new ArrayTypeNode(obj.Type)
+            : new ArrayTypeNode(obj.Type, obj.Take(count));
+    }
 }

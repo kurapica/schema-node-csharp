@@ -229,7 +229,7 @@ public static class SchemaProviderExtension
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
-            Type? eleType = null;
+            Type? eleType;
 
             if (args.Count <= i || args[i] == null)
             {
@@ -397,7 +397,7 @@ public static class SchemaProviderExtension
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
-            Type? eleType = null;
+            Type? eleType;
 
             if (args.Length <= i || args[i] == null)
             {

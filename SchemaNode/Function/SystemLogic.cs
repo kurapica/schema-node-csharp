@@ -67,27 +67,6 @@ public static class SystemLogic
     public static T cond<T>(bool cond, T trueValue, T falseValue) => cond ? trueValue : falseValue;
 
     /// <summary>
-    /// system.logic.equal
-    /// </summary>
-    [Schema]
-    public static bool equal<T>(T a, T b) where T: IComparable
-        => a.Equals(b);
-
-    /// <summary>
-    /// system.logic.greateequal
-    /// </summary>
-    [Schema]
-    public static bool greateequal<T>(T a, T b) where T: IComparable
-    => a.CompareTo(b) >= 0;
-
-    /// <summary>
-    /// system.logic.greatethan
-    /// </summary>
-    [Schema]
-    public static bool greatethan<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) > 0;
-
-    /// <summary>
     /// system.logic.isnull
     /// </summary>
     [Schema]
@@ -137,6 +116,34 @@ public static class SystemLogic
     public static bool notempty<T>(T? a) => !isempty(a);
 
     /// <summary>
+    /// system.logic.equal
+    /// </summary>
+    [Schema]
+    public static bool equal<T>(T a, T b) where T: IComparable
+        => a.Equals(b);
+
+    /// <summary>
+    /// system.logic.notequal
+    /// </summary>
+    [Schema]
+    public static bool notequal<T>(T a, T b) where T: IComparable
+        => a.CompareTo(b) != 0;
+
+    /// <summary>
+    /// system.logic.greateequal
+    /// </summary>
+    [Schema]
+    public static bool greateequal<T>(T a, T b) where T: IComparable
+        => a.CompareTo(b) >= 0;
+
+    /// <summary>
+    /// system.logic.greatethan
+    /// </summary>
+    [Schema]
+    public static bool greatethan<T>(T a, T b) where T: IComparable
+        => a.CompareTo(b) > 0;
+
+    /// <summary>
     /// system.logic.lessequal
     /// </summary>
     [Schema]
@@ -155,13 +162,6 @@ public static class SystemLogic
     /// </summary>
     [Schema]
     public static bool not(bool a) => !a;
-
-    /// <summary>
-    /// system.logic.notequal
-    /// </summary>
-    [Schema]
-    public static bool notequal<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) != 0;
 
     /// <summary>
     /// system.logic.orelse

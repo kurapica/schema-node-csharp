@@ -5,6 +5,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable NotAccessedPositionalProperty.Global
@@ -21,33 +22,51 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Visit the function type, the table must be the first parameter
     /// </summary>
-    public static async Task<AccessExpNode> Visit(SchemaContext context, FunctionType func)
+    public static async Task<AccessExpNode> Visit(this SchemaContext context, FunctionType func)
     {
         if (func.AccessExpNode != null) return func.AccessExpNode;
         
         // verify the function
-        var _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
+        _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
-        if (func.Args.Length < 1 || func.Args[0].TypeNode is not StructType structType)
-            throw new NotSupportedException("The struct type must be the first parameter");
+        StructType structType = func.Args.ElementAtOrDefault(0)?.TypeNode as StructType ?? throw new NotSupportedException("The function struct type parameter not valid");
 
         if (func.ReturnNode is not ScalarType { IsBool: true })
             throw new NotSupportedException("The function return type must be bool");
         
         // scan the exp trees
         FunctionNodeExpression last = func.ExpTrees.LastOrDefault() as FunctionNodeExpression
-            ?? throw new NotSupportedException("The function exp tree is invalid");
+            ?? throw new NotSupportedException(NotValid);
         
         // init the exp map
         Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
         expMap[func.Args[0]] = new StructAccessExpNode(structType);
         for (int i = 1; i < func.Args.Length; i++)
-            expMap[func.Args[i]] = new ArgNode(func.Args[i].TypeNode, i - 1);
+            // for custom func, arg must have type, no system func will be used for visit
+            expMap[func.Args[i]] = new ArgNode(func.Args[i].TypeNode ?? throw new NotSupportedException($"The function {func.Name} can't be used as row access func"), i - 1);
         
         // visit the exp tree
         AccessExpNode accessExp =  await VisitExp(context, last, expMap);
         func.AccessExpNode = accessExp;
         return accessExp;
+    }
+
+    /// <summary>
+    /// Clone the access exp tree with new args to replace the arg nodes
+    /// </summary>
+    public static AccessExpNode Clone(this AccessExpNode accessExp, params object[] args)
+    {
+        if (args.Length == 0) return accessExp; // no args to replace, use original
+        return accessExp switch
+        {
+            FieldAccessAccessExpNode access => new FieldAccessAccessExpNode(access.Struct, access.FieldName),
+            BinaryAccessExpNode binary => new BinaryAccessExpNode(binary.Type, binary.Left.Clone(args), binary.Right.Clone(args)),
+            ValueAccessExpNode value => value,
+            ArgNode arg => args.Length > arg.Index
+                ? new ValueAccessExpNode(arg.Type, arg.Type.CreateNode(args[arg.Index]))
+                : throw new NotSupportedException("The argument index is out of range"),
+            _ => accessExp
+        };
     }
     
     /// <summary>
@@ -79,11 +98,11 @@ public static class RowAccessExpTreeVisitor
                 {
                     JsonArray arr => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
                         new BinaryAccessExpNode(BinaryAccessExpType.Contains,
-                            new ValueAccessExpNode(new ArrayTypeNode(field.TypeNode!, arr)),
+                            new ValueAccessExpNode(field.TypeNode.GetArrayType(), new ArrayTypeNode(field.TypeNode!, arr)),
                             new FieldAccessAccessExpNode(structAccess, key))),
                     JsonValue val => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
                         new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
-                            new ValueAccessExpNode(field.TypeNode!.CreateNode(val)))),
+                            new ValueAccessExpNode(field.TypeNode, field.TypeNode!.CreateNode(val)))),
                     _ => accessExp
                 };
             }
@@ -103,7 +122,7 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Visit the exp tree
     /// </summary>
-    static async Task<AccessExpNode> VisitExp(SchemaContext context, FunctionNodeExpTree? expTree, Dictionary<FunctionNodeExpTree, AccessExpNode> expMap)
+    internal static async Task<AccessExpNode> VisitExp(this SchemaContext context, FunctionNodeExpTree? expTree, Dictionary<FunctionNodeExpTree, AccessExpNode> expMap, bool skipType = false)
     {
         // cache
         if (expTree != null && expMap.TryGetValue(expTree, out AccessExpNode? result)) return result;
@@ -111,14 +130,14 @@ public static class RowAccessExpTreeVisitor
         // const value
         if (expTree is ConstantExpNode constNode)
         {
-            result = new ValueAccessExpNode(constNode.Value as AnySchemaNode ?? constNode.TypeNode?.CreateNode(constNode.Value));
+            result = new ValueAccessExpNode(constNode.TypeNode, constNode.Value ?? constNode.TypeNode?.CreateNode(constNode.Value));
             expMap.Add(constNode, result);
             return result;
         }
         
         // exp only
         if (expTree is not FunctionNodeExpression exp)
-            throw new NotSupportedException("The function exp tree is invalid");
+            throw new NotSupportedException(NotValid);
 
         // visit leaf nodes
         AccessExpNode[] leafNodes = new AccessExpNode[exp.LeafNodes.Length];
@@ -128,11 +147,15 @@ public static class RowAccessExpTreeVisitor
         // all loaded, calc directly
         if (leafNodes.All(l => l is ValueAccessExpNode))
         {
-            result = new ValueAccessExpNode(await context.CallFunctionAsync(exp.FuncNode!, 
-                    leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray()));
+            AnySchemaNode? res = await context.CallFunctionAsync(exp.FuncNode!,
+                leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray());
+            result = new ValueAccessExpNode(res?.Type ?? exp.FuncNode!.ReturnNode, res);
             expMap.Add(exp, result);
             return result;
         }
+        
+        // check call type
+        if (!skipType && exp.Type != ExpressionType.Call) throw new NotSupportedException(NotValid);
         
         // check by function
         switch (exp.Func)
@@ -321,6 +344,111 @@ public static class RowAccessExpTreeVisitor
                 break;
             }
             
+            // a[b] != c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotequal)}":
+            {
+                AccessExpNode valNode = leafNodes[2];
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.NotEqual,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+            
+            // a[b] >= c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldgreateequal)}":
+            {
+                AccessExpNode valNode = leafNodes[2];
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+            
+            // a[b] > c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldgreatethan)}":
+            {
+                AccessExpNode valNode = leafNodes[2];
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+            
+            // a[b] <= c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessequal)}":
+            {
+                AccessExpNode valNode = leafNodes[2];
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.LessEqual,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+            
+            // a[b] < c
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessthan)}":
+            {
+                AccessExpNode valNode = leafNodes[2];
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && valNode is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.LessThan,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+
             // a.startsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}":
             {
@@ -363,12 +491,37 @@ public static class RowAccessExpTreeVisitor
                 break;
             }
             
+            // complex func check
             default:
-                throw new NotSupportedException($"The expression not supported: {exp.Name} ({exp.Func})");
+            {
+                var info = exp.FuncNode?.GetSchemaFuncInfo(context);
+                
+                // only support non-system function
+                if (info == null || (info.Sign & FUNC_SIGN_IMMUTABLE) > 0)
+                    throw new NotSupportedException($"The expression not supported: {exp.Name} ({exp.Func})");
+            
+                FunctionType func = info.FunctionNode!;
+                if (leafNodes.ElementAtOrDefault(0) is not StructAccessExpNode structAccess 
+                    || func.ReturnNode is not ScalarType { IsBool: true }) 
+                    throw new NotSupportedException(NotValid);
+
+                // scan the exp trees
+                FunctionNodeExpression last = func.ExpTrees.LastOrDefault() as FunctionNodeExpression
+                                              ?? throw new NotSupportedException(NotValid);
+    
+                // bind the args to exp map
+                expMap[func.Args[0]] = structAccess;
+                for (int i = 1; i < func.Args.Length; i++)
+                    expMap[func.Args[i]] = await VisitExp(context, exp.LeafNodes[i], expMap) ?? throw new NotSupportedException(NotValid);
+    
+                // visit the exp tree
+                result = await VisitExp(context, last, expMap);
+                break;
+            }
         }
         
         // cache the result
-        expMap.Add(exp, result ?? throw new NotSupportedException("The function exp tree is invalid"));
+        expMap.Add(exp, result ?? throw new NotSupportedException(NotValid));
         return result;
     }
     
@@ -452,6 +605,8 @@ public static class RowAccessExpTreeVisitor
         }
         return null;
     }
+
+    private const string NotValid = "The function exp tree not valid for row access";
 }
 
 #region Exp access type
@@ -500,11 +655,11 @@ public record BinaryAccessExpNode(BinaryAccessExpType Type, AccessExpNode Left, 
 /// <summary>
 /// The value expression node
 /// </summary>
-public record ValueAccessExpNode(AnySchemaNode? Value) : AccessExpNode;
+public record ValueAccessExpNode(AnySchemeType? Type, AnySchemaNode? Value) : AccessExpNode;
 
 /// <summary>
 /// The argument node
 /// </summary>
-public record ArgNode(AnySchemeType? Type, int Index) : AccessExpNode;
+public record ArgNode(AnySchemeType Type, int Index) : AccessExpNode;
 
 #endregion

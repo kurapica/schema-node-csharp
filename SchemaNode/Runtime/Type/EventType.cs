@@ -51,7 +51,7 @@ public class EventType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override ArrayType? GetArrayNode(bool exactly = false)
+    public override ArrayType? GetArrayType(bool exactly = false)
     {
         return null;
     }

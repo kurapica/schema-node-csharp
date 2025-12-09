@@ -183,7 +183,7 @@ public class ArrayType: AnySchemeType
         || (other is ArrayType array && ElementSchemaType != null && array.ElementSchemaType != null && ElementSchemaType.CanBeUseAs(array.ElementSchemaType));
 
     /// <inheritdoc />
-    public override ArrayType? GetArrayNode(bool exactly = false) => null;
+    public override ArrayType? GetArrayType(bool exactly = false) => null;
 
     /// <summary>
     /// Get unique key for object
