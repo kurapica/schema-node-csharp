@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -202,5 +203,24 @@ public static class AppDataQueryExtension
             context.Logger.LogError(ex.Message);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Gets the filter field data
+    /// </summary>
+    public static async Task<AnySchemaNode?> GetFilterFieldDataAsync(this SchemaContext context, string app, string field, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    {
+        AppType? appType = await context.GetAppTypeAsync(app);
+        AppFieldType? appField = appType?.GetField(field);
+        if (appField == null) return null;
+
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target ?? string.Empty;
+            if (string.IsNullOrEmpty(target)) return null;
+        }
+
+        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, filter, skip, take, desc, orderBy, forUpdate);
+        return res;
     }
 }

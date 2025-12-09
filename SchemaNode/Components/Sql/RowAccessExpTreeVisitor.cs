@@ -52,15 +52,15 @@ public static class RowAccessExpTreeVisitor
     }
 
     /// <summary>
-    /// Clone the access exp tree with new args to replace the arg nodes
+    /// Clone the access exp and replace the arg nodes with values
     /// </summary>
-    public static AccessExpNode Clone(this AccessExpNode accessExp, params object[] args)
+    public static AccessExpNode Expand(this AccessExpNode accessExp, params object[] args)
     {
         if (args.Length == 0) return accessExp; // no args to replace, use original
         return accessExp switch
         {
             FieldAccessAccessExpNode access => new FieldAccessAccessExpNode(access.Struct, access.FieldName),
-            BinaryAccessExpNode binary => new BinaryAccessExpNode(binary.Type, binary.Left.Clone(args), binary.Right.Clone(args)),
+            BinaryAccessExpNode binary => new BinaryAccessExpNode(binary.Type, binary.Left.Expand(args), binary.Right.Expand(args)),
             ValueAccessExpNode value => value,
             ArgNode arg => args.Length > arg.Index
                 ? new ValueAccessExpNode(arg.Type, arg.Type.CreateNode(args[arg.Index]))
@@ -68,6 +68,9 @@ public static class RowAccessExpTreeVisitor
             _ => accessExp
         };
     }
+
+    public static AccessExpNode And(this AccessExpNode left, AccessExpNode right)
+        => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, left, right);
     
     /// <summary>
     /// Convert the exp tree to SQL

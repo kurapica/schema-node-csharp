@@ -1165,7 +1165,7 @@ public class FunctionType: AnySchemeType
         // Only full-filled function can be complied
         if (Status != SchemaNodeStatus.Ready) throw new Exception($"The {Name} can't be compiled because of {Status}");
 
-        SchemaFuncInfo funcInfo = new SchemaFuncInfo
+        SchemaFuncInfo funcInfo = new ()
         {
             Name = Name,
             Sign = FUNC_SIGN_CONTEXT, // always use context for dynamic func
@@ -1190,8 +1190,8 @@ public class FunctionType: AnySchemeType
         try
         {
             // Prepare
-            Dictionary<string, Expression> paramExpMap = new();
-            Dictionary<string, ParameterExpression> variableExpMap = new();
+            var paramExpMap = new Dictionary<string, Expression>();
+            var variableExpMap = new Dictionary<string, ParameterExpression>();
             var paramExps = new ParameterExpression[Args.Length + 1];
 
             // Build the parameters, no generic type for custom methods
@@ -1201,7 +1201,7 @@ public class FunctionType: AnySchemeType
             {
                 FunctionNodeArgument arg = Args[i];
                 ParameterExpression paramExp = Expression.Parameter(arg.TypeNode?.ToCSharpType(arg.Nullable) 
-                    ?? throw new Exception($"The { Name } can't be compiled - expression compile failed"));
+                    ?? throw new Exception($"The {Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
                 paramExpMap[arg.Name] = paramExp;
             }
@@ -1249,11 +1249,7 @@ public class FunctionType: AnySchemeType
             }
 
             // Build block
-            BlockExpression blockExpr =
-                Expression.Block(
-                    variableExpMap.Values.ToArray(),
-                    expBlocks
-                );
+            BlockExpression blockExpr = Expression.Block(variableExpMap.Values.ToArray(), expBlocks);
 
             // Build the dynamic method
             Delegate dynamicMethod = CompileMethod(lastType, paramExps, blockExpr);
@@ -1313,11 +1309,11 @@ public class FunctionType: AnySchemeType
         switch (expTree)
         {
             // App data source access, like Linq
-            case AppDataSourceAccessExpNode access:
+            case AppDataSourceAccessExpNode appData:
             {
-                AppDataSourceAccessExpNode? currentAcc = access;
-                string app = access.App;
-                string field = access.Field;
+                AppDataSourceAccessExpNode? currentAcc = appData;
+                string app = appData.App;
+                string field = appData.Field;
                 FunctionNodeExpTree? target = null;
                 FunctionNodeExpTree? skip = null;
                 FunctionNodeExpTree? take = null;
@@ -1336,6 +1332,7 @@ public class FunctionType: AnySchemeType
                     // combine filter
                     if (currentAcc.Filter != null)
                     {
+                        Expression? genFilter = null;
                         if (currentAcc.LeafNodes.Length > 1)
                         {
                             Expression[] args = new Expression[currentAcc.LeafNodes.Length - 1];
@@ -1343,9 +1340,9 @@ public class FunctionType: AnySchemeType
                             for (int i = 1; i < currentAcc.LeafNodes.Length; i++)
                             {
                                 var leaf = currentAcc.LeafNodes[i]!;
+
                                 // Gets the type
-                                Type callType = leaf.TypeNode?.ToCSharpType() 
-                                                ?? throw new Exception($"The expression {currentAcc.Name}'s {i} argument type not valid.");
+                                Type callType = leaf.TypeNode?.ToCSharpType() ?? throw new Exception($"The expression {currentAcc.Name}'s {i} argument type not valid.");
                                
                                 // Build the call arguments
                                 switch (leaf)
@@ -1354,39 +1351,49 @@ public class FunctionType: AnySchemeType
                                         args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                                         callType = callType.MakeArrayType();
                                         break;
-                                    case ConstantExpNode:
-                                    case FunctionNodeArgument:
-                                    case FieldAccessExpNode:
+
+                                    default:
                                         args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
-                                        break;
-                                    
-                                    case FunctionNodeExpression otherExp:
-                                        // Embed the other expression
-                                        args[i] = otherExp.Used == 1
-                                            ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp,
-                                                returnLabel)
-                                            :
-                                            // Use variable expression
-                                            expMap[otherExp.Name];
                                         break;
                                 }
 
                                 // Add Conversion
                                 args[i] = ConvertExp(context, callType, args[i]);
                             }
-                            filter = Expression.Call(null,
-                                typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.Clone))!,
+                            genFilter = Expression.Call(null,
+                                typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.Expand))!,
                                 args);
                         }
                         else
                         {
-                            filter = Expression.Constant(currentAcc.Filter, typeof(AccessExpNode));
+                            genFilter = Expression.Constant(currentAcc.Filter, typeof(AccessExpNode));
                         }
+
+                        // Combine filter
+                        if (filter == null)
+                            filter = genFilter;
+                        else
+                            filter = Expression.Call(null,
+                                typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.And))!,
+                                filter, genFilter);
                     }
                     
+                    // Check base query
                     currentAcc = currentAcc.LeafNodes[0] as AppDataSourceAccessExpNode;
                 }
-                break;
+
+                // Process the query
+                MethodInfo queryMethod = typeof(AppDataQueryExtension).GetMethod(nameof(AppDataQueryExtension.GetFilterFieldDataAsync))!;
+
+                // Gets the task result
+                MethodCallExpression callExp = Expression.Call(null, queryMethod, contextExp, Expression.Constant(app), Expression.Constant(field), 
+                    target != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, target, returnLabel, typeof(string)) : Expression.Constant(string.Empty), 
+                    filter ?? Expression.Constant(null),
+                    skip != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, skip, returnLabel, typeof(int)) : Expression.Constant(0),
+                    take != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, take, returnLabel, typeof(int)) : Expression.Constant(0),
+                    Expression.Constant(false), Expression.Constant(orders));
+                callExp = Expression.Call(callExp, callExp.Type.GetMethod(nameof(Task.GetAwaiter), System.Type.EmptyTypes)!);
+                return Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
             }
             
             // Const exp
@@ -1395,20 +1402,20 @@ public class FunctionType: AnySchemeType
                 // For reduce
                 if (constExp.Value == null && expectedType != null && !expectedType.IsNullable())
                     return Expression.Default(expectedType);
+
                 object? value = constExp.Value;
                 if (expectedType != null)
                 {
-                    if (value != null)
-                        value = expectedType.GetNotNullType().TryConvert(value);
-                    if (value != null && value.GetType().IsSafeConstantValue())
-                        return Expression.Constant(value, expectedType);
-                    return Expression.Default(expectedType);
+                    if (value != null) value = expectedType.GetNotNullType().TryConvert(value);
+                    return value != null && value.GetType().IsSafeConstantValue()
+                        ? Expression.Constant(value, expectedType)
+                        : Expression.Default(expectedType);
                 }
-                if (value != null && value.GetType().IsSafeConstantValue())
-                    return Expression.Constant(value);
-                throw new Exception("Constant expression value type not supported");
+                return value != null && value.GetType().IsSafeConstantValue()
+                    ? (Expression)Expression.Constant(value)
+                    : throw new Exception("Constant expression value type not supported");
             }
-            
+
             // Argument exp
             case FunctionNodeArgument argExp:
             {
@@ -1418,35 +1425,12 @@ public class FunctionType: AnySchemeType
             // Params exp
             case ParamsExpNode paramsExp:
             {
-                if (expectedType == null) throw new Exception("Params expression must have expected type");
+                expectedType ??= paramsExp.LeafNodes[0]?.TypeNode?.ToCSharpType() ?? throw new Exception("Params expression must have expected type");
                 List<Expression> paramExps = [];
                 foreach (var p in paramsExp.LeafNodes)
                 {
-                    switch (p)
-                    {
-                        case ConstantExpNode constP:
-                            object? value = constP.Value;
-                            if (value == null) continue;
-
-                            value = expectedType.GetNotNullType().TryConvert(value);
-                            if (value != null && value.GetType().IsSafeConstantValue())
-                                paramExps.Add(Expression.Constant(value, expectedType));
-                            else
-                                paramExps.Add(Expression.Default(expectedType));
-                            break;
-                        case FunctionNodeArgument argP:
-                            paramExps.Add(paramMap[argP.Name]);
-                            break;
-
-                        case FunctionNodeExpression otherP:
-                            // Embed the other expression
-                            paramExps.Add(otherP.Used == 1
-                                ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap,
-                                    blocks, otherP, returnLabel)
-                                // Use variable expression
-                                : expMap[otherP.Name]);
-                            break;
-                    }
+                    if (p == null) continue;
+                    paramExps.Add(CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, p, returnLabel, expectedType));
                 }
                 return Expression.NewArrayInit(expectedType, paramExps);
             }
@@ -1454,6 +1438,10 @@ public class FunctionType: AnySchemeType
             // Common function call
             case FunctionNodeExpression exp:
             {
+                // inner call, use the variable directly
+                if (exp.Used != 1 && expectedType != null) return expMap[exp.Name];
+
+                // function validate
                 SchemaFuncInfo callFuncInfo = exp.FuncNode?.GetSchemaFuncInfo(context) ?? throw new Exception($"The expression {exp.Name} can't be compiled - return type not supported");
                 int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
 
@@ -1483,20 +1471,8 @@ public class FunctionType: AnySchemeType
                             callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                             callType = callType.MakeArrayType();
                             break;
-                        case ConstantExpNode:
-                        case FunctionNodeArgument:
-                        case FieldAccessExpNode:
+                        default:
                             callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
-                            break;
-                        
-                        case FunctionNodeExpression otherExp:
-                            // Embed the other expression
-                            callArgs[i + useContext] = otherExp.Used == 1
-                                ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp,
-                                    returnLabel)
-                                :
-                                // Use variable expression
-                                expMap[otherExp.Name];
                             break;
                     }
 
@@ -1517,8 +1493,7 @@ public class FunctionType: AnySchemeType
                 // Call the functions
                 MethodInfo callMethod = callFuncInfo.Method!;
                 bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
-                Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) 
-                                     ?? throw new Exception($"The expression {exp.Name}'s type not valid");
+                Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {exp.Name}'s type not valid");
                 Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayType arr
                     ? (arr.ElementSchemaType?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
                     : expReturnType;
@@ -1645,9 +1620,8 @@ public class FunctionType: AnySchemeType
                 else
                 {
                     // array.get_item(start++)
-                    innerCallArgs[arrayIndex] = Expression.MakeIndex(jarray, jarray.Type.GetProperty("Item", [typeof(int)
-                    ])!, [exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)
-                    ]);
+                    innerCallArgs[arrayIndex] = Expression.MakeIndex(jarray, jarray.Type.GetProperty("Item", [typeof(int)])!, 
+                        [exp.Type == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start)]);
                 }
 
                 // Conversion
@@ -1841,38 +1815,12 @@ public class FunctionType: AnySchemeType
                     .GetResult() as FunctionType)!;
                 SchemaFuncInfo callFuncInfo = getFieldType.GetSchemaFuncInfo(context)!;
                 Expression[] callArgs = new Expression[2];
-                switch (access.LeafNodes[0])
-                {
-                    case FunctionNodeArgument argExp:
-                        callArgs[0] = paramMap[argExp.Name];
-                        break;
-                    case ConstantExpNode:
-                    case ParamsExpNode:
-                        throw new Exception($"The field access expression '{access.FieldName}' first argument must be a variable or expression.");
-                    case FieldAccessExpNode fieldExp:
-                        callArgs[0] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, fieldExp, returnLabel);
-                        break;
-                    case FunctionNodeExpression otherExp:
-                        if (otherExp.Used == 1)
-                        {
-                            // Embed the other expression
-                            callArgs[0] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, otherExp, returnLabel);
-                        }
-                        else
-                        {
-                            // Use variable expression
-                            callArgs[0] = expMap[otherExp.Name];
-                        }
-                        break;
-                }
-                callArgs[1] = Expression.Constant(access.FieldName, typeof(string));
-                
-                // Add Conversion
+                callArgs[0] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, access.LeafNodes[0]!, returnLabel, typeof(StructTypeNode));
                 callArgs[0] = ConvertExp(context, typeof(StructTypeNode), callArgs[0]);
-                
+                callArgs[1] = Expression.Constant(access.FieldName, typeof(string));
+
                 // Call the functions
-                Type expReturnType = access.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) 
-                                     ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
+                Type expReturnType = access.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
                 
                 // Generate the generic method
                 Type?[] genTypes = [expReturnType];
