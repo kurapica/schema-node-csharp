@@ -66,9 +66,6 @@ public static class BatchQueryExtension
             // set access
             context.SetAccess(node.Name, query.Target);
 
-            // authorize
-            await context.AuthorizeAsync(node, PolicyScope.SchemaRead);
-            
             // load schema
             if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
@@ -97,12 +94,9 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldType field in fields)
                 {
-                    // set access
-                    context.SetAccess(node.Name, query.Target, field.Name);
-
                     // authorize field
-                    if (!await context.AuthorizeAsync(field, PolicyScope.DataRead, true)) continue;
-                    
+                    bool allowRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
+
                     // prepare field query
                     AppDataFieldQuery? q = query.Querys != null && query.Querys.TryGetValue(field.Name, out var queryQuery) ? queryQuery : null;
                     
@@ -154,9 +148,11 @@ public static class BatchQueryExtension
                     }
                     
                     // query app field data
-                    (AnySchemaNode? result, int total) = rowFilter != null
-                        ? await context.GetFieldDataAsync(field, query.Target!, rowFilter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy)
-                        : await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                    (AnySchemaNode? result, int total) = allowRead 
+                        ? rowFilter != null
+                            ? await context.GetFieldDataAsync(field, query.Target!, rowFilter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy)
+                            : await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy)
+                        : (null, 0);
                     
                     // mark loaded
                     infos[field.Name] = new AppDataFieldInfo
@@ -166,7 +162,11 @@ public static class BatchQueryExtension
                         Skip = q?.Skip ?? 0,
                         Take = take,
                         Descend = q?.Descend ?? query.Descend ?? false,
-                        Total = total
+                        Total = total,
+                        AllowRead = allowRead,
+                        AllowCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true),
+                        AllowUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true),
+                        AllowDelete = await context.AuthorizeAsync(field, PolicyScope.DataDelete, true),
                     };
 
                     // cover result
@@ -186,20 +186,17 @@ public static class BatchQueryExtension
                             List<string>? ignoreFields = null;
                             foreach (StructFieldConfig f in @struct.Fields)
                             {
-                                try
-                                {
-                                    await context.AuthorizeAsync(field, f.Name, PolicyScope.ColumnAccess);
-                                }
-                                catch
-                                {
-                                    ignoreFields ??= [];
-                                    ignoreFields.Add(f.Name);
-                                }
+                                if (await context.AuthorizeAsync(field, f.Name, PolicyScope.ColumnAccess, true))
+                                    continue;
+                                ignoreFields ??= [];
+                                ignoreFields.Add(f.Name);
                             }
 
                             // remove ignore fields
                             if (ignoreFields != null)
                             {
+                                infos[field.Name].BlackColumns = ignoreFields.ToArray();
+                                
                                 if (datas[field.Name] is JsonArray jsonArray)
                                 {
                                     foreach(var obj in jsonArray)
@@ -519,4 +516,29 @@ public class AppDataFieldInfo
     /// The total count
     /// </summary>
     public int? Total { get; set; }
+    
+    /// <summary>
+    /// Allow create
+    /// </summary>
+    public bool AllowCreate { get; set; }
+    
+    /// <summary>
+    /// Allow read
+    /// </summary>
+    public bool AllowRead { get; set; }
+    
+    /// <summary>
+    /// Allow update
+    /// </summary>
+    public bool AllowUpdate { get; set; }
+    
+    /// <summary>
+    /// Allow delete
+    /// </summary>
+    public bool AllowDelete { get; set; }
+    
+    /// <summary>
+    /// Disable columns access
+    /// </summary>
+    public string[]? BlackColumns { get; set;  }
 }

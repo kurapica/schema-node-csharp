@@ -321,26 +321,6 @@ public class AppType
             }
         }
 
-        // pre-load sub applications
-        else if (preLoad && Apps is { Length: > 0 })
-        {
-            // Load all the sub application list
-            foreach (string name in Apps.Select(p => p.Name))
-                await context.GetAppTypeAsync(name, preload: true);
-        }
-        
-        // load workflows
-        Workflows = schema.Workflows?.Select(w =>
-        {
-            var wft = (AppWorkflowType)w;
-            wft.Application = this;
-            return wft;
-        }).ToList();
-        foreach(var wf in Workflows ?? [])
-        {
-            await wf.LoadAsync(context);
-        }
-        
         // load data auths
         if (Auths != null)
         {
@@ -359,6 +339,26 @@ public class AppType
                     item.Status = SchemaNodeStatus.PolicyWrongFunc;
                 }
             }
+        }
+        
+        // preload sub applications
+        if (preLoad && Apps is { Length: > 0 })
+        {
+            // Load all the sub application list
+            foreach (string name in Apps.Select(p => p.Name))
+                await context.GetAppTypeAsync(name, preload: true);
+        }
+        
+        // load workflows
+        Workflows = schema.Workflows?.Select(w =>
+        {
+            var wft = (AppWorkflowType)w;
+            wft.Application = this;
+            return wft;
+        }).ToList();
+        foreach(var wf in Workflows ?? [])
+        {
+            await wf.LoadAsync(context);
         }
     }
 

@@ -15,8 +15,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
         return true;
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, JsonNode? filter = null, int skip = 0,
-        int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
+        JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
+        bool forUpdate = false, bool onlyCount = false)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
@@ -79,6 +80,8 @@ public class InMemoryAppDataProvider: IAppDataProvider
             }
 
             int total = origins.Count;
+            if (onlyCount) return (null, total);
+            
             if (skip > 0) origins = origins.Skip(skip).ToList();
             if (take > 0) origins = origins.Take(take).ToList();
             if (orderBy != null)
@@ -103,7 +106,8 @@ public class InMemoryAppDataProvider: IAppDataProvider
         }
     }
 
-    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, 
+        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false, bool onlyCount = false)
     {
         throw new NotImplementedException();
     }

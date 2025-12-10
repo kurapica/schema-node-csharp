@@ -243,8 +243,22 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
             par = node;
             node = par.SubAppList?.GetValueOrDefault(paths.Last());
         }
-        
-        if (!reload && node is { Loaded: true}) return node;
+
+        if (!reload && node is { Loaded: true })
+        {
+            // check sub apps when preloading
+            if (preload && node.Apps is { Length: > 0})
+            {
+                foreach (var app in node.Apps)
+                {
+                    if (node.SubAppList == null || 
+                        !node.SubAppList.TryGetValue(app.Name.SplitTypeName().Last(), out AppType? subApp) ||
+                        !subApp.Loaded)
+                        await GetAppTypeAsync(app.Name, false, true);
+                }
+            }
+            return node;
+        }
 
         // reload the node
         Logger.LogInformation("[Runtime]App Type {AppName} loading", name);
@@ -436,8 +450,8 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     readonly ConcurrentDictionary<Type, object> _contextItems = [];        
     readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
     
-    static internal readonly TypeNamespace RootNamespace = new TypeNamespace { Name = "" };
-    static internal readonly AppType RootAppType = new AppType { Name = "" };
+    internal static readonly TypeNamespace RootNamespace = new TypeNamespace { Name = "" };
+    internal static readonly AppType RootAppType = new AppType { Name = "" };
 
     #endregion
 }

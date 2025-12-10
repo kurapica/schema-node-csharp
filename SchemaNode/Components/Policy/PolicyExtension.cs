@@ -1,4 +1,5 @@
-﻿using SchemaNode.Context;
+﻿using System.Collections.Concurrent;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -12,25 +13,34 @@ public static class PolicyExtension
     /// <summary>
     /// authorize the schema with the policy scope
     /// </summary>
-    public static async Task<bool> AuthorizeAsync(this SchemaContext context, IEnumerable<PolicyItem> items, bool chkOnly = false)
+    static async Task<bool> AuthorizeAsync(this SchemaContext context, IEnumerable<PolicyItem> items, bool chkOnly = false)
     {
         // if no policy, authorized
         bool authorized = true;
+
+        // cache the evaluation result in context
+        PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
 
         // check policies in order
         foreach (PolicyItem item in items)
         {
             try
             {
-                JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
-                if (result is JsonValue val && val.TryGetValue(out authorized))
+                // The result should be the same for the same evaluator in one context
+                if (!cache.Result.TryGetValue(item.Evaluator, out authorized))
                 {
-                    switch (authorized)
+                    JsonNode? result = await context.CallFunctionAsync(item.Evaluator, new JsonArray());
+                    if (result is JsonValue val && val.TryGetValue(out authorized))
                     {
-                        case true when item.Combine == PolicyCombine.OrElse:
-                        case false when item.Combine == PolicyCombine.AndAlso:
-                            break;
+                        cache.Result[item.Evaluator] = authorized;
                     }
+                }
+                
+                switch (authorized)
+                {
+                    case true when item.Combine == PolicyCombine.OrElse:
+                    case false when item.Combine == PolicyCombine.AndAlso:
+                        break;
                 }
             }
             catch(Exception ex)
@@ -73,4 +83,12 @@ public static class PolicyExtension
     /// </summary>
     public static Task<bool> AuthorizeAsync(this SchemaContext context, AppWorkflowType appWorkflow, PolicyScope scope, bool chkOnly = false)
         => AuthorizeAsync(context, appWorkflow.GetAuthPolicies(scope), chkOnly);
+}
+
+internal class PolicyEvaluatorResult
+{
+    /// <summary>
+    /// The evaluation result cache
+    /// </summary>
+    public readonly ConcurrentDictionary<string, bool> Result = [];
 }

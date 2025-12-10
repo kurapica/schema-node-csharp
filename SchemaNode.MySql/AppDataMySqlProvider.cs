@@ -211,7 +211,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             sb.Append(") engine=InnoDB;");
             DbCommand command = GetDbCommand();
             command.CommandText = sb.ToString();
-            Logger.LogDebug(command.CommandText);
+            Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             // Create the indexes
@@ -226,7 +226,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 
                 command = GetDbCommand();
                 command.CommandText = sb.ToString();
-                Logger.LogDebug(command.CommandText);
+                Logger.LogInformation(command.CommandText);
                 await command.ExecuteNonQueryAsync();
             }
         }
@@ -242,7 +242,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <inheritdoc />
     public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
-        bool forUpdate = false)
+        bool forUpdate = false, bool onlyCount = false)
     {
         string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();        
@@ -409,16 +409,27 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
             // Query Total
             int total = 0;
-            if (!fullFill && !forUpdate)
+            if (!fullFill && !forUpdate || onlyCount)
             {
                 DbCommand totalCommand = GetDbCommand();
-                totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+                if (onlyCount && take == 1)
+                {
+                    totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
+                }
+                else
+                {
+                    totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+                }
+
                 Logger.LogInformation(totalCommand.CommandText);
                 DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
                 try
                 {
                     if (totalReader.HasRows && await totalReader.ReadAsync())
                         total = totalReader.GetInt32(0);
+
+                    if (onlyCount)
+                        return (null, total);
                 }
                 finally
                 {
@@ -494,7 +505,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, 
+        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
+        bool forUpdate = false, bool onlyCount = false)
     {
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);
@@ -521,16 +534,25 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
         // Query Total
         int total = 0;
-        if (!fullFill && !forUpdate)
+        if (!fullFill && !forUpdate || onlyCount)
         {
             DbCommand totalCommand = GetDbCommand();
-            totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+            // only used to check existence
+            if (onlyCount && take == 1)
+            {
+                totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
+            }
+            else
+            {
+                totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+            }
             Logger.LogInformation(totalCommand.CommandText);
             DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
             try
             {
                 if (totalReader.HasRows && await totalReader.ReadAsync())
                     total = totalReader.GetInt32(0);
+                if (onlyCount) return (null, total);
             }
             finally
             {
@@ -627,7 +649,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     DbCommand command = GetDbCommand();
                     command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
-                    Logger.LogDebug(command.CommandText);
+                    Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                     return (true, origin);
                 }
@@ -649,7 +671,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     {
                         DbCommand command = GetDbCommand();
                         command.CommandText = $"INSERT INTO {tableName} ({_refTarget}, {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)}) VALUES ( {sqlProvider.Literal(target)}, {sqlProvider.Literal(result)} )";
-                        Logger.LogDebug(command.CommandText);
+                        Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -665,7 +687,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     DbCommand command = GetDbCommand();
                     command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(result)} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
-                    Logger.LogDebug(command.CommandText);
+                    Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
                 return (true, origin);
@@ -695,7 +717,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         // Execute
                         DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
-                        Logger.LogDebug(command.CommandText);
+                        Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -727,7 +749,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     // Execute
                     DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
-                    Logger.LogDebug(command.CommandText);
+                    Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
                 return (true, origin);
@@ -835,7 +857,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         // Execute
                         DbCommand command = GetDbCommand();
                         command.CommandText = sb.ToString();
-                        Logger.LogDebug(command.CommandText);
+                        Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
                     }
@@ -866,7 +888,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     // Execute
                     DbCommand command = GetDbCommand();
                     command.CommandText = sb.ToString();
-                    Logger.LogDebug(command.CommandText);
+                    Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
             }
@@ -891,7 +913,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
-            Logger.LogDebug(command.CommandText);
+            Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             return (true, origin);
@@ -906,7 +928,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             
             DbCommand command = GetDbCommand();
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
-            Logger.LogDebug(command.CommandText);
+            Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
             return (true, origin);
@@ -922,7 +944,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         await EnsureOpenConnectionAsync();
         DbCommand command = GetDbCommand();
         command.CommandText = $"DROP TABLE IF EXISTS {tableName};";
-        Logger.LogDebug(command.CommandText);
+        Logger.LogInformation(command.CommandText);
         await command.ExecuteNonQueryAsync();
     }
     

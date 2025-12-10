@@ -26,10 +26,10 @@ public class SetSourceTargetApi : SchemaApi<SetSourceTargetRequest, SetSourceTar
         AppFieldType field = app.Fields?.FirstOrDefault(f => f.SourceApp != null && f.SourceApp.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
         // Set access
-        SchemaContext.SetAccess(app.Name, request.Target, field.Name);
+        SchemaContext.SetAccess(app.Name, request.Target);
         
         // Authorize
-        await SchemaContext.AuthorizeAsync(field, PolicyScope.DataWrite);
+        await SchemaContext.AuthorizeAsync(field, PolicyScope.DataUpdate);
         
         // Set the source target
         await SchemaContext.SetSourceFieldNode(field, request.Target, request.SourceTarget);

@@ -21,16 +21,11 @@ public class Access
     /// The access application
     /// </summary>
     public string? App { get; set; }
-    
+
     /// <summary>
     /// The access target
     /// </summary>
     public string? Target { get; set; }
-    
-    /// <summary>
-    /// The access field
-    /// </summary>
-    public string? Field { get; set; }
 }
 
 /// <summary>
@@ -41,12 +36,14 @@ public static class AccessContextItemProviderExtensions
     /// <summary>
     /// Set the access information
     /// </summary>
-    public static void SetAccess(this SchemaContext context, string? app = null, string? target = null, string? field = null)
+    public static void SetAccess(this SchemaContext context, string? app = null, string? target = null)
     {
+        // Clear the policy evaluation cache
+        context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+        
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
         access.App = app;
         access.Target = target;
-        access.Field = field;
     }
 }

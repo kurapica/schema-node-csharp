@@ -56,7 +56,7 @@ public static class PushDataExtenstion
         context.SetAccess(appNode.Name, target);
         
         // authorize
-        await context.AuthorizeAsync(appNode, PolicyScope.DataWrite);
+        await context.AuthorizeAsync(appNode, PolicyScope.DataUpdate);
 
         bool hasData = false;
         foreach((string field, AppDataFieldPushQuery push) in data)
@@ -64,11 +64,8 @@ public static class PushDataExtenstion
             AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
             if (appField == null) continue;
             
-            // set access
-            context.SetAccess(appNode.Name, target, appField.Name);
-            
             // authorize
-            await context.AuthorizeAsync(appField, PolicyScope.DataWrite);
+            await context.AuthorizeAsync(appField, PolicyScope.DataUpdate);
 
             // begin transaction if have data
             if (!hasData)

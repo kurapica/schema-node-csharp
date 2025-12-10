@@ -267,6 +267,45 @@ public static class SystemCollection
         if (res == null) return false;
         return res.CompareTo(value) < 0;
     }
+    
+    /// <summary>
+    /// Field starts with
+    /// </summary>
+    [Schema]
+    public static bool fieldstartswith(StructTypeNode obj, string field, string value)
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        string? res = node.ToValue<string>();
+        if (res == null) return false;
+        return res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Field end with
+    /// </summary>
+    [Schema]
+    public static bool fieldendswith(StructTypeNode obj, string field, string value)
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        string? res = node.ToValue<string>();
+        if (res == null) return false;
+        return res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Field contains
+    /// </summary>
+    [Schema]
+    public static bool fieldcontains(StructTypeNode obj, string field, string value)
+    {
+        AnySchemaNode? node = obj.GetField(field);
+        if (node == null || node.IsEmpty) return false;
+        string? res = node.ToValue<string>();
+        if (res == null) return false;
+        return res.Contains(value, StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// order by the given field

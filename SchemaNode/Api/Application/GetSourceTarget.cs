@@ -26,7 +26,7 @@ public class GetSourceTargetApi : SchemaApi<GetSourceTargetRequest, GetSourceTar
         AppFieldType field = app.Fields?.FirstOrDefault(f => f.SourceApp != null && f.SourceApp.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
         // set access
-        SchemaContext.SetAccess(app.Name, request.Target, field.Name);
+        SchemaContext.SetAccess(app.Name, request.Target);
         
         // authorize
         await SchemaContext.AuthorizeAsync(field, PolicyScope.SchemaRead);

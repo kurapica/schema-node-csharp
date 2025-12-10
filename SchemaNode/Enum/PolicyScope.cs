@@ -26,14 +26,24 @@ public enum PolicyScope
     SchemaDelete,
     
     /// <summary>
+    /// Create App Data
+    /// </summary>
+    DataCreate,
+    
+    /// <summary>
     /// Read App Data
     /// </summary>
     DataRead,
     
     /// <summary>
-    /// Write App Data
+    /// Update App Data
     /// </summary>
-    DataWrite,
+    DataUpdate,
+    
+    /// <summary>
+    /// Delete App Data
+    /// </summary>
+    DataDelete,
 
     /// <summary>
     /// Execute Function

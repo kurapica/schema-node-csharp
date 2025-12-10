@@ -724,7 +724,8 @@ public class FunctionType: AnySchemeType
                         {
                             setLeafNodes(i, new ConstantExpNode
                             {
-                                Value = null
+                                Value = null,
+                                TypeNode = funcArgType
                             });
                         }
                         else
@@ -749,7 +750,8 @@ public class FunctionType: AnySchemeType
                         // Add to leaf
                         setLeafNodes(i, new ConstantExpNode
                         {
-                            Value = r
+                            Value = r,
+                            TypeNode = funcArgType
                         });
                     }
                 }
@@ -957,8 +959,15 @@ public class FunctionType: AnySchemeType
                     Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
                     expMap[accessExp] = new StructAccessExpNode(accessExp.StructType!);
                     // use arg node to block deep visit
-                    for(int i = 1; i < exp.LeafNodes.Length; i++)
-                        expMap[exp.LeafNodes[i]!] = new ArgNode(exp.LeafNodes[i]?.TypeNode ?? throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"), i - 1);
+                    for (int i = 1; i < exp.LeafNodes.Length; i++)
+                    {
+                        expMap[exp.LeafNodes[i]!] = exp.LeafNodes[i] is ConstantExpNode constExp
+                            ? new ValueAccessExpNode(constExp.TypeNode, constExp.Value)
+                            : new ArgNode(
+                                exp.LeafNodes[i]?.TypeNode ??
+                                throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"),
+                                i - 1);
+                    }
 
                     try
                     {
@@ -976,9 +985,9 @@ public class FunctionType: AnySchemeType
                             },
                         };
                     }
-                    catch
+                    catch(Exception ex)
                     {
-                        // pass
+                        context.Logger.LogError("The {Func} can't be used as row access filter: {Error}, will cause the query execution", exp.Func, ex.Message);
                     }
                     break;
                 }
@@ -1332,11 +1341,10 @@ public class FunctionType: AnySchemeType
                     // combine filter
                     if (currentAcc.Filter != null)
                     {
-                        Expression? genFilter = null;
+                        Expression? genFilter;
                         if (currentAcc.LeafNodes.Length > 1)
                         {
                             Expression[] args = new Expression[currentAcc.LeafNodes.Length - 1];
-                            args[0] = Expression.Constant(currentAcc.Filter, typeof(AccessExpNode));
                             for (int i = 1; i < currentAcc.LeafNodes.Length; i++)
                             {
                                 var leaf = currentAcc.LeafNodes[i]!;
@@ -1348,21 +1356,22 @@ public class FunctionType: AnySchemeType
                                 switch (leaf)
                                 {
                                     case ParamsExpNode:
-                                        args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        args[i - 1] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                                         callType = callType.MakeArrayType();
                                         break;
 
                                     default:
-                                        args[i] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        args[i - 1] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                                         break;
                                 }
 
                                 // Add Conversion
-                                args[i] = ConvertExp(context, callType, args[i]);
+                                args[i - 1] = ConvertExp(context, callType, args[i - 1]);
                             }
                             genFilter = Expression.Call(null,
                                 typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.Expand))!,
-                                args);
+                                Expression.Constant(currentAcc.Filter, typeof(AccessExpNode)),
+                                Expression.NewArrayInit(typeof(object), args));
                         }
                         else
                         {
@@ -1389,9 +1398,10 @@ public class FunctionType: AnySchemeType
                 MethodCallExpression callExp = Expression.Call(null, queryMethod, contextExp, Expression.Constant(app), Expression.Constant(field), 
                     target != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, target, returnLabel, typeof(string)) : Expression.Constant(string.Empty), 
                     filter ?? Expression.Constant(null),
+                    Expression.Constant(appData.Result),
                     skip != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, skip, returnLabel, typeof(int)) : Expression.Constant(0),
                     take != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, take, returnLabel, typeof(int)) : Expression.Constant(0),
-                    Expression.Constant(false), Expression.Constant(orders));
+                    Expression.Constant(orders.ToArray()));
                 callExp = Expression.Call(callExp, callExp.Type.GetMethod(nameof(Task.GetAwaiter), System.Type.EmptyTypes)!);
                 return Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
             }

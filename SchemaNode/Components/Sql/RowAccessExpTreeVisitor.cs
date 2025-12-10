@@ -185,7 +185,7 @@ public static class RowAccessExpTreeVisitor
                     || includeMaxNode != null && includeMaxNode is not ValueAccessExpNode)
                     throw new NotSupportedException("Can't figure out the between value");
 
-                result = new BinaryAccessExpNode (
+                result = new BinaryAccessExpNode(
                     BinaryAccessExpType.AndAlso,
                     new BinaryAccessExpNode(
                         includeMinNode is ValueAccessExpNode incMin && (incMin.Value?.ToValue<bool>() ?? false)
@@ -200,11 +200,11 @@ public static class RowAccessExpTreeVisitor
                             : BinaryAccessExpType.LessThan,
                         valueNode,
                         maxNode
-                    )   
+                    )
                 );
                 break;
             }
-            
+
             // a == b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.equal)}":
             {
@@ -214,51 +214,51 @@ public static class RowAccessExpTreeVisitor
                 result = new BinaryAccessExpNode(BinaryAccessExpType.Equal, left, right);
                 break;
             }
-            
+
             // a >= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greateequal)}":
             {
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
-                result = left is FieldAccessAccessExpNode 
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, left, right) 
+                result = left is FieldAccessAccessExpNode
+                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, left, right)
                     : new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, right, left);
                 break;
             }
-            
+
             // a > b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greatethan)}":
             {
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
-                result = left is FieldAccessAccessExpNode 
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, left, right) 
+                result = left is FieldAccessAccessExpNode
+                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, left, right)
                     : new BinaryAccessExpNode(BinaryAccessExpType.LessThan, right, left);
                 break;
             }
-            
+
             // a <= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessequal)}":
             {
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
-                result = left is FieldAccessAccessExpNode 
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, left, right) 
+                result = left is FieldAccessAccessExpNode
+                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, left, right)
                     : new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, right, left);
                 break;
             }
-            
+
             // a < b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessthan)}":
             {
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
-                result = left is FieldAccessAccessExpNode 
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessThan, left, right) 
+                result = left is FieldAccessAccessExpNode
+                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessThan, left, right)
                     : new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, right, left);
                 break;
             }
-            
+
             // a != b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notequal)}":
             {
@@ -268,36 +268,45 @@ public static class RowAccessExpTreeVisitor
                 result = new BinaryAccessExpNode(BinaryAccessExpType.NotEqual, left, right);
                 break;
             }
-            
+
             // a | b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.orelse)}":
             {
                 result = new BinaryAccessExpNode(BinaryAccessExpType.OrElse, leafNodes[0], leafNodes[1]);
                 break;
             }
-            
+
             // !a
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}":
             {
                 // try to convert the exp to [not] part
                 var notExp = leafNodes[0];
-                if (notExp is not BinaryAccessExpNode binaryNotExp) throw new NotSupportedException("The system.logic.not expression not supported");
+                if (notExp is not BinaryAccessExpNode binaryNotExp)
+                    throw new NotSupportedException("The system.logic.not expression not supported");
 
                 result = binaryNotExp.Type switch
                 {
-                    BinaryAccessExpType.Equal => new BinaryAccessExpNode(BinaryAccessExpType.NotEqual, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.NotEqual => new BinaryAccessExpNode(BinaryAccessExpType.Equal, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.GreaterThan => new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.GreaterEqual => new BinaryAccessExpNode(BinaryAccessExpType.LessThan, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.LessThan => new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.LessEqual => new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.Contains => new BinaryAccessExpNode(BinaryAccessExpType.NotContains, binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.NotContains => new BinaryAccessExpNode(BinaryAccessExpType.Contains, binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.Equal => new BinaryAccessExpNode(BinaryAccessExpType.NotEqual,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.NotEqual => new BinaryAccessExpNode(BinaryAccessExpType.Equal,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.GreaterThan => new BinaryAccessExpNode(BinaryAccessExpType.LessEqual,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.GreaterEqual => new BinaryAccessExpNode(BinaryAccessExpType.LessThan,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.LessThan => new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.LessEqual => new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.Contains => new BinaryAccessExpNode(BinaryAccessExpType.NotContains,
+                        binaryNotExp.Left, binaryNotExp.Right),
+                    BinaryAccessExpType.NotContains => new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                        binaryNotExp.Left, binaryNotExp.Right),
                     _ => throw new NotSupportedException("The system.logic.not expression not supported")
                 };
                 break;
             }
-            
+
             // a.includes(b)
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}":
             {
@@ -308,12 +317,12 @@ public static class RowAccessExpTreeVisitor
                 result = new BinaryAccessExpNode(BinaryAccessExpType.Contains, leftNode, rightNode);
                 break;
             }
-            
+
             // a.b
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
             {
-                if (leafNodes[0] is StructAccessExpNode structNode 
-                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode } 
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
                     && scalarNode.ToValue<string>() is { } fieldName
                     && !string.IsNullOrEmpty(fieldName)
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName))
@@ -324,29 +333,32 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] = c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldequal)}":
             {
                 AccessExpNode valNode = leafNodes[2];
-                if (leafNodes[0] is StructAccessExpNode structNode 
-                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode } 
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
                     && scalarNode.ToValue<string>() is { } fieldName
                     && !string.IsNullOrEmpty(fieldName)
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structNode, fieldName), valNode);
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.Equal,
+                        new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] != c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotequal)}":
             {
@@ -365,9 +377,10 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] >= c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldgreateequal)}":
             {
@@ -386,9 +399,10 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] > c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldgreatethan)}":
             {
@@ -407,9 +421,10 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] <= c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessequal)}":
             {
@@ -428,9 +443,10 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
+
             // a[b] < c
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessthan)}":
             {
@@ -449,6 +465,7 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
 
@@ -463,6 +480,7 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
 
@@ -477,6 +495,7 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
 
@@ -491,10 +510,72 @@ public static class RowAccessExpTreeVisitor
                 {
                     throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
                 }
+
                 break;
             }
-            
-            // complex func check
+
+            // a[b].startswith(c)
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldstartswith)}":
+            {
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && leafNodes[2] is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.StartsWith,
+                        new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+
+                break;
+            }
+
+            // a[b].endswith(c)
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldendswith)}":
+            {
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && leafNodes[2] is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.EndsWith,
+                        new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+
+            // a[b].contains(c)
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldcontains)}":
+            {
+                if (leafNodes[0] is StructAccessExpNode structNode
+                    && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }
+                    && scalarNode.ToValue<string>() is { } fieldName
+                    && !string.IsNullOrEmpty(fieldName)
+                    && structNode.StructType.Fields.Any(f => f.Name == fieldName)
+                    && leafNodes[2] is ValueAccessExpNode or ArgNode)
+                {
+                    result = new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                        new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
+                }
+                else
+                {
+                    throw new NotSupportedException($"The field name of ${exp.Name} can't be resolved");
+                }
+                break;
+            }
+
+        // complex func check
             default:
             {
                 var info = exp.FuncNode?.GetSchemaFuncInfo(context);
