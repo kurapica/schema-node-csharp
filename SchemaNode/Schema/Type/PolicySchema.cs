@@ -38,17 +38,18 @@ public class PolicyItem
     /// The policy scope
     /// </summary>
     public required PolicyScope Scope { get; set; }
-    
+
     /// <summary>
     /// The policy evaluator
     /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE)]
     public required string Evaluator { get; set; }
 
     /// <summary>
     /// The policy combine method
     /// </summary>
     public required PolicyCombine Combine { get; set; }
-    
+
     /// <summary>
     /// The function type of the evaluator
     /// </summary>

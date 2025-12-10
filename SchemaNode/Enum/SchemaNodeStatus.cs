@@ -248,4 +248,9 @@ public enum SchemaNodeStatus
     /// The application field data auth wrong func
     /// </summary>
     ApplicationFieldDataAuthWrongFunc,
+
+    /// <summary>
+    /// The application field data auth wrong field
+    /// </summary>
+    ApplicationFieldDataAuthWrongField,
 }

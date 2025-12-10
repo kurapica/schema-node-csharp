@@ -68,6 +68,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
+    public const string NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE = "system.schema.evaluatorfunc";
     public const string NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE = "system.schema.predicatefunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
     public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";

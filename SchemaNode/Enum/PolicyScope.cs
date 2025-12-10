@@ -49,14 +49,4 @@ public enum PolicyScope
     /// Execute Function
     /// </summary>
     FuncExecute,
-    
-    /// <summary>
-    /// Row access filter
-    /// </summary>
-    RowAccess,
-    
-    /// <summary>
-    /// Column access filter
-    /// </summary>
-    ColumnAccess,
 }

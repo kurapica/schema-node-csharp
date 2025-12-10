@@ -230,29 +230,69 @@ public class AppType
                         }
                     }
                 }
-                
-                // valid the field auths
-                if (field.FieldAuths != null)
+
+                // valid the row policy
+                if (field.RowAuths != null)
                 {
-                    foreach (FieldPolicy fieldAuth in field.FieldAuths)
+                    foreach(RowPolicyItem row in field.RowAuths)
                     {
-                        if (fieldAuth.Auths != null)
+                        // valid evaluator
+                        if (!string.IsNullOrEmpty(row.Evaluator))
                         {
-                            foreach (PolicyItem item in fieldAuth.Auths)
+                            FunctionType? funcType = await context.GetSchemaTypeAsync(row.Evaluator) as FunctionType;
+                            if (funcType != null)
                             {
-                                FunctionType? funcType = !string.IsNullOrEmpty(item.Evaluator)
-                                    ? await context.GetSchemaTypeAsync(item.Evaluator) as FunctionType
-                                    : null;
-                                if (funcType != null)
-                                {
-                                    item.Function = funcType;
-                                }
-                                else
-                                {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
-                                }
+                                row.EvaluatorFunc = funcType;
+                            }
+                            else
+                            {
+                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
                             }
                         }
+                        // valid filter
+                        if (!string.IsNullOrEmpty(row.Filter))
+                        {
+                            FunctionType? funcType = await context.GetSchemaTypeAsync(row.Filter) as FunctionType;
+                            if (funcType != null)
+                            {
+                                row.FilterFunc = funcType;
+                            }
+                            else
+                            {
+                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                            }
+                        }
+                    }
+                }
+
+                // valid the column policy
+                if (field.ColAuths != null && ( field.SchemaType is StructType || field.SchemaType is ArrayType arr && arr.ElementSchemaType is StructType))
+                {
+                    StructType structType = (field.SchemaType is StructType st ? st : ((ArrayType)field.SchemaType).ElementSchemaType as StructType)!;
+                    foreach(ColPolicyItem colPolicy in field.ColAuths)
+                    {
+                        StructFieldConfig? structField = structType.GetField(colPolicy.Name);
+                        if (structField == null)
+                        {
+                            field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
+                            continue;
+                        }
+                        List<FunctionType> funcs = [];
+                        foreach (string item in colPolicy.Evaluators)
+                        {
+                            FunctionType? funcType = !string.IsNullOrEmpty(item)
+                                ? await context.GetSchemaTypeAsync(item) as FunctionType
+                                : null;
+                            if (funcType != null)
+                            {
+                                funcs.Add(funcType);
+                            }
+                            else
+                            {
+                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                            }
+                        }
+                        colPolicy.Functions = funcs.ToArray();
                     }
                 }
             }

@@ -55,6 +55,41 @@ public static class PolicyExtension
     }
 
     /// <summary>
+    /// Authorize with the evaluator function name
+    /// </summary>
+    public static async Task<bool> AuthorizeAsync(this SchemaContext context, string evaluator, bool chkOnly = false)
+    {
+        bool authorized = false;
+
+        // cache the evaluation result in context
+        PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
+
+        // The result should be the same for the same evaluator in one context
+        if (!cache.Result.TryGetValue(evaluator, out authorized))
+        {
+            try
+            {
+                JsonNode? result = await context.CallFunctionAsync(evaluator, new JsonArray());
+                if (result is JsonValue val && val.TryGetValue(out authorized))
+                    cache.Result[evaluator] = authorized;
+            }
+            catch (Exception ex)
+            {
+                context.Logger.LogError(ex, "Policy evaluation error for {evaluator}", evaluator);
+            }
+        }
+
+        // throw if not authorized
+        if (!chkOnly && !authorized) throw new UnauthorizedAccessException();
+        return authorized;
+    }
+
+    /// <summary>
+    /// Authorize with the evaluator function
+    /// </summary>
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, FunctionType evaluator, bool chkOnly = false) => AuthorizeAsync(context, evaluator.Name, chkOnly);
+
+    /// <summary>
     /// Authorize the schema type with the policy scope
     /// </summary>
     public static Task<bool> AuthorizeAsync(this SchemaContext context, AnySchemeType type, PolicyScope scope, bool chkOnly = false)
@@ -71,12 +106,6 @@ public static class PolicyExtension
     /// </summary>
     public static Task<bool> AuthorizeAsync(this SchemaContext context, AppFieldType appField, PolicyScope scope, bool chkOnly = false)
         => AuthorizeAsync(context, appField.GetAuthPolicies(scope), chkOnly);
-
-    /// <summary>
-    /// Authorize the app field with the field name and policy scope
-    /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppFieldType appField, string field, PolicyScope scope, bool chkOnly = false)
-        => AuthorizeAsync(context, appField.GetAuthPolicies(field, scope), chkOnly);
 
     /// <summary>
     /// Authorize the app workflow with the policy scope

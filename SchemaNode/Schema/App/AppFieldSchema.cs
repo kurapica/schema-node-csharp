@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
@@ -73,14 +74,19 @@ public class AppFieldSchema
     public string[]? Args { get; set; }
 
     /// <summary>
-    /// The authentication policy, normally row policy
+    /// The authentication policy
     /// </summary>
     public PolicyItem[]? Auths { get; set; }
-    
+
     /// <summary>
-    /// The struct field auths, normally column policy
+    /// Row filter policy
     /// </summary>
-    public FieldPolicy[]? FieldAuths { get; set; }
+    public RowPolicyItem[]? RowAuths { get; set; }
+
+    /// <summary>
+    /// The column access policy
+    /// </summary>
+    public ColPolicyItem[]? ColAuths { get; set; }
 
     /// <summary>
     /// The field flags
@@ -225,15 +231,57 @@ public class AppFieldSchema
     #endregion
 }
 
-public class FieldPolicy
+/// <summary>
+/// The row policy item
+/// </summary>
+public class RowPolicyItem
+{
+    /// <summary>
+    /// The policy evaluatorm, if true will use the filter
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE)]
+    public required string Evaluator { get; set; }
+
+    /// <summary>
+    /// The row filter function
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE)]
+    public string? Filter { get; set; }
+
+    /// <summary>
+    /// The function type of the evaluator
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public FunctionType? EvaluatorFunc { get; set; }
+
+    /// <summary>
+    /// The function type of the filter
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public FunctionType? FilterFunc { get; set; }
+}
+
+/// <summary>
+/// The column policy item
+/// </summary>
+public class ColPolicyItem
 {
     /// <summary>
     /// The struct field name
     /// </summary>
     public required string Name { get; set; } = string.Empty;
-    
+
     /// <summary>
-    /// The authentication policy type
+    /// The column access evaluators
     /// </summary>
-    public PolicyItem[]? Auths { get; set; }
+    public string[] Evaluators { get; set; } = [];
+
+    /// <summary>
+    /// The function type of the evaluator
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public FunctionType[] Functions { get; set; } = [];
 }

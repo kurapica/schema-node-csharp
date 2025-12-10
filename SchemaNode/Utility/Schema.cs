@@ -1135,6 +1135,8 @@ public static class Schema
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
                 

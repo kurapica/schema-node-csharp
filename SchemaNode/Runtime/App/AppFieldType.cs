@@ -9,6 +9,7 @@ using SchemaNode.Components;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+using Microsoft.AspNetCore.Identity.UI.Services;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -78,11 +79,16 @@ public class AppFieldType
     /// The authentication policy, normally row policy
     /// </summary>
     public PolicyItem[]? Auths { get; private init; }
-    
+
     /// <summary>
-    /// The struct field auths, normally column policy
+    /// Row filter policy
     /// </summary>
-    public FieldPolicy[]? FieldAuths { get; private init; }
+    public RowPolicyItem[]? RowAuths { get; private init; }
+
+    /// <summary>
+    /// The column access policy
+    /// </summary>
+    public ColPolicyItem[]? ColAuths { get; private init; }
 
     /// <summary>
     /// The field is using increase update, no full data push allowed
@@ -223,7 +229,7 @@ public class AppFieldType
     {
         // Application policy first
         foreach (var i in Application.GetAuthPolicies(scope)) yield return i;
-        
+
         // self policies
         var item = Auths?.FirstOrDefault(i => i.Scope == scope);
         if (item != null) yield return item;
@@ -232,14 +238,12 @@ public class AppFieldType
     /// <summary>
     /// Gets the field authentication policies with the scope
     /// </summary>
-    public IEnumerable<PolicyItem> GetAuthPolicies(string fieldName, PolicyScope scope)
+    public IEnumerable<string> GetColPolicies(string fieldName)
     {
-        foreach (var i in GetAuthPolicies(scope)) yield return i;
-        
-        // struct field policies
-        var fieldPolicy = FieldAuths?.FirstOrDefault(i => i.Name == fieldName);
-        var item = fieldPolicy?.Auths?.FirstOrDefault(i => i.Scope == scope);
-        if (item != null) yield return item;
+        ColPolicyItem? item = ColAuths?.FirstOrDefault(i => i.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+        if (item == null || item.Evaluators == null || item.Evaluators.Length == 0) yield break;
+        foreach (var evaluator in item.Evaluators)
+            yield return evaluator;
     }
     
     #endregion
@@ -264,7 +268,8 @@ public class AppFieldType
             Func = entity.Func,
             Args = entity.Args,
             Auths = entity.Auths,
-            FieldAuths = entity.FieldAuths,
+            RowAuths = entity.RowAuths,
+            ColAuths = entity.ColAuths,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -295,7 +300,8 @@ public class AppFieldType
             Func = entity.Func,
             Args = entity.Args,
             Auths = entity.Auths,
-            FieldAuths = entity.FieldAuths,
+            RowAuths = entity.RowAuths,
+            ColAuths = entity.ColAuths,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
