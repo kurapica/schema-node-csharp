@@ -24,8 +24,6 @@ public static class RowAccessExpTreeVisitor
     /// </summary>
     public static async Task<AccessExpNode> Visit(this SchemaContext context, FunctionType func)
     {
-        if (func.AccessExpNode != null) return func.AccessExpNode;
-        
         // verify the function
         _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
@@ -46,9 +44,7 @@ public static class RowAccessExpTreeVisitor
             expMap[func.Args[i]] = new ArgNode(func.Args[i].TypeNode ?? throw new NotSupportedException($"The function {func.Name} can't be used as row access func"), i - 1);
         
         // visit the exp tree
-        AccessExpNode accessExp =  await VisitExp(context, last, expMap);
-        func.AccessExpNode = accessExp;
-        return accessExp;
+        return await VisitExp(context, last, expMap);
     }
 
     /// <summary>
@@ -71,6 +67,22 @@ public static class RowAccessExpTreeVisitor
 
     public static AccessExpNode And(this AccessExpNode left, AccessExpNode right)
         => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, left, right);
+
+    // Validate the access exp tree
+    public static bool IsValid(this AccessExpNode node)
+    {
+        switch (node)
+        {
+            case BinaryAccessExpNode binary:
+                if (binary.Type is BinaryAccessExpType.Contains or BinaryAccessExpType.NotContains)
+                {
+                    return binary.Left is not ValueAccessExpNode valueAccessExp
+                           || (valueAccessExp.Value != null && !valueAccessExp.Value.IsEmpty);
+                }
+                return binary.Left.IsValid() && binary.Right.IsValid();
+        }
+        return true;
+    }
     
     /// <summary>
     /// Convert the exp tree to SQL
@@ -136,6 +148,19 @@ public static class RowAccessExpTreeVisitor
             result = new ValueAccessExpNode(constNode.TypeNode, constNode.Value ?? constNode.TypeNode?.CreateNode(constNode.Value));
             expMap.Add(constNode, result);
             return result;
+        }
+        
+        // field access
+        if (expTree is FieldAccessExpNode fieldAccess)
+        {
+            AccessExpNode structNode = await VisitExp(context, fieldAccess.LeafNodes[0], expMap);
+            if (structNode is StructAccessExpNode structAccess)
+            {
+                result = new FieldAccessAccessExpNode(structAccess, fieldAccess.FieldName);
+                expMap.Add(fieldAccess, result);
+                return result;
+            }
+            throw new NotSupportedException(NotValid);
         }
         
         // exp only

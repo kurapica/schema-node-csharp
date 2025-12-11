@@ -6,7 +6,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Linq;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.App;
 using static SchemaNode.Utility.Constant;

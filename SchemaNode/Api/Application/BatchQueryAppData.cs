@@ -113,7 +113,7 @@ public static class BatchQueryExtension
                     if (allowRead)
                     {
                         // row access check
-                        if (field.SchemaType is ArrayType { ElementSchemaType: StructType structType } && field.RowAuths is { Length: > 0})
+                        if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
                             AccessExpNode? rowFilter = null;
                             bool authorized = false;
@@ -136,7 +136,7 @@ public static class BatchQueryExtension
                                     }
 
                                     // visite the function exp tree for where clause
-                                    rowFilter = (await RowAccessExpTreeVisitor.Visit(context, policy.FilterFunc)).Combine(q?.Filter);
+                                    rowFilter = (await context.Visit(policy.FilterFunc)).Combine(q?.Filter);
                                     break;
                                 }
                                 catch (Exception e)
@@ -147,7 +147,13 @@ public static class BatchQueryExtension
                             }
 
                             if (rowFilter != null)
-                                (result, total) = await context.GetFieldDataAsync(field, query.Target!, rowFilter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                            {
+                                if (rowFilter.IsValid())
+                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!, rowFilter,
+                                        q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                else
+                                    allowRead = false;
+                            }
                             else if (authorized) // no filter, all access
                                 (result, total) = await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                             else

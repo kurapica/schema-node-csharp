@@ -65,11 +65,11 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
-    public static bool contains<T>(IEnumerable<T> array, T value) where T: IComparable
+    public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
         {
-            if (EqualityComparer<T>.Default.Equals(item, value)) return true;
+            if (EqualityComparer<T>.Default.Equals(item.ToValue<T>(), value)) return true;
         }
         return false;
     }
@@ -78,7 +78,7 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
-    public static bool notcontains<T>(IEnumerable<T> array, T value) where T: IComparable
+    public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
     }
@@ -87,14 +87,14 @@ public static class SystemCollection
     /// Calc the average
     /// </summary>
     [Schema]
-    public static T average<T>(IEnumerable<T> array) where T : INumber<T>
+    public static T average<T>(ArrayTypeNode array) where T : INumber<T>
     {
         T sum = T.Zero;
         int count = 0;
-        foreach (T item in array)
+        foreach (var item in array)
         {
             count++;
-            sum += item;
+            sum += item.ToValue<T>() ?? T.Zero;
         }
         return count == 0 ? T.Zero : sum / T.CreateChecked(count);
     }
@@ -103,12 +103,12 @@ public static class SystemCollection
     /// Calc the sum
     /// </summary>
     [Schema]
-    public static T sum<T>(IEnumerable<T> array) where T : INumber<T>
+    public static T sum<T>(ArrayTypeNode array) where T : INumber<T>
     {
         T sum = T.Zero;
-        foreach (T item in array)
+        foreach (var item in array)
         {
-            sum += item;
+            sum += item.ToValue<T>() ?? T.Zero;
         }
         return sum;
     }
@@ -147,7 +147,15 @@ public static class SystemCollection
     [Schema]
     public static T? getfield<T>(StructTypeNode obj, string field)
     {
-        return (T?)obj.GetField(field)?.ToTypeValue(typeof(T));
+        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        AnySchemaNode? currentNode = obj;
+        foreach (string path in paths)
+        {
+            currentNode = (currentNode as StructTypeNode)?.GetField(path);
+            if (currentNode == null) return default;
+        }
+        
+        return (T?)currentNode.ToTypeValue(typeof(T));
     }
 
     /// <summary>
@@ -156,7 +164,7 @@ public static class SystemCollection
     [Schema]
     public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
     {
-        return (T?)obj.GetField(field)?.ToTypeValue(typeof(T)) ?? defaultValue;
+        return getfield<T>(obj, field) ?? defaultValue;
     }
     
     /// <summary>
@@ -165,8 +173,7 @@ public static class SystemCollection
     [Schema]
     public static async Task<ArrayTypeNode> getfields(SchemaContext context, ArrayTypeNode array, string field)
     {
-        ArrayType arrayType = array.Type as ArrayType ?? throw new  InvalidOperationException("The array type is invalid");
-        if (arrayType.ElementSchemaType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
+        if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
         if (f.TypeNode == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
@@ -174,16 +181,17 @@ public static class SystemCollection
                                   ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);
+        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         foreach (AnySchemaNode item in array)
         {
-            if (item is StructTypeNode node)
+            AnySchemaNode? fieldNode = item;
+            foreach (string path in paths)
             {
-                AnySchemaNode? fieldNode = node.GetField(field);
-                if (fieldNode != null)
-                {
-                    resultType.Add(fieldNode);
-                }
+                fieldNode = (fieldNode as StructTypeNode)?.GetField(path);
+                if (fieldNode == null) break;
             }
+            if (fieldNode != null)
+                resultType.Add(fieldNode);
         }
         return resultType;
     }

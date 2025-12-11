@@ -531,7 +531,7 @@ public static class Extension
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    internal static bool IsArrayType(this Type type) => type != typeof(ArrayTypeNode) && 
+    internal static bool IsArrayType(this Type type) => type != typeof(string) && type != typeof(ArrayTypeNode) && 
         ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
     
     internal static bool IsSafeConstantValue(this Type type)

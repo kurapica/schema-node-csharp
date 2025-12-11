@@ -19,8 +19,8 @@ public class MySqlProvider : ISqlProvider
     public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {param}, '%')";
     public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({param}, '%')";
     public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {param})";
-    public string In(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} IN ({string.Join(", ", paramNames.Select(Literal))})";
-    public string NotIn(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} NOT IN ({string.Join(", ", paramNames.Select(Literal))})";
+    public string In(string field, IEnumerable<object> paramNames) => $"{field} IN ({string.Join(", ", paramNames.Select(Literal))})";
+    public string NotIn(string field, IEnumerable<object> paramNames) => $"{field} NOT IN ({string.Join(", ", paramNames.Select(Literal))})";
     public string IsNull(string field) => $"{field} IS NULL";
     public string IsNotNull(string field) => $"{field} IS NOT NULL";
     public string FinalizeExpression(string whereSql) => whereSql;

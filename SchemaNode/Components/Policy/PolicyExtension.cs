@@ -36,12 +36,10 @@ public static class PolicyExtension
                     }
                 }
                 
-                switch (authorized)
-                {
-                    case true when item.Combine == PolicyCombine.OrElse:
-                    case false when item.Combine == PolicyCombine.AndAlso:
-                        break;
-                }
+                if (authorized && item.Combine == PolicyCombine.OrElse)
+                    break;
+                if (!authorized && item.Combine == PolicyCombine.AndAlso)
+                    break;
             }
             catch(Exception ex)
             {
@@ -59,13 +57,11 @@ public static class PolicyExtension
     /// </summary>
     public static async Task<bool> AuthorizeAsync(this SchemaContext context, string evaluator, bool chkOnly = false)
     {
-        bool authorized = false;
-
         // cache the evaluation result in context
         PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
 
         // The result should be the same for the same evaluator in one context
-        if (!cache.Result.TryGetValue(evaluator, out authorized))
+        if (!cache.Result.TryGetValue(evaluator, out var authorized))
         {
             try
             {

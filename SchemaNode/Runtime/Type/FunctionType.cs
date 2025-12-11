@@ -106,11 +106,6 @@ public class FunctionType: AnySchemeType
     /// </summary>
     public List<FunctionNodeExpTree> ExpTrees { get; private set; } = [];
     
-    /// <summary>
-    /// The access expression node for dynamic table access
-    /// </summary>
-    internal AccessExpNode? AccessExpNode { get; set; }
-    
     #endregion
     
     #region Methods
@@ -242,9 +237,6 @@ public class FunctionType: AnySchemeType
         Args = [];
         Exps = [];
         ExpTrees = [];
-
-        // Clear access node
-        AccessExpNode = null;
 
         // Clear function info to be re-compiled
         ClearFunctionInfo();
@@ -586,25 +578,32 @@ public class FunctionType: AnySchemeType
                     if (treeMap.TryGetValue(access[0], out FunctionNodeExpTree? value))
                     {
                         AnySchemeType? argTypeNode;
-                        for (int j = 1; j < access.Length; j++)
+                        
+                        // Convert the field access
+                        if (access.Length > 1)
                         {
-                            if (value.TypeNode is StructType @struct && @struct.Fields.FirstOrDefault(f => f.Name.Equals(access[j], StringComparison.OrdinalIgnoreCase)) is { } config)
+                            AnySchemeType? type = value.TypeNode;
+                            for (int j = 1; j < access.Length; j++)
                             {
-                                value.Used++;
-                                value = new FieldAccessExpNode
+                                if (type is StructType @struct && @struct.Fields.FirstOrDefault(f => f.Name.Equals(access[j], StringComparison.OrdinalIgnoreCase)) is { } config)
                                 {
-                                    LeafNodes = [value],
-                                    FieldName = config.Name,
-                                    TypeNode = config.TypeNode
-                                };
+                                    type = config.TypeNode;
+                                }
+                                else
+                                {
+                                    // Error
+                                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                                    Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                                    return (trees, TYPE_FUNC_CALL_ARG_NOT_EXIST);
+                                }
                             }
-                            else
+                            value.Used++;
+                            value = new FieldAccessExpNode
                             {
-                                // Error
-                                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                                Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                                return (trees, TYPE_FUNC_CALL_ARG_NOT_EXIST);
-                            }
+                                LeafNodes = [value],
+                                FieldName = string.Join(".", access.Skip(1)),
+                                TypeNode = type
+                            };
                         }
                         
                         switch (value)
@@ -1233,8 +1232,8 @@ public class FunctionType: AnySchemeType
                 variableExpMap.Add(expName, expRes);
                 
                 // Logger @TODO
-                // if (exp is FunctionNodeExpression callexp)
-                // expBlocks.Add(Expression.Call(paramExps[0], typeof(SchemaContext).GetMethod(nameof(SchemaContext.LogInformation))!, Expression.Constant($"Calling expression '{callexp.Name}")));
+                //if (exp is FunctionNodeExpression callexp)
+                //    expBlocks.Add(Expression.Call(paramExps[0], typeof(SchemaContext).GetMethod(nameof(SchemaContext.LogInformation))!, Expression.Constant($"Calling expression {callexp.Name}")));
                 expBlocks.Add(Expression.Assign(expRes, result));
                 finalVar = expRes;
             }
@@ -1245,9 +1244,10 @@ public class FunctionType: AnySchemeType
             Type lastType = ReturnNode?.ToCSharpType() ?? throw new Exception($"The {Name} can't be compiled - return type not valid");
             if (lastType != finalVar.Type)
             {
-                finalVar = Expression.Variable(lastType, "_final");
-                variableExpMap.Add("_final", finalVar);
-                expBlocks.Add(Expression.Assign(finalVar, ConvertExp(context, lastType, finalVar)));
+                var convExp = Expression.Variable(lastType, "_final");
+                variableExpMap.Add("_final", convExp);
+                expBlocks.Add(Expression.Assign(convExp, ConvertExp(context, lastType, finalVar)));
+                finalVar = convExp;
             }
 
             // Handle return label if existed
@@ -1403,7 +1403,27 @@ public class FunctionType: AnySchemeType
                     take != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, take, returnLabel, typeof(int)) : Expression.Constant(0),
                     Expression.Constant(orders.ToArray()));
                 callExp = Expression.Call(callExp, callExp.Type.GetMethod(nameof(Task.GetAwaiter), System.Type.EmptyTypes)!);
-                return Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
+                Expression result = Expression.Call(callExp, callExp.Type.GetMethod(nameof(TaskAwaiter.GetResult), System.Type.EmptyTypes)!);
+
+                switch (appData.Result)
+                {
+                    case AppDataSourceAccessResult.List:
+                        result = Expression.Convert(result, typeof(ArrayTypeNode));
+                        break;
+                    case AppDataSourceAccessResult.First:
+                        result = Expression.Convert(result, typeof(StructTypeNode));
+                        break;
+                    case AppDataSourceAccessResult.Last:
+                        result = Expression.Convert(result, typeof(StructTypeNode));
+                        break;
+                    case AppDataSourceAccessResult.Count:
+                        result = Expression.Convert(result, typeof(ScalarTypeNode));
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                
+                return ConvertExp(context, expectedType ?? result.Type, result);
             }
             
             // Const exp
@@ -1474,15 +1494,19 @@ public class FunctionType: AnySchemeType
                     Type callType = (exp.FuncNode.Args[i].TypeNode is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].TypeNode)
                                     ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable) ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
+                    Type? expectedLeafType = exp.ArrayIndex == i 
+                        ? callType.IsAssignableTo(typeof(AnySchemaNode)) ? typeof(ArrayTypeNode) : null
+                        : callType;
+                    
                     // Build the call arguments
                     switch (leaf)
                     {
                         case ParamsExpNode:
-                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, expectedLeafType);
                             callType = callType.MakeArrayType();
                             break;
                         default:
-                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                            callArgs[i + useContext] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, expectedLeafType);
                             break;
                     }
 
@@ -1830,14 +1854,14 @@ public class FunctionType: AnySchemeType
                 callArgs[1] = Expression.Constant(access.FieldName, typeof(string));
 
                 // Call the functions
-                Type expReturnType = access.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
+                Type expReturnType = expectedType ?? access.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
                 
                 // Generate the generic method
                 Type?[] genTypes = [expReturnType];
                 string genSign = string.Join('|', genTypes.Select(p => (Nullable.GetUnderlyingType(p!) ?? p!).FullName));
                 MethodInfo callMethod = callFuncInfo.GenericMethods.GetOrAdd(genSign, _ => callFuncInfo.Method!.MakeGenericMethod(genTypes!));
                 
-                return GenMethodCallExp(context, callFuncInfo, callMethod, callArgs, expReturnType, returnLabel: returnLabel);
+                return GenMethodCallExp(context, callFuncInfo, callMethod, callArgs, expectedType, returnLabel: returnLabel);
             }
             
             // Generate the result
@@ -1882,7 +1906,7 @@ public class FunctionType: AnySchemeType
     static Expression ConvertExp(SchemaContext context, Type ctype, Expression exp)
     {
         if (ctype == exp.Type) return exp;
-        if (ctype.IsAssignableFrom(exp.Type)) return Expression.Convert(exp, ctype);
+        if (ctype.IsAssignableFrom(exp.Type) || exp.Type == typeof(object)) return Expression.Convert(exp, ctype);
 
         Expression notNullExp = exp.Type.IsNullable() ? Expression.Call(exp, exp.Type.GetMethod("GetValueOrDefault", System.Type.EmptyTypes)!) : exp;
         Expression? resExp = null;
