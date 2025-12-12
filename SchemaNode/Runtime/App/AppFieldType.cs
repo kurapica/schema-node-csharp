@@ -9,7 +9,6 @@ using SchemaNode.Components;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
-using Microsoft.AspNetCore.Identity.UI.Services;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -109,6 +108,11 @@ public class AppFieldType
     /// The field is readonly
     /// </summary>
     public bool? Readonly { get; private init; }
+
+    /// <summary>
+    /// The field is loading from reference
+    /// </summary>
+    public bool? RefLoad { get; internal set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -241,7 +245,7 @@ public class AppFieldType
     public IEnumerable<string> GetColPolicies(string fieldName)
     {
         ColPolicyItem? item = ColAuths?.FirstOrDefault(i => i.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
-        if (item == null || item.Evaluators == null || item.Evaluators.Length == 0) yield break;
+        if (item == null || item.Evaluators.Length == 0) yield break;
         foreach (var evaluator in item.Evaluators)
             yield return evaluator;
     }
@@ -308,6 +312,7 @@ public class AppFieldType
             Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
+            RefLoad = entity.RefLoad,
             Additional = entity.Additional,
         };
     }

@@ -70,14 +70,15 @@ public static class BatchQueryExtension
             if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
             // query fields
-            List<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable).ToList() ?? [];
-            if (query.Fields is { Length: > 0 })
-                fields = fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            IEnumerable<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable) ?? [];
+            fields = query.Fields is { Length: > 0 }
+                ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
+                : fields.Where(f => !(f.RefLoad ?? false));
+            
             if (query.OnlyInput == true)
-                fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp)).ToList();
+                fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
             else if (query.OnlyOutput == true)
-                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp)).ToList();
-            if (fields.Count == 0) continue;
+                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
 
             // result
             Dictionary<string, JsonNode> datas = [];

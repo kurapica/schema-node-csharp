@@ -5,6 +5,8 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Win32;
+using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -139,6 +141,7 @@ public class AppType
         Relations = null;
         if (Fields is { Count: > 0 })
         {
+            // load field type first to avoid circular reference
             foreach (AppFieldType field in Fields)
             {
                 field.App = Name;
@@ -154,11 +157,14 @@ public class AppType
                     node.AddRef(field);
                     field.SchemaType = node;
                 }
+            }
 
+            foreach (AppFieldType field in Fields)
+            {
                 // valid the function
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
-                    node = await context.GetSchemaTypeAsync(field.Func);
+                    AnySchemeType? node = await context.GetSchemaTypeAsync(field.Func);
                     if (node is FunctionType funcNode)
                     {
                         field.FuncNode = funcNode;
@@ -265,34 +271,78 @@ public class AppType
                     }
                 }
 
-                // valid the column policy
-                if (field.ColAuths != null && ( field.SchemaType is StructType || field.SchemaType is ArrayType arr && arr.ElementSchemaType is StructType))
+                StructType? structType = field.SchemaType as StructType
+                    ?? (field.SchemaType is ArrayType { ElementSchemaType: StructType st } ? st : null);
+                if (structType != null)
                 {
-                    StructType structType = (field.SchemaType is StructType st ? st : ((ArrayType)field.SchemaType).ElementSchemaType as StructType)!;
-                    foreach(ColPolicyItem colPolicy in field.ColAuths)
+                    // valid the column policy
+                    if (field.ColAuths != null)
                     {
-                        StructFieldConfig? structField = structType.GetField(colPolicy.Name);
-                        if (structField == null)
+                        foreach(ColPolicyItem colPolicy in field.ColAuths)
                         {
-                            field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
-                            continue;
-                        }
-                        List<FunctionType> funcs = [];
-                        foreach (string item in colPolicy.Evaluators)
-                        {
-                            FunctionType? funcType = !string.IsNullOrEmpty(item)
-                                ? await context.GetSchemaTypeAsync(item) as FunctionType
-                                : null;
-                            if (funcType != null)
+                            StructFieldConfig? structField = structType.GetField(colPolicy.Name);
+                            if (structField == null)
                             {
-                                funcs.Add(funcType);
+                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
+                                continue;
+                            }
+                            List<FunctionType> funcs = [];
+                            foreach (string item in colPolicy.Evaluators)
+                            {
+                                FunctionType? funcType = !string.IsNullOrEmpty(item)
+                                    ? await context.GetSchemaTypeAsync(item) as FunctionType
+                                    : null;
+                                if (funcType != null)
+                                {
+                                    funcs.Add(funcType);
+                                }
+                                else
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                }
+                            }
+                            colPolicy.Functions = funcs.ToArray();
+                        }
+                    }
+                    
+                    // check the reference relationships
+                    if (structType.Relations != null)
+                    {
+                        foreach (var relation in structType.Relations.Where(r => r.Type == RelationType.Reference))
+                        {
+                            AnySchemeType? funcSchema = await context.GetSchemaTypeAsync(relation.Func);
+                            if (funcSchema is FunctionType funcType)
+                            {
+                                var exp = funcType.Exps.FirstOrDefault(e =>
+                                    e.Func.Equals($"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}"));
+                                if (exp is { Args.Length: >= 2 })
+                                {
+                                    string? app = exp.Args[0].Value?.GetValue<string>();
+                                    string? fieldName = exp.Args[1].Value?.GetValue<string>();
+                                    if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(fieldName))
+                                    {
+                                        field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
+                                        continue;
+                                    }
+                                    if (app != Name) continue;
+                                    AppFieldType? refField = Fields.FirstOrDefault(f => f.Name == fieldName);
+                                    if (refField == null)
+                                    {
+                                        field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
+                                        continue;
+                                    }
+                                    refField.RefLoad = true;
+                                }
+                                else
+                                {
+                                    field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
+                                }
                             }
                             else
                             {
-                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                             }
                         }
-                        colPolicy.Functions = funcs.ToArray();
                     }
                 }
             }

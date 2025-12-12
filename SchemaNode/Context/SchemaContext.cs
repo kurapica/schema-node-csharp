@@ -136,7 +136,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
                 };
             }
         }
-        
+
         if (!reload && node is { Loaded: true }) return node;
         
         // reload the node

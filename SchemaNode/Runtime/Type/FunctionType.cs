@@ -177,29 +177,8 @@ public class FunctionType: AnySchemeType
         }
 
         // Generate the exp trees
-        if (Status == SchemaNodeStatus.Ready)
-        {
-            (List<FunctionNodeExpTree> trees, string? error) = await BuildExpTrees(context);
-            if (error != null)
-                Status = Status == SchemaNodeStatus.Ready ? SchemaNodeStatus.FunctionExpsHasCompileError : Status;
-            else
-                ExpTrees = trees;
-
-            // Check if client only
-            if (Exps is { Length: > 0 })
-            {
-                foreach (FunctionNodeExpression exp in Exps.Where(e => e.FuncNode != null))
-                {
-                    if (exp.FuncNode!.IsSystemCall)
-                        IsSystemCall = true;
-                    if (exp.FuncNode.RequireRemoteCall)
-                        RequireRemoteCall = true;
-                }
-            }
-
-            // Check if used to generate the object
-            IsStructConstructor = trees.LastOrDefault() is StructResultExpNode;
-        }
+        bool isOkay = Status == SchemaNodeStatus.Ready;
+        await PreCompileAsync(context);
 
         // Add usages
         if (Status == SchemaNodeStatus.Ready)
@@ -207,12 +186,11 @@ public class FunctionType: AnySchemeType
             ReturnNode?.AddRef(this);
             foreach (FunctionNodeArgument arg in Args)
                 arg.TypeNode?.AddRef(this);
-
-            foreach (FunctionNodeExpression exp in Exps)
-            {
-                exp.TypeNode?.AddRef(this);
-                exp.FuncNode?.AddRef(this);
-            }
+        }
+        else
+        {
+            // hacky way to force re-compile
+            Injection.ReCompileFuncTypes?.Add(this);
         }
     }
     
@@ -279,24 +257,51 @@ public class FunctionType: AnySchemeType
         }
     }
 
-    // Clear the function info to be re-complied
-    void ClearFunctionInfo()
+    /// <summary>
+    /// Pre-compile the function expression trees
+    /// </summary>
+    public async Task PreCompileAsync(SchemaContext context)
     {
-        if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
-
-        FuncInfo = null;
-        if (UsedBy == null || UsedBy.IsEmpty) return;
-        foreach ((AnySchemeType other, _) in UsedBy)
+        if (ExpTrees.Count > 0 || Status != SchemaNodeStatus.Ready) return; // already pre-compiled
+        
+        // Build the exp trees
+        (List<FunctionNodeExpTree> trees, string? error) = await BuildExpTrees(context);
+        if (!string.IsNullOrEmpty(error))
         {
-            if (other is FunctionType func)
-                func.ClearFunctionInfo();
+            Status = Status == SchemaNodeStatus.Ready ? SchemaNodeStatus.FunctionExpsHasCompileError : Status;
+            return;
+        }
+        
+        // Record the exp trees
+        ExpTrees = trees;
+
+        // Check if client only
+        if (Exps is { Length: > 0 })
+        {
+            foreach (FunctionNodeExpression exp in Exps.Where(e => e.FuncNode != null))
+            {
+                if (exp.FuncNode!.IsSystemCall)
+                    IsSystemCall = true;
+                if (exp.FuncNode.RequireRemoteCall)
+                    RequireRemoteCall = true;
+            }
+        }
+
+        // Check if used to generate the object
+        IsStructConstructor = trees.LastOrDefault() is StructResultExpNode;
+        
+        // Add ref
+        foreach (FunctionNodeExpression exp in Exps)
+        {
+            exp.TypeNode?.AddRef(this);
+            exp.FuncNode?.AddRef(this);
         }
     }
-
+    
     #endregion
 
     #region Exp Tree
-
+    
     /// <summary>
     /// Build the expression tree based on the arguments and expressions
     /// </summary>
@@ -996,6 +1001,20 @@ public class FunctionType: AnySchemeType
         return exp;
     }
     
+    // Clear the function info to be re-complied
+    void ClearFunctionInfo()
+    {
+        if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
+
+        FuncInfo = null;
+        if (UsedBy == null || UsedBy.IsEmpty) return;
+        foreach ((AnySchemeType other, _) in UsedBy)
+        {
+            if (other is FunctionType func)
+                func.ClearFunctionInfo();
+        }
+    }
+
     #endregion
 
     #region Complie
@@ -2274,6 +2293,9 @@ public class FunctionType: AnySchemeType
             FuncInfo = result;
             return result;
         }
+        
+        // Build Exp
+        PreCompileAsync(context).GetAwaiter().GetResult();
 
         // Compile
         FuncInfo = CompileFunction(context);

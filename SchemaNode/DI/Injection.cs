@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Http;
 using SchemaNode.Components.Context;
 using SchemaNode.Function;
 using SchemaNode.Http;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Schema;
@@ -165,9 +167,21 @@ public static class Injection
             SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
             await context.GetSchemaTypeAsync("", preload: true);
             await context.GetAppTypeAsync("", preload: true);
+            
+            // re-compile function types
+            if (ReCompileFuncTypes == null) return;
+            foreach (var funcType in ReCompileFuncTypes)
+            {
+                funcType.Status = SchemaNodeStatus.Ready;
+                await funcType.PreCompileAsync(context);
+            }
+            ReCompileFuncTypes.Clear();
+            ReCompileFuncTypes = null;
         });
         return app;
     }
+    
+    internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
     
     #endregion
 
