@@ -1,12 +1,34 @@
+using Microsoft.OpenApi.Models;
 using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Components;
-using Microsoft.OpenApi.Models;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Kafka
+//builder.Services.AddSingleton<IConsumer<string, byte[]>>(sp =>
+//{
+//   var config = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
+
+//    var consumerConfig = new ConsumerConfig
+//    {
+//        BootstrapServers = config.BootstrapServers,
+//        GroupId = config.GroupId,
+//        AutoOffsetReset = AutoOffsetReset.Earliest,
+//        EnableAutoCommit = false
+//    };
+
+//    return new ConsumerBuilder<string, byte[]>(consumerConfig)
+//        .SetErrorHandler((_, e) =>
+//        {
+//            var logger = sp.GetRequiredService<ILogger<KafkaEventSource>>();
+//            logger.LogError("Kafka error: {Error}", e.Reason);
+//        })
+//        .Build();
+//});
 
 builder.Services
     // Mysql
@@ -41,8 +63,8 @@ builder.Services
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    //.AddAppSchemaDataProvider<AppDataMySqlProvider>();       // Mysql application data provider
-    .AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
+    .AddAppSchemaDataProvider<AppDataMySqlProvider>();       // Mysql application data provider
+    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
 
 // App
 var app = builder.Build();

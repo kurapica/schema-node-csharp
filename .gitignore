@@ -14,3 +14,4 @@ SchemaNode.MySql/.DS_Store
 SchemaNode.sln.DotSettings.user
 /SchemaNode.Example/bin
 /SchemaNode.Example/obj
+/SchemaNode.Kafka/obj

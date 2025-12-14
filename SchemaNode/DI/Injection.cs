@@ -159,11 +159,11 @@ public static class Injection
     /// <summary>
     /// Pre-load all schema nodes
     /// </summary>
-    public static IApplicationBuilder PreLoadSchemaNodes(this IApplicationBuilder app)
+    public static WebApplication PreLoadSchemaNodes(this WebApplication app)
     {
-        _ = Task.Run(async() =>
+        app.Lifetime.ApplicationStarted.Register(async() =>
         {
-            using IServiceScope scope = app.ApplicationServices.CreateScope();
+            using IServiceScope scope = app.Services.CreateScope();
             SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
             await context.GetSchemaTypeAsync("", preload: true);
             await context.GetAppTypeAsync("", preload: true);
@@ -172,11 +172,26 @@ public static class Injection
             if (ReCompileFuncTypes == null) return;
             foreach (var funcType in ReCompileFuncTypes)
             {
+                context.LogInformation($"Re compiling function type: {funcType.Name}");
                 funcType.Status = SchemaNodeStatus.Ready;
                 await funcType.PreCompileAsync(context);
             }
             ReCompileFuncTypes.Clear();
             ReCompileFuncTypes = null;
+
+            // start event source
+            foreach(IEventSource eventSource in app.Services.GetServices<IEventSource>())
+            {
+                try
+                {
+                    context.LogInformation($"Starting event source: {eventSource.GetType().FullName}");
+                    await eventSource.StartAsync(context, app.Lifetime.ApplicationStopping);
+                }
+                catch (Exception ex)
+                {
+                    context.LogError(ex, $"Failed to start event source: {eventSource.GetType().FullName}, error: {ex.Message}");
+                }
+            }
         });
         return app;
     }
@@ -456,6 +471,15 @@ public static class Injection
     static readonly List<SchemaApiType> ApiTypes = new();
 
     public record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
+
+    #endregion
+
+    #region Methods
+
+    /// <summary>
+    /// Gets all registered schema assemblies
+    /// </summary>
+    public static IEnumerable<Assembly> GetRegisteredAssemblies() => RegisterAssemblys;
 
     #endregion
 }

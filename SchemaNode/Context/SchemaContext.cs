@@ -76,10 +76,10 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 
     #region Log
 
-    public void LogDebug(string message) => Logger.LogDebug(message);
-    public void LogInformation(string message) => Logger.LogInformation(message);
-    public void LogWarning(string message) => Logger.LogWarning(message);
-    public void LogError(string message) => Logger.LogError(message);
+    public void LogDebug(string message, params object?[] args) => Logger.LogDebug(message, args);
+    public void LogInformation(string message, params object?[] args) => Logger.LogInformation(message, args);
+    public void LogWarning(string message, params object?[] args) => Logger.LogWarning(message, args);
+    public void LogError(Exception ex, string message, params object?[] args) => Logger.LogError(ex, message, args);
 
     #endregion
     

@@ -254,7 +254,7 @@ public static class Extension
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
-    internal static object? FromJson(this string value, Type type)
+    public static object? FromJson(this string value, Type type)
     {
         if (type == typeof(string))
             return value;
