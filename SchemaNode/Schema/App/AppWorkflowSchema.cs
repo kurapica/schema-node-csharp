@@ -31,7 +31,7 @@ public class AppWorkflowSchema
     public string Name { get; set; } = default!;
     
     /// <summary>
-    /// The authentication policy, normally row policy
+    /// The authentication policy
     /// </summary>
     public PolicyItem[]? Auths { get; set; }
 
@@ -131,9 +131,9 @@ public class AppWorkflowNodeSchema
     public bool? Fork { get; set; }
 
     /// <summary>
-    /// The fork key path in the payload
+    /// The fork key paths in the payload
     /// </summary>
-    public string? ForkKey { get; set; }
+    public string[]? ForkKey { get; set; }
     
     /// <summary>
     /// The node can't be canceled

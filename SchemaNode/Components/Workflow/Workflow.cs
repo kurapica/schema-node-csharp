@@ -62,7 +62,7 @@ public abstract class Workflow
     /// Fork primary key of the access path, used to identify different fork instances
     /// If a new workflow comes with the same fork key that not terminated, the new one will be ignored
     /// </summary>
-    internal string? ForkKey { get; set; }
+    internal string[]? ForkKey { get; set; }
     
     /// <summary>
     /// Whether the current workflow is un-cancelable

@@ -1,8 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;

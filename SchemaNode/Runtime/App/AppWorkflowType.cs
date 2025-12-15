@@ -140,7 +140,7 @@ public class AppWorkflowType: IDisposable
             wNode.Application = Application;
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
-            wNode.ForkKey = node.ForkKey;
+            wNode.ForkKey = node.ForkKey?.ToArray();
             wNode.UnCancelable = node.UnCancelable ?? false;
             wNode.CancelPre = node.CancelPre ?? false;
 
