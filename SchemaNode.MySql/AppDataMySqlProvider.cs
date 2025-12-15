@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components;
 using SchemaNode.Node;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -628,7 +629,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null)
+    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null, bool canAdd = true)
     {
         string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
@@ -781,11 +782,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (array.Count == 0) return (false, null);
             
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
+            ArrayTypeNode? oArr = origin as ArrayTypeNode;
+            if (!canAdd && (oArr == null || oArr.Count < array.Count))
+                throw new UnauthorizedAccessException();
 
             // record exist rows
             HashSet<string> existKeys = [];
             List<string> keys = [];
-            if (origin is ArrayTypeNode oArr && oArr.Count > 0)
+            if (oArr != null && oArr.Count > 0)
             {
                 foreach (AnySchemaNode item in oArr)
                 {

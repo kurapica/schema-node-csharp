@@ -67,7 +67,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false)
+    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -82,9 +82,9 @@ public static class AppDataTransactionExtension
 
         try
         {
-            (bool result, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value);
+            (bool result, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value, canAdd);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Modify, value, origin);
-            return true;
+            return result;
         }
         catch (Exception ex)
         {

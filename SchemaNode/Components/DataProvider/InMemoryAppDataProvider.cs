@@ -112,7 +112,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
         throw new NotImplementedException();
     }
 
-    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null)
+    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
@@ -139,9 +139,13 @@ public class InMemoryAppDataProvider: IAppDataProvider
                             list[index] = item.ToJson()!;
                             origins.Add(origin);
                         }
-                        else
+                        else if (canAdd)
                         {
                             list.Add(item.ToJson()!);
+                        }
+                        else
+                        {
+                            throw new UnauthorizedAccessException();
                         }
                     }
                     return (true, new ArrayTypeNode(schema.SchemaType, origins));
@@ -156,10 +160,14 @@ public class InMemoryAppDataProvider: IAppDataProvider
                         list[index] = structTypeNode.ToJson()!;
                         return (true, new ArrayTypeNode(schema.SchemaType, origin));
                     }
-                    else
+                    else if (canAdd)
                     {
                         list.Add(structTypeNode.ToJson()!);
                         return (true, null);
+                    }
+                    else
+                    {
+                        throw new UnauthorizedAccessException();
                     }
                 }
                 default:

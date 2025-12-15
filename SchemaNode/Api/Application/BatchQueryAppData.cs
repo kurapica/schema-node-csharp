@@ -117,7 +117,7 @@ public static class BatchQueryExtension
                         if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
                             AccessExpNode? rowFilter = null;
-                            bool authorized = false;
+                            bool authorized = true;
                             foreach (RowPolicyItem policy in field.RowAuths)
                             {
                                 try

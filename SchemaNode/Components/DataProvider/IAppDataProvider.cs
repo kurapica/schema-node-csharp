@@ -30,7 +30,7 @@ public interface IAppDataProvider
     /// <summary>
     /// Save the dynamic table data
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null);
+    Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true);
     
     /// <summary>
     /// Delete the dynamic table data with the filter

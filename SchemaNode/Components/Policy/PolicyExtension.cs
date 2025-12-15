@@ -13,7 +13,7 @@ public static class PolicyExtension
     /// <summary>
     /// authorize the schema with the policy scope
     /// </summary>
-    static async Task<bool> AuthorizeAsync(this SchemaContext context, IEnumerable<PolicyItem> items, bool chkOnly = false)
+    static async Task<bool> AuthorizeAsync(this SchemaContext context, IEnumerable<PolicyItem> items, bool silent = false)
     {
         // if no policy, authorized
         bool authorized = true;
@@ -48,14 +48,14 @@ public static class PolicyExtension
         }
 
         // throw if not authorized
-        if (!chkOnly && !authorized) throw new UnauthorizedAccessException();
+        if (!silent && !authorized) throw new UnauthorizedAccessException();
         return authorized;
     }
 
     /// <summary>
     /// Authorize with the evaluator function name
     /// </summary>
-    public static async Task<bool> AuthorizeAsync(this SchemaContext context, string evaluator, bool chkOnly = false)
+    public static async Task<bool> AuthorizeAsync(this SchemaContext context, string evaluator, bool silent = false)
     {
         // cache the evaluation result in context
         PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
@@ -76,38 +76,38 @@ public static class PolicyExtension
         }
 
         // throw if not authorized
-        if (!chkOnly && !authorized) throw new UnauthorizedAccessException();
+        if (!silent && !authorized) throw new UnauthorizedAccessException();
         return authorized;
     }
 
     /// <summary>
     /// Authorize with the evaluator function
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, FunctionType evaluator, bool chkOnly = false) => AuthorizeAsync(context, evaluator.Name, chkOnly);
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, FunctionType evaluator, bool silent = false) => AuthorizeAsync(context, evaluator.Name, silent);
 
     /// <summary>
     /// Authorize the schema type with the policy scope
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AnySchemeType type, PolicyScope scope, bool chkOnly = false)
-        => AuthorizeAsync(context, type.GetAuthPolicies(scope), chkOnly);
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AnySchemeType type, PolicyScope scope, bool silent = false)
+        => AuthorizeAsync(context, type.GetAuthPolicies(scope), silent);
 
     /// <summary>
     /// Authorize the app type with the policy scope
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppType app, PolicyScope scope, bool chkOnly = false)
-        => AuthorizeAsync(context, app.GetAuthPolicies(scope), chkOnly);
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppType app, PolicyScope scope, bool silent = false)
+        => AuthorizeAsync(context, app.GetAuthPolicies(scope), silent);
 
     /// <summary>
     /// Authorize the app field with the policy scope
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppFieldType appField, PolicyScope scope, bool chkOnly = false)
-        => AuthorizeAsync(context, appField.GetAuthPolicies(scope), chkOnly);
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppFieldType appField, PolicyScope scope, bool silent = false)
+        => AuthorizeAsync(context, appField.GetAuthPolicies(scope), silent);
 
     /// <summary>
     /// Authorize the app workflow with the policy scope
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppWorkflowType appWorkflow, PolicyScope scope, bool chkOnly = false)
-        => AuthorizeAsync(context, appWorkflow.GetAuthPolicies(scope), chkOnly);
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AppWorkflowType appWorkflow, PolicyScope scope, bool silent = false)
+        => AuthorizeAsync(context, appWorkflow.GetAuthPolicies(scope), silent);
 }
 
 internal class PolicyEvaluatorResult
