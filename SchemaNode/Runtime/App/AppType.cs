@@ -304,46 +304,6 @@ public class AppType
                             colPolicy.Functions = funcs.ToArray();
                         }
                     }
-                    
-                    // check the reference relationships
-                    if (structType.Relations != null)
-                    {
-                        foreach (var relation in structType.Relations.Where(r => r.Type == RelationType.Reference))
-                        {
-                            AnySchemeType? funcSchema = await context.GetSchemaTypeAsync(relation.Func);
-                            if (funcSchema is FunctionType funcType)
-                            {
-                                var exp = funcType.Exps.FirstOrDefault(e =>
-                                    e.Func.Equals($"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}"));
-                                if (exp is { Args.Length: >= 2 })
-                                {
-                                    string? app = exp.Args[0].Value?.GetValue<string>();
-                                    string? fieldName = exp.Args[1].Value?.GetValue<string>();
-                                    if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(fieldName))
-                                    {
-                                        field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                                        continue;
-                                    }
-                                    if (app != Name) continue;
-                                    AppFieldType? refField = Fields.FirstOrDefault(f => f.Name == fieldName);
-                                    if (refField == null)
-                                    {
-                                        field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                                        continue;
-                                    }
-                                    refField.RefLoad = true;
-                                }
-                                else
-                                {
-                                    field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                                }
-                            }
-                            else
-                            {
-                                field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                            }
-                        }
-                    }
                 }
             }
 

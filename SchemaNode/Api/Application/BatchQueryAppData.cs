@@ -73,7 +73,7 @@ public static class BatchQueryExtension
             IEnumerable<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable) ?? [];
             fields = query.Fields is { Length: > 0 }
                 ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
-                : fields.Where(f => !(f.RefLoad ?? false));
+                : fields;
             
             if (query.OnlyInput == true)
                 fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));

@@ -110,11 +110,6 @@ public class AppFieldType
     public bool? Readonly { get; private init; }
 
     /// <summary>
-    /// The field is loading from reference
-    /// </summary>
-    public bool? RefLoad { get; internal set; }
-
-    /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
     public DataCombineType? Combine { get; private init; }
@@ -312,7 +307,6 @@ public class AppFieldType
             Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
-            RefLoad = entity.RefLoad,
             Additional = entity.Additional,
         };
     }

@@ -89,12 +89,6 @@ public class AppFieldSchema
     public ColPolicyItem[]? ColAuths { get; set; }
     
     /// <summary>
-    /// The field is reference load, loading data on demand
-    /// </summary>
-    [NotMapped]
-    public bool? RefLoad { get; set; }
-
-    /// <summary>
     /// The field flags
     /// </summary>
     public AppFieldFlags Flags { get; set; } = AppFieldFlags.None;
