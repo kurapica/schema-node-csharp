@@ -6,8 +6,6 @@ using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
@@ -48,12 +46,12 @@ public static class PushDataExtenstion
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
         Dictionary<string, AppDataFieldPushQuery>? data)
     {
-        if (string.IsNullOrWhiteSpace(app)) return (false, Constant.APP_NOT_FOUND);
-        if (string.IsNullOrWhiteSpace(target)) return (false, Constant.APP_TARGET_REQUIRED);
-        if (data == null || data.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
+        if (string.IsNullOrWhiteSpace(app)) return (false, APP_NOT_FOUND);
+        if (string.IsNullOrWhiteSpace(target)) return (false, APP_TARGET_REQUIRED);
+        if (data == null || data.Count == 0) return (false, APP_PUSH_DATA_REQUIRED);
 
         AppType? appNode = await context.GetAppTypeAsync(app);
-        if (appNode == null) return (false, Constant.APP_NOT_FOUND);
+        if (appNode == null) return (false, APP_NOT_FOUND);
         
         // set access
         context.SetAccess(appNode.Name, target);
@@ -114,7 +112,6 @@ public static class PushDataExtenstion
                         // check data row access permission
                         if (push.Data is JsonArray arr)
                         {
-                            JsonArray args = new JsonArray();
                             foreach (JsonNode? item in arr)
                                 await ValidateRow(context, rowChecker, item);
                         }
@@ -167,13 +164,15 @@ public static class PushDataExtenstion
 
     static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item)
     {
-        if (item is not JsonObject obj) throw new UnauthorizedAccessException();
+        if (item is not JsonObject) throw new UnauthorizedAccessException();
         try
         {
-            var args = new JsonArray(1);
-            args[0] = item.DeepClone();
+            var args = new JsonArray(1)
+            {
+                [0] = item.DeepClone()
+            };
             var res = await context.CallFunctionAsync(rowChecker, args, [NS_SYSTEM_BOOL]);
-            if (res is not JsonValue boolVal || !boolVal.TryGetValue<bool>(out bool allowed) || !allowed)
+            if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }
         catch

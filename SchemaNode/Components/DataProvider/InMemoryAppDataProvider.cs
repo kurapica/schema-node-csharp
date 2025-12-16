@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
 
@@ -112,7 +113,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
         throw new NotImplementedException();
     }
 
-    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true)
+    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
@@ -129,41 +130,46 @@ public class InMemoryAppDataProvider: IAppDataProvider
                 case ArrayTypeNode arrayTypeNode:
                 {
                     List<JsonNode> origins = [];
+                    List<AnySchemaNode> updates = [];
                     foreach (AnySchemaNode item in arrayTypeNode)
                     {
                         string? key = schema.GetPrimaryKey((StructTypeNode)item);
                         if (string.IsNullOrEmpty(key)) continue;
                         if (dict.TryGetValue(key, out int index))
                         {
+                            if (onlyAdd) continue; // no update
                             JsonNode origin = list[index];
                             list[index] = item.ToJson()!;
                             origins.Add(origin);
+                            updates.Add(item);
                         }
                         else if (canAdd)
                         {
                             list.Add(item.ToJson()!);
+                            updates.Add(item);
                         }
                         else
                         {
                             throw new UnauthorizedAccessException();
                         }
                     }
-                    return (true, new ArrayTypeNode(schema.SchemaType, origins));
+                    return (true, new ArrayTypeNode(schema.SchemaType, updates), new ArrayTypeNode(schema.SchemaType, origins));
                 }
                 case StructTypeNode structTypeNode:
                 {
                     string? key = schema.GetPrimaryKey(structTypeNode);
-                    if (string.IsNullOrEmpty(key)) return (false, null);
+                    if (string.IsNullOrEmpty(key)) return (false, null, null);
                     if (dict.TryGetValue(key, out int index))
                     {
+                        if (onlyAdd) return (false, null, null); // no update
                         JsonNode origin = list[index];
                         list[index] = structTypeNode.ToJson()!;
-                        return (true, new ArrayTypeNode(schema.SchemaType, origin));
+                        return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), new ArrayTypeNode(schema.SchemaType, origin));
                     }
                     else if (canAdd)
                     {
                         list.Add(structTypeNode.ToJson()!);
-                        return (true, null);
+                        return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), null);
                     }
                     else
                     {
@@ -171,7 +177,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
                     }
                 }
                 default:
-                    return (false, null);
+                    return (false, null, null);
             }
         }
         else
@@ -179,7 +185,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
             JsonNode? origin = list.FirstOrDefault();
             list.Clear();
             if (data != null) list.Add(data.ToJson()!);
-            return (true, schema.SchemaType.CreateNode(origin));
+            return (true, data, schema.SchemaType.CreateNode(origin));
         }
     }
 

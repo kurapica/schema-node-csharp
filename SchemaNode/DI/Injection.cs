@@ -27,6 +27,12 @@ public static class Injection
 {
     #region Schemas
 
+    public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
+    {
+        foreach (Assembly assembly in assemblies) RegisterAssemblyFeatures(services, assembly);
+        return services;
+    }
+
     public static IServiceCollection AddSchemaNode(this IServiceCollection services, Action<SchemaNodeConfig>? config = null, params Assembly[] assemblies)
     {
         return AddSchemaNode<DefaultSchemaApiProtocol>(services, config, assemblies);
@@ -161,7 +167,7 @@ public static class Injection
     /// </summary>
     public static WebApplication PreLoadSchemaNodes(this WebApplication app)
     {
-        app.Lifetime.ApplicationStarted.Register(async() =>
+        app.Lifetime.ApplicationStarted.Register(async void () =>
         {
             using IServiceScope scope = app.Services.CreateScope();
             SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();

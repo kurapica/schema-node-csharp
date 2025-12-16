@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components;
 using SchemaNode.Node;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -629,13 +628,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null, bool canAdd = true)
+    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null, bool canAdd = true, bool onlyAdd = false)
     {
         string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
-
-        if (string.IsNullOrWhiteSpace(target)) return (false, null);
+        if (string.IsNullOrWhiteSpace(target)) return (false, null, null);
         
         // single row
         if (schema.Single)
@@ -652,9 +650,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
-                    return (true, origin);
+                    return (true, null, origin);
                 }
-                return (false, null);
+                return (false, null, null);
             }
 
             // Check the value type
@@ -667,7 +665,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 // Insert the value
                 if (origin == null)
                 {
-                    if (result == null) return (false, null);
+                    if (result == null) return (false, null, null);
                     try
                     {
                         DbCommand command = GetDbCommand();
@@ -686,12 +684,16 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 // Update the value
                 if (!isInsert)
                 {
+                    // Gets the origin value again
+                    if (origin == null)
+                        (origin, _) = await QueryDynamicTableAsync(schema, target);
+                    
                     DbCommand command = GetDbCommand();
                     command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(result)} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
-                return (true, origin);
+                return (true, value, origin);
             }
             else if (value is StructTypeNode pack)
             {
@@ -732,6 +734,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 // Update
                 if (!isInsert)
                 {
+                    // Gets the origin value again
+                    if (origin == null)
+                        (origin, _) = await QueryDynamicTableAsync(schema, target);
+                    
                     // Header
                     sb.Clear();
                     sb.Append($"UPDATE {tableName} SET ");
@@ -753,11 +759,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
-                return (true, origin);
+                return (true, value, origin);
             }
             else
             {
-                return (false, null);
+                return (false, null, null);
             }
         }
         
@@ -768,28 +774,32 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             StringBuilder sb = new();
 
             // Prepare the data
+            IEnumerable<StructTypeNode> packs;
             switch (value)
             {
                 case ArrayTypeNode arr:
                     array = arr.ToJson()!;
+                    packs = arr.OfType<StructTypeNode>();
                     break;
                 case StructTypeNode obj:
                     array = [obj.ToJson()];
+                    packs = [obj];
                     break;
                 default:
-                    return (false, null);
+                    return (false, null, null);
             }
-            if (array.Count == 0) return (false, null);
+            if (array.Count == 0) return (false, null, null);
             
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
             ArrayTypeNode? oArr = origin as ArrayTypeNode;
             if (!canAdd && (oArr == null || oArr.Count < array.Count))
                 throw new UnauthorizedAccessException();
+            oArr ??= new ArrayTypeNode(schema.SchemaType);
 
             // record exist rows
             HashSet<string> existKeys = [];
             List<string> keys = [];
-            if (oArr != null && oArr.Count > 0)
+            if (oArr is { Count: > 0 })
             {
                 foreach (AnySchemaNode item in oArr)
                 {
@@ -808,17 +818,16 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             keys.Add(v.ToString());
                         }
 
-                        if (!fullFill) return (false, null); // impossible
+                        if (!fullFill) return (false, null, null); // impossible
                         existKeys.Add(string.Join('|', keys));
                     }
                 }
             }
 
             // Foreach
-            foreach (JsonNode? val in array)
+            List<StructTypeNode> updatedPacks = [];
+            foreach (StructTypeNode pack in packs)
             {
-                if (val is not JsonObject pack) continue;
-
                 // Build where condition
                 bool fullFill = true;
                 keys.Clear();
@@ -864,6 +873,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
+                        
+                        updatedPacks.Add(pack);
                     }
                     catch (MySqlException ex)
                     {
@@ -871,8 +882,17 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             throw;
                     }
                 }
-                if (!isInsert)
+                
+                if (!isInsert && !onlyAdd)
                 {
+                    // query again
+                    if (!existKeys.Contains(string.Join('|', keys)))
+                    {
+                        (origin, _) = await QueryDynamicTableAsync(schema, target, pack.ToJson(), forUpdate: true);
+                        if (origin is ArrayTypeNode arr && arr.Count == 1)
+                            oArr.Add(arr[0]!);
+                    }
+                    
                     // Header
                     sb.Clear();
                     sb.Append($"UPDATE {tableName} SET ");
@@ -894,9 +914,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
+                    
+                    updatedPacks.Add(pack);
                 }
             }
-            return (true, origin);
+            return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  onlyAdd ? null : oArr);
         }
     }
 

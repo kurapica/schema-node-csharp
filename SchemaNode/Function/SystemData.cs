@@ -444,6 +444,7 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        bool onlyAdd,
         string target
     )
     {
@@ -458,7 +459,7 @@ public static class SystemData
         if (dataNode == null || dataNode.IsEmpty) return false;
 
         await context.BeginTransactionAsync();
-        await context.SaveFieldDataAsync(fieldType!, target, dataNode);
+        await context.SaveFieldDataAsync(fieldType!, target, dataNode, onlyAdd: onlyAdd);
         await context.CommitTransactionAsync();
         return true;
     }
