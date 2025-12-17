@@ -40,6 +40,12 @@ public static class SystemCollection
         }
         return 0;
     }
+    
+    [Schema]
+    public static JsonObject newstruct()
+    {
+        return new  JsonObject();
+    }
 
     /// <summary>
     /// Create a new array

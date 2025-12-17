@@ -794,10 +794,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             ArrayTypeNode? oArr = origin as ArrayTypeNode;
             if (!canAdd && (oArr == null || oArr.Count < array.Count))
                 throw new UnauthorizedAccessException();
-            oArr ??= new ArrayTypeNode(schema.SchemaType);
 
             // record exist rows
-            HashSet<string> existKeys = [];
+            Dictionary<string, StructTypeNode> existKeys = [];
             List<string> keys = [];
             if (oArr is { Count: > 0 })
             {
@@ -819,13 +818,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         }
 
                         if (!fullFill) return (false, null, null); // impossible
-                        existKeys.Add(string.Join('|', keys));
+                        existKeys.Add(string.Join('|', keys), obj);
                     }
                 }
             }
 
             // Foreach
             List<StructTypeNode> updatedPacks = [];
+            List<StructTypeNode> originPacks = [];
             foreach (StructTypeNode pack in packs)
             {
                 // Build where condition
@@ -851,7 +851,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 
                 // Insert
                 bool isInsert = false;
-                if (!existKeys.Contains(string.Join('|', keys)))
+                if (!existKeys.TryGetValue(string.Join('|', keys), out StructTypeNode? originPack))
                 {
                     // Header
                     sb.Clear();
@@ -886,12 +886,16 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 if (!isInsert && !onlyAdd)
                 {
                     // query again
-                    if (!existKeys.Contains(string.Join('|', keys)))
+                    if (originPack == null)
                     {
                         (origin, _) = await QueryDynamicTableAsync(schema, target, pack.ToJson(), forUpdate: true);
-                        if (origin is ArrayTypeNode arr && arr.Count == 1)
-                            oArr.Add(arr[0]!);
+                        if (origin is ArrayTypeNode { Count: 1 } arr)
+                            originPack = arr[0] as StructTypeNode;
                     }
+                    
+                    // Skip if no change
+                    if (originPack != null && originPack.Equals(pack))
+                        continue;
                     
                     // Header
                     sb.Clear();
@@ -916,9 +920,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     await command.ExecuteNonQueryAsync();
                     
                     updatedPacks.Add(pack);
+                    if (originPack != null)
+                        originPacks.Add(originPack);
                 }
             }
-            return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  onlyAdd ? null : oArr);
+            return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  onlyAdd ? null : new ArrayTypeNode(schema.SchemaType, originPacks) );
         }
     }
 

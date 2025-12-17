@@ -1,4 +1,5 @@
-﻿using SchemaNode.Enum;
+﻿using System.Collections;
+using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
@@ -45,6 +46,14 @@ public abstract class AnySchemaNode
     /// Convert to value
     /// </summary>
     public virtual T? ToValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
+
+    /// <summary>
+    /// The value equals
+    /// </summary>
+    /// <param name="other"></param>
+    /// <returns></returns>
+    public virtual bool Equals(AnySchemaNode other) 
+        => this == other || _value == other._value;
 
     /// <summary>
     /// Convert to type value

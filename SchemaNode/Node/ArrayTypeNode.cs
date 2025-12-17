@@ -2,6 +2,8 @@
 using SchemaNode.Utility;
 using System.Collections;
 using System.Text.Json.Nodes;
+using Microsoft.VisualBasic;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
@@ -148,6 +150,24 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         }
     }
 
+    /// <summary>
+    /// Clear elements without primary keys
+    /// </summary>
+    internal ArrayTypeNode FilterByPrimaryKeys(string[] primaryKeys)
+    {
+        if (ElementType is not StructType @struct || primaryKeys.Any(k => @struct.GetField(k) == null)) return this;
+        StructFieldConfig[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
+        return new ArrayTypeNode(@struct)
+        {
+            _elements = _elements.Where(e =>
+            {
+                return e is StructTypeNode structNode && 
+                       fields.Select(field => structNode.GetField(field.Name))
+                           .All(value => value is not null && !value.IsEmpty);
+            }).ToList()
+        };
+    }
+
     public override object? ToTypeValue(Type type)
     {
         if (type == typeof(ArrayTypeNode))
@@ -256,7 +276,23 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     }
 
     public override string ToString() => ToJson()?.ToString() ?? string.Empty;
-    
+
+    /// <summary>
+    /// Equals the other node
+    /// </summary>
+    public override bool Equals(AnySchemaNode other)
+    {
+        if (this == other) return true;
+        if (other is not ArrayTypeNode otherArray) return false;
+        if (ElementType != otherArray.ElementType) return false;
+        if (Count != otherArray.Count) return false;
+        for (int i = 0; i < Count; i++)
+        {
+            if (!this[i]!.Equals(otherArray[i])) return false;
+        }
+        return true;
+    }
+
     public IEnumerator<AnySchemaNode> GetEnumerator()
     {
         return _elements.GetEnumerator();

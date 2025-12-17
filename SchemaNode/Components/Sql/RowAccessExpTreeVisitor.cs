@@ -600,7 +600,17 @@ public static class RowAccessExpTreeVisitor
                 break;
             }
 
-        // complex func check
+            // a is null
+            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}":
+            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}":
+            {
+                if (leafNodes[0] is not FieldAccessAccessExpNode)
+                    throw new NotSupportedException("The isNull operand must be a field access");
+                result = new UnaryAccessExpNode(UnaryAccessExpType.IsNull, leafNodes[0]);
+                break;
+            }
+            
+            // complex func check
             default:
             {
                 var info = exp.FuncNode?.GetSchemaFuncInfo(context);
@@ -696,6 +706,14 @@ public static class RowAccessExpTreeVisitor
                 return sqlProvider.Literal(value.Value);
             case ArgNode arg:
                 return sqlProvider.Literal(args.ElementAtOrDefault(arg.Index) ?? throw new NotSupportedException($"The argument {arg.Index + 1} not provided"));
+            case UnaryAccessExpNode unary:
+                switch (unary.Type)
+                {
+                    case UnaryAccessExpType.IsNull:
+                        return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, prefix, args));
+                    default:
+                        throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
+                }
         }
 
         throw new NotSupportedException("The expression type not supported");
@@ -741,6 +759,11 @@ public enum BinaryAccessExpType
     ContainsStr,
 }
 
+public enum UnaryAccessExpType
+{
+    IsNull,
+}
+
 /// <summary>
 /// The exp node
 /// </summary>
@@ -760,6 +783,11 @@ public record FieldAccessAccessExpNode(StructAccessExpNode Struct, string FieldN
 /// The binary expression node
 /// </summary>
 public record BinaryAccessExpNode(BinaryAccessExpType Type, AccessExpNode Left, AccessExpNode Right) : AccessExpNode;
+
+/// <summary>
+/// The unary expression node
+/// </summary>
+public record UnaryAccessExpNode(UnaryAccessExpType Type, AccessExpNode Operand) : AccessExpNode;
 
 /// <summary>
 /// The value expression node

@@ -178,7 +178,8 @@ public class FunctionType: AnySchemeType
 
         // Generate the exp trees
         bool isOkay = Status == SchemaNodeStatus.Ready;
-        await PreCompileAsync(context);
+        if (isOkay)
+            await PreCompileAsync(context);
 
         // Add usages
         if (Status == SchemaNodeStatus.Ready)
@@ -187,7 +188,7 @@ public class FunctionType: AnySchemeType
             foreach (FunctionNodeArgument arg in Args)
                 arg.TypeNode?.AddRef(this);
         }
-        else
+        else if (isOkay)
         {
             // hacky way to force re-compile
             Injection.ReCompileFuncTypes?.Add(this);
@@ -1908,7 +1909,7 @@ public class FunctionType: AnySchemeType
                             memberExp = expMap[name];
                             break;
                         default:
-                            continue; // won't hit
+                            continue; // skip
                     }
 
                     // Build the exp

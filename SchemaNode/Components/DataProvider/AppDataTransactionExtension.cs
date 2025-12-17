@@ -275,7 +275,7 @@ public static class AppDataTransactionExtension
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         await dataProvider.BeginTransactionAsync();
-        context.SetContextItem(new Dictionary<string, TransactionChangeData>());
+        context.SetContextItem(new Dictionary<string, TransactionChangeData>()); // keep track
     }
 
     /// <summary>
@@ -288,11 +288,9 @@ public static class AppDataTransactionExtension
 
         // Process data field push
         foreach (string target in transChangedData.Keys.ToArray())
-        {
-            // process data push
             await ProcessDataPush(context, target, transChangedData[target], pushAll, pushAllFields);
-        }
 
+        // Commit
         await dataProvider.CommitTransactionAsync();
 
         // Event after commit
@@ -745,7 +743,6 @@ public static class AppDataTransactionExtension
                                 }
                             }
                         }
-
                     }
                     else
                     {
@@ -992,6 +989,11 @@ public static class AppDataTransactionExtension
                     }
 
                     // Generate result map
+                    
+                    // filter old & new result with primary keys
+                    oldResult = oldResult is ArrayTypeNode oldArr ? oldArr.FilterByPrimaryKeys(array.Primary) : oldResult;
+                    newResult = newResult is ArrayTypeNode newArr ? newArr.FilterByPrimaryKeys(array.Primary) : newResult;
+                    
                     // Group join the old & now data
                     Dictionary<string, StructTypeNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
                     Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
@@ -1161,5 +1163,4 @@ public static class AppDataTransactionExtension
     }
 
     #endregion
-
 }

@@ -175,14 +175,26 @@ public static class Injection
             await context.GetAppTypeAsync("", preload: true);
             
             // re-compile function types
-            if (ReCompileFuncTypes == null) return;
-            foreach (var funcType in ReCompileFuncTypes)
+            FunctionType[] funcs = ReCompileFuncTypes?.ToArray() ?? [];
+            ReCompileFuncTypes?.Clear();
+
+            int old = 0;
+            while (old != funcs.Length)
             {
-                context.LogInformation($"Re compiling function type: {funcType.Name}");
-                funcType.Status = SchemaNodeStatus.Ready;
-                await funcType.PreCompileAsync(context);
+                foreach (var funcType in funcs)
+                {
+                    context.LogInformation($"Re compiling function type: {funcType.Name}");
+                    funcType.Status = SchemaNodeStatus.Ready;
+                    await funcType.PreCompileAsync(context);
+
+                    if (funcType.Status == SchemaNodeStatus.Ready) continue;
+                    ReCompileFuncTypes ??= [];
+                    ReCompileFuncTypes.Add(funcType);
+                }
+                old = funcs.Length;
+                funcs = ReCompileFuncTypes?.ToArray() ?? [];
+                ReCompileFuncTypes?.Clear();
             }
-            ReCompileFuncTypes.Clear();
             ReCompileFuncTypes = null;
 
             // start event source

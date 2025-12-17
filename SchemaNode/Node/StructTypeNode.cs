@@ -1,7 +1,9 @@
 ﻿using System.Reflection;
+using System.Runtime;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
@@ -39,8 +41,6 @@ public class StructTypeNode : AnySchemaNode
     /// <summary>
     /// Get value with field name
     /// </summary>
-    /// <param name="fieldName"></param>
-    /// <returns></returns>
     public AnySchemaNode? GetField(string fieldName)
     {
         var type = Type as StructType;
@@ -58,6 +58,25 @@ public class StructTypeNode : AnySchemaNode
             _csharpObject = null;
             field.Value = value;
         }
+    }
+
+    /// <summary>
+    /// Equals override
+    /// </summary>
+    public override bool Equals(AnySchemaNode other)
+    {
+        if (this == other) return true;
+        if (other is not StructTypeNode otherStruct) return false;
+        if (SchemaType != otherStruct.SchemaType) return false;
+
+        var fields = (Type as StructType)!.Fields;
+        foreach (var t in fields)
+        {
+            var field = otherStruct.GetField(t.Name);
+            var thisField = GetField(t.Name);
+            if (field == null || thisField == null || !field.Equals(thisField)) return false;
+        }
+        return true;
     }
 
     public override bool IsEmpty => Fields.All(f => f.IsEmpty);

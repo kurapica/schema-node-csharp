@@ -8,6 +8,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+using SchemaNode.Utility;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -113,6 +114,62 @@ public static class BatchQueryExtension
 
                     if (allowRead)
                     {
+                        // reference relation check
+                        if (!string.IsNullOrEmpty(q?.SourceType) || !string.IsNullOrEmpty(q?.SourceField) || (q?.Source != null && !q.Source.IsEmpty()))
+                        {
+                            if (string.IsNullOrEmpty(q.SourceType) || string.IsNullOrEmpty(q.SourceField) || q.Source == null || q.Source.IsEmpty()) continue;
+                            
+                            // check the reference relation
+                            AnySchemeType? sourceType = await context.GetSchemaTypeAsync(q.SourceType);
+                            if (sourceType is ArrayType arr) sourceType = arr.ElementSchemaType;
+                            if (sourceType is not StructType @struct) continue;
+                            StructFieldConfig? sourceField = @struct.GetField(q!.SourceField);
+                            if (sourceField == null || !(sourceField.DisplayOnly ?? false) || sourceField.TypeNode != field.SchemaType) continue;
+                            
+                            StructFieldRelation? relation = @struct.Relations?.FirstOrDefault(r =>
+                                r.Type == RelationType.Reference &&
+                                r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase));
+                            if (relation == null) continue;
+                            
+                            StructTypeNode source = new StructTypeNode(@struct, q.Source);
+                            if (source.IsEmpty) continue;
+                            
+                            FunctionType? refFunc = relation.FuncNode;
+                            if (refFunc == null) continue;
+                            await refFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
+                            if (refFunc.ExpTrees.Count == 0) continue;
+                            
+                            // args check
+                            AnySchemaNode?[] funcArgs = new AnySchemaNode[refFunc.Args.Length];
+                            for (int i = 0; i < funcArgs.Length; i++)
+                            {
+                                if (relation.Args.Length > i)
+                                {
+                                    var arg = relation.Args[i];
+                                    if (!string.IsNullOrEmpty(arg.Name))
+                                    {
+                                        funcArgs[i] = source.GetValueByPaths(arg.Name);
+                                    }
+                                    else
+                                    {
+                                        funcArgs[i] = refFunc.Args[i].TypeNode?.CreateNode(arg.Value);
+                                    }
+                                }
+                                else if (refFunc.Args[i].Nullable ?? false)
+                                {
+                                    funcArgs[i] = refFunc.Args[i].TypeNode?.CreateNode(null);
+                                }
+                            }
+                            if (funcArgs.Any(a => a == null)) continue;
+
+                            // get source access node
+                            AppDataSourceAccessExpNode? sourceAccess =
+                                refFunc.ExpTrees.FirstOrDefault(e => e is AppDataSourceAccessExpNode) as AppDataSourceAccessExpNode;
+                            if (sourceAccess == null || field.SchemaType is not ArrayType array || array.ElementSchemaType != sourceAccess.StructType) continue;
+                            
+                            // build the row access filter
+                        }
+                        
                         // row access check
                         if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
@@ -471,6 +528,21 @@ public class AppDataFieldQuery
     /// Use descent order
     /// </summary>
     public bool? Descend { get; set; }
+    
+    /// <summary>
+    /// The reference source type
+    /// </summary>
+    public string? SourceType { get; set; }
+    
+    /// <summary>
+    /// The reference source field
+    /// </summary>
+    public string? SourceField { get; set; }
+    
+    /// <summary>
+    /// The reference source data
+    /// </summary>
+    public JsonObject? Source { get; set; }
 }
 
 public class AppDataResult
