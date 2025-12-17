@@ -114,66 +114,76 @@ public static class BatchQueryExtension
 
                     if (allowRead)
                     {
-                        // reference relation check
-                        if (!string.IsNullOrEmpty(q?.SourceType) || !string.IsNullOrEmpty(q?.SourceField) || (q?.Source != null && !q.Source.IsEmpty()))
+                        // filter func
+                        AccessExpNode? filter = null;
+                        if (!string.IsNullOrWhiteSpace(q?.FilterFunc))
                         {
-                            if (string.IsNullOrEmpty(q.SourceType) || string.IsNullOrEmpty(q.SourceField) || q.Source == null || q.Source.IsEmpty()) continue;
-                            
-                            // check the reference relation
-                            AnySchemeType? sourceType = await context.GetSchemaTypeAsync(q.SourceType);
-                            if (sourceType is ArrayType arr) sourceType = arr.ElementSchemaType;
-                            if (sourceType is not StructType @struct) continue;
-                            StructFieldConfig? sourceField = @struct.GetField(q!.SourceField);
-                            if (sourceField == null || !(sourceField.DisplayOnly ?? false) || sourceField.TypeNode != field.SchemaType) continue;
-                            
-                            StructFieldRelation? relation = @struct.Relations?.FirstOrDefault(r =>
-                                r.Type == RelationType.Reference &&
-                                r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase));
-                            if (relation == null) continue;
-                            
-                            StructTypeNode source = new StructTypeNode(@struct, q.Source);
-                            if (source.IsEmpty) continue;
-                            
-                            FunctionType? refFunc = relation.FuncNode;
-                            if (refFunc == null) continue;
-                            await refFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
-                            if (refFunc.ExpTrees.Count == 0) continue;
+                            FunctionType? filterFunc = await context.GetSchemaTypeAsync(q.FilterFunc) as FunctionType;
+                            if (filterFunc == null) continue;
+
+                            await filterFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
+                            if (filterFunc.ExpTrees.Count == 0) continue;
                             
                             // args check
-                            AnySchemaNode?[] funcArgs = new AnySchemaNode[refFunc.Args.Length];
+                            AnySchemaNode[] funcArgs = new AnySchemaNode[filterFunc.Args.Length];
+                            bool fullArgs = true;
                             for (int i = 0; i < funcArgs.Length; i++)
                             {
-                                if (relation.Args.Length > i)
+                                var farg = filterFunc.Args[i];
+                                if (farg.TypeNode == null)
                                 {
-                                    var arg = relation.Args[i];
-                                    if (!string.IsNullOrEmpty(arg.Name))
+                                    fullArgs = false;
+                                    break;
+                                }
+                                var arg = q.FilterArgs != null && q.FilterArgs.Count > i ? q.FilterArgs[i] : null;
+                                if (arg == null || arg.IsEmpty())
+                                {
+                                    if (farg.Nullable ?? false)
                                     {
-                                        funcArgs[i] = source.GetValueByPaths(arg.Name);
+                                        funcArgs[i] = farg.TypeNode.CreateNode();
                                     }
                                     else
                                     {
-                                        funcArgs[i] = refFunc.Args[i].TypeNode?.CreateNode(arg.Value);
+                                        fullArgs = false;
+                                        break;
                                     }
                                 }
-                                else if (refFunc.Args[i].Nullable ?? false)
+                                else 
                                 {
-                                    funcArgs[i] = refFunc.Args[i].TypeNode?.CreateNode(null);
+                                    var res = await farg.TypeNode.ValidateValueAsync(context, arg);
+                                    if (res.error == null)
+                                    {
+                                        funcArgs[i] = res.value;
+                                    }
+                                    else
+                                    {
+                                        fullArgs = false;
+                                        break;
+                                    }
                                 }
                             }
-                            if (funcArgs.Any(a => a == null)) continue;
+                            if (!fullArgs) continue;
 
                             // get source access node
                             AppDataSourceAccessExpNode? sourceAccess =
-                                refFunc.ExpTrees.FirstOrDefault(e => e is AppDataSourceAccessExpNode) as AppDataSourceAccessExpNode;
+                                filterFunc.ExpTrees.FirstOrDefault(e => e is AppDataSourceAccessExpNode) as AppDataSourceAccessExpNode;
                             if (sourceAccess == null || field.SchemaType is not ArrayType array || array.ElementSchemaType != sourceAccess.StructType) continue;
-                            
+
                             // build the row access filter
+                            while (sourceAccess != null)
+                            {
+                                if (sourceAccess.Filter != null)
+                                {
+                                    var expand = sourceAccess.Filter.Expand(funcArgs);
+                                    filter = filter != null ? filter.And(expand) : expand;
+                                }
+                                sourceAccess = sourceAccess.LeafNodes[0] as AppDataSourceAccessExpNode;
+                            }
                         }
-                        
+
                         // row access check
                         if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
-                            AccessExpNode? rowFilter = null;
                             bool authorized = true;
                             foreach (RowPolicyItem policy in field.RowAuths)
                             {
@@ -194,32 +204,29 @@ public static class BatchQueryExtension
                                     }
 
                                     // visite the function exp tree for where clause
-                                    rowFilter = (await context.Visit(policy.FilterFunc)).Combine(q?.Filter);
+                                    filter = (await context.Visit(policy.FilterFunc)).And(filter);
                                     break;
                                 }
                                 catch (Exception e)
                                 {
                                     context.Logger.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${policy.Evaluator}");
-                                    rowFilter = null;
+                                    authorized = false;
                                 }
                             }
-
-                            if (rowFilter != null)
-                            {
-                                if (rowFilter.IsValid())
-                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!, rowFilter,
-                                        q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
-                                else
-                                    allowRead = false;
-                            }
-                            else if (authorized) // no filter, all access
-                                (result, total) = await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
-                            else
-                                allowRead = false;
+                            allowRead = authorized;
                         }
-                        else
+
+                        if (allowRead)
                         {
-                            (result, total) = await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                            if (filter != null)
+                            {
+                                if (filter.IsValid())
+                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!, filter.Combine(q?.Filter), q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                            }
+                            else
+                            {
+                                (result, total) = await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                            }
                         }
                     }
                     
@@ -232,6 +239,8 @@ public static class BatchQueryExtension
                         Take = take,
                         Descend = q?.Descend ?? query.Descend ?? false,
                         Total = total,
+                        FilterFunc = q?.FilterFunc,
+                        FilterArgs = q?.FilterArgs?.DeepClone() as JsonArray,
                         AllowRead = allowRead,
                         AllowCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true),
                         AllowUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true),
@@ -530,19 +539,14 @@ public class AppDataFieldQuery
     public bool? Descend { get; set; }
     
     /// <summary>
-    /// The reference source type
+    /// The filter function
     /// </summary>
-    public string? SourceType { get; set; }
-    
+    public string? FilterFunc { get; set; }
+
     /// <summary>
-    /// The reference source field
+    /// The filter function args
     /// </summary>
-    public string? SourceField { get; set; }
-    
-    /// <summary>
-    /// The reference source data
-    /// </summary>
-    public JsonObject? Source { get; set; }
+    public JsonArray? FilterArgs { get; set; }
 }
 
 public class AppDataResult
@@ -632,4 +636,14 @@ public class AppDataFieldInfo
     /// Disable columns access
     /// </summary>
     public string[]? BlackColumns { get; set;  }
+
+    /// <summary>
+    /// The filter func
+    /// </summary>
+    public string? FilterFunc { get; set; }
+
+    /// <summary>
+    ///  The filter args
+    /// </summary>
+    public JsonArray? FilterArgs { get; set; }
 }

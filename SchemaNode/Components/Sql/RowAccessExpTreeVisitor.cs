@@ -50,7 +50,7 @@ public static class RowAccessExpTreeVisitor
     /// <summary>
     /// Clone the access exp and replace the arg nodes with values
     /// </summary>
-    public static AccessExpNode Expand(this AccessExpNode accessExp, params object[] args)
+    public static AccessExpNode Expand(this AccessExpNode accessExp, object[] args)
     {
         if (args.Length == 0) return accessExp; // no args to replace, use original
         return accessExp switch
@@ -65,8 +65,8 @@ public static class RowAccessExpTreeVisitor
         };
     }
 
-    public static AccessExpNode And(this AccessExpNode left, AccessExpNode right)
-        => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, left, right);
+    public static AccessExpNode And(this AccessExpNode left, AccessExpNode? right)
+        => right != null ? new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, left, right) : left;
 
     // Validate the access exp tree
     public static bool IsValid(this AccessExpNode node)
