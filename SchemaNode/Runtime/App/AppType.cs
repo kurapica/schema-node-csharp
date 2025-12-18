@@ -5,7 +5,6 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Win32;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -159,9 +158,10 @@ public class AppType
                 }
             }
 
+            // load field details
             foreach (AppFieldType field in Fields)
             {
-                // valid the function
+                // valid the push function
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
                     AnySchemeType? node = await context.GetSchemaTypeAsync(field.Func);
@@ -176,26 +176,22 @@ public class AppType
                     }
 
                     // Checks the call Arguments
-                    field.FuncArgs = new List<AppFieldNodeArgument>();
-                    if (field.Args is {  Length: > 0 }){
-                        foreach (string arg in field.Args)
+                    field.FuncArgs = [];
+                    if (!string.IsNullOrWhiteSpace(field.Arg))
+                    {
+                        AppFieldType? tar = GetField(field.Arg);
+                        if (tar == null)
                         {
-                            string[] paths = arg.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
-                            AppFieldType? tar = paths.Length > 0 ? GetField(paths[0]) : null;
-                            if (tar == null)
+                            field.Status = SchemaNodeStatus.ApplicationFieldWrongFuncField;
+                        }
+                        else
+                        {
+                            // Register to observers
+                            tar.AddObserver(field);
+                            field.FuncArgs.Add(new AppFieldNodeArgument
                             {
-                                field.Status = SchemaNodeStatus.ApplicationFieldWrongFuncField;
-                            }
-                            else
-                            {
-                                // Register to observers
-                                tar.AddObserver(field);
-                                field.FuncArgs.Add(new AppFieldNodeArgument
-                                {
-                                    AppField = tar,
-                                    DataField = paths.Length > 1 ? paths[1] : null,
-                                });
-                            }
+                                AppField = tar,
+                            });
                         }
                     }
                 }
@@ -245,8 +241,7 @@ public class AppType
                         // valid evaluator
                         if (!string.IsNullOrEmpty(row.Evaluator))
                         {
-                            FunctionType? funcType = await context.GetSchemaTypeAsync(row.Evaluator) as FunctionType;
-                            if (funcType != null)
+                            if (await context.GetSchemaTypeAsync(row.Evaluator) is FunctionType funcType)
                             {
                                 row.EvaluatorFunc = funcType;
                             }
@@ -258,8 +253,7 @@ public class AppType
                         // valid filter
                         if (!string.IsNullOrEmpty(row.Filter))
                         {
-                            FunctionType? funcType = await context.GetSchemaTypeAsync(row.Filter) as FunctionType;
-                            if (funcType != null)
+                            if (await context.GetSchemaTypeAsync(row.Filter) is FunctionType funcType)
                             {
                                 row.FilterFunc = funcType;
                             }

@@ -72,7 +72,7 @@ public class AppFieldType
     /// <summary>
     /// The input fields
     /// </summary>
-    public string[]? Args { get; init; }
+    public string? Arg { get; init; }
 
     /// <summary>
     /// The authentication policy, normally row policy
@@ -265,7 +265,7 @@ public class AppFieldType
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
             Func = entity.Func,
-            Args = entity.Args,
+            Arg = entity.Arg,
             Auths = entity.Auths,
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,
@@ -297,7 +297,7 @@ public class AppFieldType
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
             Func = entity.Func,
-            Args = entity.Args,
+            Arg = entity.Arg,
             Auths = entity.Auths,
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,

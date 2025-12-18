@@ -140,7 +140,7 @@ public static class BatchQueryExtension
                                 {
                                     if (farg.Nullable ?? false)
                                     {
-                                        funcArgs[i] = farg.TypeNode.CreateNode();
+                                        funcArgs[i] = farg.TypeNode.CreateNode()!;
                                     }
                                     else
                                     {
@@ -153,7 +153,7 @@ public static class BatchQueryExtension
                                     var res = await farg.TypeNode.ValidateValueAsync(context, arg);
                                     if (res.error == null)
                                     {
-                                        funcArgs[i] = res.value;
+                                        funcArgs[i] = res.value!;
                                     }
                                     else
                                     {
@@ -174,7 +174,7 @@ public static class BatchQueryExtension
                             {
                                 if (sourceAccess.Filter != null)
                                 {
-                                    var expand = sourceAccess.Filter.Expand(funcArgs);
+                                    var expand = sourceAccess.Filter.Expand(funcArgs.Select(a => a.Value).ToArray()!);
                                     filter = filter != null ? filter.And(expand) : expand;
                                 }
                                 sourceAccess = sourceAccess.LeafNodes[0] as AppDataSourceAccessExpNode;

@@ -1,8 +1,9 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using SchemaNode.Utility;
 
-namespace SchemaNode.Utility;
+namespace SchemaNode.Components;
 
 /// <summary>
 /// The entity schema condition visitor, only support equal, since schema is designed without complex query

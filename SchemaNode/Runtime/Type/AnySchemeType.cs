@@ -125,12 +125,12 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Used by another node
     /// </summary>
-    public void AddRef(AnySchemeType node)
+    public void AddRef(AnySchemeType type)
     {
         // system types are not tracked
-        if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System) return;
+        if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System && !(type is ArrayType arr && Name.Equals(arr.Element, StringComparison.OrdinalIgnoreCase))) return;
         UsedBy ??= new ConcurrentDictionary<AnySchemeType, bool>();
-        UsedBy.TryAdd(node, true);
+        UsedBy.TryAdd(type, true);
     }
 
     /// <summary>

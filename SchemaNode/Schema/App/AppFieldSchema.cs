@@ -6,6 +6,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -69,9 +70,9 @@ public class AppFieldSchema
     public string? Func { get; set; }
     
     /// <summary>
-    /// The input fields
+    /// The input field
     /// </summary>
-    public string[]? Args { get; set; }
+    public string? Arg { get; set; }
 
     /// <summary>
     /// The authentication policy

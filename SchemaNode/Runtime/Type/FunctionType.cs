@@ -589,6 +589,10 @@ public class FunctionType: AnySchemeType
                         if (access.Length > 1)
                         {
                             AnySchemeType? type = value.TypeNode;
+                            bool isArrayAccess = type is ArrayType;
+                            if (isArrayAccess)
+                                type = (type as ArrayType)!.ElementSchemaType;
+                            
                             for (int j = 1; j < access.Length; j++)
                             {
                                 if (type is StructType @struct && @struct.Fields.FirstOrDefault(f => f.Name.Equals(access[j], StringComparison.OrdinalIgnoreCase)) is { } config)
@@ -608,7 +612,7 @@ public class FunctionType: AnySchemeType
                             {
                                 LeafNodes = [value],
                                 FieldName = string.Join(".", access.Skip(1)),
-                                TypeNode = type
+                                TypeNode = isArrayAccess ? await context.GetArraySchemaTypeAsync(type) : type
                             };
                         }
                         
@@ -655,7 +659,10 @@ public class FunctionType: AnySchemeType
                             argTypeNode is ArrayType { ElementSchemaType: not null } array && 
                             funcArgType is not ArrayType && 
                             (funcArgType is null || array.ElementSchemaType.CanBeUseAs(funcArgType)) &&
-                            (arrayRequireEle is null || array.ElementSchemaType.CanBeUseAs(arrayRequireEle)))
+                            (arrayRequireEle is null || array.ElementSchemaType.CanBeUseAs(arrayRequireEle) || 
+                             (value is FieldAccessExpNode && 
+                             value.LeafNodes.ElementAtOrDefault(0)?.TypeNode is ArrayType { ElementSchemaType: not null } arr && 
+                             arr.ElementSchemaType.CanBeUseAs(arrayRequireEle))))
                         {
                             arrayArg = i;
                             argTypeNode = array.ElementSchemaType;
@@ -999,11 +1006,64 @@ public class FunctionType: AnySchemeType
             }
         }
         
+        // field access
+        else if ((exp.LeafNodes.ElementAtOrDefault(0) is FieldAccessExpNode fieldAccess &&
+                  fieldAccess.LeafNodes.ElementAtOrDefault(0) is AppDataSourceAccessExpNode fieldAccessExp))
+        {
+            switch (exp.Type)
+            {
+                case ExpressionType.First:
+                case ExpressionType.Last:
+                case ExpressionType.Filter:
+                {
+                    // init the exp map
+                    Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
+                    StructAccessExpNode structAccessExpNode = new StructAccessExpNode(fieldAccessExp.StructType!);
+                    expMap[fieldAccessExp] = structAccessExpNode;
+                    expMap[fieldAccess] = new FieldAccessAccessExpNode(structAccessExpNode, fieldAccess.FieldName);
+                    
+                    // use arg node to block deep visit
+                    for (int i = 1; i < exp.LeafNodes.Length; i++)
+                    {
+                        expMap[exp.LeafNodes[i]!] = exp.LeafNodes[i] is ConstantExpNode constExp
+                            ? new ValueAccessExpNode(constExp.TypeNode, constExp.Value)
+                            : new ArgNode(
+                                exp.LeafNodes[i]?.TypeNode ??
+                                throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"),
+                                i - 1);
+                    }
+
+                    try
+                    {
+                        AccessExpNode filter = await context.VisitExp(exp, expMap, true);
+
+                        // replace for access
+                        exp = new AppDataSourceAccessExpNode(exp, fieldAccessExp)
+                        {
+                            Filter = filter,
+                            Result = exp.Type switch
+                            {
+                                ExpressionType.First => AppDataSourceAccessResult.First,
+                                ExpressionType.Last => AppDataSourceAccessResult.Last,
+                                _ => AppDataSourceAccessResult.List
+                            },
+                        };
+                        exp.LeafNodes[0] = fieldAccessExp;
+                    }
+                    catch(Exception ex)
+                    {
+                        context.Logger.LogError("The {Func} can't be used as row access filter: {Error}, will cause the query execution", exp.Func, ex.Message);
+                    }
+                    break;
+                }
+            }
+        }
+        
         return exp;
     }
     
     // Clear the function info to be re-complied
-    void ClearFunctionInfo()
+    internal void ClearFunctionInfo()
     {
         if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
 
