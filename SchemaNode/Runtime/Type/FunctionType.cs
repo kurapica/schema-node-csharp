@@ -32,33 +32,33 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    public string Return { get; private set; } = string.Empty;
+    public string Return { get; protected set; } = string.Empty;
 
     /// <summary>
     /// The function arguments
     /// </summary>
-    public FunctionNodeArgument[] Args { get; private set; } = [];
+    public FunctionNodeArgument[] Args { get; protected set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    public FunctionNodeExpression[] Exps { get; private set; } = [];
+    public FunctionNodeExpression[] Exps { get; protected set; } = [];
 
     /// <summary>
     /// The basic type of generic types, provided to T(single generic type),
     /// T1, T2(for multi generic type)
     /// </summary>
-    public AnySchemeType?[] Generic { get; private set; } = [];
+    public AnySchemeType?[] Generic { get; protected set; } = [];
 
     /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; private set; }
+    public bool? Server  { get; protected set; }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; private set; }
+    public bool? Nocache  { get; protected set; }
     
     #endregion
     
@@ -86,11 +86,11 @@ public class FunctionType: AnySchemeType
     /// Whether the function is defined as system, direct call
     /// </summary>
     public bool IsSystemCall { get; private set; }
-    
+
     /// <summary>
     /// The function info
     /// </summary>
-    internal SchemaFuncInfo? FuncInfo { get; private set; }
+    internal SchemaFuncInfo? FuncInfo { get; set; }
     
     #endregion
     
@@ -99,12 +99,12 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type node
     /// </summary>
-    public AnySchemeType? ReturnNode { get; private set; }
+    public AnySchemeType? ReturnNode { get; protected set; }
 
     /// <summary>
     /// The root expression trees
     /// </summary>
-    public List<FunctionNodeExpTree> ExpTrees { get; private set; } = [];
+    public List<FunctionNodeExpTree> ExpTrees { get; protected set; } = [];
     
     #endregion
     
@@ -178,8 +178,7 @@ public class FunctionType: AnySchemeType
 
         // Generate the exp trees
         bool isOkay = Status == SchemaNodeStatus.Ready;
-        if (isOkay)
-            await PreCompileAsync(context);
+        if (isOkay) await PreCompileAsync(context);
 
         // Add usages
         if (Status == SchemaNodeStatus.Ready)
@@ -2369,12 +2368,12 @@ public class FunctionType: AnySchemeType
         MethodInfo method = typeof(FunctionType).GetMethod($"CallDynamicFunc{inputs.Length}", BindingFlags.Static | BindingFlags.NonPublic)!;
         return method.MakeGenericMethod(inputs.Prepend(ret).ToArray());
     }
-    
+
     #endregion
-    
+
     #region Utility
 
-    void ResizeGeneric(int count)
+    protected void ResizeGeneric(int count)
     {
         if (Generic.Length >= count) return;
         AnySchemeType?[] generic = new AnySchemeType?[count];
@@ -2442,7 +2441,7 @@ public class FunctionType: AnySchemeType
 /// <summary>
 /// The expression tree
 /// </summary>
-public class FunctionNodeExpTree
+public abstract class FunctionNodeExpTree
 {
     /// <summary>
     /// The leaf nodes as sub expressions
