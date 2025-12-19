@@ -133,6 +133,46 @@ public static class RowAccessExpTreeVisitor
 
         return accessExp;
     }
+
+    /// <summary>
+    /// Try convert the access exp to filter json object
+    /// </summary>
+    public static JsonObject? ToFilter(this AccessExpNode accessExp)
+    {
+        if (accessExp is BinaryAccessExpNode binaryAccessExp)
+        {
+            if (binaryAccessExp.Type == BinaryAccessExpType.AndAlso)
+            {
+                JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
+                JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
+                if (leftFilter == null) return null;
+                if (rightFilter == null) return null;
+                
+                // merge
+                foreach ((string key, JsonNode? value) in rightFilter)
+                    leftFilter[key] = value?.DeepClone();
+                return leftFilter;
+            }
+            
+            FieldAccessAccessExpNode? accessNode = binaryAccessExp.Left as FieldAccessAccessExpNode ??
+                                                   binaryAccessExp.Right as FieldAccessAccessExpNode;
+            if (accessNode == null) return null;
+            ValueAccessExpNode? valueAccess = (binaryAccessExp.Left == accessNode
+                ? binaryAccessExp.Right
+                : binaryAccessExp.Left) as ValueAccessExpNode;
+            if (valueAccess == null) return null;
+
+            if (binaryAccessExp.Type is BinaryAccessExpType.Equal or BinaryAccessExpType.Contains)
+            {
+                return new JsonObject
+                {
+                    [accessNode.FieldName] = valueAccess.Value?.ToJson()
+                };
+            }
+        }
+
+        return null;
+    }
     
     /// <summary>
     /// Visit the exp tree

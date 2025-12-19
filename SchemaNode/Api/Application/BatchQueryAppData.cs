@@ -112,10 +112,11 @@ public static class BatchQueryExtension
                     // authorize field
                     bool allowRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
 
+                    // filter func
+                    AccessExpNode? filter = null;
+                    
                     if (allowRead)
                     {
-                        // filter func
-                        AccessExpNode? filter = null;
                         if (!string.IsNullOrWhiteSpace(q?.FilterFunc))
                         {
                             FunctionType? filterFunc = await context.GetSchemaTypeAsync(q.FilterFunc) as FunctionType;
@@ -174,7 +175,16 @@ public static class BatchQueryExtension
                             {
                                 if (sourceAccess.Filter != null)
                                 {
-                                    var expand = sourceAccess.Filter.Expand(funcArgs.Select(a => a.Value).ToArray()!);
+                                    var objs = new object[sourceAccess.LeafNodes.Length - 1];
+                                    for(int i = 1; i < sourceAccess.LeafNodes.Length; i++)
+                                    {
+                                        if (sourceAccess.LeafNodes[i] is FunctionNodeArgument arg)
+                                        {
+                                            objs[i - 1] = funcArgs[arg.Index!.Value].Value!;
+                                        }
+                                    }
+                                    
+                                    var expand = sourceAccess.Filter.Expand(objs);
                                     filter = filter != null ? filter.And(expand) : expand;
                                 }
                                 sourceAccess = sourceAccess.LeafNodes[0] as AppDataSourceAccessExpNode;
@@ -221,7 +231,16 @@ public static class BatchQueryExtension
                             if (filter != null)
                             {
                                 if (filter.IsValid())
-                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!, filter.Combine(q?.Filter), q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                {
+                                    filter = filter.Combine(q?.Filter);
+                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!,
+                                        filter, q?.Skip ?? 0, take,
+                                        q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                }
+                                else
+                                {
+                                    filter = null;
+                                }
                             }
                             else
                             {
@@ -233,7 +252,7 @@ public static class BatchQueryExtension
                     // mark loaded
                     infos[field.Name] = new AppDataFieldInfo
                     {
-                        Filter = q?.Filter,
+                        Filter = filter?.ToFilter() ?? q?.Filter,
                         OrderBy = q?.OrderBy,
                         Skip = q?.Skip ?? 0,
                         Take = take,

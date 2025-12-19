@@ -114,8 +114,9 @@ public class AppWorkflowType: IDisposable
         foreach (var i in Application.GetAuthPolicies(scope)) yield return i;
         
         // self policies
-        var item = Auths?.FirstOrDefault(i => i.Scope == scope);
-        if (item != null) yield return item;
+        if (Auths == null) yield break;
+        foreach (var i in Auths.Where(p => p.Scope == scope))
+            yield return i;
     }
 
     /// <summary>

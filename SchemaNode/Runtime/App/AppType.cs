@@ -5,7 +5,6 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -447,14 +446,14 @@ public class AppType
 
         if (Auth != null)
         {
-            var item = Auth.Items.FirstOrDefault(p => p.Scope == scope);
-            if (item != null) yield return item;
+            foreach (var item in Auth.Items.Where(p => p.Scope == scope))
+                yield return item;
         }
 
         if (Auths != null)
         {
-            var item = Auths.FirstOrDefault(p => p.Scope == scope);
-            if (item != null) yield return item;
+            foreach (var item in Auths.Where(p => p.Scope == scope))
+                yield return item;
         }
     }
     

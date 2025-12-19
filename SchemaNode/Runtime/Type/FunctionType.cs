@@ -311,8 +311,10 @@ public class FunctionType: AnySchemeType
         Dictionary<string, FunctionNodeExpTree> treeMap = [];
         
         // Validate the arguments and reset the states
+        int argIdx = 0;
         foreach(FunctionNodeArgument arg in Args)
         {
+            arg.Index = argIdx++;
             arg.Used = 0;
             arg.Status = null;
             
@@ -2494,6 +2496,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// The status
     /// </summary>
     public SchemaNodeStatus? Status { get; set; }
+    
+    /// <summary>
+    /// The index
+    /// </summary>
+    public int? Index { get; set; }
     
     #endregion
     
