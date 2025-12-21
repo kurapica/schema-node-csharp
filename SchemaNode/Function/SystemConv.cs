@@ -1,5 +1,5 @@
 using SchemaNode.Attribute;
-using System.ComponentModel.DataAnnotations;
+using SchemaNode.Runtime;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -14,17 +14,20 @@ public static class SystemConv
     /// Assign value
     /// </summary>
     [Schema]
-    public static T assign<T>(T value) => value;
+    [UnaryExp(UnaryExpType.Assign)]
+    public static T? assign<T>(T? value) => value;
 
     /// <summary>
     /// Gets the default value if value is null
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.Default)]
     public static T @default<T>(T? a, T d) => a ?? d;
 
     /// <summary>
     /// Return the null value of the given type
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.Null)]
     public static T? @null<T>() => default;
 }

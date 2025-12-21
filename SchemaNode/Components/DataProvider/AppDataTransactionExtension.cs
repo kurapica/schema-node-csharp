@@ -525,7 +525,7 @@ public static class AppDataTransactionExtension
                     // Generate argument
                     List<FieldDataChangeData>? changes = !(pushAll && notRefField) && changeData.Changes.TryGetValue(call.AppField, out List<FieldDataChangeData>? dataChange) ? dataChange : null;
                     args[i].Type = call.AppField.SchemaType!;
-                    if (args[i].Type is ArrayType && (funcNode.Args[i].TypeNode is not ArrayType || arrayIndex < 0)) arrayIndex = i;
+                    if (args[i].Type is ArrayType && (funcNode.Args[i].SchemaType is not ArrayType || arrayIndex < 0)) arrayIndex = i;
 
                     // Check changes
                     if (changes == null)
@@ -724,7 +724,7 @@ public static class AppDataTransactionExtension
                         originCall.Add(arg.Origin?.ToJson());
 
                     // Check use element
-                    if (funcNode.Args[arrayIndex].TypeNode is not ArrayType)
+                    if (funcNode.Args[arrayIndex].SchemaType is not ArrayType)
                     {
                         oldResult = new ArrayTypeNode(field.SchemaType!);
                         if (args[arrayIndex].Origin is ArrayTypeNode origin)
@@ -757,7 +757,7 @@ public static class AppDataTransactionExtension
                 foreach (FieldDataPushArg arg in args) callArgs.Add(arg.Value?.ToJson());
 
                 // Check use element
-                if (arrayIndex >= 0 && funcNode.Args[arrayIndex].TypeNode is not ArrayType)
+                if (arrayIndex >= 0 && funcNode.Args[arrayIndex].SchemaType is not ArrayType)
                 {
                     newResult = new ArrayTypeNode(field.SchemaType!);
                     if (args[arrayIndex].Value is ArrayTypeNode origin)

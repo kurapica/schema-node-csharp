@@ -185,7 +185,7 @@ public class FunctionType: AnySchemeType
         {
             ReturnNode?.AddRef(this);
             foreach (FunctionNodeArgument arg in Args)
-                arg.TypeNode?.AddRef(this);
+                arg.SchemaType?.AddRef(this);
         }
         else if (isOkay)
         {
@@ -201,14 +201,14 @@ public class FunctionType: AnySchemeType
         ReturnNode = null;
         foreach (FunctionNodeArgument arg in Args)
         {
-            arg.TypeNode?.RemoveRef(this);
-            arg.TypeNode = null;
+            arg.SchemaType?.RemoveRef(this);
+            arg.SchemaType = null;
         }
 
         foreach (FunctionNodeExpression exp in Exps)
         {
-            exp.TypeNode?.RemoveRef(this);
-            exp.TypeNode = null;
+            exp.SchemaType?.RemoveRef(this);
+            exp.SchemaType = null;
             exp.FuncNode?.RemoveRef(this);
             exp.FuncNode = null;
         }
@@ -234,14 +234,14 @@ public class FunctionType: AnySchemeType
 
         foreach (FunctionNodeArgument arg in Args)
         {             
-            if (arg.TypeNode != null && arg.TypeNode is not GenericTypeNode)
-                yield return arg.TypeNode;
+            if (arg.SchemaType != null && arg.SchemaType is not GenericTypeNode)
+                yield return arg.SchemaType;
         }
 
         foreach(FunctionNodeExpression exp in Exps)
         {
-            if (exp.TypeNode != null && exp.TypeNode is not GenericTypeNode)
-                yield return exp.TypeNode;
+            if (exp.SchemaType != null && exp.SchemaType is not GenericTypeNode)
+                yield return exp.SchemaType;
 
             if (exp.FuncNode != null)
                 yield return exp.FuncNode;
@@ -293,7 +293,7 @@ public class FunctionType: AnySchemeType
         // Add ref
         foreach (FunctionNodeExpression exp in Exps)
         {
-            exp.TypeNode?.AddRef(this);
+            exp.SchemaType?.AddRef(this);
             exp.FuncNode?.AddRef(this);
         }
     }
@@ -352,7 +352,7 @@ public class FunctionType: AnySchemeType
                 {
                     int index = arg.Type.Length > 1 && int.TryParse(arg.Type[1..], out int idx) ? idx : 1;
                     ResizeGeneric(index);
-                    arg.TypeNode = new GenericTypeNode
+                    arg.SchemaType = new GenericTypeNode
                     {
                         GenericIndex = index,
                         BaseNode = Generic[index - 1]
@@ -368,7 +368,7 @@ public class FunctionType: AnySchemeType
                     Status = SchemaNodeStatus.FunctionArgumentWrongType;
                     return (trees, TYPE_FUNC_ARG_TYPE_NOT_VALID);
                 }
-                arg.TypeNode = node;
+                arg.SchemaType = node;
                 arg.Type = node.Name; // fix the name
             }
             
@@ -483,7 +483,7 @@ public class FunctionType: AnySchemeType
                     Status = SchemaNodeStatus.FunctionWrongReturnType;
                     return (trees, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
                 }
-                exp.TypeNode = node;
+                exp.SchemaType = node;
 
                 // validate the exp type & return type & func type
                 bool skipMatch = false;
@@ -577,7 +577,7 @@ public class FunctionType: AnySchemeType
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
-                    AnySchemeType? funcArgType = funcArg.TypeNode;
+                    AnySchemeType? funcArgType = funcArg.SchemaType;
                     if (funcArgType is GenericTypeNode gn) funcArgType = genericTypes[gn.GenericIndex - 1];
                     
                     // Gets the arg/exp
@@ -589,7 +589,7 @@ public class FunctionType: AnySchemeType
                         // Convert the field access
                         if (access.Length > 1)
                         {
-                            AnySchemeType? type = value.TypeNode;
+                            AnySchemeType? type = value.SchemaType;
                             bool isArrayAccess = type is ArrayType;
                             if (isArrayAccess)
                                 type = (type as ArrayType)!.ElementSchemaType;
@@ -613,7 +613,7 @@ public class FunctionType: AnySchemeType
                             {
                                 LeafNodes = [value],
                                 FieldName = string.Join(".", access.Skip(1)),
-                                TypeNode = isArrayAccess ? await context.GetArraySchemaTypeAsync(type) : type
+                                SchemaType = isArrayAccess ? await context.GetArraySchemaTypeAsync(type) : type
                             };
                         }
                         
@@ -621,7 +621,7 @@ public class FunctionType: AnySchemeType
                         {
                             case FunctionNodeArgument rArg:
                                 setLeafNodes(i, rArg); // Add to leaf
-                                argTypeNode = rArg.TypeNode;
+                                argTypeNode = rArg.SchemaType;
                                 if (argTypeNode is GenericTypeNode generic)
                                 {
                                     argTypeNode = genericTypes[generic.GenericIndex - 1];
@@ -646,7 +646,7 @@ public class FunctionType: AnySchemeType
                             case FunctionNodeExpression:
                             case FieldAccessExpNode:
                                 setLeafNodes(i, value); // Add to leaf
-                                argTypeNode = value.TypeNode; // always exist
+                                argTypeNode = value.SchemaType; // always exist
                                 break;
                             
                             default:
@@ -662,7 +662,7 @@ public class FunctionType: AnySchemeType
                             (funcArgType is null || array.ElementSchemaType.CanBeUseAs(funcArgType)) &&
                             (arrayRequireEle is null || array.ElementSchemaType.CanBeUseAs(arrayRequireEle) || 
                              (value is FieldAccessExpNode && 
-                             value.LeafNodes.ElementAtOrDefault(0)?.TypeNode is ArrayType { ElementSchemaType: not null } arr && 
+                             value.LeafNodes.ElementAtOrDefault(0)?.SchemaType is ArrayType { ElementSchemaType: not null } arr && 
                              arr.ElementSchemaType.CanBeUseAs(arrayRequireEle))))
                         {
                             arrayArg = i;
@@ -680,7 +680,7 @@ public class FunctionType: AnySchemeType
                                 return (trees, TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL);
                             }
                         }
-                        else if (funcArg.TypeNode is GenericTypeNode g)
+                        else if (funcArg.SchemaType is GenericTypeNode g)
                         {
                             genericTypes[g.GenericIndex - 1] = argTypeNode;
                         }
@@ -703,7 +703,7 @@ public class FunctionType: AnySchemeType
                     if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
-                    AnySchemeType? funcArgType = funcArg.TypeNode;
+                    AnySchemeType? funcArgType = funcArg.SchemaType;
                     if (funcArgType is GenericTypeNode g)
                         funcArgType = genericTypes[g.GenericIndex - 1];
                     
@@ -713,7 +713,7 @@ public class FunctionType: AnySchemeType
                         AnySchemeType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
                         if (givenType != null)
                         {
-                            if (funcArg.TypeNode is GenericTypeNode generic)
+                            if (funcArg.SchemaType is GenericTypeNode generic)
                                 genericTypes[generic.GenericIndex - 1] = givenType;
                             funcArgType = givenType;
                         }
@@ -738,7 +738,7 @@ public class FunctionType: AnySchemeType
                             setLeafNodes(i, new ConstantExpNode
                             {
                                 Value = null,
-                                TypeNode = funcArgType
+                                SchemaType = funcArgType
                             });
                         }
                         else
@@ -764,7 +764,7 @@ public class FunctionType: AnySchemeType
                         setLeafNodes(i, new ConstantExpNode
                         {
                             Value = r,
-                            TypeNode = funcArgType
+                            SchemaType = funcArgType
                         });
                     }
                 }
@@ -810,7 +810,7 @@ public class FunctionType: AnySchemeType
         
         // Validate the function return
         StructResultExpNode? structResultNode = null;
-        if (!Exps.Last().TypeNode!.CanBeUseAs(ReturnNode!))
+        if (!Exps.Last().SchemaType!.CanBeUseAs(ReturnNode!))
         {
             if (ReturnNode is StructType { Fields: { Length: > 0 } } @struct)
             {
@@ -820,7 +820,7 @@ public class FunctionType: AnySchemeType
                 {
                     if (treeMap.TryGetValue(field.Name, out FunctionNodeExpTree? leaf))
                     {
-                        if (leaf.TypeNode is null || !leaf.TypeNode.CanBeUseAs(field.TypeNode!))
+                        if (leaf.SchemaType is null || !leaf.SchemaType.CanBeUseAs(field.TypeNode!))
                         {
                             Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
                             return (trees, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
@@ -840,7 +840,7 @@ public class FunctionType: AnySchemeType
                 // Add struct result as the last exp tree
                 structResultNode = new StructResultExpNode
                 {
-                    TypeNode = @struct,
+                    SchemaType = @struct,
                     LeafNodes = leafNodes.ToArray()
                 };
             }
@@ -975,9 +975,9 @@ public class FunctionType: AnySchemeType
                     for (int i = 1; i < exp.LeafNodes.Length; i++)
                     {
                         expMap[exp.LeafNodes[i]!] = exp.LeafNodes[i] is ConstantExpNode constExp
-                            ? new ValueAccessExpNode(constExp.TypeNode, constExp.Value)
+                            ? new ValueAccessExpNode(constExp.SchemaType, constExp.Value)
                             : new ArgNode(
-                                exp.LeafNodes[i]?.TypeNode ??
+                                exp.LeafNodes[i]?.SchemaType ??
                                 throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"),
                                 i - 1);
                     }
@@ -1027,9 +1027,9 @@ public class FunctionType: AnySchemeType
                     for (int i = 1; i < exp.LeafNodes.Length; i++)
                     {
                         expMap[exp.LeafNodes[i]!] = exp.LeafNodes[i] is ConstantExpNode constExp
-                            ? new ValueAccessExpNode(constExp.TypeNode, constExp.Value)
+                            ? new ValueAccessExpNode(constExp.SchemaType, constExp.Value)
                             : new ArgNode(
-                                exp.LeafNodes[i]?.TypeNode ??
+                                exp.LeafNodes[i]?.SchemaType ??
                                 throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"),
                                 i - 1);
                     }
@@ -1177,7 +1177,9 @@ public class FunctionType: AnySchemeType
             {
                 Name = p.Name ?? $"arg{i}",
                 Nullable = pt.Nullable || p.HasDefaultValue || 
-                    p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null
+                    p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
+                    p.IsDefined(typeof(DefaultAttribute), false),
+                Default = p.GetCustomAttribute<DefaultAttribute>()?.Value, // not the default value of the parameter
             };
             funcSchema.Func.Args[i] = arg;
             if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
@@ -1261,7 +1263,7 @@ public class FunctionType: AnySchemeType
             FunctionNode = this,
             Args = Args.Select(a =>
             {
-                var info = a.TypeNode!.GetSchemaTypeInfo()!;
+                var info = a.SchemaType!.GetSchemaTypeInfo()!;
                 if (a.Nullable ?? false) info.Kind |= ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
@@ -1289,7 +1291,7 @@ public class FunctionType: AnySchemeType
             for (int i = 0; i < Args.Length; i++)
             {
                 FunctionNodeArgument arg = Args[i];
-                ParameterExpression paramExp = Expression.Parameter(arg.TypeNode?.ToCSharpType(arg.Nullable) 
+                ParameterExpression paramExp = Expression.Parameter(arg.SchemaType?.ToCSharpType(arg.Nullable) 
                     ?? throw new Exception($"The {Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
                 paramExpMap[arg.Name] = paramExp;
@@ -1431,7 +1433,7 @@ public class FunctionType: AnySchemeType
                                 var leaf = currentAcc.LeafNodes[i]!;
 
                                 // Gets the type
-                                Type callType = leaf.TypeNode?.ToCSharpType() ?? throw new Exception($"The expression {currentAcc.Name}'s {i} argument type not valid.");
+                                Type callType = leaf.SchemaType?.ToCSharpType() ?? throw new Exception($"The expression {currentAcc.Name}'s {i} argument type not valid.");
                                
                                 // Build the call arguments
                                 switch (leaf)
@@ -1536,7 +1538,7 @@ public class FunctionType: AnySchemeType
             // Params exp
             case ParamsExpNode paramsExp:
             {
-                expectedType ??= paramsExp.LeafNodes[0]?.TypeNode?.ToCSharpType() ?? throw new Exception("Params expression must have expected type");
+                expectedType ??= paramsExp.LeafNodes[0]?.SchemaType?.ToCSharpType() ?? throw new Exception("Params expression must have expected type");
                 List<Expression> paramExps = [];
                 foreach (var p in paramsExp.LeafNodes)
                 {
@@ -1572,7 +1574,7 @@ public class FunctionType: AnySchemeType
                     FunctionNodeExpTree leaf = exp.LeafNodes[i] ?? throw new Exception($"The expression {exp.Name}'s {i} argument not valid.");
                     
                     // Gets the type
-                    Type callType = (exp.FuncNode.Args[i].TypeNode is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].TypeNode)
+                    Type callType = (exp.FuncNode.Args[i].SchemaType is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].SchemaType)
                                     ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable) ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
                     Type? expectedLeafType = exp.ArrayIndex == i 
@@ -1601,15 +1603,15 @@ public class FunctionType: AnySchemeType
                     else
                     {
                         arrayIndex = i + useContext;
-                        callArgTypes[i + useContext] = exp.LeafNodes[i]?.TypeNode is ArrayType a ? (a.ElementSchemaType?.ToCSharpType() ?? callType) : callType;
+                        callArgTypes[i + useContext] = exp.LeafNodes[i]?.SchemaType is ArrayType a ? (a.ElementSchemaType?.ToCSharpType() ?? callType) : callType;
                     }
                 }
 
                 // Call the functions
                 MethodInfo callMethod = callFuncInfo.Method!;
                 bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
-                Type expReturnType = exp.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {exp.Name}'s type not valid");
-                Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.TypeNode is ArrayType arr
+                Type expReturnType = exp.SchemaType?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {exp.Name}'s type not valid");
+                Type epxReturnElement = (exp.Type is ExpressionType.Map or ExpressionType.Filter) && exp.SchemaType is ArrayType arr
                     ? (arr.ElementSchemaType?.ToCSharpType() ?? throw new Exception($"The expression {exp.Name}'s type not valid"))
                     : expReturnType;
 
@@ -1748,7 +1750,7 @@ public class FunctionType: AnySchemeType
                 Delegate innerCall;
                 Expression arrayLen = jarray.Type.IsSZArray ? Expression.ArrayLength(jarray) : Expression.Property(jarray, "Count");
                 Expression ctor = resExp.Type == typeof(ArrayTypeNode)
-                    ? Expression.New(resExp.Type.GetConstructors()[0], Expression.Constant(exp.TypeNode!), Expression.Constant(null))
+                    ? Expression.New(resExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType!), Expression.Constant(null))
                     : Expression.New(resExp.Type);
 
                 switch (exp.Type)
@@ -1935,7 +1937,7 @@ public class FunctionType: AnySchemeType
                 callArgs[1] = Expression.Constant(access.FieldName, typeof(string));
 
                 // Call the functions
-                Type expReturnType = expectedType ?? access.TypeNode?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
+                Type expReturnType = expectedType ?? access.SchemaType?.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0) ?? throw new Exception($"The expression {access.FieldName}'s type not valid");
                 
                 // Generate the generic method
                 Type?[] genTypes = [expReturnType];
@@ -1951,7 +1953,7 @@ public class FunctionType: AnySchemeType
                 // Only one struct result can exist
                 ParameterExpression resultVar = Expression.Parameter(typeof(StructTypeNode));
                 expMap.Add("_retobject", resultVar);
-                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructTypeNode).GetConstructors()[0], Expression.Constant(strt.TypeNode), Expression.Constant(null))));
+                blocks.Add(Expression.Assign(resultVar, Expression.New(typeof(StructTypeNode).GetConstructors()[0], Expression.Constant(strt.SchemaType), Expression.Constant(null))));
                 MethodInfo objectAdd = typeof(StructTypeNode).GetMethod(nameof(StructTypeNode.SetField))!;
 
                 // Build the result
@@ -2418,6 +2420,7 @@ public class FunctionType: AnySchemeType
                 Type = a.Type,
                 Nullable = a.Nullable,
                 Params = a.Params,
+                Default = a.Default,
                 Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
             }).ToArray(),
             Exps = schema.Exps.Select(e => new FuncExp
@@ -2453,7 +2456,7 @@ public abstract class FunctionNodeExpTree
     /// <summary>
     /// The type node
     /// </summary>
-    public AnySchemeType? TypeNode { get; set; }
+    public AnySchemeType? SchemaType { get; set; }
 
     /// <summary>
     /// The used by count, could be used to improve the dynamic complier
@@ -2488,6 +2491,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// </summary>
     public bool? Params { get; set; }
 
+    /// <summary>
+    /// The default value
+    /// </summary>
+    public object? Default { get; set; }
+
     #endregion
 
     #region State
@@ -2514,6 +2522,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
             Type = arg.Type,
             Nullable = arg.Nullable,
             Params = arg.Params,
+            Default = arg.Default,
         };
     }
     
@@ -2690,7 +2699,7 @@ public class AppDataSourceAccessExpNode: FunctionNodeExpression
         ArrayIndex = exp.ArrayIndex;
         FuncNode = exp.FuncNode;
         LeafNodes = exp.LeafNodes;
-        TypeNode = exp.TypeNode;
+        SchemaType = exp.SchemaType;
         Used = exp.Used;
 
         App = prev?.App ?? string.Empty;

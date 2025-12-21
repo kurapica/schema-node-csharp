@@ -27,7 +27,7 @@ public static class RowAccessExpTreeVisitor
         // verify the function
         _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
-        StructType structType = func.Args.ElementAtOrDefault(0)?.TypeNode as StructType ?? throw new NotSupportedException("The function struct type parameter not valid");
+        StructType structType = func.Args.ElementAtOrDefault(0)?.SchemaType as StructType ?? throw new NotSupportedException("The function struct type parameter not valid");
 
         if (func.ReturnNode is not ScalarType { IsBool: true })
             throw new NotSupportedException("The function return type must be bool");
@@ -41,7 +41,7 @@ public static class RowAccessExpTreeVisitor
         expMap[func.Args[0]] = new StructAccessExpNode(structType);
         for (int i = 1; i < func.Args.Length; i++)
             // for custom func, arg must have type, no system func will be used for visit
-            expMap[func.Args[i]] = new ArgNode(func.Args[i].TypeNode ?? throw new NotSupportedException($"The function {func.Name} can't be used as row access func"), i - 1);
+            expMap[func.Args[i]] = new ArgNode(func.Args[i].SchemaType ?? throw new NotSupportedException($"The function {func.Name} can't be used as row access func"), i - 1);
         
         // visit the exp tree
         return await VisitExp(context, last, expMap);
@@ -185,7 +185,7 @@ public static class RowAccessExpTreeVisitor
         // const value
         if (expTree is ConstantExpNode constNode)
         {
-            result = new ValueAccessExpNode(constNode.TypeNode, constNode.Value ?? constNode.TypeNode?.CreateNode(constNode.Value));
+            result = new ValueAccessExpNode(constNode.SchemaType, constNode.Value ?? constNode.SchemaType?.CreateNode(constNode.Value));
             expMap.Add(constNode, result);
             return result;
         }

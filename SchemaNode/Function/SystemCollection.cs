@@ -20,41 +20,25 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.Length)]
     public static long arrlen([Schema(NS_SYSTEM_ARRAY)] object array)
     {
-        if (array is JsonArray jsonArray)
-        {
-            return jsonArray.Count;
-        }
-        if (array is Array arr)
-        {
-            return arr.LongLength;
-        }
-        if (array is ArrayTypeNode node)
-        {
-            return node.Count;
-        }
-        if (array is ICollection collection)
-        {
-            return collection.Count;
-        }
+        if (array is string str) return str.Length;
+        if (array is JsonArray jsonArray) return jsonArray.Count;
+        if (array is Array arr) return arr.LongLength;
+        if (array is ArrayTypeNode node) return node.Count;
+        if (array is ICollection collection) return collection.Count;
         return 0;
     }
     
     [Schema]
-    public static JsonObject newstruct()
-    {
-        return new  JsonObject();
-    }
+    public static JsonObject newstruct() => new  JsonObject();
 
     /// <summary>
     /// Create a new array
     /// </summary>
     [Schema]
-    public static List<T> newarray<T>()
-    {
-        return new List<T>();
-    }
+    public static List<T> newarray<T>() => new List<T>();
 
     /// <summary>
     /// Push to the list
@@ -71,6 +55,7 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.Contains)]
     public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -84,6 +69,7 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.NotContains)]
     public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
@@ -151,6 +137,7 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.FieldAccess)]
     public static T? getfield<T>(StructTypeNode obj, string field)
     {
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
@@ -168,6 +155,7 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
+    [TernaryExp(TernaryExpType.FieldAccess)]
     public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
     {
         return getfield<T>(obj, field) ?? defaultValue;

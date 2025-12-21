@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable InconsistentNaming
 
@@ -12,26 +13,37 @@ namespace SchemaNode.Function;
 public static class SystemStr
 {
     [Schema]
-    public static string concat(string str1, string str2) => string.Concat(str1, str2);
+    [BinaryExp(BinaryExpType.Concat)]
+    public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
     
     [Schema]
-    public static long len(string str) => long.CreateChecked(str.Length);
+    [UnaryExp(UnaryExpType.Length)]
+    public static long len([Default("")] string str) => long.CreateChecked(str.Length);
     
     [Schema]
-    public static string[] split(string str, string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
+    [BinaryExp(BinaryExpType.Split)]
+    public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
     
     [Schema]
-    public static string substr(string str, int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
+    [TernaryExp(TernaryExpType.Substr)]
+    public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
     [Schema]
-    public static bool startswith(string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    [BinaryExp(BinaryExpType.StartsWith)]
+    public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     
     [Schema]
-    public static bool endswith(string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+    [BinaryExp(BinaryExpType.EndsWith)]
+    public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
     
     [Schema]
-    public static bool contains(string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
-    
+    [BinaryExp(BinaryExpType.Contains)]
+    public static bool contains([Default("")] string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
+
+    [Schema]
+    [TernaryExp(TernaryExpType.Replace)]
+    public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
+
     [Schema]
     public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");
 
@@ -72,7 +84,4 @@ public static class SystemStr
 
     [Schema]
     public static string newguid() => Guid.NewGuid().ToString();
-    
-    [Schema]
-    public static string replace(string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
 }

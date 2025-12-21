@@ -89,8 +89,8 @@ public static class PushDataExtenstion
 
                             // check type
                             if (policy.FilterFunc.Args.Length != 1
-                                || policy.FilterFunc.Args[0].TypeNode == null
-                                || !policy.FilterFunc.Args[0].TypeNode!.CanBeUseAs(structType))
+                                || policy.FilterFunc.Args[0].SchemaType == null
+                                || !policy.FilterFunc.Args[0].SchemaType!.CanBeUseAs(structType))
                             {
                                 authorized = false;
                                 continue;

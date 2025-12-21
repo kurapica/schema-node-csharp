@@ -131,7 +131,7 @@ public static class BatchQueryExtension
                             for (int i = 0; i < funcArgs.Length; i++)
                             {
                                 var farg = filterFunc.Args[i];
-                                if (farg.TypeNode == null)
+                                if (farg.SchemaType == null)
                                 {
                                     fullArgs = false;
                                     break;
@@ -141,7 +141,7 @@ public static class BatchQueryExtension
                                 {
                                     if (farg.Nullable ?? false)
                                     {
-                                        funcArgs[i] = farg.TypeNode.CreateNode()!;
+                                        funcArgs[i] = farg.SchemaType.CreateNode()!;
                                     }
                                     else
                                     {
@@ -151,7 +151,7 @@ public static class BatchQueryExtension
                                 }
                                 else 
                                 {
-                                    var res = await farg.TypeNode.ValidateValueAsync(context, arg);
+                                    var res = await farg.SchemaType.ValidateValueAsync(context, arg);
                                     if (res.error == null)
                                     {
                                         funcArgs[i] = res.value!;
@@ -206,8 +206,8 @@ public static class BatchQueryExtension
 
                                     // check type
                                     if (policy.FilterFunc.Args.Length != 1
-                                        || policy.FilterFunc.Args[0].TypeNode == null
-                                        || !policy.FilterFunc.Args[0].TypeNode!.CanBeUseAs(structType))
+                                        || policy.FilterFunc.Args[0].SchemaType == null
+                                        || !policy.FilterFunc.Args[0].SchemaType!.CanBeUseAs(structType))
                                     {
                                         authorized = false;
                                         continue;

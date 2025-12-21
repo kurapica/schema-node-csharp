@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -22,6 +23,7 @@ public static class SystemLogic
     /// if match the condition, return the value and stop the execution
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.IfRet)]
     public static T? ifret<T>(bool cond, T? value) => value;
     
     /// <summary>
@@ -29,6 +31,7 @@ public static class SystemLogic
     /// if not match the condition, return the value and stop the execution
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.IfRet)]
     public static T? ifnot<T>(bool cond, T? value) => value;
     
     /// <summary>
@@ -36,6 +39,7 @@ public static class SystemLogic
     /// if the value is null, return the value and stop the execution
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.IfRet)]
     public static T1? ifnull<T1, T2>(T2? val, T1? value) => value;
     
     /// <summary>
@@ -43,6 +47,7 @@ public static class SystemLogic
     /// if the value is empty, return the value and stop the execution
     /// </summary>
     [Schema]
+    [BinaryExp(BinaryExpType.IfRet)]
     public static T1? ifempty<T1, T2>(T2? val, T1? value) => value;
     
     #endregion
@@ -51,7 +56,22 @@ public static class SystemLogic
     /// system.logic.andalso
     /// </summary>
     [Schema]
-    public static bool andalso(bool a, bool b) => a && b;
+    [BinaryExp(BinaryExpType.AndAlso)]
+    public static bool andalso([Default(false)] bool a, [Default(false)] bool b) => a && b;
+
+    /// <summary>
+    /// system.logic.orelse
+    /// </summary>
+    [Schema]
+    [BinaryExp(BinaryExpType.OrElse)]
+    public static bool orelse([Default(false)] bool a, [Default(false)] bool b) => a || b;
+
+    /// <summary>
+    /// system.logic.not
+    /// </summary>
+    [Schema]
+    [UnaryExp(UnaryExpType.Not)]
+    public static bool not(bool a) => !a;
 
     /// <summary>
     /// system.logic.between
@@ -64,24 +84,28 @@ public static class SystemLogic
     /// system.logic.cond
     /// </summary>
     [Schema]
-    public static T cond<T>(bool cond, T trueValue, T falseValue) => cond ? trueValue : falseValue;
+    [TernaryExp(TernaryExpType.Conditional)]
+    public static T cond<T>([Default(false)] bool cond, T trueValue, T falseValue) => cond ? trueValue : falseValue;
 
     /// <summary>
     /// system.logic.isnull
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.IsNull)]
     public static bool isnull<T>(T? a) => a is null;
     
     /// <summary>
     /// system.logic.notnull
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.NotNull)]
     public static bool notnull<T>(T? a) => a is not null;
 
     /// <summary>
     /// system.logic.isempty
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.IsEmpty)]
     public static bool isempty(object? a)
     {
         if (a is null) return true;
@@ -113,59 +137,48 @@ public static class SystemLogic
     /// system.logic.notempty
     /// </summary>
     [Schema]
+    [UnaryExp(UnaryExpType.NotEmpty)]
     public static bool notempty<T>(T? a) => !isempty(a);
 
     /// <summary>
     /// system.logic.equal
     /// </summary>
     [Schema]
-    public static bool equal<T>(T a, T b) where T: IComparable
-        => a.Equals(b);
+    [BinaryExp(BinaryExpType.Equal)]
+    public static bool equal<T>(T a, T b) where T: IComparable => a.Equals(b);
 
     /// <summary>
     /// system.logic.notequal
     /// </summary>
     [Schema]
-    public static bool notequal<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) != 0;
+    [BinaryExp(BinaryExpType.NotEqual)]
+    public static bool notequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) != 0;
 
     /// <summary>
     /// system.logic.greateequal
     /// </summary>
     [Schema]
-    public static bool greateequal<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) >= 0;
+    [BinaryExp(BinaryExpType.GreaterEqual)]
+    public static bool greateequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) >= 0;
 
     /// <summary>
     /// system.logic.greatethan
     /// </summary>
     [Schema]
-    public static bool greatethan<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) > 0;
+    [BinaryExp(BinaryExpType.GreaterThan)]
+    public static bool greatethan<T>(T a, T b) where T: IComparable => a.CompareTo(b) > 0;
 
     /// <summary>
     /// system.logic.lessequal
     /// </summary>
     [Schema]
-    public static bool lessequal<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) <= 0;
+    [BinaryExp(BinaryExpType.LessEqual)]
+    public static bool lessequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) <= 0;
 
     /// <summary>
     /// system.logic.lessthan
     /// </summary>
     [Schema]
-    public static bool lessthan<T>(T a, T b) where T: IComparable
-        => a.CompareTo(b) < 0;
-
-    /// <summary>
-    /// system.logic.not
-    /// </summary>
-    [Schema]
-    public static bool not(bool a) => !a;
-
-    /// <summary>
-    /// system.logic.orelse
-    /// </summary>
-    [Schema]
-    public static bool orelse(bool a, bool b) => a || b;
+    [BinaryExp(BinaryExpType.LessThan)]
+    public static bool lessthan<T>(T a, T b) where T: IComparable => a.CompareTo(b) < 0;
 }

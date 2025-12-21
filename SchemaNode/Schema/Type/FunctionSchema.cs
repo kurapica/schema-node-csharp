@@ -83,7 +83,12 @@ public class FuncArg
     /// The argument is params
     /// </summary>
     public bool? Params { get; set; }
-    
+
+    /// <summary>
+    /// The default value
+    /// </summary>
+    public object? Default { get; set; }
+
     /// <summary>
     /// The schema node status
     /// </summary>
