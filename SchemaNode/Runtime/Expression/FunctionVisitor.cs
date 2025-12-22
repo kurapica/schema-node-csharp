@@ -24,6 +24,7 @@ public static class FunctionVisitor
         Dictionary<string, int> expAccessCount = [];
         IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priorty).ToArray();
 
+        // Get expression with visit count++
         bool GetExpression(string name, out SchemaExpression? value)
         {
             if (expMaps.TryGetValue(name, out SchemaExpression? exp))
@@ -45,23 +46,26 @@ public static class FunctionVisitor
         {
             var arg = func.Args[i];
 
-            // Check argument name
+            // Require argument name
             if (string.IsNullOrWhiteSpace(arg.Name))
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentNoName;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoName, TYPE_FUNC_ARG_NAME_REQUIRED);
             }
+            // No duplicate name
             else if (expMaps.ContainsKey(arg.Name))
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentDuplicateName;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentDuplicateName, TYPE_FUNC_ARG_NAME_DUPLICATE);
             }
+            // Require type
             else if(string.IsNullOrEmpty(arg.Type) || Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentNoType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoType, TYPE_FUNC_ARG_NO_TYPE);
             }
 
+            // Validate the argument type
             AnySchemeType? argTypeNode = arg.SchemaType ?? await context.GetSchemaTypeAsync(arg.Type);
             if (argTypeNode is not { IsValueType: true })
             {
@@ -78,22 +82,22 @@ public static class FunctionVisitor
         // Process exps
         for (int i = 0; i < func.Exps.Length; i++)
         {
-            // build function call expression first
-            var exp = func.Exps[i];
+            FunctionNodeExpression exp = func.Exps[i];
 
-            // validate name
+            // Require name
             if (string.IsNullOrWhiteSpace(exp.Name))
             {
                 exp.Status = SchemaNodeStatus.FunctionExpNoName;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpNoName, TYPE_FUNC_EXP_NAME_REQUIRED);
             }
+            // No duplicate name
             else if (expMaps.ContainsKey(exp.Name))
             {
                 exp.Status = SchemaNodeStatus.FunctionExpDuplicateName;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpDuplicateName, TYPE_FUNC_EXP_NAME_CONFLICT_ARG);
             }
 
-            // validate func
+            // Validate func
             FunctionType? funcType = (exp.FuncNode ?? (!string.IsNullOrWhiteSpace(exp.Func) ? await context.GetSchemaTypeAsync(exp.Func) : null)) as FunctionType;
             if (funcType == null)
             {
@@ -102,18 +106,21 @@ public static class FunctionVisitor
             }
             exp.FuncNode = funcType;
 
-            // generic types
+            // Generic types
             AnySchemeType?[] genericTypes = funcType.Generic.ToArray();
+
+            // Sets generic type
             AnySchemeType? SetGenericType(AnySchemeType? origin, AnySchemeType? genType)
             {
                 if (origin is not GenericTypeNode generic || genType == null || genType is GenericTypeNode) return origin ?? genType;
                 genericTypes[generic.GenericIndex - 1] ??= genType;
                 return genericTypes[generic.GenericIndex - 1];
             }
+
+            // Gets type if generic
             AnySchemeType? GetGenericType(AnySchemeType? origin)
             {
-                if (origin is not GenericTypeNode generic) return origin;
-                return genericTypes[generic.GenericIndex - 1] ?? generic;
+                return origin is not GenericTypeNode generic ? origin : (genericTypes[generic.GenericIndex - 1] ?? generic);
             }
 
             // validate return value
@@ -129,6 +136,8 @@ public static class FunctionVisitor
             // build call arguments
             // check exp call first, get schema type for generic type
             SchemaExpression[] args = new SchemaExpression[funcType.Args.Length];
+
+            // Set argument expression
             async Task SetArgExp(int index, SchemaExpression? argExp = null)
             {
                 try
