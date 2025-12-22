@@ -47,7 +47,7 @@ public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args,
 /// <summary>
 /// The default expression
 /// </summary>
-public record DefaultExpression(SchemaExpression Inner, AnySchemaNode Default) : SchemaExpression(Default.Type);
+public record DefaultExpression(SchemaExpression Inner, AnySchemaNode Default) : SchemaExpression(Default.SchemeType);
 
 /// <summary>
 /// The null expression

@@ -158,7 +158,6 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
                 ? await GetSchemaTypeAsync(newSchema.Auth) as PolicyType
                 : null;
             node.Status = SchemaNodeStatus.Ready;
-            await node.LoadAsync(this, newSchema, preload);
             if (par != null)
             {
                 int index = -1;
@@ -176,6 +175,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
                     par.Schemas = par.Schemas.Append(newSchema).ToArray();
                 }
             }
+            await node.LoadAsync(this, newSchema, preload);
         }
         Logger.LogInformation("[Runtime]Schema Type {schema} working", schemaName);
         return node;

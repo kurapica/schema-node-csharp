@@ -362,13 +362,13 @@ public class AppFieldType
                 StructType structNode = (StructType)node;
                 foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                 {
-                    if (sField.TypeNode?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
+                    if (sField.SchemeType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
                     {
                         // As complex fields
-                        StructType subStructNode = (StructType)sField.TypeNode;
+                        StructType subStructNode = (StructType)sField.SchemeType;
                         foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                         {
-                            info = GetDataTypeInfo(iField.TypeNode!, iField);
+                            info = GetDataTypeInfo(iField.SchemeType!, iField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
@@ -379,19 +379,19 @@ public class AppFieldType
                                 },
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = iField.TypeNode!
+                                SchemaType = iField.SchemeType!
                             });
                         }
                     }
                     else
                     {
-                        info = GetDataTypeInfo(sField.TypeNode!, sField);
+                        info = GetDataTypeInfo(sField.SchemeType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             MaxLength = info.MaxLength,
-                            SchemaType = sField.TypeNode!
+                            SchemaType = sField.SchemeType!
                         });
                     }
                 }
@@ -410,14 +410,14 @@ public class AppFieldType
                     foreach (string n in arrayNode.Primary)
                     {
                         var sField = structNode.Fields.First(p => p.Name == n);
-                        info = GetDataTypeInfo(sField.TypeNode!, sField);
+                        info = GetDataTypeInfo(sField.SchemeType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             Primary = true,
                             MaxLength = info.MaxLength,
-                            SchemaType = sField.TypeNode!,
+                            SchemaType = sField.SchemeType!,
                             StructFieldNode = sField,
                         });
                     }
@@ -425,12 +425,12 @@ public class AppFieldType
                     foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
                     {
                         // Check if the sfield use a struct type
-                        if (sField.TypeNode!.Type == SchemaNode.Enum.SchemaType.Struct)
+                        if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {
                             // As complex fields
-                            foreach (var ifield in ((StructType)sField.TypeNode).Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            foreach (var ifield in ((StructType)sField.SchemeType).Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
-                                info = GetDataTypeInfo(ifield.TypeNode!, ifield);
+                                info = GetDataTypeInfo(ifield.SchemeType!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -441,19 +441,19 @@ public class AppFieldType
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = ifield.TypeNode!
+                                    SchemaType = ifield.SchemeType!
                                 });
                             }
                         }
                         else
                         {
-                            info = GetDataTypeInfo(sField.TypeNode, sField);
+                            info = GetDataTypeInfo(sField.SchemeType, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = sField.TypeNode!
+                                SchemaType = sField.SchemeType!
                             });
                         }
                     }

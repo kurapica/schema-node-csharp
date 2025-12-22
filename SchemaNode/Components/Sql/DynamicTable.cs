@@ -218,7 +218,7 @@ public class DynamicTableSchema
                 AnySchemaNode? main = result.GetField(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).TypeNode!);
+                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
                     result.SetField(field.Complex.Main, main);
                 }
                 (main as StructTypeNode)![field.Complex.Field] = val;
@@ -464,10 +464,10 @@ public class DynamicTableSchema
                         JsonArray args = [];
                         foreach (var arg in relation.Args)
                             args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
-                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, [fld.Type.Name]);
+                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, [fld.SchemeType.Name]);
                         if (!result.IsEmpty()) fld.Value = result;
                     }
-                    else switch (field.TypeNode)
+                    else switch (field.SchemeType)
                     {
                         case StructType @struct:
                             await GenerateDisplayOnlyFields(context, @struct, fld);
@@ -479,7 +479,7 @@ public class DynamicTableSchema
                         default:
                             if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && !string.IsNullOrWhiteSpace(field.Default))
                             {
-                                (AnySchemaNode? val, JsonNode? err) = await fld.Type.ValidateValueAsync(context, field.Default);
+                                (AnySchemaNode? val, JsonNode? err) = await fld.SchemeType.ValidateValueAsync(context, field.Default);
                                 if (err == null || err.IsEmpty())
                                     fld.Value = val;
                             }

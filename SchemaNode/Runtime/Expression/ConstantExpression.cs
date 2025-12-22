@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// Represents a schema expression that evaluates to a constant value.
 /// </summary>
 /// <param name="Value">The schema node representing the constant value for this expression. Cannot be null.</param>
-public record ConsantExpression(AnySchemaNode Value) : SchemaExpression(Value.Type);
+public record ConstantExpression(AnySchemaNode Value) : SchemaExpression(Value.SchemeType);
 
 /// <summary>
 /// The attribute to mark a method as constant expression
@@ -33,6 +33,6 @@ public class ConstantExpressionVisitor : IExpressionVisitor
     {
         MethodInfo? info = funcCallExp.Function?.FuncInfo?.Method;
         var attr = info?.GetCustomAttribute<ConstantExpressionAttribute>();
-        return attr != null ? new ConsantExpression(funcCallExp.SchemaType.CreateNode(attr.Value)!) : null;
+        return attr != null ? new ConstantExpression(funcCallExp.SchemaType.CreateNode(attr.Value)!) : null;
     }
 }

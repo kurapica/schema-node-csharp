@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using SchemaNode.Enum;
-using SchemaNode.Runtime;
+﻿using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 // ReSharper disable InconsistentNaming
@@ -11,7 +9,7 @@ namespace SchemaNode.Node;
 public abstract class AnySchemaNode
 {
     internal AnySchemaNode(AnySchemeType type, object? value = null) {
-        Type = type;
+        SchemeType = type;
         CsharpType = type.ToCSharpType();
 
         if (value != null) Value = value;
@@ -20,7 +18,7 @@ public abstract class AnySchemaNode
     /// <summary>
     /// The schema type representation
     /// </summary>
-    public AnySchemeType Type { get; internal set; }
+    public AnySchemeType SchemeType { get; internal set; }
 
     /// <summary>
     /// The c# type representation
@@ -31,11 +29,6 @@ public abstract class AnySchemaNode
     /// The origin value to track the changes, also simple the event payload
     /// </summary>
     public AnySchemaNode? Origin { get; internal set; }
-
-    /// <summary>
-    /// The schema type
-    /// </summary>
-    public SchemaType SchemaType => Type.Type;
 
     /// <summary>
     /// indicate whether the node is empty
@@ -70,7 +63,7 @@ public abstract class AnySchemaNode
         {
             if (value is AnySchemaNode node)
             {
-                _value = node.Type.CanBeUseAs(Type) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
+                _value = node.SchemeType.CanBeUseAs(SchemeType) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
             }
             else
             {

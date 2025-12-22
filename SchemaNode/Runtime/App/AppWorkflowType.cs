@@ -199,7 +199,7 @@ public class AppWorkflowType: IDisposable
                     {
                         Name = argNode.Name,
                         Value = argNode.Value,
-                        TypeNode = await context.GetSchemaTypeAsync(argDef.Type),
+                        SchemeType = await context.GetSchemaTypeAsync(argDef.Type),
                     };
                 }
             }

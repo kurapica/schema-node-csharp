@@ -200,6 +200,21 @@ public static class Injection
                 ReCompileFuncTypes?.Clear();
             }
             ReCompileFuncTypes = null;
+            
+            // start work flows
+            foreach(AppWorkflowType workflow in WorkflowTypes ?? [])
+            {
+                try
+                {
+                    context.LogInformation($"Starting workflow: {workflow.Name}");
+                    await workflow.LoadAsync(context);
+                }
+                catch (Exception ex)
+                {
+                    context.LogError(ex, $"Failed to start workflow: {workflow.Name}, error: {ex.Message}");
+                }
+            }
+            WorkflowTypes = null;
 
             // start event source
             foreach(IEventSource eventSource in app.Services.GetServices<IEventSource>())
@@ -219,6 +234,7 @@ public static class Injection
     }
     
     internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
+    internal static ConcurrentBag<AppWorkflowType>? WorkflowTypes = [];
     
     #endregion
 

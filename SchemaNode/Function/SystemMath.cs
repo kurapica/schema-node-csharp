@@ -115,7 +115,7 @@ public static class SystemMath
     [Obsolete]
     public static T subtractnulls<T>(params T?[] values) where T : INumber<T>
     {
-        if (values.Length == 0) return T.Zero;
+        if (values == null || values.Length == 0) return T.Zero;
         T result = values[0] ?? T.Zero;
         for (int i = 1; i < values.Length; i++) result -= (values[i] ?? T.Zero);
         return result;

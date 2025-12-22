@@ -337,7 +337,7 @@ public class StructFieldConfig
     /// </summary>
     [JsonIgnore]
     [NotMapped]
-    public AnySchemeType? TypeNode { get; set; }
+    public AnySchemeType? SchemeType { get; set; }
 
     #endregion
 

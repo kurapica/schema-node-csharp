@@ -77,6 +77,8 @@ public class BinaryExpAttribute(BinaryExpType type): System.Attribute
 /// </summary>
 public class BinaryExpressionVisitor : IExpressionVisitor
 {
+    public int Priorty => 100;
+
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, FuncCallExpression funcCallExp)
     {

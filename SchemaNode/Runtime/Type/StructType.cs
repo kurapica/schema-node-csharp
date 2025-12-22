@@ -94,8 +94,8 @@ public class StructType: AnySchemeType
         // Load Fields
         foreach (StructFieldConfig field in Fields)
         {
-            AnySchemeType? typeNode = await context.GetSchemaTypeAsync(field.Type, preload: preload);
-            if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
+            AnySchemeType? schemaType = await context.GetSchemaTypeAsync(field.Type, preload: preload);
+            if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
             {
                 field.Status = SchemaNodeStatus.StructMemberWrongType;
                 Status = SchemaNodeStatus.StructMemberWrongType;
@@ -103,8 +103,8 @@ public class StructType: AnySchemeType
             }
 
             field.Status = null;
-            field.TypeNode = typeNode;
-            typeNode.AddRef(this);
+            field.SchemeType = schemaType;
+            schemaType.AddRef(this);
         }
         
         // Load Relation
@@ -133,8 +133,8 @@ public class StructType: AnySchemeType
         BaseNode = null;
         foreach (StructFieldConfig config in Fields)
         {
-            config.TypeNode?.RemoveRef(this);
-            config.TypeNode = null;
+            config.SchemeType?.RemoveRef(this);
+            config.SchemeType = null;
         }
 
         if (Relations != null)
@@ -171,11 +171,11 @@ public class StructType: AnySchemeType
         foreach (StructFieldConfig field in Fields)
         {
             if (field.DisplayOnly ?? false) continue;
-            if (field.TypeNode is null) continue;
+            if (field.SchemeType is null) continue;
 
             if (jobject.ContainsKey(field.Name) && !jobject[field.Name].IsEmpty())
             {
-                (AnySchemaNode? v, JsonNode? e) = await field.TypeNode.ValidateValueAsync(context, jobject[field.Name]!);
+                (AnySchemaNode? v, JsonNode? e) = await field.SchemeType.ValidateValueAsync(context, jobject[field.Name]!);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -209,7 +209,7 @@ public class StructType: AnySchemeType
                && @struct.Fields.All(v =>
                {
                    StructFieldConfig? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
-                   return match?.TypeNode == null ? !(v.Require ?? false) : v.TypeNode != null && match.TypeNode.CanBeUseAs(v.TypeNode);
+                   return match?.SchemeType == null ? !(v.Require ?? false) : v.SchemeType != null && match.SchemeType.CanBeUseAs(v.SchemeType);
                });
     }
 
@@ -218,8 +218,8 @@ public class StructType: AnySchemeType
         if (BaseNode != null) yield return BaseNode;
         foreach (StructFieldConfig field in Fields)
         {
-            if (field.TypeNode != null)
-                yield return field.TypeNode;
+            if (field.SchemeType != null)
+                yield return field.SchemeType;
         }
         if (Relations != null)
         {
@@ -415,7 +415,7 @@ public class StructType: AnySchemeType
     /// </summary>
     public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
     {
-        string[] generics = Fields.Where(f => f.TypeNode is GenericType).Select(f => f.Type).Distinct().ToArray();
+        string[] generics = Fields.Where(f => f.SchemeType is GenericType).Select(f => f.Type).Distinct().ToArray();
         if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not match
 
         _genericTypes ??= new ConcurrentDictionary<string, StructType>();
@@ -437,18 +437,18 @@ public class StructType: AnySchemeType
         {
             StructFieldConfig f = Fields[i];
             
-            if (f.TypeNode is GenericType)
+            if (f.SchemeType is GenericType)
             {
                 StructFieldConfig copy = f.ToJsonNode()!.FromJson<StructFieldConfig>()!;
                 int index = Array.IndexOf(generics, f.Type);
                 copy.Type = types[index];
-                AnySchemeType? typeNode = await context.GetSchemaTypeAsync(copy.Type);
-                if (typeNode == null || typeNode.Type is SchemaType.Namespace or SchemaType.Func)
+                AnySchemeType? schemaType = await context.GetSchemaTypeAsync(copy.Type);
+                if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func)
                 {
                     return null;
                 }
-                copy.TypeNode = typeNode;
-                typeNode.AddRef(newStruct);
+                copy.SchemeType = schemaType;
+                schemaType.AddRef(newStruct);
                 newStruct.Fields[i] = copy;
             }
             else

@@ -170,8 +170,8 @@ public static class SystemCollection
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
-        if (f.TypeNode == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        AnySchemeType arrayNode = await context.GetArraySchemaTypeAsync(f.TypeNode)
+        if (f.SchemeType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
+        AnySchemeType arrayNode = await context.GetArraySchemaTypeAsync(f.SchemeType)
                                   ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);
@@ -328,7 +328,7 @@ public static class SystemCollection
                 return descending ? cb.CompareTo(ca) : ca.CompareTo(cb);
             return 0;
         });
-        return new ArrayTypeNode(obj.Type, list);
+        return new ArrayTypeNode(obj.SchemeType, list);
     }
     
     /// <summary>
@@ -339,8 +339,8 @@ public static class SystemCollection
     {
         if (count <= 0) return obj;
         return count > obj.Count 
-            ? new ArrayTypeNode(obj.Type) 
-            : new ArrayTypeNode(obj.Type, obj.Skip(count));
+            ? new ArrayTypeNode(obj.SchemeType) 
+            : new ArrayTypeNode(obj.SchemeType, obj.Skip(count));
     }
 
     /// <summary>
@@ -351,7 +351,7 @@ public static class SystemCollection
     {
         if (count >= obj.Count) return obj;
         return count <= 0 
-            ? new ArrayTypeNode(obj.Type)
-            : new ArrayTypeNode(obj.Type, obj.Take(count));
+            ? new ArrayTypeNode(obj.SchemeType)
+            : new ArrayTypeNode(obj.SchemeType, obj.Take(count));
     }
 }

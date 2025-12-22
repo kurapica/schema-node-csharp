@@ -87,7 +87,7 @@ public static class SystemData
             [arrType.Primary[0]] = jsonKey
         };
         var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
-        return value is ArrayTypeNode arrayNode && arrayNode.Count > 0 ? arrayNode.First().ToValue<T>() : default;
+        return value is ArrayTypeNode { Count: > 0 } arrayNode ? arrayNode.First().ToValue<T>() : (value.ToValue<T>() ?? default);
     }
 
     /// <summary>
@@ -351,7 +351,7 @@ public static class SystemData
         if (fieldType == null 
             || fieldType.SchemaType is EnumType 
             || fieldType.SchemaType is ScalarType { IsNumber: false } 
-            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.TypeNode is ScalarType {  IsNumber: true })
+            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.SchemeType is ScalarType {  IsNumber: true })
             || fieldType.SchemaType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
             ) return null;
 
@@ -381,11 +381,11 @@ public static class SystemData
                         AnySchemaNode? orgFld = originStruct.GetField(fld.Name);
                         AnySchemaNode? dataFld = structData.GetField(fld.Name);
 
-                        if (orgFld?.Type is ScalarType { IsNumber: true } && dataFld?.Type is ScalarType { IsNumber: true })
+                        if (orgFld?.SchemeType is ScalarType { IsNumber: true } && dataFld?.SchemeType is ScalarType { IsNumber: true })
                         {
                             decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                             decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                            originStruct.SetField(fld.Name, fld.TypeNode?.CreateNode(orgVal + dataVal));
+                            originStruct.SetField(fld.Name, fld.SchemeType?.CreateNode(orgVal + dataVal));
                         }
                     }
                     break;
@@ -416,11 +416,11 @@ public static class SystemData
                                 AnySchemaNode? orgFld = oitem.GetField(fld.Name);
                                 AnySchemaNode? dataFld = ditem.GetField(fld.Name);
 
-                                if (orgFld?.Type is ScalarType { IsNumber: true } && dataFld?.Type is ScalarType { IsNumber: true })
+                                if (orgFld?.SchemeType is ScalarType { IsNumber: true } && dataFld?.SchemeType is ScalarType { IsNumber: true })
                                 {
                                     decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                                     decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                                    oitem.SetField(fld.Name, fld.TypeNode?.CreateNode(orgVal + dataVal));
+                                    oitem.SetField(fld.Name, fld.SchemeType?.CreateNode(orgVal + dataVal));
                                 }
                             }
                         }

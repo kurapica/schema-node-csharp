@@ -102,7 +102,7 @@ public static class RowAccessExpTreeVisitor
         {
             if (value == null || value.IsEmpty()) continue;
             StructFieldConfig? field = structAccess.StructType.Fields.FirstOrDefault(f => f.Name.Equals(key, StringComparison.OrdinalIgnoreCase));
-            if (field is not { TypeNode: ScalarType }) continue;
+            if (field is not { SchemeType: ScalarType }) continue;
 
             BinaryAccessExpNode? fieldExp = accessExp.FindFieldAccessOper(key);
 
@@ -113,11 +113,11 @@ public static class RowAccessExpTreeVisitor
                 {
                     JsonArray arr => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
                         new BinaryAccessExpNode(BinaryAccessExpType.Contains,
-                            new ValueAccessExpNode(field.TypeNode.GetArrayType(), new ArrayTypeNode(field.TypeNode!, arr)),
+                            new ValueAccessExpNode(field.SchemeType.GetArrayType(), new ArrayTypeNode(field.SchemeType!, arr)),
                             new FieldAccessAccessExpNode(structAccess, key))),
                     JsonValue val => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
                         new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
-                            new ValueAccessExpNode(field.TypeNode, field.TypeNode!.CreateNode(val)))),
+                            new ValueAccessExpNode(field.SchemeType, field.SchemeType!.CreateNode(val)))),
                     _ => accessExp
                 };
             }
@@ -217,7 +217,7 @@ public static class RowAccessExpTreeVisitor
         {
             AnySchemaNode? res = await context.CallFunctionAsync(exp.FuncNode!,
                 leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray());
-            result = new ValueAccessExpNode(res?.Type ?? exp.FuncNode!.ReturnNode, res);
+            result = new ValueAccessExpNode(res?.SchemeType ?? exp.FuncNode!.ReturnNode, res);
             expMap.Add(exp, result);
             return result;
         }

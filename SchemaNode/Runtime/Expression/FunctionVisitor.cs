@@ -1,8 +1,5 @@
-﻿using Microsoft.Win32.SafeHandles;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Enum;
-using System.Linq.Expressions;
-using System.Net.NetworkInformation;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 
@@ -27,7 +24,7 @@ public static class FunctionVisitor
         Dictionary<string, int> expAccessCount = [];
         IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priorty).ToArray();
 
-        var getExpression = (string name, out SchemaExpression? value) =>
+        bool GetExpression(string name, out SchemaExpression? value)
         {
             if (expMaps.TryGetValue(name, out SchemaExpression? exp))
             {
@@ -38,9 +35,10 @@ public static class FunctionVisitor
                 value = exp;
                 return true;
             }
+
             value = null;
             return false;
-        };
+        }
 
         // Process arguments
         for (int i = 0; i < func.Args.Length; i++)
@@ -65,7 +63,7 @@ public static class FunctionVisitor
             }
 
             AnySchemeType? argTypeNode = arg.SchemaType ?? await context.GetSchemaTypeAsync(arg.Type);
-            if (argTypeNode == null || !argTypeNode.IsValueType)
+            if (argTypeNode is not { IsValueType: true })
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType, TYPE_FUNC_ARG_TYPE_NOT_VALID);
@@ -95,7 +93,7 @@ public static class FunctionVisitor
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpDuplicateName, TYPE_FUNC_EXP_NAME_CONFLICT_ARG);
             }
 
-            // valdiate func
+            // validate func
             FunctionType? funcType = (exp.FuncNode ?? (!string.IsNullOrWhiteSpace(exp.Func) ? await context.GetSchemaTypeAsync(exp.Func) : null)) as FunctionType;
             if (funcType == null)
             {
@@ -106,55 +104,61 @@ public static class FunctionVisitor
 
             // generic types
             AnySchemeType?[] genericTypes = funcType.Generic.ToArray();
-            var setGenericType = (AnySchemeType? origin, AnySchemeType? genType) =>
+            AnySchemeType? SetGenericType(AnySchemeType? origin, AnySchemeType? genType)
             {
                 if (origin is not GenericTypeNode generic || genType == null || genType is GenericTypeNode) return origin ?? genType;
-                if (genericTypes[generic.GenericIndex - 1] == null)
-                    genericTypes[generic.GenericIndex - 1] = genType;
+                genericTypes[generic.GenericIndex - 1] ??= genType;
                 return genericTypes[generic.GenericIndex - 1];
-            };
-            var getGenericType = (AnySchemeType? origin) =>
+            }
+            AnySchemeType? GetGenericType(AnySchemeType? origin)
             {
                 if (origin is not GenericTypeNode generic) return origin;
                 return genericTypes[generic.GenericIndex - 1] ?? generic;
-            };
+            }
 
             // validate return value
             AnySchemeType? returnType = !string.IsNullOrWhiteSpace(exp.Return) ? await context.GetSchemaTypeAsync(exp.Return) : null;
-            if (returnType == null || !returnType.IsValueType)
+            if (returnType is not { IsValueType: true })
             {
                 exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
             }
             exp.SchemaType = returnType;
-            setGenericType(funcType.ReturnNode, returnType);
+            SetGenericType(funcType.ReturnNode, returnType);
 
             // build call arguments
             // check exp call first, get schema type for generic type
             SchemaExpression[] args = new SchemaExpression[funcType.Args.Length];
-            var setArgExp = async (int index, SchemaExpression? argExp = null) =>
+            async Task SetArgExp(int index, SchemaExpression? argExp = null)
             {
-                var argDef = funcType.Args.ElementAtOrDefault(index);
-                if (argDef == null)
+                try
                 {
-                    argDef = funcType.Args.Last();
-                    if (argDef.Params != true) return;
-                }
-                var argType = setGenericType(argDef.SchemaType, argExp.SchemaType);
+                    var argDef = funcType.Args.ElementAtOrDefault(index);
+                    if (argDef == null)
+                    {
+                        argDef = funcType.Args.Last();
+                        if (argDef.Params != true) return;
+                    }
 
-                // build argument expression
-                if (argDef.Params ?? false)
-                {
-                    var old = args[funcType.Args.Length - 1] as ParamsExpression;
-                    args[funcType.Args.Length - 1] = new ParamsExpression(
-                        old?.Exps?.Append(argExp)?.ToArray() ?? [argExp], 
-                        old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
+                    var argType = SetGenericType(argDef.SchemaType, argExp?.SchemaType);
+
+                    // build argument expression
+                    if (argDef.Params ?? false)
+                    {
+                        if (argExp == null) return;
+                        var old = args[funcType.Args.Length - 1] as ParamsExpression;
+                        args[funcType.Args.Length - 1] = new ParamsExpression(old?.Exps?.Append(argExp)?.ToArray() ?? [argExp], old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
+                    }
+                    else
+                    {
+                        args[index] = argExp ?? new NullExpression(argType!);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    args[index] = argExp;
+                    context.LogError(e, $"FunctionVisitor.SetArgExp {func.Name} - {exp.Name} - ArgIndex:{index}");
                 }
-            };
+            }
 
             // check exp access first for generic types
             for (int j = 0; j < funcType.Args.Length; j++)
@@ -162,13 +166,13 @@ public static class FunctionVisitor
                 var argDef = funcType.Args[j];
                 var arg = exp.Args.ElementAtOrDefault(j);
                 if (string.IsNullOrWhiteSpace(arg?.Name)) continue;
-                if (!getExpression(arg.Name, out SchemaExpression? argExp))
+                if (!GetExpression(arg.Name, out SchemaExpression? argExp))
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                 }
-                arg.TypeNode ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : argExp!.SchemaType;
-                await setArgExp(j, argExp);
+                arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : argExp!.SchemaType;
+                await SetArgExp(j, argExp);
             }
 
             // check const value
@@ -184,48 +188,59 @@ public static class FunctionVisitor
                         argDef.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                     }
-                    await setArgExp(j, null);
+                    await SetArgExp(j, null);
                     continue;
                 }
-                arg.TypeNode ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : getGenericType(argDef.SchemaType);
-                if (arg.TypeNode == null || !arg.TypeNode.IsValueType)
+                arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : GetGenericType(argDef.SchemaType);
+                if (arg.SchemeType is not { IsValueType: true })
                 {
-                    arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
+                    exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType, TYPE_FUNC_ARG_TYPE_NOT_VALID);
                 }
-                await setArgExp(j, new ConstantExpression(arg.TypeNode.CreateNode(arg.Value)));
+                await SetArgExp(j, new ConstantExpression(arg.SchemeType.CreateNode(arg.Value)!));
             }
 
-            for (int j = 0; j < exp.Args.Length; j++)
+            for (int j = funcType.Args.Length; j < exp.Args.Length; j++)
             {
-                var arg = exp.Args[i];
-                if (string.IsNullOrWhiteSpace(arg.Name)) continue;                
-                if (!getExpression(arg.Name, out SchemaExpression? argExp))
-                {
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                }
-                await setArgExp(j, argExp!);
-            }
 
-            // check missing arguments
-            for (int j = exp.Args.Length; j < funcType.Args.Length; j++)
-            {
                 var argDef = funcType.Args[j];
-                if (!(argDef.Nullable ?? false))
+                var arg = exp.Args.ElementAtOrDefault(j);
+                if (!string.IsNullOrWhiteSpace(arg?.Name))
                 {
-                    argDef.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH);
-                }
-                
-                // build argument expression
-                if (argDef.Default != null)
-                {
-
+                    if (!GetExpression(arg.Name, out SchemaExpression? argExp))
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    }
+                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : argExp!.SchemaType;
+                    await SetArgExp(j, argExp);
                 }
                 else
                 {
-                    args[j] = new NullExpression();
+                    if (arg?.Value == null)
+                    {
+                        if (!(argDef.Nullable ?? false))
+                        {
+                            argDef.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs,
+                                TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        }
+
+                        await SetArgExp(j, null);
+                        continue;
+                    }
+
+                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type)
+                        ? await context.GetSchemaTypeAsync(arg.Type)
+                        : GetGenericType(argDef.SchemaType);
+                    if (arg.SchemeType is not { IsValueType: true })
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType,
+                            TYPE_FUNC_ARG_TYPE_NOT_VALID);
+                    }
+
+                    await SetArgExp(j, new ConstantExpression(arg.SchemeType.CreateNode(arg.Value)!));
                 }
             }
         }

@@ -649,12 +649,12 @@ public class WorkflowContext: SchemaContext
                     var arg = workflow.Args[i];
                     if (string.IsNullOrEmpty(arg.Name))
                     {
-                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
                     }
                     else
                     {
                         AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
                     }
                 }
             }
@@ -695,12 +695,12 @@ public class WorkflowContext: SchemaContext
                     var arg = workflow.Args[i];
                     if (string.IsNullOrEmpty(arg.Name))
                     {
-                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
                     }
                     else
                     {
                         AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
                     }
                 }
             }

@@ -401,7 +401,14 @@ public class AppType
         }).ToList();
         foreach(var wf in Workflows ?? [])
         {
-            await wf.LoadAsync(context);
+            if (Injection.WorkflowTypes != null)
+            {
+                Injection.WorkflowTypes.Add(wf);
+            }
+            else
+            {
+                await wf.LoadAsync(context);
+            }
         }
     }
 

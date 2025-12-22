@@ -79,7 +79,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
                 }
                 else if (value is IEnumerable<AnySchemaNode> nodes)
                 {
-                    _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
+                    _elements = nodes.Where(n => n.SchemeType.CanBeUseAs(ElementType)).ToList();
                 }
                 else if (value is not string && value is not JsonObject && value is IEnumerable objs)
                 {
@@ -251,7 +251,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
             {
                 if (type is not StructType @struct) return null;
                 type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
-                    ?.TypeNode;
+                    ?.SchemeType;
             }
 
             if (type == null) return null;

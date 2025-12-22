@@ -87,6 +87,7 @@ public class FuncArg
     /// <summary>
     /// The default value
     /// </summary>
+    [NotMapped]
     public object? Default { get; set; }
 
     /// <summary>
@@ -161,5 +162,5 @@ public class FuncCallArg {
     /// </summary>
     [NotMapped]
     [JsonIgnore]
-    public AnySchemeType? TypeNode { get; set; }
+    public AnySchemeType? SchemeType { get; set; }
 }

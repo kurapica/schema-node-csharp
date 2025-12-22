@@ -275,7 +275,7 @@ public static class BatchQueryExtension
                         var @struct = result switch
                         {
                             ArrayTypeNode arr => arr.ElementType as StructType,
-                            StructTypeNode st => st.Type as StructType,
+                            StructTypeNode st => st.SchemeType as StructType,
                             _ => null
                         };
                         if (@struct != null)
@@ -408,7 +408,7 @@ public static class BatchQueryExtension
                     {
                         AnySchemaNode? v = obj.GetField(f.Name);
                         if (v is { IsEmpty: false })
-                            await ScanEnumAccess(context, root, f.TypeNode!, enumsKeys, v);
+                            await ScanEnumAccess(context, root, f.SchemeType!, enumsKeys, v);
                     }
                 }
                 break;

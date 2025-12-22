@@ -168,7 +168,7 @@ public abstract class AnySchemeType: IDisposable
         SchemaType.Struct => new StructTypeNode((StructType)this, value),
         SchemaType.Array => new ArrayTypeNode((ArrayType)this, value),
         SchemaType.Json => new JsonTypeNode((JsonType)this, value),
-        _ => null
+        _ => value is AnySchemaNode node ? node : null
     };
 
     /// <summary>

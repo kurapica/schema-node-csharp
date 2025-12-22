@@ -1,16 +1,15 @@
 ﻿using System.Reflection;
-using System.Runtime;
+using System.Runtime.Serialization;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
-using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
 public class StructTypeNode : AnySchemaNode
 {
     internal AnySchemaNode[] Fields;
-    object? _csharpObject = null;
+    object? _csharpObject;
 
     public StructTypeNode(StructType type, object? value = null) : base(type, null)
     {
@@ -19,7 +18,12 @@ public class StructTypeNode : AnySchemaNode
         for(int i = 0; i < Fields.Length; i++)
         {
             var field = type.Fields[i];
-            Fields[i] = field.TypeNode!.CreateNode() ?? throw new NotSupportedException();
+            if (field.SchemeType == null)
+            {
+                throw new SerializationException($"The field {field.Name} type is not defined.");
+            }
+
+            Fields[i] = field.SchemeType!.CreateNode() ?? throw new NotSupportedException();
         }
         Value = value;
     }
@@ -43,7 +47,7 @@ public class StructTypeNode : AnySchemaNode
     /// </summary>
     public AnySchemaNode? GetField(string fieldName)
     {
-        var type = Type as StructType;
+        var type = SchemeType as StructType;
         if (type == null) return null;
         var index = Array.FindIndex(type.Fields, f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
         if (index < 0 || index >= Fields.Length) return null;
@@ -67,9 +71,8 @@ public class StructTypeNode : AnySchemaNode
     {
         if (this == other) return true;
         if (other is not StructTypeNode otherStruct) return false;
-        if (SchemaType != otherStruct.SchemaType) return false;
 
-        var fields = (Type as StructType)!.Fields;
+        var fields = (SchemeType as StructType)!.Fields;
         foreach (var t in fields)
         {
             var field = otherStruct.GetField(t.Name);
@@ -96,7 +99,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is StructTypeNode @struct)
             {
-                var fields = (Type as StructType)!.Fields;
+                var fields = (SchemeType as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = @struct.GetField(fields[i].Name);
@@ -104,7 +107,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is JsonObject obj)
             {
-                var fields = (Type as StructType)!.Fields;
+                var fields = (SchemeType as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = obj[fields[i].Name];
@@ -112,7 +115,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value.GetType() == CsharpType)
             {
-                IReadOnlyList<PropertyInfo>? props = (Type as StructType)!.GetCSharpProperties();
+                IReadOnlyList<PropertyInfo>? props = (SchemeType as StructType)!.GetCSharpProperties();
                 if (props != null)
                 {
                     _csharpObject = value;
@@ -124,7 +127,7 @@ public class StructTypeNode : AnySchemaNode
                 else
                 {
                     JsonObject jsonObj = (JsonObject)value.ToJsonNode()!;
-                    var fields = (Type as StructType)!.Fields;
+                    var fields = (SchemeType as StructType)!.Fields;
                     for (int i = 0; i < fields.Length; i++)
                     {
                         Fields[i].Value = jsonObj[fields[i].Name];
@@ -159,6 +162,8 @@ public class StructTypeNode : AnySchemaNode
 
     public override object? ToTypeValue(Type type)
     {
+        if (type.IsAssignableFrom(typeof(StructTypeNode))) return this;
+        
         if (CsharpType.IsAssignableTo(type))
         {
             _csharpObject ??= ToJson()?.FromJson(CsharpType);
@@ -171,7 +176,7 @@ public class StructTypeNode : AnySchemaNode
     {
         JsonObject result = [];
 
-        var fields = (Type as StructType)!.Fields;
+        var fields = (SchemeType as StructType)!.Fields;
         for (int i = 0; i < fields.Length; i++)
         {
             JsonNode? d = Fields[i].ToJson();

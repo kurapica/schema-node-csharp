@@ -250,8 +250,8 @@ public class FunctionType: AnySchemeType
             {
                 foreach (FuncCallArg callArg in exp.Args)
                 {
-                    if (callArg.TypeNode != null && callArg.TypeNode is not GenericTypeNode)
-                        yield return callArg.TypeNode;
+                    if (callArg.SchemeType != null && callArg.SchemeType is not GenericTypeNode)
+                        yield return callArg.SchemeType;
                 }
             }
         }
@@ -598,7 +598,7 @@ public class FunctionType: AnySchemeType
                             {
                                 if (type is StructType @struct && @struct.Fields.FirstOrDefault(f => f.Name.Equals(access[j], StringComparison.OrdinalIgnoreCase)) is { } config)
                                 {
-                                    type = config.TypeNode;
+                                    type = config.SchemeType;
                                 }
                                 else
                                 {
@@ -686,7 +686,7 @@ public class FunctionType: AnySchemeType
                         }
                         
                         // save the type
-                        callArg.TypeNode = argTypeNode;
+                        callArg.SchemeType = argTypeNode;
                     }
                     else
                     {
@@ -728,7 +728,7 @@ public class FunctionType: AnySchemeType
                     }
                     
                     // save type
-                    callArg.TypeNode = funcArgType;
+                    callArg.SchemeType = funcArgType;
                     
                     // Check nullable
                     if (callArg.Value == null || callArg.Value.IsEmpty())
@@ -820,7 +820,7 @@ public class FunctionType: AnySchemeType
                 {
                     if (treeMap.TryGetValue(field.Name, out FunctionNodeExpTree? leaf))
                     {
-                        if (leaf.SchemaType is null || !leaf.SchemaType.CanBeUseAs(field.TypeNode!))
+                        if (leaf.SchemaType is null || !leaf.SchemaType.CanBeUseAs(field.SchemeType!))
                         {
                             Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
                             return (trees, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
@@ -1574,7 +1574,7 @@ public class FunctionType: AnySchemeType
                     FunctionNodeExpTree leaf = exp.LeafNodes[i] ?? throw new Exception($"The expression {exp.Name}'s {i} argument not valid.");
                     
                     // Gets the type
-                    Type callType = (exp.FuncNode.Args[i].SchemaType is GenericTypeNode ? exp.Args[i].TypeNode : exp.FuncNode.Args[i].SchemaType)
+                    Type callType = (exp.FuncNode.Args[i].SchemaType is GenericTypeNode ? exp.Args[i].SchemeType : exp.FuncNode.Args[i].SchemaType)
                                     ?.ToCSharpType(exp.FuncNode!.Args[i].Nullable) ?? throw new Exception($"The expression {exp.Name}'s {i} argument type not valid.");
 
                     Type? expectedLeafType = exp.ArrayIndex == i 
