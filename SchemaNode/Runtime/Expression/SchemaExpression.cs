@@ -14,7 +14,7 @@ public abstract record SchemaExpression(AnySchemeType SchemaType);
 /// </summary>
 public interface IExpressionVisitor
 {
-    SchemaExpression? VisitExpression(SchemaContext context, FuncCallExpression funcCallExp);
+    SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression funcCallExp);
 
     int Priorty { get; }
 }
@@ -43,6 +43,14 @@ public record ArgumentExpression(string Name, int Index, AnySchemeType SchemeTyp
 /// the function's parameter order.</param>
 /// <param name="SchemeType">The schema type that describes the result of the function call.</param>
 public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemeType SchemeType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemeType);
+
+/// <summary>
+/// The field access expression
+/// </summary>
+/// <param name="Owner">The field owner</param>
+/// <param name="FieldName">The field name</param>
+/// <param name="SchemeType">The schema type</param>
+public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
 
 /// <summary>
 /// The default expression

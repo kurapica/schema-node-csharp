@@ -27,12 +27,36 @@ public static class FunctionVisitor
         // Get expression with visit count++
         bool GetExpression(string name, out SchemaExpression? value)
         {
-            if (expMaps.TryGetValue(name, out SchemaExpression? exp))
+            string[] access = name.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            if (expMaps.TryGetValue(access[0], out SchemaExpression? exp))
             {
-                if (expAccessCount.TryGetValue(name, out int count))
-                    expAccessCount[name] = count + 1;
+                if (access.Length > 1)
+                {
+                    // repace with field access expression
+                    AnySchemeType? type = exp.SchemaType;
+                    if (type is ArrayType arrayType)
+                        type = arrayType.ElementSchemaType;
+
+                    for (int i = 1; i < access.Length; i++)
+                    {
+                        if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(access[i], StringComparison.OrdinalIgnoreCase)) is { } field)
+                        {
+                            type = field.SchemeType;
+                        }
+                        else
+                        {
+                            value = null;
+                            return false;
+                        }
+                    }
+                    exp = new FieldAccessExpression(exp, string.Join(".", access.Skip(1)), type!);
+                }
+
+                if (expAccessCount.TryGetValue(access[0], out int count))
+                    expAccessCount[access[0]] = count + 1;
                 else
-                    expAccessCount[name] = 1;
+                    expAccessCount[access[0]] = 1;                
+
                 value = exp;
                 return true;
             }
@@ -145,8 +169,8 @@ public static class FunctionVisitor
                     var argDef = funcType.Args.ElementAtOrDefault(index);
                     if (argDef == null)
                     {
-                        argDef = funcType.Args.Last();
-                        if (argDef.Params != true) return;
+                        argDef = funcType.Args.LastOrDefault();
+                        if (argDef?.Params != true) return;
                     }
 
                     var argType = SetGenericType(argDef.SchemaType, argExp?.SchemaType);
@@ -194,7 +218,7 @@ public static class FunctionVisitor
                 {
                     if (!(argDef.Nullable ?? false))
                     {
-                        argDef.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                     }
                     await SetArgExp(j, null);
@@ -209,11 +233,14 @@ public static class FunctionVisitor
                 await SetArgExp(j, new ConstantExpression(arg.SchemeType.CreateNode(arg.Value)!));
             }
 
+            // For params
             for (int j = funcType.Args.Length; j < exp.Args.Length; j++)
             {
+                var argDef = funcType.Args.LastOrDefault();
+                if (argDef?.Params != true) break; // skip directly
 
-                var argDef = funcType.Args[j];
-                var arg = exp.Args.ElementAtOrDefault(j);
+                var arg = exp.Args[j];
+
                 if (!string.IsNullOrWhiteSpace(arg?.Name))
                 {
                     if (!GetExpression(arg.Name, out SchemaExpression? argExp))
@@ -230,7 +257,7 @@ public static class FunctionVisitor
                     {
                         if (!(argDef.Nullable ?? false))
                         {
-                            argDef.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                            exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs,
                                 TYPE_FUNC_EXP_ARGS_NOT_VALID);
                         }
@@ -239,20 +266,39 @@ public static class FunctionVisitor
                         continue;
                     }
 
-                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type)
-                        ? await context.GetSchemaTypeAsync(arg.Type)
-                        : GetGenericType(argDef.SchemaType);
+                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : GetGenericType(argDef.SchemaType);
                     if (arg.SchemeType is not { IsValueType: true })
                     {
                         exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType,
                             TYPE_FUNC_ARG_TYPE_NOT_VALID);
                     }
-
                     await SetArgExp(j, new ConstantExpression(arg.SchemeType.CreateNode(arg.Value)!));
                 }
             }
+
+            // build function call expression
+            SchemaExpression callExp = new FuncCallExpression(funcType, args, exp.SchemaType!);
+
+            // Apply visitors
+            foreach (var visitor in visitors)
+            {
+                callExp = visitor.VisitExpression(context, callExp) ?? callExp;
+            }
+
+            // Validate
+            if (callExp is FuncCallExpression funcCallExp)
+            {
+                // TODO
+            }
+
+            // Add to maps
+            expMaps[exp.Name] = callExp;
+            results.Add(callExp); // reduce later
         }
+
+        // struct build
+
 
         return results;
     }
