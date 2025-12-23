@@ -16,3 +16,4 @@ SchemaNode.sln.DotSettings.user
 /SchemaNode.Example/obj
 /SchemaNode.Kafka/obj
 /SchemaNode.RabbitMQ/obj
+/SchemaNode.RabbitMQ/bin

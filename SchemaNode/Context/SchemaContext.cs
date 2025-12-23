@@ -271,6 +271,10 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
             node = new AppType{ Name = name, RootApp = par };
             par!.SubAppList ??= new ConcurrentDictionary<string, AppType>();
             par.SubAppList.TryAdd(paths.Last(), node);
+            if (par.Apps == null || !par.Apps.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                par.Apps = par.Apps?.Append(appSchema).ToArray() ?? [appSchema];
+            }
         }
         node.Loaded = true;
         await node.LoadAsync(this, appSchema, preload);
