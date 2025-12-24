@@ -24,7 +24,7 @@ public interface IExpressionVisitor
 /// </summary>
 /// <param name="Name"></param>
 /// <param name="SchemeType"></param>
-public abstract record VariableExpression(string Name, SchemaExpression Value) : SchemaExpression(Value.SchemaType);
+public record VariableExpression(string Name, SchemaExpression Value) : SchemaExpression(Value.SchemaType);
 
 /// <summary>
 /// Represents an argument expression with a specified name, index, and associated scheme type.
@@ -51,6 +51,13 @@ public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args,
 /// <param name="FieldName">The field name</param>
 /// <param name="SchemeType">The schema type</param>
 public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+
+/// <summary>
+/// The struct result expression
+/// </summary>
+/// <param name="Fields">The struct field members</param>
+/// <param name="SchemeType">The struct schema type</param>
+public record StructResultExpression(VariableExpression[] Fields, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
 
 /// <summary>
 /// The default expression

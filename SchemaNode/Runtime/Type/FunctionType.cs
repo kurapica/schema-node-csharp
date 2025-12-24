@@ -99,7 +99,7 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type node
     /// </summary>
-    public AnySchemeType? ReturnNode { get; protected set; }
+    public AnySchemeType? ReturnNode { get; internal set; }
 
     /// <summary>
     /// The root expression trees
@@ -1191,6 +1191,7 @@ public class FunctionType: AnySchemeType
             if (p.IsDefined(typeof(ParamArrayAttribute), false))
             {
                 arg.Params = true;
+                arg.Nullable = true;
                 pt.Kind |= ParameterTypeKind.Params;
             }
 
