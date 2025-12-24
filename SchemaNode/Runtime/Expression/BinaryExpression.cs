@@ -80,9 +80,10 @@ public class BinaryExpressionVisitor : IExpressionVisitor
     public int Priorty => 100;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, FuncCallExpression funcCallExp)
+    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
-        var attr = funcCallExp.Function?.FuncInfo?.Method?.GetCustomAttribute<BinaryExpAttribute>();
-        return attr != null && funcCallExp.Args.Length >= 2 ? new BinaryExpression(attr.Type, funcCallExp.Args[0], funcCallExp.Args[1], funcCallExp.SchemaType) : null;
+        if (exp is not FuncCallExpression callExp) return null;
+        var attr = callExp.Function?.FuncInfo?.Method?.GetCustomAttribute<BinaryExpAttribute>();
+        return attr != null && callExp.Args.Length >= 2 ? new BinaryExpression(attr.Type, callExp.Args[0], callExp.Args[1], exp.SchemaType) : null;
     }
 }

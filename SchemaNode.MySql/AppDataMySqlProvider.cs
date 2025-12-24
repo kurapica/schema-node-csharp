@@ -505,7 +505,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode filter, 
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode? filter, 
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false, bool onlyCount = false)
     {
@@ -525,7 +525,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
 
         // exp node -> sql
-        string sql = filter.ToSql(sqlProvider);
+        string sql = filter?.ToSql(sqlProvider) ?? "";
         if (!string.IsNullOrEmpty(sql))
         {
             sb.Append(" AND ");

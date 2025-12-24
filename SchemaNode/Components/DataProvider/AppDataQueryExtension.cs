@@ -176,7 +176,7 @@ public static class AppDataQueryExtension
     /// Gets the field data
     /// </summary>
     public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, 
-        AppFieldType field, string target, AccessExpNode filter, int skip = 0, int take = 0, bool desc = false, 
+        AppFieldType field, string target, AccessExpNode? filter, int skip = 0, int take = 0, bool desc = false, 
         AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false, bool onlyCount = false)
     {
         // Front end only
@@ -212,7 +212,7 @@ public static class AppDataQueryExtension
     /// Gets the filter field data
     /// </summary>
     public static async Task<AnySchemaNode?> GetFilterFieldDataAsync(
-        this SchemaContext context, string app, string field, string target, AccessExpNode filter, AppDataSourceAccessResult type, 
+        this SchemaContext context, string app, string field, string target, AccessExpNode? filter, AppDataSourceAccessResult type, 
         int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null)
     {
         AppType? appType = await context.GetAppTypeAsync(app);

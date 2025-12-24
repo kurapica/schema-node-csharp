@@ -245,7 +245,7 @@ public static class SchemaProviderExtension
                     }
                     else if (arg.Type != null)
                     {
-                        callArgs[i] = Array.CreateInstance(arg.Type, 0);
+                        callArgs[i] = Array.CreateInstance(arg.Type.GetElementType() ?? arg.Type, 0);
                         continue;
                     }
                 }

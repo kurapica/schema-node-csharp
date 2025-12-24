@@ -14,7 +14,7 @@ public abstract record SchemaExpression(AnySchemeType SchemaType);
 /// </summary>
 public interface IExpressionVisitor
 {
-    SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression funcCallExp);
+    SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp);
 
     int Priorty { get; }
 }

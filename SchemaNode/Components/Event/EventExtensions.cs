@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+// ReSharper disable AccessToModifiedClosure
 
 namespace SchemaNode.Components;
 

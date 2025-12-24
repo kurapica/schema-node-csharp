@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -115,11 +114,9 @@ public class WorkflowType: AnySchemeType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Workflow = new WorkflowSchema
             {
-                Mode = type.IsSubclassOf(typeof(EventWorkflow)) ? WorkflowMode.Event 
-                    : type.IsSubclassOf(typeof(FunctionWorkflow)) 
-                        ? WorkflowMode.Function 
-                        : type == typeof(InteractionWorkflow) || type.IsSubclassOf(typeof(InteractionWorkflow))
-                            ? WorkflowMode.Interaction 
+                Mode = type == typeof(EventWorkflow) || type.IsSubclassOf(typeof(EventWorkflow)) ? WorkflowMode.Event 
+                    : type == typeof(FunctionWorkflow) || type.IsSubclassOf(typeof(FunctionWorkflow)) ? WorkflowMode.Function 
+                        : type == typeof(InteractionWorkflow) || type.IsSubclassOf(typeof(InteractionWorkflow)) ? WorkflowMode.Interaction 
                             : WorkflowMode.Workflow,
             }
         };

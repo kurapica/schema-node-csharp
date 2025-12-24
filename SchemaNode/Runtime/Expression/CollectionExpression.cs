@@ -44,8 +44,9 @@ public class CollectionExpressionVisitor: IExpressionVisitor
     public int Priorty { get; set; } = 50;
 
     /// <inheritdoc />
-    public SchemaExpression? VisitExpression(SchemaContext context, FuncCallExpression funcCallExp)
+    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
+        if (exp is not FuncCallExpression funcCallExp) return null;
         if (funcCallExp.ExpType == Enum.ExpressionType.Call) return null;
 
         var func = funcCallExp.Function;

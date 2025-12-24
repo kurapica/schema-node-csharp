@@ -727,6 +727,9 @@ public class FunctionType: AnySchemeType
                         return (trees, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
                     }
                     
+                    if ((funcArg.Params ?? false) && funcArgType is ArrayType arr)
+                        funcArgType = arr.ElementSchemaType;
+                    
                     // save type
                     callArg.SchemeType = funcArgType;
                     
@@ -1480,7 +1483,7 @@ public class FunctionType: AnySchemeType
                 // Gets the task result
                 MethodCallExpression callExp = Expression.Call(null, queryMethod, contextExp, Expression.Constant(app), Expression.Constant(field), 
                     target != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, target, returnLabel, typeof(string)) : Expression.Constant(string.Empty), 
-                    filter ?? Expression.Constant(null),
+                    filter ?? Expression.Constant(null, typeof(AccessExpNode)),
                     Expression.Constant(appData.Result),
                     skip != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, skip, returnLabel, typeof(int)) : Expression.Constant(0),
                     take != null ? CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, take, returnLabel, typeof(int)) : Expression.Constant(0),

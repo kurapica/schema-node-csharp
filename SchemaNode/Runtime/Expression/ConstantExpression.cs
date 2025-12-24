@@ -29,8 +29,9 @@ public class ConstantExpressionVisitor : IExpressionVisitor
     public int Priorty { get; } = 100;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, FuncCallExpression funcCallExp)
+    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
+        if (exp is not FuncCallExpression funcCallExp) return null;
         MethodInfo? info = funcCallExp.Function?.FuncInfo?.Method;
         var attr = info?.GetCustomAttribute<ConstantExpressionAttribute>();
         return attr != null ? new ConstantExpression(funcCallExp.SchemaType.CreateNode(attr.Value)!) : null;
