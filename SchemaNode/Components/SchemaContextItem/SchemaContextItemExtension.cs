@@ -66,6 +66,11 @@ public static class SchemaContextItemExtension
         if (!TypeFieldMap.TryGetValue(typeof(T), out string? field)) return null;
         if (!ItemProvider.TryGetValue(field, out (string schemaType, Type providerType) set)) return null;
 
+        // Gets the item provider
+        if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } provider
+            && provider.TryGetItem(out object? item))
+            return item as T;
+        
         // Check context item first
         if (context.TryGetContextItem(set.providerType, out object? setItem))
         {
@@ -74,10 +79,6 @@ public static class SchemaContextItemExtension
                 : setItem as T;
         }
 
-        // Gets the item provider
-        if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } provider
-            && provider.TryGetItem(out object? item))
-            return item as T;
         return null;
     }
 

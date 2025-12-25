@@ -449,7 +449,7 @@ public static class SystemData
     )
     {
         if (string.IsNullOrEmpty(target)) return false;
-
+        
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
             : null;
@@ -457,6 +457,8 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         AnySchemaNode? dataNode = fieldType?.SchemaType?.CreateNode(data);
         if (dataNode == null || dataNode.IsEmpty) return false;
+
+        context.SetAccess(app, target);
 
         await context.BeginTransactionAsync();
         await context.SaveFieldDataAsync(fieldType!, target, dataNode, onlyAdd: onlyAdd);
