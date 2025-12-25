@@ -17,8 +17,10 @@ public class WaitMessageEventWorkflow : EventWorkflow,
        
         session?.Dispose();
         return Fork 
-            ? context.SubscribeEvent<Event>(Event!,  @event => SetPayload(context, @event.Payload)) 
-            : context.SubscribeEventOnce<Event>(Event!, @event => SetPayload(context, @event.Payload));
+            ? context.SubscribeEvent<Event>(Event!,  @event => 
+                SetPayload(context, @event.Payload)) 
+            : context.SubscribeEventOnce<Event>(Event!, @event => 
+                SetPayload(context, @event.Payload));
     }
     
     /// <summary>

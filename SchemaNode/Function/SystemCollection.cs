@@ -148,7 +148,7 @@ public static class SystemCollection
             if (currentNode == null) return default;
         }
         
-        return (T?)currentNode.ToTypeValue(typeof(T));
+        return !currentNode.IsEmpty ? (T?)currentNode.ToTypeValue(typeof(T)) : default;
     }
 
     /// <summary>

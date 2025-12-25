@@ -1037,7 +1037,18 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
     
     // Ensure the database connection is open
-    private Task EnsureOpenConnectionAsync() => dbConn.State != ConnectionState.Open ? dbConn.OpenAsync() : Task.CompletedTask;
+    private async Task EnsureOpenConnectionAsync()
+    {
+        try
+        {
+            if (dbConn.State != ConnectionState.Open)
+                await dbConn.OpenAsync();
+        }
+        catch (Exception ex)
+        {
+            // ignore
+        }
+    }
     
     /// <summary>
     /// The mysql data type

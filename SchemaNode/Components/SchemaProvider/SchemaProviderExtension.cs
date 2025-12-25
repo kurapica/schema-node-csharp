@@ -272,9 +272,8 @@ public static class SchemaProviderExtension
             }
             else if (arg.Type != null)
             {
-                (object? o, Type? _, Type? _) = arg.ParseValue(args[i]);
+                (object? o, eleType, Type? _) = arg.ParseValue(args[i]);
                 callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-                eleType = arg.Type;
             }
             else
             {
@@ -284,6 +283,7 @@ public static class SchemaProviderExtension
             // params check
             if (arg.Params)
             {
+                eleType ??= (arg.Type?.GetElementType() ?? arg.Type) ?? typeof(object);
                 var array = Array.CreateInstance(eleType, args.Count - funcInfo.Args.Length + 1);
                 array.SetValue(callArgs[i], 0);
                 int count = 1;

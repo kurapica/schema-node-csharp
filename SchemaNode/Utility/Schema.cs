@@ -824,12 +824,16 @@ public static class Schema
         /// </summary>
         public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
         {
-            if (node == null || node.IsEmpty()) return (null, Type, generic);
+            Type? valueType = Type;
+            if (Params)
+                valueType = valueType?.GetElementType() ?? valueType;
+            
+            if (node == null || node.IsEmpty()) return (null, valueType, generic);
             if (Generic != null)
             {
                 if (node is JsonArray arr)
                 {
-                    if (!AnyArray) return (null, Type, generic);
+                    if (!AnyArray) return (null, valueType, generic);
                     if (generic == null)
                     {
                         if (arr.Count == 0) return (arr, typeof(JsonArray), null); // unkown
@@ -895,7 +899,7 @@ public static class Schema
                 }
                 
                 // single
-                if (AnyArray) return (null, Type, generic);
+                if (AnyArray) return (null, valueType, generic);
                 if (node is JsonObject obj)
                 {
                     return (obj, typeof(JsonObject), null);
@@ -903,7 +907,7 @@ public static class Schema
                 else if (node is JsonValue val)
                 {
                     (object? value, Type? type) = val.ParseValueAndType();
-                    if (value == null) return (null, Type, generic);
+                    if (value == null) return (null, valueType, generic);
                     if (generic != null)
                     {
                         try
@@ -913,21 +917,21 @@ public static class Schema
                         }
                         catch
                         {
-                            return (null, Type, generic);
+                            return (null, valueType, generic);
                         }
                     }
                     return (value, type, type);
                 }
             }
-            else if (Type != null)
+            else if (valueType != null)
             {
                 // list JsonArray for IList
-                if (Type.IsInstanceOfType(node)) return (node, Type, null);
+                if (valueType.IsInstanceOfType(node)) return (node, valueType, null);
 
                 // not generic
                 try
                 {
-                    return (node.FromJson(Type), Type, null);
+                    return (node.FromJson(valueType), valueType, null);
                 }
                 catch
                 {
@@ -935,7 +939,7 @@ public static class Schema
                 }
             }
 
-            return (null, Type, generic);
+            return (null, valueType, generic);
         }
         
         #endregion

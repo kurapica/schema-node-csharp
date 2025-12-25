@@ -498,6 +498,8 @@ public class WorkflowContext: SchemaContext
             state.Status = WorkflowStatus.Error;
             state.Error = ex.GetInnermostException().Message;
         }
+        
+        _scheduler.Schedule(this);
     }
     
     void TryCancel()
