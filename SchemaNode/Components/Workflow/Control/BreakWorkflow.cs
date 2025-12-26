@@ -5,18 +5,22 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.exit")]
-public class ExitWorkflow: Workflow
+/// <summary>
+/// Break Branch Workflow
+/// </summary>
+[Schema($"{NS_SYSTEM_WORKFLOW}.control.break")]
+public class BreakWorkflow: Workflow
 {
-    public async Task ProcessAsync(WorkflowContext context, bool cond)
+    public Task ProcessAsync(WorkflowContext context, bool cond)
     {
         if (cond)
         {
-            await context.TerminateAsync();
+            context.Terminate(this);
         }
         else
         {
             context.Done(this);
         }
+        return Task.CompletedTask;
     }
 }

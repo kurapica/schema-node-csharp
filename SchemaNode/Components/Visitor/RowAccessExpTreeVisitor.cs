@@ -377,7 +377,7 @@ public static class RowAccessExpTreeVisitor
             {
                 AccessExpNode leftNode = leafNodes[0];
                 AccessExpNode rightNode = leafNodes[1];
-                if (leftNode is not ValueAccessExpNode or ArgNode)
+                if (leftNode is not ValueAccessExpNode && leftNode is not ArgNode)
                     throw new NotSupportedException($"The list of ${exp.Name} can't be resolved");
                 result = new BinaryAccessExpNode(BinaryAccessExpType.Contains, leftNode, rightNode);
                 break;

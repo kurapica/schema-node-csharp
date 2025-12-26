@@ -1011,8 +1011,8 @@ public class FunctionType: AnySchemeType
         }
         
         // field access
-        else if ((exp.LeafNodes.ElementAtOrDefault(0) is FieldAccessExpNode fieldAccess &&
-                  fieldAccess.LeafNodes.ElementAtOrDefault(0) is AppDataSourceAccessExpNode fieldAccessExp))
+        else if ((exp.LeafNodes.Any(l => l is FieldAccessExpNode fa &&
+                  fa.LeafNodes.ElementAtOrDefault(0) is AppDataSourceAccessExpNode)))
         {
             switch (exp.Type)
             {
@@ -1021,20 +1021,29 @@ public class FunctionType: AnySchemeType
                 case ExpressionType.Filter:
                 {
                     // init the exp map
+                    var fieldAccess = exp.LeafNodes.First(l => l is FieldAccessExpNode fa &&
+                                                               fa.LeafNodes.ElementAtOrDefault(0) is
+                                                                   AppDataSourceAccessExpNode) as FieldAccessExpNode;
+                    var fieldAccessExp = fieldAccess!.LeafNodes.ElementAtOrDefault(0) as AppDataSourceAccessExpNode;
+                    
                     Dictionary<FunctionNodeExpTree, AccessExpNode> expMap = [];
-                    StructAccessExpNode structAccessExpNode = new StructAccessExpNode(fieldAccessExp.StructType!);
+                    StructAccessExpNode structAccessExpNode = new StructAccessExpNode(fieldAccessExp!.StructType!);
                     expMap[fieldAccessExp] = structAccessExpNode;
                     expMap[fieldAccess] = new FieldAccessAccessExpNode(structAccessExpNode, fieldAccess.FieldName);
                     
                     // use arg node to block deep visit
-                    for (int i = 1; i < exp.LeafNodes.Length; i++)
+                    int index = 0;
+                    int sourceIndex = 0;
+                    for (int i = 0; i < exp.LeafNodes.Length; i++)
                     {
+                        if (exp.LeafNodes[i] == fieldAccess) { sourceIndex = i ; continue; };
                         expMap[exp.LeafNodes[i]!] = exp.LeafNodes[i] is ConstantExpNode constExp
                             ? new ValueAccessExpNode(constExp.SchemaType, constExp.Value)
                             : new ArgNode(
                                 exp.LeafNodes[i]?.SchemaType ??
                                 throw new NotSupportedException($"The {exp.Func} can't be used as row access filter"),
-                                i - 1);
+                                index);
+                        index++;
                     }
 
                     try
@@ -1045,6 +1054,7 @@ public class FunctionType: AnySchemeType
                         exp = new AppDataSourceAccessExpNode(exp, fieldAccessExp)
                         {
                             Filter = filter,
+                            SourceIndex = sourceIndex,
                             Result = exp.Type switch
                             {
                                 ExpressionType.First => AppDataSourceAccessResult.First,
@@ -1052,7 +1062,7 @@ public class FunctionType: AnySchemeType
                                 _ => AppDataSourceAccessResult.List
                             },
                         };
-                        exp.LeafNodes[0] = fieldAccessExp;
+                        exp.LeafNodes[sourceIndex] = fieldAccessExp;
                     }
                     catch(Exception ex)
                     {
@@ -1432,8 +1442,10 @@ public class FunctionType: AnySchemeType
                         if (currentAcc.LeafNodes.Length > 1)
                         {
                             Expression[] args = new Expression[currentAcc.LeafNodes.Length - 1];
-                            for (int i = 1; i < currentAcc.LeafNodes.Length; i++)
+                            int index = 0;
+                            for (int i = 0; i < currentAcc.LeafNodes.Length; i++)
                             {
+                                if (i == currentAcc.SourceIndex) continue; // skip source index
                                 var leaf = currentAcc.LeafNodes[i]!;
 
                                 // Gets the type
@@ -1443,17 +1455,18 @@ public class FunctionType: AnySchemeType
                                 switch (leaf)
                                 {
                                     case ParamsExpNode:
-                                        args[i - 1] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        args[index] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                                         callType = callType.MakeArrayType();
                                         break;
 
                                     default:
-                                        args[i - 1] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
+                                        args[index] = CompileFunctionNodeExpression(context, contextExp, paramMap, expMap, blocks, leaf, returnLabel, callType);
                                         break;
                                 }
 
                                 // Add Conversion
-                                args[i - 1] = ConvertExp(context, callType, args[i - 1]);
+                                args[index] = ConvertExp(context, callType, args[index]);
+                                index++;
                             }
                             genFilter = Expression.Call(null,
                                 typeof(RowAccessExpTreeVisitor).GetMethod(nameof(RowAccessExpTreeVisitor.Expand))!,
@@ -1475,7 +1488,7 @@ public class FunctionType: AnySchemeType
                     }
                     
                     // Check base query
-                    currentAcc = currentAcc.LeafNodes[0] as AppDataSourceAccessExpNode;
+                    currentAcc = currentAcc.LeafNodes[currentAcc.SourceIndex] as AppDataSourceAccessExpNode;
                 }
 
                 // Process the query
@@ -2669,6 +2682,11 @@ public class AppDataSourceAccessExpNode: FunctionNodeExpression
     /// The filter expression
     /// </summary>
     public AccessExpNode? Filter { get; set; }
+
+    /// <summary>
+    /// The source index
+    /// </summary>
+    public int SourceIndex { get; set; } = 0;
     
     /// <summary>
     /// The result access type

@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
@@ -448,6 +447,45 @@ public class WorkflowContext: SchemaContext
     /// Goto the workflow node
     /// </summary>
     public void Goto(Workflow workflow, string? newName = null) => Goto(workflow.Name, newName);
+
+    /// <summary>
+    /// Terminate the workflow branch by name
+    /// </summary>
+    /// <param name="name">The workflow name</param>
+    /// <param name="inner">Recursive call</param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public void Terminate(string name, bool inner = false)
+    {
+        Workflow workflow = _workflow?.FindByName(name)
+            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+        var state = GetOrCreateWorkflowState(name);
+        state.Status = WorkflowStatus.Terminated;
+        
+        if (workflow.Next != null)
+        {
+            foreach (var next in workflow.Next)
+            {
+                Terminate(next.Name, true);
+            }
+        }
+
+        // Recursion call return
+        if (inner) return;
+        
+        Logger.LogInformation("[WorkflowContext]{Guid} Terminate Branch [Workflow] {Name}", Id, name);
+
+        // schedule the workflow context for processing
+        _scheduler.Schedule(this);
+        
+        // save
+        Persistence();
+    }
+    
+    /// <summary>
+    /// Terminate the workflow branch
+    /// </summary>
+    /// <param name="workflow"></param>
+    public void Terminate(Workflow workflow) => Terminate(workflow.Name);
     
     /// <summary>
     /// Whether the workflow is un-cancelled
@@ -472,33 +510,43 @@ public class WorkflowContext: SchemaContext
     {
         if (_workflow == null) return;
         
-        // Find the next workflow nodes to process
-        var next = GetNextWorkflowToProcess(_workflow);
-        if (next == null)
-        {
-            // All done
-            if (IsWorkflowTerminatable(_workflow))
-                await TerminateAsync();
-            return;
-        }
-        
-        Workflow workflow = next.Value.Item1;
-        WorkflowState state = next.Value.Item2;
+        await _processLock.WaitAsync();
         try
         {
-            Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+            if (_workflow == null) return;
             
-            // Process the workflow
-            state.Status = WorkflowStatus.Running;
-            await state.ProcessAsync(this, workflow);
+            // Find the next workflow nodes to process
+            var next = GetNextWorkflowToProcess(_workflow);
+            if (next == null)
+            {
+                // All done
+                if (IsWorkflowTerminatable(_workflow))
+                    await TerminateAsync();
+                return;
+            }
+
+            Workflow workflow = next.Value.Item1;
+            WorkflowState state = next.Value.Item2;
+            try
+            {
+                Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+
+                // Process the workflow
+                state.Status = WorkflowStatus.Running;
+                await state.ProcessAsync(this, workflow);
+            }
+            catch (Exception ex)
+            {
+                // Mark error
+                state.Status = WorkflowStatus.Error;
+                state.Error = ex.GetInnermostException().Message;
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            // Mark error
-            state.Status = WorkflowStatus.Error;
-            state.Error = ex.GetInnermostException().Message;
+            _processLock.Release();
         }
-        
+
         _scheduler.Schedule(this);
     }
     
@@ -806,6 +854,8 @@ public class WorkflowContext: SchemaContext
     }
     
     WorkflowState GetOrCreateWorkflowState(Workflow workflow) => GetOrCreateWorkflowState(workflow.Name);
+    
+    SemaphoreSlim _processLock = new(1,1);
     
     #endregion
 }
