@@ -32,7 +32,14 @@ public record VariableExpression(string Name, SchemaExpression Value) : SchemaEx
 /// <param name="Name">The name of the argument represented by this expression. Cannot be null or empty.</param>
 /// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or equal to 0.</param>
 /// <param name="SchemeType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
-public record ArgumentExpression(string Name, int Index, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+public record ArgumentExpression(int Index, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+
+/// <summary>
+/// The default expression
+/// </summary>
+/// <param name="Inner"></param>
+/// <param name="Default"></param>
+public record DefaultExpression(SchemaExpression Inner, AnySchemaNode Default) : SchemaExpression(Default.SchemeType);
 
 /// <summary>
 /// Represents a function call expression with a specified function, argument expressions, and result type within a
@@ -45,14 +52,6 @@ public record ArgumentExpression(string Name, int Index, AnySchemeType SchemeTyp
 public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemeType SchemeType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemeType);
 
 /// <summary>
-/// The field access expression
-/// </summary>
-/// <param name="Owner">The field owner</param>
-/// <param name="FieldName">The field name</param>
-/// <param name="SchemeType">The schema type</param>
-public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
-
-/// <summary>
 /// The struct result expression
 /// </summary>
 /// <param name="Fields">The struct field members</param>
@@ -60,11 +59,13 @@ public record FieldAccessExpression(SchemaExpression Owner, string FieldName, An
 public record StructResultExpression(VariableExpression[] Fields, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
 
 /// <summary>
-/// The default expression
-/// </summary>
-public record DefaultExpression(SchemaExpression Inner, AnySchemaNode Default) : SchemaExpression(Default.SchemeType);
-
-/// <summary>
 /// The null expression
 /// </summary>
 public record NullExpression(AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+
+/// <summary>
+/// The params expression type
+/// </summary>
+/// <param name="Exps"></param>
+/// <param name="SchemaType"></param>
+public record ParamsExpression(SchemaExpression[] Exps, AnySchemeType SchemaType) : SchemaExpression(SchemaType);

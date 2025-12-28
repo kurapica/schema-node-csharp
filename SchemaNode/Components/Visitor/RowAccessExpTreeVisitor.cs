@@ -565,7 +565,7 @@ public static class RowAccessExpTreeVisitor
             }
 
             // a.contains(b)
-            case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.contains)}":
+            case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}":
             {
                 if (leafNodes[0] is FieldAccessAccessExpNode && leafNodes[1] is ValueAccessExpNode or ArgNode)
                 {
@@ -621,7 +621,7 @@ public static class RowAccessExpTreeVisitor
             }
 
             // a[b].contains(c)
-            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldcontains)}":
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldmatch)}":
             {
                 if (leafNodes[0] is StructAccessExpNode structNode
                     && leafNodes[1] is ValueAccessExpNode { Value: ScalarTypeNode { IsEmpty: false } scalarNode }

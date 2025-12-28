@@ -20,7 +20,6 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [Schema]
-    [UnaryExp(UnaryExpType.Length)]
     public static long arrlen([Schema(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is string str) return str.Length;
@@ -55,7 +54,7 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
-    [BinaryExp(BinaryExpType.Contains)]
+    [LogicExp(LogicExpType.Contains)]
     public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -69,7 +68,7 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
-    [BinaryExp(BinaryExpType.NotContains)]
+    [LogicExp(LogicExpType.NotContains)]
     public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
@@ -137,7 +136,6 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    [BinaryExp(BinaryExpType.FieldAccess)]
     public static T? getfield<T>(StructTypeNode obj, string field)
     {
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
@@ -155,7 +153,6 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    [TernaryExp(TernaryExpType.FieldAccess)]
     public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
     {
         return getfield<T>(obj, field) ?? defaultValue;
@@ -204,6 +201,7 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -215,6 +213,7 @@ public static class SystemCollection
     /// system.collection.notequal
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldnotequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
         => !fieldequal(obj, field, value);
 
@@ -222,6 +221,7 @@ public static class SystemCollection
     /// system.collection.greateequal
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldgreateequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -235,6 +235,7 @@ public static class SystemCollection
     /// system.collection.greatethan
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldgreatethan<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -248,6 +249,7 @@ public static class SystemCollection
     /// system.collection.lessequal
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldlessequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -261,6 +263,7 @@ public static class SystemCollection
     /// system.collection.lessthan
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldlessthan<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -274,6 +277,7 @@ public static class SystemCollection
     /// Field starts with
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldstartswith(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -287,6 +291,7 @@ public static class SystemCollection
     /// Field end with
     /// </summary>
     [Schema]
+    [LogicExp]
     public static bool fieldendswith(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -297,10 +302,11 @@ public static class SystemCollection
     }
 
     /// <summary>
-    /// Field contains
+    /// Field match
     /// </summary>
     [Schema]
-    public static bool fieldcontains(StructTypeNode obj, string field, string value)
+    [LogicExp]
+    public static bool fieldmatch(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
         if (node == null || node.IsEmpty) return false;

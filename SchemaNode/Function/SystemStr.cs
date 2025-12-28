@@ -12,36 +12,37 @@ namespace SchemaNode.Function;
 [Schema("system.str")]
 public static class SystemStr
 {
+    #region Logic
+
     [Schema]
-    [BinaryExp(BinaryExpType.Concat)]
+    [LogicExp(LogicExpType.StartsWith)]
+    public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+
+    [Schema]
+    [LogicExp(LogicExpType.EndsWith)]
+    public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+
+    [Schema]
+    [LogicExp(LogicExpType.Match)]
+    public static bool match([Default("")] string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
+
+    #endregion
+
+    [Schema]
+    public static long len([Default("")] string str) => long.CreateChecked(str.Length);
+
+    #region Conversion
+
+    [Schema]
     public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
     
     [Schema]
-    [UnaryExp(UnaryExpType.Length)]
-    public static long len([Default("")] string str) => long.CreateChecked(str.Length);
-    
-    [Schema]
-    [BinaryExp(BinaryExpType.Split)]
     public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
     
     [Schema]
-    [TernaryExp(TernaryExpType.Substr)]
     public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
 
     [Schema]
-    [BinaryExp(BinaryExpType.StartsWith)]
-    public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-    
-    [Schema]
-    [BinaryExp(BinaryExpType.EndsWith)]
-    public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-    
-    [Schema]
-    [BinaryExp(BinaryExpType.Contains)]
-    public static bool contains([Default("")] string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
-
-    [Schema]
-    [TernaryExp(TernaryExpType.Replace)]
     public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
 
     [Schema]
@@ -84,4 +85,6 @@ public static class SystemStr
 
     [Schema]
     public static string newguid() => Guid.NewGuid().ToString();
+
+    #endregion
 }

@@ -16,7 +16,7 @@ public record ConstantExpression(AnySchemaNode Value) : SchemaExpression(Value.S
 /// </summary>
 /// <param name="value"></param>
 [AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-public class ConstantExpressionAttribute(object value): System.Attribute
+public class ConstantExpAttribute(object value): System.Attribute
 {
     public object Value { get; } = value;
 }
@@ -26,14 +26,14 @@ public class ConstantExpressionAttribute(object value): System.Attribute
 /// </summary>
 public class ConstantExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty { get; } = 100;
+    public int Priorty { get; } = Utility.Constant.EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
         if (exp is not FuncCallExpression funcCallExp) return null;
         MethodInfo? info = funcCallExp.Function?.FuncInfo?.Method;
-        var attr = info?.GetCustomAttribute<ConstantExpressionAttribute>();
+        var attr = info?.GetCustomAttribute<ConstantExpAttribute>();
         return attr != null ? new ConstantExpression(funcCallExp.SchemaType.CreateNode(attr.Value)!) : null;
     }
 }

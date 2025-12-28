@@ -15,9 +15,9 @@ public enum CollectionExpressionType
     First,
     Last,
 
-    Any,
-    All,
-    Count,
+    // Any,
+    // All,
+    // Count,
 }
 
 /// <summary>
