@@ -18,7 +18,7 @@ public record FieldAccessExpression(SchemaExpression Owner, string FieldName, An
 /// </summary>
 public class FieldAccessExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty { get; } = EXP_CONSTANT_PRIORITY;
+    public int Priority { get; } = EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)

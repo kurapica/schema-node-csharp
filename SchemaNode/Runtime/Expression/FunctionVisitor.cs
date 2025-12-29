@@ -41,7 +41,7 @@ public static class FunctionVisitor
         Dictionary<string, int> accessCount = [];
 
         // Get visitors
-        IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priorty).ToArray();
+        IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priority).ToArray();
 
         // Get expression with visit count++ & Field Access support
         bool GetExpression(string name, out SchemaExpression? value)
@@ -49,7 +49,7 @@ public static class FunctionVisitor
             string[] access = name.Split('.', StringSplitOptions.RemoveEmptyEntries);
             if (expMaps.TryGetValue(access[0], out VariableExpression? varExp))
             {
-                SchemaExpression? exp = varExp;
+                SchemaExpression exp = varExp;
                 if (access.Length > 1)
                 {
                     // replace with field access expression
@@ -72,7 +72,7 @@ public static class FunctionVisitor
                     exp = new FieldAccessExpression(exp, string.Join(".", access.Skip(1)), type!);
                 }
 
-                accessCount[access[0]] = (accessCount.TryGetValue(access[0], out int count) ? count : 0) + 1;
+                accessCount[access[0]] = (accessCount.GetValueOrDefault(access[0], 0)) + 1;
                 value = exp;
                 return true;
             }
@@ -84,7 +84,7 @@ public static class FunctionVisitor
         // Process arguments
         for (int i = 0; i < func.Args.Length; i++)
         {
-            var arg = func.Args[i];
+            FunctionNodeArgument arg = func.Args[i];
 
             // Require argument name
             if (string.IsNullOrWhiteSpace(arg.Name))
@@ -138,8 +138,7 @@ public static class FunctionVisitor
             }
 
             // Validate func
-            FunctionType? funcType = (exp.FuncNode ?? (!string.IsNullOrWhiteSpace(exp.Func) ? await context.GetSchemaTypeAsync(exp.Func) : null)) as FunctionType;
-            if (funcType == null)
+            if ((exp.FuncNode ?? (!string.IsNullOrWhiteSpace(exp.Func) ? await context.GetSchemaTypeAsync(exp.Func) : null)) is not FunctionType funcType)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
@@ -150,22 +149,64 @@ public static class FunctionVisitor
             AnySchemeType?[] genericTypes = funcType.Generic.ToArray();
 
             // Sets generic type
-            AnySchemeType? ParseGenericType(AnySchemeType? origin, AnySchemeType? genType = null)
+            AnySchemeType? ParseGenericType(AnySchemeType? origin, AnySchemeType? genType = null, bool isReturn = false)
             {
-                if (origin is not GenericTypeNode generic) return origin ?? genType;
+                if (origin is not GenericTypeNode generic)
+                {
+                    if (origin == null || genType == null || genType.CanBeUseAs(origin)) return origin ?? genType;
+                    if (isReturn)
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    else
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    }
+                }
                 if (genType != null && genType is not GenericTypeNode)
                     genericTypes[generic.GenericIndex - 1] ??= genType;
                 return genericTypes[generic.GenericIndex - 1] ?? genType;
             }
 
-            // validate return value
-            AnySchemeType? expRetType = ParseGenericType(funcType.ReturnNode, !string.IsNullOrWhiteSpace(exp.Return) ? await context.GetSchemaTypeAsync(exp.Return) : null);
-            if (expRetType is not { IsValueType: true })
+            // Validate return value
+            exp.SchemaType ??= (!string.IsNullOrWhiteSpace(exp.Return) ? await context.GetSchemaTypeAsync(exp.Return) : null);
+            if (exp.SchemaType  is not { IsValueType: true })
             {
                 exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
             }
-            exp.SchemaType = expRetType;
+            AnySchemeType funcReturnType = exp.SchemaType;
+            
+            // Check call type for return value, can't do this in visitor, we still need handle the call type here
+            switch (exp.Type)
+            {
+                case ExpressionType.Map:
+                {
+                    if (funcReturnType is not ArrayType { ElementSchemaType: null } arrayType)
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    funcReturnType = arrayType.ElementSchemaType!;
+                    break;
+                }
+                case ExpressionType.First:
+                    break;
+                case ExpressionType.Last:
+                    break;
+                case ExpressionType.Filter:
+                    break;
+                case ExpressionType.Count:
+                    break;
+                case ExpressionType.All:
+                    break;
+                case ExpressionType.Any:
+                    break;
+            }
+            
+            ParseGenericType(funcType.ReturnNode, exp.SchemaType);
 
             // build call arguments
             // check exp call first, get schema type for generic type
@@ -184,7 +225,7 @@ public static class FunctionVisitor
 
                 // Gets the argument type
                 var argType = ParseGenericType(argDef.SchemaType, argExp?.SchemaType);
-                if (argType == null || !argType.IsValueType)
+                if (argType is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
@@ -209,7 +250,7 @@ public static class FunctionVisitor
                 {
                     if (argExp == null) return;
                     var old = args[funcType.Args.Length - 1] as ParamsExpression;
-                    args[funcType.Args.Length - 1] = new ParamsExpression(old?.Exps?.Append(argExp)?.ToArray() ?? [argExp], old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
+                    args[funcType.Args.Length - 1] = new ParamsExpression(old?.Exps?.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
                 }
 
                 // Nullable check

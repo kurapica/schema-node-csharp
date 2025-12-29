@@ -26,7 +26,7 @@ public class ConstantExpAttribute(object value): System.Attribute
 /// </summary>
 public class ConstantExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty { get; } = Utility.Constant.EXP_CONSTANT_PRIORITY;
+    public int Priority { get; } = Utility.Constant.EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)

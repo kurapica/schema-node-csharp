@@ -86,7 +86,7 @@ public class LogicExpAttribute(LogicExpType type = LogicExpType.Complex) : Syste
 /// </summary>
 public class LogicExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty => EXP_LOGIC_PRIORITY;
+    public int Priority => EXP_LOGIC_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)

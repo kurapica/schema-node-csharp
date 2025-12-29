@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Context;
 using System.Reflection;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
 
@@ -48,7 +49,7 @@ public abstract record ArithmeticExpression(AnySchemeType SchemaType) : SchemaEx
 /// <param name="Type">The arithmetic type</param>
 /// <param name="Inner">The inner exp</param>
 /// <param name="SchemaType">The result type</param>
-public record UnargArithmeticExpression(ArithmeticExpType Type, SchemaExpression Inner, AnySchemeType SchemaType) : ArithmeticExpression(SchemaType);
+public record UnaryArithmeticExpression(ArithmeticExpType Type, SchemaExpression Inner, AnySchemeType SchemaType) : ArithmeticExpression(SchemaType);
 
 /// <summary>
 /// The binary arithmetic expression
@@ -84,23 +85,23 @@ public class ArithmeticExpAttribute(ArithmeticExpType type = ArithmeticExpType.F
 /// </summary>
 public class ArithmeticExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty => EXP_ARITHMETIC_PRIORITY;
+    public int Priority => EXP_ARITHMETIC_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
         if (exp is not FuncCallExpression callExp) return null;
-        var attr = callExp.Function?.FuncInfo?.Method?.GetCustomAttribute<ArithmeticExpAttribute>();
+        var attr = callExp.Function.FuncInfo?.Method?.GetCustomAttribute<ArithmeticExpAttribute>();
         if (attr == null) return null;
 
         // Keep function call but change to arithmetic expression
         if (attr.Type == ArithmeticExpType.Func)
-            return new FuncArithmeticExpression(callExp.Function!, callExp.Args, callExp.SchemeType);
+            return new FuncArithmeticExpression(callExp.Function, callExp.Args, callExp.SchemeType);
 
         // Unary or binary expression
         return callExp.Args.Length switch
         {
-            1 => new UnargArithmeticExpression(attr.Type, callExp.Args[0], callExp.SchemeType),
+            1 => new UnaryArithmeticExpression(attr.Type, callExp.Args[0], callExp.SchemeType),
             2 => new BinaryArithmeticExpression(attr.Type, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
             _ => null
         };

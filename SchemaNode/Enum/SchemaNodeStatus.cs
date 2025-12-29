@@ -180,6 +180,21 @@ public enum SchemaNodeStatus
     FunctionExpWrongFuncForFilter,
     
     /// <summary>
+    /// The function expression use wrong func for count
+    /// </summary>
+    FunctionExpWrongFuncForCount,
+    
+    /// <summary>
+    /// The function expression use wrong func for all match
+    /// </summary>
+    FunctionExpWrongFuncForAll,
+    
+    /// <summary>
+    /// The function expression use wrong func for any match
+    /// </summary>
+    FunctionExpWrongFuncForAny,
+    
+    /// <summary>
     /// The function return struct member type not valid
     /// </summary>
     FunctionReturnMemberNotValid,

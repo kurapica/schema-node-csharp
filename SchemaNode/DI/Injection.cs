@@ -63,7 +63,6 @@ public static class Injection
 
         // expression visitor
         services.AddSingleton<ConstantExpressionVisitor>();
-        services.AddSingleton<BinaryExpressionVisitor>();
 
         // api protocol
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());

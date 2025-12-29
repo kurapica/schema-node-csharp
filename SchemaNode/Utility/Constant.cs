@@ -176,18 +176,13 @@ public static class Constant
     #region Expression Priority
 
     public const int EXP_CONSTANT_PRIORITY = 100;
-    public const int EXP_FIELD_ACCESS_PRIORITY = 100;
-    public const int EXP_CONDITIONAL_PRIORITY = 95;
-    public const int EXP_ASSIGN_PRIORITY = 90;
-    public const int EXP_BREAK_PRIORITY = 95;
-    public const int EXP_LOGIC_PRIORITY = 90;
-    public const int EXP_ARITHMETIC_PRIORITY = 85;
-
-    public const int EXP_UNARY_PRIORITY = 90;
-    public const int EXP_BINARY_PRIORITY = 80;
-    public const int EXP_TERNARY_PRIORITY = 70;
-    public const int EXP_COLLECTION_PRIORITY = 50;
-    public const int EXP_DATA_SOURCE_PRIORITY = 80;
+    public const int EXP_ASSIGN_PRIORITY = 95;
+    public const int EXP_COLLECTION_PRIORITY = 90;
+    public const int EXP_BREAK_PRIORITY = 85;
+    public const int EXP_LOGIC_PRIORITY = 80;
+    public const int EXP_CONDITIONAL_PRIORITY = 80;
+    public const int EXP_ARITHMETIC_PRIORITY = 80;
+    public const int EXP_DATA_SOURCE_PRIORITY = 50;
 
     #endregion
 
@@ -220,10 +215,13 @@ public static class Constant
     public const string TYPE_FUNC_CANT_USE_AS_FIRST = "TYPE_FUNC_CANT_USE_AS_FIRST";
     public const string TYPE_FUNC_CANT_USE_AS_LAST = "TYPE_FUNC_CANT_USE_AS_LAST";
     public const string TYPE_FUNC_CANT_USE_AS_FILTER = "TYPE_FUNC_CANT_USE_AS_FILTER";
+    public const string TYPE_FUNC_CANT_USE_AS_COUNT = "TYPE_FUNC_CANT_USE_AS_COUNT";
+    public const string TYPE_FUNC_CANT_USE_AS_ALL = "TYPE_FUNC_CANT_USE_AS_ALL";
+    public const string TYPE_FUNC_CANT_USE_AS_ANY = "TYPE_FUNC_CANT_USE_AS_ANY";
     public const string TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH = "TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH";
     public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
     public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
-    
+
     public const string TYPE_ENUM_VALUE_HAS_SUBLIST = "TYPE_ENUM_VALUE_HAS_SUBLIST";
     
     public const string APP_NOT_FOUND = "APP_NOT_FOUND";

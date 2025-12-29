@@ -1,7 +1,6 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
-using static SchemaNode.Runtime.FunctionVisitor;
 
 namespace SchemaNode.Runtime;
 
@@ -11,13 +10,14 @@ namespace SchemaNode.Runtime;
 public enum CollectionExpressionType
 {
     Map,
+    Reduce,
     Filter,
     First,
     Last,
 
-    // Any,
-    // All,
-    // Count,
+    Any, 
+    All,
+    Count,
 }
 
 /// <summary>
@@ -41,7 +41,7 @@ public record CollectionExpression(CollectionExpressionType Type, FunctionType F
 /// </summary>
 public class CollectionExpressionVisitor: IExpressionVisitor
 {
-    public int Priorty { get; set; } = 50;
+    public int Priority => EXP_COLLECTION_PRIORITY;
 
     /// <inheritdoc />
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
@@ -51,24 +51,38 @@ public class CollectionExpressionVisitor: IExpressionVisitor
 
         var func = funcCallExp.Function;
 
-        // validate call type with function here, not in the main functon visitor
+        // validate call type with function here, not in the main function visitor
         switch (funcCallExp.ExpType)
         {
-            // Check reduce function
             case ExpressionType.Reduce when func.Args.Length is 0 or > 2:
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForReduce, TYPE_FUNC_CANT_USE_AS_REDUCE);
 
-            // Check first function
             case ExpressionType.First when func.ReturnNode is not ScalarType { IsBool: true }:
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForFirst, TYPE_FUNC_CANT_USE_AS_FIRST);
 
-            // Check last function
             case ExpressionType.Last when func.ReturnNode is not ScalarType { IsBool: true }:
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForLast, TYPE_FUNC_CANT_USE_AS_LAST);
 
-            // Check filter function
             case ExpressionType.Filter when func.ReturnNode is not ScalarType { IsBool: true }:
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForFilter, TYPE_FUNC_CANT_USE_AS_FILTER);
+            
+            case ExpressionType.Count when func.ReturnNode is not ScalarType { IsBool: true }:
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForCount, TYPE_FUNC_CANT_USE_AS_COUNT);
+            
+            case ExpressionType.All when func.ReturnNode is not ScalarType { IsBool: true }:
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForAll, TYPE_FUNC_CANT_USE_AS_ALL);
+            
+            case ExpressionType.Any when func.ReturnNode is not ScalarType { IsBool: true }:
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncForAll, TYPE_FUNC_CANT_USE_AS_ANY);
+        }
+        
+        // Index array argument
+        int arrayIndex = -1;
+        for (int i = 0; i < funcCallExp.Args.Length; i++)
+        {
+            SchemaExpression arg = funcCallExp.Args[i];
+            if (arg.SchemaType is not ArrayType) continue;
+            
         }
 
         return null;

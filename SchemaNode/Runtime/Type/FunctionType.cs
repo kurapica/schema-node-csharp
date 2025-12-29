@@ -1195,7 +1195,17 @@ public class FunctionType: AnySchemeType
                 Default = p.GetCustomAttribute<DefaultAttribute>()?.Value, // not the default value of the parameter
             };
             funcSchema.Func.Args[i] = arg;
-            if (arg.Nullable ?? false) pt.Kind |= ParameterTypeKind.Nullable;
+            if (arg.Nullable ?? false)
+            {
+                pt.Kind |= ParameterTypeKind.Nullable;
+            }
+            else
+            {
+                var ctx = new NullabilityInfoContext();
+                var info = ctx.Create(p);
+                if (info.ReadState == NullabilityState.Nullable)
+                    pt.Kind |= ParameterTypeKind.Nullable;
+            }
 
             // Params
             if (p.IsDefined(typeof(ParamArrayAttribute), false))

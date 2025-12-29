@@ -16,20 +16,19 @@ public interface IExpressionVisitor
 {
     SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp);
 
-    int Priorty { get; }
+    int Priority { get; }
 }
 
 /// <summary>
 /// The variable expression
 /// </summary>
 /// <param name="Name"></param>
-/// <param name="SchemeType"></param>
+/// <param name="Value"></param>
 public record VariableExpression(string Name, SchemaExpression Value) : SchemaExpression(Value.SchemaType);
 
 /// <summary>
 /// Represents an argument expression with a specified name, index, and associated scheme type.
 /// </summary>
-/// <param name="Name">The name of the argument represented by this expression. Cannot be null or empty.</param>
 /// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or equal to 0.</param>
 /// <param name="SchemeType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
 public record ArgumentExpression(int Index, AnySchemeType SchemeType) : SchemaExpression(SchemeType);

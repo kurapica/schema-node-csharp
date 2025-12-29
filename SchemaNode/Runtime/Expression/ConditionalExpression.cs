@@ -15,7 +15,7 @@ public record ConditionalExpression(SchemaExpression Condition, SchemaExpression
 
 public class ConditionalVisitor : IExpressionVisitor
 {
-    public int Priorty => EXP_CONDITIONAL_PRIORITY;
+    public int Priority => EXP_CONDITIONAL_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)

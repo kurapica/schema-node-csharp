@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 
 public class AssignExpressionVisitor : IExpressionVisitor
 {
-    public int Priorty => EXP_ASSIGN_PRIORITY;
+    public int Priority => EXP_ASSIGN_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)

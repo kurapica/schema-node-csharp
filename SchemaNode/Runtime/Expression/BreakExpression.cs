@@ -37,7 +37,7 @@ public class BreakExpAttribute(BreakExpType type) : System.Attribute
 /// </summary>
 public class BreakExpTypeVisitor : IExpressionVisitor
 {
-    public int Priorty => EXP_BREAK_PRIORITY;
+    public int Priority => EXP_BREAK_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
