@@ -143,6 +143,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong arguments
     /// </summary>
     FunctionExpWrongFuncArgs,
+
+    /// <summary>
+    /// The function expression has wrong return value
+    /// </summary>
+    FunctionExpWrongReturn,
     
     /// <summary>
     /// The function has no expressions
@@ -158,42 +163,7 @@ public enum SchemaNodeStatus
     /// The function expression use duplicated name
     /// </summary>
     FunctionExpDuplicateName,
-    
-    /// <summary>
-    /// The function expression use wrong func for reduce
-    /// </summary>
-    FunctionExpWrongFuncForReduce,
-    
-    /// <summary>
-    /// The function expression use wrong func for first
-    /// </summary>
-    FunctionExpWrongFuncForFirst,
-    
-    /// <summary>
-    /// The function expression use wrong func for last
-    /// </summary>
-    FunctionExpWrongFuncForLast,
-    
-    /// <summary>
-    /// The function expression use wrong func for filter
-    /// </summary>
-    FunctionExpWrongFuncForFilter,
-    
-    /// <summary>
-    /// The function expression use wrong func for count
-    /// </summary>
-    FunctionExpWrongFuncForCount,
-    
-    /// <summary>
-    /// The function expression use wrong func for all match
-    /// </summary>
-    FunctionExpWrongFuncForAll,
-    
-    /// <summary>
-    /// The function expression use wrong func for any match
-    /// </summary>
-    FunctionExpWrongFuncForAny,
-    
+        
     /// <summary>
     /// The function return struct member type not valid
     /// </summary>

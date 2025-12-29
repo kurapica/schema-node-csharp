@@ -177,36 +177,88 @@ public static class FunctionVisitor
                 exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
             }
-            AnySchemeType funcReturnType = exp.SchemaType;
-            
-            // Check call type for return value, can't do this in visitor, we still need handle the call type here
+
+            // Match types
+            AnySchemeType funcRetType = exp.SchemaType;
+            AnySchemeType? arrayEleType = null;
+            bool isCollectionExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
+
+            // Check call type for return value
             switch (exp.Type)
             {
                 case ExpressionType.Map:
                 {
-                    if (funcReturnType is not ArrayType { ElementSchemaType: null } arrayType)
+                    if (exp.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType != null)
                     {
-                        exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        funcRetType = arrayType.ElementSchemaType;
                     }
-                    funcReturnType = arrayType.ElementSchemaType!;
+                    else
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    break;
+                }
+                case ExpressionType.Reduce:
+                {
+                    if (funcType.Args.Length is 0 or > 2)
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
+                    }
                     break;
                 }
                 case ExpressionType.First:
-                    break;
                 case ExpressionType.Last:
+                {
+                    if (exp.SchemaType is ArrayType)
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    arrayEleType = exp.SchemaType;
+                    funcRetType = (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
                     break;
+                }
                 case ExpressionType.Filter:
+                {
+                    if (exp.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType != null)
+                    {
+                        arrayEleType = arrayType.ElementSchemaType;
+                    }
+                    else
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    funcRetType = (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
                     break;
+                }
                 case ExpressionType.Count:
+                {
+                    if (exp.SchemaType is not ScalarType { IsInt: true })
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    funcRetType = (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
                     break;
+                }
                 case ExpressionType.All:
-                    break;
                 case ExpressionType.Any:
+                {
+                    if (exp.SchemaType is not ScalarType { IsBool: true })
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                    }
+                    funcRetType = (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
                     break;
+                }
             }
-            
-            ParseGenericType(funcType.ReturnNode, exp.SchemaType);
+
+            // Parse generic return type
+            ParseGenericType(funcType.ReturnNode, funcRetType);
 
             // build call arguments
             // check exp call first, get schema type for generic type
@@ -216,7 +268,7 @@ public static class FunctionVisitor
             async Task SetArgExp(int index, SchemaExpression? argExp = null)
             {
                 // Gets the argument definition
-                var argDef = funcType.Args.ElementAtOrDefault(index);
+                FunctionNodeArgument? argDef = funcType.Args.ElementAtOrDefault(index);
                 if (argDef == null)
                 {
                     argDef = funcType.Args.LastOrDefault();
