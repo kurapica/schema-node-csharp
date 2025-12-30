@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Node;
 using System.Reflection;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Runtime;
 
@@ -15,7 +16,7 @@ public record ConstantExpression(AnySchemaNode Value) : SchemaExpression(Value.S
 /// The attribute to mark a method as constant expression
 /// </summary>
 /// <param name="value"></param>
-[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Method, Inherited = false)]
 public class ConstantExpAttribute(object value): System.Attribute
 {
     public object Value { get; } = value;
@@ -26,14 +27,14 @@ public class ConstantExpAttribute(object value): System.Attribute
 /// </summary>
 public class ConstantExpressionVisitor : IExpressionVisitor
 {
-    public int Priority { get; } = Utility.Constant.EXP_CONSTANT_PRIORITY;
+    // <inheritdoc/>
+    public int Priority => Utility.Constant.EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression funcCallExp) return null;
-        MethodInfo? info = funcCallExp.Function?.FuncInfo?.Method;
-        var attr = info?.GetCustomAttribute<ConstantExpAttribute>();
-        return attr != null ? new ConstantExpression(funcCallExp.SchemaType.CreateNode(attr.Value)!) : null;
+        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
+        var attr = callExp.Function.FuncInfo?.Method?.GetCustomAttribute<ConstantExpAttribute>();
+        return attr != null ? new ConstantExpression(callExp.SchemaType.CreateNode(attr.Value)!) : null;
     }
 }

@@ -32,7 +32,6 @@ public static class SystemDate
     /// <summary>
     /// system.datetime.getday
     /// </summary>
-    /// </summary>
     public static long getday(DateTime dt) => dt.FromUtc().Day;
 
     /// <summary>

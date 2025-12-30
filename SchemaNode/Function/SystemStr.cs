@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable InconsistentNaming
 
@@ -15,21 +14,22 @@ public static class SystemStr
     #region Logic
 
     [Schema]
-    [LogicExp(LogicExpType.StartsWith)]
     public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
-    [LogicExp(LogicExpType.EndsWith)]
     public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
-    [LogicExp(LogicExpType.Match)]
-    public static bool match([Default("")] string str, string substr) => str.IndexOf(substr, StringComparison.OrdinalIgnoreCase) >= 0;
+    public static bool match([Default("")] string str, string substr) => str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
     #endregion
 
+    #region State
+    
     [Schema]
     public static long len([Default("")] string str) => long.CreateChecked(str.Length);
+    
+    #endregion
 
     #region Conversion
 
@@ -56,11 +56,12 @@ public static class SystemStr
         return new Entry
         {
             Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
-            Label = label is StructTypeNode labelNode 
-                ? labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString 
-                : label is ScalarTypeNode or EnumTypeNode                
-                    ? new LocaleString (label.ToTypeValue(typeof(string))?.ToString() ?? "" ) 
-                    : new LocaleString ( val?.ToTypeValue(typeof(string))?.ToString() ?? "" )
+            Label = label switch
+            {
+                StructTypeNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
+                ScalarTypeNode or EnumTypeNode => new LocaleString (label.ToTypeValue(typeof(string))?.ToString() ?? "" ),
+                _ => new LocaleString ( val?.ToTypeValue(typeof(string))?.ToString() ?? "" )
+            }
         };
     }
 

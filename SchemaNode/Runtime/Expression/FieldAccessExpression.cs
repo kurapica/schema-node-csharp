@@ -18,41 +18,42 @@ public record FieldAccessExpression(SchemaExpression Owner, string FieldName, An
 /// </summary>
 public class FieldAccessExpressionVisitor : IExpressionVisitor
 {
-    public int Priority { get; } = EXP_CONSTANT_PRIORITY;
+    // <inheritdoc/>
+    public int Priority => EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression funcCallExp) return null;
-        switch (funcCallExp.Function.Name)
+        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
+        
+        switch (callExp.Function.Name)
         {
+            // a[b]
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
             {
-                if (funcCallExp.Args.Length != 2)
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                var ownerExp = funcCallExp.Args[0];
-                var fieldNameExp = funcCallExp.Args[1] as ConstantExpression;
-                if (fieldNameExp == null || fieldNameExp.Value.ToValue<string>() is not string fieldName || string.IsNullOrEmpty(fieldName))
+                if (callExp.Args.Length != 2 || 
+                    (callExp.Args[1] as ConstantExpression)?.Value.ToValue<string>() is not { } fieldName || 
+                    string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                return new FieldAccessExpression(ownerExp, fieldName, funcCallExp.SchemeType);
+                return new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemeType);
             }
+            
+            // a[b] ?? defaultValue
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
             {
-                if (funcCallExp.Args.Length != 3)
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                var ownerExp = funcCallExp.Args[0];
-                var fieldNameExp = funcCallExp.Args[1] as ConstantExpression;
-                if (fieldNameExp == null || fieldNameExp.Value.ToValue<string>() is not string fieldName || string.IsNullOrEmpty(fieldName))
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                var defaultValueExp = funcCallExp.Args[2] as ConstantExpression;
-                if (defaultValueExp == null || defaultValueExp.Value.IsEmpty || !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
+                if (callExp.Args.Length != 3 || 
+                    (callExp.Args[1] as ConstantExpression)?.Value.ToValue<string>() is not { } fieldName || 
+                    string.IsNullOrEmpty(fieldName) || 
+                    callExp.Args[2] is not ConstantExpression defaultValueExp || 
+                    defaultValueExp.Value.IsEmpty || 
+                    !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                return new DefaultExpression(new FieldAccessExpression(ownerExp, fieldName, funcCallExp.SchemeType), defaultValueExp.Value);
+                return new DefaultExpression(new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemeType), defaultValueExp.Value);
             }
-            default:
-                return null;
         }
+
+        return null;
     }
 }

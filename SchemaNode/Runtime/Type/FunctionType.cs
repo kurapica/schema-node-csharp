@@ -432,27 +432,27 @@ public class FunctionType: AnySchemeType
             {
                 // Check reduce function
                 case ExpressionType.Reduce when funcNode.Args.Length is 0 or > 2:
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncForReduce;
-                    Status = SchemaNodeStatus.FunctionExpWrongFuncForReduce;
-                    return (trees, TYPE_FUNC_CANT_USE_AS_REDUCE);
+                    exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    return (trees, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
 
                 // Check first function
                 case ExpressionType.First when funcNode.ReturnNode is not ScalarType { IsBool: true }:
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncForFirst;
-                    Status = SchemaNodeStatus.FunctionExpWrongFuncForFirst;
-                    return (trees, TYPE_FUNC_CANT_USE_AS_FIRST);
+                    exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    return (trees, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
 
                 // Check last function
                 case ExpressionType.Last when funcNode.ReturnNode is not ScalarType { IsBool: true }:
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncForLast;
-                    Status = SchemaNodeStatus.FunctionExpWrongFuncForLast;
-                    return (trees, TYPE_FUNC_CANT_USE_AS_LAST);
+                    exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    return (trees, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
 
                 // Check filter function
                 case ExpressionType.Filter when funcNode.ReturnNode is not ScalarType { IsBool: true }:
-                    exp.Status = SchemaNodeStatus.FunctionExpWrongFuncForFilter;
-                    Status = SchemaNodeStatus.FunctionExpWrongFuncForFilter;
-                    return (trees, TYPE_FUNC_CANT_USE_AS_FILTER);
+                    exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                    return (trees, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
             }
             exp.FuncNode = funcNode;
 

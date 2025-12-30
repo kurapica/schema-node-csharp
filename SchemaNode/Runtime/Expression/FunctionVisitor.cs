@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using System.Text.RegularExpressions;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -11,11 +12,12 @@ namespace SchemaNode.Runtime;
 public static class FunctionVisitor
 {
     /// <summary>
-    /// Generate schema expressions for the given function type
-    /// <remarks>The schema expression provide the structure of the function expressions, can be used for compiling, sql-conversion and etc.</remarks>
+    /// Generate Semantic Analysis Schema Expressions for the given function type
     /// </summary>
     public static async Task<List<VariableExpression>> GenerateSchemaExpressions(this SchemaContext context, FunctionType func)
     {
+        #region Pre-checks
+
         // C# function, no need to generate expression trees
         if (func.IsSystemCall) return [];
 
@@ -35,13 +37,14 @@ public static class FunctionVisitor
         }
         func.ReturnNode = returnType;
 
+        #endregion
+
         // Expression cache
         List<VariableExpression> results = [];
         Dictionary<string, VariableExpression> expMaps = [];
         Dictionary<string, int> accessCount = [];
 
-        // Get visitors
-        IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priority).ToArray();
+        #region Function Exp build
 
         // Get expression with visit count++ & Field Access support
         bool GetExpression(string name, out SchemaExpression? value)
@@ -120,10 +123,8 @@ public static class FunctionVisitor
         }
 
         // Process exps
-        for (int i = 0; i < func.Exps.Length; i++)
+        foreach (FunctionNodeExpression exp in func.Exps)
         {
-            FunctionNodeExpression exp = func.Exps[i];
-
             // Require name
             if (string.IsNullOrWhiteSpace(exp.Name))
             {
@@ -149,6 +150,8 @@ public static class FunctionVisitor
             AnySchemeType?[] genericTypes = funcType.Generic.ToArray();
 
             // Sets generic type
+            var exp1 = exp;
+
             AnySchemeType? ParseGenericType(AnySchemeType? origin, AnySchemeType? genType = null, bool isReturn = false)
             {
                 if (origin is not GenericTypeNode generic)
@@ -156,12 +159,12 @@ public static class FunctionVisitor
                     if (origin == null || genType == null || genType.CanBeUseAs(origin)) return origin ?? genType;
                     if (isReturn)
                     {
-                        exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
+                        exp1.Status = SchemaNodeStatus.FunctionWrongReturnType;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
                     }
                     else
                     {
-                        exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                        exp1.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                     }
                 }
@@ -182,13 +185,14 @@ public static class FunctionVisitor
             AnySchemeType funcRetType = exp.SchemaType;
             AnySchemeType? arrayEleType = null;
             bool isCollectionExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
+            int arrayIndex = -1;
 
             // Check call type for return value
             switch (exp.Type)
             {
                 case ExpressionType.Map:
                 {
-                    if (exp.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType != null)
+                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null } arrayType)
                     {
                         funcRetType = arrayType.ElementSchemaType;
                     }
@@ -222,7 +226,7 @@ public static class FunctionVisitor
                 }
                 case ExpressionType.Filter:
                 {
-                    if (exp.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType != null)
+                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null } arrayType)
                     {
                         arrayEleType = arrayType.ElementSchemaType;
                     }
@@ -274,18 +278,38 @@ public static class FunctionVisitor
                     argDef = funcType.Args.LastOrDefault();
                     if (argDef?.Params != true) return;
                 }
+                
+                // Params type check
+                AnySchemeType? argType = argDef.SchemaType;
+                if (argDef.Params == true && argType is ArrayType arrayType)
+                    argType = arrayType.ElementSchemaType;
+                
+                // Collection expression check
+                if (isCollectionExp && arrayIndex == -1 && argType is not ArrayType && (
+                        argExp?.SchemaType is ArrayType { ElementSchemaType: not null } || 
+                        argExp is FieldAccessExpression { Owner.SchemaType: ArrayType }))
+                {
+                    if (argDef.Params == true)
+                    {
+                        exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    }
+                    arrayIndex = index;
+                    argExp = new IteratorExpression(argExp);
+                    argType = arrayEleType ?? argType;
+                }
 
                 // Gets the argument type
-                var argType = ParseGenericType(argDef.SchemaType, argExp?.SchemaType);
+                argType = ParseGenericType(argType, argExp?.SchemaType);
                 if (argType is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                 }
-                if ((argDef.Params ?? false) && argExp == null) return;
+                if (argDef.Params == true && argExp == null) return;
 
-                // Default expression
-                if (argDef.Default != null)
+                // Default expression & not iterator exp
+                if (argDef.Default != null && argExp is not IteratorExpression)
                 {
                     if (argExp == null)
                     {
@@ -302,7 +326,7 @@ public static class FunctionVisitor
                 {
                     if (argExp == null) return;
                     var old = args[funcType.Args.Length - 1] as ParamsExpression;
-                    args[funcType.Args.Length - 1] = new ParamsExpression(old?.Exps?.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
+                    args[funcType.Args.Length - 1] = new ParamsExpression(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? (await context.GetArraySchemaTypeAsync(argType))!);
                 }
 
                 // Nullable check
@@ -322,8 +346,7 @@ public static class FunctionVisitor
             // Check exp access first for generic types
             for (int j = 0; j < funcType.Args.Length; j++)
             {
-                var argDef = funcType.Args[j];
-                var arg = exp.Args.ElementAtOrDefault(j);
+                FuncCallArg? arg = exp.Args.ElementAtOrDefault(j);
                 if (string.IsNullOrWhiteSpace(arg?.Name)) continue;
                 if (!GetExpression(arg.Name, out SchemaExpression? argExp))
                 {
@@ -337,8 +360,8 @@ public static class FunctionVisitor
             // Check const value
             for (int j = 0; j < funcType.Args.Length; j++)
             {
-                var argDef = funcType.Args[j];
-                var arg = exp.Args.ElementAtOrDefault(j);
+                FunctionNodeArgument argDef = funcType.Args[j];
+                FuncCallArg? arg = exp.Args.ElementAtOrDefault(j);
                 if (!string.IsNullOrWhiteSpace(arg?.Name)) continue;
 
                 // Validate type
@@ -369,7 +392,7 @@ public static class FunctionVisitor
                     {
                         var arg = exp.Args[j];
 
-                        if (!string.IsNullOrWhiteSpace(arg?.Name))
+                        if (!string.IsNullOrWhiteSpace(arg.Name))
                         {
                             if (!GetExpression(arg.Name, out SchemaExpression? argExp))
                             {
@@ -381,7 +404,7 @@ public static class FunctionVisitor
                         }
                         else
                         {
-                            if (arg?.Value == null) continue;
+                            if (arg.Value == null) continue;
 
                             arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await context.GetSchemaTypeAsync(arg.Type) : paramType;
                             if (arg.SchemeType is not { IsValueType: true })
@@ -397,7 +420,7 @@ public static class FunctionVisitor
             }
 
             // build function call expression
-            VariableExpression callVarExp = new VariableExpression(exp.Name, new FuncCallExpression(funcType, args, exp.SchemaType!));
+            VariableExpression callVarExp = new VariableExpression(exp.Name, new FuncCallExpression(funcType, args, exp.SchemaType!, exp.Type ?? ExpressionType.Call));
 
             // Add to maps
             expMaps[exp.Name] = callVarExp;
@@ -409,7 +432,7 @@ public static class FunctionVisitor
         {
             if (returnType is StructType { Fields: {  Length: > 0 } } @struct)
             {
-                List<VariableExpression> fields = [];
+                List<SchemaExpression> fields = [];
                 foreach (var f in @struct.Fields.Where(f => !(f.DisplayOnly ?? false)))
                 {
                     if (GetExpression(f.Name, out SchemaExpression? fieldExp))
@@ -427,7 +450,7 @@ public static class FunctionVisitor
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
                     }
                 }
-                results.Add(new VariableExpression(STRUCT_RESULT_EXP_NAME, new StructResultExpression(fields.ToArray(), @struct)));
+                results.Add(new VariableExpression(StructResultExpName, new StructResultExpression(fields.ToArray(), @struct)));
             }
             else
             {
@@ -436,48 +459,66 @@ public static class FunctionVisitor
             }
         }
 
+        #endregion
+
+        #region Semantic analysis
+
+        // Get visitors
+        IExpressionVisitor[] visitors = context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priority).ToArray();
+
+        // Inline function
+        SchemaExpression Inline(SchemaExpression exp) => exp switch 
+        {
+            // Inline single access variable expression
+            VariableExpression v => accessCount.TryGetValue(v.Name, out int vc) && vc == 1 ? expMaps[v.Name].Value : expMaps[v.Name],
+            
+            // Inline field access expression
+            FieldAccessExpression f => new FieldAccessExpression(Inline(f.Owner), f.FieldName, f.SchemeType),
+            
+            // Inline iterator expression
+            IteratorExpression i => new IteratorExpression(Inline(i.Array)),
+            
+            // Default expression
+            DefaultExpression de => new DefaultExpression(Inline(de.Inner), de.Default),
+            
+            // Inline params expression
+            ParamsExpression pe => new ParamsExpression(pe.Exps.Select(Inline).ToArray(), pe.SchemaType),
+            
+            // Already inline
+            _ => exp
+        };
+        
         // Convert single access variable expression to inline expression
         List<VariableExpression> final = [];
-        for (int i = 0; i < results.Count; i++)
+        foreach (VariableExpression t in results)
         {
-            VariableExpression varExp = results[i];
+            VariableExpression varExp = t;
             SchemaExpression inner = varExp.Value;
 
-            if (inner is FuncCallExpression callExp)
+            switch (inner)
             {
-                SchemaExpression[] args = new SchemaExpression[callExp.Args.Length];
-                for (int j = 0; j < callExp.Args.Length; j++)
+                // Function analysis and inline conversion
+                case FuncCallExpression callExp:
                 {
-                    var arg = callExp.Args[j];
-                    if (arg is VariableExpression v && accessCount.TryGetValue(v.Name, out int vc) && vc == 1)
-                    {
-                        args[j] = expMaps[v.Name].Value;
-                    }
-                    else if (arg is FieldAccessExpression f && f.Owner is VariableExpression fv && accessCount.TryGetValue(fv.Name, out int fvc) && fvc == 1)
-                    {
-                        args[j] = new FieldAccessExpression(expMaps[fv.Name].Value, f.FieldName, f.SchemeType);
-                    }
-                    else
-                    {
-                        args[j] = arg;
-                    }
+                    // Rebuild call expression
+                    inner = new FuncCallExpression(callExp.Function, callExp.Args.Select(Inline).ToArray(), callExp.SchemaType, callExp.ExpType);
+                
+                    // Apply visitors
+                    inner = visitors.Aggregate(inner, (current, visitor) => visitor.VisitExpression(context, current) ?? current);
+
+                    // Replace
+                    varExp = new VariableExpression(t.Name, inner);
+                    expMaps[varExp.Name] = varExp;
+
+                    break;
                 }
-
-                inner = new FuncCallExpression(callExp.Function, args, callExp.SchemaType);
-            }
-
-            // Apply visitors
-            for (int j = 0; j < results.Count; j++)
-            {
-                foreach (var visitor in visitors)
-                    inner = visitor.VisitExpression(context, inner) ?? inner;
-            }
-
-            // Replace
-            if (varExp.Value != inner)
-            {
-                varExp = new VariableExpression(results[i].Name, inner);
-                expMaps[varExp.Name] = varExp;
+                
+                // Struct result expression
+                case StructResultExpression resultExp:
+                {
+                    varExp = new VariableExpression(t.Name, new StructResultExpression(resultExp.Fields.Select(Inline).ToArray(), resultExp.SchemaType));
+                    break;
+                }
             }
 
             // Remove the one time access variables
@@ -487,10 +528,12 @@ public static class FunctionVisitor
 
         // Done
         return final;
+        
+        #endregion
     }
     #region Utility
 
-    const string STRUCT_RESULT_EXP_NAME = "_structResult";
+    private const string StructResultExpName = "_structResult";
 
     #endregion
 }

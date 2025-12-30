@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+// ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
 
@@ -41,23 +42,6 @@ public record ArgumentExpression(int Index, AnySchemeType SchemeType) : SchemaEx
 public record DefaultExpression(SchemaExpression Inner, AnySchemaNode Default) : SchemaExpression(Default.SchemeType);
 
 /// <summary>
-/// Represents a function call expression with a specified function, argument expressions, and result type within a
-/// schema.
-/// </summary>
-/// <param name="Function">The function to be invoked by this expression.</param>
-/// <param name="Args">An array of expressions representing the arguments to pass to the function. The order of expressions corresponds to
-/// the function's parameter order.</param>
-/// <param name="SchemeType">The schema type that describes the result of the function call.</param>
-public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemeType SchemeType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemeType);
-
-/// <summary>
-/// The struct result expression
-/// </summary>
-/// <param name="Fields">The struct field members</param>
-/// <param name="SchemeType">The struct schema type</param>
-public record StructResultExpression(VariableExpression[] Fields, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
-
-/// <summary>
 /// The null expression
 /// </summary>
 public record NullExpression(AnySchemeType SchemeType) : SchemaExpression(SchemeType);
@@ -68,3 +52,26 @@ public record NullExpression(AnySchemeType SchemeType) : SchemaExpression(Scheme
 /// <param name="Exps"></param>
 /// <param name="SchemaType"></param>
 public record ParamsExpression(SchemaExpression[] Exps, AnySchemeType SchemaType) : SchemaExpression(SchemaType);
+
+/// <summary>
+/// The iterator expression represents an iteration over an array within a schema expression tree.
+/// </summary>
+/// <param name="Array">The array expression</param>
+public record IteratorExpression(SchemaExpression Array) : SchemaExpression((Array as FieldAccessExpression)?.SchemeType ?? (Array.SchemaType as ArrayType)!.ElementSchemaType!);
+
+/// <summary>
+/// The struct result expression
+/// </summary>
+/// <param name="Fields">The struct field members</param>
+/// <param name="SchemeType">The struct schema type</param>
+public record StructResultExpression(SchemaExpression[] Fields, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+
+/// <summary>
+/// Represents a function call expression with a specified function, argument expressions, and result type within a
+/// schema.
+/// </summary>
+/// <param name="Function">The function to be invoked by this expression.</param>
+/// <param name="Args">An array of expressions representing the arguments to pass to the function. The order of expressions corresponds to
+/// the function's parameter order.</param>
+/// <param name="SchemeType">The schema type that describes the result of the function call.</param>
+public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemeType SchemeType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemeType);

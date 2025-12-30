@@ -1,6 +1,8 @@
 ﻿using SchemaNode.Context;
 using System.Reflection;
+using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
 
@@ -20,17 +22,6 @@ public enum BreakExpType
 /// <param name="Value">The return value</param>
 public record BreakExpression(BreakExpType Type, SchemaExpression Cond, SchemaExpression Value) : SchemaExpression(Value.SchemaType);
 
-/// <summary>
-/// The binary expression attribute
-/// </summary>
-[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-public class BreakExpAttribute(BreakExpType type) : System.Attribute
-{
-    /// <summary>
-    /// The binary expression type
-    /// </summary>
-    public BreakExpType Type { get; } = type;
-}
 
 /// <summary>
 /// The binary expression visitor
@@ -43,7 +34,13 @@ public class BreakExpTypeVisitor : IExpressionVisitor
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
         if (exp is not FuncCallExpression callExp) return null;
-        var attr = callExp.Function?.FuncInfo?.Method?.GetCustomAttribute<BreakExpAttribute>();
-        return attr != null && callExp.Args.Length >= 2 ? new BreakExpression(attr.Type, callExp.Args[0], callExp.Args[1]) : null;
+        return callExp.Function.Name switch
+        {
+            $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}" => new BreakExpression(BreakExpType.IfRet, callExp.Args[0], callExp.Args[1]),
+            $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}" => new BreakExpression(BreakExpType.IfNot, callExp.Args[0], callExp.Args[1]),
+            $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}" => new BreakExpression(BreakExpType.IfNull,callExp.Args[0], callExp.Args[1]),
+            $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}" => new BreakExpression(BreakExpType.IfEmpty, callExp.Args[0], callExp.Args[1]),
+            _ => null
+        };
     }
 }

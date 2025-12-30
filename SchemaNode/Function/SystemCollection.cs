@@ -54,7 +54,6 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
-    [LogicExp(LogicExpType.Contains)]
     public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -68,7 +67,6 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
-    [LogicExp(LogicExpType.NotContains)]
     public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
@@ -155,7 +153,15 @@ public static class SystemCollection
     [Schema]
     public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
     {
-        return getfield<T>(obj, field) ?? defaultValue;
+        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        AnySchemaNode? currentNode = obj;
+        foreach (string path in paths)
+        {
+            currentNode = (currentNode as StructTypeNode)?.GetField(path);
+            if (currentNode == null) return defaultValue;
+        }
+
+        return !currentNode.IsEmpty ? (T?)currentNode.ToTypeValue(typeof(T))! : defaultValue;
     }
     
     /// <summary>
@@ -201,7 +207,6 @@ public static class SystemCollection
     /// Sets the field and return a new json object
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -213,7 +218,6 @@ public static class SystemCollection
     /// system.collection.notequal
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldnotequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
         => !fieldequal(obj, field, value);
 
@@ -221,7 +225,6 @@ public static class SystemCollection
     /// system.collection.greateequal
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldgreateequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -235,7 +238,6 @@ public static class SystemCollection
     /// system.collection.greatethan
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldgreatethan<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -249,7 +251,6 @@ public static class SystemCollection
     /// system.collection.lessequal
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldlessequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -263,7 +264,6 @@ public static class SystemCollection
     /// system.collection.lessthan
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldlessthan<T>(StructTypeNode obj, string field, T value) where T: IComparable
     {
         AnySchemaNode? node = obj.GetField(field);
@@ -277,42 +277,36 @@ public static class SystemCollection
     /// Field starts with
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldstartswith(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
         if (node == null || node.IsEmpty) return false;
         string? res = node.ToValue<string>();
-        if (res == null) return false;
-        return res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
+        return res != null && res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// Field end with
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldendswith(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
         if (node == null || node.IsEmpty) return false;
         string? res = node.ToValue<string>();
-        if (res == null) return false;
-        return res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
+        return res != null && res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// Field match
     /// </summary>
     [Schema]
-    [LogicExp]
     public static bool fieldmatch(StructTypeNode obj, string field, string value)
     {
         AnySchemaNode? node = obj.GetField(field);
         if (node == null || node.IsEmpty) return false;
         string? res = node.ToValue<string>();
-        if (res == null) return false;
-        return res.Contains(value, StringComparison.OrdinalIgnoreCase);
+        return res != null && res.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

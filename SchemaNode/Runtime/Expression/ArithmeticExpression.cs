@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Context;
-using System.Reflection;
+using SchemaNode.Enum;
+using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -32,9 +33,6 @@ public enum ArithmeticExpType
     ToDouble,
     ToSingle,
     ToInt,
-
-    // Call
-    Func,
 }
 
 /// <summary>
@@ -61,48 +59,54 @@ public record UnaryArithmeticExpression(ArithmeticExpType Type, SchemaExpression
 public record BinaryArithmeticExpression(ArithmeticExpType Type, SchemaExpression Left, SchemaExpression Right, AnySchemeType SchemaType) : ArithmeticExpression(SchemaType);
 
 /// <summary>
-/// The func call arithmetic expression
-/// </summary>
-/// <param name="Function">The arithmetic func</param>
-/// <param name="Args">The params arguments</param>
-/// <param name="SchemaType">The result type</param>
-public record FuncArithmeticExpression(FunctionType Function, SchemaExpression[] Args, AnySchemeType SchemaType) : ArithmeticExpression(SchemaType);
-
-/// <summary>
-/// The Arithmetic expression attribute
-/// </summary>
-[AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-public class ArithmeticExpAttribute(ArithmeticExpType type = ArithmeticExpType.Func) : System.Attribute
-{
-    /// <summary>
-    /// The binary expression type
-    /// </summary>
-    public ArithmeticExpType Type { get; } = type;
-}
-
-/// <summary>
 /// The Arithmetic expression visitor
 /// </summary>
 public class ArithmeticExpressionVisitor : IExpressionVisitor
 {
+    // <inheritdoc/>
     public int Priority => EXP_ARITHMETIC_PRIORITY;
 
     // <inheritdoc/>
     public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression callExp) return null;
-        var attr = callExp.Function.FuncInfo?.Method?.GetCustomAttribute<ArithmeticExpAttribute>();
-        if (attr == null) return null;
+        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
 
-        // Keep function call but change to arithmetic expression
-        if (attr.Type == ArithmeticExpType.Func)
-            return new FuncArithmeticExpression(callExp.Function, callExp.Args, callExp.SchemeType);
-
-        // Unary or binary expression
-        return callExp.Args.Length switch
+        return callExp.Function.Name switch
         {
-            1 => new UnaryArithmeticExpression(attr.Type, callExp.Args[0], callExp.SchemeType),
-            2 => new BinaryArithmeticExpression(attr.Type, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a + b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.add)}" => new BinaryArithmeticExpression(ArithmeticExpType.Add, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a - b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.subtract)}" => new BinaryArithmeticExpression(ArithmeticExpType.Subtract, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a / b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.divide)}" => new BinaryArithmeticExpression(ArithmeticExpType.Divide, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a % b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.modulo)}" => new BinaryArithmeticExpression(ArithmeticExpType.Modulo, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a * b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.multiply)}" => new BinaryArithmeticExpression(ArithmeticExpType.Multiply, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // Math.Min(a, b)
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.min)}" => new BinaryArithmeticExpression(ArithmeticExpType.Min, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // Math.Max(a, b)
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.max)}" => new BinaryArithmeticExpression(ArithmeticExpType.Max, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // Convert to decimal
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.todecimal)}" => new UnaryArithmeticExpression(ArithmeticExpType.ToDecimal, callExp.Args[0], callExp.SchemeType),
+            // Convert to double
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.todouble)}" => new UnaryArithmeticExpression(ArithmeticExpType.ToDouble, callExp.Args[0], callExp.SchemeType),
+            // Convert to single
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.tosingle)}" => new UnaryArithmeticExpression(ArithmeticExpType.ToSingle, callExp.Args[0], callExp.SchemeType),
+            // Convert to int
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.tointeger)}" => new UnaryArithmeticExpression(ArithmeticExpType.ToInt, callExp.Args[0], callExp.SchemeType),
+            // a & b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitand)}" => new BinaryArithmeticExpression(ArithmeticExpType.BitAnd, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a | b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitor)}" => new BinaryArithmeticExpression(ArithmeticExpType.BitOr, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a ^ b
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitxor)}" => new BinaryArithmeticExpression(ArithmeticExpType.BitXor, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a << shift
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitleftshift)}" => new BinaryArithmeticExpression(ArithmeticExpType.BitLeftShift, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // a >> shift
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitrightshift)}" => new BinaryArithmeticExpression(ArithmeticExpType.BitRightShift, callExp.Args[0], callExp.Args[1], callExp.SchemeType),
+            // ~a
+            $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitunary)}" => new UnaryArithmeticExpression(ArithmeticExpType.BitUnary, callExp.Args[0], callExp.SchemeType),
             _ => null
         };
     }
