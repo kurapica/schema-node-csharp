@@ -90,16 +90,22 @@ public class DataSourceVisitor : IExpressionVisitor
                 ? new DataSourceExpression(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), structType))
                 : null; // call directly
         }
-        
+
         #endregion
-        
+
         #region Linq
 
+        // Indicate the source expression
+        DataSourceExpression? sourceExp = callExp.Args.FirstOrDefault(a => a is DataSourceExpression) as DataSourceExpression;
+        IteratorExpression? iter = callExp.Args.FirstOrDefault(a => a is IteratorExpression { Array: DataSourceExpression or FieldAccessExpression { Owner: DataSourceExpression } }) as IteratorExpression;
+        if (sourceExp == null && iter == null) return null;
+
+        // Non-filter call
         switch (callExp.ExpType)
         {
+            // Direct Call
             case ExpressionType.Call:
             {
-                DataSourceExpression? sourceExp = callExp.Args.FirstOrDefault(a => a is DataSourceExpression) as DataSourceExpression;
                 if (sourceExp == null) return null;
             
                 switch (callExp.Function.Name)
@@ -107,6 +113,7 @@ public class DataSourceVisitor : IExpressionVisitor
                     // getfields(source)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
                     {
+                        // not support a.b.c deep field access
                         string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || sourceExp.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
@@ -140,20 +147,46 @@ public class DataSourceVisitor : IExpressionVisitor
 
                 break;
             }
+
+            // Map, only handle field access
             case ExpressionType.Map:
-                break;
+            {
+                if (iter == null) return null;
+
+                switch (callExp.Function.Name)
+                {
+                    // getfield(source, field), conver the case to FieldsDataSourceExpression
+                    case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
+                    case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
+                    {
+                        if (iter.Array is not DataSourceExpression source) return null;
+
+                        string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
+                        if (string.IsNullOrEmpty(fieldName) || source.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        return new FieldsDataSourceExpression(source, fieldName, context.GetArraySchemaTypeAsync(structType.GetField(fieldName)!.SchemeType!).GetAwaiter().GetResult()!);
+                    }
+
+                    // assign
+                    case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.assign)}":
+                    case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
+                    {
+                        if (iter.Array is not FieldAccessExpression { Owner: DataSourceExpression source } fa || fa.FieldName.Contains('.')) return null;
+                        return new FieldsDataSourceExpression(source, fa.FieldName, context.GetArraySchemaTypeAsync(((source.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(fa.FieldName)!.SchemeType!).GetAwaiter().GetResult()!);
+                    }
+                }
+                return null;
+            }
+
+            // Ignore reduce
             case ExpressionType.Reduce:
                 return null;
         }
         
-        // Filter for other exp types
-        int index = Array.FindIndex(callExp.Args, a => a is IteratorExpression { Array: DataSourceExpression or FieldAccessExpression { Owner: DataSourceExpression } });
-        if (index < 0) return null;
-        IteratorExpression iter = (callExp.Args[index] as IteratorExpression)!;
+        // Filter
         
-        
-        
-        // Linq data source access expression
+
+
         switch (callExp.ExpType)
         {
             case ExpressionType.First:
