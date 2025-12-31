@@ -7,7 +7,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory policy schema representation
 /// </summary>
-public class PolicyType: AnySchemeType
+public class PolicyType: AnySchemaType
 {
     #region Data
 

@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public class ArrayType: AnySchemeType
+public class ArrayType: AnySchemaType
 {
     #region Data
     
@@ -69,7 +69,7 @@ public class ArrayType: AnySchemeType
     /// <summary>
     /// The element type node
     /// </summary>
-    public AnySchemeType? ElementSchemaType { get; internal set; }
+    public AnySchemaType? ElementSchemaType { get; internal set; }
     
     #endregion
     
@@ -95,7 +95,7 @@ public class ArrayType: AnySchemeType
         // Ref
         if (!string.IsNullOrWhiteSpace(Element))
         {
-            AnySchemeType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
+            AnySchemaType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
             if (node == null || node is not GenericType && node.Type is SchemaType.Namespace or SchemaType.Array or SchemaType.Func)
             {
                 Status = SchemaNodeStatus.ArrayHasWrongElementType;
@@ -112,7 +112,7 @@ public class ArrayType: AnySchemeType
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemeType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
+                AnySchemaType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (node is not FunctionType funcNode)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -176,7 +176,7 @@ public class ArrayType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemeType other) => 
+    public override bool CanBeUseAs(AnySchemaType other) => 
         base.CanBeUseAs(other)
         || Name.Equals(NS_SYSTEM_ARRAY) 
         || other.Name.Equals(NS_SYSTEM_ARRAY) 
@@ -230,7 +230,7 @@ public class ArrayType: AnySchemeType
         return key;
     }
 
-    public override IEnumerable<AnySchemeType> GetDependNodes()
+    public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (ElementSchemaType != null)
             yield return ElementSchemaType;
@@ -278,7 +278,7 @@ public class ArrayType: AnySchemeType
         if (ElementSchemaType is not GenericType) return null;
         _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
         
-        AnySchemeType? eleType = await context.GetSchemaTypeAsync(elementType);
+        AnySchemaType? eleType = await context.GetSchemaTypeAsync(elementType);
         if (eleType is null or GenericType or ArrayType) return null;
         
         return _genericArrayTypes.GetOrAdd(elementType, _ =>

@@ -57,7 +57,7 @@ public class DynamicTableSchema
     /// <summary>
     /// The data type node
     /// </summary>
-    public required AnySchemeType SchemaType { get; init; }
+    public required AnySchemaType SchemaType { get; init; }
 
     /// <summary>
     /// Gets the field values by the fields
@@ -464,7 +464,7 @@ public class DynamicTableSchema
                         JsonArray args = [];
                         foreach (var arg in relation.Args)
                             args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
-                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, [fld.SchemeType.Name]);
+                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, [fld.SchemaType.Name]);
                         if (!result.IsEmpty()) fld.Value = result;
                     }
                     else switch (field.SchemeType)
@@ -479,7 +479,7 @@ public class DynamicTableSchema
                         default:
                             if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && !string.IsNullOrWhiteSpace(field.Default))
                             {
-                                (AnySchemaNode? val, JsonNode? err) = await fld.SchemeType.ValidateValueAsync(context, field.Default);
+                                (AnySchemaNode? val, JsonNode? err) = await fld.SchemaType.ValidateValueAsync(context, field.Default);
                                 if (err == null || err.IsEmpty())
                                     fld.Value = val;
                             }

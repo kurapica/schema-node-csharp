@@ -50,7 +50,7 @@ public abstract class Workflow
     /// <summary>
     /// The payload type
     /// </summary>
-    internal AnySchemeType? PayloadType { get; set; }
+    internal AnySchemaType? PayloadType { get; set; }
 
     /// <summary>
     /// Whether the node can be triggered multiple times

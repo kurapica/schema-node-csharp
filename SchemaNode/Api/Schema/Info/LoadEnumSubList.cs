@@ -19,7 +19,7 @@ public class LoadEnumSubListApi : SchemaApi<LoadEnumSubListRequest, LoadEnumSubL
     {
         Logger.LogDebug("[Api]LoadEnumSubList [Request]{request}", request);
 
-        AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
+        AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
         if (node is not EnumType @enum) return new LoadEnumSubListResponse{ Values = [] };
         
         // authorize

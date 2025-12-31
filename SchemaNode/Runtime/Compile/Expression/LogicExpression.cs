@@ -1,7 +1,10 @@
-﻿using SchemaNode.Context;
+﻿using System.Linq.Expressions;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
+using ExpressionType = SchemaNode.Enum.ExpressionType;
+
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
@@ -45,7 +48,7 @@ public enum LogicExpType
 /// </summary>
 /// <param name="Type">The logic exp type</param>
 /// <param name="SchemaType">The result type(bool only)</param>
-public abstract record LogicExpression(LogicExpType Type, AnySchemeType SchemaType) : SchemaExpression(SchemaType);
+public abstract record LogicExpression(LogicExpType Type, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The unary logic expression
@@ -53,7 +56,16 @@ public abstract record LogicExpression(LogicExpType Type, AnySchemeType SchemaTy
 /// <param name="Type">The logic exp type</param>
 /// <param name="Inner">The inner exp</param>
 /// <param name="SchemaType">The result type(bool only)</param>
-public record UnaryLogicExpression(LogicExpType Type, SchemaExpression Inner, AnySchemeType SchemaType) : LogicExpression(Type, SchemaType);
+public record UnaryLogicExpression(LogicExpType Type, SchemaExpression Inner, AnySchemaType SchemaType) : LogicExpression(Type, SchemaType);
+
+/// <summary>
+/// The unary logic expression with function
+/// </summary>
+/// <param name="Type">The logic exp type</param>
+/// <param name="Function">The function</param>
+/// <param name="Inner">The inner exp</param>
+/// <param name="SchemaType">The result type(bool only)</param>
+public record UnaryLogicFuncExpression(LogicExpType Type, FunctionType Function, SchemaExpression Inner, AnySchemaType SchemaType) : UnaryLogicExpression(Type, Inner, SchemaType);
 
 /// <summary>
 /// The binary logic expression
@@ -62,7 +74,17 @@ public record UnaryLogicExpression(LogicExpType Type, SchemaExpression Inner, An
 /// <param name="Left">The left exp</param>
 /// <param name="Right">The right exp</param>
 /// <param name="SchemaType">The result type(bool only)</param>
-public record BinaryLogicExpression(LogicExpType Type, SchemaExpression Left, SchemaExpression Right, AnySchemeType SchemaType) : LogicExpression(Type, SchemaType);
+public record BinaryLogicExpression(LogicExpType Type, SchemaExpression Left, SchemaExpression Right, AnySchemaType SchemaType) : LogicExpression(Type, SchemaType);
+
+/// <summary>
+/// The binary logic expression with function
+/// </summary>
+/// <param name="Type">The logic exp type</param>
+/// <param name="Function">The function</param>
+/// <param name="Left">The left exp</param>
+/// <param name="Right">The right exp</param>
+/// <param name="SchemaType">The result type(bool only)</param>
+public record BinaryLogicFuncExpression(LogicExpType Type, FunctionType Function, SchemaExpression Left, SchemaExpression Right, AnySchemaType SchemaType) : BinaryLogicExpression(Type, Left, Right, SchemaType);
 
 /// <summary>
 /// The logic expression visitor
@@ -93,19 +115,19 @@ public class LogicExpressionVisitor : IExpressionVisitor
             
             // isnull(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}":
-                return new UnaryLogicExpression(LogicExpType.IsNull, callExp.Args[0], exp.SchemaType);
+                return new UnaryLogicFuncExpression(LogicExpType.IsNull, callExp.Function, callExp.Args[0], exp.SchemaType);
             
             // notnull(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notnull)}":
-                return new UnaryLogicExpression(LogicExpType.NotNull, callExp.Args[0], exp.SchemaType);
+                return new UnaryLogicFuncExpression(LogicExpType.NotNull, callExp.Function, callExp.Args[0], exp.SchemaType);
             
             // isempty(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}":
-                return new UnaryLogicExpression(LogicExpType.IsEmpty, callExp.Args[0], exp.SchemaType);
+                return new UnaryLogicFuncExpression(LogicExpType.IsEmpty, callExp.Function, callExp.Args[0], exp.SchemaType);
             
             // notempty(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}":
-                return new UnaryLogicExpression(LogicExpType.NotEmpty, callExp.Args[0], exp.SchemaType);
+                return new UnaryLogicFuncExpression(LogicExpType.NotEmpty, callExp.Function, callExp.Args[0], exp.SchemaType);
             
             // a == b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.equal)}":
@@ -133,23 +155,23 @@ public class LogicExpressionVisitor : IExpressionVisitor
             
             // a.Contains(b)
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}":
-                return new BinaryLogicExpression(LogicExpType.Contains, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return new BinaryLogicFuncExpression(LogicExpType.Contains, callExp.Function, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // !a.Contains(b)
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}":
-                return new BinaryLogicExpression(LogicExpType.NotContains, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return new BinaryLogicFuncExpression(LogicExpType.NotContains, callExp.Function, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a.StartsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}":
-                return new BinaryLogicExpression(LogicExpType.StartsWith, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+                return new BinaryLogicFuncExpression(LogicExpType.StartsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
             
             // a.EndsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}":
-                return new BinaryLogicExpression(LogicExpType.EndsWith, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+                return new BinaryLogicFuncExpression(LogicExpType.EndsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
             
             // a.Match(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}":
-                return new BinaryLogicExpression(LogicExpType.Match, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+                return new BinaryLogicFuncExpression(LogicExpType.Match, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
             
             // a in [b, c)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}":
@@ -190,12 +212,12 @@ public class LogicExpressionVisitor : IExpressionVisitor
                 if (fieldNameExp?.Value.ToValue<string>() is not { } fieldName || string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                AnySchemeType? ownerType = ownerExp.SchemaType;
+                AnySchemaType? ownerType = ownerExp.SchemaType;
                 if (ownerType is ArrayType array) ownerType = array.ElementSchemaType;
                 if (ownerType is not StructType @struct)
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                AnySchemeType? fieldType = @struct.GetField(fieldName)?.SchemeType;
+                AnySchemaType? fieldType = @struct.GetField(fieldName)?.SchemeType;
                 if (fieldType == null)
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
@@ -213,6 +235,64 @@ public class LogicExpressionVisitor : IExpressionVisitor
                     _ => throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID)
                 }, new FieldAccessExpression(ownerExp, fieldName, fieldType), callExp.Args[2], callExp.SchemaType);
             }
+        }
+
+        return null;
+    }
+
+    // <inheritdoc/>
+    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    {
+        if (exp is not LogicExpression logicExp) return null;
+
+        switch (logicExp)
+        {
+            // Unary logic with function
+            case UnaryLogicFuncExpression unFuncExp:
+                return context.CompileSchemaExpression(new FuncCallExpression(unFuncExp.Function, [unFuncExp.Inner], unFuncExp.SchemaType));
+            
+            // Binary logic with function
+            case BinaryLogicFuncExpression binFuncExp:
+                return context.CompileSchemaExpression(new FuncCallExpression(binFuncExp.Function, [binFuncExp.Left, binFuncExp.Right], binFuncExp.SchemaType));
+            
+            // Unary logic
+            case UnaryLogicExpression unExp:
+                switch (unExp.Type)
+                {
+                    case LogicExpType.Not:
+                        return Expression.Not(context.CompileSchemaExpression(unExp.Inner));
+                }
+                break;
+            
+            // Binary logic
+            case BinaryLogicExpression binExp:
+                switch (binExp.Type)
+                {
+                    case LogicExpType.AndAlso:
+                        return Expression.AndAlso(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                    
+                    case LogicExpType.OrElse:
+                        return Expression.OrElse(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                    
+                    case LogicExpType.Equal:
+                        return Expression.Equal(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        
+                    case LogicExpType.NotEqual:
+                        return Expression.NotEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        
+                    case LogicExpType.GreaterThan:
+                        return Expression.GreaterThan(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        
+                    case LogicExpType.GreaterEqual:
+                        return Expression.GreaterThanOrEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        
+                    case LogicExpType.LessThan:
+                        return Expression.LessThan(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                    
+                    case LogicExpType.LessEqual:
+                        return Expression.LessThanOrEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                }
+                break;
         }
 
         return null;

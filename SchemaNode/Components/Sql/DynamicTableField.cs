@@ -41,7 +41,7 @@ public class DynamicTableField
     /// <summary>
     /// The data dict type
     /// </summary>
-    public required AnySchemeType SchemaType { get; init; }
+    public required AnySchemaType SchemaType { get; init; }
 
     /// <summary>
     /// The struct field node of primary field

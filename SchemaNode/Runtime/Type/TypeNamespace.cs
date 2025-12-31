@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The namespace node
 /// </summary>
-public class TypeNamespace: AnySchemeType
+public class TypeNamespace: AnySchemaType
 {
     #region Data
 
@@ -24,7 +24,7 @@ public class TypeNamespace: AnySchemeType
     /// <summary>
     /// The Sub namespaces
     /// </summary>
-    public ConcurrentDictionary<string, AnySchemeType> SchemaNodes { get; set; } = new ();
+    public ConcurrentDictionary<string, AnySchemaType> SchemaNodes { get; set; } = new ();
 
     #endregion
 

@@ -14,7 +14,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory scalar schema representation
 /// </summary>
-public class ScalarType: AnySchemeType
+public class ScalarType: AnySchemaType
 {
     #region Data
      
@@ -188,7 +188,7 @@ public class ScalarType: AnySchemeType
         // Relationship
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemeType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
+            AnySchemaType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
             if (node != null && node is ScalarType snode)
             {
                 BaseNode = snode;
@@ -203,7 +203,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(PostValid))
         {
-            AnySchemeType? node = await context.GetSchemaTypeAsync(PostValid, preload: preload);
+            AnySchemaType? node = await context.GetSchemaTypeAsync(PostValid, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 PostValidNode = fnode;
@@ -218,7 +218,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(PreValid))
         {
-            AnySchemeType? node = await context.GetSchemaTypeAsync(PreValid, preload: preload);
+            AnySchemaType? node = await context.GetSchemaTypeAsync(PreValid, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 PreValidNode = fnode;
@@ -233,7 +233,7 @@ public class ScalarType: AnySchemeType
 
         if (!string.IsNullOrWhiteSpace(WhiteList))
         {
-            AnySchemeType? node = await context.GetSchemaTypeAsync(WhiteList, preload: preload);
+            AnySchemaType? node = await context.GetSchemaTypeAsync(WhiteList, preload: preload);
             if (node != null && node is FunctionType fnode)
             {
                 WhiteListNode = fnode;
@@ -381,7 +381,7 @@ public class ScalarType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemeType other) =>
+    public override bool CanBeUseAs(AnySchemaType other) =>
         base.CanBeUseAs(other) 
         || other switch
         {
@@ -406,7 +406,7 @@ public class ScalarType: AnySchemeType
     public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
                                          || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= 128;
 
-    public override IEnumerable<AnySchemeType> GetDependNodes()
+    public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (BaseNode != null)
             yield return BaseNode;

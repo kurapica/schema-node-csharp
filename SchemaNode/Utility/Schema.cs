@@ -424,7 +424,7 @@ public static class Schema
     /// <summary>
     /// Gets the schema type info from any schema node
     /// </summary>
-    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemeType node)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaType node)
     {
         return node switch
         {
@@ -445,7 +445,7 @@ public static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    internal static Type ToCSharpType(this AnySchemeType node, bool? nullable = false)
+    internal static Type ToCSharpType(this AnySchemaType node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type = null;
@@ -717,7 +717,7 @@ public static class Schema
     internal static ArrayTypeNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (node.ElementSchemaType is not StructType structNode || node.Primary == null) return null;
-        Dictionary<string, AnySchemeType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemeType);
+        Dictionary<string, AnySchemaType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemeType);
 
         // Result
         Dictionary<string, StructTypeNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);

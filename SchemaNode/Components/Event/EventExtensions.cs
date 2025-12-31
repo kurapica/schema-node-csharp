@@ -16,7 +16,7 @@ public static class EventExtensions
     #region Utility
 
     static readonly ConcurrentDictionary<Type, IEventDispatcher> EventDispatchers = [];
-    static readonly ConcurrentDictionary<Type, AnySchemeType> EventPayloads = [];
+    static readonly ConcurrentDictionary<Type, AnySchemaType> EventPayloads = [];
 
     // Gets the event dispatcher by type
     static IEventDispatcher? GetEventDispatcher(SchemaContext context, Type type)
@@ -67,7 +67,7 @@ public static class EventExtensions
             else
             {
                 Type payLoadType = payLoad.GetType();
-                if (!EventPayloads.TryGetValue(payLoadType, out AnySchemeType? eventPayload))
+                if (!EventPayloads.TryGetValue(payLoadType, out AnySchemaType? eventPayload))
                 {
                     string? schemaType = payLoad.GetType().GetSchemaType(true);
                     eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetSchemaTypeAsync(schemaType).GetAwaiter().GetResult() : null;

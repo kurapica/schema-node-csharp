@@ -47,7 +47,7 @@ public class StructTypeNode : AnySchemaNode
     /// </summary>
     public AnySchemaNode? GetField(string fieldName)
     {
-        var type = SchemeType as StructType;
+        var type = SchemaType as StructType;
         if (type == null) return null;
         var index = Array.FindIndex(type.Fields, f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
         if (index < 0 || index >= Fields.Length) return null;
@@ -72,7 +72,7 @@ public class StructTypeNode : AnySchemaNode
         if (this == other) return true;
         if (other is not StructTypeNode otherStruct) return false;
 
-        var fields = (SchemeType as StructType)!.Fields;
+        var fields = (SchemaType as StructType)!.Fields;
         foreach (var t in fields)
         {
             var field = otherStruct.GetField(t.Name);
@@ -99,7 +99,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is StructTypeNode @struct)
             {
-                var fields = (SchemeType as StructType)!.Fields;
+                var fields = (SchemaType as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = @struct.GetField(fields[i].Name);
@@ -107,7 +107,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is JsonObject obj)
             {
-                var fields = (SchemeType as StructType)!.Fields;
+                var fields = (SchemaType as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = obj[fields[i].Name];
@@ -115,7 +115,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value.GetType() == CsharpType)
             {
-                IReadOnlyList<PropertyInfo>? props = (SchemeType as StructType)!.GetCSharpProperties();
+                IReadOnlyList<PropertyInfo>? props = (SchemaType as StructType)!.GetCSharpProperties();
                 if (props != null)
                 {
                     _csharpObject = value;
@@ -127,7 +127,7 @@ public class StructTypeNode : AnySchemaNode
                 else
                 {
                     JsonObject jsonObj = (JsonObject)value.ToJsonNode()!;
-                    var fields = (SchemeType as StructType)!.Fields;
+                    var fields = (SchemaType as StructType)!.Fields;
                     for (int i = 0; i < fields.Length; i++)
                     {
                         Fields[i].Value = jsonObj[fields[i].Name];
@@ -176,7 +176,7 @@ public class StructTypeNode : AnySchemaNode
     {
         JsonObject result = [];
 
-        var fields = (SchemeType as StructType)!.Fields;
+        var fields = (SchemaType as StructType)!.Fields;
         for (int i = 0; i < fields.Length; i++)
         {
             JsonNode? d = Fields[i].ToJson();

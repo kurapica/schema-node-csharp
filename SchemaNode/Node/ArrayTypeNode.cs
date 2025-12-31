@@ -9,13 +9,13 @@ namespace SchemaNode.Node;
 
 public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type)
+    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(type)
     {
         ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;
     }
 
-    public AnySchemeType? ElementType { get; set; }
+    public AnySchemaType? ElementType { get; set; }
 
     public object? this[int index]
     {
@@ -79,7 +79,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
                 }
                 else if (value is IEnumerable<AnySchemaNode> nodes)
                 {
-                    _elements = nodes.Where(n => n.SchemeType.CanBeUseAs(ElementType)).ToList();
+                    _elements = nodes.Where(n => n.SchemaType.CanBeUseAs(ElementType)).ToList();
                 }
                 else if (value is not string && value is not JsonObject && value is IEnumerable objs)
                 {
@@ -246,7 +246,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     public AnySchemaNode? GetValueByPaths(string paths) {
         if (ElementType != null)
         {
-            AnySchemeType? type = ElementType;
+            AnySchemaType? type = ElementType;
             foreach (string path in paths.Split('.', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (type is not StructType @struct) return null;

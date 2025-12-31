@@ -28,7 +28,7 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
         };
     }
 
-    private static JsonNode? DiagnoseNamespaceAsync(AnySchemeType? schema)
+    private static JsonNode? DiagnoseNamespaceAsync(AnySchemaType? schema)
     {
         switch (schema)
         {
@@ -36,7 +36,7 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
                 return null;
             case TypeNamespace ns:
                 JsonObject? res = null;
-                foreach ((_, AnySchemeType s) in ns.SchemaNodes)
+                foreach ((_, AnySchemaType s) in ns.SchemaNodes)
                 {
                     var r = DiagnoseNamespaceAsync(s);
                     if (r == null || r.IsEmpty()) continue;

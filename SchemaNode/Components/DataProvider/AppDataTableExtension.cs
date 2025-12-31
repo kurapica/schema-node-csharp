@@ -63,7 +63,7 @@ public static class AppDataTableExtension
     /// </summary>
     internal static void AssertType<T>(this SchemaContext context, AppFieldType field)
     {
-        AnySchemeType? type = field.SchemaType;
+        AnySchemaType? type = field.SchemaType;
         if (type is ArrayType arr) type = arr.ElementSchemaType;
         Type? ctype = type?.ToCSharpType();
         if (ctype == null || !ctype.IsAssignableFrom(typeof(T)))

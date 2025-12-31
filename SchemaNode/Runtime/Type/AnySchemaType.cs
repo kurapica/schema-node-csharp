@@ -11,7 +11,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public abstract class AnySchemeType: IDisposable
+public abstract class AnySchemaType: IDisposable
 {
     #region Data
 
@@ -125,11 +125,11 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Used by another node
     /// </summary>
-    public void AddRef(AnySchemeType type)
+    public void AddRef(AnySchemaType type)
     {
         // system types are not tracked
         if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System && !(type is ArrayType arr && Name.Equals(arr.Element, StringComparison.OrdinalIgnoreCase))) return;
-        UsedBy ??= new ConcurrentDictionary<AnySchemeType, bool>();
+        UsedBy ??= new ConcurrentDictionary<AnySchemaType, bool>();
         UsedBy.TryAdd(type, true);
     }
 
@@ -147,7 +147,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Remove a ref from another node
     /// </summary>
-    public void RemoveRef(AnySchemeType node)
+    public void RemoveRef(AnySchemaType node)
     {
         UsedBy?.TryRemove(node, out _);
     }
@@ -183,7 +183,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Whether the schema type can be used as the other
     /// </summary>
-    public virtual bool CanBeUseAs(AnySchemeType other) => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT);
+    public virtual bool CanBeUseAs(AnySchemaType other) => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT);
     
     /// <summary>
     /// Gets the array node that use this node as element
@@ -200,7 +200,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Whether the new schema is valid for updating
     /// </summary>
-    public virtual bool IsUpdatable(AnySchemeType other) => Type == other.Type;
+    public virtual bool IsUpdatable(AnySchemaType other) => Type == other.Type;
 
     /// <summary>
     /// Release ref
@@ -211,7 +211,7 @@ public abstract class AnySchemeType: IDisposable
     /// Gets the depends schema nodes
     /// </summary>
     /// <returns></returns>
-    public virtual IEnumerable<AnySchemeType> GetDependNodes()
+    public virtual IEnumerable<AnySchemaType> GetDependNodes()
     {
         yield break;
     }
@@ -247,7 +247,7 @@ public abstract class AnySchemeType: IDisposable
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 
-                AnySchemeType type = await ctx.GetSchemaTypeAsync(fullPath) ??
+                AnySchemaType type = await ctx.GetSchemaTypeAsync(fullPath) ??
                                      new TypeNamespace { Name = fullPath };
                 sub = type;
                 parent.Schemas = parent.Schemas == null ? [sub!] : parent.Schemas.Append(sub!).ToArray();
@@ -277,7 +277,7 @@ public abstract class AnySchemeType: IDisposable
         }
 
         // add dependencies
-        foreach (AnySchemeType n in GetDependNodes())
+        foreach (AnySchemaType n in GetDependNodes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
             await n.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
@@ -294,7 +294,7 @@ public abstract class AnySchemeType: IDisposable
     /// Convert the schema to node
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException"></exception>
-    public static implicit operator AnySchemeType?(NodeSchema? schema)
+    public static implicit operator AnySchemaType?(NodeSchema? schema)
     {
         if (schema == null) return null;
         return schema.Type switch
@@ -316,7 +316,7 @@ public abstract class AnySchemeType: IDisposable
     /// <summary>
     /// Convert the node to schema
     /// </summary>
-    public static implicit operator NodeSchema?(AnySchemeType? schema)
+    public static implicit operator NodeSchema?(AnySchemaType? schema)
     {
         if (schema == null) return null;
         return schema.Type switch
@@ -352,7 +352,7 @@ public abstract class AnySchemeType: IDisposable
 
     #region Utility
     
-    internal ConcurrentDictionary<AnySchemeType, bool>? UsedBy;
+    internal ConcurrentDictionary<AnySchemaType, bool>? UsedBy;
     internal ConcurrentDictionary<AppFieldType, bool>? UsedByApp;
 
     #endregion

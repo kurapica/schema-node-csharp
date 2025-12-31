@@ -88,7 +88,7 @@ public static class PolicyExtension
     /// <summary>
     /// Authorize the schema type with the policy scope
     /// </summary>
-    public static Task<bool> AuthorizeAsync(this SchemaContext context, AnySchemeType type, PolicyScope scope, bool silent = false)
+    public static Task<bool> AuthorizeAsync(this SchemaContext context, AnySchemaType type, PolicyScope scope, bool silent = false)
         => AuthorizeAsync(context, type.GetAuthPolicies(scope), silent);
 
     /// <summary>

@@ -13,13 +13,13 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveSchemaAsync(this SchemaContext context, NodeSchema schema)
     {
-        AnySchemeType? node = await context.GetSchemaTypeAsync(schema.Name);
+        AnySchemaType? node = await context.GetSchemaTypeAsync(schema.Name);
 
         // authorize
         if (node == null)
         {
             string[] paths = schema.Name.SplitTypeName().SkipLast(1).ToArray();
-            AnySchemeType? parentNode = null;
+            AnySchemaType? parentNode = null;
             for (int i = paths.Length - 1; i >= 0; i--)
             {
                 string path = string.Join('.', paths.Take(i + 1));
@@ -46,7 +46,7 @@ public static class SchemaStorageProviderExtension
         // save runtime
         if (node == null)
         {
-            AnySchemeType? parentNode = await context.GetSchemaTypeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
+            AnySchemaType? parentNode = await context.GetSchemaTypeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
             if (parentNode is TypeNamespace ns)
                 ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
         }
@@ -65,7 +65,7 @@ public static class SchemaStorageProviderExtension
     /// <returns>true if deleted</returns>
     public static async Task<bool> DeleteSchemaAsync(this SchemaContext context, string name)
     {
-        AnySchemeType? node = await context.GetSchemaTypeAsync(name);
+        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
         if (node == null || node.IsUsed) return false;
 
         // authorize
@@ -97,7 +97,7 @@ public static class SchemaStorageProviderExtension
     /// <returns>true if saved</returns>
     public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string? value, EnumValueInfo[] values, bool? append)
     {
-        AnySchemeType? node = await context.GetSchemaTypeAsync(name);
+        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
         if (node is not EnumType @enum) return false;
 
         // authorize

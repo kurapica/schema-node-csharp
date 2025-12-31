@@ -88,9 +88,9 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// <summary>
     /// Gets the schema node
     /// </summary>
-    public async Task<AnySchemeType?> GetSchemaTypeAsync(string schemaName, bool reload = false, bool preload = false)
+    public async Task<AnySchemaType?> GetSchemaTypeAsync(string schemaName, bool reload = false, bool preload = false)
     {
-        AnySchemeType? node = RootNamespace;
+        AnySchemaType? node = RootNamespace;
 
         // generic type holder, types with generic parameters won't be used directly
         if (Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE)) 
@@ -125,7 +125,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
             if (node == null && Regex.IsMatch(paths.Last(), REGEX_GENERIC_IMPLEMENT))
             {
                 var match = Regex.Match(paths.Last(), REGEX_GENERIC_IMPLEMENT);
-                AnySchemeType? type = await GetSchemaTypeAsync(string.Join('.', paths.SkipLast(1).Append(match.Groups[1].Value)));
+                AnySchemaType? type = await GetSchemaTypeAsync(string.Join('.', paths.SkipLast(1).Append(match.Groups[1].Value)));
                 string[] generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
                     .Select(s => s.Trim()).ToArray();
                 return type switch
@@ -186,7 +186,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// </summary>
     internal bool RemoveSchemaType(string schemaName)
     {
-        AnySchemeType? node = RootNamespace;
+        AnySchemaType? node = RootNamespace;
         if (string.IsNullOrWhiteSpace(schemaName)) return false;
         
         // gets the node
@@ -199,7 +199,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 
         if (node is TypeNamespace ns)
         {
-            if (ns.SchemaNodes.TryGetValue(paths.Last(), out AnySchemeType? child))
+            if (ns.SchemaNodes.TryGetValue(paths.Last(), out AnySchemaType? child))
             {
                 if (child.IsUsed) return false;
                 ns.SchemaNodes.TryRemove(paths.Last(), out child);
@@ -323,7 +323,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// <summary>
     /// Gets the array schema type
     /// </summary>
-    public async Task<AnySchemeType?> GetArraySchemaTypeAsync(AnySchemeType? type)
+    public async Task<AnySchemaType?> GetArraySchemaTypeAsync(AnySchemaType? type)
     {
         if (type == null) return null;
         return type.GetArrayType()
@@ -333,9 +333,9 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// <summary>
     /// Gets the array schema type
     /// </summary>
-    public async Task<AnySchemeType?> GetArraySchemaTypeAsync(string? name)
+    public async Task<AnySchemaType?> GetArraySchemaTypeAsync(string? name)
     {
-        AnySchemeType? type = !string.IsNullOrEmpty(name) ? await GetSchemaTypeAsync(name) : null;
+        AnySchemaType? type = !string.IsNullOrEmpty(name) ? await GetSchemaTypeAsync(name) : null;
         return type switch
         {
             null => null,

@@ -11,7 +11,7 @@ namespace SchemaNode.Components;
 /// </summary>
 [Schema($"{NS_SYSTEM_WORKFLOW}.interaction.form")]
 public class FormWorkflow: InteractionWorkflow,
-    IWorkflowPayload<FormInteractionPayload<AnySchemeType>>
+    IWorkflowPayload<FormInteractionPayload<AnySchemaType>>
 {
 }
 

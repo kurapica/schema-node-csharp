@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using System.Text.RegularExpressions;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
 
@@ -14,12 +15,15 @@ public static class FunctionVisitor
     /// <summary>
     /// Generate Semantic Analysis Schema Expressions for the given function type
     /// </summary>
-    public static async Task<List<VariableExpression>> GenerateSchemaExpressions(this SchemaContext context, FunctionType func)
+    public static async Task<FunctionTypeSchema?> VisitFunctionType(this SchemaContext context, FunctionType func)
     {
         #region Pre-checks
 
         // C# function, no need to generate expression trees
-        if (func.IsSystemCall) return [];
+        if (func.IsSystemCall) return null;
+
+        if (func.TryGetRuntimeFuncCache(out FunctionTypeSchema? cache))
+            return cache;
 
         // Require exps
         if (func.Exps.Length == 0)
@@ -29,7 +33,7 @@ public static class FunctionVisitor
         }
 
         // Validate return type
-        AnySchemeType? returnType = func.ReturnNode ?? (!string.IsNullOrWhiteSpace(func.Return) ? await context.GetSchemaTypeAsync(func.Return) : null);
+        AnySchemaType? returnType = func.ReturnNode ?? (!string.IsNullOrWhiteSpace(func.Return) ? await context.GetSchemaTypeAsync(func.Return) : null);
         if (returnType is not { IsValueType: true })
         {
             func.Status = SchemaNodeStatus.FunctionWrongReturnType;
@@ -40,6 +44,7 @@ public static class FunctionVisitor
         #endregion
 
         // Expression cache
+        ArgumentExpression[] argExps = new ArgumentExpression[func.Args.Length];
         List<VariableExpression> results = [];
         Dictionary<string, VariableExpression> expMaps = [];
         Dictionary<string, int> accessCount = [];
@@ -56,7 +61,7 @@ public static class FunctionVisitor
                 if (access.Length > 1)
                 {
                     // replace with field access expression
-                    AnySchemeType? type = exp.SchemaType;
+                    AnySchemaType? type = exp.SchemaType;
                     if (type is ArrayType arrayType)
                         type = arrayType.ElementSchemaType;
 
@@ -109,7 +114,7 @@ public static class FunctionVisitor
             }
 
             // Validate the argument type
-            AnySchemeType? argTypeNode = arg.SchemaType ?? await context.GetSchemaTypeAsync(arg.Type);
+            AnySchemaType? argTypeNode = arg.SchemaType ?? await context.GetSchemaTypeAsync(arg.Type);
             if (argTypeNode is not { IsValueType: true })
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
@@ -119,7 +124,8 @@ public static class FunctionVisitor
             arg.Type = argTypeNode.Name; // adjust name
 
             // Create argument expression
-            expMaps[arg.Name] = new VariableExpression(arg.Name, new ArgumentExpression(i, argTypeNode));
+            argExps[i] = new ArgumentExpression(arg.Name, i, argTypeNode);
+            expMaps[arg.Name] = new VariableExpression(arg.Name, argExps[i]);
         }
 
         // Process exps
@@ -147,12 +153,12 @@ public static class FunctionVisitor
             exp.FuncNode = funcType;
 
             // Generic types
-            AnySchemeType?[] genericTypes = funcType.Generic.ToArray();
+            AnySchemaType?[] genericTypes = funcType.Generic.ToArray();
 
             // Sets generic type
             var exp1 = exp;
 
-            AnySchemeType? ParseGenericType(AnySchemeType? origin, AnySchemeType? genType = null, bool isReturn = false)
+            AnySchemaType? ParseGenericType(AnySchemaType? origin, AnySchemaType? genType = null, bool isReturn = false)
             {
                 if (origin is not GenericTypeNode generic)
                 {
@@ -182,8 +188,8 @@ public static class FunctionVisitor
             }
 
             // Match types
-            AnySchemeType funcRetType = exp.SchemaType;
-            AnySchemeType? arrayEleType = null;
+            AnySchemaType funcRetType = exp.SchemaType;
+            AnySchemaType? arrayEleType = null;
             bool isCollectionExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
             int arrayIndex = -1;
 
@@ -280,7 +286,7 @@ public static class FunctionVisitor
                 }
                 
                 // Params type check
-                AnySchemeType? argType = argDef.SchemaType;
+                AnySchemaType? argType = argDef.SchemaType;
                 if (argDef.Params == true && argType is ArrayType arrayType)
                     argType = arrayType.ElementSchemaType;
                 
@@ -432,7 +438,7 @@ public static class FunctionVisitor
         {
             if (returnType is StructType { Fields: {  Length: > 0 } } @struct)
             {
-                List<SchemaExpression> fields = [];
+                List<StructFieldExpression> fields = [];
                 foreach (var f in @struct.Fields.Where(f => !(f.DisplayOnly ?? false)))
                 {
                     if (GetExpression(f.Name, out SchemaExpression? fieldExp))
@@ -442,7 +448,7 @@ public static class FunctionVisitor
                             func.Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
                         }
-                        fields.Add(fieldExp as VariableExpression ?? new VariableExpression(f.Name, fieldExp));
+                        fields.Add(new StructFieldExpression(f.Name, fieldExp));
                     }
                     else if (f.Require ?? false)
                     {
@@ -473,7 +479,7 @@ public static class FunctionVisitor
             VariableExpression v => accessCount.TryGetValue(v.Name, out int vc) && vc == 1 ? expMaps[v.Name].Value : expMaps[v.Name],
             
             // Inline field access expression
-            FieldAccessExpression f => new FieldAccessExpression(Inline(f.Owner), f.FieldName, f.SchemeType),
+            FieldAccessExpression f => new FieldAccessExpression(Inline(f.Owner), f.FieldName, f.SchemaType),
             
             // Inline iterator expression
             IteratorExpression i => new IteratorExpression(Inline(i.Array)),
@@ -516,7 +522,8 @@ public static class FunctionVisitor
                 // Struct result expression
                 case StructResultExpression resultExp:
                 {
-                    varExp = new VariableExpression(t.Name, new StructResultExpression(resultExp.Fields.Select(Inline).ToArray(), resultExp.SchemaType));
+                    varExp = new VariableExpression(t.Name, new StructResultExpression(resultExp.Fields.Select(f 
+                        => new StructFieldExpression(f.Name, Inline(f.Expression))).ToArray(), resultExp.SchemaType));
                     break;
                 }
             }
@@ -526,11 +533,24 @@ public static class FunctionVisitor
                 final.Add(varExp);
         }
 
-        // Done
-        return final;
-        
         #endregion
+
+        // Done
+        cache = new FunctionTypeSchema(argExps, final.ToArray());
+        func.SetRuntimeFuncCache(cache);
+        return cache;
     }
+    
+    /// <summary>
+    /// Visit schema expression with all visitors
+    /// </summary>
+    public static SchemaExpression VisitSchemaExpression(this SchemaContext context, SchemaExpression exp)
+    {
+        // Apply visitors
+        return context.GetServices<IExpressionVisitor>().OrderByDescending(p => p.Priority)
+            .Aggregate(exp, (current, visitor) => visitor.VisitExpression(context, current) ?? current);
+    }
+    
     #region Utility
 
     private const string StructResultExpName = "_structResult";
@@ -538,6 +558,10 @@ public static class FunctionVisitor
     #endregion
 }
 
+/// <summary>
+/// The function visit result schema
+/// </summary>
+public record FunctionTypeSchema(ArgumentExpression[] Args, VariableExpression[] Exps);
 
 /// <summary>
 /// The function visit exception

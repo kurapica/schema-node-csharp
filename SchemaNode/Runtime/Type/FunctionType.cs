@@ -25,7 +25,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public class FunctionType: AnySchemeType
+public class FunctionType: AnySchemaType
 {
     #region Data
     
@@ -48,7 +48,7 @@ public class FunctionType: AnySchemeType
     /// The basic type of generic types, provided to T(single generic type),
     /// T1, T2(for multi generic type)
     /// </summary>
-    public AnySchemeType?[] Generic { get; protected set; } = [];
+    public AnySchemaType?[] Generic { get; protected set; } = [];
 
     /// <summary>
     /// Call server if server provided
@@ -92,6 +92,11 @@ public class FunctionType: AnySchemeType
     /// </summary>
     internal SchemaFuncInfo? FuncInfo { get; set; }
     
+    /// <summary>
+    /// The runtime cache
+    /// </summary>
+    private readonly ConcurrentDictionary<Type, object> _runtimeFuncCache = new();
+    
     #endregion
     
     #region Ref
@@ -99,7 +104,7 @@ public class FunctionType: AnySchemeType
     /// <summary>
     /// The return type node
     /// </summary>
-    public AnySchemeType? ReturnNode { get; internal set; }
+    public AnySchemaType? ReturnNode { get; internal set; }
 
     /// <summary>
     /// The root expression trees
@@ -119,7 +124,7 @@ public class FunctionType: AnySchemeType
         Return = func?.Return ?? string.Empty;
         Args = func?.Args.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
         Exps = func?.Exps.Select(e => (FunctionNodeExpression)e).ToArray() ?? [];
-        Generic = func?.Generic != null ? new AnySchemeType?[func.Generic.Length] : [];
+        Generic = func?.Generic != null ? new AnySchemaType?[func.Generic.Length] : [];
         Server = func?.Server;
         Nocache = func?.Nocache;
 
@@ -221,13 +226,13 @@ public class FunctionType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemeType other) => false;
+    public override bool CanBeUseAs(AnySchemaType other) => false;
 
     /// <inheritdoc />
     public override ArrayType? GetArrayType(bool exactly = false) => null;
 
     /// <inheritdoc />
-    public override IEnumerable<AnySchemeType> GetDependNodes()
+    public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (ReturnNode != null && ReturnNode is not GenericTypeNode)
             yield return ReturnNode;
@@ -257,6 +262,35 @@ public class FunctionType: AnySchemeType
         }
     }
 
+    /// <summary>
+    /// Sets the runtime function cache
+    /// </summary>
+    public void SetRuntimeFuncCache<T>(T value) => _runtimeFuncCache[typeof(T)] = value!;
+    
+    /// <summary>
+    /// Gets or add the runtime function cache
+    /// </summary>
+    public T GetOrAddRuntimeFuncCache<T>(Func<T> factory) => (T)_runtimeFuncCache.GetOrAdd(typeof(T), _ => factory()!);
+    
+    /// <summary>
+    /// Gets or add the runtime function cache
+    /// </summary>
+    public T GetOrAddRuntimeFuncCache<T>() where T : new() => (T)_runtimeFuncCache.GetOrAdd(typeof(T), _ => new T());
+    
+    /// <summary>
+    /// Try get the runtime function cache
+    /// </summary>
+    public bool TryGetRuntimeFuncCache<T>(out T? value)
+    {
+        if (_runtimeFuncCache.TryGetValue(typeof(T), out object? obj) && obj is T val)
+        {
+            value = val;
+            return true;
+        }
+        value = default;
+        return false;
+    }
+    
     /// <summary>
     /// Pre-compile the function expression trees
     /// </summary>
@@ -361,7 +395,7 @@ public class FunctionType: AnySchemeType
             }
             else
             {
-                AnySchemeType? node = await context.GetSchemaTypeAsync(arg.Type);
+                AnySchemaType? node = await context.GetSchemaTypeAsync(arg.Type);
                 if (node is not { IsValueType: true })
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
@@ -392,7 +426,7 @@ public class FunctionType: AnySchemeType
             #region input & output check
 
             int arrayArg = -1; // the array argument index
-            AnySchemeType? arrayRequireEle = null;
+            AnySchemaType? arrayRequireEle = null;
             bool isMapReduce = exp.Type != ExpressionType.Call;
 
             // reset
@@ -465,7 +499,7 @@ public class FunctionType: AnySchemeType
             }
 
             // Gets the function info of the function node, only need static method info for generic types
-            AnySchemeType?[] genericTypes = funcNode.Generic.ToArray();
+            AnySchemaType?[] genericTypes = funcNode.Generic.ToArray();
             
             // Gets the return type
             if (string.IsNullOrWhiteSpace(exp.Return))
@@ -476,7 +510,7 @@ public class FunctionType: AnySchemeType
             }
             else
             {
-                AnySchemeType? node = await context.GetSchemaTypeAsync(exp.Return);
+                AnySchemaType? node = await context.GetSchemaTypeAsync(exp.Return);
                 if (node is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
@@ -577,19 +611,19 @@ public class FunctionType: AnySchemeType
                     if (string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
-                    AnySchemeType? funcArgType = funcArg.SchemaType;
+                    AnySchemaType? funcArgType = funcArg.SchemaType;
                     if (funcArgType is GenericTypeNode gn) funcArgType = genericTypes[gn.GenericIndex - 1];
                     
                     // Gets the arg/exp
                     string[] access = callArg.Name.Split('.', StringSplitOptions.RemoveEmptyEntries);
                     if (treeMap.TryGetValue(access[0], out FunctionNodeExpTree? value))
                     {
-                        AnySchemeType? argTypeNode;
+                        AnySchemaType? argTypeNode;
                         
                         // Convert the field access
                         if (access.Length > 1)
                         {
-                            AnySchemeType? type = value.SchemaType;
+                            AnySchemaType? type = value.SchemaType;
                             bool isArrayAccess = type is ArrayType;
                             if (isArrayAccess)
                                 type = (type as ArrayType)!.ElementSchemaType;
@@ -627,7 +661,7 @@ public class FunctionType: AnySchemeType
                                     argTypeNode = genericTypes[generic.GenericIndex - 1];
                                     if (argTypeNode == null && !string.IsNullOrEmpty(callArg.Type))
                                     {
-                                        AnySchemeType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
+                                        AnySchemaType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
                                         if (givenType != null)
                                         {
                                             genericTypes[generic.GenericIndex - 1] = givenType;
@@ -703,14 +737,14 @@ public class FunctionType: AnySchemeType
                     if (!string.IsNullOrWhiteSpace(callArg.Name)) continue;
 
                     FunctionNodeArgument funcArg = funcNode.Args.ElementAtOrDefault(i) ?? funcNode.Args.Last();
-                    AnySchemeType? funcArgType = funcArg.SchemaType;
+                    AnySchemaType? funcArgType = funcArg.SchemaType;
                     if (funcArgType is GenericTypeNode g)
                         funcArgType = genericTypes[g.GenericIndex - 1];
                     
                     // check given type
                     if (funcArgType == null && !string.IsNullOrEmpty(callArg.Type))
                     {
-                        AnySchemeType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
+                        AnySchemaType? givenType = await context.GetSchemaTypeAsync(callArg.Type);
                         if (givenType != null)
                         {
                             if (funcArg.SchemaType is GenericTypeNode generic)
@@ -1081,9 +1115,10 @@ public class FunctionType: AnySchemeType
     {
         if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
 
+        _runtimeFuncCache.Clear();
         FuncInfo = null;
         if (UsedBy == null || UsedBy.IsEmpty) return;
-        foreach ((AnySchemeType other, _) in UsedBy)
+        foreach ((AnySchemaType other, _) in UsedBy)
         {
             if (other is FunctionType func)
                 func.ClearFunctionInfo();
@@ -2026,8 +2061,8 @@ public class FunctionType: AnySchemeType
         if (ctype.IsAssignableTo(typeof(AnySchemaNode)))
         {
             string schema = exp.Type.GetSchemaType(true) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
-            AnySchemeType schemaType = context.GetSchemaTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
-            MethodInfo method = typeof(AnySchemeType).GetMethod(nameof(CreateNode))!;
+            AnySchemaType schemaType = context.GetSchemaTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
+            MethodInfo method = typeof(AnySchemaType).GetMethod(nameof(CreateNode))!;
             return Expression.Convert(Expression.Call(Expression.Constant(schemaType), method, notNullExp), ctype);
         }
 
@@ -2407,7 +2442,7 @@ public class FunctionType: AnySchemeType
     protected void ResizeGeneric(int count)
     {
         if (Generic.Length >= count) return;
-        AnySchemeType?[] generic = new AnySchemeType?[count];
+        AnySchemaType?[] generic = new AnySchemaType?[count];
         for(int i = 0; i < Math.Min(count, Generic.Length); i++)
             generic[i] = Generic[i];
         Generic = generic;
@@ -2483,7 +2518,7 @@ public abstract class FunctionNodeExpTree
     /// <summary>
     /// The type node
     /// </summary>
-    public AnySchemeType? SchemaType { get; set; }
+    public AnySchemaType? SchemaType { get; set; }
 
     /// <summary>
     /// The used by count, could be used to improve the dynamic complier
@@ -2821,12 +2856,12 @@ internal class SchemaFuncInfo
 }
 
 
-public class GenericTypeNode: AnySchemeType
+public class GenericTypeNode: AnySchemaType
 {
     /// <summary>
     /// Possible base type
     /// </summary>
-    public AnySchemeType? BaseNode { get; set; }
+    public AnySchemaType? BaseNode { get; set; }
 
     /// <summary>
     /// The index in generic array

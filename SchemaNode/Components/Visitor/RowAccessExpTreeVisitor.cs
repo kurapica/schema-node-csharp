@@ -217,7 +217,7 @@ public static class RowAccessExpTreeVisitor
         {
             AnySchemaNode? res = await context.CallFunctionAsync(exp.FuncNode!,
                 leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray());
-            result = new ValueAccessExpNode(res?.SchemeType ?? exp.FuncNode!.ReturnNode, res);
+            result = new ValueAccessExpNode(res?.SchemaType ?? exp.FuncNode!.ReturnNode, res);
             expMap.Add(exp, result);
             return result;
         }
@@ -832,11 +832,11 @@ public record UnaryAccessExpNode(UnaryAccessExpType Type, AccessExpNode Operand)
 /// <summary>
 /// The value expression node
 /// </summary>
-public record ValueAccessExpNode(AnySchemeType? Type, AnySchemaNode? Value) : AccessExpNode;
+public record ValueAccessExpNode(AnySchemaType? Type, AnySchemaNode? Value) : AccessExpNode;
 
 /// <summary>
 /// The argument node
 /// </summary>
-public record ArgNode(AnySchemeType Type, int Index) : AccessExpNode;
+public record ArgNode(AnySchemaType Type, int Index) : AccessExpNode;
 
 #endregion

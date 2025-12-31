@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory enum schema representation
 /// </summary>
-public class EnumType: AnySchemeType
+public class EnumType: AnySchemaType
 {
     // ReSharper disable once InconsistentNaming
     private const int MAX_SUBLIST_LEVEL = 3;
@@ -268,7 +268,7 @@ public class EnumType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemeType other) => 
+    public override bool CanBeUseAs(AnySchemaType other) => 
         base.CanBeUseAs(other) 
         || other switch
         {

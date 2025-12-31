@@ -10,8 +10,8 @@ namespace SchemaNode.Runtime;
 /// </summary>
 /// <param name="Owner">The field owner</param>
 /// <param name="FieldName">The field name</param>
-/// <param name="SchemeType">The schema type</param>
-public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+/// <param name="SchemaType">The schema type</param>
+public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The constant expression visitor
@@ -36,7 +36,7 @@ public class FieldAccessExpressionVisitor : IExpressionVisitor
                     string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                return new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemeType);
+                return new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemaType);
             }
             
             // a[b] ?? defaultValue
@@ -50,7 +50,7 @@ public class FieldAccessExpressionVisitor : IExpressionVisitor
                     !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                return new DefaultExpression(new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemeType), defaultValueExp.Value);
+                return new DefaultExpression(new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemaType), defaultValueExp.Value);
             }
         }
 

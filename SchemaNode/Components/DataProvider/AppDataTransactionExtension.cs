@@ -955,7 +955,7 @@ public static class AppDataTransactionExtension
 
                     // Gets the value fields
                     List<string> valueFields = new();
-                    Dictionary<string, AnySchemeType> primaryNodes = new();
+                    Dictionary<string, AnySchemaType> primaryNodes = new();
                     foreach (StructFieldConfig fieldType in structNode.Fields)
                     {
                         if (!array.Primary.Contains(fieldType.Name))

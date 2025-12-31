@@ -30,7 +30,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(t);
+            AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(t);
             if (node == null) continue;
             
             // authorize
@@ -41,7 +41,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
 
             if (node is TypeNamespace ns)
             {
-                foreach (KeyValuePair<string, AnySchemeType> pair in ns.SchemaNodes)
+                foreach (KeyValuePair<string, AnySchemaType> pair in ns.SchemaNodes)
                 {
                     await pair.Value.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
                 }   

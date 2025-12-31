@@ -275,7 +275,7 @@ public static class BatchQueryExtension
                         var @struct = result switch
                         {
                             ArrayTypeNode arr => arr.ElementType as StructType,
-                            StructTypeNode st => st.SchemeType as StructType,
+                            StructTypeNode st => st.SchemaType as StructType,
                             _ => null
                         };
                         if (@struct != null)
@@ -364,7 +364,7 @@ public static class BatchQueryExtension
         return (results.ToArray(), root.Schemas);
     }
 
-    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemeType type, HashSet<string> enumsKeys, AnySchemaNode? value)
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaType type, HashSet<string> enumsKeys, AnySchemaNode? value)
     {
         switch (type)
         {

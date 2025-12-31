@@ -218,7 +218,7 @@ public static class SchemaProviderExtension
             for (int i = 0; i < Math.Min(funcInfo.Generics.Length, generic.Length); i++)
             {
                 if (string.IsNullOrEmpty(generic[i])) continue;
-                AnySchemeType? ns = await context.GetSchemaTypeAsync(generic[i]);
+                AnySchemaType? ns = await context.GetSchemaTypeAsync(generic[i]);
                 if (ns is { IsValueType: true }) generics[i] = ns.ToCSharpType();
             }
         }
@@ -375,7 +375,7 @@ public static class SchemaProviderExtension
     /// <returns>The result</returns>
     public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null, string? target = null)
     {
-        AnySchemeType? node = await context.GetSchemaTypeAsync(name);
+        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
         if (node is not FunctionType funcNode) throw new Exception($"Function {name} not found");
         return await CallFunctionAsync(context, funcNode, args, generic, target);
     }
@@ -471,7 +471,7 @@ public static class SchemaProviderExtension
             callArgs = callArgs.Prepend(context).ToArray();
 
         // Gets the return type
-        AnySchemeType? retType;
+        AnySchemaType? retType;
         if (funcInfo.Return.Generic != null)
         {
             int gIdx = Array.FindIndex(funcInfo.Generics, g => g.Generic == funcInfo.Return.Generic);
@@ -556,7 +556,7 @@ public static class SchemaProviderExtension
     /// </summary>
     public static async Task<AnySchemaNode?> CallFunctionAsync(this SchemaContext context, string name, AnySchemaNode[] args, string? target = null)
     {
-        AnySchemeType? node = await context.GetSchemaTypeAsync(name);
+        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
         if (node is not FunctionType funcNode) throw new Exception($"Function {name} not found");
         return await CallFunctionAsync(context, funcNode, args, target);
     }

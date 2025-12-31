@@ -11,17 +11,22 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The data source
 /// </summary>
-public record DataSource(string App, string Field, SchemaExpression? Target, AnySchemeType SchemeType);
+public record DataSource(string App, string Field, SchemaExpression? Target, AnySchemaType SchemaType);
 
 /// <summary>
 /// The data source expression
 /// </summary>
-public record DataSourceExpression(DataSource Source) : SchemaExpression(Source.SchemeType);
+public record DataSourceExpression(DataSource Source) : SchemaExpression(Source.SchemaType);
+
+/// <summary>
+/// A ref expression for data source struct type
+/// </summary>
+public record DataSourceRefExpression(string App, string Field, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The filter data source expression
 /// </summary>
-public record WhereDataSourceExpression(DataSourceExpression Previous, SchemaExpression FilterExp) : DataSourceExpression(Previous.Source);
+public record WhereDataSourceExpression(DataSourceExpression Previous, LogicExpression Filter) : DataSourceExpression(Previous.Source);
 
 /// <summary>
 /// The order by data source expression
@@ -41,7 +46,17 @@ public record SkipDataSourceExpression(DataSourceExpression Previous, SchemaExpr
 /// <summary>
 /// The count data source expression
 /// </summary>
-public record CountDataSourceExpression(DataSourceExpression Source, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+public record CountDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+
+/// <summary>
+/// Exists data source expression
+/// </summary>
+public record ExistsDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+
+/// <summary>
+/// No exists data source expression
+/// </summary>
+public record NoExistsDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The first data source expression
@@ -56,7 +71,7 @@ public record LastDataSourceExpression(DataSourceExpression Source) : SchemaExpr
 /// <summary>
 /// The field access data source expression
 /// </summary>
-public record FieldsDataSourceExpression(DataSourceExpression Source, string FieldName, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+public record FieldsDataSourceExpression(DataSourceExpression Source, string FieldName, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The data source visitor
@@ -183,25 +198,43 @@ public class DataSourceVisitor : IExpressionVisitor
                 return null;
         }
         
-        // Filter
+        // All other calls must have iterator
+        if (iter == null) return null;
+        sourceExp = iter.Array as DataSourceExpression ?? (iter.Array as FieldAccessExpression)?.Owner as DataSourceExpression;
         
+        // Filter - only support system define functions
+        DataSourceRefExpression refExp = new DataSourceRefExpression(sourceExp!.Source.App, sourceExp.Source.Field, (sourceExp.SchemaType as ArrayType)!.ElementSchemaType!);
+        SchemaExpression[] refArgs = callExp.Args.Select(a => a == iter
+            ? (iter.Array is FieldAccessExpression fldAccess
+                ? new FieldAccessExpression(refExp, fldAccess.FieldName, fldAccess.SchemaType)
+                : refExp)
+            : a).ToArray();
+        
+        // Must be boolean return type
+        SchemaExpression filterExp = new FuncCallExpression(callExp.Function, refArgs, context.GetSchemaTypeAsync(NS_SYSTEM_BOOL).GetAwaiter().GetResult()!);
+        filterExp = context.VisitSchemaExpression(filterExp);
+        
+        // Must be logic expression
+        if (filterExp is not LogicExpression logicExp) 
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
+        // Generate filter result
+        WhereDataSourceExpression filterResult = sourceExp is WhereDataSourceExpression whereSource
+            ? new WhereDataSourceExpression(whereSource.Previous, new BinaryLogicExpression(LogicExpType.AndAlso, whereSource.Filter, logicExp, logicExp.SchemaType))
+            : new WhereDataSourceExpression(sourceExp, logicExp);
 
-        switch (callExp.ExpType)
+        // Handle other expression types
+        return callExp.ExpType switch
         {
-            case ExpressionType.First:
-            case ExpressionType.Last:
-            case ExpressionType.Filter:
-            case ExpressionType.Count:
-            case ExpressionType.Any:
-            case ExpressionType.All:
-            {
-                break;
-            }
-        }
-        
+            ExpressionType.First => new FirstDataSourceExpression(filterResult),
+            ExpressionType.Last => new LastDataSourceExpression(filterResult),
+            ExpressionType.Filter => filterResult,
+            ExpressionType.Count => new CountDataSourceExpression(filterResult,context.GetSchemaTypeAsync(NS_SYSTEM_INT).GetAwaiter().GetResult()!),
+            ExpressionType.Any => new ExistsDataSourceExpression(filterResult, context.GetSchemaTypeAsync(NS_SYSTEM_BOOL).GetAwaiter().GetResult()!),
+            ExpressionType.All => new NoExistsDataSourceExpression(filterResult,context.GetSchemaTypeAsync(NS_SYSTEM_BOOL).GetAwaiter().GetResult()!),
+            _ => null
+        };
+
         #endregion
-        
-        return null;
     }
 }

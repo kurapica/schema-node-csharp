@@ -3,7 +3,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The generic type do nothing
 /// </summary>
-public class GenericType: AnySchemeType
+public class GenericType: AnySchemaType
 {
     /// <summary>
     /// The singleton instance

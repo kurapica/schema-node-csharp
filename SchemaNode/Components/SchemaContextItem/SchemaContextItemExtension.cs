@@ -22,7 +22,7 @@ public static class SchemaContextItemExtension
         if (!ItemProvider.TryGetValue(paths[0], out (string schemaType, Type providerType) set)) return null;
 
         // Gets the field type
-        AnySchemeType type = context.GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
+        AnySchemaType type = context.GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
 
         // Check context item first
         if (context.TryGetContextItem(set.providerType, out object? setItem))

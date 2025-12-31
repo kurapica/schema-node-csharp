@@ -381,7 +381,7 @@ public static class SystemData
                         AnySchemaNode? orgFld = originStruct.GetField(fld.Name);
                         AnySchemaNode? dataFld = structData.GetField(fld.Name);
 
-                        if (orgFld?.SchemeType is ScalarType { IsNumber: true } && dataFld?.SchemeType is ScalarType { IsNumber: true })
+                        if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
                         {
                             decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                             decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
@@ -416,7 +416,7 @@ public static class SystemData
                                 AnySchemaNode? orgFld = oitem.GetField(fld.Name);
                                 AnySchemaNode? dataFld = ditem.GetField(fld.Name);
 
-                                if (orgFld?.SchemeType is ScalarType { IsNumber: true } && dataFld?.SchemeType is ScalarType { IsNumber: true })
+                                if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
                                 {
                                     decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                                     decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;

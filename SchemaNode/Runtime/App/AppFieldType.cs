@@ -165,7 +165,7 @@ public class AppFieldType
     /// <summary>
     /// The field type node
     /// </summary>
-    public AnySchemeType? SchemaType { get; internal set; }
+    public AnySchemaType? SchemaType { get; internal set; }
 
     /// <summary>
     /// The field function node
@@ -323,7 +323,7 @@ public class AppFieldType
     public DynamicTableSchema GenDynamicTableSchema()
     {
         // Generate the fields
-        AnySchemeType node = SchemaType!;
+        AnySchemaType node = SchemaType!;
         List<DynamicTableField> fields = [];
         DataIndex[]? indexes = null;
         bool single = true;
@@ -485,7 +485,7 @@ public class AppFieldType
     }
 
     // Get scalar type mapping info
-    static DataTypeInfo GetDataTypeInfo(AnySchemeType node, StructFieldConfig? field = null)
+    static DataTypeInfo GetDataTypeInfo(AnySchemaType node, StructFieldConfig? field = null)
     {
         if (node is ScalarType scalar)
         {
@@ -677,7 +677,7 @@ internal struct FieldDataPushArg
     /// <summary>
     /// The value type
     /// </summary>
-    public AnySchemeType Type { get; set; }
+    public AnySchemaType Type { get; set; }
 
     /// <summary>
     /// Whether is full data

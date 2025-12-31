@@ -6,7 +6,7 @@ using SchemaNode.Schema;
 
 namespace SchemaNode.Runtime;
 
-public class JsonType: AnySchemeType
+public class JsonType: AnySchemaType
 {
     #region State
     

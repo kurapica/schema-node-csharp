@@ -162,5 +162,5 @@ public class FuncCallArg {
     /// </summary>
     [NotMapped]
     [JsonIgnore]
-    public AnySchemeType? SchemeType { get; set; }
+    public AnySchemaType? SchemeType { get; set; }
 }

@@ -14,7 +14,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory event schema representation
 /// </summary>
-public class EventType: AnySchemeType
+public class EventType: AnySchemaType
 {
     #region Data
     

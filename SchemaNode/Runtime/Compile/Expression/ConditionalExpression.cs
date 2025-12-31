@@ -12,7 +12,7 @@ namespace SchemaNode.Runtime;
 /// <param name="Condition">The condition</param>
 /// <param name="TrueExp">The true value</param>
 /// <param name="FalseExp">The false value</param>
-public record ConditionalExpression(SchemaExpression Condition, SchemaExpression TrueExp, SchemaExpression FalseExp, AnySchemeType SchemeType) : SchemaExpression(SchemeType);
+public record ConditionalExpression(SchemaExpression Condition, SchemaExpression TrueExp, SchemaExpression FalseExp, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 public class ConditionalVisitor : IExpressionVisitor
 {

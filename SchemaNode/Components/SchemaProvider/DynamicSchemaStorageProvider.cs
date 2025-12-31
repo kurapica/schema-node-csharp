@@ -204,7 +204,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
         
         try
         {
-            AnySchemeType? delNode = await context.GetSchemaTypeAsync(schema);
+            AnySchemaType? delNode = await context.GetSchemaTypeAsync(schema);
             if (delNode == null) return false;
             NodeSchema nodeSchema = delNode!;
 

@@ -8,8 +8,8 @@ namespace SchemaNode.Node;
 
 public abstract class AnySchemaNode
 {
-    internal AnySchemaNode(AnySchemeType type, object? value = null) {
-        SchemeType = type;
+    internal AnySchemaNode(AnySchemaType type, object? value = null) {
+        SchemaType = type;
         CsharpType = type.ToCSharpType();
 
         if (value != null) Value = value;
@@ -18,7 +18,7 @@ public abstract class AnySchemaNode
     /// <summary>
     /// The schema type representation
     /// </summary>
-    public AnySchemeType SchemeType { get; internal set; }
+    public AnySchemaType SchemaType { get; internal set; }
 
     /// <summary>
     /// The c# type representation
@@ -63,7 +63,7 @@ public abstract class AnySchemaNode
         {
             if (value is AnySchemaNode node)
             {
-                _value = node.SchemeType.CanBeUseAs(SchemeType) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
+                _value = node.SchemaType.CanBeUseAs(SchemaType) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
             }
             else
             {

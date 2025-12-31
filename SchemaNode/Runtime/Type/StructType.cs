@@ -19,7 +19,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public class StructType: AnySchemeType
+public class StructType: AnySchemaType
 {
     #region Data
     
@@ -81,7 +81,7 @@ public class StructType: AnySchemeType
         // Ref
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemeType? baseNode = await context.GetSchemaTypeAsync(Base, preload: preload);
+            AnySchemaType? baseNode = await context.GetSchemaTypeAsync(Base, preload: preload);
             if (baseNode is not StructType node)
                 Status = SchemaNodeStatus.StructWrongBase;
             else
@@ -94,7 +94,7 @@ public class StructType: AnySchemeType
         // Load Fields
         foreach (StructFieldConfig field in Fields)
         {
-            AnySchemeType? schemaType = await context.GetSchemaTypeAsync(field.Type, preload: preload);
+            AnySchemaType? schemaType = await context.GetSchemaTypeAsync(field.Type, preload: preload);
             if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
             {
                 field.Status = SchemaNodeStatus.StructMemberWrongType;
@@ -112,7 +112,7 @@ public class StructType: AnySchemeType
         {
             foreach (StructFieldRelation relation in Relations)
             {
-                AnySchemeType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
+                AnySchemaType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (funcNode is not FunctionType node)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
@@ -147,11 +147,11 @@ public class StructType: AnySchemeType
         }
         
         // Gets relative struct types
-        List<AnySchemeType> relTypes = [this];
+        List<AnySchemaType> relTypes = [this];
         
         if (UsedBy is { Count: > 0 })
             relTypes.AddRange(UsedBy.Keys.Where(p => p.Type == SchemaType.Struct));
-        foreach (AnySchemeType node in relTypes.ToList().Where(node => node.UsedBy is { Count: > 0 }))
+        foreach (AnySchemaType node in relTypes.ToList().Where(node => node.UsedBy is { Count: > 0 }))
             relTypes.AddRange(node.UsedBy!.Keys.Where(p => p.Type == SchemaType.Array));
 
         // Gets the relative field type
@@ -198,7 +198,7 @@ public class StructType: AnySchemeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemeType other)
+    public override bool CanBeUseAs(AnySchemaType other)
     {
         if (base.CanBeUseAs(other) || Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT)) return true;
         if (other is not StructType @struct) return false;
@@ -213,7 +213,7 @@ public class StructType: AnySchemeType
                });
     }
 
-    public override IEnumerable<AnySchemeType> GetDependNodes()
+    public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (BaseNode != null) yield return BaseNode;
         foreach (StructFieldConfig field in Fields)
@@ -442,7 +442,7 @@ public class StructType: AnySchemeType
                 StructFieldConfig copy = f.ToJsonNode()!.FromJson<StructFieldConfig>()!;
                 int index = Array.IndexOf(generics, f.Type);
                 copy.Type = types[index];
-                AnySchemeType? schemaType = await context.GetSchemaTypeAsync(copy.Type);
+                AnySchemaType? schemaType = await context.GetSchemaTypeAsync(copy.Type);
                 if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func)
                 {
                     return null;

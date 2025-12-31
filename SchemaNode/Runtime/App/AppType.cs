@@ -147,7 +147,7 @@ public class AppType
                 field.Status = null;
 
                 // valid the type
-                AnySchemeType? node = await context.GetSchemaTypeAsync(field.Type);
+                AnySchemaType? node = await context.GetSchemaTypeAsync(field.Type);
                 if (node == null)
                     field.Status = SchemaNodeStatus.ApplicationFieldWrongType;
                 else
@@ -163,7 +163,7 @@ public class AppType
                 // valid the push function
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
-                    AnySchemeType? node = await context.GetSchemaTypeAsync(field.Func);
+                    AnySchemaType? node = await context.GetSchemaTypeAsync(field.Func);
                     if (node is FunctionType funcNode)
                     {
                         field.FuncNode = funcNode;
@@ -332,7 +332,7 @@ public class AppType
                     }
                     else
                     {
-                        AnySchemeType? relationFunc = await context.GetSchemaTypeAsync(relation.Func);
+                        AnySchemaType? relationFunc = await context.GetSchemaTypeAsync(relation.Func);
                         if (relationFunc is FunctionType funcNode)
                         {
                             funcNode.AddRef(field);
@@ -369,7 +369,7 @@ public class AppType
         {
             foreach (var item in Auths)
             {
-                AnySchemeType? node = !string.IsNullOrEmpty(item.Evaluator)
+                AnySchemaType? node = !string.IsNullOrEmpty(item.Evaluator)
                     ? await context.GetSchemaTypeAsync(item.Evaluator)
                     : null;
                 if (node is FunctionType funcNode)
