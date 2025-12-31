@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using System.Data;
+using System.Linq.Expressions;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
@@ -94,4 +95,5 @@ public record StructResultExpression(StructFieldExpression[] Fields, AnySchemaTy
 /// <param name="Args">An array of expressions representing the arguments to pass to the function. The order of expressions corresponds to
 /// the function's parameter order.</param>
 /// <param name="SchemaType">The schema type that describes the result of the function call.</param>
+/// <param name="ExpType">The collection expression type</param>
 public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemaType SchemaType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemaType);

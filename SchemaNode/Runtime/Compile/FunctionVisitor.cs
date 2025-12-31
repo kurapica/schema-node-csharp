@@ -188,7 +188,7 @@ public static class FunctionVisitor
             }
 
             // Match types
-            AnySchemaType funcRetType = exp.SchemaType;
+            AnySchemaType funcRetType = exp.SchemaType; // func return type may not match exp return type, require exp type check
             AnySchemaType? arrayEleType = null;
             bool isCollectionExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
             int arrayIndex = -1;
@@ -423,6 +423,13 @@ public static class FunctionVisitor
                         }
                     }
                 }
+            }
+
+            // Valiate collection exp
+            if (isCollectionExp && arrayIndex == -1)
+            {
+                exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
             }
 
             // build function call expression

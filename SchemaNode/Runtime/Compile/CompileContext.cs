@@ -33,7 +33,9 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     
     // the variable parameter expression map
     readonly Dictionary<string, ParameterExpression> _variableExpMap = new ();
-    
+
+    readonly Dictionary<SchemaExpression, Expression> _compiledExpCache = new ();
+
     // the return label
     private LabelTarget? _returnLabel;
     
@@ -132,6 +134,8 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     public Expression CompileSchemaExpression(SchemaExpression exp, Type? expectedType = null)
     {
         expectedType ??= exp.SchemaType.ToCSharpType();
+        if (_compiledExpCache.TryGetValue(exp, out Expression? cachedExp))
+            return ConvertExp(expectedType, cachedExp);
         
         #region Apply visitors
         
@@ -242,50 +246,17 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
 
         // Prepare the call arguments
         Expression[] callArgs = new Expression[funcCallExp.Args.Length + useContext];
-        if (useContext > 0)
-        {
-            callArgs[0] = _contextExp!;
-        }
+        if (useContext > 0) callArgs[0] = _contextExp!;
 
         // Prepare the call arguments
-        ParameterExpression? start = null;
-        Expression? arrayLen = null;
-        int iterIndex = -1;
         for (int i = 0; i < funcCallExp.Args.Length; i++)
         {
             SchemaExpression leaf = funcCallExp.Args[i];
             Type callType = (funcCallExp.Function.Args[i].SchemaType is GenericTypeNode ? funcCallExp.Args[i].SchemaType : funcCallExp.Function.Args[i].SchemaType)
                             ?.ToCSharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
 
-            if (leaf is IteratorExpression iter)
-            {
-                iterIndex = i;
-                start = Expression.Variable(typeof(int), "_start");
-                Expression indexExp = funcCallExp.ExpType == ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start);
-                Expression array = CompileSchemaExpression((iter.Array as FieldAccessExpression)?.Owner ?? iter.Array);
-
-                if (array.Type.IsSZArray)
-                {
-                    // array[start++]
-                    array = Expression.ArrayIndex(array, indexExp);
-                    arrayLen = Expression.ArrayLength(array);
-                }
-                else
-                {
-                    // array.get_item(start++)
-                    array = Expression.MakeIndex(array, array.Type.GetProperty("Item", [typeof(int)])!, [indexExp]);
-                    arrayLen = Expression.Property(array, "Count");
-                }
-
-                // Convert to field access
-                if (iter.Array is FieldAccessExpression fieldAccess)
-                {
-                    MethodInfo getFieldMethod = typeof(SystemCollection).GetMethod(nameof(SystemCollection.getfield))!.MakeGenericMethod(fieldAccess.SchemaType.ToCSharpType());
-                    array = Expression.Call(null, getFieldMethod, array, Expression.Constant(fieldAccess.FieldName, typeof(string)));
-                }
-                callArgs[useContext + i] = array;
-                continue;
-            }
+            if (leaf is IteratorExpression)
+                throw new Exception("IteratorExpression must be used in non-call exp.");
             
             // default
             callArgs[useContext + i] = ConvertExp(callType, CompileSchemaExpression(leaf, callType));
@@ -372,265 +343,6 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
         if (funcCallExp.ExpType == ExpressionType.Call)
             return GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement);
         
-        // Iterator based calls
-        Type callMethodReturn = callMethod.ReturnType;
-        if (callMethodReturn.IsSubclassOfGenericType(typeof(Task<>)))
-            callMethodReturn = callMethodReturn.GetGenericArguments()[0];
-        
-        ParameterExpression stop = Expression.Variable(typeof(int), "_stop");
-        LabelTarget forLabel = Expression.Label(typeof(int));
-
-        // Handle different function call types
-        switch (funcCallExp.ExpType)
-        {
-            case ExpressionType.Map:
-            {
-                ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
-                
-                return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType!), Expression.Constant(null))
-                        : Expression.New(resultExp.Type)),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            resultExp.Type.IsArrayType() 
-                                ? callMethodReturn.IsArrayType()
-                                    ? Expression.Call(resultExp, resultExp.Type.GetMethod("AddRange", [typeof(IEnumerable<>).MakeGenericType(expReturnType)
-                                    ])!, GenMethodCallExp(callFuncInfo, callMethod, callArgs))
-                                    : Expression.Call(resultExp, resultExp.Type.GetMethod("Add")!, GenMethodCallExp(callFuncInfo, callMethod, callArgs))
-                                : callMethodReturn == typeof(ArrayTypeNode)
-                                    ? Expression.Call(resultExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, GenMethodCallExp(callFuncInfo, callMethod, callArgs))
-                                    : Expression.Call(resultExp, typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.Add))!, GenMethodCallExp(callFuncInfo, callMethod, callArgs)),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-
-            case ExpressionType.Filter:
-            {
-                Expression temp = callArgs[iterIndex];
-                ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
-                callArgs[iterIndex] = curr;
-                ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
-
-                return Expression.Block(
-                    [resultExp, start!, stop, curr],
-                    Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType!), Expression.Constant(null))
-                        : Expression.New(resultExp.Type)),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.Assign(curr, temp),
-                                Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, callArgs),
-                                    Expression.Call(resultExp, resultExp.Type.GetMethod("Add")!, curr)
-                                )
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-            
-            case ExpressionType.Reduce:
-            {
-                ParameterExpression resultExp = Expression.Variable(callMethodReturn);
-                int sumIndex = useContext > 0 ? (iterIndex == 1 ? 2 : 1) : (iterIndex == 1 ? 0 : 1);
-
-                // init ??= array.Length > 0 ? array[start++] : default;
-                Expression init = callArgs.Length > sumIndex ? callArgs[sumIndex] : Expression.Condition(
-                    Expression.GreaterThan(arrayLen!, Expression.Constant(0)),
-                    callArgs[iterIndex],
-                    Expression.Default(callMethodReturn)
-                );
-
-                // Replace the sum exp
-                callArgs[sumIndex] = resultExp;
-
-                // Compile
-                return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Assign(resultExp, init),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Assign(resultExp, GenMethodCallExp(callFuncInfo, callMethod, callArgs)),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-
-            case ExpressionType.First:
-            {
-                ParameterExpression resultExp = Expression.Variable(callArgs[iterIndex].Type);
-                
-                // Replace the call args
-                Expression temp = callArgs[iterIndex];
-                callArgs[iterIndex] = resultExp;
-
-                // New init parameter
-                ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
-
-                // Compile
-                return Expression.Block(
-                    [resultExp, start!, stop, init],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Assign(init, Expression.Default(callArgs[iterIndex].Type)),
-                    Expression.Assign(resultExp, init),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.Assign(resultExp, temp),
-                                Expression.IfThenElse(GenMethodCallExp(callFuncInfo, callMethod, callArgs), 
-                                    Expression.Break(forLabel, stop), 
-                                    Expression.Assign(resultExp, init))
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-            case ExpressionType.Last:
-            {
-                ParameterExpression resultExp = Expression.Variable(callArgs[iterIndex].Type);
-                
-                // Replace the call args
-                Expression temp = callArgs[iterIndex];
-                callArgs[iterIndex] = resultExp;
-
-                // New init parameter
-                ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
-
-                // Compile
-                return Expression.Block(
-                    [resultExp, start!, stop, init],
-                    Expression.Assign(stop, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(start!, arrayLen!),
-                    Expression.Assign(init, Expression.Default(callArgs[iterIndex].Type)),
-                    Expression.Assign(resultExp, init),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.GreaterThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.Assign(resultExp, temp),
-                                Expression.IfThenElse(
-                                    GenMethodCallExp(callFuncInfo, callMethod, callArgs), 
-                                    Expression.Break(forLabel, stop),
-                                    Expression.Assign(resultExp, init))
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-
-            case ExpressionType.Count:
-            {
-                ParameterExpression resultExp = Expression.Variable(typeof(int));
-                
-                return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(resultExp, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.IfThen(GenMethodCallExp(callFuncInfo, callMethod, callArgs),
-                                    Expression.PostIncrementAssign(resultExp)
-                                )
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-            case ExpressionType.All:
-            {
-                ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                
-                // Compile
-                return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Assign(resultExp, Expression.Constant(true, typeof(bool))),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.Assign(resultExp, GenMethodCallExp(callFuncInfo, callMethod, callArgs)),
-                                Expression.IfThen(Expression.Not(resultExp), 
-                                    Expression.Break(forLabel, stop))
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-            case ExpressionType.Any:
-            {
-                ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                
-                // Compile
-                return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Assign(resultExp, Expression.Constant(false, typeof(bool))),
-                    Expression.Loop(
-                        Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
-                            Expression.Block(new List<Expression>()
-                            {
-                                Expression.Assign(resultExp, GenMethodCallExp(callFuncInfo, callMethod, callArgs)),
-                                Expression.IfThen(resultExp, 
-                                    Expression.Break(forLabel, stop))
-                            }),
-                            Expression.Break(forLabel, stop)
-                        ),
-                        forLabel
-                    ),
-                    resultExp
-                );
-            }
-        }
-        
-        #endregion
-
         return Expression.Empty();
     }
 
@@ -648,9 +360,26 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     /// Gets the return label
     /// </summary>
     public LabelTarget? GetReturnLabel() => _returnLabel;
-    
+
+    /// <summary>
+    /// Try get compiled expression from cache
+    /// </summary>
+    public Expression? GetCompiledExpression(SchemaExpression exp)
+    {
+        _compiledExpCache.TryGetValue(exp, out Expression? compiledExp);
+        return compiledExp;
+    }
+
+    /// <summary>
+    /// Set compiled expression to cache
+    /// </summary>
+    public void CacheCompiledExpression(SchemaExpression exp, Expression compiledExp)
+    {
+        _compiledExpCache[exp] = compiledExp;
+    }
+
     #region Utility Methods
-    
+
     // Compile the method to delegate
     static Delegate CompileMethod(Type retType, IReadOnlyList<ParameterExpression> paramExps, BlockExpression blockExpr)
     {
@@ -982,7 +711,9 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     static async Task<TR?> CallRemoteFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, generic));
     static async Task<TR?> CallRemoteFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, generic));
     static async Task<TR?> CallRemoteFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, generic));
-    
+
+    #endregion
+
     #endregion
 
     #endregion
