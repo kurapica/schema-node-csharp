@@ -123,7 +123,7 @@ public static class BatchQueryExtension
                             if (filterFunc == null) continue;
 
                             await filterFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
-                            if (filterFunc.ExpTrees.Count == 0) continue;
+                            if (filterFunc.Status != SchemaNodeStatus.Ready) continue;
                             
                             // args check
                             AnySchemaNode[] funcArgs = new AnySchemaNode[filterFunc.Args.Length];

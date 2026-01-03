@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using System.Text.RegularExpressions;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Utility;
 // ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Runtime;
@@ -543,7 +544,7 @@ public static class FunctionVisitor
         #endregion
 
         // Done
-        cache = new FunctionTypeSchema(argExps, final.ToArray());
+        cache = new FunctionTypeSchema(argExps, final.ToArray(), returnType.ToCSharpType());
         func.SetRuntimeFuncCache(cache);
         return cache;
     }
@@ -568,7 +569,7 @@ public static class FunctionVisitor
 /// <summary>
 /// The function visit result schema
 /// </summary>
-public record FunctionTypeSchema(ArgumentExpression[] Args, VariableExpression[] Exps);
+public record FunctionTypeSchema(ArgumentExpression[] Args, VariableExpression[] Exps, Type Return);
 
 /// <summary>
 /// The function visit exception

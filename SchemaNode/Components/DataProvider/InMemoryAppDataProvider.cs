@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices.JavaScript;
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
 
@@ -113,6 +113,10 @@ public class InMemoryAppDataProvider: IAppDataProvider
         throw new NotImplementedException();
     }
 
+    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    {
+        throw new NotImplementedException();
+    }
     public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false)
     {
         await Task.Yield();
@@ -309,6 +313,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
     {
         throw new NotImplementedException();
     }
+
 
     #region Utility
 

@@ -229,6 +229,32 @@ public class DynamicTableSchema
     }
 
     /// <summary>
+    /// Gets the field data pack from the reader by field name
+    /// </summary>
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName)
+    {
+        int offset = 0;
+        StructTypeNode? complexResult = null;
+        foreach (DynamicTableField field in Fields)
+        {
+            if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+            {
+                return field.FromReader(reader, offset);
+            }
+            else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+            {
+                complexResult ??= new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
+                AnySchemaNode? val = field.FromReader(reader, offset);
+                if (val != null)
+                    complexResult.SetField(field.Complex.Field, val);
+            }
+
+            offset++;
+        }
+        return complexResult;
+    }
+
+    /// <summary>
     /// Gets the order by fields
     /// </summary>
     public IEnumerable<(string field, bool desc)> GetOrderBys(bool desc = false, AppSchemaDataOrder[]? orderBy = null)

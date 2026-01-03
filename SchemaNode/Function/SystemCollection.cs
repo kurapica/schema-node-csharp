@@ -285,6 +285,10 @@ public static class SystemCollection
         return res != null && res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Schema]
+    public static bool fieldnotstartswith(StructTypeNode obj, string field, string value)
+        => !fieldstartswith(obj, field, value);
+
     /// <summary>
     /// Field end with
     /// </summary>
@@ -297,6 +301,10 @@ public static class SystemCollection
         return res != null && res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Schema]
+    public static bool fieldnotendswith(StructTypeNode obj, string field, string value)
+        => !fieldendswith(obj, field, value);
+
     /// <summary>
     /// Field match
     /// </summary>
@@ -308,6 +316,10 @@ public static class SystemCollection
         string? res = node.ToValue<string>();
         return res != null && res.Contains(value, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Schema]
+    public static bool fieldnotmatch(StructTypeNode obj, string field, string value)
+        => !fieldmatch(obj, field, value);
 
     /// <summary>
     /// order by the given field

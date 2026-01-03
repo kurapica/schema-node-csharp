@@ -18,6 +18,9 @@ public record LoopArgExpression(AnySchemaType SchemaType) : SchemaExpression(Sch
 /// </summary>
 public record CollectionExpression(Enum.ExpressionType Type, IteratorExpression Iterator, LoopArgExpression Arg, SchemaExpression Loop, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
+/// <summary>
+/// The reduce sum argument expression
+/// </summary>
 public record ReduceSumExpression(SchemaExpression Init, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>

@@ -66,7 +66,7 @@ public static class RowAccessExpTreeVisitor
     }
 
     public static AccessExpNode And(this AccessExpNode left, AccessExpNode? right)
-        => right != null ? new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, left, right) : left;
+        => right != null ? new BinaryAccessExpNode(LogicExpType.AndAlso, left, right) : left;
 
     // Validate the access exp tree
     public static bool IsValid(this AccessExpNode node)
@@ -74,7 +74,7 @@ public static class RowAccessExpTreeVisitor
         switch (node)
         {
             case BinaryAccessExpNode binary:
-                if (binary.Type is BinaryAccessExpType.Contains or BinaryAccessExpType.NotContains)
+                if (binary.Type is LogicExpType.Contains or LogicExpType.NotContains)
                 {
                     return binary.Left is not ValueAccessExpNode valueAccessExp
                            || (valueAccessExp.Value != null && !valueAccessExp.Value.IsEmpty);
@@ -107,16 +107,16 @@ public static class RowAccessExpTreeVisitor
             BinaryAccessExpNode? fieldExp = accessExp.FindFieldAccessOper(key);
 
             // additional filter
-            if (fieldExp is not { Type: BinaryAccessExpType.Equal })
+            if (fieldExp is not { Type: LogicExpType.Equal })
             {
                 accessExp = value switch
                 {
-                    JsonArray arr => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
-                        new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                    JsonArray arr => new BinaryAccessExpNode(LogicExpType.AndAlso, accessExp,
+                        new BinaryAccessExpNode(LogicExpType.Contains,
                             new ValueAccessExpNode(field.SchemeType.GetArrayType(), new ArrayTypeNode(field.SchemeType!, arr)),
                             new FieldAccessAccessExpNode(structAccess, key))),
-                    JsonValue val => new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, accessExp,
-                        new BinaryAccessExpNode(BinaryAccessExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
+                    JsonValue val => new BinaryAccessExpNode(LogicExpType.AndAlso, accessExp,
+                        new BinaryAccessExpNode(LogicExpType.Equal, new FieldAccessAccessExpNode(structAccess, key),
                             new ValueAccessExpNode(field.SchemeType, field.SchemeType!.CreateNode(val)))),
                     _ => accessExp
                 };
@@ -141,7 +141,7 @@ public static class RowAccessExpTreeVisitor
     {
         if (accessExp is BinaryAccessExpNode binaryAccessExp)
         {
-            if (binaryAccessExp.Type == BinaryAccessExpType.AndAlso)
+            if (binaryAccessExp.Type == LogicExpType.AndAlso)
             {
                 JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
                 JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
@@ -162,7 +162,7 @@ public static class RowAccessExpTreeVisitor
                 : binaryAccessExp.Left) as ValueAccessExpNode;
             if (valueAccess == null) return null;
 
-            if (binaryAccessExp.Type is BinaryAccessExpType.Equal or BinaryAccessExpType.Contains)
+            if (binaryAccessExp.Type is LogicExpType.Equal or LogicExpType.Contains)
             {
                 return new JsonObject
                 {
@@ -231,7 +231,7 @@ public static class RowAccessExpTreeVisitor
             // a & b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.andalso)}":
             {
-                result = new BinaryAccessExpNode(BinaryAccessExpType.AndAlso, leafNodes[0], leafNodes[1]);
+                result = new BinaryAccessExpNode(LogicExpType.AndAlso, leafNodes[0], leafNodes[1]);
                 break;
             }
 
@@ -251,18 +251,18 @@ public static class RowAccessExpTreeVisitor
                     throw new NotSupportedException("Can't figure out the between value");
 
                 result = new BinaryAccessExpNode(
-                    BinaryAccessExpType.AndAlso,
+                    LogicExpType.AndAlso,
                     new BinaryAccessExpNode(
                         includeMinNode is ValueAccessExpNode incMin && (incMin.Value?.ToValue<bool>() ?? false)
-                            ? BinaryAccessExpType.GreaterEqual
-                            : BinaryAccessExpType.GreaterThan,
+                            ? LogicExpType.GreaterEqual
+                            : LogicExpType.GreaterThan,
                         valueNode,
                         minNode
                     ),
                     new BinaryAccessExpNode(
                         includeMaxNode is ValueAccessExpNode incMax && (incMax.Value?.ToValue<bool>() ?? false)
-                            ? BinaryAccessExpType.LessEqual
-                            : BinaryAccessExpType.LessThan,
+                            ? LogicExpType.LessEqual
+                            : LogicExpType.LessThan,
                         valueNode,
                         maxNode
                     )
@@ -276,7 +276,7 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 if (right is FieldAccessAccessExpNode) (left, right) = (right, left);
-                result = new BinaryAccessExpNode(BinaryAccessExpType.Equal, left, right);
+                result = new BinaryAccessExpNode(LogicExpType.Equal, left, right);
                 break;
             }
 
@@ -286,8 +286,8 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 result = left is FieldAccessAccessExpNode
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, left, right)
-                    : new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, right, left);
+                    ? new BinaryAccessExpNode(LogicExpType.GreaterEqual, left, right)
+                    : new BinaryAccessExpNode(LogicExpType.LessEqual, right, left);
                 break;
             }
 
@@ -297,8 +297,8 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 result = left is FieldAccessAccessExpNode
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, left, right)
-                    : new BinaryAccessExpNode(BinaryAccessExpType.LessThan, right, left);
+                    ? new BinaryAccessExpNode(LogicExpType.GreaterThan, left, right)
+                    : new BinaryAccessExpNode(LogicExpType.LessThan, right, left);
                 break;
             }
 
@@ -308,8 +308,8 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 result = left is FieldAccessAccessExpNode
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessEqual, left, right)
-                    : new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual, right, left);
+                    ? new BinaryAccessExpNode(LogicExpType.LessEqual, left, right)
+                    : new BinaryAccessExpNode(LogicExpType.GreaterEqual, right, left);
                 break;
             }
 
@@ -319,8 +319,8 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 result = left is FieldAccessAccessExpNode
-                    ? new BinaryAccessExpNode(BinaryAccessExpType.LessThan, left, right)
-                    : new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan, right, left);
+                    ? new BinaryAccessExpNode(LogicExpType.LessThan, left, right)
+                    : new BinaryAccessExpNode(LogicExpType.GreaterThan, right, left);
                 break;
             }
 
@@ -330,14 +330,14 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode left = leafNodes[0];
                 AccessExpNode right = leafNodes[1];
                 if (right is FieldAccessAccessExpNode) (left, right) = (right, left);
-                result = new BinaryAccessExpNode(BinaryAccessExpType.NotEqual, left, right);
+                result = new BinaryAccessExpNode(LogicExpType.NotEqual, left, right);
                 break;
             }
 
             // a | b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.orelse)}":
             {
-                result = new BinaryAccessExpNode(BinaryAccessExpType.OrElse, leafNodes[0], leafNodes[1]);
+                result = new BinaryAccessExpNode(LogicExpType.OrElse, leafNodes[0], leafNodes[1]);
                 break;
             }
 
@@ -351,21 +351,21 @@ public static class RowAccessExpTreeVisitor
 
                 result = binaryNotExp.Type switch
                 {
-                    BinaryAccessExpType.Equal => new BinaryAccessExpNode(BinaryAccessExpType.NotEqual,
+                    LogicExpType.Equal => new BinaryAccessExpNode(LogicExpType.NotEqual,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.NotEqual => new BinaryAccessExpNode(BinaryAccessExpType.Equal,
+                    LogicExpType.NotEqual => new BinaryAccessExpNode(LogicExpType.Equal,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.GreaterThan => new BinaryAccessExpNode(BinaryAccessExpType.LessEqual,
+                    LogicExpType.GreaterThan => new BinaryAccessExpNode(LogicExpType.LessEqual,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.GreaterEqual => new BinaryAccessExpNode(BinaryAccessExpType.LessThan,
+                    LogicExpType.GreaterEqual => new BinaryAccessExpNode(LogicExpType.LessThan,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.LessThan => new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual,
+                    LogicExpType.LessThan => new BinaryAccessExpNode(LogicExpType.GreaterEqual,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.LessEqual => new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan,
+                    LogicExpType.LessEqual => new BinaryAccessExpNode(LogicExpType.GreaterThan,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.Contains => new BinaryAccessExpNode(BinaryAccessExpType.NotContains,
+                    LogicExpType.Contains => new BinaryAccessExpNode(LogicExpType.NotContains,
                         binaryNotExp.Left, binaryNotExp.Right),
-                    BinaryAccessExpType.NotContains => new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                    LogicExpType.NotContains => new BinaryAccessExpNode(LogicExpType.Contains,
                         binaryNotExp.Left, binaryNotExp.Right),
                     _ => throw new NotSupportedException("The system.logic.not expression not supported")
                 };
@@ -379,7 +379,7 @@ public static class RowAccessExpTreeVisitor
                 AccessExpNode rightNode = leafNodes[1];
                 if (leftNode is not ValueAccessExpNode && leftNode is not ArgNode)
                     throw new NotSupportedException($"The list of ${exp.Name} can't be resolved");
-                result = new BinaryAccessExpNode(BinaryAccessExpType.Contains, leftNode, rightNode);
+                result = new BinaryAccessExpNode(LogicExpType.Contains, leftNode, rightNode);
                 break;
             }
 
@@ -413,7 +413,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.Equal,
+                    result = new BinaryAccessExpNode(LogicExpType.Equal,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -435,7 +435,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.NotEqual,
+                    result = new BinaryAccessExpNode(LogicExpType.NotEqual,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -457,7 +457,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.GreaterEqual,
+                    result = new BinaryAccessExpNode(LogicExpType.GreaterEqual,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -479,7 +479,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.GreaterThan,
+                    result = new BinaryAccessExpNode(LogicExpType.GreaterThan,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -501,7 +501,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.LessEqual,
+                    result = new BinaryAccessExpNode(LogicExpType.LessEqual,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -523,7 +523,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && valNode is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.LessThan,
+                    result = new BinaryAccessExpNode(LogicExpType.LessThan,
                         new FieldAccessAccessExpNode(structNode, fieldName), valNode);
                 }
                 else
@@ -539,7 +539,7 @@ public static class RowAccessExpTreeVisitor
             {
                 if (leafNodes[0] is FieldAccessAccessExpNode && leafNodes[1] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.StartsWith, leafNodes[0], leafNodes[1]);
+                    result = new BinaryAccessExpNode(LogicExpType.StartsWith, leafNodes[0], leafNodes[1]);
                 }
                 else
                 {
@@ -554,7 +554,7 @@ public static class RowAccessExpTreeVisitor
             {
                 if (leafNodes[0] is FieldAccessAccessExpNode && leafNodes[1] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.EndsWith, leafNodes[0], leafNodes[1]);
+                    result = new BinaryAccessExpNode(LogicExpType.EndsWith, leafNodes[0], leafNodes[1]);
                 }
                 else
                 {
@@ -569,7 +569,7 @@ public static class RowAccessExpTreeVisitor
             {
                 if (leafNodes[0] is FieldAccessAccessExpNode && leafNodes[1] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.ContainsStr, leafNodes[0], leafNodes[1]);
+                    result = new BinaryAccessExpNode(LogicExpType.Match, leafNodes[0], leafNodes[1]);
                 }
                 else
                 {
@@ -589,7 +589,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && leafNodes[2] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.StartsWith,
+                    result = new BinaryAccessExpNode(LogicExpType.StartsWith,
                         new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
                 }
                 else
@@ -610,7 +610,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && leafNodes[2] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.EndsWith,
+                    result = new BinaryAccessExpNode(LogicExpType.EndsWith,
                         new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
                 }
                 else
@@ -630,7 +630,7 @@ public static class RowAccessExpTreeVisitor
                     && structNode.StructType.Fields.Any(f => f.Name == fieldName)
                     && leafNodes[2] is ValueAccessExpNode or ArgNode)
                 {
-                    result = new BinaryAccessExpNode(BinaryAccessExpType.Contains,
+                    result = new BinaryAccessExpNode(LogicExpType.Contains,
                         new FieldAccessAccessExpNode(structNode, fieldName), leafNodes[2]);
                 }
                 else
@@ -646,7 +646,7 @@ public static class RowAccessExpTreeVisitor
             {
                 if (leafNodes[0] is not FieldAccessAccessExpNode)
                     throw new NotSupportedException("The isNull operand must be a field access");
-                result = new UnaryAccessExpNode(UnaryAccessExpType.IsNull, leafNodes[0]);
+                result = new UnaryAccessExpNode(LogicExpType.IsNull, leafNodes[0]);
                 break;
             }
             
@@ -705,36 +705,36 @@ public static class RowAccessExpTreeVisitor
             case BinaryAccessExpNode binary:
                 switch (binary.Type)
                 {
-                    case BinaryAccessExpType.AndAlso:
-                    case BinaryAccessExpType.OrElse:
-                    case BinaryAccessExpType.Equal:
-                    case BinaryAccessExpType.NotEqual:
-                    case BinaryAccessExpType.GreaterThan:
-                    case BinaryAccessExpType.GreaterEqual:
-                    case BinaryAccessExpType.LessThan:
-                    case BinaryAccessExpType.LessEqual:
+                    case LogicExpType.AndAlso:
+                    case LogicExpType.OrElse:
+                    case LogicExpType.Equal:
+                    case LogicExpType.NotEqual:
+                    case LogicExpType.GreaterThan:
+                    case LogicExpType.GreaterEqual:
+                    case LogicExpType.LessThan:
+                    case LogicExpType.LessEqual:
                         return sqlProvider.Binary(binary.Type, 
                             ToSql(sqlProvider, binary.Left, prefix, args), 
                             ToSql(sqlProvider, binary.Right, prefix, args));
-                    case BinaryAccessExpType.Contains:
+                    case LogicExpType.Contains:
                         return sqlProvider.In(
                             ToSql(sqlProvider, binary.Right,prefix, args),
                             ((binary.Left as ValueAccessExpNode)!.Value as ArrayTypeNode)!);
-                    case BinaryAccessExpType.NotContains:
+                    case LogicExpType.NotContains:
                         return sqlProvider.NotIn(
                             ToSql(sqlProvider, binary.Right, prefix, args),
                             ((binary.Left as ValueAccessExpNode)!.Value as ArrayTypeNode)!);
-                    case BinaryAccessExpType.StartsWith:
+                    case LogicExpType.StartsWith:
                         return sqlProvider.LikeStartsWith(
                             ToSql(sqlProvider, binary.Left, prefix, args),
                             (binary.Right as ValueAccessExpNode)?.Value?.ToValue<string>() 
                                 ?? throw new NotSupportedException("The startsWith right value must be string"));
-                    case BinaryAccessExpType.EndsWith:
+                    case LogicExpType.EndsWith:
                         return sqlProvider.LikeEndsWith(
                             ToSql(sqlProvider, binary.Left, prefix, args),
                             (binary.Right as ValueAccessExpNode)?.Value?.ToValue<string>() 
                                 ?? throw new NotSupportedException("The endsWith right value must be string"));
-                    case BinaryAccessExpType.ContainsStr:
+                    case LogicExpType.Match:
                         return sqlProvider.LikeContains(
                             ToSql(sqlProvider, binary.Left, prefix, args),
                             (binary.Right as ValueAccessExpNode)?.Value?.ToValue<string>() 
@@ -749,7 +749,7 @@ public static class RowAccessExpTreeVisitor
             case UnaryAccessExpNode unary:
                 switch (unary.Type)
                 {
-                    case UnaryAccessExpType.IsNull:
+                    case LogicExpType.IsNull:
                         return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, prefix, args));
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
@@ -779,32 +779,6 @@ public static class RowAccessExpTreeVisitor
 #region Exp access type
 
 /// <summary>
-/// The exp access type
-/// </summary>
-public enum BinaryAccessExpType
-{
-    AndAlso,
-    OrElse,
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterEqual,
-    LessThan,
-    LessEqual,
-
-    Contains,
-    NotContains,
-    StartsWith,
-    EndsWith,
-    ContainsStr,
-}
-
-public enum UnaryAccessExpType
-{
-    IsNull,
-}
-
-/// <summary>
 /// The exp node
 /// </summary>
 public abstract record AccessExpNode;
@@ -822,12 +796,12 @@ public record FieldAccessAccessExpNode(StructAccessExpNode Struct, string FieldN
 /// <summary>
 /// The binary expression node
 /// </summary>
-public record BinaryAccessExpNode(BinaryAccessExpType Type, AccessExpNode Left, AccessExpNode Right) : AccessExpNode;
+public record BinaryAccessExpNode(LogicExpType Type, AccessExpNode Left, AccessExpNode Right) : AccessExpNode;
 
 /// <summary>
 /// The unary expression node
 /// </summary>
-public record UnaryAccessExpNode(UnaryAccessExpType Type, AccessExpNode Operand) : AccessExpNode;
+public record UnaryAccessExpNode(LogicExpType Type, AccessExpNode Operand) : AccessExpNode;
 
 /// <summary>
 /// The value expression node

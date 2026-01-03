@@ -1,7 +1,8 @@
-﻿using System.Linq.Expressions;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
+using System;
+using System.Linq.Expressions;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -39,8 +40,11 @@ public enum LogicExpType
 
     // String
     StartsWith,
+    NotStartsWith,
     EndsWith,
+    NotEndsWith,
     Match,
+    NotMatch,
 }
 
 /// <summary>
@@ -111,7 +115,7 @@ public class LogicExpressionVisitor : IExpressionVisitor
             
             // !a
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}":
-                return new UnaryLogicExpression(LogicExpType.Not, callExp.Args[0], exp.SchemaType);
+                return NotExp(context, callExp.Args[0]);
             
             // isnull(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}":
@@ -164,15 +168,27 @@ public class LogicExpressionVisitor : IExpressionVisitor
             // a.StartsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}":
                 return new BinaryLogicFuncExpression(LogicExpType.StartsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
-            
+
+            // !a.StartsWith(b)
+            case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.notstartswith)}":
+                return new BinaryLogicFuncExpression(LogicExpType.NotStartsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+
             // a.EndsWith(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}":
                 return new BinaryLogicFuncExpression(LogicExpType.EndsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
-            
+
+            // !a.EndsWith(b)
+            case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.notendswith)}":
+                return new BinaryLogicFuncExpression(LogicExpType.NotEndsWith, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+
             // a.Match(b)
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}":
                 return new BinaryLogicFuncExpression(LogicExpType.Match, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
-            
+
+            // !a.Match(b)
+            case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.notmatch)}":
+                return new BinaryLogicFuncExpression(LogicExpType.NotMatch, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
+
             // a in [b, c)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}":
             {
@@ -201,8 +217,11 @@ public class LogicExpressionVisitor : IExpressionVisitor
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessequal)}":
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessthan)}":
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldstartswith)}":
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotstartswith)}":
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldendswith)}":
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotendswith)}":
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldmatch)}":
+            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotmatch)}":
             {
                 if (callExp.Args.Length != 3)
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
@@ -230,8 +249,11 @@ public class LogicExpressionVisitor : IExpressionVisitor
                     $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessequal)}" => LogicExpType.LessEqual,
                     $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldlessthan)}" => LogicExpType.LessThan,
                     $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldstartswith)}" => LogicExpType.StartsWith,
+                    $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotstartswith)}" => LogicExpType.NotStartsWith,
                     $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldendswith)}" => LogicExpType.EndsWith,
+                    $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotendswith)}" => LogicExpType.NotEndsWith,
                     $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldmatch)}" => LogicExpType.Match,
+                    $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.fieldnotmatch)}" => LogicExpType.NotMatch,
                     _ => throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID)
                 }, new FieldAccessExpression(ownerExp, fieldName, fieldType), callExp.Args[2], callExp.SchemaType);
             }
@@ -296,5 +318,86 @@ public class LogicExpressionVisitor : IExpressionVisitor
         }
 
         return null;
+    }
+
+    SchemaExpression NotExp(SchemaContext context, SchemaExpression exp)
+    {
+        switch (exp)
+        {
+            case UnaryLogicFuncExpression unaryFuncExp:
+                switch (unaryFuncExp.Type)
+                {
+                    case LogicExpType.IsNull:
+                        return new UnaryLogicFuncExpression(LogicExpType.NotNull, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notnull)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                    case LogicExpType.NotNull:
+                        return new UnaryLogicFuncExpression(LogicExpType.IsNull, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                    case LogicExpType.IsEmpty:
+                        return new UnaryLogicFuncExpression(LogicExpType.NotEmpty, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                    case LogicExpType.NotEmpty:
+                        return new UnaryLogicFuncExpression(LogicExpType.IsEmpty, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                }
+                break;
+
+            case UnaryLogicExpression unaryExp:
+                switch (unaryExp.Type)
+                {
+                    case LogicExpType.Not:
+                        return unaryExp.Inner;
+                }
+                break;
+
+            case BinaryLogicFuncExpression binFuncExp:
+                switch (binFuncExp.Type)
+                {
+                    case LogicExpType.Contains:
+                        return new BinaryLogicFuncExpression(LogicExpType.NotContains, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.NotContains:
+                        return new BinaryLogicFuncExpression(LogicExpType.Contains, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.StartsWith:
+                        return new BinaryLogicFuncExpression(LogicExpType.NotStartsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notstartswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.NotStartsWith:
+                        return new BinaryLogicFuncExpression(LogicExpType.StartsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.EndsWith:
+                        return new BinaryLogicFuncExpression(LogicExpType.NotEndsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notendswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.NotEndsWith:
+                        return new BinaryLogicFuncExpression(LogicExpType.EndsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.Match:
+                        return new BinaryLogicFuncExpression(LogicExpType.NotMatch, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notmatch)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                    case LogicExpType.NotMatch:
+                        return new BinaryLogicFuncExpression(LogicExpType.Match, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+
+                }
+                break;
+
+            case BinaryLogicExpression binaryExp:
+                switch (binaryExp.Type)
+                {
+                    case LogicExpType.AndAlso:
+                        return new BinaryLogicExpression(LogicExpType.OrElse,
+                            NotExp(context, binaryExp.Left),
+                            NotExp(context, binaryExp.Right),
+                            binaryExp.SchemaType);
+                    case LogicExpType.OrElse:
+                        return new BinaryLogicExpression(LogicExpType.AndAlso,
+                            NotExp(context, binaryExp.Left),
+                            NotExp(context, binaryExp.Right),
+                            binaryExp.SchemaType);
+                    case LogicExpType.Equal:
+                        return new BinaryLogicExpression(LogicExpType.NotEqual, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+                    case LogicExpType.NotEqual:
+                        return new BinaryLogicExpression(LogicExpType.Equal, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+                    case LogicExpType.GreaterThan:
+                        return new BinaryLogicExpression(LogicExpType.LessEqual, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+                    case LogicExpType.GreaterEqual:
+                        return new BinaryLogicExpression(LogicExpType.LessThan, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+                    case LogicExpType.LessThan:
+                        return new BinaryLogicExpression(LogicExpType.GreaterEqual, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+                    case LogicExpType.LessEqual:
+                        return new BinaryLogicExpression(LogicExpType.GreaterThan, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);
+
+                }
+                break;
+        }
+        return new UnaryLogicExpression(LogicExpType.Not, exp, exp.SchemaType);
     }
 }

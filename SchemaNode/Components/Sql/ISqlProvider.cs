@@ -1,3 +1,5 @@
+using SchemaNode.Runtime;
+
 namespace SchemaNode.Components;
 
 /// <summary>
@@ -54,7 +56,7 @@ public interface ISqlProvider
     /// Formats a binary expression: (left OP right)
     /// Example: (a = b), (a > b)
     /// </summary>
-    string Binary(BinaryAccessExpType type, string left, string right);
+    string Binary(LogicExpType type, string left, string right);
 
     /* ===========================
      *      Text / Pattern Matching
@@ -74,14 +76,29 @@ public interface ISqlProvider
     string LikeContains(string field, string param);
 
     /// <summary>
+    /// Builds a NOT LIKE '%xxx%' pattern.
+    /// </summary>
+    string NotLikeContains(string field, string param);
+
+    /// <summary>
     /// Builds a LIKE 'xxx%' pattern.
     /// </summary>
     string LikeStartsWith(string field, string param);
 
     /// <summary>
+    /// Builds a NOT LIKE 'xxx%' pattern.
+    /// </summary>
+    string NotLikeStartsWith(string field, string param);
+
+    /// <summary>
     /// Builds a LIKE '%xxx' pattern.
     /// </summary>
     string LikeEndsWith(string field, string param);
+
+    /// <summary>
+    /// Builds a NOT LIKE '%xxx' pattern.
+    /// </summary>
+    string NotLikeEndsWith(string field, string param);
 
     /* ===========================
      *       IN / NOT IN

@@ -17,15 +17,24 @@ public static class SystemStr
     public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    public static bool notstartswith([Default("")] string str, string prefix) => !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+
+    [Schema]
     public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+
+    [Schema]
+    public static bool notendswith([Default("")] string str, string suffix) => !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     public static bool match([Default("")] string str, string substr) => str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
+    [Schema]
+    public static bool notmatch([Default("")] string str, string substr) => !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+
     #endregion
 
     #region State
-    
+
     [Schema]
     public static long len([Default("")] string str) => long.CreateChecked(str.Length);
     

@@ -24,7 +24,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     #region Private Fields
 
     // The expression visitors
-    readonly  IExpressionVisitor[] _visitors = context.ServiceProvider.GetServices<IExpressionVisitor>()
+    readonly IExpressionVisitor[] _visitors = context.ServiceProvider.GetServices<IExpressionVisitor>()
         .OrderBy(v => v.Priority)
         .ToArray();
     
@@ -34,6 +34,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     // the variable parameter expression map
     readonly Dictionary<string, ParameterExpression> _variableExpMap = new ();
 
+    // The compile exp cache for pre-set
     readonly Dictionary<SchemaExpression, Expression> _compiledExpCache = new ();
 
     // the return label
@@ -45,6 +46,15 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     private ParameterExpression? _contextExp;
     
     #endregion
+
+    /// <summary>
+    /// Visit the function type for compile schema
+    /// </summary>
+    public virtual async Task<FunctionTypeSchema> VisitFunctionType()
+    {
+        return await context.VisitFunctionType(funcType)
+            ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpsHasCompileError, TYPE_FUNC_COMPILE_ERROR);
+    }
     
     /// <summary>
     /// Compile the function to dynamic method
@@ -54,8 +64,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
         // Prepare
         try
         {
-            FunctionTypeSchema funcSchema = await context.VisitFunctionType(funcType)
-                ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpsHasCompileError, TYPE_FUNC_COMPILE_ERROR);
+            FunctionTypeSchema funcSchema = await VisitFunctionType();
             
             // Prepare
             var paramExps = new ParameterExpression[funcType.Args.Length + 1];
@@ -76,7 +85,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
             // Expression Tree -> Function Body
             List<Expression> expBlocks = [];
             _returnLabel = funcSchema.Exps.Any(e => e.Value is BreakExpression) 
-                ? Expression.Label(funcType.ReturnNode!.ToCSharpType()) : null;
+                ? Expression.Label(funcSchema.Return) : null;
             
             ParameterExpression? finalVar = null;
             foreach (VariableExpression exp in funcSchema.Exps)
@@ -98,7 +107,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
             if (finalVar == null) throw new Exception($"The {funcType.Name} can't be compiled - no expression found");
 
             // Conversion last type
-            Type lastType = funcType.ReturnNode?.ToCSharpType() ?? throw new Exception($"The {funcType.Name} can't be compiled - return type not valid");
+            Type lastType = funcSchema.Return;
             if (lastType != finalVar.Type)
             {
                 ParameterExpression convExp = Expression.Variable(lastType, "_final");
@@ -131,7 +140,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     /// <summary>
     /// Compile the schema expression to Expression
     /// </summary>
-    public Expression CompileSchemaExpression(SchemaExpression exp, Type? expectedType = null)
+    public virtual Expression CompileSchemaExpression(SchemaExpression exp, Type? expectedType = null)
     {
         expectedType ??= exp.SchemaType.ToCSharpType();
         if (_compiledExpCache.TryGetValue(exp, out Expression? cachedExp))
@@ -361,6 +370,8 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
     /// </summary>
     public LabelTarget? GetReturnLabel() => _returnLabel;
 
+    public ParameterExpression? GetContext() => _contextExp;
+
     /// <summary>
     /// Try get compiled expression from cache
     /// </summary>
@@ -437,7 +448,7 @@ public class CompileContext(SchemaContext context, FunctionType funcType)
         // simple type conversion
         if (!notNullExp.Type.IsAssignableTo(typeof(AnySchemaNode)))
         {
-            resExp = System.Type.GetTypeCode(rctype) switch
+            resExp = Type.GetTypeCode(rctype) switch
             {
                 TypeCode.Boolean => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToBoolean), [notNullExp.Type])!, notNullExp),
                 TypeCode.Char => Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ToChar), [notNullExp.Type])!, notNullExp),

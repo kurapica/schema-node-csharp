@@ -182,6 +182,16 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     }
 
     /// <summary>
+    /// Gets the schema node synchronously
+    /// </summary>
+    public AnySchemaType? GetSchemaType(string schemaName) => GetSchemaTypeAsync(schemaName).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Gets the schema node synchronously
+    /// </summary>
+    public T? GetSchemaType<T>(string schemaName) where T: class => GetSchemaTypeAsync(schemaName).GetAwaiter().GetResult() as T;
+
+    /// <summary>
     /// Remove a node from cache
     /// </summary>
     internal bool RemoveSchemaType(string schemaName)

@@ -175,6 +175,11 @@ public enum SchemaNodeStatus
     FunctionExpsHasCompileError,
 
     /// <summary>
+    /// The function can't be used as policy filter
+    /// </summary>
+    FunctionCantBeUsedAsPolicyFilter,
+
+    /// <summary>
     /// The workflow has wrong func
     /// </summary>
     WorkflowWrongFunc,
@@ -238,4 +243,9 @@ public enum SchemaNodeStatus
     /// The application field data auth wrong field
     /// </summary>
     ApplicationFieldDataAuthWrongField,
+
+    /// <summary>
+    /// The data source compile error
+    /// </summary>
+    DataSourceComipleError,
 }

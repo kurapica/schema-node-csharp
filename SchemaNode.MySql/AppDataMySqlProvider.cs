@@ -2,11 +2,14 @@
 using System.Data.Common;
 using System.Text;
 using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components;
+using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -505,6 +508,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
 
+    /// <inheritdoc />
     public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AccessExpNode? filter, 
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false, bool onlyCount = false)
@@ -625,6 +629,144 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
 
         return (value, (fullFill || forUpdate) ? value.Count : total);
+    }
+
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    {
+        // single row
+        if (schema.Single) return await QueryDynamicTableAsync(schema, target);
+
+        string tableName = sqlProvider.QuoteTable(schema.Name);
+        await EnsureOpenConnectionAsync();
+        if (string.IsNullOrWhiteSpace(target)) return (null, -1);
+
+        // Build sql
+        StringBuilder sb = new();
+        sb.Append($" From {tableName} ");
+
+        // Conditions
+        sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
+
+        // exp node -> sql
+        string sql = filter?.ToSql(sqlProvider) ?? "";
+        if (!string.IsNullOrEmpty(sql))
+        {
+            sb.Append(" AND ");
+            sb.Append(sql);
+        }
+
+        // Query Total
+        int total = 0;
+        if (type == AppSchemaDataResult.List || type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.NotExist || type == AppSchemaDataResult.Count)
+        {
+            DbCommand totalCommand = GetDbCommand();
+            // only used to check existence
+            if (type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.NotExist)
+            {
+                totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
+            }
+            else
+            {
+                totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
+            }
+            Logger.LogInformation(totalCommand.CommandText);
+            DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
+            try
+            {
+                if (totalReader.HasRows && await totalReader.ReadAsync())
+                    total = totalReader.GetInt32(0);
+                switch(type)
+                {
+                    case AppSchemaDataResult.Exist:
+                        return (context.GetSchemaType(NS_SYSTEM_BOOL)!.CreateNode(total > 0), total);
+                    case AppSchemaDataResult.NotExist:
+                        return (context.GetSchemaType(NS_SYSTEM_BOOL)!.CreateNode(total == 0), total);
+                    case AppSchemaDataResult.Count:
+                        return (context.GetSchemaType(NS_SYSTEM_INT)!.CreateNode(total), total);
+                }
+            }
+            finally
+            {
+                await totalReader.CloseAsync();
+            }
+        }
+
+        // for other
+        _whereClause = $"{sb}";
+
+        // Append the rest
+        sb.Append(" ORDER BY ");
+        bool first = false;
+        foreach (var (field, d) in schema.GetOrderBys(type == AppSchemaDataResult.Last, orderBy))
+        {
+            if (first) sb.Append(", ");
+            first = true;
+            sb.Append($"{field}");
+            if (d) sb.Append(" DESC ");
+        }
+
+        if (type == AppSchemaDataResult.First || type == AppSchemaDataResult.Last)
+            sb.Append(" LIMIT 1");
+        else if (take is > 0)
+            sb.Append($" LIMIT {take}");
+        if (skip is > 0)
+            sb.Append($" OFFSET {skip}");
+
+        // Query Data
+        StringBuilder select = new();
+        select.Append("SELECT ");
+        AppendFields(select, schema, "o.");
+        select.Append(" FROM ");
+        select.Append(schema.Name);
+        select.Append(" o JOIN (SELECT ");
+        select.Append(_refSeqNo);
+        select.Append(" ");
+        select.Append(sb.ToString());
+        select.Append(") t ON o.");
+        select.Append(_refSeqNo);
+        select.Append(" = t.");
+        select.Append(_refSeqNo);
+        select.Append(" ORDER BY ");
+        first = false;
+        foreach (var (field, d) in schema.GetOrderBys(type == AppSchemaDataResult.Last, orderBy))
+        {
+            if (first) select.Append(", ");
+            first = true;
+            select.Append($"o.{field}");
+            if (d) select.Append(" DESC ");
+        }
+
+        select.Append(";");
+        ArrayTypeNode? value = null;
+        DbCommand command = GetDbCommand();
+        command.CommandText = select.ToString();
+        Logger.LogDebug(command.CommandText);
+        DbDataReader reader = await command.ExecuteReaderAsync();
+        try
+        {
+            if (reader.HasRows)
+            {
+                while (await reader.ReadAsync())
+                {
+                    AnySchemaNode? pack = type == AppSchemaDataResult.Field
+                        ? schema.GetFieldPack(reader, dataField ?? "")
+                        : schema.GetFieldPack(reader);
+                    if (pack != null)
+                    {
+                        value ??= new ArrayTypeNode(pack.SchemaType);
+                        value.Add(pack);
+                    }
+                }
+            }
+        }
+        finally
+        {
+            await reader.CloseAsync();
+        }
+
+        if (type == AppSchemaDataResult.First || type == AppSchemaDataResult.Last)
+            return (value?.ElementAtOrDefault(0), value != null && value.Count > 0 ? 1 : 0);
+        return (value, total > 0 ? total : (value?.Count ?? 0));
     }
 
     /// <inheritdoc />

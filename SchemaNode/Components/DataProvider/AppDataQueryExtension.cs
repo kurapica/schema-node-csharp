@@ -209,6 +209,43 @@ public static class AppDataQueryExtension
     }
 
     /// <summary>
+    /// Gets the field data
+    /// </summary>
+    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context,
+        AppFieldType field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter,
+        int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    {
+        // Front end only
+        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
+
+        var dataProvider = context.GetService<IAppDataProvider>();
+        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+
+        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        if (sourceField == null) return (null, 0);
+        field = sourceField;
+
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+
+        try
+        {
+            (AnySchemaNode? result, int total) = await dataProvider
+                .QueryDynamicTableAsync(context, schema, target, type, filter, skip, take, orderBy, dataField);
+
+            // Generate display only fields
+            await schema.GenerateDisplayOnlyFields(context, result);
+
+            return (result, total);
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError(ex.Message);
+            throw;
+        }
+    }
+
+
+    /// <summary>
     /// Gets the filter field data
     /// </summary>
     public static async Task<AnySchemaNode?> GetFilterFieldDataAsync(
@@ -241,5 +278,35 @@ public static class AppDataQueryExtension
             AppDataSourceAccessResult.Last => res is ArrayTypeNode array ? array.LastOrDefault() : res,
             _ => res
         };
+    }
+
+    /// <summary>
+    /// Gets the filter field data
+    /// </summary>
+    public static async Task<AnySchemaNode?> GetSchemaDataAsync(
+        this SchemaContext context, string app, string field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, 
+        int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    {
+        AppType? appType = await context.GetAppTypeAsync(app);
+        AppFieldType? appField = appType?.GetField(field);
+        if (appField == null) return null;
+
+        if (string.IsNullOrEmpty(target))
+        {
+            target = context.GetSchemaContextItem<Access>()?.Target ?? string.Empty;
+            if (string.IsNullOrEmpty(target)) return type switch
+            {
+                AppSchemaDataResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(0),
+                AppSchemaDataResult.Exist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(false),
+                AppSchemaDataResult.NotExist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(true),
+                AppSchemaDataResult.First => null,
+                AppSchemaDataResult.Last => null,
+                AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!),
+                _ => new ArrayTypeNode(appField.SchemaType!)
+            };
+        }
+
+        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take, orderBy, dataField);
+        return res;
     }
 }

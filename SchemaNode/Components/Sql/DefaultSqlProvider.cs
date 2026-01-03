@@ -1,9 +1,11 @@
+using SchemaNode.Runtime;
+
 namespace SchemaNode.Components;
 
 /// <summary>
 /// The default implementation of ISqlProvider, which uses minimal SQL syntax.
 /// </summary>
-public class DefaultSqlProvider: ISqlProvider
+public class DefaultSqlProvider : ISqlProvider
 {
     public string QuoteField(string fieldName) => fieldName;
     public string QuoteTable(string tableName) => tableName;
@@ -13,6 +15,13 @@ public class DefaultSqlProvider: ISqlProvider
     public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {param}, '%')";
     public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({param}, '%')";
     public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {param})";
+
+    public string NotLikeContains(string field, string param) => $"{field} NOT LIKE CONCAT('%', {param}, '%')";
+
+    public string NotLikeStartsWith(string field, string param) => $"{field} NOT LIKE CONCAT({param}, '%')";
+
+    public string NotLikeEndsWith(string field, string param) => $"{field} NOT LIKE CONCAT('%', {param})";
+
     public string In(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} IN ({string.Join(", ", paramNames.Select(Literal))})";
     public string NotIn(string field, IEnumerable<object> paramNames) => $"{QuoteField(field)} NOT IN ({string.Join(", ", paramNames.Select(Literal))})";
     public string IsNull(string field) => $"{field} IS NULL";
@@ -31,18 +40,18 @@ public class DefaultSqlProvider: ISqlProvider
         };
     }
 
-    public string Binary(BinaryAccessExpType type, string left, string right)
+    public string Binary(LogicExpType type, string left, string right)
     {
         var op = type switch
         {
-            BinaryAccessExpType.Equal => "=",
-            BinaryAccessExpType.NotEqual => "<>",
-            BinaryAccessExpType.GreaterThan => ">",
-            BinaryAccessExpType.GreaterEqual => ">=",
-            BinaryAccessExpType.LessThan => "<",
-            BinaryAccessExpType.LessEqual => "<=",
-            BinaryAccessExpType.AndAlso => "AND",
-            BinaryAccessExpType.OrElse => "OR",
+            LogicExpType.Equal => "=",
+            LogicExpType.NotEqual => "<>",
+            LogicExpType.GreaterThan => ">",
+            LogicExpType.GreaterEqual => ">=",
+            LogicExpType.LessThan => "<",
+            LogicExpType.LessEqual => "<=",
+            LogicExpType.AndAlso => "AND",
+            LogicExpType.OrElse => "OR",
             _ => throw new NotSupportedException($"Unsupported BinaryExpType: {type}")
         };
 

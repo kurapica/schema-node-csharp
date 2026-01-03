@@ -265,7 +265,9 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Sets the runtime function cache
     /// </summary>
-    public void SetRuntimeFuncCache<T>(T value) => _runtimeFuncCache[typeof(T)] = value!;
+    public void SetRuntimeFuncCache<T>(T? value) =>  _runtimeFuncCache[typeof(T)] = value;
+
+    public void SetRuntimeFuncCache<TK, TV>(TV? value) => _runtimeFuncCache[typeof(TK)] = value;
     
     /// <summary>
     /// Gets or add the runtime function cache
@@ -283,6 +285,17 @@ public class FunctionType: AnySchemaType
     public bool TryGetRuntimeFuncCache<T>(out T? value)
     {
         if (_runtimeFuncCache.TryGetValue(typeof(T), out object? obj) && obj is T val)
+        {
+            value = val;
+            return true;
+        }
+        value = default;
+        return false;
+    }
+
+    public bool TryGetRuntimeFuncCache<TK, TV>(out TV? value)
+    {
+        if (_runtimeFuncCache.TryGetValue(typeof(TK), out object? obj) && obj is TV val)
         {
             value = val;
             return true;
