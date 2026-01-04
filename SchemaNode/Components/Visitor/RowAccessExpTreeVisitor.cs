@@ -215,8 +215,7 @@ public static class RowAccessExpTreeVisitor
         // all loaded, calc directly
         if (leafNodes.All(l => l is ValueAccessExpNode))
         {
-            AnySchemaNode? res = await context.CallFunctionAsync(exp.FuncNode!,
-                leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray());
+            AnySchemaNode? res = await exp.FuncNode!.CallAsync<AnySchemaNode>(context, leafNodes.Select(a => (a as ValueAccessExpNode)?.Value).ToArray());
             result = new ValueAccessExpNode(res?.SchemaType ?? exp.FuncNode!.ReturnNode, res);
             expMap.Add(exp, result);
             return result;

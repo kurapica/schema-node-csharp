@@ -213,7 +213,7 @@ public static class AppDataQueryExtension
     /// </summary>
     public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context,
         AppFieldType field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter,
-        int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+        int skip = 0, int take = 0, bool? desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -230,7 +230,7 @@ public static class AppDataQueryExtension
         try
         {
             (AnySchemaNode? result, int total) = await dataProvider
-                .QueryDynamicTableAsync(context, schema, target, type, filter, skip, take, orderBy, dataField);
+                .QueryDynamicTableAsync(context, schema, target, type, filter, skip, take, desc, orderBy, dataField);
 
             // Generate display only fields
             await schema.GenerateDisplayOnlyFields(context, result);

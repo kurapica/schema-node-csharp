@@ -627,7 +627,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         return (value, (fullFill || forUpdate) ? value.Count : total);
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);
@@ -635,6 +635,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
+
+        if (type == AppSchemaDataResult.Last) desc = !desc;
 
         // Build sql
         StringBuilder sb = new();
@@ -693,7 +695,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Append the rest
         sb.Append(" ORDER BY ");
         bool first = false;
-        foreach (var (field, d) in schema.GetOrderBys(type == AppSchemaDataResult.Last, orderBy))
+        foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
         {
             if (first) sb.Append(", ");
             first = true;
@@ -724,7 +726,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         select.Append(_refSeqNo);
         select.Append(" ORDER BY ");
         first = false;
-        foreach (var (field, d) in schema.GetOrderBys(type == AppSchemaDataResult.Last, orderBy))
+        foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
         {
             if (first) select.Append(", ");
             first = true;

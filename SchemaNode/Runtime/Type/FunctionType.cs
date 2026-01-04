@@ -1,15 +1,15 @@
 using SchemaNode.Attribute;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
+using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using SchemaNode.Components;
-using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
@@ -429,7 +429,8 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
+    public async Task<T?> CallAsync<T, C>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
+        where C: CompileContext
     {
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
@@ -459,101 +460,113 @@ public class FunctionType: AnySchemaType
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
-            object? argObj = args.ElementAtOrDefault(i);
-            JsonNode? argJson = argObj as JsonNode;
-            AnySchemaNode? argNode = argObj as AnySchemaNode;
-            Type? eleType;
 
-            // check null or empty
-            if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+            // non params
+            if (!arg.Params)
             {
-                if (arg.Nullable) continue;
-                if (arg.Params)
+                object? argObj = args.ElementAtOrDefault(i);
+                JsonNode? argJson = argObj as JsonNode;
+                AnySchemaNode? argNode = argObj as AnySchemaNode;
+                Type? eleType;
+
+                // check null or empty
+                if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    eleType = GetArgType(arg, argNode?.SchemaType.ToCSharpType());
-                    eleType = eleType?.GetElementType() ?? eleType; // avoid array type
-                    if (eleType != null)
+                    if (arg.Nullable) continue;
+                    throw new Exception($"The {i + 1} argument must be provided");
+                }
+
+                // Parse argument
+                eleType = GetArgType(arg, argNode?.SchemaType.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
+
+                // JsonNode
+                if (argJson != null)
+                {
+                    (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
+                    callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    if (eleType == null)
+                        eleType = GetArgType(arg, gen ?? o?.GetType());
+                    else if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
                     {
-                        callArgs[i] = Array.CreateInstance(eleType, 0);
-                        continue;
+                        eleType = typeof(AnySchemaNode);
+                        AnySchemaType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType)
+                            ? await context.GetSchemaTypeAsync(arg.SchemaType)
+                            : null;
+
+                        callArgs[i] = schemaType?.CreateNode(argJson)
+                            ?? await context.GetSchemaNodeAsync(o)
+                            ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                     }
                 }
-                throw new Exception($"The {i + 1} argument must be provided");
-            }
-            
-            // Parse argument
-            eleType = GetArgType(arg, argNode?.SchemaType?.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
-            
-            // JsonNode
-            if (argJson != null)
-            {
-                (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
-                callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-                if (eleType == null)  
-                    eleType = GetArgType(arg, gen ?? o?.GetType());
-                else if (eleType.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
+                // AnySchemaNode
+                else if (argNode != null)
                 {
-                    eleType = typeof(AnySchemaNode);
-                    callArgs[i] = (await context.GetSchemaTypeAsync(arg.SchemaType))?.CreateNode(argJson)
-                        ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    if (eleType != null && eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                        callArgs[i] = argNode;
+                    else
+                        callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                }
+                // object
+                else
+                {
+                    callArgs[i] = eleType?.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                 }
             }
-            // AnySchemaNode
-            else if (argNode != null)
-            {
-                if (eleType != null && eleType.IsAssignableTo(typeof(AnySchemaNode)))
-                    callArgs[i] = argNode;
-                else
-                    callArgs[i] = argNode.ToTypeValue(eleType ?? throw new Exception($"The {i + 1} argument must be provided and valid"));
-            }
-            // object
+
+            // Params
             else
             {
-                callArgs[i] = eleType?.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-
-            // params check
-            if (arg.Params)
-            {
-                eleType ??= callArgs[i]!.GetType();
-                Array array = Array.CreateInstance(eleType, args.Length - funcInfo.Args.Length + 1);
-                array.SetValue(callArgs[i], 0);
-                int count = 1;
-                for (int j = funcInfo.Args.Length; j < args.Length; j++)
+                Type? eleType = GetArgType(arg);
+                AnySchemaType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType) ? await context.GetSchemaTypeAsync(arg.SchemaType) : null;
+                Array? array = eleType != null ? Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, args.Length - funcInfo.Args.Length + 1)) : null;
+                int count = 0;
+                for (int j = funcInfo.Args.Length - 1; j < Math.Max(args.Length, funcInfo.Args.Length); j++)
                 {
-                    argObj = args.ElementAtOrDefault(j);
-                    argJson = argObj as JsonNode;
-                    argNode = argObj as AnySchemaNode;
+                    object? argObj = args.ElementAtOrDefault(i);
+                    JsonNode? argJson = argObj as JsonNode;
+                    AnySchemaNode? argNode = argObj as AnySchemaNode;
+
                     if (argObj == null || argJson != null && argJson.IsEmpty() || argNode != null && argNode.IsEmpty) continue;
 
+                    // JsonNode
                     if (argJson != null)
                     {
                         (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
-                        callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-                        if (eleType.IsAssignableTo(typeof(AnySchemaNode)) && arg.SchemaType != null)
+                        if (o == null) throw new Exception($"The {j + 1} argument not valid");
+                        argObj = o;
+                        eleType ??= GetArgType(arg, gen ?? o?.GetType());
+
+                        if (eleType != null && eleType.IsAssignableTo(typeof(AnySchemaNode)))
                         {
-                            o = (await context.GetSchemaTypeAsync(arg.SchemaType))?.CreateNode(argJson)
-                                ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+
+                            argObj = schemaType?.CreateNode(argJson) ?? await context.GetSchemaNodeAsync(o)
+                                ?? throw new Exception($"The {j + 1} argument not valid");
                         }
-                        array.SetValue(o, count++);
                     }
+                    // AnySchemaNode
                     else if (argNode != null)
                     {
-
-                        if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                            argObj = argNode;
+                        else
                         {
-                            array.SetValue(argNode, count++);
-                            continue;
+                            eleType ??= GetArgType(arg, argNode.SchemaType.ToCSharpType());
+                            argObj = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {j + 1} argument not valid");
                         }
-
-                        array.SetValue(argNode?.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid"),
-                            count++);
                     }
+                    // object
                     else
                     {
-                        array.SetValue(eleType?.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid"), count++);
+                        eleType ??= GetArgType(arg, argObj.GetType());
+                        argObj = eleType!.TryConvert(argObj) ?? throw new Exception($"The {j + 1} argument not valid");
                     }
+
+                    if (eleType == null) throw new Exception($"The {j + 1} argument not valid");
+
+                    array ??= Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, j - funcInfo.Args.Length + 2));
+                    array.SetValue(argObj, count++);
                 }
+                array ??= Array.CreateInstance(eleType?.GetElementType() ?? eleType ?? typeof(object), 0);
                 callArgs[i] = array.Length == count ? array : array.SliceArray(count);
             }
         }
@@ -562,6 +575,8 @@ public class FunctionType: AnySchemaType
             callArgs = callArgs.Prepend(context).ToArray();
 
         object? result;
+
+        // Remote call
         if (IsRemoteCall)
         {
             if (generics.Any(g => g == null))
@@ -573,97 +588,93 @@ public class FunctionType: AnySchemaType
 
             result = SchemaProvider != null
                 ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider))
-                    .CallFunctionAsync(Name, cArgs, generics.Select(g => g!.GetSchemaType()!).ToArray())
+                    .CallFunctionAsync(Name, cArgs, generics.Select(g => g!.GetSchemaType()!).ToArray(), target)
                 : null;
         }
 
-        // Call the method
+        // Call system method
+        else if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
+        {
+            MethodInfo callMethod = funcInfo.Method!;
+
+            // Gets the generic method instance
+            if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
+            {
+                if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
+
+                string genSign = string.Join('|', generics.Select(p => p!.Name));
+                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
+            }
+
+            // Call the method
+            result = (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
+                ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
+                : callMethod.Invoke(null, callArgs);
+        }
+
+        // Invoke the dynamic method
         else
         {
-            if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
+            try
             {
-                MethodInfo callMethod = funcInfo.Method!;
-
-                // Gets the generic method instance
-                if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
-                {
-                    for (int i = 0; i < generics.Length; i++)
-                        generics[i] ??= typeof(JsonNode);
-
-                    if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
-
-                    string genSign = string.Join('|', generics.Select(p => p!.Name));
-                    callMethod =
-                        funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
-                }
-
-                // Call the method
-                result = (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
-                    ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0])
-                        .Invoke(null, [callMethod, callArgs])
-                    : callMethod.Invoke(null, callArgs);
+                Delegate? method = await context.CompileFunctionTypeAsync<C>(this)
+                    ?? throw new Exception($"The function {Name} dynamic method compile failed");
+                result = method.DynamicInvoke(callArgs);
             }
-            else
+            catch (Exception ex)
             {
-                // Invoke the dynamic method
-                try
-                {
-                    result = funcInfo.DynamicMethod!.DynamicInvoke(callArgs);
-                }
-                catch (Exception ex)
-                {
-                    while (ex.InnerException != null) ex = ex.InnerException;
-                    // ReSharper disable once PossibleIntendedRethrow
-                    throw ex;
-                }
+                while (ex.InnerException != null) ex = ex.InnerException;
+                // ReSharper disable once PossibleIntendedRethrow
+                throw ex;
             }
         }
 
         // Parse the return type
-        Type retType = typeof(T);
         if (result == null) return default(T);
         if (result is T r) return r;
-        
-        // @TODO: More conversion details
+
+        // Convert the return type
+        Type retType = typeof(T);
         if (retType.IsAssignableTo(typeof(JsonNode)))
         {
-            if (result is JsonNode jn) return (T)(object)jn;
-            if (result is AnySchemaNode node) return (T)(object)node.ToJsonNode()!;
-            return (T)(object)result.ToJsonNode()!;
+            result = result is AnySchemaNode node ? node.ToJsonNode() : result is JsonNode jn ? jn : result.ToJsonNode();
+            if (retType == typeof(JsonArray))
+                return (T)(object)(result as JsonArray ?? []);
+            else if (retType == typeof(JsonObject))
+                return (T)(object)(result as JsonObject ?? new JsonObject());
+            else if (retType == typeof(JsonValue))
+                return (T)(object)(result as JsonValue ?? JsonValue.Create((object?)null)!);
+            else
+                return (T)(object)result!;
         }
         else if (retType.IsAssignableTo(typeof(AnySchemaNode)))
         {
-            if (result is AnySchemaNode jn) return (T)(object)jn;
-            
-            AnySchemaType? funcReturnType;
-            if (funcInfo.Return.Generic != null)
+            AnySchemaType? funcReturnType = !string.IsNullOrEmpty(funcInfo.Return.SchemaType)
+                ? await context.GetSchemaTypeAsync(funcInfo.Return.SchemaType)
+                : null;
+
+            if (funcReturnType == null || funcReturnType is not { IsValueType: true })
             {
-                int gIdx = Array.FindIndex(funcInfo.Generics, g => g.Generic == funcInfo.Return.Generic);
-                if (gIdx >= 0 && generics[gIdx] != null)
+                if (funcInfo.Return.Generic != null)
                 {
-                    string? type = generics[gIdx]!.GetSchemaType();
-                    funcReturnType = !string.IsNullOrEmpty(type)
-                        ? await context.GetSchemaTypeAsync(type)
-                        : throw new Exception("The return type can't be resolved");
-                }
-                else
-                {
-                    throw new Exception("The return type can't be resolved");
+                    string? returnType = GetArgType(funcInfo.Return)?.GetSchemaType();
+                    funcReturnType = returnType != null ? await context.GetSchemaTypeAsync(returnType) : null;
                 }
             }
-            else
-            {
-                funcReturnType = await context.GetSchemaTypeAsync(funcInfo.Return.SchemaType!);
-            }
             
-            return (T)(object)(funcReturnType?.CreateNode(result)
-                ?? throw new Exception("The return type can't be resolved"));
+            return (T)(object)(funcReturnType?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
         }
-        return (T)typeof(T).TryConvert(result)!;
+        return (T?)typeof(T).TryConvert(result);
     }
-    
+
+    /// <summary>
+    /// Call the function asynchronously with default compile context
+    /// </summary>
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
+        => CallAsync<T, CompileContext>(context, args, genericTypes, target);
+
     #endregion
-    
+
     #region Register System Functions
 
     /// <summary>

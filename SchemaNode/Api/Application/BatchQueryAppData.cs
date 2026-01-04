@@ -114,7 +114,7 @@ public static class BatchQueryExtension
                     bool allowRead = await context.AuthorizeAsync(field, PolicyScope.DataRead, true);
 
                     // filter func
-                    AccessExpNode? filter = null;
+                    AppSchemaDataFilter? filter = null;
                     
                     if (allowRead)
                     {
@@ -216,9 +216,15 @@ public static class BatchQueryExtension
                                         continue;
                                     }
 
-                                    // visite the function exp tree for where clause
-                                    
-                                    filter = (await context.Visit(policy.FilterFunc)).And(filter);
+                                    // Call filter func with policy filter compile context
+                                    AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, PolicyFilterCompileContext>(context, []);
+                                    if (f == null)
+                                    {
+                                        authorized = false;
+                                        continue;
+                                    }
+
+                                    filter = filter == null ? f : filter.AndAlso(f);
                                     break;
                                 }
                                 catch (Exception e)
@@ -234,17 +240,9 @@ public static class BatchQueryExtension
                         {
                             if (filter != null)
                             {
-                                if (filter.IsValid())
-                                {
-                                    filter = filter.Combine(q?.Filter);
-                                    (result, total) = await context.GetFieldDataAsync(field, query.Target!,
-                                        filter, q?.Skip ?? 0, take,
-                                        q?.Descend ?? query.Descend ?? false, q?.OrderBy);
-                                }
-                                else
-                                {
-                                    filter = null;
-                                }
+                                filter = filter.Combine(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, q?.Filter);
+                                (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
+                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                             }
                             else
                             {

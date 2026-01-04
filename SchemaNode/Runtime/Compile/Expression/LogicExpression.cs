@@ -134,27 +134,39 @@ public class LogicExpressionVisitor : IExpressionVisitor
             
             // a == b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.equal)}":
-                return new BinaryLogicExpression(LogicExpType.Equal, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression 
+                    ? new BinaryLogicExpression(LogicExpType.Equal, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.Equal, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a != b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notequal)}":
-                return new BinaryLogicExpression(LogicExpType.NotEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression
+                    ? new BinaryLogicExpression(LogicExpType.NotEqual, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.NotEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a >= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greateequal)}":
-                return new BinaryLogicExpression(LogicExpType.GreaterEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression
+                    ? new BinaryLogicExpression(LogicExpType.LessEqual, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.GreaterEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a > b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.greatethan)}":
-                return new BinaryLogicExpression(LogicExpType.GreaterThan, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression
+                    ? new BinaryLogicExpression(LogicExpType.LessThan, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.GreaterThan, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a <= b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessequal)}":
-                return new BinaryLogicExpression(LogicExpType.LessEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression
+                    ? new BinaryLogicExpression(LogicExpType.GreaterEqual, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.LessEqual, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a < b
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.lessthan)}":
-                return new BinaryLogicExpression(LogicExpType.LessThan, callExp.Args[0], callExp.Args[1], exp.SchemaType);
+                return callExp.Args[1] is FieldAccessExpression
+                    ? new BinaryLogicExpression(LogicExpType.GreaterThan, callExp.Args[1], callExp.Args[0], exp.SchemaType)
+                    : new BinaryLogicExpression(LogicExpType.LessThan, callExp.Args[0], callExp.Args[1], exp.SchemaType);
             
             // a.Contains(b)
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}":

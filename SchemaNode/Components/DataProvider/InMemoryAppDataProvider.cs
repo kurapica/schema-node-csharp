@@ -115,7 +115,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
     }
 
     public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type,
-        AppSchemaDataFilter? filter, int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null,
+        AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
         string? dataField = null)
     {
         throw new NotImplementedException();

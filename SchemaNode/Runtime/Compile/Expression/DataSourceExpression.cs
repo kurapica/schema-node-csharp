@@ -1,9 +1,12 @@
 ﻿using SchemaNode.Components;
 using SchemaNode.Enum;
 using SchemaNode.Function;
+using SchemaNode.Node;
+using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -117,10 +120,115 @@ public record AppSchemaDataOrder(string Field, bool Desc);
 public static class AppSchemaDataFilterExtensions
 {
     /// <summary>
+    /// Combine two filters with AND ALSO
+    /// </summary>
+    public static AppSchemaDataFilter AndAlso(this AppSchemaDataFilter left, AppSchemaDataFilter right)
+        => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
+
+    /// <summary>
+    /// Combine the access exp with the filter
+    /// </summary>
+    public static AppSchemaDataFilter Combine(this AppSchemaDataFilter accessExp, StructType structType, JsonObject? filter = null)
+    {
+        if (filter == null || filter.IsEmpty()) return accessExp;
+
+        foreach ((string key, JsonNode? value) in filter)
+        {
+            if (value == null || value.IsEmpty()) continue;
+            StructFieldConfig? field = structType.GetField(key);
+            if (field is not { SchemeType: ScalarType }) continue;
+
+            AppSchemaDataFilter? fieldExp = accessExp.FindFieldAccessOper(key);
+
+            // additional filter
+            if (fieldExp is not AppSchemaDataFilterBinary { Type: LogicExpType.Equal } binaryEqual)
+            {
+                accessExp = value switch
+                {
+                    JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
+                        new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                            new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType!, arr)),
+                            new AppSchemaDataFilterField(key))),
+                    JsonValue val => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
+                        new AppSchemaDataFilterBinary(LogicExpType.Equal, new AppSchemaDataFilterField(key),
+                            new AppSchemaDataFilterValue(field.SchemeType!.CreateNode(val)!))),
+                    _ => accessExp
+                };
+            }
+
+            // write back to the filter
+            else
+            {
+                filter[key] = binaryEqual.Right is AppSchemaDataFilterValue valNode
+                    ? valNode.Value is AnySchemaNode node ? node.ToJsonNode() : valNode.Value.ToJsonNode()
+                    : null;
+            }
+        }
+
+        return accessExp;
+    }
+
+
+    /// <summary>
+    /// Try convert the access exp to filter json object
+    /// </summary>
+    public static JsonObject? ToFilter(this AppSchemaDataFilter accessExp)
+    {
+        if (accessExp is AppSchemaDataFilterBinary binaryAccessExp)
+        {
+            if (binaryAccessExp.Type == LogicExpType.AndAlso)
+            {
+                JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
+                JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
+                if (leftFilter == null) return null;
+                if (rightFilter == null) return null;
+
+                // merge
+                foreach ((string key, JsonNode? value) in rightFilter)
+                    leftFilter[key] = value?.DeepClone();
+                return leftFilter;
+            }
+
+            AppSchemaDataFilterField? accessNode = binaryAccessExp.Left as AppSchemaDataFilterField ??
+                                                   binaryAccessExp.Right as AppSchemaDataFilterField;
+            if (accessNode == null) return null;
+            AppSchemaDataFilterValue? valueAccess = (binaryAccessExp.Left == accessNode
+                ? binaryAccessExp.Right
+                : binaryAccessExp.Left) as AppSchemaDataFilterValue;
+            if (valueAccess == null) return null;
+
+            if (binaryAccessExp.Type is LogicExpType.Equal or LogicExpType.Contains)
+            {
+                return new JsonObject
+                {
+                    [accessNode.Field] = valueAccess.Value?.ToJson()
+                };
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Convert the exp tree to SQL
     /// </summary>
     public static string ToSql(this AppSchemaDataFilter accessExp, ISqlProvider sqlProvider, string prefix = "")
         => ToSql(sqlProvider, accessExp, prefix);
+
+    static AppSchemaDataFilter? FindFieldAccessOper(this AppSchemaDataFilter accessExp, string fieldName)
+    {
+        switch (accessExp)
+        {
+            case AppSchemaDataFilterField access:
+                return access.Field == fieldName ? accessExp : null;
+            case AppSchemaDataFilterUnary unary:
+                return unary.Operand.FindFieldAccessOper(fieldName);
+            case AppSchemaDataFilterBinary binary:
+                return (binary.Left.FindFieldAccessOper(fieldName) ?? binary.Right.FindFieldAccessOper(fieldName)) != null ? accessExp : null;
+            default:
+                return null;
+        }
+    }
 
     // To sql
     static string ToSql(ISqlProvider sqlProvider, AppSchemaDataFilter accessExp, string prefix)
