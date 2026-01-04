@@ -76,14 +76,15 @@ public static class BatchQueryExtension
                 ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
                 : fields;
             
+            // filter input/output fields
             if (query.OnlyInput == true)
                 fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
             else if (query.OnlyOutput == true)
                 fields = fields.Where(f => !string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
 
             // result
-            Dictionary<string, JsonNode> datas = [];
-            Dictionary<string, AppDataFieldInfo> infos = [];
+            Dictionary<string, JsonNode> fieldResults = [];
+            Dictionary<string, AppDataFieldInfo> fieldInfos = [];
             HashSet<string> enumsKeys = [];
 
             if (!(query.SchemaOnly ?? false))
@@ -119,8 +120,10 @@ public static class BatchQueryExtension
                     {
                         if (!string.IsNullOrWhiteSpace(q?.FilterFunc))
                         {
-                            FunctionType? filterFunc = await context.GetSchemaTypeAsync(q.FilterFunc) as FunctionType;
-                            if (filterFunc == null) continue;
+                            // filter func not valid, deny read
+                            if (await context.GetSchemaTypeAsync(q.FilterFunc) is not FunctionType filterFunc) continue;
+                            
+                            
 
                             await filterFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
                             if (filterFunc.Status != SchemaNodeStatus.Ready) continue;
@@ -214,6 +217,7 @@ public static class BatchQueryExtension
                                     }
 
                                     // visite the function exp tree for where clause
+                                    
                                     filter = (await context.Visit(policy.FilterFunc)).And(filter);
                                     break;
                                 }
@@ -250,7 +254,7 @@ public static class BatchQueryExtension
                     }
                     
                     // mark loaded
-                    infos[field.Name] = new AppDataFieldInfo
+                    fieldInfos[field.Name] = new AppDataFieldInfo
                     {
                         Filter = filter?.ToFilter() ?? q?.Filter,
                         OrderBy = q?.OrderBy,
@@ -269,7 +273,7 @@ public static class BatchQueryExtension
                     // cover result
                     if (result != null)
                     {
-                        datas[field.Name] =  result.ToJson()!;
+                        fieldResults[field.Name] =  result.ToJson()!;
                         
                         // column access check
                         var @struct = result switch
@@ -299,9 +303,9 @@ public static class BatchQueryExtension
                             // remove ignore fields
                             if (ignoreFields != null)
                             {
-                                infos[field.Name].BlackColumns = ignoreFields.ToArray();
+                                fieldInfos[field.Name].BlackColumns = ignoreFields.ToArray();
                                 
-                                if (datas[field.Name] is JsonArray jsonArray)
+                                if (fieldResults[field.Name] is JsonArray jsonArray)
                                 {
                                     foreach(var obj in jsonArray)
                                     {
@@ -312,7 +316,7 @@ public static class BatchQueryExtension
                                         }
                                     }
                                 }
-                                else if (datas[field.Name] is JsonObject jsonObject)
+                                else if (fieldResults[field.Name] is JsonObject jsonObject)
                                 {
                                     foreach (string ig in ignoreFields)
                                     {
@@ -333,8 +337,8 @@ public static class BatchQueryExtension
             AppDataResult appResult = new AppDataResult { 
                 App = query.App,
                 Target = query.Target,
-                Results = datas,
-                Infos = infos,
+                Results = fieldResults,
+                Infos = fieldInfos,
                 Schema = !(query.NoSchema ?? false) ? new AppSchema
                 {
                     Name = node.Name,

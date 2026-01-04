@@ -1,5 +1,4 @@
-﻿using SchemaNode.Context;
-using SchemaNode.Node;
+﻿using SchemaNode.Node;
 using System.Reflection;
 using SchemaNode.Enum;
 
@@ -31,10 +30,10 @@ public class ConstantExpressionVisitor : IExpressionVisitor
     public int Priority => Utility.Constant.EXP_CONSTANT_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
+        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return Task.FromResult<SchemaExpression?>(null);
         var attr = callExp.Function.FuncInfo?.Method?.GetCustomAttribute<ConstantExpAttribute>();
-        return attr != null ? new ConstantExpression(callExp.SchemaType.CreateNode(attr.Value)!) : null;
+        return Task.FromResult<SchemaExpression?>(attr != null ? new ConstantExpression(callExp.SchemaType.CreateNode(attr.Value)!) : null);
     }
 }

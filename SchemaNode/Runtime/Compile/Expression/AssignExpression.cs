@@ -1,5 +1,4 @@
-﻿using SchemaNode.Context;
-using SchemaNode.Enum;
+﻿using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 
@@ -13,8 +12,10 @@ public class AssignExpressionVisitor : IExpressionVisitor
     public int Priority => EXP_ASSIGN_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public async Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
+        await Task.Yield();
+        
         if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
 
         switch (callExp.Function.Name)

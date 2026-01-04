@@ -2,7 +2,6 @@
 using System.Data.Common;
 using System.Text;
 using System.Text.Json.Nodes;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
@@ -59,12 +58,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             foreach (DynamicTableField dyFld in schema.Fields)
             {
                 string dataType = DataType(dyFld);
-                if (!nameTypes.ContainsKey(dyFld.Name))
+                if (!nameTypes.TryGetValue(dyFld.Name, out string? type))
                 {
                     sb ??= new StringBuilder();
                     sb.Append($"ALTER TABLE {tableName} ADD {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
                 }
-                else if (!nameTypes[dyFld.Name].Equals(dataType, StringComparison.OrdinalIgnoreCase))
+                else if (!type.Equals(dataType, StringComparison.OrdinalIgnoreCase))
                 {
                     sb ??= new StringBuilder();
                     sb.Append($"ALTER TABLE {tableName} MODIFY COLUMN {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
@@ -102,10 +101,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Check unique indexes
             if (!schema.Single)
             {
-                List<string> chkUniqueIndex = new()
-                {
-                    DYNAMIC_TABLE_TARG_FIELD
-                };
+                List<string> chkUniqueIndex = [DYNAMIC_TABLE_TARG_FIELD];
                 foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                     chkUniqueIndex.Add(tableField.Name);
 
@@ -200,7 +196,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 sb.Append($"PRIMARY KEY({_refTarget})");
             else
             {
-                // Use auto-incr seqno as primary key
+                // Use auto-incr seqNo as primary key
                 sb.Append($"PRIMARY KEY({_refSeqNo})");
 
                 // Use target and other primary key as unique index
@@ -344,7 +340,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     {
                         foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, noPrimary:true))
                         {
-                            if (v != null && !v.IsEmpty)
+                            if (v is { IsEmpty: false })
                             {
                                 if (v is ArrayTypeNode arr)
                                 {
@@ -678,11 +674,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 switch(type)
                 {
                     case AppSchemaDataResult.Exist:
-                        return (context.GetSchemaType(NS_SYSTEM_BOOL)!.CreateNode(total > 0), total);
+                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(total > 0), total);
                     case AppSchemaDataResult.NotExist:
-                        return (context.GetSchemaType(NS_SYSTEM_BOOL)!.CreateNode(total == 0), total);
+                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(total == 0), total);
                     case AppSchemaDataResult.Count:
-                        return (context.GetSchemaType(NS_SYSTEM_INT)!.CreateNode(total), total);
+                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(total), total);
                 }
             }
             finally
@@ -765,7 +761,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
 
         if (type == AppSchemaDataResult.First || type == AppSchemaDataResult.Last)
-            return (value?.ElementAtOrDefault(0), value != null && value.Count > 0 ? 1 : 0);
+            return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
         return (value, total > 0 ? total : (value?.Count ?? 0));
     }
 
@@ -1186,7 +1182,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (dbConn.State != ConnectionState.Open)
                 await dbConn.OpenAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // ignore
         }

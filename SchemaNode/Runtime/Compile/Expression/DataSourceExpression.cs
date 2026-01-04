@@ -1,5 +1,4 @@
 ﻿using SchemaNode.Components;
-using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Utility;
@@ -211,13 +210,13 @@ public static class AppSchemaDataFilterExtensions
 /// <summary>
 /// The data source visitor
 /// </summary>
-public class DataSourceVisitor : IExpressionVisitor
+public class DataSourceExpressionVisitor : IExpressionVisitor
 {
     /// <inheritdoc />
     public int Priority => EXP_DATA_SOURCE_PRIORITY;
 
     /// <inheritdoc />
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public async Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not FuncCallExpression callExp) return null;
 
@@ -234,9 +233,9 @@ public class DataSourceVisitor : IExpressionVisitor
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
             
             // App & Field must be valid
-            AppType? appType = context.GetAppTypeAsync(app).GetAwaiter().GetResult();
+            AppType? appType = await context.GetAppTypeAsync(app);
             AppFieldType? appField = appType?.GetField(field);
-            return appField is { SchemaType: ArrayType { ElementSchemaType: StructType structType, Primary: { Length: > 0 } } }
+            return appField is { SchemaType: ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } } }
                 ? new DataSourceExpression(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), appField.SchemaType))
                 : null; // call directly
         }
@@ -267,12 +266,12 @@ public class DataSourceVisitor : IExpressionVisitor
                         string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || sourceExp.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                        return new FieldsDataSourceExpression(sourceExp, fieldName, context.GetArraySchemaTypeAsync(structType.GetField(fieldName)!.SchemeType!).GetAwaiter().GetResult()!);
+                        return new FieldsDataSourceExpression(sourceExp, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
                     }
                 
                     // source.length
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
-                        return new CountDataSourceExpression(sourceExp, context.GetSchemaTypeAsync(NS_SYSTEM_INT).GetAwaiter().GetResult()!);
+                        return new CountDataSourceExpression(sourceExp, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!);
                 
                     // source.orderby(field, desc)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
@@ -314,7 +313,7 @@ public class DataSourceVisitor : IExpressionVisitor
                         string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || source.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                        return new FieldsDataSourceExpression(source, fieldName, context.GetArraySchemaTypeAsync(structType.GetField(fieldName)!.SchemeType!).GetAwaiter().GetResult()!);
+                        return new FieldsDataSourceExpression(source, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
                     }
 
                     // assign
@@ -322,7 +321,7 @@ public class DataSourceVisitor : IExpressionVisitor
                     case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
                     {
                         if (iter.Array is not FieldAccessExpression { Owner: DataSourceExpression source } fa || fa.FieldName.Contains('.')) return null;
-                        return new FieldsDataSourceExpression(source, fa.FieldName, context.GetArraySchemaTypeAsync(((source.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(fa.FieldName)!.SchemeType!).GetAwaiter().GetResult()!);
+                        return new FieldsDataSourceExpression(source, fa.FieldName, (await context.GetArrayType(((source.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(fa.FieldName)!.SchemeType!))!);
                     }
                 }
                 return null;
@@ -346,8 +345,8 @@ public class DataSourceVisitor : IExpressionVisitor
             : a).ToArray();
         
         // Must be boolean return type
-        SchemaExpression filterExp = new FuncCallExpression(callExp.Function, refArgs, context.GetSchemaType(NS_SYSTEM_BOOL)!);
-        filterExp = context.VisitSchemaExpression(filterExp);
+        SchemaExpression filterExp = new FuncCallExpression(callExp.Function, refArgs, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!);
+        filterExp = await context.VisitSchemaExpAsync(filterExp);
         
         // Must be logic expression
         if (filterExp is not LogicExpression logicExp) 
@@ -364,9 +363,9 @@ public class DataSourceVisitor : IExpressionVisitor
             ExpressionType.Filter => filterResult,
             ExpressionType.First => new FirstDataSourceExpression(filterResult),
             ExpressionType.Last => new LastDataSourceExpression(filterResult),
-            ExpressionType.Count => new CountDataSourceExpression(filterResult,context.GetSchemaType(NS_SYSTEM_INT)!),
-            ExpressionType.Any => new ExistsDataSourceExpression(filterResult, context.GetSchemaType(NS_SYSTEM_BOOL)!),
-            ExpressionType.All => new NoExistsDataSourceExpression(filterResult,context.GetSchemaType(NS_SYSTEM_BOOL)!),
+            ExpressionType.Count => new CountDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!),
+            ExpressionType.Any => new ExistsDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
+            ExpressionType.All => new NoExistsDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
             _ => null
         };
 
@@ -374,7 +373,7 @@ public class DataSourceVisitor : IExpressionVisitor
     }
 
     /// <inheritdoc />
-    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not DataSourceExpression && exp is not DataResultExpression) return null;
 
@@ -404,21 +403,21 @@ public class DataSourceVisitor : IExpressionVisitor
 
         DataSourceExpression? sourceExp = exp as DataSourceExpression;
         string app = sourceExp!.Source.App;
-        string field = sourceExp!.Source.Field;
+        string field = sourceExp.Source.Field;
         Expression? target = null;
 
         while (sourceExp != null)
         {
             target ??= sourceExp.Source.Target != null
-                ? context.CompileSchemaExpression(sourceExp.Source.Target)
+                ? await context.CompileSchemaExpAsync(sourceExp.Source.Target)
                 : null;
 
             switch (sourceExp)
             {
                 case WhereDataSourceExpression whereExp:
                     filter = filter != null 
-                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicExpType.AndAlso), filter, CompileDataSourceFilter(context, whereExp.Filter))
-                        : CompileDataSourceFilter(context, whereExp.Filter);
+                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicExpType.AndAlso), filter, await CompileDataSourceFilter(context, whereExp.Filter))
+                        : await CompileDataSourceFilter(context, whereExp.Filter);
                     sourceExp = whereExp.Previous;
                     break;
                 case OrderByDataSourceExpression orderByExp:
@@ -426,11 +425,11 @@ public class DataSourceVisitor : IExpressionVisitor
                     sourceExp = orderByExp.Previous;
                     break;
                 case TakeDataSourceExpression takeExp:
-                    take = context.CompileSchemaExpression(takeExp.TakeExp);
+                    take = await context.CompileSchemaExpAsync(takeExp.TakeExp);
                     sourceExp = takeExp.Previous;
                     break;
                 case SkipDataSourceExpression skipExp:
-                    skip = context.CompileSchemaExpression(skipExp.SkipExp);
+                    skip = await context.CompileSchemaExpAsync(skipExp.SkipExp);
                     sourceExp = skipExp.Previous;
                     break;
                 default:
@@ -443,7 +442,7 @@ public class DataSourceVisitor : IExpressionVisitor
         MethodInfo queryMethod = typeof(AppDataQueryExtension).GetMethod(nameof(AppDataQueryExtension.GetSchemaDataAsync))!;
         MethodCallExpression callExp = Expression.Call(null,
             queryMethod,
-            context.GetContext()!,
+            context.GetContext(),
             Expression.Constant(app),
             Expression.Constant(field),
             target ?? Expression.Constant(null, typeof(string)),
@@ -458,14 +457,14 @@ public class DataSourceVisitor : IExpressionVisitor
         return Expression.Call(callExp, callExp.Type.GetMethod(nameof(System.Runtime.CompilerServices.TaskAwaiter<dynamic>.GetResult), Type.EmptyTypes)!);
     }
 
-    Expression CompileDataSourceFilter(CompileContext context, SchemaExpression exp)
+    async Task<Expression> CompileDataSourceFilter(CompileContext context, SchemaExpression exp)
     {
         return exp switch
         {
             FieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
-            UnaryLogicExpression unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), CompileDataSourceFilter(context, unaryExp.Inner)),
-            BinaryLogicExpression binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), CompileDataSourceFilter(context, binaryExp.Left), CompileDataSourceFilter(context, binaryExp.Right)),
-            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], context.CompileSchemaExpression(exp)),
+            UnaryLogicExpression unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner)),
+            BinaryLogicExpression binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left), await CompileDataSourceFilter(context, binaryExp.Right)),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp)),
         };
     }
 }

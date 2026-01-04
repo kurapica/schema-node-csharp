@@ -1,6 +1,4 @@
-﻿using System.Data;
-using System.Linq.Expressions;
-using SchemaNode.Context;
+﻿using System.Linq.Expressions;
 using SchemaNode.Node;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -26,12 +24,12 @@ public interface IExpressionVisitor
     /// <summary>
     /// Visit the expression and re-write
     /// </summary>
-    SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp);
+    Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp);
 
     /// <summary>
     /// Compile the expression to Expression
     /// </summary>
-    virtual Expression? CompileExpression(CompileContext context, SchemaExpression exp) => null;
+    Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp) => Task.FromResult<Expression?>(null);
 }
 
 /// <summary>

@@ -1,5 +1,4 @@
-﻿using SchemaNode.Context;
-using SchemaNode.Function;
+﻿using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
@@ -37,7 +36,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
     public int Priority => EXP_COLLECTION_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public async Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not FuncCallExpression funcExp || funcExp.ExpType == Enum.ExpressionType.Call) return null;
 
@@ -53,7 +52,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 iter,
                 argExp,
                 // Map the function call to schema expression if possible
-                context.VisitSchemaExpression(new FuncCallExpression(
+                await context.VisitSchemaExpAsync(new FuncCallExpression(
                     funcExp.Function,
                     funcExp.Args.Select(a => a != iter ? a : argExp).ToArray(),
                     funcExp.ExpType switch
@@ -61,7 +60,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                         Enum.ExpressionType.Map => (funcExp.SchemaType as ArrayType)!.ElementSchemaType!,
                         Enum.ExpressionType.Reduce => funcExp.SchemaType,
                         // Filter, First, Last, Count, All, Any
-                        _ => context.GetSchemaTypeAsync(NS_SYSTEM_BOOL).GetAwaiter().GetResult()!,
+                        _ => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!,
                     }
                 )),
                 funcExp.SchemaType
@@ -76,7 +75,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             argExp,
             sumExp,
             // Map the function call to schema expression if possible
-            context.VisitSchemaExpression(new FuncCallExpression(
+            await context.VisitSchemaExpAsync(new FuncCallExpression(
                 funcExp.Function,
                 funcExp.Args.Select(a => (SchemaExpression)(a != iter ? sumExp : argExp)).ToArray(),
                 funcExp.SchemaType
@@ -86,7 +85,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
     }
 
     // <inheritdoc/>
-    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not CollectionExpression colExp) return null;
 
@@ -98,7 +97,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
         Expression arrayLen;
 
         Expression indexExp = colExp.Type == Enum.ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start);
-        Expression iterator = context.CompileSchemaExpression((iter.Array as FieldAccessExpression)?.Owner ?? iter.Array);
+        Expression iterator = await context.CompileSchemaExpAsync((iter.Array as FieldAccessExpression)?.Owner ?? iter.Array);
 
         if (iterator.Type.IsSZArray)
         {
@@ -121,7 +120,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
         }
 
         Type expReturnType = exp.SchemaType.ToCSharpType();
-        context.CacheCompiledExpression(colExp.Arg, iterator);
+        context.SetCompiledExpression(colExp.Arg, iterator);
 
         // Handle different collection expression types
         switch (colExp.Type)
@@ -129,21 +128,21 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Map:
             {
                 // Compile loop
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
 
                 return Expression.Block(
-                    [resultExp, start!, stop],
+                    [resultExp, start, stop],
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType!), Expression.Constant(null))
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType), Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             resultExp.Type.IsArrayType()
                                 ? callMethod.Type.IsArrayType()
                                     ? Expression.Call(resultExp, resultExp.Type.GetMethod("AddRange", [typeof(IEnumerable<>).MakeGenericType(expReturnType)
@@ -165,22 +164,22 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 // Compile loop
                 Expression temp = iterator;
                 ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
-                context.CacheCompiledExpression(colExp.Arg, curr);
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                context.SetCompiledExpression(colExp.Arg, curr);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
 
                 return Expression.Block(
-                    [resultExp, start!, stop, curr],
+                    [resultExp, start, stop, curr],
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType!), Expression.Constant(null))
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType), Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Block(new List<Expression>()
                             {
                                 Expression.Assign(curr, temp),
@@ -204,18 +203,20 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 ParameterExpression resultExp = Expression.Variable(expReturnType);
 
                 // Replace the sum exp
-                context.CacheCompiledExpression(reduceExp.Sum, resultExp);
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                context.SetCompiledExpression(reduceExp.Sum, resultExp);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
-                    Expression.Assign(resultExp, Expression.Coalesce(context.CompileSchemaExpression(reduceExp.Sum), Expression.Default(expReturnType))),
+                    [resultExp, start, stop],
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
+                    Expression.Assign(resultExp, Expression.Coalesce(await context.CompileSchemaExpAsync(reduceExp.Sum), reduceExp.Sum.Init is NullExpression 
+                        ? Expression.Default(expReturnType)
+                        : await context.CompileSchemaExpAsync(reduceExp.Sum.Init))),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Assign(resultExp, callMethod),
                             Expression.Break(forLabel, stop)
                         ),
@@ -231,22 +232,22 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Replace the call args
                 Expression temp = iterator;
-                context.CacheCompiledExpression(colExp.Arg, resultExp);
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                context.SetCompiledExpression(colExp.Arg, resultExp);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start!, stop, init],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    [resultExp, start, stop, init],
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Assign(init, Expression.Default(iterator.Type)),
                     Expression.Assign(resultExp, init),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Block(
                                 Expression.Assign(resultExp, temp),
                                 Expression.IfThenElse(callMethod,
@@ -266,22 +267,22 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Replace the call args
                 Expression temp = iterator;
-                context.CacheCompiledExpression(colExp.Arg, resultExp);
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                context.SetCompiledExpression(colExp.Arg, resultExp);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start!, stop, init],
+                    [resultExp, start, stop, init],
                     Expression.Assign(stop, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(start!, arrayLen!),
+                    Expression.Assign(start, arrayLen),
                     Expression.Assign(init, Expression.Default(iterator.Type)),
                     Expression.Assign(resultExp, init),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.GreaterThan(start!, stop),
+                            Expression.GreaterThan(start, stop),
                             Expression.Block(new List<Expression>()
                             {
                                 Expression.Assign(resultExp, temp),
@@ -300,16 +301,16 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Count:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(int));
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 return Expression.Block(
-                    [resultExp, start!, stop],
+                    [resultExp, start, stop],
                     Expression.Assign(resultExp, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Block(new List<Expression>()
                             {
                                 Expression.IfThen(callMethod,
@@ -326,17 +327,17 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.All:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    [resultExp, start, stop],
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, Expression.Constant(true, typeof(bool))),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Block(new List<Expression>()
                             {
                                 Expression.Assign(resultExp, callMethod),
@@ -353,17 +354,17 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Any:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = context.CompileSchemaExpression(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start!, stop],
-                    Expression.Assign(start!, Expression.Constant(0, typeof(int))),
-                    Expression.Assign(stop, arrayLen!),
+                    [resultExp, start, stop],
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, Expression.Constant(false, typeof(bool))),
                     Expression.Loop(
                         Expression.IfThenElse(
-                            Expression.LessThan(start!, stop),
+                            Expression.LessThan(start, stop),
                             Expression.Block(new List<Expression>()
                             {
                                 Expression.Assign(resultExp, callMethod),

@@ -182,15 +182,11 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     }
 
     /// <summary>
-    /// Gets the schema node synchronously
+    /// Gets the schema node of specific type
     /// </summary>
-    public AnySchemaType? GetSchemaType(string schemaName) => GetSchemaTypeAsync(schemaName).GetAwaiter().GetResult();
-
-    /// <summary>
-    /// Gets the schema node synchronously
-    /// </summary>
-    public T? GetSchemaType<T>(string schemaName) where T: class => GetSchemaTypeAsync(schemaName).GetAwaiter().GetResult() as T;
-
+    public async Task<T?> GetSchemaTypeAsync<T>(string schemaName, bool reload = false, bool preload = false) where T : AnySchemaType
+        => await GetSchemaTypeAsync(schemaName, reload, preload) as T;
+    
     /// <summary>
     /// Remove a node from cache
     /// </summary>
@@ -333,7 +329,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// <summary>
     /// Gets the array schema type
     /// </summary>
-    public async Task<AnySchemaType?> GetArraySchemaTypeAsync(AnySchemaType? type)
+    public async Task<ArrayType?> GetArraySchemaTypeAsync(AnySchemaType? type)
     {
         if (type == null) return null;
         return type.GetArrayType()

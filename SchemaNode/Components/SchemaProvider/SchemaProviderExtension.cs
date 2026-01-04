@@ -209,7 +209,7 @@ public static class SchemaProviderExtension
         }
 
         // Argument validation
-        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {node.Name} can't be complied");
+        SchemaFuncInfo funcInfo = await node.GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {node.Name} can't be complied");
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -386,7 +386,7 @@ public static class SchemaProviderExtension
     public static async Task<AnySchemaNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, AnySchemaNode?[] args, string? target = null)
     {
         // Argument validation
-        SchemaFuncInfo funcInfo = node.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {node.Name} can't be complied");
+        SchemaFuncInfo funcInfo = await node.GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {node.Name} can't be complied");
 
         // fill generic if provided
         Type?[] generics = new Type?[funcInfo.Generics.Length];

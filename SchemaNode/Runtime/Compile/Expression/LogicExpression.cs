@@ -1,7 +1,5 @@
-﻿using SchemaNode.Context;
-using SchemaNode.Enum;
+﻿using SchemaNode.Enum;
 using SchemaNode.Function;
-using System;
 using System.Linq.Expressions;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
@@ -98,8 +96,9 @@ public class LogicExpressionVisitor : IExpressionVisitor
     public int Priority => EXP_LOGIC_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public async Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
+        await Task.Yield();
         if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
 
         // Complex logic expression
@@ -115,7 +114,7 @@ public class LogicExpressionVisitor : IExpressionVisitor
             
             // !a
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}":
-                return NotExp(context, callExp.Args[0]);
+                return await NotExpAsync(context, callExp.Args[0]);
             
             // isnull(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}":
@@ -263,7 +262,7 @@ public class LogicExpressionVisitor : IExpressionVisitor
     }
 
     // <inheritdoc/>
-    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not LogicExpression logicExp) return null;
 
@@ -271,48 +270,50 @@ public class LogicExpressionVisitor : IExpressionVisitor
         {
             // Unary logic with function
             case UnaryLogicFuncExpression unFuncExp:
-                return context.CompileSchemaExpression(new FuncCallExpression(unFuncExp.Function, [unFuncExp.Inner], unFuncExp.SchemaType));
+                return await context.CompileSchemaExpAsync(new FuncCallExpression(unFuncExp.Function, [unFuncExp.Inner], unFuncExp.SchemaType));
             
             // Binary logic with function
             case BinaryLogicFuncExpression binFuncExp:
-                return context.CompileSchemaExpression(new FuncCallExpression(binFuncExp.Function, [binFuncExp.Left, binFuncExp.Right], binFuncExp.SchemaType));
+                return await context.CompileSchemaExpAsync(new FuncCallExpression(binFuncExp.Function, [binFuncExp.Left, binFuncExp.Right], binFuncExp.SchemaType));
             
             // Unary logic
             case UnaryLogicExpression unExp:
                 switch (unExp.Type)
                 {
                     case LogicExpType.Not:
-                        return Expression.Not(context.CompileSchemaExpression(unExp.Inner));
+                        return Expression.Not(await context.CompileSchemaExpAsync(unExp.Inner));
                 }
                 break;
             
             // Binary logic
             case BinaryLogicExpression binExp:
+                Expression left = await context.CompileSchemaExpAsync(binExp.Left);
+                Expression right = await context.CompileSchemaExpAsync(binExp.Right);
                 switch (binExp.Type)
                 {
                     case LogicExpType.AndAlso:
-                        return Expression.AndAlso(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.AndAlso(left, right);
                     
                     case LogicExpType.OrElse:
-                        return Expression.OrElse(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.OrElse(left, right);
                     
                     case LogicExpType.Equal:
-                        return Expression.Equal(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.Equal(left, right);
                         
                     case LogicExpType.NotEqual:
-                        return Expression.NotEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.NotEqual(left, right);
                         
                     case LogicExpType.GreaterThan:
-                        return Expression.GreaterThan(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.GreaterThan(left, right);
                         
                     case LogicExpType.GreaterEqual:
-                        return Expression.GreaterThanOrEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.GreaterThanOrEqual(left, right);
                         
                     case LogicExpType.LessThan:
-                        return Expression.LessThan(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.LessThan(left, right);
                     
                     case LogicExpType.LessEqual:
-                        return Expression.LessThanOrEqual(context.CompileSchemaExpression(binExp.Left), context.CompileSchemaExpression(binExp.Right));
+                        return Expression.LessThanOrEqual(left, right);
                 }
                 break;
         }
@@ -320,7 +321,7 @@ public class LogicExpressionVisitor : IExpressionVisitor
         return null;
     }
 
-    SchemaExpression NotExp(SchemaContext context, SchemaExpression exp)
+    async Task<SchemaExpression> NotExpAsync(CompileContext context, SchemaExpression exp)
     {
         switch (exp)
         {
@@ -328,13 +329,13 @@ public class LogicExpressionVisitor : IExpressionVisitor
                 switch (unaryFuncExp.Type)
                 {
                     case LogicExpType.IsNull:
-                        return new UnaryLogicFuncExpression(LogicExpType.NotNull, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notnull)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                        return new UnaryLogicFuncExpression(LogicExpType.NotNull, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notnull)}"))!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
                     case LogicExpType.NotNull:
-                        return new UnaryLogicFuncExpression(LogicExpType.IsNull, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                        return new UnaryLogicFuncExpression(LogicExpType.IsNull,  (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isnull)}"))!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
                     case LogicExpType.IsEmpty:
-                        return new UnaryLogicFuncExpression(LogicExpType.NotEmpty, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                        return new UnaryLogicFuncExpression(LogicExpType.NotEmpty, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}"))!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
                     case LogicExpType.NotEmpty:
-                        return new UnaryLogicFuncExpression(LogicExpType.IsEmpty, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}")!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
+                        return new UnaryLogicFuncExpression(LogicExpType.IsEmpty, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}"))!, unaryFuncExp.Inner, unaryFuncExp.SchemaType);
                 }
                 break;
 
@@ -350,21 +351,21 @@ public class LogicExpressionVisitor : IExpressionVisitor
                 switch (binFuncExp.Type)
                 {
                     case LogicExpType.Contains:
-                        return new BinaryLogicFuncExpression(LogicExpType.NotContains, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.NotContains, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.NotContains:
-                        return new BinaryLogicFuncExpression(LogicExpType.Contains, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.Contains, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.StartsWith:
-                        return new BinaryLogicFuncExpression(LogicExpType.NotStartsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notstartswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.NotStartsWith, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notstartswith)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.NotStartsWith:
-                        return new BinaryLogicFuncExpression(LogicExpType.StartsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.StartsWith, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.startswith)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.EndsWith:
-                        return new BinaryLogicFuncExpression(LogicExpType.NotEndsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notendswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.NotEndsWith, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notendswith)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.NotEndsWith:
-                        return new BinaryLogicFuncExpression(LogicExpType.EndsWith, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.EndsWith, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.endswith)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.Match:
-                        return new BinaryLogicFuncExpression(LogicExpType.NotMatch, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notmatch)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.NotMatch, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.notmatch)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
                     case LogicExpType.NotMatch:
-                        return new BinaryLogicFuncExpression(LogicExpType.Match, context.GetSchemaType<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}")!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
+                        return new BinaryLogicFuncExpression(LogicExpType.Match, (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_STRING}.{nameof(SystemStr.match)}"))!, binFuncExp.Left, binFuncExp.Right, binFuncExp.SchemaType);
 
                 }
                 break;
@@ -374,13 +375,13 @@ public class LogicExpressionVisitor : IExpressionVisitor
                 {
                     case LogicExpType.AndAlso:
                         return new BinaryLogicExpression(LogicExpType.OrElse,
-                            NotExp(context, binaryExp.Left),
-                            NotExp(context, binaryExp.Right),
+                            await NotExpAsync(context, binaryExp.Left),
+                            await NotExpAsync(context, binaryExp.Right),
                             binaryExp.SchemaType);
                     case LogicExpType.OrElse:
                         return new BinaryLogicExpression(LogicExpType.AndAlso,
-                            NotExp(context, binaryExp.Left),
-                            NotExp(context, binaryExp.Right),
+                            await NotExpAsync(context, binaryExp.Left),
+                            await NotExpAsync(context, binaryExp.Right),
                             binaryExp.SchemaType);
                     case LogicExpType.Equal:
                         return new BinaryLogicExpression(LogicExpType.NotEqual, binaryExp.Left, binaryExp.Right, binaryExp.SchemaType);

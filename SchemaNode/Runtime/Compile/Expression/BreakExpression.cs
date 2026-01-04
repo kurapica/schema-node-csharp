@@ -1,6 +1,4 @@
 ﻿using System.Linq.Expressions;
-using SchemaNode.Context;
-using System.Reflection;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable NotAccessedPositionalProperty.Global
@@ -32,26 +30,26 @@ public class BreakExpTypeVisitor : IExpressionVisitor
     public int Priority => EXP_BREAK_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression callExp) return null;
-        return callExp.Function.Name switch
+        if (exp is not FuncCallExpression callExp) return Task.FromResult<SchemaExpression?>(null);
+        return Task.FromResult<SchemaExpression?>(callExp.Function.Name switch
         {
             $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}" => new BreakExpression(BreakExpType.IfRet, callExp.Args[0], callExp.Args[1]),
             $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}" => new BreakExpression(BreakExpType.IfNot, callExp.Args[0], callExp.Args[1]),
             $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}" => new BreakExpression(BreakExpType.IfNull,callExp.Args[0], callExp.Args[1]),
             $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}" => new BreakExpression(BreakExpType.IfEmpty, callExp.Args[0], callExp.Args[1]),
             _ => null
-        };
+        });
     }
     
     // <inheritdoc/>
-    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not BreakExpression breakExp) return null;
         
-        Expression cond = context.CompileSchemaExpression(breakExp.Cond);
-        Expression value = context.CompileSchemaExpression(breakExp.Value);
+        Expression cond = await context.CompileSchemaExpAsync(breakExp.Cond);
+        Expression value = await context.CompileSchemaExpAsync(breakExp.Value);
         ParameterExpression resultVar = Expression.Variable(value.Type);
 
         return breakExp.Type switch

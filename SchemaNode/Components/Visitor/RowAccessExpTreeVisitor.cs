@@ -25,7 +25,7 @@ public static class RowAccessExpTreeVisitor
     public static async Task<AccessExpNode> Visit(this SchemaContext context, FunctionType func)
     {
         // verify the function
-        _ = func.GetSchemaFuncInfo(context) ?? throw new Exception($"Function {func.Name} can't be complied");
+        _ = await func.GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {func.Name} can't be complied");
         
         StructType structType = func.Args.ElementAtOrDefault(0)?.SchemaType as StructType ?? throw new NotSupportedException("The function struct type parameter not valid");
 
@@ -653,7 +653,7 @@ public static class RowAccessExpTreeVisitor
             // complex func check
             default:
             {
-                var info = exp.FuncNode?.GetSchemaFuncInfo(context);
+                SchemaFuncInfo? info = await exp.FuncNode?.GetSchemaFuncInfoAsync(context);
                 
                 // only support non-system function
                 if (info == null || (info.Sign & FUNC_SIGN_IMMUTABLE) > 0)

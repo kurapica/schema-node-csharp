@@ -8,28 +8,39 @@ namespace SchemaNode.Runtime;
 public static class FunctionCompileExtensions
 {
     /// <summary>
-    /// Compile the function with the default compile context
+    /// Visit the function type to generate the function schema
     /// </summary>
-    public static async Task<Delegate?> CompileAsync(this FunctionType funcType, SchemaContext context)
+    public static async Task<FunctionTypeSchema> VisitFunctionTypeAsync<T>(this SchemaContext context, FunctionType funcType) where T : CompileContext
     {
-        if (funcType.TryGetRuntimeFuncCache<CompileContext, Delegate>(out Delegate? del)) return del;
-
-        CompileContext compileCtx = new CompileContext(context, funcType);
-        del = await compileCtx.CompileAsync();
-        funcType.SetRuntimeFuncCache<CompileContext, Delegate>(del!);
-        return del;
+        if (funcType.TryGetRuntimeFuncCache<T, FunctionTypeSchema>(out FunctionTypeSchema? funcSchema))
+            return funcSchema!;
+        
+        CompileContext compileCtx = (Activator.CreateInstance(typeof(T), context, funcType) as CompileContext)!;
+        funcSchema = await compileCtx.VisitFunctionType();
+        return funcType.SetRuntimeFuncCache<T, FunctionTypeSchema>(funcSchema)!;
     }
-
+    
     /// <summary>
-    /// Compile the function with other compile context
+    /// Visit the function type to generate the function schema with default compile context
     /// </summary>
-    public static async Task<Delegate?> CompileAsync<T>(this FunctionType funcType, SchemaContext context) where T: CompileContext
+    public static Task<FunctionTypeSchema> VisitFunctionTypeAsync(this SchemaContext context, FunctionType funcType)
+        => context.VisitFunctionTypeAsync<CompileContext>(funcType);
+    
+    /// <summary>
+    /// Compile the function with compile context
+    /// </summary>
+    public static async Task<Delegate?> CompileFunctionTypeAsync<T>(this SchemaContext context, FunctionType funcType) where T: CompileContext
     {
         if (funcType.TryGetRuntimeFuncCache<T, Delegate>(out Delegate? del)) return del;
 
         CompileContext compileCtx = (Activator.CreateInstance(typeof(T), context, funcType) as CompileContext)!;
         del = await compileCtx.CompileAsync();
-        funcType.SetRuntimeFuncCache<T, Delegate>(del);
-        return del;
+        return funcType.SetRuntimeFuncCache<T, Delegate>(del);
     }
+    
+    /// <summary>
+    /// Compile the function with the default compile context
+    /// </summary>
+    public static Task<Delegate?> CompileFunctionTypeAsync(this SchemaContext context, FunctionType funcType)
+        => context.CompileFunctionTypeAsync<CompileContext>(funcType);
 }

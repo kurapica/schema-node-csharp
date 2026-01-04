@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using Microsoft.VisualBasic;
 using SchemaNode.Components;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -766,7 +767,7 @@ public static class Schema
     /// <summary>
     /// The generic type info
     /// </summary>
-    internal class SchemaParamTypeInfo
+    public class SchemaParamTypeInfo
     {
         /// <summary>
         /// The generic type, only allow "T", "T1", "T2" and etc
@@ -949,7 +950,7 @@ public static class Schema
     /// The parameter type kind
     /// </summary>
     [Flags]
-    internal enum ParameterTypeKind
+    public enum ParameterTypeKind
     {
         Normal = 0,
         Nullable = 1 << 0,

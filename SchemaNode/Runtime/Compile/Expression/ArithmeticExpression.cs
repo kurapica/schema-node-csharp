@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using SchemaNode.Context;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
@@ -69,11 +68,11 @@ public class ArithmeticExpressionVisitor : IExpressionVisitor
     public int Priority => EXP_ARITHMETIC_PRIORITY;
 
     // <inheritdoc/>
-    public SchemaExpression? VisitExpression(SchemaContext context, SchemaExpression exp)
+    public Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
     {
-        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return null;
+        if (exp is not FuncCallExpression { ExpType: ExpressionType.Call } callExp) return Task.FromResult<SchemaExpression?>(null);
 
-        return callExp.Function.Name switch
+        return Task.FromResult<SchemaExpression?>(callExp.Function.Name switch
         {
             // a + b
             $"{NS_SYSTEM_MATH}.{nameof(SystemMath.add)}" => new BinaryArithmeticExpression(ArithmeticExpType.Add, callExp.Args[0], callExp.Args[1], callExp.SchemaType),
@@ -110,18 +109,18 @@ public class ArithmeticExpressionVisitor : IExpressionVisitor
             // ~a
             $"{NS_SYSTEM_MATH}.{nameof(SystemMath.bitunary)}" => new UnaryArithmeticExpression(ArithmeticExpType.BitUnary, callExp.Args[0], callExp.SchemaType),
             _ => null
-        };
+        });
     }
 
     // <inheritdoc/>
-    public Expression? CompileExpression(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
     {
         if (exp is not ArithmeticExpression arithmeticExp) return null;
         switch (arithmeticExp)
         {
             case UnaryArithmeticExpression unaryExp:
             {
-                Expression innerExp = context.CompileSchemaExpression(unaryExp.Inner);
+                Expression innerExp = await context.CompileSchemaExpAsync(unaryExp.Inner);
                 return unaryExp.Type switch
                 {
                     ArithmeticExpType.ToDecimal => Expression.Convert(innerExp, typeof(decimal)),
@@ -134,8 +133,8 @@ public class ArithmeticExpressionVisitor : IExpressionVisitor
             }
             case BinaryArithmeticExpression binaryExp:
             {
-                Expression leftExp = context.CompileSchemaExpression(binaryExp.Left);
-                Expression rightExp = context.CompileSchemaExpression(binaryExp.Right);
+                Expression leftExp = await context.CompileSchemaExpAsync(binaryExp.Left);
+                Expression rightExp = await context.CompileSchemaExpAsync(binaryExp.Right);
                 return binaryExp.Type switch
                 {
                     ArithmeticExpType.Add => Expression.Add(leftExp, rightExp),

@@ -61,8 +61,15 @@ public static class Injection
         services.AddScoped<SchemaContext>();
         services.AddTransient<WorkflowContext>();
 
-        // expression visitor
-        services.AddSingleton<ConstantExpressionVisitor>();
+        // Expression visitor
+        services.AddSingleton<IExpressionVisitor, ArithmeticExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, BreakExpTypeVisitor>();
+        services.AddSingleton<IExpressionVisitor, CollectionExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, ConditionalExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, ConstantExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, DataSourceExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, FieldAccessExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, LogicExpressionVisitor>();
 
         // api protocol
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
