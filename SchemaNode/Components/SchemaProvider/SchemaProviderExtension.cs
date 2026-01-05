@@ -1,14 +1,9 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
-using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.App;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 
 namespace SchemaNode.Components;
@@ -200,9 +195,7 @@ public static class SchemaProviderExtension
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
     public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string[]? generic = null, string? target = null)
-    {
-        return node.CallAsync<JsonNode>(context, args.ToArray(), generic, target);
-    }
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), generic, target);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -213,24 +206,34 @@ public static class SchemaProviderExtension
     /// <param name="generic">The generic types</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null, string? target = null)
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null, string? target = null)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), generic, target);
+    
+    /// <summary>
+    /// Call the function with arguments and given generic type
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="name">The function schema name</param>
+    /// <param name="args">The arguments</param>
+    /// <param name="generic">The generic types</param>
+    /// <param name="target">The related target</param>
+    /// <returns>The result</returns>
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string[]? generic = null, string? target = null) 
+        => CallFunctionAsync<T, CompileContext>(context, name, args, generic, target);
+    
+    /// <summary>
+    /// Call the function with arguments and given generic type
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="name">The function schema name</param>
+    /// <param name="args">The arguments</param>
+    /// <param name="generic">The generic types</param>
+    /// <param name="target">The related target</param>
+    /// <returns>The result</returns>
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string[]? generic = null, string? target = null) 
+        where TC: CompileContext
     {
         FunctionType node = await context.GetSchemaTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<JsonNode>(context, args.ToArray(), generic, target);
+        return await node.CallAsync<T, TC>(context, args.Select(object? (p) => p).ToArray(), generic, target);
     }
-
-    #region Utility
-
-    // Call async function
-    static T? CallAsyncFunc<T>(MethodBase asyncCall, params object[] callArgs)
-    {
-        Task<T>? task = (Task<T>?)asyncCall.Invoke(null, callArgs);
-        return task == null ? default : task.GetAwaiter().GetResult();
-    }
-
-    // Gets the call async method
-    static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(SchemaProviderExtension).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
-    static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
-
-    #endregion
 }

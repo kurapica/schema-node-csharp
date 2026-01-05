@@ -25,9 +25,11 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
         }
 
         schema = await base.VisitFunctionType();
-        if (schema.Exps.LastOrDefault()?.Value is not LogicExpression logicExp)
+        _lastLogicExp = schema.Exps.LastOrDefault()?.Value as LogicExpression;
+        if (_lastLogicExp == null)
             throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
-        _lastLogicExp = logicExp;
+        
+        // Re-write the return type to AppSchemaDataFilter
         return _funcType.SetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
             new FunctionTypeSchema(schema.Args, schema.Exps, typeof(AppSchemaDataFilter)))!;
     }

@@ -123,7 +123,11 @@ public static class AppSchemaDataFilterExtensions
     /// Combine two filters with AND ALSO
     /// </summary>
     public static AppSchemaDataFilter AndAlso(this AppSchemaDataFilter left, AppSchemaDataFilter right)
-        => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
+    {
+        if (left is AppSchemaDataFilterValue) return right;
+        if (right is AppSchemaDataFilterValue) return left;
+        return new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
+    }
 
     /// <summary>
     /// Combine the access exp with the filter
@@ -201,7 +205,7 @@ public static class AppSchemaDataFilterExtensions
             {
                 return new JsonObject
                 {
-                    [accessNode.Field] = valueAccess.Value?.ToJson()
+                    [accessNode.Field] = valueAccess.Value.ToJson()
                 };
             }
         }
@@ -558,6 +562,7 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
             filter ?? Expression.Constant(null, typeof(AppSchemaDataFilter)),
             skip ?? Expression.Constant(0, typeof(int)),
             take ?? Expression.Constant(0, typeof(int)),
+            Expression.Constant(false, typeof(bool)),
             Expression.Constant(orders.Count > 0 ? orders.ToArray() : null, typeof(AppSchemaDataOrder[])),
             dataField != null ? Expression.Constant(dataField) : Expression.Constant(null, typeof(string))
         );

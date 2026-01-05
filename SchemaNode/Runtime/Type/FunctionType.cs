@@ -16,6 +16,7 @@ using ExpressionType = SchemaNode.Enum.ExpressionType;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SchemaNode.Runtime;
 
@@ -284,7 +285,7 @@ public class FunctionType: AnySchemaType
     public TV? SetRuntimeFuncCache<TK, TV>(TV? value) => SetRuntimeFuncCache(typeof(TK), value);
 
     /// <summary>
-    /// Try get the runtime function cache
+    /// Try to get the runtime function cache
     /// </summary>
     public bool TryGetRuntimeFuncCache<TV>(Type TK, out TV? value)
     {
@@ -301,7 +302,7 @@ public class FunctionType: AnySchemaType
     }
 
     /// <summary>
-    /// Try get the runtime function cache
+    /// Try to get the runtime function cache
     /// </summary>
     public bool TryGetRuntimeFuncCache<TK, TV>(out TV? value)
     {
@@ -429,8 +430,8 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, C>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
-        where C: CompileContext
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
+        where TC: CompileContext
     {
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
@@ -467,7 +468,6 @@ public class FunctionType: AnySchemaType
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
                 AnySchemaNode? argNode = argObj as AnySchemaNode;
-                Type? eleType;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -477,7 +477,7 @@ public class FunctionType: AnySchemaType
                 }
 
                 // Parse argument
-                eleType = GetArgType(arg, argNode?.SchemaType.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
+                var eleType = GetArgType(arg, argNode?.SchemaType.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
 
                 // JsonNode
                 if (argJson != null)
@@ -485,10 +485,10 @@ public class FunctionType: AnySchemaType
                     (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
                     callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                     if (eleType == null)
-                        eleType = GetArgType(arg, gen ?? o?.GetType());
+                        GetArgType(arg, gen ?? o.GetType());
                     else if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
                     {
-                        eleType = typeof(AnySchemaNode);
+                        GetArgType(arg, typeof(AnySchemaNode));
                         AnySchemaType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType)
                             ? await context.GetSchemaTypeAsync(arg.SchemaType)
                             : null;
@@ -526,15 +526,14 @@ public class FunctionType: AnySchemaType
                     JsonNode? argJson = argObj as JsonNode;
                     AnySchemaNode? argNode = argObj as AnySchemaNode;
 
-                    if (argObj == null || argJson != null && argJson.IsEmpty() || argNode != null && argNode.IsEmpty) continue;
+                    if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true }) continue;
 
                     // JsonNode
                     if (argJson != null)
                     {
                         (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
-                        if (o == null) throw new Exception($"The {j + 1} argument not valid");
-                        argObj = o;
-                        eleType ??= GetArgType(arg, gen ?? o?.GetType());
+                        argObj = o ?? throw new Exception($"The {j + 1} argument not valid");
+                        eleType ??= GetArgType(arg, gen ?? o.GetType());
 
                         if (eleType != null && eleType.IsAssignableTo(typeof(AnySchemaNode)))
                         {
@@ -551,7 +550,7 @@ public class FunctionType: AnySchemaType
                         else
                         {
                             eleType ??= GetArgType(arg, argNode.SchemaType.ToCSharpType());
-                            argObj = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {j + 1} argument not valid");
+                            argObj = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {j + 1} argument not valid");
                         }
                     }
                     // object
@@ -582,7 +581,7 @@ public class FunctionType: AnySchemaType
             if (generics.Any(g => g == null))
                 throw new Exception($"The generic types can't be resolved for remote call");
 
-            JsonArray cArgs = new JsonArray();
+            JsonArray cArgs = [];
             foreach (object? arg in args) 
                 cArgs.Add(arg is AnySchemaNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
@@ -617,7 +616,7 @@ public class FunctionType: AnySchemaType
         {
             try
             {
-                Delegate? method = await context.CompileFunctionTypeAsync<C>(this)
+                Delegate method = await context.CompileFunctionTypeAsync<TC>(this)
                     ?? throw new Exception($"The function {Name} dynamic method compile failed");
                 result = method.DynamicInvoke(callArgs);
             }
@@ -645,7 +644,7 @@ public class FunctionType: AnySchemaType
             else if (retType == typeof(JsonValue))
                 return (T)(object)(result as JsonValue ?? JsonValue.Create((object?)null)!);
             else
-                return (T)(object)result!;
+                return (T)result!;
         }
         else if (retType.IsAssignableTo(typeof(AnySchemaNode)))
         {
@@ -653,13 +652,10 @@ public class FunctionType: AnySchemaType
                 ? await context.GetSchemaTypeAsync(funcInfo.Return.SchemaType)
                 : null;
 
-            if (funcReturnType == null || funcReturnType is not { IsValueType: true })
+            if (funcReturnType is not { IsValueType: true } && funcInfo.Return.Generic != null)
             {
-                if (funcInfo.Return.Generic != null)
-                {
-                    string? returnType = GetArgType(funcInfo.Return)?.GetSchemaType();
-                    funcReturnType = returnType != null ? await context.GetSchemaTypeAsync(returnType) : null;
-                }
+                string? returnType = GetArgType(funcInfo.Return)?.GetSchemaType();
+                funcReturnType = returnType != null ? await context.GetSchemaTypeAsync(returnType) : null;
             }
             
             return (T)(object)(funcReturnType?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
@@ -959,27 +955,27 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// <summary>
     /// The argument name
     /// </summary>
-    public required string Name { get; set; }
+    public required string Name { get; init; }
 
     /// <summary>
     /// The argument type
     /// </summary>
-    public required string Type { get; set; }
+    public required string Type { get; init; }
 
     /// <summary>
     /// Whether nullable
     /// </summary>
-    public bool? Nullable { get; set; }
+    public bool? Nullable { get; init; }
 
     /// <summary>
     /// Whether params argument
     /// </summary>
-    public bool? Params { get; set; }
+    public bool? Params { get; init; }
 
     /// <summary>
     /// The default value
     /// </summary>
-    public object? Default { get; set; }
+    public object? Default { get; init; }
 
     #endregion
 
@@ -1024,12 +1020,12 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The expression name, normally be E1, E2, E3.
     /// </summary>
-    public string Name { get; internal set; } = string.Empty;
+    public string Name { get; internal init; } = string.Empty;
 
     /// <summary>
     /// The function to be called.
     /// </summary>
-    public string Func { get; internal set; } = string.Empty;
+    public string Func { get; internal init; } = string.Empty;
 
     /// <summary>
     /// The function used to map array elements
@@ -1039,12 +1035,12 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The namespace.
     /// </summary>
-    public string Return { get; internal set; } = string.Empty;
+    public string Return { get; internal init; } = string.Empty;
 
     /// <summary>
     /// The argument list, should be exp name or argument name.
     /// </summary>
-    public FuncCallArg[] Args { get; set; } = [];
+    public FuncCallArg[] Args { get; init; } = [];
 
     #endregion
 

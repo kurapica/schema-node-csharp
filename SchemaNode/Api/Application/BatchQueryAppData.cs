@@ -8,7 +8,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
-using SchemaNode.Utility;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -123,75 +122,8 @@ public static class BatchQueryExtension
                             // filter func not valid, deny read
                             if (await context.GetSchemaTypeAsync(q.FilterFunc) is not FunctionType filterFunc) continue;
                             
-                            
-
-                            await filterFunc.PreCompileAsync(context); // no need to compile, but require build exp tree
-                            if (filterFunc.Status != SchemaNodeStatus.Ready) continue;
-                            
-                            // args check
-                            AnySchemaNode[] funcArgs = new AnySchemaNode[filterFunc.Args.Length];
-                            bool fullArgs = true;
-                            for (int i = 0; i < funcArgs.Length; i++)
-                            {
-                                var farg = filterFunc.Args[i];
-                                if (farg.SchemaType == null)
-                                {
-                                    fullArgs = false;
-                                    break;
-                                }
-                                var arg = q.FilterArgs != null && q.FilterArgs.Count > i ? q.FilterArgs[i] : null;
-                                if (arg == null || arg.IsEmpty())
-                                {
-                                    if (farg.Nullable ?? false)
-                                    {
-                                        funcArgs[i] = farg.SchemaType.CreateNode()!;
-                                    }
-                                    else
-                                    {
-                                        fullArgs = false;
-                                        break;
-                                    }
-                                }
-                                else 
-                                {
-                                    var res = await farg.SchemaType.ValidateValueAsync(context, arg);
-                                    if (res.error == null)
-                                    {
-                                        funcArgs[i] = res.value!;
-                                    }
-                                    else
-                                    {
-                                        fullArgs = false;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (!fullArgs) continue;
-
-                            // get source access node
-                            AppDataSourceAccessExpNode? sourceAccess =
-                                filterFunc.ExpTrees.FirstOrDefault(e => e is AppDataSourceAccessExpNode) as AppDataSourceAccessExpNode;
-                            if (sourceAccess == null || field.SchemaType is not ArrayType array || array.ElementSchemaType != sourceAccess.StructType) continue;
-
-                            // build the row access filter
-                            while (sourceAccess != null)
-                            {
-                                if (sourceAccess.Filter != null)
-                                {
-                                    var objs = new object[sourceAccess.LeafNodes.Length - 1];
-                                    for(int i = 1; i < sourceAccess.LeafNodes.Length; i++)
-                                    {
-                                        if (sourceAccess.LeafNodes[i] is FunctionNodeArgument arg)
-                                        {
-                                            objs[i - 1] = funcArgs[arg.Index!.Value].Value!;
-                                        }
-                                    }
-                                    
-                                    var expand = sourceAccess.Filter.Expand(objs);
-                                    filter = filter != null ? filter.And(expand) : expand;
-                                }
-                                sourceAccess = sourceAccess.LeafNodes[0] as AppDataSourceAccessExpNode;
-                            }
+                            // Call filter func with policy filter compile context
+                            filter = await filterFunc.CallAsync<AppSchemaDataFilter, RefFilterCompileContext>(context, q.FilterArgs?.Select(object? (p) => p).ToArray() ?? []);
                         }
 
                         // row access check

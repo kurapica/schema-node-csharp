@@ -175,45 +175,9 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, 
-        AppFieldType field, string target, AccessExpNode? filter, int skip = 0, int take = 0, bool desc = false, 
-        AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false, bool onlyCount = false)
-    {
-        // Front end only
-        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
-
-        var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
-
-        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
-        if (sourceField == null) return (null, 0);
-        field = sourceField;
-
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
-
-        try
-        {
-            (AnySchemaNode? result, int total) = await dataProvider
-                .QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy, forUpdate, onlyCount);
-
-            // Generate display only fields
-            await schema.GenerateDisplayOnlyFields(context, result);
-
-            return (result, total);
-        }
-        catch (Exception ex)
-        {
-            context.Logger.LogError(ex.Message);
-            throw;
-        }
-    }
-
-    /// <summary>
-    /// Gets the field data
-    /// </summary>
     public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context,
         AppFieldType field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter,
-        int skip = 0, int take = 0, bool? desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -244,48 +208,12 @@ public static class AppDataQueryExtension
         }
     }
 
-
-    /// <summary>
-    /// Gets the filter field data
-    /// </summary>
-    public static async Task<AnySchemaNode?> GetFilterFieldDataAsync(
-        this SchemaContext context, string app, string field, string target, AccessExpNode? filter, AppDataSourceAccessResult type, 
-        int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null)
-    {
-        AppType? appType = await context.GetAppTypeAsync(app);
-        AppFieldType? appField = appType?.GetField(field);
-        if (appField == null) return null;
-
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target ?? string.Empty;
-            if (string.IsNullOrEmpty(target)) return type switch
-            {
-                AppDataSourceAccessResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(0),
-                AppDataSourceAccessResult.First => null,
-                AppDataSourceAccessResult.Last => null,
-                _ => new ArrayTypeNode(appField.SchemaType!)
-            };
-        }
-
-        (AnySchemaNode? res, int total) = await context.GetFieldDataAsync(appField, target, filter, skip, 
-            type is AppDataSourceAccessResult.First or AppDataSourceAccessResult.Last ? 1 : take,
-            false, orderBy, false, type == AppDataSourceAccessResult.Count);
-        return type switch
-        {
-            AppDataSourceAccessResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(total),
-            AppDataSourceAccessResult.First => res is ArrayTypeNode array ? array.FirstOrDefault() : res,
-            AppDataSourceAccessResult.Last => res is ArrayTypeNode array ? array.LastOrDefault() : res,
-            _ => res
-        };
-    }
-
     /// <summary>
     /// Gets the filter field data
     /// </summary>
     public static async Task<AnySchemaNode?> GetSchemaDataAsync(
         this SchemaContext context, string app, string field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, 
-        int skip = 0, int take = 0, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
         AppType? appType = await context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
@@ -306,7 +234,7 @@ public static class AppDataQueryExtension
             };
         }
 
-        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take, orderBy, dataField);
+        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take,  desc, orderBy, dataField);
         return res;
     }
 }

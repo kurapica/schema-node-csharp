@@ -553,8 +553,8 @@ public static class AppDataTransactionExtension
                             // check schema
                             if (call.AppField.SchemaType is ArrayType { ElementSchemaType: StructType } or StructType)
                             {
-                                DynamicTableSchema schema = await context.PrepareFieldDataAsync(call.AppField);
-                                /*foreach (FieldDataChangeData change in changes)
+                                /*DynamicTableSchema schema = await context.PrepareFieldDataAsync(call.AppField);
+                                foreach (FieldDataChangeData change in changes)
                                 {
                                     // for new
                                     await schema.GenerateDisplayOnlyFields(context, change.Value);

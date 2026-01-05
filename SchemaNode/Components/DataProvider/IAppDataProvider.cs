@@ -25,13 +25,6 @@ public interface IAppDataProvider
     /// <summary>
     /// Query dynamic table data with the filter and paging
     /// </summary>
-    Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target,
-        AccessExpNode? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
-        bool forUpdate = false, bool onlyCount = false);
-
-    /// <summary>
-    /// Query dynamic table data with the filter and paging
-    /// </summary>
     Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target,
         AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null);
 
