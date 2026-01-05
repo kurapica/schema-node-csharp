@@ -164,7 +164,7 @@ public class AppType
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
                     AnySchemaType? node = await context.GetSchemaTypeAsync(field.Func);
-                    if (node is FunctionType funcNode)
+                    if (node is FunctionType { Args.Length: 1 } funcNode)
                     {
                         field.FuncNode = funcNode;
                         funcNode.AddRef(field);
@@ -172,6 +172,7 @@ public class AppType
                     else
                     {
                         field.Status = SchemaNodeStatus.ApplicationFieldWrongFunc;
+                        break;
                     }
 
                     // Checks the call Arguments
@@ -179,7 +180,9 @@ public class AppType
                     if (!string.IsNullOrWhiteSpace(field.Arg))
                     {
                         AppFieldType? tar = GetField(field.Arg);
-                        if (tar == null)
+                        if (tar is not { SchemaType: ArrayType array } || array.ElementSchemaType == null || 
+                            funcNode.Args[0].SchemaType != null && funcNode.Args[0].SchemaType is not GenericType && 
+                            !array.ElementSchemaType.CanBeUseAs(funcNode.Args[0].SchemaType!))
                         {
                             field.Status = SchemaNodeStatus.ApplicationFieldWrongFuncField;
                         }
@@ -493,7 +496,7 @@ public class AppType
         if (Fields == null || Fields.Count == 0)
             return [];
 
-        types ??= new HashSet<string>();
+        types ??= [];
         root ??= new NodeSchema
         {
             Name = "",

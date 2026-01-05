@@ -226,6 +226,7 @@ public static class Constant
     public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
     public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";
     public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
+    public const string APP_PUSH_DATA_WRONG_FUNC = "APP_PUSH_DATA_WRONG_FUNC";
 
     public const string WORKFLOW_NOT_FOUND = "WORKFLOW_NOT_FOUND";
     public const string WORKFLOW_NODE_NOT_FOUND = "WORKFLOW_NODE_NOT_FOUND";

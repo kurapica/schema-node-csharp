@@ -243,6 +243,11 @@ public enum SchemaNodeStatus
     /// The application field data auth wrong field
     /// </summary>
     ApplicationFieldDataAuthWrongField,
+    
+    /// <summary>
+    /// The application push data wrong func
+    /// </summary>
+    ApplicationPushDataWrongFunc,
 
     /// <summary>
     /// The data source compile error
