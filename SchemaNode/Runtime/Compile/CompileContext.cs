@@ -265,7 +265,7 @@ public class CompileContext(SchemaContext context, FunctionType pushFuncType)
                 if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(paths[i], StringComparison.OrdinalIgnoreCase)) is { } field)
                 {
                     // Should replace the display only field with calculation
-                    if (field.DisplayOnly == true && !isArray)
+                    if (field.DisplayOnly == true)
                     {
                         StructFieldRelation? relation = structType.Relations?.FirstOrDefault(r =>
                             r.Field.Equals(paths[i], StringComparison.OrdinalIgnoreCase) &&
@@ -280,24 +280,22 @@ public class CompileContext(SchemaContext context, FunctionType pushFuncType)
                         {
                             Name = calcFieldName,
                             Func = relation.Func,
-                            Type = ExpressionType.Call,
+                            Type = isArray ? ExpressionType.Map : ExpressionType.Call,
                             Return = field.SchemeType.Name,
                             Args = relation.Args.Select(a => new FuncCallArg
                             {
                                 Name = !string.IsNullOrWhiteSpace(a.Name) ? $"{prevName}.{a.Name}" : null,
-                                Type = a.Type,
+                                Type = type.Name,
                                 Value = a.Value
                             }).ToArray()
                         };
 
                         // Insert a function call expression
                         GenFuncCallExpression(funcExp).GetAwaiter().GetResult();
-                        
-                        if (i == paths.Length - 1) return expMaps[calcFieldName];
-                        return GetExpression($"{calcFieldName}.{string.Join(".", paths.Skip(i + 1))}", out SchemaExpression? nextExp) 
-                            ? nextExp : null;
+
+                        return i == paths.Length - 1 ? expMaps[calcFieldName] : ParseFieldAccess(expMaps[calcFieldName], paths.Skip(i + 1).ToArray());
                     }
-                    
+
                     type = field.SchemeType;
                 }
                 else
@@ -306,7 +304,6 @@ public class CompileContext(SchemaContext context, FunctionType pushFuncType)
                 }
             }
             return new FieldAccessExpression(varExp, string.Join(".", paths), type!);
-
         }
 
         // Get expression with visit count++ & Field Access support
@@ -335,8 +332,6 @@ public class CompileContext(SchemaContext context, FunctionType pushFuncType)
             return false;
         }
         
-        #endregion
-
         // Gen function call expression
         async Task GenFuncCallExpression(FunctionNodeExpression exp) {
             
@@ -675,11 +670,13 @@ public class CompileContext(SchemaContext context, FunctionType pushFuncType)
             
             #endregion
         }
+
+        #endregion
     }
-    
-    /// <summary>
-    /// Visit schema expression with all visitors
-    /// </summary>
+
+        /// <summary>
+        /// Visit schema expression with all visitors
+        /// </summary>
     public virtual async Task<SchemaExpression> VisitSchemaExpAsync(SchemaExpression exp)
     {
         foreach (IExpressionVisitor visitor in _visitors)
