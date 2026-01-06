@@ -186,6 +186,11 @@ public class AppFieldType
     /// The call arguments
     /// </summary>
     public List<AppFieldNodeArgument>? FuncArgs { get; internal set; }
+    
+    /// <summary>
+    /// The third-party push field info
+    /// </summary>
+    public DataPushThirdFieldInfo[]? ThirdPushFields { get; internal set; }
 
     /// <summary>
     /// The source app type, won't be reloaded

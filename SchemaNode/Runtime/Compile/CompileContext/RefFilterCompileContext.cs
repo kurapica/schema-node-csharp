@@ -7,17 +7,17 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The reference filter compile context
 /// </summary>
-public class RefFilterCompileContext(SchemaContext context, FunctionType funcType) : CompileContext(context: context, funcType)
+public class RefFilterCompileContext(SchemaContext context, FunctionType pushFuncType) : CompileContext(context: context, pushFuncType)
 {
     DataSourceExpression? _lastDataSourceExp;
-    private readonly FunctionType _funcType = funcType;
+    private readonly FunctionType _pushFuncType = pushFuncType;
 
     /// <summary>
     /// Transform the last logic expression to filter expression
     /// </summary>
     public override async Task<FunctionTypeSchema> VisitFunctionType()
     {
-        if (_funcType.TryGetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
+        if (_pushFuncType.TryGetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
         {
             _lastDataSourceExp = schema!.Exps.LastOrDefault()?.Value as DataSourceExpression;
             return schema;
@@ -29,7 +29,7 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType funcTyp
             throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
         
         // Re-write the return type to AppSchemaDataFilter
-        return _funcType.SetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(
+        return _pushFuncType.SetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(
             new FunctionTypeSchema(schema.Args, schema.Exps, typeof(AppSchemaDataFilter)))!;
     }
 

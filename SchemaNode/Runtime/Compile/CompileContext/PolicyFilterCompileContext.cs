@@ -7,17 +7,17 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The policy filter compile context
 /// </summary>
-public class PolicyFilterCompileContext(SchemaContext context, FunctionType funcType) : CompileContext(context, funcType)
+public class PolicyFilterCompileContext(SchemaContext context, FunctionType pushFuncType) : CompileContext(context, pushFuncType)
 {
     LogicExpression? _lastLogicExp;
-    private readonly FunctionType _funcType = funcType;
+    private readonly FunctionType _pushFuncType = pushFuncType;
 
     /// <summary>
     /// Transform the last logic expression to filter expression
     /// </summary>
     public override async Task<FunctionTypeSchema> VisitFunctionType()
     {
-        if (_funcType.TryGetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
+        if (_pushFuncType.TryGetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
                 out FunctionTypeSchema? schema))
         {
             _lastLogicExp = schema!.Exps.LastOrDefault()?.Value as LogicExpression;
@@ -30,7 +30,7 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
             throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
         
         // Re-write the return type to AppSchemaDataFilter
-        return _funcType.SetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
+        return _pushFuncType.SetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
             new FunctionTypeSchema(schema.Args, schema.Exps, typeof(AppSchemaDataFilter)))!;
     }
 

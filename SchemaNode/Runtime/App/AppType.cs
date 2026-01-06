@@ -196,6 +196,28 @@ public class AppType
                             });
                         }
                     }
+                    
+                    // Compile with data push compile context
+                    DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode, this, field);
+                    try
+                    {
+                        await compileContext.CompileAsync();
+                        DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
+                        if (pushField.Length > 0)
+                        {
+                            field.ThirdPushFields = compileContext.ThirdFields;
+                            foreach (DataPushThirdFieldInfo push in pushField)
+                                GetField(push.Field)?.AddObserver(field);
+                        }
+                    }
+                    catch(FunctionVisitException fv)
+                    {
+                        field.Status = fv.Status;
+                    }
+                    catch
+                    {
+                        field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
+                    }
                 }
 
                 // valid source

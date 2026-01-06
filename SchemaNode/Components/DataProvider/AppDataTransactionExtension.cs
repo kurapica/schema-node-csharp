@@ -433,13 +433,7 @@ public static class AppDataTransactionExtension
         // The given push node
         if (pushNode != null)
         {
-            root = new FieldDataPushLevel
-            {
-                Fields =
-                {
-                    pushNode
-                }
-            };
+            root = new FieldDataPushLevel { Fields = { pushNode } };
             curr = root;
             if (baseFields.Count == 0 && pushNode.HasObserver)
                 baseFields = root.Fields;
@@ -469,30 +463,23 @@ public static class AppDataTransactionExtension
                 }
             }
 
+            // no next level
+            if (next.Fields.Count <= 0) break;
+            
             // Link the levels
-            if (next.Fields.Count > 0)
-            {
-                if (curr != null)
-                {
-                    curr.Next = next;
-                }
-                else
-                {
-                    root = next;
-                }
-                curr = next;
-            }
+            if (curr != null)
+                curr.Next = next;
             else
-            {
-                break;
-            }
+                root = next;
+            curr = next;
+
             baseFields = next.Fields.Where(p => p.HasObserver).ToList();
         }
 
         #endregion
 
         // Process data push
-        Dictionary<AppFieldType, AnySchemaNode> otherFields = new();
+        Dictionary<AppFieldType, AnySchemaNode> otherFields = [];
         HashSet<AppFieldType> displayOnlyGens = [];
         HashSet<string> otherTargets = [];
         while (root?.Fields.Count is > 0)

@@ -87,7 +87,12 @@ public static class SystemData
             [arrType.Primary[0]] = jsonKey
         };
         var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
-        return value is ArrayTypeNode { Count: > 0 } arrayNode ? arrayNode.First().ToValue<T>() : (value.ToValue<T>() ?? default);
+        return value switch
+        {
+            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
+            { IsEmpty: false } => value.ToValue<T>(),
+            _ => default
+        };
     }
 
     /// <summary>
