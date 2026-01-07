@@ -10,7 +10,7 @@ namespace SchemaNode.Runtime;
 /// <param name="Owner">The field owner</param>
 /// <param name="FieldName">The field name</param>
 /// <param name="SchemaType">The schema type</param>
-public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+public record FieldAccessExpression(SchemaExpression Owner, string FieldName, AnySchemaType SchemaType, ConstantExpression? Default = null) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The constant expression visitor
@@ -50,7 +50,7 @@ public class FieldAccessExpressionVisitor : IExpressionVisitor
                     !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
 
-                return new DefaultExpression(new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemaType), defaultValueExp.Value);
+                return new FieldAccessExpression(callExp.Args[0], fieldName, callExp.SchemaType, defaultValueExp);
             }
         }
 

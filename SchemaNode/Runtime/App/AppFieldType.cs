@@ -185,7 +185,12 @@ public class AppFieldType
     /// <summary>
     /// The call arguments
     /// </summary>
-    public List<AppFieldNodeArgument>? FuncArgs { get; internal set; }
+    public AppFieldType? PushSource { get; internal set; }
+    
+    /// <summary>
+    /// The push function schema
+    /// </summary>
+    public FunctionTypeSchema? PushFuncSchema { get; internal set; }
     
     /// <summary>
     /// The third-party push field info

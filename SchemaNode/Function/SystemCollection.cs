@@ -2,9 +2,12 @@ using System.Collections;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -134,36 +137,22 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static T? getfield<T>(StructTypeNode obj, string field)
+    public static async Task<T?> getfield<T>(SchemaContext context, StructTypeNode obj, string field)
     {
-        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        AnySchemaNode? currentNode = obj;
-        foreach (string path in paths)
-        {
-            currentNode = (currentNode as StructTypeNode)?.GetField(path);
-            if (currentNode == null) return default;
-        }
-        
-        return !currentNode.IsEmpty ? (T?)currentNode.ToTypeValue(typeof(T)) : default;
+        AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
+        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : default;
     }
 
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static T getfielddefault<T>(StructTypeNode obj, string field, T defaultValue)
+    public static async Task<T> getfielddefault<T>(SchemaContext context, StructTypeNode obj, string field, T defaultValue)
     {
-        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        AnySchemaNode? currentNode = obj;
-        foreach (string path in paths)
-        {
-            currentNode = (currentNode as StructTypeNode)?.GetField(path);
-            if (currentNode == null) return defaultValue;
-        }
-
-        return !currentNode.IsEmpty ? (T?)currentNode.ToTypeValue(typeof(T))! : defaultValue;
+        AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
+        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T))! : defaultValue;
     }
-    
+
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>
@@ -181,14 +170,8 @@ public static class SystemCollection
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         foreach (AnySchemaNode item in array)
         {
-            AnySchemaNode? fieldNode = item;
-            foreach (string path in paths)
-            {
-                fieldNode = (fieldNode as StructTypeNode)?.GetField(path);
-                if (fieldNode == null) break;
-            }
-            if (fieldNode != null)
-                resultType.Add(fieldNode);
+            AnySchemaNode? fieldNode = await GetFieldNode(context, item, paths);
+            if (fieldNode != null) resultType.Add(fieldNode);
         }
         return resultType;
     }
@@ -365,5 +348,33 @@ public static class SystemCollection
         return count <= 0 
             ? new ArrayTypeNode(obj.SchemaType)
             : new ArrayTypeNode(obj.SchemaType, obj.Take(count));
+    }
+    
+    /// <summary>
+    /// Gets the field node from object
+    /// </summary>
+    static async Task<AnySchemaNode?> GetFieldNode(SchemaContext context, AnySchemaNode? obj, string[] paths)
+    {
+        if (paths.Length == 0) return obj;
+        if (obj is not StructTypeNode s) return null;
+        
+        StructType structType = (s.SchemaType as StructType)! ;
+        StructFieldConfig? fldConfig = structType.GetField(paths[0]);
+        AnySchemaNode? field = s.GetField(paths[0]);
+        if (field == null) return null;
+        if (fldConfig?.DisplayOnly != true)
+            return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
+        
+        // Calc the display only field
+        StructFieldRelation? relation = structType.Relations?.FirstOrDefault(r =>
+            r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
+            r.Type is RelationType.Default or RelationType.Assign);
+        if (relation == null) return null;
+        
+        JsonArray args = [];
+        foreach (var arg in relation.Args)
+            args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? s.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
+        field.Value = await context.CallFunctionAsync(relation.Func, args, [fldConfig.Type]);
+        return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
     }
 }

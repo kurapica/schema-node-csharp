@@ -8,6 +8,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
@@ -32,8 +33,8 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string target, List<T> values)
     {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
-        if (primarys == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
+        if (primaries == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
         return await SaveFieldDataAsync(context, appFieldType, target, appFieldType.SchemaType!.CreateNode(values));
     }
 
@@ -102,12 +103,12 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
     {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
 
-        if (primarys != null)
+        if (primaries != null)
         {
             JsonObject query = [];
-            foreach (PropertyInfo prop in primarys)
+            foreach (PropertyInfo prop in primaries)
             {
                 query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
             }
@@ -124,13 +125,13 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
     {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
-        if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-        if (keys.Length != primarys.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
+        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
+        if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
 
         JsonObject query = [];
         for (int i = 0; i < keys.Length; i++)
-            query[primarys[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
+            query[primaries[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
 
         await DeleteFieldListDataAsync(context, appFieldType, target, [query]);
     }
@@ -165,14 +166,14 @@ public static class AppDataTransactionExtension
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primarys) = await context.AssertAppField<T>();
         if (primarys == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
 
-        EntityConditionVisitor vistor = new();
-        vistor.Visit(cond);
-        JsonNode filter = vistor.Condition;
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
 
         if (filter is JsonObject obj && !obj.IsEmpty())
             await DeleteFieldListDataAsync(context, appFieldType, target, [filter]);
         else
-            throw new ArgumentException("The conditon is not valid");
+            throw new ArgumentException("The condition not valid");
     }
 
     /// <summary>
@@ -200,14 +201,14 @@ public static class AppDataTransactionExtension
     {
         context.AssertType<T>(field);
 
-        EntityConditionVisitor vistor = new();
-        vistor.Visit(cond);
-        JsonNode filter = vistor.Condition;
+        EntityConditionVisitor visitor = new();
+        visitor.Visit(cond);
+        JsonNode filter = visitor.Condition;
 
         if (filter is JsonObject obj && !obj.IsEmpty())
             await DeleteFieldListDataAsync(context, field, target, [filter]);
         else
-            throw new ArgumentException("The conditon is not valid");
+            throw new ArgumentException("The condition not valid");
     }
 
     /// <summary>
@@ -486,6 +487,8 @@ public static class AppDataTransactionExtension
         {
             foreach (AppFieldType field in root.Fields)
             {
+                if (field.PushSource == null || field.PushFuncSchema == null) continue;
+                
                 // Check ref
                 AppFieldType? tarField = field;
                 string realTarget = target;
@@ -498,12 +501,178 @@ public static class AppDataTransactionExtension
                     if (tarField == null) continue;
                     if (realTarget != target) otherTargets.Add(realTarget);
                 }
+                
+                // Check if has third app field related
+                Dictionary<AppFieldType, (DataPushThirdFieldInfo thirdInfo, 
+                        Dictionary<string, StructTypeNode> thirdOrigins, 
+                        Dictionary<string, StructTypeNode> thirdUpdates)> 
+                    thirdFieldChanges = [];
+                if (field.ThirdPushFields is { Length: > 0 })
+                {
+                    foreach (DataPushThirdFieldInfo thirdInfo in field.ThirdPushFields)
+                    {
+                        // No push key, skip for now, @TODO: need full push if meet this case
+                        if (thirdInfo.PushKeys.Count == 0)
+                        {
+                            context.LogWarning($"The third push field {thirdInfo.Field} of field {field.App}.{field.Name} has no push keys, skip the third field change detection.");
+                            continue;
+                        }
+                        
+                        // Check third app field changes
+                        AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
+                        if (thirdAppField == null) continue;
+                        List<FieldDataChangeData>? changes = changeData.Changes.GetValueOrDefault(thirdAppField);
+                        if (changes == null || changes.Count == 0) continue;
+                        DynamicTableSchema schema = thirdAppField.GenDynamicTableSchema();
+
+                        Dictionary<string, StructTypeNode> thirdOrigins = [];
+                        Dictionary<string, StructTypeNode> thirdUpdates = [];
+                        
+                        foreach (FieldDataChangeData change in changes)
+                        {
+                            // for origin
+                            switch (change.Origin)
+                            {
+                                case ArrayTypeNode arrayTypeNode:
+                                {
+                                    foreach (AnySchemaNode node in arrayTypeNode)
+                                    {
+                                        if (node is not StructTypeNode structTypeNode) continue;
+                                        string? key = schema.GetPrimaryKey(structTypeNode);
+                                        if (string.IsNullOrEmpty(key)) continue;
+                                        thirdOrigins[key] = structTypeNode;
+                                    }
+
+                                    break;
+                                }
+                                case StructTypeNode structTypeNode:
+                                {
+                                    string? key = schema.GetPrimaryKey(structTypeNode);
+                                    if (string.IsNullOrEmpty(key)) continue;
+                                    thirdOrigins[key] = structTypeNode;
+                                    break;
+                                }
+                            }
+
+                            // For new
+                            switch (change.Value)
+                            {
+                                case ArrayTypeNode arrayTypeNode:
+                                {
+                                    foreach (AnySchemaNode node in arrayTypeNode)
+                                    {
+                                        if (node is not StructTypeNode structTypeNode) continue;
+                                        string? key = schema.GetPrimaryKey(structTypeNode);
+                                        if (string.IsNullOrEmpty(key)) continue;
+                                        StructTypeNode? origin = thirdOrigins.GetValueOrDefault(key);
+                                        
+                                        // check push key changes
+                                        if (origin == null || (from pushKey in thirdInfo.PushKeys
+                                                let oVal = origin!.GetField(pushKey)
+                                                let nVal = structTypeNode.GetField(pushKey)
+                                                where oVal is { IsEmpty: false } || nVal is { IsEmpty: false }
+                                                where oVal == null || nVal == null || !oVal.Equals(nVal)
+                                                select oVal).Any())
+                                            thirdUpdates[key] = structTypeNode;
+                                        else
+                                            thirdOrigins.Remove(key); // No change
+                                    }
+
+                                    break;
+                                }
+                                case StructTypeNode structTypeNode:
+                                {
+                                    string? key = schema.GetPrimaryKey(structTypeNode);
+                                    if (string.IsNullOrEmpty(key)) continue;
+                                    StructTypeNode? origin = thirdOrigins.GetValueOrDefault(key);
+                                        
+                                    // check push key changes
+                                    if (origin == null || (from pushKey in thirdInfo.PushKeys
+                                            let oVal = origin!.GetField(pushKey)
+                                            let nVal = structTypeNode.GetField(pushKey)
+                                            where oVal is { IsEmpty: false } || nVal is { IsEmpty: false }
+                                            where oVal == null || nVal == null || !oVal.Equals(nVal)
+                                            select oVal).Any())
+                                        thirdUpdates[key] = structTypeNode;
+                                    else
+                                        thirdOrigins.Remove(key); // No change
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (thirdOrigins.Count != 0 || thirdUpdates.Count != 0)
+                            thirdFieldChanges.Add(thirdAppField, (thirdInfo, thirdOrigins, thirdUpdates));
+                    }
+                }
+                
+                // Fetch effect push source data
+                Dictionary<string, StructTypeNode> originsPush = [];
+                Dictionary<string, StructTypeNode> updatesPush = [];
+                {
+                    List<FieldDataChangeData>? changes = changeData.Changes!.GetValueOrDefault(field.PushSource);
+                    if (changes is { Count: > 0 })
+                    {
+                        DynamicTableSchema schema = field.PushSource.GenDynamicTableSchema();
+
+                        foreach (FieldDataChangeData change in changes)
+                        {
+                            // for origin
+                            switch (change.Origin)
+                            {
+                                case ArrayTypeNode arrayTypeNode:
+                                {
+                                    foreach (AnySchemaNode node in arrayTypeNode)
+                                    {
+                                        if (node is not StructTypeNode structTypeNode) continue;
+                                        string? key = schema.GetPrimaryKey(structTypeNode);
+                                        if (string.IsNullOrEmpty(key)) continue;
+                                        originsPush[key] = structTypeNode;
+                                    }
+
+                                    break;
+                                }
+                                case StructTypeNode structTypeNode:
+                                {
+                                    string? key = schema.GetPrimaryKey(structTypeNode);
+                                    if (string.IsNullOrEmpty(key)) continue;
+                                    originsPush[key] = structTypeNode;
+                                    break;
+                                }
+                            }
+
+                            // For new
+                            switch (change.Value)
+                            {
+                                case ArrayTypeNode arrayTypeNode:
+                                {
+                                    foreach (AnySchemaNode node in arrayTypeNode)
+                                    {
+                                        if (node is not StructTypeNode structTypeNode) continue;
+                                        string? key = schema.GetPrimaryKey(structTypeNode);
+                                        if (string.IsNullOrEmpty(key)) continue;
+                                        updatesPush[key] = structTypeNode;
+                                    }
+                                    break;
+                                }
+                                case StructTypeNode structTypeNode:
+                                {
+                                    string? key = schema.GetPrimaryKey(structTypeNode);
+                                    if (string.IsNullOrEmpty(key)) continue;
+                                    updatesPush[key] = structTypeNode;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // Prepare arguments
                 FunctionType? funcNode = field.FuncNode;
-                if (funcNode == null || field.FuncArgs == null) continue;
+                if (funcNode == null || field.PushFuncSchema == null) continue;
                 var args = new FieldDataPushArg[field.FuncArgs.Count];
                 int arrayIndex = -1;
+                
                 for (int i = 0; i < field.FuncArgs.Count; i++)
                 {
                     AppFieldNodeArgument call = field.FuncArgs[i];

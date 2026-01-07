@@ -44,7 +44,7 @@ public record VariableExpression(string Name, SchemaExpression Value) : SchemaEx
 /// </summary>
 /// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or equal to 0.</param>
 /// <param name="SchemaType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
-public record ArgumentExpression(string Name, int Index, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+public record ArgumentExpression(string Name, int Index, bool Nullable, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The default expression
@@ -94,4 +94,4 @@ public record StructResultExpression(StructFieldExpression[] Fields, AnySchemaTy
 /// the function's parameter order.</param>
 /// <param name="SchemaType">The schema type that describes the result of the function call.</param>
 /// <param name="ExpType">The collection expression type</param>
-public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemaType SchemaType, ExpressionType ExpType = ExpressionType.Call) : SchemaExpression(SchemaType);
+public record FuncCallExpression(FunctionType Function, SchemaExpression[] Args, AnySchemaType SchemaType, ExpressionType ExpType = ExpressionType.Call, SchemaExpression? Iterator = null) : SchemaExpression(SchemaType);

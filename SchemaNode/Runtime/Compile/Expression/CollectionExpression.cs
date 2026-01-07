@@ -1,8 +1,6 @@
-﻿using SchemaNode.Function;
-using SchemaNode.Node;
+﻿using SchemaNode.Node;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
-using System.Reflection;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -15,7 +13,7 @@ public record LoopArgExpression(AnySchemaType SchemaType) : SchemaExpression(Sch
 /// <summary>
 /// The collection expression
 /// </summary>
-public record CollectionExpression(Enum.ExpressionType Type, IteratorExpression Iterator, LoopArgExpression Arg, SchemaExpression Loop, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+public record CollectionExpression(Enum.ExpressionType Type, SchemaExpression Iterator, LoopArgExpression LoopArg, SchemaExpression Expression, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
 /// <summary>
 /// The reduce sum argument expression
@@ -25,7 +23,7 @@ public record ReduceSumExpression(SchemaExpression Init, AnySchemaType SchemaTyp
 /// <summary>
 /// The reduce collection expression
 /// </summary>
-public record ReduceCollectionExpression(Enum.ExpressionType Type, IteratorExpression Iterator, LoopArgExpression Arg, ReduceSumExpression Sum, SchemaExpression Loop, AnySchemaType SchemaType): CollectionExpression(Type, Iterator, Arg, Loop, SchemaType);
+public record ReduceCollectionExpression(Enum.ExpressionType Type, SchemaExpression Iterator, LoopArgExpression LoopArg, ReduceSumExpression Sum, SchemaExpression Expression, AnySchemaType SchemaType): CollectionExpression(Type, Iterator, LoopArg, Expression, SchemaType);
 
 /// <summary>
 /// The collection expression visitor
@@ -42,19 +40,34 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
         IteratorExpression iter = funcExp.Args.FirstOrDefault(a => a is IteratorExpression) as IteratorExpression
             ?? throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+        
+        SchemaExpression iterSource = iter.Array is FieldAccessExpression fieldAccess
+            ? fieldAccess.Owner
+            : iter.Array;
 
         // Replace all collection iterator with loop argument
-        LoopArgExpression argExp = new LoopArgExpression(iter.SchemaType);
+        LoopArgExpression loopExp = new LoopArgExpression((iterSource.SchemaType as ArrayType)?.ElementSchemaType
+            ?? throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID));
+        
         if (funcExp.ExpType != Enum.ExpressionType.Reduce)
         {
             return new CollectionExpression(
                 funcExp.ExpType,
-                iter,
-                argExp,
+                iterSource,
+                loopExp,
                 // Map the function call to schema expression if possible
                 await context.VisitSchemaExpAsync(new FuncCallExpression(
                     funcExp.Function,
-                    funcExp.Args.Select(a => a != iter ? a : argExp).ToArray(),
+                    // replace iterator to loop argument
+                    funcExp.Args.Select(a => a switch
+                    {
+                        IteratorExpression it =>  it.Array switch
+                        {
+                            FieldAccessExpression fldAcc => new FieldAccessExpression(loopExp, fldAcc.FieldName, fldAcc.SchemaType),
+                            _ => loopExp
+                        },
+                        _ => a
+                    }).ToArray(),
                     funcExp.ExpType switch
                     {
                         Enum.ExpressionType.Map => (funcExp.SchemaType as ArrayType)!.ElementSchemaType!,
@@ -71,13 +84,21 @@ public class CollectionExpressionVisitor : IExpressionVisitor
         ReduceSumExpression sumExp = new ReduceSumExpression(funcExp.Args.FirstOrDefault(a => a != iter) ?? new NullExpression(funcExp.SchemaType), funcExp.SchemaType);
         return new ReduceCollectionExpression(
             funcExp.ExpType,
-            iter,
-            argExp,
+            iterSource,
+            loopExp,
             sumExp,
             // Map the function call to schema expression if possible
             await context.VisitSchemaExpAsync(new FuncCallExpression(
                 funcExp.Function,
-                funcExp.Args.Select(a => (SchemaExpression)(a != iter ? sumExp : argExp)).ToArray(),
+                funcExp.Args.Select(a => (SchemaExpression)(a switch
+                {
+                    IteratorExpression it =>  it.Array switch
+                    {
+                        FieldAccessExpression fldAcc => new FieldAccessExpression(loopExp, fldAcc.FieldName, fldAcc.SchemaType),
+                        _ => loopExp
+                    },
+                    _ => sumExp
+                })).ToArray(),
                 funcExp.SchemaType
             )),
             funcExp.SchemaType
@@ -89,15 +110,13 @@ public class CollectionExpressionVisitor : IExpressionVisitor
     {
         if (exp is not CollectionExpression colExp) return null;
 
-        IteratorExpression iter = colExp.Iterator;
-
         ParameterExpression start = Expression.Variable(typeof(int), "_start");
         ParameterExpression stop = Expression.Variable(typeof(int), "_stop");
         LabelTarget forLabel = Expression.Label(typeof(int));
         Expression arrayLen;
 
         Expression indexExp = colExp.Type == Enum.ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start);
-        Expression iterator = await context.CompileSchemaExpAsync((iter.Array as FieldAccessExpression)?.Owner ?? iter.Array);
+        Expression iterator = await context.CompileSchemaExpAsync(colExp.Iterator);
 
         if (iterator.Type.IsSZArray)
         {
@@ -112,15 +131,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             arrayLen = Expression.Property(iterator, "Count");
         }
 
-        // Convert to field access
-        if (iter.Array is FieldAccessExpression fieldAccess)
-        {
-            MethodInfo getFieldMethod = typeof(SystemCollection).GetMethod(nameof(SystemCollection.getfield))!.MakeGenericMethod(fieldAccess.SchemaType.ToCSharpType());
-            iterator = Expression.Call(null, getFieldMethod, iterator, Expression.Constant(fieldAccess.FieldName, typeof(string)));
-        }
-
         Type expReturnType = exp.SchemaType.ToCSharpType();
-        context.SetCompiledExpression(colExp.Arg, iterator);
+        context.SetCompiledExpression(colExp.LoopArg, iterator);
 
         // Handle different collection expression types
         switch (colExp.Type)
@@ -128,7 +140,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Map:
             {
                 // Compile loop
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
@@ -164,8 +176,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 // Compile loop
                 Expression temp = iterator;
                 ParameterExpression curr = Expression.Parameter(temp.Type, "_curr");
-                context.SetCompiledExpression(colExp.Arg, curr);
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                context.SetCompiledExpression(colExp.LoopArg, curr);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // Generate result expression
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
@@ -204,7 +216,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Replace the sum exp
                 context.SetCompiledExpression(reduceExp.Sum, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // Compile
                 return Expression.Block(
@@ -232,8 +244,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Replace the call args
                 Expression temp = iterator;
-                context.SetCompiledExpression(colExp.Arg, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                context.SetCompiledExpression(colExp.LoopArg, resultExp);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
@@ -267,8 +279,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Replace the call args
                 Expression temp = iterator;
-                context.SetCompiledExpression(colExp.Arg, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                context.SetCompiledExpression(colExp.LoopArg, resultExp);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
@@ -301,7 +313,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Count:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(int));
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 return Expression.Block(
                     [resultExp, start, stop],
@@ -327,7 +339,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.All:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // Compile
                 return Expression.Block(
@@ -354,7 +366,7 @@ public class CollectionExpressionVisitor : IExpressionVisitor
             case Enum.ExpressionType.Any:
             {
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Loop);
+                Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 // Compile
                 return Expression.Block(

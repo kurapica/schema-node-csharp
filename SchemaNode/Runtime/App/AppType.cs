@@ -176,11 +176,10 @@ public class AppType
                     }
 
                     // Checks the call Arguments
-                    field.FuncArgs = [];
                     if (!string.IsNullOrWhiteSpace(field.Arg))
                     {
-                        AppFieldType? tar = GetField(field.Arg);
-                        if (tar is not { SchemaType: ArrayType array } || array.ElementSchemaType == null || 
+                        AppFieldType? pushSource = GetField(field.Arg);
+                        if (pushSource is not { SchemaType: ArrayType { ElementSchemaType: not null, Primary: { Length: > 0}} array } ||
                             funcNode.Args[0].SchemaType != null && funcNode.Args[0].SchemaType is not GenericType && 
                             !array.ElementSchemaType.CanBeUseAs(funcNode.Args[0].SchemaType!))
                         {
@@ -189,11 +188,8 @@ public class AppType
                         else
                         {
                             // Register to observers
-                            tar.AddObserver(field);
-                            field.FuncArgs.Add(new AppFieldNodeArgument
-                            {
-                                AppField = tar,
-                            });
+                            pushSource.AddObserver(field);
+                            field.PushSource = pushSource;
                         }
                     }
                     
@@ -201,7 +197,7 @@ public class AppType
                     DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode, this, field);
                     try
                     {
-                        await compileContext.CompileAsync();
+                        FunctionTypeSchema? pushSchema = await compileContext.VisitFunctionType();
                         DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
                         if (pushField.Length > 0)
                         {
@@ -209,6 +205,7 @@ public class AppType
                             foreach (DataPushThirdFieldInfo push in pushField)
                                 GetField(push.Field)?.AddObserver(field);
                         }
+                        field.PushFuncSchema = pushSchema;
                     }
                     catch(FunctionVisitException fv)
                     {
