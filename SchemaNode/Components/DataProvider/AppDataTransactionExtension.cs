@@ -8,7 +8,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
@@ -505,8 +504,8 @@ public static class AppDataTransactionExtension
                 // Check if has third app field related
                 Dictionary<AppFieldType, (DataPushThirdFieldInfo thirdInfo, 
                         Dictionary<string, StructTypeNode> thirdOrigins, 
-                        Dictionary<string, StructTypeNode> thirdUpdates)> 
-                    thirdFieldChanges = [];
+                        Dictionary<string, StructTypeNode> thirdUpdates,
+                        Dictionary<string, StructTypeNode> thirdUnChanged)> thirdFieldChanges = [];
                 if (field.ThirdPushFields is { Length: > 0 })
                 {
                     foreach (DataPushThirdFieldInfo thirdInfo in field.ThirdPushFields)
@@ -601,14 +600,14 @@ public static class AppDataTransactionExtension
                             }
                         }
 
-                        if (thirdOrigins.Count != 0 || thirdUpdates.Count != 0)
-                            thirdFieldChanges.Add(thirdAppField, (thirdInfo, thirdOrigins, thirdUpdates));
+                        thirdFieldChanges.Add(thirdAppField, (thirdInfo, thirdOrigins, thirdUpdates, []));
                     }
                 }
                 
                 // Fetch effect push source data
                 Dictionary<string, StructTypeNode> originsPush = [];
                 Dictionary<string, StructTypeNode> updatesPush = [];
+                Dictionary<string, StructTypeNode> unchangePush = [];
                 {
                     List<FieldDataChangeData>? changes = changeData.Changes!.GetValueOrDefault(field.PushSource);
                     if (changes is { Count: > 0 })
@@ -664,6 +663,18 @@ public static class AppDataTransactionExtension
                                 }
                             }
                         }
+                    }
+                }
+
+                // Fetch effect data from third app fields
+                if (thirdFieldChanges.Any(t => t.Value.thirdOrigins.Count > 0 || t.Value.thirdUpdates.Count > 0))
+                {
+                    for (int i = thirdFieldChanges.Count - 1; i >= 0; i--)
+                    {
+                        var (thirdInfo, thirdOrigins, thirdUpdates, thirdUnChanged) = thirdFieldChanges.ElementAt(i).Value;
+
+                        // Fetch effect data from the priamry key sources
+
                     }
                 }
 
