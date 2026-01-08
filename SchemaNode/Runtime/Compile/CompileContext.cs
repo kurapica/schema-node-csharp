@@ -66,6 +66,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
     #endregion
     
+    #region Methods
+    
     /// <summary>
     /// Generate Semantic Analysis Schema Expressions for the given function type
     /// </summary>
@@ -103,9 +105,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #region Arguments
 
         // Process arguments
-        for (int i = 0; i < Function.Args.Length; i++)
+        for (int argIdx = 0; argIdx < Function.Args.Length; argIdx++)
         {
-            FunctionNodeArgument arg = Function.Args[i];
+            FunctionNodeArgument arg = Function.Args[argIdx];
 
             // Require argument name
             if (!Function.IsSystemCall) // skip system function check
@@ -139,8 +141,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
             arg.SchemaType = argTypeNode;
 
             // Create argument expression
-            argExps[i] = new ArgumentExpression(arg.Name, i, arg.Nullable ?? false, argTypeNode ?? GenericType.Instance); // for safe
-            expMaps[arg.Name] = new VariableExpression(arg.Name, argExps[i]);
+            argExps[argIdx] = new ArgumentExpression(arg.Name, argIdx, arg.Nullable ?? false, argTypeNode ?? GenericType.Instance); // for safe
+            expMaps[arg.Name] = new VariableExpression(arg.Name, argExps[argIdx]);
         }
 
         #endregion
@@ -231,7 +233,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Remove the one time access variables
-            if (!accessCount.TryGetValue(varExp.Name, out int count) || count == 0 || count > 0)
+            if (!accessCount.TryGetValue(varExp.Name, out int count) || count == 0 || count > 1)
                 final.Add(varExp);
         }
 
@@ -272,9 +274,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (type is ArrayType arrayType)
                 type = arrayType.ElementSchemaType;
 
-            foreach (var t in paths)
+            foreach (var fieldName in paths)
             {
-                if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(t, StringComparison.OrdinalIgnoreCase)) is { } field)
+                if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase)) is { } field)
                 {
                     type = field.SchemeType;
                 }
@@ -293,7 +295,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (expMaps.TryGetValue(access[0], out VariableExpression? varExp))
             {
                 SchemaExpression exp = varExp;
-                accessCount[access[0]] = (accessCount.GetValueOrDefault(access[0], 0)) + 1;
+                accessCount[access[0]] = accessCount.GetValueOrDefault(access[0], 0) + 1;
                 
                 if (access.Length > 1)
                 {
@@ -452,9 +454,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
             SchemaExpression[] args = new SchemaExpression[expFuncType.Args.Length];
 
             // Check exp access first for generic types
-            for (int j = 0; j < expFuncType.Args.Length; j++)
+            for (int eArgIdx = 0; eArgIdx < expFuncType.Args.Length; eArgIdx++)
             {
-                FuncCallArg? arg = exp.Args.ElementAtOrDefault(j);
+                FuncCallArg? arg = exp.Args.ElementAtOrDefault(eArgIdx);
                 if (string.IsNullOrWhiteSpace(arg?.Name)) continue;
                 if (!GetExpression(arg.Name, out SchemaExpression? argExp))
                 {
@@ -462,14 +464,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                 }
                 arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetSchemaTypeAsync(arg.Type) : argExp!.SchemaType;
-                await SetArgExp(j, argExp);
+                await SetArgExp(eArgIdx, argExp);
             }
             
             // Check const value
-            for (int j = 0; j < expFuncType.Args.Length; j++)
+            for (int eArgIdx = 0; eArgIdx < expFuncType.Args.Length; eArgIdx++)
             {
-                FunctionNodeArgument argDef = expFuncType.Args[j];
-                FuncCallArg? arg = exp.Args.ElementAtOrDefault(j);
+                FunctionNodeArgument argDef = expFuncType.Args[eArgIdx];
+                FuncCallArg? arg = exp.Args.ElementAtOrDefault(eArgIdx);
                 if (!string.IsNullOrWhiteSpace(arg?.Name)) continue;
 
                 // Validate type
@@ -484,7 +486,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Const expression
-                await SetArgExp(j, arg?.Value == null ? null : new ConstantExpression(arg.SchemeType!.CreateNode(arg.Value)!));
+                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExpression(arg.SchemeType!.CreateNode(arg.Value)!));
             }
 
             // For params
@@ -592,7 +594,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     else if (source is VariableExpression var)
                     {
                         // The same reduce the access count
-                        accessCount[var.Name] = (accessCount.GetValueOrDefault(var.Name, 0)) - 1;
+                        accessCount[var.Name] = accessCount.GetValueOrDefault(var.Name, 0) - 1;
                     }
                     argExp = new IteratorExpression(argExp);
                     argType = arrayEleType ?? argType;
@@ -670,9 +672,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
     }
 
-        /// <summary>
-        /// Visit schema expression with all visitors
-        /// </summary>
+    /// <summary>
+    /// Visit schema expression with all visitors
+    /// </summary>
     public virtual async Task<SchemaExpression> VisitSchemaExpAsync(SchemaExpression exp)
     {
         foreach (IExpressionVisitor visitor in _visitors)
@@ -703,7 +705,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             for (int i = 0; i < funcSchema.Args.Length; i++)
             {
                 ArgumentExpression arg = funcSchema.Args[i];
-                ParameterExpression paramExp = Expression.Parameter(arg.SchemaType?.ToCSharpType(arg.Nullable) 
+                ParameterExpression paramExp = Expression.Parameter(arg.SchemaType.ToCSharpType(arg.Nullable) 
                     ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
                 _paramExpMap[arg.Name] = paramExp;
@@ -763,20 +765,17 @@ public class CompileContext(SchemaContext context, FunctionType function)
         return null;
     }
     
-    public Task<AnySchemaType?> GetSchemaTypeAsync(string schemaName)
-        => Context.GetSchemaTypeAsync(schemaName);
+    public Task<AnySchemaType?> GetSchemaTypeAsync(string schemaName) => Context.GetSchemaTypeAsync(schemaName);
     
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public Task<T?> GetSchemaTypeAsync<T>(string schemaName) where T : AnySchemaType
-        => Context.GetSchemaTypeAsync<T>(schemaName);
+    public Task<T?> GetSchemaTypeAsync<T>(string schemaName) where T : AnySchemaType => Context.GetSchemaTypeAsync<T>(schemaName);
     
     /// <summary>
     /// Gets the app type
     /// </summary>
-    public async Task<AppType?> GetAppTypeAsync(string name) 
-        => await Context.GetAppTypeAsync(name);
+    public async Task<AppType?> GetAppTypeAsync(string name) => await Context.GetAppTypeAsync(name);
     
     /// <summary>
     /// Gets the array type for the element type
@@ -996,8 +995,6 @@ public class CompileContext(SchemaContext context, FunctionType function)
         
         #endregion
 
-        #region Function Call Build
-
         // Direct call
         return funcCallExp.ExpType == ExpressionType.Call 
             ? GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement) 
@@ -1029,6 +1026,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     public void SetCompiledExpression(SchemaExpression exp, Expression compiledExp) => _compiledExpCache[exp] = compiledExp;
 
+    #endregion
+    
     #region Utility Methods
 
     // Compile the method to delegate
@@ -1362,8 +1361,6 @@ public class CompileContext(SchemaContext context, FunctionType function)
     static async Task<TR?> CallRemoteFunction15<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15 }, generic));
     static async Task<TR?> CallRemoteFunction16<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16 }, generic));
     static async Task<TR?> CallRemoteFunction17<TR, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(SchemaContext context, string name, string[] generic, T1 v1, T2 v2, T3 v3, T4 v4, T5 v5, T6 v6, T7 v7, T8 v8, T9 v9, T10 v10, T11 v11, T12 v12, T13 v13, T14 v14, T15 v15, T16 v16, T17 v17) => GetResult<TR>(await context.CallFunctionAsync(name, new JsonArray { v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v17 }, generic));
-
-    #endregion
 
     #endregion
 
