@@ -151,7 +151,9 @@ public class FunctionType: AnySchemaType
             }
             else
             {
-                // Generic type
+                // Generic type// Generic type
+                int index = Return.Length > 1 && int.TryParse(Return[1..], out int i) ? i : 1;
+                ResizeGeneric(index);
                 ReturnNode = GenericType.Instance;
             }
         }
@@ -842,6 +844,15 @@ public class FunctionType: AnySchemaType
 
     #region Utility
 
+    private void ResizeGeneric(int count)
+    {
+        if (Generic.Length >= count) return;
+        AnySchemaType?[] generic = new AnySchemaType?[count];
+        for(int i = 0; i < Math.Min(count, Generic.Length); i++)
+            generic[i] = Generic[i];
+        Generic = generic;
+    }
+    
     // Call async function
     static T? CallAsyncFunc<T>(MethodBase asyncCall, params object[] callArgs)
     {

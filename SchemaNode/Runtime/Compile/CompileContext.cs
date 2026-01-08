@@ -346,7 +346,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
             }
             exp.FuncNode = expFuncType;
-            SchemaFuncInfo? funcTypeInfo = await expFuncType.GetSchemaFuncInfoAsync(context);
+            SchemaFuncInfo? funcTypeInfo = await expFuncType.GetSchemaFuncInfoAsync(Context);
             if (funcTypeInfo is null)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
@@ -655,7 +655,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             // Sets generic type
             AnySchemaType? ParseGenericType(Utility.Schema.SchemaParamTypeInfo typeInfo, AnySchemaType? origin = null, AnySchemaType? genType = null, bool isReturn = false)
             {
-                if (typeInfo.Generic == null)
+                if (typeInfo.Generic == null && origin is not GenericType)
                 {
                     if (origin == null || genType == null || genType.CanBeUseAs(origin)) return origin ?? genType;
                     if (isReturn)
@@ -671,7 +671,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
                 else
                 {
-                    int idx = Array.FindIndex(funcTypeInfo.Generics, g => typeInfo.Generic == g.Generic);
+                    int idx = funcTypeInfo.Generics != null
+                        ? Array.FindIndex(funcTypeInfo.Generics, g => typeInfo.Generic == g.Generic)
+                        : 0;
                     if (idx < 0 || genericTypes[idx] != null && genType != null && genType is not GenericType && !genType.CanBeUseAs(genericTypes[idx]!))
                     {
                         if (isReturn)
