@@ -152,13 +152,7 @@ public class FunctionType: AnySchemaType
             else
             {
                 // Generic type
-                int index = Return.Length > 1 && int.TryParse(Return[1..], out int i) ? i : 1;
-                ResizeGeneric(index);
-                ReturnNode = new GenericTypeNode
-                {
-                    GenericIndex = index,
-                    BaseNode = Generic[index - 1]
-                };
+                ReturnNode = GenericType.Instance;
             }
         }
         else
@@ -229,18 +223,18 @@ public class FunctionType: AnySchemaType
     /// <inheritdoc />
     public override IEnumerable<AnySchemaType> GetDependNodes()
     {
-        if (ReturnNode != null && ReturnNode is not GenericTypeNode)
+        if (ReturnNode != null && ReturnNode is not GenericType)
             yield return ReturnNode;
 
         foreach (FunctionNodeArgument arg in Args)
         {             
-            if (arg.SchemaType != null && arg.SchemaType is not GenericTypeNode)
+            if (arg.SchemaType != null && arg.SchemaType is not GenericType)
                 yield return arg.SchemaType;
         }
 
         foreach(FunctionNodeExpression exp in Exps)
         {
-            if (exp.SchemaType != null && exp.SchemaType is not GenericTypeNode)
+            if (exp.SchemaType != null && exp.SchemaType is not GenericType)
                 yield return exp.SchemaType;
 
             if (exp.FuncNode != null)
@@ -250,7 +244,7 @@ public class FunctionType: AnySchemaType
             {
                 foreach (FuncCallArg callArg in exp.Args)
                 {
-                    if (callArg.SchemeType != null && callArg.SchemeType is not GenericTypeNode)
+                    if (callArg.SchemeType != null && callArg.SchemeType is not GenericType)
                         yield return callArg.SchemeType;
                 }
             }
@@ -367,8 +361,7 @@ public class FunctionType: AnySchemaType
         if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
 
         // Check is static
-        if (!StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) ||
-            (result.Sign & FUNC_SIGN_IMMUTABLE) != FUNC_SIGN_IMMUTABLE) return null;
+        if (!StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) || (result.Sign & FUNC_SIGN_IMMUTABLE) != FUNC_SIGN_IMMUTABLE) return null;
         result.FunctionNode = this;
         FuncInfo = result;
         return result;
@@ -849,15 +842,6 @@ public class FunctionType: AnySchemaType
 
     #region Utility
 
-    private void ResizeGeneric(int count)
-    {
-        if (Generic.Length >= count) return;
-        AnySchemaType?[] generic = new AnySchemaType?[count];
-        for(int i = 0; i < Math.Min(count, Generic.Length); i++)
-            generic[i] = Generic[i];
-        Generic = generic;
-    }
-
     // Call async function
     static T? CallAsyncFunc<T>(MethodBase asyncCall, params object[] callArgs)
     {
@@ -1134,20 +1118,6 @@ public class SchemaFuncInfo
     /// The generic instances
     /// </summary>
     public ConcurrentDictionary<string, MethodInfo> GenericMethods { get; } = new();
-}
-
-
-public class GenericTypeNode: AnySchemaType
-{
-    /// <summary>
-    /// Possible base type
-    /// </summary>
-    public AnySchemaType? BaseNode { get; set; }
-
-    /// <summary>
-    /// The index in generic array
-    /// </summary>
-    public int GenericIndex { get; init; }
 }
 
 #endregion

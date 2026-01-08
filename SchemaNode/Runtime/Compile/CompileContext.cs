@@ -346,6 +346,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
             }
             exp.FuncNode = expFuncType;
+            SchemaFuncInfo? funcTypeInfo = await expFuncType.GetSchemaFuncInfoAsync(context);
+            if (funcTypeInfo is null)
+            {
+                exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
+            }
 
             #endregion
             
@@ -443,7 +449,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Parse generic return type
-            ParseGenericType(expFuncType.ReturnNode, funcRetType);
+            ParseGenericType(funcTypeInfo.Return, expFuncType.ReturnNode, funcRetType);
 
             #endregion
 
@@ -477,7 +483,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 // Validate type
                 if (arg != null)
                 {
-                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetSchemaTypeAsync(arg.Type) : ParseGenericType(argDef.SchemaType);
+                    arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetSchemaTypeAsync(arg.Type) : ParseGenericType(funcTypeInfo.Args[eArgIdx], argDef.SchemaType);
                     if (arg.SchemeType is not { IsValueType: true })
                     {
                         exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
@@ -494,7 +500,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 var argDef = expFuncType.Args.LastOrDefault();
                 if (argDef?.Params == true)
                 {
-                    var paramType = ParseGenericType(argDef.SchemaType);
+                    var paramType = ParseGenericType(funcTypeInfo.Args.Last(), argDef.SchemaType);
                     if (paramType is ArrayType arrayType)
                         paramType = arrayType.ElementSchemaType;
 
@@ -558,10 +564,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 // Gets the argument definition
                 FunctionNodeArgument? argDef = expFuncType.Args.ElementAtOrDefault(index);
+                Utility.Schema.SchemaParamTypeInfo? argInfo = funcTypeInfo.Args.ElementAtOrDefault(index);
                 if (argDef == null)
                 {
                     argDef = expFuncType.Args.LastOrDefault();
                     if (argDef?.Params != true) return;
+                    argInfo = funcTypeInfo.Args.LastOrDefault();
                 }
                 
                 // Params type check
@@ -601,7 +609,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Gets the argument type
-                argType = ParseGenericType(argType, argExp?.SchemaType);
+                argType = ParseGenericType(argInfo!, argType, argExp?.SchemaType);
                 if (argType is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
@@ -645,9 +653,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Sets generic type
-            AnySchemaType? ParseGenericType(AnySchemaType? origin, AnySchemaType? genType = null, bool isReturn = false)
+            AnySchemaType? ParseGenericType(Utility.Schema.SchemaParamTypeInfo typeInfo, AnySchemaType? origin = null, AnySchemaType? genType = null, bool isReturn = false)
             {
-                if (origin is not GenericTypeNode generic)
+                if (typeInfo.Generic == null)
                 {
                     if (origin == null || genType == null || genType.CanBeUseAs(origin)) return origin ?? genType;
                     if (isReturn)
@@ -661,9 +669,26 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                     }
                 }
-                if (genType != null && genType is not GenericTypeNode)
-                    genericTypes[generic.GenericIndex - 1] ??= genType;
-                return genericTypes[generic.GenericIndex - 1] ?? genType;
+                else
+                {
+                    int idx = Array.FindIndex(funcTypeInfo.Generics, g => typeInfo.Generic == g.Generic);
+                    if (idx < 0 || genericTypes[idx] != null && genType != null && genType is not GenericType && !genType.CanBeUseAs(genericTypes[idx]!))
+                    {
+                        if (isReturn)
+                        {
+                            exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        }
+                        else
+                        {
+                            exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        }
+                    }
+                    if (genType != null && genType is not GenericType)
+                        genericTypes[idx] ??= genType;
+                    return genericTypes[idx] ?? genType;
+                }
             }
             
             #endregion
@@ -912,7 +937,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         for (int i = 0; i < funcCallExp.Args.Length; i++)
         {
             SchemaExpression leaf = funcCallExp.Args[i];
-            Type callType = (funcCallExp.Function.Args[i].SchemaType is GenericTypeNode ? funcCallExp.Args[i].SchemaType : funcCallExp.Function.Args[i].SchemaType)
+            Type callType = (funcCallExp.Function.Args[i].SchemaType is GenericType ? funcCallExp.Args[i].SchemaType : funcCallExp.Function.Args[i].SchemaType)
                             ?.ToCSharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
 
             if (leaf is IteratorExpression)
