@@ -189,7 +189,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                                         SchemaNodeStatus.ApplicationPushDataWrongFunc,
                                                         APP_PUSH_DATA_WRONG_FUNC);
 
-                                                primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? from.Name : _thirdFields[arg.Index - 1].Field, fieldAccessExp.FieldName));
+                                                primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? from.Name : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));
                                                 keyExp = null;
                                                 break;
 
@@ -208,8 +208,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
                                 // Create new argument expression for the third field data
                                 ArgumentExpression newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
-                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap,
-                                    [dataField.Name]);
+                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(),[dataField.Name]);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
@@ -269,7 +268,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                                 if (fieldAccessExp.Owner is not ArgumentExpression arg)
                                                     throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc, APP_PUSH_DATA_WRONG_FUNC);
 
-                                                primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? from.Name : _thirdFields[arg.Index - 1].Field, fieldAccessExp.FieldName));
+                                                primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? from.Name : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));
                                                 keyExp = null;
                                                 break;
 
@@ -286,7 +285,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
                                 // Create new argument expression for the third field data
                                 ArgumentExpression newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
-                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap, []);
+                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(), []);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
@@ -353,10 +352,10 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 /// <summary>
 /// The third field info 
 /// </summary>
-public record DataPushThirdFieldInfo(ArgumentExpression Arg, string Field, List<DataPushPrimaryMap> PrimaryMap, List<string> PushKeys);
+public record DataPushThirdFieldInfo(ArgumentExpression Arg, string Field, DataPushPrimaryMap[] PrimaryMap, List<string> PushKeys);
 
 public abstract record DataPushPrimaryMap(string Key);
 
 public record DataPushPrimaryConstant(string Key, AnySchemaNode Value) : DataPushPrimaryMap(Key);
 
-public record DataPushPrimaryFieldAccess(string Key, string AppField, string DataField) : DataPushPrimaryMap(Key);
+public record DataPushPrimaryFieldAccess(string Key, string AppField, int ArgIndex, string DataField) : DataPushPrimaryMap(Key);

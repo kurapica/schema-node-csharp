@@ -6,7 +6,6 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
-using System.Transactions;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -169,7 +168,6 @@ public class DynamicTableSchema
         }
     }
 
-
     /// <summary>
     /// Gets the primary token from the data
     /// </summary>
@@ -189,6 +187,20 @@ public class DynamicTableSchema
         {
             if (node == null || node.IsEmpty) return null;
             keys.Add(node.ToString());
+        }
+        return string.Join(":", keys);
+    }
+
+    /// <summary>
+    /// Gets the primary token from the key nodes
+    /// </summary>
+    public string? GetPrimaryKey(params AnySchemaNode?[] keyNodes)
+    {
+        string[] keys = new string[keyNodes.Length];
+        for (int i = 0; i < keyNodes.Length; i++)
+        {
+            if (keyNodes[i] == null || keyNodes[i] is { IsEmpty: true }) return null;
+            keys[i] = keyNodes[i]!.ToString();
         }
         return string.Join(":", keys);
     }

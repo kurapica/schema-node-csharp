@@ -190,30 +190,30 @@ public class AppType
                             // Register to observers
                             pushSource.AddObserver(field);
                             field.PushSource = pushSource;
-                        }
-                    }
                     
-                    // Compile with data push compile context
-                    DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode, this, field);
-                    try
-                    {
-                        FunctionTypeSchema? pushSchema = await compileContext.VisitFunctionType();
-                        DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
-                        if (pushField.Length > 0)
-                        {
-                            field.ThirdPushFields = compileContext.ThirdFields;
-                            foreach (DataPushThirdFieldInfo push in pushField)
-                                GetField(push.Field)?.AddObserver(field);
+                            // Compile with data push compile context
+                            DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode, this, pushSource, field);
+                            try
+                            {
+                                FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
+                                DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
+                                if (pushField.Length > 0)
+                                {
+                                    field.ThirdPushFields = compileContext.ThirdFields;
+                                    foreach (DataPushThirdFieldInfo push in pushField)
+                                        GetField(push.Field)?.AddObserver(field);
+                                }
+                                field.PushFuncSchema = pushSchema;
+                            }
+                            catch(FunctionVisitException fv)
+                            {
+                                field.Status = fv.Status;
+                            }
+                            catch
+                            {
+                                field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
+                            }
                         }
-                        field.PushFuncSchema = pushSchema;
-                    }
-                    catch(FunctionVisitException fv)
-                    {
-                        field.Status = fv.Status;
-                    }
-                    catch
-                    {
-                        field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
                     }
                 }
 
