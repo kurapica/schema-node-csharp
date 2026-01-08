@@ -544,9 +544,7 @@ public static class AppDataTransactionExtension
                     if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var changeInfos) || 
                         changeInfos.Origins.Count == 0 && changeInfos.Updates.Count == 0 && changeInfos.UnChanged.Count == 0) continue;
                     
-                    foreach (IGrouping<string, DataPushPrimaryFieldAccess> item in thirdInfo.PrimaryMap
-                                 .OfType<DataPushPrimaryFieldAccess>()
-                                 .GroupBy(p => p.AppField))
+                    foreach (IGrouping<string, DataPushPrimaryFieldAccess> item in thirdInfo.PrimaryMap.OfType<DataPushPrimaryFieldAccess>().GroupBy(p => p.AppField))
                     {
                         AppFieldType fromField = field.Application.GetField(item.Key)!;
                         AppSchemaDataFilter? filter = null;
@@ -572,57 +570,62 @@ public static class AppDataTransactionExtension
                             // Use key match, complex case
                             default:
                             {
-                                // Combine keys
-                                if (changeInfos.Origins.Count + changeInfos.Updates.Count + changeInfos.UnChanged.Count < MAX_COMBINE_CASE_COUNT)
+                                // Try Combine keys first
+                                HashSet<string> existedKeys = [];
+                                AppSchemaDataFilter? buildMapCase(IEnumerable<StructTypeNode> nodes)
                                 {
-                                    AppSchemaDataFilter? buildMapCase(IEnumerable<StructTypeNode> nodes)
-                                    {
-                                        AppSchemaDataFilter? combineCase = null;
-                                        foreach (StructTypeNode node in nodes)
-                                        {
-                                            AppSchemaDataFilter? caseFilter = null;
-                                            foreach (DataPushPrimaryFieldAccess map in item)
-                                            {
-                                                AnySchemaNode? keyNode = node.GetField(map.Key);
-                                                if (keyNode == null) // cover case, impossible
-                                                {
-                                                    caseFilter = null;
-                                                    break;
-                                                }
-                                                var kFilter = new AppSchemaDataFilterBinary(LogicExpType.Equal,
-                                                    new AppSchemaDataFilterField(map.DataField),
-                                                    new AppSchemaDataFilterValue(keyNode)
-                                                );
-                                                caseFilter = caseFilter != null
-                                                    ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kFilter)
-                                                    : kFilter;
-                                            }
+                                    if (existedKeys.Count > MAX_COMBINE_CASE_COUNT) return null;
 
-                                            if (caseFilter == null) continue;
-                                            
-                                            combineCase = combineCase != null
-                                                ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, combineCase, caseFilter)
-                                                : caseFilter;
+                                    AppSchemaDataFilter? combineCase = null;
+                                    foreach (StructTypeNode node in nodes)
+                                    {
+                                        AppSchemaDataFilter? caseFilter = null;
+                                        string[] keys = new string[keyCount];
+                                        int keyIdx = 0;
+                                        foreach (DataPushPrimaryFieldAccess map in item)
+                                        {
+                                            AnySchemaNode? keyNode = node.GetField(map.Key);
+                                            if (keyNode == null || keyNode.IsEmpty) // cover case, impossible
+                                            {
+                                                caseFilter = null;
+                                                break;
+                                            }
+                                            var kFilter = new AppSchemaDataFilterBinary(LogicExpType.Equal,
+                                                new AppSchemaDataFilterField(map.DataField),
+                                                new AppSchemaDataFilterValue(keyNode)
+                                            );
+                                            caseFilter = caseFilter != null
+                                                ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kFilter)
+                                                : kFilter;
+                                            keys[keyIdx++] = keyNode.ToString()!;
                                         }
 
-                                        return combineCase;
+                                        if (caseFilter == null || !existedKeys.Add(string.Join(':', keys))) continue;
+
+                                        combineCase = combineCase != null
+                                            ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, combineCase, caseFilter)
+                                            : caseFilter;
                                     }
-                                    
-                                    AppSchemaDataFilter? caseFilters = buildMapCase(changeInfos.Origins.Values);
-                                    if (caseFilters != null)
-                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
-                                    
-                                    caseFilters = buildMapCase(changeInfos.Updates.Values);
-                                    if (caseFilters != null)
-                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
-                                    
-                                    caseFilters = buildMapCase(changeInfos.UnChanged.Values);
-                                    if (caseFilters != null)
-                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+
+                                    return combineCase;
                                 }
-                                // Use contains
-                                else
+
+                                AppSchemaDataFilter? caseFilters = buildMapCase(changeInfos.Origins.Values);
+                                if (caseFilters != null)
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+
+                                caseFilters = buildMapCase(changeInfos.Updates.Values);
+                                if (caseFilters != null)
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+
+                                caseFilters = buildMapCase(changeInfos.UnChanged.Values);
+                                if (caseFilters != null)
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                                                
+                                // Use contains instead of combine key cases
+                                if (filter == null || existedKeys.Count > MAX_COMBINE_CASE_COUNT)
                                 {
+                                    filter = null;
                                     foreach (DataPushPrimaryFieldAccess map in item)
                                     {
                                         ArrayTypeNode? keysNode = CombineField(changeInfos, map.Key);

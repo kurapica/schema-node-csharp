@@ -154,7 +154,7 @@ public class FunctionType: AnySchemaType
                 // Generic type// Generic type
                 int index = Return.Length > 1 && int.TryParse(Return[1..], out int i) ? i : 1;
                 ResizeGeneric(index);
-                ReturnNode = GenericType.Instance;
+                ReturnNode = new GenericType { Index = index };
             }
         }
         else
@@ -715,9 +715,7 @@ public class FunctionType: AnySchemaType
         if (retInfo == null) return null;
         if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
         if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
-        var nullabilityContext = new NullabilityInfoContext();
-        var returnNullability = nullabilityContext.Create(method.ReturnParameter);
-        if (returnNullability.ReadState == NullabilityState.Nullable)
+        else if (new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable)
             sign |= FUNC_SIGN_NULLABLE_RET;
 
         if (retInfo.Generic != null)
@@ -767,17 +765,8 @@ public class FunctionType: AnySchemaType
                 Default = p.GetCustomAttribute<DefaultAttribute>()?.Value, // not the default value of the parameter
             };
             funcSchema.Func.Args[i] = arg;
-            if (arg.Nullable ?? false)
-            {
+            if ((arg.Nullable ?? false) || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable)
                 pt.Kind |= ParameterTypeKind.Nullable;
-            }
-            else
-            {
-                var ctx = new NullabilityInfoContext();
-                var info = ctx.Create(p);
-                if (info.ReadState == NullabilityState.Nullable)
-                    pt.Kind |= ParameterTypeKind.Nullable;
-            }
 
             // Params
             if (p.IsDefined(typeof(ParamArrayAttribute), false))
