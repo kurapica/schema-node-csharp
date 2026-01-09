@@ -92,7 +92,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
     }
 
     /// <inheritdoc />
-    public Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null, string? target = null)
+    public Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? rType = null, string? target = null)
     {
         throw new NotImplementedException();
     }

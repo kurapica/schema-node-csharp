@@ -136,8 +136,37 @@ public class FunctionType: AnySchemaType
 
         // Check if server or direct call
         RequireRemoteCall = IsRemoteCall;
-
-        // Gets return type
+        
+        // Argument types
+        foreach (FunctionNodeArgument arg in Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Type))
+            {
+                Status = SchemaNodeStatus.FunctionArgumentWrongType;
+            }
+            else if (Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
+            {
+                // Only system function can be generic
+                if (!IsSystemCall)
+                {
+                    Status = SchemaNodeStatus.FunctionArgumentWrongType;
+                }
+                else
+                {
+                    // Generic type// Generic type
+                    int index = arg.Type.Length > 1 && int.TryParse(arg.Type[1..], out int i) ? i : 1;
+                    ResizeGeneric(index);
+                    arg.SchemaType = new GenericType { Index = index };
+                }
+            }
+            else
+            {
+                arg.SchemaType = await context.GetSchemaTypeAsync(arg.Type);
+                if (arg.SchemaType is not { IsValueType: true }) Status = SchemaNodeStatus.FunctionArgumentWrongType;
+            }
+        }
+        
+        // Return type
         if (string.IsNullOrWhiteSpace(Return))
         {
             Status = SchemaNodeStatus.FunctionWrongReturnType;
@@ -425,7 +454,7 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
         where TC: CompileContext
     {
         // Argument validation
@@ -433,15 +462,6 @@ public class FunctionType: AnySchemaType
 
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
-        if (genericTypes != null)
-        {
-            for (int i = 0; i < Math.Min(funcInfo.Generics.Length, genericTypes.Length); i++)
-            {
-                if (string.IsNullOrEmpty(genericTypes[i])) continue;
-                AnySchemaType? ns = await context.GetSchemaTypeAsync(genericTypes[i]);
-                if (ns is { IsValueType: true }) generics[i] = ns.ToCSharpType();
-            }
-        }
         Type? GetArgType(SchemaParamTypeInfo arg, Type? maybeType = null)
         {
             if (arg.Generic == null) return arg.Type;
@@ -449,6 +469,14 @@ public class FunctionType: AnySchemaType
             if (idx < 0) return maybeType;
             generics[idx] ??= maybeType;
             return generics[idx];
+        }
+        
+        // parse return type
+        if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.Generic != null)
+        {
+            var rSchemaType = await context.GetSchemaTypeAsync(rType);
+            Type? rCsharpType = rSchemaType?.ToCSharpType();
+            if (rCsharpType != null) GetArgType(funcInfo.Return, rCsharpType);
         }
         
         // parse parameters
@@ -582,7 +610,7 @@ public class FunctionType: AnySchemaType
 
             result = SchemaProvider != null
                 ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider))
-                    .CallFunctionAsync(Name, cArgs, generics.Select(g => g!.GetSchemaType()!).ToArray(), target)
+                    .CallFunctionAsync(Name, cArgs, rType, target)
                 : null;
         }
 
@@ -631,7 +659,7 @@ public class FunctionType: AnySchemaType
         Type retType = typeof(T);
         if (retType.IsAssignableTo(typeof(JsonNode)))
         {
-            result = result is AnySchemaNode node ? node.ToJsonNode() : result is JsonNode jn ? jn : result.ToJsonNode();
+            result = result is AnySchemaNode node ? node.ToJson() : result is JsonNode jn ? jn : result.ToJsonNode();
             if (retType == typeof(JsonArray))
                 return (T)(object)(result as JsonArray ?? []);
             else if (retType == typeof(JsonObject))
@@ -661,8 +689,8 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call the function asynchronously with default compile context
     /// </summary>
-    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string[]? genericTypes = null, string? target = null)
-        => CallAsync<T, CompileContext>(context, args, genericTypes, target);
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
+        => CallAsync<T, CompileContext>(context, args, rType, target);
 
     #endregion
 
@@ -710,45 +738,8 @@ public class FunctionType: AnySchemaType
             }
         };
 
-        // Return type
-        SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true, ns);
-        if (retInfo == null) return null;
-        if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
-        if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
-        else if (new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable)
-            sign |= FUNC_SIGN_NULLABLE_RET;
-
-        if (retInfo.Generic != null)
-        {
-            // IList<T>, use system.array instead
-            if (retInfo.AnyArray)
-            {
-                funcSchema.Func.Return = NS_SYSTEM_ARRAY;
-            }
-            else
-            {
-                // single
-                int gIdx = Array.FindIndex(genInfos, g => g.Generic == retInfo.Generic);
-                if (gIdx >= 0)
-                    funcSchema.Func.Return = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
-                else
-                    return null;
-            }
-        }
-        else if (string.IsNullOrEmpty(retInfo.SchemaType))
-        {
-            return null;
-        }
-        else if (Regex.IsMatch(retInfo.SchemaType, REGEX_GENERIC_TYPE)) // AnySchemaNode
-        {
-            funcSchema.Func.Return = $"T{genInfos.Length + 1}";
-        }
-        else
-        {
-            funcSchema.Func.Return = retInfo.SchemaType;
-        }
-        
         // Parameter types
+        int genericCount = genInfos.Length;
         SchemaParamTypeInfo?[] paramInfos = parameters.Select(p => p.ParameterType.GetSchemaTypeInfo(true, ns)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
@@ -807,12 +798,54 @@ public class FunctionType: AnySchemaType
             {
                 return null;
             }
+            else if (Regex.IsMatch(pt.SchemaType, REGEX_GENERIC_TYPE)) // AnySchemaNode | object
+            {
+                arg.Type = $"T{++genericCount}";
+            }
             else
             {
                 arg.Type = (arg.Params ?? false) && pt.SchemaType.EndsWith("s") && GetSystemNodeSchema(pt.SchemaType)?.Type == SchemaType.Array 
                     ? pt.SchemaType[..^1] 
                     : pt.SchemaType;
             }
+        }
+
+        // Return type
+        SchemaParamTypeInfo? retInfo = method.ReturnType.GetSchemaTypeInfo(true, ns);
+        if (retInfo == null) return null;
+        if (retInfo.Task) sign |= FUNC_SIGN_ASYNC;
+        if (retInfo.Nullable) sign |= FUNC_SIGN_NULLABLE_RET;
+        else if (new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable)
+            sign |= FUNC_SIGN_NULLABLE_RET;
+
+        if (retInfo.Generic != null)
+        {
+            // IList<T>, use system.array instead
+            if (retInfo.AnyArray)
+            {
+                funcSchema.Func.Return = NS_SYSTEM_ARRAY;
+            }
+            else
+            {
+                // single
+                int gIdx = Array.FindIndex(genInfos, g => g.Generic == retInfo.Generic);
+                if (gIdx >= 0)
+                    funcSchema.Func.Return = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
+                else
+                    return null;
+            }
+        }
+        else if (string.IsNullOrEmpty(retInfo.SchemaType))
+        {
+            return null;
+        }
+        else if (Regex.IsMatch(retInfo.SchemaType, REGEX_GENERIC_TYPE)) // AnySchemaNode
+        {
+            funcSchema.Func.Return = $"T{++genericCount}";
+        }
+        else
+        {
+            funcSchema.Func.Return = retInfo.SchemaType;
         }
 
         // Save the method info to cache
@@ -850,7 +883,7 @@ public class FunctionType: AnySchemaType
     }
 
     // Gets the call async method
-    static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(SchemaProviderExtension).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
+    static MethodInfo GetCallAsyncFunc(Type t) => CallAsyncMethodMap.GetOrAdd(t, p => typeof(FunctionType).GetMethod(nameof(CallAsyncFunc), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(p));
     static readonly ConcurrentDictionary<Type, MethodInfo> CallAsyncMethodMap = new();
 
     // static mappings

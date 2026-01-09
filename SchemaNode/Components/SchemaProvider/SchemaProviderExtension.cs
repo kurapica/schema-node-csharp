@@ -191,11 +191,11 @@ public static class SchemaProviderExtension
     /// <param name="context">The schema context</param>
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
-    /// <param name="generic">The generic types</param>
+    /// <param name="rType">The return type</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string[]? generic = null, string? target = null)
-        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), generic, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, string? target = null)
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, target);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -203,11 +203,11 @@ public static class SchemaProviderExtension
     /// <param name="context">The schema context</param>
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
-    /// <param name="generic">The generic types</param>
+    /// <param name="rType">The return types</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string[]? generic = null, string? target = null)
-        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), generic, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, string? target = null)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, target);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -215,11 +215,11 @@ public static class SchemaProviderExtension
     /// <param name="context">The schema context</param>
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
-    /// <param name="generic">The generic types</param>
+    /// <param name="rType">The return type</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string[]? generic = null, string? target = null) 
-        => CallFunctionAsync<T, CompileContext>(context, name, args, generic, target);
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
+        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, target);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -227,13 +227,13 @@ public static class SchemaProviderExtension
     /// <param name="context">The schema context</param>
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
-    /// <param name="generic">The generic types</param>
+    /// <param name="rType">The return type</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string[]? generic = null, string? target = null) 
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
         where TC: CompileContext
     {
         FunctionType node = await context.GetSchemaTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args.Select(object? (p) => p).ToArray(), generic, target);
+        return await node.CallAsync<T, TC>(context, args.Select(object? (p) => p).ToArray(), rType, target);
     }
 }

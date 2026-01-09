@@ -43,8 +43,7 @@ public class CallWorkflow: FunctionWorkflow,
                     }
                 }
 
-                JsonNode? result = await context.CallFunctionAsync(Function, args,
-                    PayloadType != null ? [PayloadType.Name] : null);
+                JsonNode? result = await context.CallFunctionAsync(Function, args, PayloadType?.Name);
                 if (State?.Result ?? false)
                 {
                     if (result == null || result.IsEmpty())

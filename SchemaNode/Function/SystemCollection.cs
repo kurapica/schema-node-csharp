@@ -374,7 +374,7 @@ public static class SystemCollection
         JsonArray args = [];
         foreach (var arg in relation.Args)
             args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? s.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
-        field.Value = await context.CallFunctionAsync(relation.Func, args, [fldConfig.Type]);
+        field.Value = await context.CallFunctionAsync(relation.Func, args, fldConfig.Type);
         return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
     }
 }

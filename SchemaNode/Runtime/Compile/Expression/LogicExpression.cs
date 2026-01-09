@@ -124,11 +124,11 @@ public class LogicExpressionVisitor : IExpressionVisitor
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notnull)}":
                 return new UnaryLogicFuncExpression(LogicExpType.NotNull, callExp.Function, callExp.Args[0], exp.SchemaType);
             
-            // isempty(a)
+            // isEmpty(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}":
                 return new UnaryLogicFuncExpression(LogicExpType.IsEmpty, callExp.Function, callExp.Args[0], exp.SchemaType);
             
-            // notempty(a)
+            // notEmpty(a)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}":
                 return new UnaryLogicFuncExpression(LogicExpType.NotEmpty, callExp.Function, callExp.Args[0], exp.SchemaType);
             
@@ -200,23 +200,23 @@ public class LogicExpressionVisitor : IExpressionVisitor
             case $"{NS_SYSTEM_STRING}.{nameof(SystemStr.notmatch)}":
                 return new BinaryLogicFuncExpression(LogicExpType.NotMatch, callExp.Function, callExp.Args[0],  callExp.Args[1], exp.SchemaType);
 
-            // a in [b, c)
+            // v in [a, b)
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}":
             {
                 if (callExp.Args.Length < 3)
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
                 
-                SchemaExpression vexp = callExp.Args[0];
+                SchemaExpression valExp = callExp.Args[0];
                 SchemaExpression minExp = callExp.Args[1];
                 SchemaExpression maxExp = callExp.Args[2];
                 
                 return new BinaryLogicExpression(LogicExpType.AndAlso, 
                     (callExp.Args.ElementAtOrDefault(3) as ConstantExpression)?.Value.ToValue<bool>() ?? false
-                        ? new BinaryLogicExpression(LogicExpType.GreaterEqual, vexp, minExp, exp.SchemaType)
-                        : new BinaryLogicExpression(LogicExpType.GreaterThan, vexp, minExp, exp.SchemaType), 
+                        ? new BinaryLogicExpression(LogicExpType.GreaterEqual, valExp, minExp, exp.SchemaType)
+                        : new BinaryLogicExpression(LogicExpType.GreaterThan, valExp, minExp, exp.SchemaType), 
                     (callExp.Args.ElementAtOrDefault(4) as ConstantExpression)?.Value.ToValue<bool>() ?? false
-                        ? new BinaryLogicExpression(LogicExpType.LessEqual, vexp, maxExp, exp.SchemaType)
-                        : new BinaryLogicExpression(LogicExpType.LessThan, vexp, maxExp, exp.SchemaType), 
+                        ? new BinaryLogicExpression(LogicExpType.LessEqual, valExp, maxExp, exp.SchemaType)
+                        : new BinaryLogicExpression(LogicExpType.LessThan, valExp, maxExp, exp.SchemaType), 
                     exp.SchemaType);
             }
 
@@ -333,7 +333,7 @@ public class LogicExpressionVisitor : IExpressionVisitor
         return null;
     }
 
-    async Task<SchemaExpression> NotExpAsync(CompileContext context, SchemaExpression exp)
+    private async Task<SchemaExpression> NotExpAsync(CompileContext context, SchemaExpression exp)
     {
         switch (exp)
         {

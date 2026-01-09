@@ -123,11 +123,9 @@ public static class AppSchemaDataFilterExtensions
     /// Combine two filters with AND ALSO
     /// </summary>
     public static AppSchemaDataFilter AndAlso(this AppSchemaDataFilter left, AppSchemaDataFilter right)
-    {
-        if (left is AppSchemaDataFilterValue) return right;
-        if (right is AppSchemaDataFilterValue) return left;
-        return new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
-    }
+        => left is AppSchemaDataFilterValue ? right
+                : right is AppSchemaDataFilterValue ? left
+                : new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
 
     /// <summary>
     /// Combine the access exp with the filter
@@ -174,7 +172,7 @@ public static class AppSchemaDataFilterExtensions
 
 
     /// <summary>
-    /// Try convert the access exp to filter json object
+    /// Try to convert the access exp to filter json object
     /// </summary>
     public static JsonObject? ToFilter(this AppSchemaDataFilter accessExp)
     {
@@ -347,8 +345,11 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
             // App & Field must be valid
             AppType? appType = await context.GetAppTypeAsync(app);
             AppFieldType? appField = appType?.GetField(field);
-            return appField is { SchemaType: ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } } }
-                ? new DataSourceExpression(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), appField.SchemaType))
+            AnySchemaType? schemaType = appField?.SchemaType;
+            if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
+                schemaType = await context.GetSchemaTypeAsync(appField.Type);
+            return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
+                ? new DataSourceExpression(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), schemaType))
                 : null; // call directly
         }
 
@@ -371,7 +372,7 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
             
                 switch (callExp.Function.Name)
                 {
-                    // getfields(source)
+                    // getFields(source)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
                     {
                         // not support a.b.c deep field access
@@ -385,7 +386,7 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
                         return new CountDataSourceExpression(sourceExp, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!);
                 
-                    // source.orderby(field, desc)
+                    // source.OrderBy(field, desc)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
                     {
                         string orderField = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
@@ -416,7 +417,7 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
 
                 switch (callExp.Function.Name)
                 {
-                    // getfield(source, field), conver the case to FieldsDataSourceExpression
+                    // getField(source, field), cover the case to FieldsDataSourceExpression
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
                     {
@@ -560,8 +561,8 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
             target ?? Expression.Constant(null, typeof(string)),
             Expression.Constant(resultType),
             filter ?? Expression.Constant(null, typeof(AppSchemaDataFilter)),
-            skip ?? Expression.Constant(0, typeof(int)),
-            take ?? Expression.Constant(0, typeof(int)),
+            skip != null ? context.ConvertExp(typeof(int), skip) : Expression.Constant(0, typeof(int)),
+            take != null ? context.ConvertExp(typeof(int), take) : Expression.Constant(0, typeof(int)),
             Expression.Constant(false, typeof(bool)),
             Expression.Constant(orders.Count > 0 ? orders.ToArray() : null, typeof(AppSchemaDataOrder[])),
             dataField != null ? Expression.Constant(dataField) : Expression.Constant(null, typeof(string))

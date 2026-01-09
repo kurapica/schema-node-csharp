@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using SchemaNode.Function;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -126,15 +127,16 @@ public class ArithmeticExpressionVisitor : IExpressionVisitor
                     ArithmeticExpType.ToDecimal => Expression.Convert(innerExp, typeof(decimal)),
                     ArithmeticExpType.ToDouble => Expression.Convert(innerExp, typeof(double)),
                     ArithmeticExpType.ToSingle => Expression.Convert(innerExp, typeof(float)),
-                    ArithmeticExpType.ToInt => Expression.Convert(innerExp, typeof(int)),
+                    ArithmeticExpType.ToInt => Expression.Convert(innerExp, typeof(long)),
                     ArithmeticExpType.BitUnary => Expression.OnesComplement(innerExp),
                     _ => throw new NotSupportedException($"Unsupported unary arithmetic expression type: {unaryExp.Type}")
                 };
             }
             case BinaryArithmeticExpression binaryExp:
             {
-                Expression leftExp = await context.CompileSchemaExpAsync(binaryExp.Left);
-                Expression rightExp = await context.CompileSchemaExpAsync(binaryExp.Right);
+                Type resType = exp.SchemaType.ToCSharpType();
+                Expression leftExp = context.ConvertExp(resType, await context.CompileSchemaExpAsync(binaryExp.Left));
+                Expression rightExp = context.ConvertExp(resType, await context.CompileSchemaExpAsync(binaryExp.Right));
                 return binaryExp.Type switch
                 {
                     ArithmeticExpType.Add => Expression.Add(leftExp, rightExp),

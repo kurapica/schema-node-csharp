@@ -47,10 +47,10 @@ public interface ISchemaProvider
     /// </summary>
     /// <param name="schemaName">The function schema name</param>
     /// <param name="args">The arguments</param>
-    /// <param name="generic">The generic types</param>
+    /// <param name="retType">The return type</param>
     /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string[]? generic = null, string? target = null);
+    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null, string? target = null);
     
     /// <summary>
     /// The default load state

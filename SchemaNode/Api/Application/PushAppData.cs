@@ -171,7 +171,7 @@ public static class PushDataExtenstion
             {
                 [0] = item.DeepClone()
             };
-            var res = await context.CallFunctionAsync(rowChecker, args, [NS_SYSTEM_BOOL]);
+            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL);
             if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }

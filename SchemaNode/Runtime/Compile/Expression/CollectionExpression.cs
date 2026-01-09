@@ -116,19 +116,21 @@ public class CollectionExpressionVisitor : IExpressionVisitor
         Expression arrayLen;
 
         Expression indexExp = colExp.Type == Enum.ExpressionType.Last ? Expression.PreDecrementAssign(start) : Expression.PostIncrementAssign(start);
-        Expression iterator = await context.CompileSchemaExpAsync(colExp.Iterator);
+        Expression iteratorExp = await context.CompileSchemaExpAsync(colExp.Iterator);
+        ParameterExpression iterExp = Expression.Variable(iteratorExp.Type, "_iter");
+        Expression iterator = iterExp;
 
         if (iterator.Type.IsSZArray)
         {
             // array[start++]
-            iterator = Expression.ArrayIndex(iterator, indexExp);
-            arrayLen = Expression.ArrayLength(iterator);
+            arrayLen = Expression.ArrayLength(iterExp);
+            iterator = Expression.ArrayIndex(iterExp, indexExp);
         }
         else
         {
             // array.get_item(start++)
-            iterator = Expression.MakeIndex(iterator, iterator.Type.GetProperty("Item", [typeof(int)])!, [indexExp]);
-            arrayLen = Expression.Property(iterator, "Count");
+            arrayLen = Expression.Property(iterExp, "Count");
+            iterator = Expression.MakeIndex(iterExp, iterExp.Type.GetProperty("Item", [typeof(int)])!, [indexExp]);
         }
 
         Type expReturnType = exp.SchemaType.ToCSharpType();
@@ -146,7 +148,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
 
                 return Expression.Block(
-                    [resultExp, start, stop],
+                    [iterExp, resultExp, start, stop],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
                         ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType), Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
@@ -183,7 +186,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
 
                 return Expression.Block(
-                    [resultExp, start, stop, curr],
+                    [iterExp, resultExp, start, stop, curr],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
                         ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType), Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
@@ -220,7 +224,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start, stop],
+                    [iterExp, resultExp, start, stop],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, Expression.Coalesce(await context.CompileSchemaExpAsync(reduceExp.Sum), reduceExp.Sum.Init is NullExpression 
@@ -252,7 +257,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start, stop, init],
+                    [iterExp, resultExp, start, stop, init],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
                     Expression.Assign(init, Expression.Default(iterator.Type)),
@@ -287,7 +293,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start, stop, init],
+                    [iterExp, resultExp, start, stop, init],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(stop, Expression.Constant(0, typeof(int))),
                     Expression.Assign(start, arrayLen),
                     Expression.Assign(init, Expression.Default(iterator.Type)),
@@ -316,7 +323,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
                 Expression callMethod = await context.CompileSchemaExpAsync(colExp.Expression);
 
                 return Expression.Block(
-                    [resultExp, start, stop],
+                    [iterExp, resultExp, start, stop],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(resultExp, Expression.Constant(0, typeof(int))),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
@@ -343,7 +351,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start, stop],
+                    [iterExp, resultExp, start, stop],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, Expression.Constant(true, typeof(bool))),
@@ -370,7 +379,8 @@ public class CollectionExpressionVisitor : IExpressionVisitor
 
                 // Compile
                 return Expression.Block(
-                    [resultExp, start, stop],
+                    [iterExp, resultExp, start, stop],
+                    Expression.Assign(iterExp, iteratorExp),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
                     Expression.Assign(stop, arrayLen),
                     Expression.Assign(resultExp, Expression.Constant(false, typeof(bool))),

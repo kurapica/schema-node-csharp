@@ -34,7 +34,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         // call function
         return new CallFunctionResponse
         {
-            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target)
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.Target)
         };
     }
 }
@@ -59,7 +59,7 @@ public class CallFunctionRequest : SchemaApiRequest
     /// <summary>
     /// The generic types
     /// </summary>
-    public string[] Generic { get; set; } = [];
+    public string? Return { get; set; }
     
     /// <summary>
     /// The related target
