@@ -443,7 +443,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             // provide container app
             if (schema == null)
             {
-                if (app.Length > 0) schema = new AppSchema { Name = app, Apps = apps.ToArray() };
+                if (apps.Count > 0) schema = new AppSchema { Name = app, Apps = apps.ToArray() };
                 return schema;
             }
             

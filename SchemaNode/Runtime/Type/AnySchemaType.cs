@@ -34,7 +34,7 @@ public abstract class AnySchemaType: IDisposable
     /// The namespace that holds the type
     /// </summary>
     public TypeNamespace? Namespace { get; set; }
-
+    
     #endregion
     
     #region Status

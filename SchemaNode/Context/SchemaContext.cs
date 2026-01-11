@@ -25,6 +25,40 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     internal static readonly SchemaNodeConfig Config = new ();
     
     #endregion
+
+    #region Init System Types
+
+    /// <summary>
+    /// Traverse all the defined system schemas, init without loading
+    /// </summary>
+    internal async Task InitSystemContextAsync()
+    {
+        SystemOnly = true;
+        await GetSchemaTypeAsync("", preload: true);
+        await GetAppTypeAsync("", preload: true);
+        ResetTypeNamespace(RootNamespace);
+        ResetAppType(RootAppType);
+    }
+
+    void ResetTypeNamespace(TypeNamespace root)
+    {
+        root.Loaded = false;
+        foreach (TypeNamespace? ns in root.SchemaNodes.Values.Where(n => n is TypeNamespace).Cast<TypeNamespace>())
+            ResetTypeNamespace(ns);
+    }
+    
+    void ResetAppType(AppType root)
+    {
+        if (root.Fields is { Count: > 0 }) return;
+        root.Loaded = false;
+        if (root.SubAppList != null)
+        {
+            foreach (AppType? app in root.SubAppList.Values)
+                ResetAppType(app);
+        }
+    }
+    
+    #endregion
     
     #region Properties
     
@@ -37,6 +71,11 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// Gets the logger
     /// </summary>
     internal ILogger Logger => _loggerThunk.Value;
+    
+    /// <summary>
+    /// For system only
+    /// </summary>
+    internal bool SystemOnly { get; set; }
     
     #endregion
 
@@ -85,101 +124,89 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     
     #region Schema Methods
 
+    // Gets the schema type through namespace
+    async Task<AnySchemaType?> GetSchemaTypeAsync(TypeNamespace node, string[] paths, bool reload = false, bool preload = false)
+    {
+        // Generic type check
+        string[]? generic = null;
+        string path = paths.Length > 0 ? paths[0] : string.Empty;
+        if (paths.Length == 1 && Regex.IsMatch(path, REGEX_GENERIC_IMPLEMENT))
+        {
+            Match match = Regex.Match(path, REGEX_GENERIC_IMPLEMENT);
+            path = match.Groups[1].Value;
+            generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).ToArray();
+        }
+        
+        // Try gets the sub node
+        AnySchemaType? subNode = paths.Length == 0 ? node : node.SchemaNodes.GetValueOrDefault(path);
+        NodeSchema? nodeSchema = null;
+        string schemaName = subNode == RootNamespace ? "" : node != RootNamespace ? $"{node.Name}.{path}" : path;
+        
+        // Init if not exist
+        if (subNode == null)
+        {
+            Logger.LogInformation("[Runtime]Schema Type {schemaName} loading", schemaName);
+            nodeSchema = await this.LoadSchemaAsync(schemaName, SystemOnly);
+            if (nodeSchema == null) return null;
+            subNode = InitSchemaType(node, nodeSchema);
+        }
+        
+        // Reload or Load if is the access node
+        if (paths.Length <= 1)
+        {
+            if (reload || !subNode.Loaded)
+            {
+                // Load the schema
+                Logger.LogInformation("[Runtime]Schema Type {schemaName} loading", schemaName);
+
+                // Avoid recycle load
+                subNode.Loaded = true;
+                
+                // Re-load schema for full definition
+                nodeSchema ??= await this.LoadSchemaAsync(schemaName, SystemOnly);
+                if (nodeSchema == null)
+                {
+                    Logger.LogError("[Runtime]Schema Type {schemaName} load failed", schemaName);
+                    return null;
+                }
+
+                // Load the node
+                subNode.Display = nodeSchema.Display;
+                subNode.Release();
+                subNode.Auth = !string.IsNullOrWhiteSpace(nodeSchema.Auth)
+                    ? await GetSchemaTypeAsync<PolicyType>(nodeSchema.Auth)
+                    : null;
+                subNode.Status = SchemaNodeStatus.Ready;
+
+                await subNode.LoadAsync(this, nodeSchema, preload);
+
+                Logger.LogInformation("[Runtime]Schema Type {schemaName} working", schemaName);
+            }
+
+            // Generic type handling
+            return generic != null
+                ? subNode switch
+                    {
+                        StructType @struct => await @struct.GetGenericTypeAsync(this, generic),
+                        ArrayType array => await array.GetGenericTypeAsync(this, generic[0]),
+                        _ => null
+                    }
+                : subNode;
+        }
+
+        return subNode is TypeNamespace subNs && paths.Length > 1
+            ? await GetSchemaTypeAsync(subNs, paths.Skip(1).ToArray(), reload, preload)
+            : null;
+    }
+
     /// <summary>
     /// Gets the schema node
     /// </summary>
     public async Task<AnySchemaType?> GetSchemaTypeAsync(string schemaName, bool reload = false, bool preload = false)
-    {
-        AnySchemaType? node = RootNamespace;
-
-        // generic type holder, types with generic parameters won't be used directly
-        if (Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE)) 
-            return GenericType.Instance;
-        
-        // gets the node
-        string fullPath = "";
-        string[] paths = schemaName.SplitTypeName();
-        for (int i = 0; i < paths.Length - 1; i++)
-        {
-            if (node is not TypeNamespace parent) return null;
-            string path = paths[i];
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-            
-            // Gets the sub node
-            if (parent.SchemaNodes.TryGetValue(path, out node)) continue;
-            
-            // Must be a namespace
-            node = new TypeNamespace { Name = fullPath, Namespace = parent };
-
-            if (!parent.SchemaNodes.TryAdd(path, node))
-                node = parent.SchemaNodes[path];
-        }
-
-        TypeNamespace? par = null;
-        if (paths.Length > 0)
-        {
-            par = (TypeNamespace)node;
-            node = par.SchemaNodes.GetValueOrDefault(paths.Last());
-
-            // check if generic implementation
-            if (node == null && Regex.IsMatch(paths.Last(), REGEX_GENERIC_IMPLEMENT))
-            {
-                var match = Regex.Match(paths.Last(), REGEX_GENERIC_IMPLEMENT);
-                AnySchemaType? type = await GetSchemaTypeAsync(string.Join('.', paths.SkipLast(1).Append(match.Groups[1].Value)));
-                string[] generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()).ToArray();
-                return type switch
-                {
-                    StructType @struct => await @struct.GetGenericTypeAsync(this, generic),
-                    ArrayType array => await array.GetGenericTypeAsync(this, generic[0]),
-                    _ => null
-                };
-            }
-        }
-
-        if (!reload && node is { Loaded: true }) return node;
-        
-        // reload the node
-        Logger.LogInformation("[Runtime]Schema Type {schema} loading", schemaName);
-        if (node != null) node.Loaded = true;
-        NodeSchema? newSchema = await this.LoadSchemaAsync(schemaName);
-        if (newSchema != null)
-        {
-            if (node == null)
-            {
-                node = newSchema;
-                par!.SchemaNodes.TryAdd(paths.Last(), node!);
-            }
-            node!.Loaded = true;
-            node.Display = newSchema.Display;
-            node.Namespace = par;
-            node.Release();
-            node.Auth = !string.IsNullOrEmpty(newSchema.Auth)
-                ? await GetSchemaTypeAsync(newSchema.Auth) as PolicyType
-                : null;
-            node.Status = SchemaNodeStatus.Ready;
-            if (par != null)
-            {
-                int index = -1;
-                for (int i = 0; i < par.Schemas.Length; i++)
-                {
-                    if (par.Schemas[i].Name.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        index = i;
-                        par.Schemas[i] = newSchema;
-                        break;
-                    }
-                }
-                if (index < 0)
-                {
-                    par.Schemas = par.Schemas.Append(newSchema).ToArray();
-                }
-            }
-            await node.LoadAsync(this, newSchema, preload);
-        }
-        Logger.LogInformation("[Runtime]Schema Type {schema} working", schemaName);
-        return node;
-    }
+        => string.IsNullOrWhiteSpace(schemaName) && RootNamespace.Loaded ? RootNamespace
+            : Regex.IsMatch(schemaName, REGEX_GENERIC_TYPE) ? GenericType.Instance
+                : await GetSchemaTypeAsync(RootNamespace, schemaName.ToLowerInvariant().SplitTypeName(), reload, preload);
 
     /// <summary>
     /// Gets the schema node of specific type
@@ -217,76 +244,61 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 
         return false;
     }
+
+    // Gets the app type through namespace
+    async Task<AppType?> GetAppTypeAsync(AppType root, string[] paths, bool reload = false, bool preload = false)
+    {
+        Logger.LogInformation("Getting App Type: {root} - {paths}", root.Name, string.Join(".", paths));
+        
+        string path = paths.Length > 0 ? paths[0] : string.Empty;
+        AppType? subApp = paths.Length > 0 ? root.SubAppList?.GetValueOrDefault(paths[0]) : root;
+        string name = subApp == RootAppType ? string.Empty : root != RootAppType ? $"{root.Name}.{path}" : path;
+
+        // Loading and init
+        AppSchema? appSchema = null;
+        if (subApp == null)
+        {
+            Logger.LogInformation("[Runtime]App Type {name} loading", name);
+            appSchema = await this.LoadAppSchemaAsync(name, SystemOnly);
+            if (appSchema == null) return null;
+            subApp = InitAppType(root, appSchema);
+        }
+        
+        // Reload or Load if is the access node
+        if (paths.Length > 1) return await GetAppTypeAsync(subApp, paths.Skip(1).ToArray(), reload, preload);
+        
+        // Reload or Load
+        if (reload || !subApp.Loaded)
+        {
+            // Avoid recycle load
+            subApp.Loaded = true;
+            
+            appSchema ??= await this.LoadAppSchemaAsync(name, SystemOnly);
+            if (appSchema == null) return null;
+                
+            await subApp.LoadAsync(this, appSchema, preload);
+            Logger.LogInformation("[Runtime]App Type {name} working", name);
+        }
+        
+        // Load sub app if preload
+        else if (preload && subApp.Apps != null && (subApp.Apps.Length != subApp.SubAppList?.Count || subApp.SubAppList.Any(p => !p.Value.Loaded)))
+        {
+            // Load all the sub application list
+            foreach (string n in subApp.Apps.Select(p => p.Name))
+                await GetAppTypeAsync(n, preload: true);
+        }
+
+        return subApp;
+
+    }
     
     /// <summary>
     /// Gets the category node
     /// </summary>
     public async Task<AppType?> GetAppTypeAsync(string name, bool reload = false, bool preload = false)
-    {
-        // From root
-        AppType? node = RootAppType;
-        name = name.ToLowerInvariant();
-
-        // Gets the node
-        string fullPath = string.Empty;
-        string[] paths = Regex.Split(name, @"\W+").Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
-        for (int i = 0; i < paths.Length - 1; i++)
-        {
-            AppType parent = node;
-            string path = paths[i];
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-            if (parent.SubAppList != null && parent.SubAppList.TryGetValue(path, out node)) continue;
-
-            node = new AppType { Name = fullPath, RootApp = parent };
-            parent.SubAppList ??= new ConcurrentDictionary<string, AppType>();
-            if (!parent.SubAppList.TryAdd(path, node))
-                node = parent.SubAppList[path];
-        }
-
-        AppType? par = null;
-        if (paths.Length > 0)
-        {
-            par = node;
-            node = par.SubAppList?.GetValueOrDefault(paths.Last());
-        }
-
-        if (!reload && node is { Loaded: true })
-        {
-            // check sub apps when preloading
-            if (preload && node.Apps is { Length: > 0})
-            {
-                foreach (var app in node.Apps)
-                {
-                    if (node.SubAppList == null || 
-                        !node.SubAppList.TryGetValue(app.Name.SplitTypeName().Last(), out AppType? subApp) ||
-                        !subApp.Loaded)
-                        await GetAppTypeAsync(app.Name, false, true);
-                }
-            }
-            return node;
-        }
-
-        // reload the node
-        Logger.LogInformation("[Runtime]App Type {AppName} loading", name);
-        if (node != null) node.Loaded = true;
-        AppSchema? appSchema = await this.LoadAppSchemaAsync(name);
-        if (appSchema == null) return node;
-        
-        if (node == null)
-        {
-            node = new AppType{ Name = name, RootApp = par };
-            par!.SubAppList ??= new ConcurrentDictionary<string, AppType>();
-            par.SubAppList.TryAdd(paths.Last(), node);
-            if (par.Apps == null || !par.Apps.Any(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                par.Apps = par.Apps?.Append(appSchema).ToArray() ?? [appSchema];
-            }
-        }
-        node.Loaded = true;
-        await node.LoadAsync(this, appSchema, preload);
-        Logger.LogInformation("[Runtime]App Type {AppName} working", name);
-        return node;
-    }
+        => string.IsNullOrWhiteSpace(name) && RootAppType.Loaded ? RootAppType
+            : await GetAppTypeAsync(RootAppType, Regex.Split(name.Trim().ToLowerInvariant(), @"\W+")
+                .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray(), reload, preload);
 
     /// <summary>
     /// Remove an app from cache
@@ -322,8 +334,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     {
         if (value is null) return null;
         string? schemaType = typeof(T).GetSchemaType(true);
-        if (string.IsNullOrEmpty(schemaType)) return null;
-        return (await GetSchemaTypeAsync(schemaType))?.CreateNode(value);
+        return string.IsNullOrEmpty(schemaType) ? null : (await GetSchemaTypeAsync(schemaType))?.CreateNode(value);
     }
 
     /// <summary>
@@ -333,22 +344,8 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     {
         if (type == null) return null;
         return type.GetArrayType()
-               ?? await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name);
-    }
-    
-    /// <summary>
-    /// Gets the array schema type
-    /// </summary>
-    public async Task<AnySchemaType?> GetArraySchemaTypeAsync(string? name)
-    {
-        AnySchemaType? type = !string.IsNullOrEmpty(name) ? await GetSchemaTypeAsync(name) : null;
-        return type switch
-        {
-            null => null,
-            ArrayType arrayType => arrayType,
-            _ => type.GetArrayType() ??
-                 await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name)
-        };
+               ?? await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!
+                   .GetGenericTypeAsync(this, type.Name);
     }
     
     #endregion
@@ -456,6 +453,43 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     #endregion
 
     #region Utility
+
+    static AnySchemaType InitSchemaType(TypeNamespace root, NodeSchema schema)
+    {
+        AnySchemaType schemaType = schema!;
+        root.SchemaNodes[schema.Name.SplitTypeName().Last()] = schemaType;
+        schemaType.Namespace = root;
+        
+        if (Array.FindIndex(root.Schemas, s => s.Name.Equals(schemaType.Name, StringComparison.OrdinalIgnoreCase)) < 0)
+            root.Schemas = root.Schemas.Append(schema).ToArray();
+        
+        switch (schemaType)
+        {
+            case TypeNamespace ns when schema.Schemas != null:
+            {
+                foreach (NodeSchema sub in schema.Schemas)
+                    InitSchemaType(ns, sub);
+                break;
+            }
+        }
+        return schemaType;
+    }
+
+    static AppType InitAppType(AppType root, AppSchema schema)
+    {
+        AppType app = new AppType { Name = schema.Name, RootApp = root };
+        root.SubAppList ??= new ConcurrentDictionary<string, AppType>();
+        root.SubAppList[schema.Name.SplitTypeName().Last()] = app;
+        if (root.Apps == null ||
+            !root.Apps.Any(s => s.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)))
+            root.Apps = root.Apps?.Append(schema).ToArray() ?? [schema];
+        if (schema.Apps != null)
+        {
+            foreach (AppSchema sub in schema.Apps)
+                InitAppType(app, sub);
+        }
+        return app;
+    }
 
     readonly ConcurrentDictionary<Type, object> _contextItems = [];        
     readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);

@@ -544,7 +544,7 @@ public static class AppDataTransactionExtension
                     if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var changeInfos) || 
                         changeInfos.Origins.Count == 0 && changeInfos.Updates.Count == 0 && changeInfos.UnChanged.Count == 0) continue;
                     
-                    foreach (IGrouping<string, DataPushPrimaryFieldAccess> item in thirdInfo.PrimaryMap.OfType<DataPushPrimaryFieldAccess>().GroupBy(p => p.AppField))
+                    foreach (IGrouping<string, DataPushPrimaryFieldAccess> item in thirdInfo.PrimaryMap.OfType<DataPushPrimaryFieldAccess>().GroupBy(p => p.AppField ?? field.PushSource.Name))
                     {
                         AppFieldType fromField = field.Application.GetField(item.Key)!;
                         AppSchemaDataFilter? filter = null;
@@ -597,7 +597,7 @@ public static class AppDataTransactionExtension
                                             caseFilter = caseFilter != null
                                                 ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kFilter)
                                                 : kFilter;
-                                            keys[keyIdx++] = keyNode.ToString()!;
+                                            keys[keyIdx++] = keyNode.ToString();
                                         }
 
                                         if (caseFilter == null || !existedKeys.Add(string.Join(':', keys))) continue;
@@ -667,7 +667,7 @@ public static class AppDataTransactionExtension
                 List<AnySchemaNode?[]> updatesPush = InitPushData(pushSourceChangeInfo.Updates.Values, pushSourceChangeInfo.UnChanged.Values);
 
                 // Fill push data
-                await FillPushData(originsPush);
+                await FillPushData(originsPush, true);
                 await FillPushData(updatesPush);
 
                 // Calc the origin and new push data

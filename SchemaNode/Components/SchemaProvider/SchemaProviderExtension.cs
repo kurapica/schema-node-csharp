@@ -15,14 +15,12 @@ public static class SchemaProviderExtension
     /// </summary>
     /// <param name="context">The schema context</param>
     /// <param name="schemaName">The schema name</param>
+    /// <param name="onlySystem">Only load system schema</param>
     /// <returns>The schema</returns>
-    public static async Task<NodeSchema?> LoadSchemaAsync(this SchemaContext context, string schemaName)
+    public static async Task<NodeSchema?> LoadSchemaAsync(this SchemaContext context, string schemaName, bool onlySystem = false)
     {
         NodeSchema? schema = GetSystemNodeSchema(schemaName);
-        if (schema != null)
-        {
-            if (schema.Type != SchemaType.Namespace) return schema;
-        }
+        if (onlySystem || schema != null && schema.Type != SchemaType.Namespace) return schema;
 
         foreach (ISchemaProvider provider in context.GetServices<ISchemaProvider>())
         {
@@ -74,11 +72,12 @@ public static class SchemaProviderExtension
     /// </summary>
     /// <param name="context">The schema context</param>
     /// <param name="schemaName">The app schema name</param>
+    /// <param name="onlySystem">Only load system apps</param>
     /// <returns>The app schema</returns>
-    public static async Task<AppSchema?> LoadAppSchemaAsync(this SchemaContext context, string schemaName)
+    public static async Task<AppSchema?> LoadAppSchemaAsync(this SchemaContext context, string schemaName, bool onlySystem = false)
     {
         AppSchema? schema = GetSystemApp(schemaName);
-        if (schema?.Fields is { Length: > 0 }) return schema;
+        if (onlySystem || schema?.Fields is { Length: > 0 }) return schema;
 
         foreach (ISchemaProvider provider in context.GetServices<ISchemaProvider>())
         {

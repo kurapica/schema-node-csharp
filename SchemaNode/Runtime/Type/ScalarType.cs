@@ -189,7 +189,7 @@ public class ScalarType: AnySchemaType
         if (!string.IsNullOrWhiteSpace(Base))
         {
             AnySchemaType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
-            if (node != null && node is ScalarType snode)
+            if (node is ScalarType snode)
             {
                 BaseNode = snode;
                 snode.AddRef(this);

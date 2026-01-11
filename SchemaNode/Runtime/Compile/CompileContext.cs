@@ -75,7 +75,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     {
         #region Pre-checks
 
-        if (Function.TryGetRuntimeFuncCache<CompileContext, FunctionTypeSchema>(out FunctionTypeSchema? cache))
+        if (Function.TryGetRuntimeFuncCache(GetType(), out FunctionTypeSchema? cache))
             return cache!;
 
         // Require exps
@@ -240,7 +240,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
 
         // Done
-        return Function.SetRuntimeFuncCache<CompileContext, FunctionTypeSchema>(new FunctionTypeSchema(argExps, final.ToArray(), returnType!.ToCSharpType()))!;
+        return Function.SetRuntimeFuncCache(GetType(), new FunctionTypeSchema(argExps, final.ToArray(), returnType!.ToCSharpType()))!;
 
         #region Helper
         
@@ -370,7 +370,6 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
             // Match types
             AnySchemaType funcRetType = exp.SchemaType; // func return type may not match exp return type, require exp type check
-            AnySchemaType? arrayEleType = null;
             bool isIterCall = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
             SchemaExpression? iterSource = null;
 
@@ -407,15 +406,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
                     }
-                    arrayEleType = exp.SchemaType;
                     funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
                     break;
                 }
                 case ExpressionType.Filter:
                 {
-                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null } arrayType)
+                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null })
                     {
-                        arrayEleType = arrayType.ElementSchemaType;
+                        // pass
                     }
                     else
                     {
@@ -723,7 +721,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             FunctionTypeSchema funcSchema = await VisitFunctionType();
             
             // Prepare
-            var paramExps = new ParameterExpression[Function.Args.Length + 1];
+            var paramExps = new ParameterExpression[funcSchema.Args.Length + 1];
 
             // Build the parameters, no generic type for custom methods
             // Always add SchemaContext as the first parameters for inner call

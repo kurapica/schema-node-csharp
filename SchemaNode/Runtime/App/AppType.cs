@@ -192,7 +192,7 @@ public class AppType
                             field.PushSource = pushSource;
                     
                             // Compile with data push compile context
-                            DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode, this, pushSource, field);
+                            DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
                             try
                             {
                                 FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
@@ -406,14 +406,6 @@ public class AppType
             }
         }
         
-        // preload sub applications
-        if (preLoad && Apps is { Length: > 0 })
-        {
-            // Load all the sub application list
-            foreach (string name in Apps.Select(p => p.Name))
-                await context.GetAppTypeAsync(name, preload: true);
-        }
-        
         // load workflows
         Workflows = schema.Workflows?.Select(w =>
         {
@@ -424,16 +416,20 @@ public class AppType
         foreach(var wf in Workflows ?? [])
         {
             if (Injection.WorkflowTypes != null)
-            {
                 Injection.WorkflowTypes.Add(wf);
-            }
             else
-            {
                 await wf.LoadAsync(context);
-            }
+        }
+        
+        // preload sub applications
+        if (preLoad && Apps is { Length: > 0 })
+        {
+            // Load all the sub application list
+            foreach (string name in Apps.Select(p => p.Name))
+                await context.GetAppTypeAsync(name, preload: true);
         }
     }
-
+    
     /// <summary>
     /// Release usages
     /// </summary>

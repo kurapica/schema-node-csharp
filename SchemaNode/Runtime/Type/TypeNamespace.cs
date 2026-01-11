@@ -46,50 +46,47 @@ public class TypeNamespace: AnySchemaType
             LoadState = p.LoadState,
         }).ToArray() ?? [];
 
-        if (preload)
-        {
-            if (schema.Schemas == null || schema.Schemas.Length == 0) return;
+        if (!preload || schema.Schemas == null || schema.Schemas.Length == 0) return;
 
-            // policy
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Policy))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // policy
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Policy))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // json
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // json
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // scalar
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Scalar))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // scalar
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Scalar))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // enum
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Enum))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // enum
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Enum))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // struct
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Struct))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // struct
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Struct))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // array
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Array))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // array
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Array))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // function
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
-            
-            // event
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Event))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
-            
-            // workflow
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Workflow))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
+        // function
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Func))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
+        
+        // event
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Event))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
+        
+        // workflow
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Workflow))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
 
-            // namespace
-            foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Namespace))
-                await context.GetSchemaTypeAsync(s.Name, preload: true);
-        }
+        // namespace
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Namespace))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
     }
 
     /// <summary>

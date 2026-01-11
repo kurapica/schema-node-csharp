@@ -460,6 +460,8 @@ public class FunctionType: AnySchemaType
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
 
+        FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
+        
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
         Type? GetArgType(SchemaParamTypeInfo arg, Type? maybeType = null)
@@ -480,7 +482,7 @@ public class FunctionType: AnySchemaType
         }
         
         // parse parameters
-        object?[] callArgs = new object[funcInfo.Args.Length];
+        object?[] callArgs = new object[funcSchema.Args.Length];
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
@@ -592,6 +594,46 @@ public class FunctionType: AnySchemaType
                 callArgs[i] = array.Length == count ? array : array.SliceArray(count);
             }
         }
+        
+        // for more arguments than defined, only custom function support
+        for (int i = funcInfo.Args.Length; i < funcSchema.Args.Length; i++)
+        {
+            ArgumentExpression arg = funcSchema.Args[i];
+            
+            object? argObj = args.ElementAtOrDefault(i);
+            JsonNode? argJson = argObj as JsonNode;
+            AnySchemaNode? argNode = argObj as AnySchemaNode;
+
+            // check null or empty
+            if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+            {
+                if (arg.Nullable) continue;
+                throw new Exception($"The {i + 1} argument must be provided");
+            }
+
+            // Parse argument
+            Type eleType = arg.SchemaType.ToCSharpType();
+
+            // JsonNode
+            if (argJson != null)
+            {
+                callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+            }
+            // AnySchemaNode
+            else if (argNode != null)
+            {
+                if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                    callArgs[i] = argNode;
+                else
+                    callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+            }
+            // object
+            else
+            {
+                callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+            }
+        }
+        
 
         if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
             callArgs = callArgs.Prepend(context).ToArray();

@@ -60,7 +60,7 @@ public static class Extension
     /// </summary>
     internal static string[] SplitTypeName(this string name)
     {
-        List<string> paths = name.ToLower().Split('.', StringSplitOptions.RemoveEmptyEntries).Where(f => !string.IsNullOrEmpty(f)).ToList();
+        List<string> paths = name.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries).Where(f => !string.IsNullOrEmpty(f)).ToList();
         while (paths.Count > 1 && paths.Last().EndsWith(">") && !paths.Last().Contains("<"))
         {
             string last = paths.Last();

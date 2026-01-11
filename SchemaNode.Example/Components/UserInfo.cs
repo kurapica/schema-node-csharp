@@ -2,14 +2,25 @@ using SchemaNode.Attribute;
 
 namespace SchemaNode.Example.Components;
 
-[Schema("example.user", "user", Locale.ZH_CN, "用户信息")]
+/// <summary>
+/// The user info
+/// </summary>
+[Schema("example.user")]
 public class UserInfo
 {
-    [Schema(null, "id", Locale.ZH_CN, "用户ID")]
+    /// <summary>
+    /// User ID
+    /// </summary>
+    [Schema]
     public string? UserId { get; set; }
 
-    [Schema(null, "name", Locale.ZH_CN, "用户名")]
+    /// <summary>
+    /// User Name
+    /// </summary>
     public string? UserName { get; set; } = "Test";
     
+    /// <summary>
+    /// As Admin
+    /// </summary>
     public bool IsAdmin { get; set; }
 }
