@@ -1,5 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -23,6 +25,13 @@ public class SetSourceTargetApi : SchemaApi<SetSourceTargetRequest, SetSourceTar
         AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
         AppFieldType field = app.Fields?.FirstOrDefault(f => f.SourceApp != null && f.SourceApp.Equals(request.SourceApp, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception(APP_FIELD_NOT_FOUND);
 
+        // Set access
+        SchemaContext.SetAccess(app.Name, request.Target);
+        
+        // Authorize
+        await SchemaContext.AuthorizeAsync(field, PolicyScope.DataUpdate);
+        
+        // Set the source target
         await SchemaContext.SetSourceFieldNode(field, request.Target, request.SourceTarget);
 
         return new SetSourceTargetResponse

@@ -1,8 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -17,11 +20,21 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
     {
         Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
 
-        AnySchemeType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
+        // get function node
+        AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
+        if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
+
+        // set target
+        if (!string.IsNullOrWhiteSpace(request.Target))
+            SchemaContext.SetAccess(null, request.Target);
+
+        // authorize
+        await SchemaContext.AuthorizeAsync(node, PolicyScope.FuncExecute);
         
+        // call function
         return new CallFunctionResponse
         {
-            Result = node is FunctionType func ? await SchemaContext.CallFunctionAsync(func, request.Args, request.Generic, request.Target) : null
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.Target)
         };
     }
 }
@@ -46,10 +59,10 @@ public class CallFunctionRequest : SchemaApiRequest
     /// <summary>
     /// The generic types
     /// </summary>
-    public string[] Generic { get; set; } = [];
-
+    public string? Return { get; set; }
+    
     /// <summary>
-    /// The app target to be queried
+    /// The related target
     /// </summary>
     public string? Target { get; set; }
 }

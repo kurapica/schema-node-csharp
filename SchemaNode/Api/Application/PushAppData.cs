@@ -1,11 +1,15 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
+using SchemaNode.Schema;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Nodes;
+using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
 
@@ -42,43 +46,139 @@ public static class PushDataExtenstion
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
         Dictionary<string, AppDataFieldPushQuery>? data)
     {
-        if (string.IsNullOrWhiteSpace(app)) return (false, Constant.APP_NOT_FOUND);
-        if (string.IsNullOrWhiteSpace(target)) return (false, Constant.APP_TARGET_REQUIRED);
-        if (data == null || data.Count == 0) return (false, Constant.APP_PUSH_DATA_REQUIRED);
+        if (string.IsNullOrWhiteSpace(app)) return (false, APP_NOT_FOUND);
+        if (string.IsNullOrWhiteSpace(target)) return (false, APP_TARGET_REQUIRED);
+        if (data == null || data.Count == 0) return (false, APP_PUSH_DATA_REQUIRED);
 
         AppType? appNode = await context.GetAppTypeAsync(app);
-        if (appNode == null) return (false, Constant.APP_NOT_FOUND);
-
+        if (appNode == null) return (false, APP_NOT_FOUND);
+        
+        // set access
+        context.SetAccess(appNode.Name, target);
+        
         bool hasData = false;
-
-        foreach((string field, AppDataFieldPushQuery push) in data)
+        try
         {
-            AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
-            if (appField == null) continue;
-
-            if (!hasData)
+            foreach((string field, AppDataFieldPushQuery push) in data)
             {
-                hasData = true;
-                await context.BeginTransactionAsync();
-            }
-
-            if (push.Data != null)
-            {
-                (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
-                if (error != null) return (false, error);
-                await context.SaveFieldDataAsync(appField, target, result);
-            }
+                AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
+                if (appField == null) continue;
             
-            if (push.Deletes is { Count: > 0 })
-            {
-                await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
+                // authorize
+                await context.AuthorizeAsync(appField, PolicyScope.DataUpdate);
+                bool canAdd = await context.AuthorizeAsync(appField, PolicyScope.DataCreate, true);
+                bool canDel = await context.AuthorizeAsync(appField, PolicyScope.DataDelete, true);
+
+                // no permission to delete data
+                if (!canDel && push.Deletes is { Count: > 0 })
+                    throw new UnauthorizedAccessException();
+
+                // row access check
+                FunctionType? rowChecker = null;
+                if (appField is {  SchemaType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
+                {
+                    bool authorized = true;
+                    foreach (RowPolicyItem policy in appField.RowAuths)
+                    {
+                        try
+                        {
+                            // Authorize evaluator
+                            authorized = await context.AuthorizeAsync(policy.Evaluator, true);
+                            if (!authorized) continue;
+                            if (policy.FilterFunc == null) break;
+
+                            // check type
+                            if (policy.FilterFunc.Args.Length != 1
+                                || policy.FilterFunc.Args[0].SchemaType == null
+                                || !policy.FilterFunc.Args[0].SchemaType!.CanBeUseAs(structType))
+                            {
+                                authorized = false;
+                                continue;
+                            }
+
+                            // visite the function exp tree for where clause
+                            rowChecker = policy.FilterFunc;
+                            break;
+                        }
+                        catch (Exception e)
+                        {
+                            context.Logger.LogError(e, $"PushAppDataAsync row access check error for func ${policy.Evaluator}");
+                            rowChecker = null;
+                        }
+                    }
+
+                    if (rowChecker != null)
+                    {
+                        // check data row access permission
+                        if (push.Data is JsonArray arr)
+                        {
+                            foreach (JsonNode? item in arr)
+                                await ValidateRow(context, rowChecker, item);
+                        }
+                        else
+                            await ValidateRow(context, rowChecker, push.Data);
+
+                        if (push.Deletes is { Count: > 0 })
+                        {
+                            foreach (JsonNode? item in push.Deletes)
+                                await ValidateRow(context, rowChecker, item);
+                        }
+                    }
+                    else if(!authorized)
+                    {
+                        throw new UnauthorizedAccessException();
+                    }
+                }
+
+                // begin transaction if have data
+                if (!hasData)
+                {
+                    hasData = true;
+                    await context.BeginTransactionAsync();
+                }
+
+                // validate and save data
+                if (push.Data != null)
+                {
+                    (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
+                    if (error != null) return (false, error);
+                    await context.SaveFieldDataAsync(appField, target, result, canAdd: canAdd);
+                }
+            
+                if (push.Deletes is { Count: > 0 })
+                    await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
             }
+
+            if (hasData)
+                await context.CommitTransactionAsync();
+        }
+        catch(Exception)
+        {
+            if (hasData) 
+                await context.RollbackTransactionAsync();
+            throw;
         }
 
-        if (hasData)
-            await context.CommitTransactionAsync();
-        
         return (true, null);
+    }
+
+    static async Task ValidateRow(SchemaContext context, FunctionType rowChecker, JsonNode? item)
+    {
+        if (item is not JsonObject) throw new UnauthorizedAccessException();
+        try
+        {
+            var args = new JsonArray(1)
+            {
+                [0] = item.DeepClone()
+            };
+            var res = await context.CallFunctionAsync(rowChecker, args, NS_SYSTEM_BOOL);
+            if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
+                throw new UnauthorizedAccessException();
+        }
+        catch
+        {
+            throw new UnauthorizedAccessException();
+        }
     }
 }
 

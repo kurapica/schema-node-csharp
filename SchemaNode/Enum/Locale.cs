@@ -73,6 +73,8 @@ public static class Locale
     public const string UZ_UZ = "uzUZ"; // Oʻzbekcha
     public const string VI_VN = "viVN"; // Tiếng Việt
     public const string ZH_CN = "zhCN"; // 简体中文
+    public const string ZH_HK = "zhHK"; // 繁體中文（香港）
+    public const string ZH_MO = "zhMO"; // 繁體中文（澳門）
     public const string ZH_TW = "zhTW"; // 繁體中文
     public const string ZU_ZA = "zuZA"; // isiZul
     

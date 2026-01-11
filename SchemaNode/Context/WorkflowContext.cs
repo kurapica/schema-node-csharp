@@ -14,7 +14,7 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The workflow context
 /// </summary>
-public class WorkflowContext: SchemaContext, IDisposable
+public class WorkflowContext: SchemaContext
 {
     #region Private Fields
     
@@ -23,6 +23,8 @@ public class WorkflowContext: SchemaContext, IDisposable
     private readonly IServiceScope _scope;
     private readonly IWorkflowScheduler _scheduler;
     private readonly ConcurrentDictionary<string, WorkflowState> _states = [];
+
+    private const string NodeSelf = "$self";
     
     #endregion
     
@@ -60,7 +62,12 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// The workflow
     /// </summary>
-    public AppWorkflowType? Workflow { get; private set; }
+    public AppWorkflowType? WorkflowType { get; private set; }
+    
+    /// <summary>
+    /// The entry workflow node
+    /// </summary>
+    public Workflow? EntryWorkflow => _workflow;
     
     #endregion
 
@@ -71,11 +78,11 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     private WorkflowContextSnapshot? Backup(bool forks = false)
     {
-        if (_workflow == null || Workflow == null) return null;
+        if (_workflow == null || WorkflowType == null) return null;
         return new WorkflowContextSnapshot
         {
-            App = Workflow.App,
-            Workflow = Workflow.Name,
+            App = WorkflowType.App,
+            Workflow = WorkflowType.Name,
             Start = _workflow.Name,
             CreateTime = CreateTime,
             RootId = _root?.Id ?? Guid.Empty,
@@ -94,7 +101,7 @@ public class WorkflowContext: SchemaContext, IDisposable
             Forks = forks
                 ? _states.Values
                     .Where(s => s.ForkContexts != null)
-                    .SelectMany(s => s.ForkContexts!.Keys)
+                    .SelectMany(s => s.ForkContexts!.Values)
                     .Where(c => c._workflow != null)
                     .Select(c => c.Backup()!)
                     .ToArray()
@@ -143,10 +150,10 @@ public class WorkflowContext: SchemaContext, IDisposable
                 
                 WorkflowContext forkContext = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
                     _scheduler);
-                forkContext.Initialize(Workflow!, startNode, this, forkSnapshot);
+                forkContext.Initialize(WorkflowType!, startNode, this, forkSnapshot);
                 
-                state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
-                state.ForkContexts[forkContext] = forkContext.Id; // record the forked context
+                state.ForkContexts ??= new ConcurrentDictionary<Guid, WorkflowContext>();
+                state.ForkContexts[forkContext.Id] = forkContext; // record the forked context
             }
         }
         
@@ -161,13 +168,16 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// <summary>
     /// Init the workflow context with app workflow node schemas
     /// </summary>
-    internal void Initialize(AppWorkflowType appWorkFlow, Workflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
+    internal void Initialize(AppWorkflowType workflowType, Workflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
     {
         // init the workflow context
-        Workflow = appWorkFlow;
+        WorkflowType = workflowType;
         _workflow = workflow;
         _root = root;
         _states.Clear();
+        
+        // copy schema context item from root
+        if (root != null) this.CopySchemaContextItem(root);
 
         // restore from snapshot
         if (snapshot != null)
@@ -205,11 +215,47 @@ public class WorkflowContext: SchemaContext, IDisposable
     public AnySchemaNode? GetWorkflowPayload(Workflow workflow) => GetWorkflowPayload(workflow.Name);
     
     /// <summary>
+    /// Gets the current workflow status
+    /// </summary>
+    /// <returns></returns>
+    public WorkflowStatus GetWorkflowStatus()
+        => _workflow == null
+            ? WorkflowStatus.Terminated
+            : GetNextWorkflowToProcess(_workflow)?.Item2.Status ?? WorkflowStatus.Terminated;
+    
+    /// <summary>
     /// Gets the workflow status by name
     /// </summary>
     public WorkflowStatus GetWorkflowStatus(string name) 
         => (_states.TryGetValue(name, out WorkflowState? state) ? state.Status : _root?.GetWorkflowStatus(name))
             ?? WorkflowStatus.Waiting;
+    
+    /// <summary>
+    /// Gets the forked workflow context by id
+    /// </summary>
+    public WorkflowContext? GetForkedWorkflowContextById(Guid id)
+    {
+        if (Id == id) return this;
+        
+        foreach ((string name, WorkflowState value) in _states)
+        {
+            Workflow? workflow = _workflow?.FindByName(name);
+            if (workflow == null) continue;
+            if (value.ForkContexts == null) continue;
+            if (value.ForkContexts.TryGetValue(id, out WorkflowContext? ctx)) return ctx;
+
+            // full check has forks in next nodes
+            if (workflow.HasForksInNextNodes)
+            {
+                foreach (var (_, forkContext) in value.ForkContexts)
+                {
+                    ctx = forkContext.GetForkedWorkflowContextById(id);
+                    if (ctx != null) return ctx;
+                }
+            }
+        }
+        return null;
+    }
     
     /// <summary>
     /// Gets teh workflow status by workflow
@@ -218,8 +264,9 @@ public class WorkflowContext: SchemaContext, IDisposable
     
     /// <summary>
     /// The workflow node is done with payload
+    /// <returns>The fork workflow context if created</returns>
     /// </summary>
-    public void Done(string name, AnySchemaNode? payload = null, bool init = false)
+    public WorkflowContext? Done(string name, AnySchemaNode? payload = null, bool init = false)
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
@@ -232,55 +279,80 @@ public class WorkflowContext: SchemaContext, IDisposable
         // fork the workflow context for next nodes
         if (workflow.Fork && (workflow != _workflow || _root == null) && workflow.Next is { Length: > 0 })
         {
-            // check the fork key
-            if (!string.IsNullOrEmpty(workflow.ForkKey))
+            // check the fork key, must all provided
+            string forkKey = string.Empty;
+            
+            if (workflow.ForkKey is { Length: > 0 })
             {
-                if (workflow.ForkKey.Equals("$self"))
+                if (workflow.ForkKey.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
                 {
-                    string? key = payload?.ToString();
-                    if (!string.IsNullOrEmpty(key) && state.ForkContexts != null)
-                    {
-                        foreach (var (workflowContext, _) in state.ForkContexts)
-                        {
-                            if (!key.Equals(workflowContext.GetWorkflowPayload(workflow.Name)?.ToString())) continue;
-                            Logger.LogDebug(
-                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
-                                Id, name, key);
-                            return;
-                        }
-                    }
+                    if (payload == null || payload.IsEmpty) return null;
+                    forkKey = payload.ToString();
                 }
                 else
                 {
-                    AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey);
-                    if (forkKeyNode != null && state.ForkContexts != null)
+                    string[] keys = new  string[workflow.ForkKey.Length];
+                    for (int i = 0; i < workflow.ForkKey.Length; i++)
                     {
-                        string key = forkKeyNode.ToString();
-                        // Check existed forks
-                        foreach (var (workflowContext, _) in state.ForkContexts)
+                        AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey[i]);
+                        if (forkKeyNode == null) return null; // skip fork if any fork key not provided
+                        keys[i] = forkKeyNode.ToString();
+                    }
+                    forkKey = string.Join('/', keys);
+                }
+            }
+
+            // check the previous fork contexts
+            if (!string.IsNullOrEmpty(forkKey) && state.ForkContexts is { IsEmpty: false })
+            {
+                // Check existed forks
+                foreach (var (_, workflowContext) in state.ForkContexts)
+                {
+                    if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
+                    {
+                        AnySchemaNode? forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
+                        if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString().Equals(forkKey)) continue; 
+                    }
+                    else
+                    {
+                        var forkPayload = workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode;
+                        if (forkPayload == null) continue; // cover case but won't happen
+
+                        string[] keys = new string[workflow.ForkKey!.Length];
+                        for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
-                            forkKeyNode = (workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode)
-                                ?.GetValueByPaths(key);
-                            if (forkKeyNode == null || !forkKeyNode.ToString().Equals(key)) continue;
-                            Logger.LogDebug(
-                                "[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
-                                Id, name, key);
-                            return; // skip fork for existing key
+                            AnySchemaNode? forkKeyNode =
+                                (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey[i]);
+                            if (forkKeyNode == null) break;
+                            keys[i] = forkKeyNode.ToString();
                         }
+
+                        if (keys.Any(string.IsNullOrEmpty) || !string.Join('/', keys).Equals(forkKey)) continue;
+                    }
+
+                    // cancel
+                    if (workflow.CancelPre)
+                    {
+                        workflowContext.TryCancel();
+                    }
+                    else
+                    {
+                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                            Id, name, forkKey);
+                        return null; // skip fork
                     }
                 }
             }
             
             // Fork a new workflow context for next nodes
-            WorkflowContext context = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
-                _scheduler);
-            context.Initialize(Workflow!, workflow, this);
+            WorkflowContext context = new (_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler);
+            context.Initialize(WorkflowType!, workflow, this);
             context.Done(workflow.Name, payload, true);
 
-            state.ForkContexts ??= new  ConcurrentDictionary<WorkflowContext, Guid>();
-            state.ForkContexts[context] = context.Id; // record the forked context
+            state.ForkContexts ??= new  ConcurrentDictionary<Guid, WorkflowContext>();
+            state.ForkContexts[context.Id] = context; // record the forked context
             _scheduler.Schedule(context); // schedule the new workflow context for next processing
-            return;
+            return context;
         }
 
         // record the done state
@@ -292,15 +364,14 @@ public class WorkflowContext: SchemaContext, IDisposable
         
         // save
         Persistence();
+
+        return null;
     }
     
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(Workflow workflow, AnySchemaNode? payload = null)
-    {
-        Done(workflow.Name, payload);
-    }
+    public void Done(Workflow workflow, AnySchemaNode? payload = null) => Done(workflow.Name, payload);
     
     /// <summary>
     /// The workflow node has error
@@ -376,6 +447,61 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// Goto the workflow node
     /// </summary>
     public void Goto(Workflow workflow, string? newName = null) => Goto(workflow.Name, newName);
+
+    /// <summary>
+    /// Terminate the workflow branch by name
+    /// </summary>
+    /// <param name="name">The workflow name</param>
+    /// <param name="inner">Recursive call</param>
+    /// <exception cref="InvalidOperationException"></exception>
+    public void Terminate(string name, bool inner = false)
+    {
+        Workflow workflow = _workflow?.FindByName(name)
+            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+        var state = GetOrCreateWorkflowState(name);
+        state.Status = WorkflowStatus.Terminated;
+        
+        if (workflow.Next != null)
+        {
+            foreach (var next in workflow.Next)
+            {
+                Terminate(next.Name, true);
+            }
+        }
+
+        // Recursion call return
+        if (inner) return;
+        
+        Logger.LogInformation("[WorkflowContext]{Guid} Terminate Branch [Workflow] {Name}", Id, name);
+
+        // schedule the workflow context for processing
+        _scheduler.Schedule(this);
+        
+        // save
+        Persistence();
+    }
+    
+    /// <summary>
+    /// Terminate the workflow branch
+    /// </summary>
+    /// <param name="workflow"></param>
+    public void Terminate(Workflow workflow) => Terminate(workflow.Name);
+    
+    /// <summary>
+    /// Whether the workflow is un-cancelled
+    /// </summary>
+    bool IsUnCancellable(Workflow? workflow = null)
+    {
+        workflow ??= _workflow;
+        if (workflow == null) return false;
+        
+        return GetOrCreateWorkflowState(workflow).Status switch
+        {
+            WorkflowStatus.Running => workflow.UnCancelable,
+            WorkflowStatus.Waiting => false,
+            _ => workflow.Next != null && workflow.Next.Any(IsUnCancellable)
+        };
+    }
     
     /// <summary>
     /// Try process the workflow
@@ -384,31 +510,55 @@ public class WorkflowContext: SchemaContext, IDisposable
     {
         if (_workflow == null) return;
         
-        // Find the next workflow nodes to process
-        var next = GetNextWorkflowToProcess(_workflow);
-        if (next == null)
-        {
-            // All done
-            if (IsWorkflowTerminatable(_workflow))
-                await TerminateAsync();
-            return;
-        }
-        
-        Workflow workflow = next.Value.Item1;
-        WorkflowState state = next.Value.Item2;
+        await _processLock.WaitAsync();
         try
         {
-            Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+            if (_workflow == null) return;
             
-            // Process the workflow
-            state.Status = WorkflowStatus.Running;
-            await state.ProcessAsync(this, workflow);
+            // Find the next workflow nodes to process
+            var next = GetNextWorkflowToProcess(_workflow);
+            if (next == null)
+            {
+                // All done
+                if (IsWorkflowTerminatable(_workflow))
+                    await TerminateAsync();
+                return;
+            }
+
+            Workflow workflow = next.Value.Item1;
+            WorkflowState state = next.Value.Item2;
+            try
+            {
+                Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+
+                // Process the workflow
+                state.Status = WorkflowStatus.Running;
+                await state.ProcessAsync(this, workflow);
+            }
+            catch (Exception ex)
+            {
+                // Mark error
+                state.Status = WorkflowStatus.Error;
+                state.Error = ex.GetInnermostException().Message;
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            // Mark error
-            state.Status = WorkflowStatus.Error;
-            state.Error = ex.GetInnermostException().Message;
+            _processLock.Release();
+        }
+
+        _scheduler.Schedule(this);
+    }
+    
+    void TryCancel()
+    {
+        if (!IsUnCancellable())
+        {
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                await TerminateAsync();
+            });
         }
     }
 
@@ -428,7 +578,7 @@ public class WorkflowContext: SchemaContext, IDisposable
             if (workflow != null) await value.ReleaseAsync(this, workflow);
             
             if (value.ForkContexts is not { Count: > 0 }) continue;
-            foreach ((WorkflowContext key, _) in value.ForkContexts)
+            foreach ((_, WorkflowContext key) in value.ForkContexts)
                 await key.TerminateAsync();
         }
         
@@ -466,13 +616,15 @@ public class WorkflowContext: SchemaContext, IDisposable
     /// </summary>
     async Task PersistenceAsync()
     {
+        Interlocked.Increment(ref _version);
+        if (_version > 10e6) Interlocked.Exchange(ref _version, 1); // reset version to avoid overflow
+        
         using IServiceScope scope = _scope.ServiceProvider.CreateScope();
-        IWorkflowContextPersistence? persistence = scope.ServiceProvider.GetService<IWorkflowContextPersistence>();
+        var persistence = scope.ServiceProvider.GetService<IWorkflowContextPersistence>();
         if (persistence != null)
         {
             WorkflowContextSnapshot? snapshot = Backup();
-            if (snapshot != null)
-                await persistence.SaveAsync(snapshot);
+            if (snapshot != null) await persistence.SaveAsync(snapshot);
         }
     }
 
@@ -482,15 +634,15 @@ public class WorkflowContext: SchemaContext, IDisposable
 
     #region IDisposable
 
-    public void Dispose()
+    public new void Dispose()
     {
-        if (_root != null)
+        base.Dispose();
+
+        // remove from root fork contexts
+        if (_root != null && _root._states.TryGetValue(_workflow!.Name, out WorkflowState? state) 
+                          && state.ForkContexts != null)
         {
-            // remove from root fork contexts
-            if (_root._states.TryGetValue(_workflow!.Name, out WorkflowState? state) && state.ForkContexts != null)
-            {
-                state.ForkContexts.TryRemove(this, out _);
-            }
+            state.ForkContexts.TryRemove(Id, out _);
         }
         
         _workflow = null;
@@ -524,7 +676,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// <summary>
         /// The forked workflow contexts
         /// </summary>
-        public ConcurrentDictionary<WorkflowContext, Guid>? ForkContexts { get; set; }
+        public ConcurrentDictionary<Guid, WorkflowContext>? ForkContexts { get; set; }
         
         /// <summary>
         /// Has session
@@ -536,7 +688,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// </summary>
         public virtual async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context];
             if (workflow.Args is { Length: > 0 })
             {
@@ -547,12 +699,12 @@ public class WorkflowContext: SchemaContext, IDisposable
                     var arg = workflow.Args[i];
                     if (string.IsNullOrEmpty(arg.Name))
                     {
-                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
                     }
                     else
                     {
                         AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 1] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
                     }
                 }
             }
@@ -581,7 +733,7 @@ public class WorkflowContext: SchemaContext, IDisposable
         /// </summary>
         public override async Task ProcessAsync(WorkflowContext context, Workflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Components.Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
             object?[] args = [context, Session];
             if (workflow.Args is { Length: > 0 })
             {
@@ -593,12 +745,12 @@ public class WorkflowContext: SchemaContext, IDisposable
                     var arg = workflow.Args[i];
                     if (string.IsNullOrEmpty(arg.Name))
                     {
-                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
                     }
                     else
                     {
                         AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 2] = arg.TypeNode?.ToCSharpType().TryConvert(payload);
+                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
                     }
                 }
             }
@@ -700,6 +852,10 @@ public class WorkflowContext: SchemaContext, IDisposable
             return new WorkflowState();
         });
     }
+    
+    WorkflowState GetOrCreateWorkflowState(Workflow workflow) => GetOrCreateWorkflowState(workflow.Name);
+    
+    SemaphoreSlim _processLock = new(1,1);
     
     #endregion
 }

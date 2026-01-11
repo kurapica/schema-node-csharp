@@ -1,10 +1,10 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
-using SchemaNode.Components.Provider;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -13,10 +13,12 @@ using Microsoft.AspNetCore.Http;
 using SchemaNode.Components.Context;
 using SchemaNode.Function;
 using SchemaNode.Http;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Schema;
 using static SchemaNode.Utility.App;
+using static SchemaNode.Utility.Constant;
 // ReSharper disable MemberCanBePrivate.Global
 
 namespace SchemaNode;
@@ -25,9 +27,15 @@ public static class Injection
 {
     #region Schemas
 
+    public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
+    {
+        foreach (Assembly assembly in assemblies) RegisterAssemblys.Add(assembly);
+        return services;
+    }
+
     public static IServiceCollection AddSchemaNode(this IServiceCollection services, Action<SchemaNodeConfig>? config = null, params Assembly[] assemblies)
     {
-        return AddSchemaNode<DefaultSchemaApiProtocol>(services, config, assemblies);
+        return services.AddSchemaNode<DefaultSchemaApiProtocol>(config, assemblies);
     }
     
     /// <summary>
@@ -52,19 +60,127 @@ public static class Injection
         // The schema context
         services.AddScoped<SchemaContext>();
         services.AddTransient<WorkflowContext>();
-        
+
+        // Expression visitor
+        services.AddSingleton<IExpressionVisitor, ArithmeticExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, BreakExpTypeVisitor>();
+        services.AddSingleton<IExpressionVisitor, CollectionExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, ConditionalExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, ConstantExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, DataSourceExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, FieldAccessExpressionVisitor>();
+        services.AddSingleton<IExpressionVisitor, LogicExpressionVisitor>();
+
         // api protocol
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
         services.TryAddTransient<ISchemaApiProtocol, T>();
         services.TryAddTransient<T>();
         
-        // Register system schema types and apis
-        RegisterAssemblyFeatures(services, typeof(SchemaContext).Assembly);
-        RegisterAssemblyFeatures(services, Assembly.GetEntryAssembly());
-        RegisterAssemblyFeatures(services, typeof(T).Assembly);
-        foreach (Assembly assembly in assemblies)
-            RegisterAssemblyFeatures(services, assembly);
+        // Register schema assemblies
+        foreach (Assembly assembly in assemblies) RegisterAssemblys.Add(assembly);
+        Assembly? entryAssembly = Assembly.GetEntryAssembly();
+        if (entryAssembly != null) RegisterAssemblys.Add(entryAssembly);
+        RegisterAssemblys.Add(typeof(T).Assembly);
 
+        // Register system schema types and apis
+        foreach (Assembly assembly in RegisterAssemblys)
+        {
+            SchemaAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaAttribute>();
+            if (rootNamespaceAttr != null)
+            {
+                string name = rootNamespaceAttr.Name ?? assembly.GetName().Name ?? "";
+                string[] displaySeg = rootNamespaceAttr.Display?.Key.Split('.') ?? [];
+                string[] nameSeg = name.Split('.');
+                
+                if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)
+                {
+                    // multi-level namespace
+                    for (int i = 0; i < nameSeg.Length; i++)
+                    {
+                        SaveSystemNodeSchema(new NodeSchema
+                        {
+                            Name = string.Join('.', nameSeg[..(i + 1)]),
+                            Type = SchemaType.Namespace,
+                            Display = displaySeg[i],
+                        });
+                    }
+                }
+                else
+                {
+                    SaveSystemNodeSchema(new NodeSchema
+                    {
+                        Name = name,
+                        Type = SchemaType.Namespace,
+                        Display = rootNamespaceAttr.Display,
+                    });
+                }
+            }
+            
+            SchemaAppAttribute? appAttr = assembly.GetCustomAttribute<SchemaAppAttribute>();
+            string appName = assembly.GetName().Name?.ToLower() ?? "app";
+            if (appAttr?.Application != null)
+            {
+                appName = appAttr.Application;
+                string[] displaySeg = appAttr.Display?.Split('.') ?? [];
+                string[] nameSeg = appName.Split('.');
+                if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)
+                {
+                    for (int i = 0; i < nameSeg.Length; i++)
+                    {
+                        SaveSystemAppField(string.Join('.', nameSeg[..(i + 1)]), display: displaySeg[i]);
+                    }
+                }
+                else
+                {
+                    SaveSystemAppField(appAttr.Application, display: appAttr.Display);
+                }
+            }
+
+            // scan all
+            foreach (var type in assembly.GetTypes())
+            {
+                if (type.IsSubclassOfGenericType(typeof(SchemaApi<,>)))
+                {
+                    // Schema api
+                    if (!type.IsAbstract)
+                    {
+                        Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
+                        Type requestType = apiBaseType.GetGenericArguments()[0];
+                        Type responseType = apiBaseType.GetGenericArguments()[1];
+
+                        ApiTypes.Add(new SchemaApiType(type, requestType, responseType, type.GetCustomAttribute<NoProtocolAttribute>() != null));
+                        services.AddTransient(type);
+                    }
+                }
+                else
+                {
+                    // schema type
+                    string? typeName = type.GetSchemaType();
+
+                    // auto application registered
+                    if (typeName != null && (type is { IsClass: true, IsAbstract: false } ||
+                                             type is { IsValueType: true, IsEnum: false } && !type.IsPrimitiveLike()))
+                    {
+                        SchemaAppAttribute? attr = type.GetCustomAttribute<SchemaAppAttribute>();
+                        if (attr != null)
+                        {
+                            string fieldName = attr.Field ?? type.Name.ToLower();
+                            string application = attr.Application ?? appName;
+                            SaveSystemAppField(application, new AppFieldSchema
+                            {
+                                Name = fieldName,
+                                Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any())
+                                    ? $"{typeName}s"
+                                    : typeName,
+                                Display = attr.Display ?? type.GetSummaryFromXmlDoc() ?? fieldName,
+                                IncrUpdate = attr.IncrUpdate,
+                            }, type: type);
+                        }
+                    }
+                }
+            }
+        }
+        
         // event dispatcher
         services.TryAddSingleton<IEventDispatcher<Event>, DefaultEventDispatcher>();
 
@@ -73,6 +189,44 @@ public static class Injection
         
         // workflow persistence
         services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
+        
+        // Register system.context
+        NodeSchema contextSchema = NewSystemStruct(NS_SYSTEM_CONTEXT, []);
+        services.AddScoped<Access>();
+        services.AddScoped<AccessContextItemProvider>();
+
+        // context item scan
+        foreach(ServiceDescriptor desc in services)
+        {
+            Type providerType = desc.ServiceType;
+            if (providerType.GetInterfaces().FirstOrDefault(i 
+                    => i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>))) is { } @interface)
+            {
+                Type itemType = @interface.GetGenericArguments()[0];
+                string? schemaType = itemType.GetSchemaType(true, providerType.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                if (string.IsNullOrEmpty(schemaType)) continue;
+
+                // use the last part as field name
+                string field = schemaType.SplitTypeName().Last().ToLower();
+                contextSchema.Struct!.Fields = contextSchema.Struct!.Fields.Append(new StructFieldConfig
+                {
+                    Name = field,
+                    Type = schemaType,
+                    Display = $"{{@{schemaType}}}",
+                }).ToArray();
+
+                // record the binding
+                SchemaContextItemExtension.BindSchemaContextItemProvider(field, schemaType, providerType, itemType);
+            }
+        }
+        
+        // Add the system.context
+        SaveSystemNodeSchema(contextSchema);
+        
+        // Init the Schema Context
+        using IServiceScope scope = services.BuildServiceProvider().CreateScope();
+        SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+        context.InitSystemContextAsync().GetAwaiter().GetResult();
         
         return services;
     }
@@ -103,28 +257,107 @@ public static class Injection
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public static IServiceCollection AddAppSchemaDataProvider<T>(this IServiceCollection services)
-        where T : class, IAppSchemaDataProvider
+        where T : class, IAppDataProvider
     {
-        services.TryAddScoped<IAppSchemaDataProvider, T>();
+        services.TryAddScoped<IAppDataProvider, T>();
         if (typeof(ISchemaStorageProvider).IsAssignableFrom(typeof(T)))
             services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
+        
+        // sql provider check
+        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
+        if (interfaceType != null)
+        {
+            // keep it simple, just set it
+            ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
+            services.AddSingleton(instance);
+            DynamicTableSchema.SqlProvider = instance;
+        }
+        
         return services.AddScoped<T>();
     }
     
     /// <summary>
     /// Pre-load all schema nodes
     /// </summary>
-    public static IApplicationBuilder PreLoadSchemaNodes(this IApplicationBuilder app)
+    public static WebApplication PreLoadSchemaNodes(this WebApplication app)
     {
-        _ = Task.Run(async() =>
+        app.Lifetime.ApplicationStarted.Register(async void () =>
         {
-            using IServiceScope scope = app.ApplicationServices.CreateScope();
+            using IServiceScope scope = app.Services.CreateScope();
             SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+            
+            // preload schema and app types
+            context.LogInformation("[Preload] Loading schema ...");
             await context.GetSchemaTypeAsync("", preload: true);
+            
+            context.LogInformation("[Preload] Loading application ...");
             await context.GetAppTypeAsync("", preload: true);
+            
+            // re-compile function types
+            FunctionType[] funcs = ReCompileFuncTypes?.ToArray() ?? [];
+            ReCompileFuncTypes?.Clear();
+            
+            if (funcs.Length > 0)
+                context.LogInformation($"Re compiling {funcs.Length} function types ...");
+
+            int old = 0;
+            while (old != funcs.Length)
+            {
+                foreach (var funcType in funcs)
+                {
+                    context.LogInformation($"Re compiling function type: {funcType.Name}");
+                    funcType.Status = SchemaNodeStatus.Ready;
+                    await funcType.PreCompileAsync(context);
+
+                    if (funcType.Status == SchemaNodeStatus.Ready) continue;
+                    ReCompileFuncTypes ??= [];
+                    ReCompileFuncTypes.Add(funcType);
+                }
+                old = funcs.Length;
+                funcs = ReCompileFuncTypes?.ToArray() ?? [];
+                ReCompileFuncTypes?.Clear();
+            }
+            ReCompileFuncTypes = null;
+            
+            // start work flows
+            context.LogInformation("[Preload] Starting workflows ...");
+            foreach(AppWorkflowType workflow in WorkflowTypes ?? [])
+            {
+                try
+                {
+                    context.LogInformation($"Starting workflow: {workflow.Name}");
+                    await workflow.LoadAsync(context);
+                }
+                catch (Exception ex)
+                {
+                    context.LogError(ex, $"Failed to start workflow: {workflow.Name}, error: {ex.Message}");
+                }
+            }
+            WorkflowTypes = null;
+
+            // start event source
+            context.LogInformation("[Preload] Starting event sources ...");
+            foreach(IEventSource eventSource in app.Services.GetServices<IEventSource>())
+            {
+                try
+                {
+                    context.LogInformation($"Starting event source: {eventSource.GetType().FullName}");
+                    await eventSource.StartAsync(context, app.Lifetime.ApplicationStopping);
+                }
+                catch (Exception ex)
+                {
+                    context.LogError(ex, $"Failed to start event source: {eventSource.GetType().FullName}, error: {ex.Message}");
+                }
+            }
+            
+            // Preload completed
+            context.LogInformation("[Preload] Completed, starting service.");
         });
         return app;
     }
+    
+    internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
+    internal static ConcurrentBag<AppWorkflowType>? WorkflowTypes = [];
     
     #endregion
 
@@ -153,7 +386,7 @@ public static class Injection
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
-        bool hasAppDataStorage = service.IsService(typeof(IAppSchemaDataProvider));
+        bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
         
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();
         var protocolMeta = apiProtocol.GetProtocolMeta(app.Services);
@@ -229,76 +462,8 @@ public static class Injection
             });
             
         }
-
+        
         return app;
-    }
-
-    static void RegisterAssemblyFeatures(IServiceCollection services, Assembly? assembly = null)
-    {
-        if (assembly == null || !RegisterAssemblys.Add(assembly)) return;
-        
-        SchemaTypeAttribute? rootNamespaceAttr = assembly.GetCustomAttribute<SchemaTypeAttribute>();
-        if (rootNamespaceAttr != null)
-        {
-            SaveSystemNodeSchema(new NodeSchema
-            {
-                Name = rootNamespaceAttr.Name ?? assembly.GetName().Name ?? "",
-                Type = SchemaType.Namespace,
-                Display = rootNamespaceAttr.Display,
-            });
-        }
-        
-        SchemaAppAttribute? appAttr = assembly.GetCustomAttribute<SchemaAppAttribute>();
-        string appName = assembly.GetName().Name?.ToLower() ?? "app";
-        if (appAttr?.Application != null)
-        {
-            appName = appAttr.Application;
-            SaveSystemAppField(appAttr.Application, display: appAttr.Display);
-        }
-
-        // scan all
-        foreach (var type in assembly.GetTypes())
-        {
-            if (type.IsSubclassOfGenericType(typeof(SchemaApi<,>)))
-            {
-                // Schema api
-                if (!type.IsAbstract)
-                {
-                    Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
-                    Type requestType = apiBaseType.GetGenericArguments()[0];
-                    Type responseType = apiBaseType.GetGenericArguments()[1];
-
-                    ApiTypes.Add(new SchemaApiType(type, requestType, responseType, type.GetCustomAttribute<NoProtocolAttribute>() != null));
-                    services.AddTransient(type);
-                }
-            }
-            else
-            {
-                // schema type
-                string? typeName = type.GetSchemaType();
-
-                // auto application registered
-                if (typeName != null && (type is { IsClass: true, IsAbstract: false } ||
-                                         type is { IsValueType: true, IsEnum: false } && !type.IsPrimitiveLike()))
-                {
-                    SchemaAppAttribute? attr = type.GetCustomAttribute<SchemaAppAttribute>();
-                    if (attr != null)
-                    {
-                        string fieldName = attr.Field ?? type.Name.ToLower();
-                        string application = attr.Application ?? appName;
-                        SaveSystemAppField(application, new AppFieldSchema
-                        {
-                            Name = fieldName,
-                            Type = type.GetProperties().Any(p => p.GetCustomAttributes<IndexAttribute>().Any())
-                                ? $"{typeName}s"
-                                : typeName,
-                            Display = attr.Display ?? fieldName,
-                            IncrUpdate = attr.IncrUpdate,
-                        }, type: type);
-                    }
-                }
-            }
-        }
     }
     
     static async Task<IResult> ProcessSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
@@ -309,7 +474,7 @@ public static class Injection
         var protocol = ctx.RequestServices.GetRequiredService<ISchemaApiProtocol>();
         return await protocol.ProcessAsync<TApi, TRequest, TResponse>(ctx);
     }
-
+ 
     static async Task<IResult> ProcessDefaultSchemaApiAsync<TApi, TRequest, TResponse>(HttpContext ctx) 
         where TApi: SchemaApi<TRequest, TResponse>
         where TRequest: SchemaApiRequest
@@ -363,9 +528,19 @@ public static class Injection
     /// </summary>
     static string UrlSuffix { get; set; } = "";
 
-    static readonly HashSet<Assembly> RegisterAssemblys = new();
+    static readonly HashSet<Assembly> RegisterAssemblys = [typeof(SchemaContext).Assembly];
     static readonly List<SchemaApiType> ApiTypes = new();
+
     public record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
+
+    #endregion
+
+    #region Methods
+
+    /// <summary>
+    /// Gets all registered schema assemblies
+    /// </summary>
+    public static IEnumerable<Assembly> GetRegisteredAssemblies() => RegisterAssemblys;
 
     #endregion
 }

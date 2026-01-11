@@ -1,14 +1,15 @@
-﻿using SchemaNode.Enum;
-using SchemaNode.Runtime;
+﻿using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+// ReSharper disable InconsistentNaming
+// ReSharper disable VirtualMemberCallInConstructor
 
 namespace SchemaNode.Node;
 
 public abstract class AnySchemaNode
 {
-    internal AnySchemaNode(AnySchemeType type, object? value = null) {
-        Type = type;
+    internal AnySchemaNode(AnySchemaType type, object? value = null) {
+        SchemaType = type;
         CsharpType = type.ToCSharpType();
 
         if (value != null) Value = value;
@@ -17,7 +18,7 @@ public abstract class AnySchemaNode
     /// <summary>
     /// The schema type representation
     /// </summary>
-    public AnySchemeType Type { get; internal set; }
+    public AnySchemaType SchemaType { get; internal set; }
 
     /// <summary>
     /// The c# type representation
@@ -30,11 +31,6 @@ public abstract class AnySchemaNode
     public AnySchemaNode? Origin { get; internal set; }
 
     /// <summary>
-    /// The schema type
-    /// </summary>
-    public SchemaType SchemaType => Type.Type;
-
-    /// <summary>
     /// indicate whether the node is empty
     /// </summary>
     public virtual bool IsEmpty => _value == null;
@@ -43,6 +39,14 @@ public abstract class AnySchemaNode
     /// Convert to value
     /// </summary>
     public virtual T? ToValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
+
+    /// <summary>
+    /// The value equals
+    /// </summary>
+    /// <param name="other"></param>
+    /// <returns></returns>
+    public virtual bool Equals(AnySchemaNode other) 
+        => this == other || _value == other._value;
 
     /// <summary>
     /// Convert to type value
@@ -59,7 +63,7 @@ public abstract class AnySchemaNode
         {
             if (value is AnySchemaNode node)
             {
-                _value = node.Type.CanBeUseAs(Type) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
+                _value = node.SchemaType.CanBeUseAs(SchemaType) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
             }
             else
             {
@@ -72,6 +76,11 @@ public abstract class AnySchemaNode
     /// Convert to json node
     /// </summary>
     public virtual JsonNode? ToJson() => _value?.ToJsonNode();
+    
+    /// <summary>
+    /// Convert to literal value
+    /// </summary>
+    public virtual object? LiteralValue => Value;
 
     /// <summary>
     /// To string
@@ -79,5 +88,5 @@ public abstract class AnySchemaNode
     public override string ToString() => _value?.ToLiteral() ?? string.Empty;
 
     // The internal value
-    internal object? _value;
+    protected object? _value;
 }

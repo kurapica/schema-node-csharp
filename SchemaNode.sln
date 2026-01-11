@@ -1,13 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36414.22
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11304.174 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode", "SchemaNode\SchemaNode.csproj", "{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.Example", "SchemaNode.Example\SchemaNode.Example.csproj", "{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.MySql", "SchemaNode.MySql\SchemaNode.MySql.csproj", "{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.Kafka", "SchemaNode.Kafka\SchemaNode.Kafka.csproj", "{2390F232-AA1F-4C7E-A43A-B359E738F89B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.RabbitMQ", "SchemaNode.RabbitMQ\SchemaNode.RabbitMQ.csproj", "{79F9F918-79B3-4433-9D99-9561BC1F03A1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +31,14 @@ Global
 		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2390F232-AA1F-4C7E-A43A-B359E738F89B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2390F232-AA1F-4C7E-A43A-B359E738F89B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2390F232-AA1F-4C7E-A43A-B359E738F89B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2390F232-AA1F-4C7E-A43A-B359E738F89B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

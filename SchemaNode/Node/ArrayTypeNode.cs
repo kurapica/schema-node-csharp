@@ -2,18 +2,20 @@
 using SchemaNode.Utility;
 using System.Collections;
 using System.Text.Json.Nodes;
+using Microsoft.VisualBasic;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
 public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayTypeNode(AnySchemeType type, object? value = null) : base(type)
+    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(type)
     {
         ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;
     }
 
-    public AnySchemeType? ElementType { get; set; }
+    public AnySchemaType? ElementType { get; set; }
 
     public object? this[int index]
     {
@@ -77,7 +79,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
                 }
                 else if (value is IEnumerable<AnySchemaNode> nodes)
                 {
-                    _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
+                    _elements = nodes.Where(n => n.SchemaType.CanBeUseAs(ElementType)).ToList();
                 }
                 else if (value is not string && value is not JsonObject && value is IEnumerable objs)
                 {
@@ -146,6 +148,24 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         {
             _rawElements.Add(node);
         }
+    }
+
+    /// <summary>
+    /// Clear elements without primary keys
+    /// </summary>
+    internal ArrayTypeNode FilterByPrimaryKeys(string[] primaryKeys)
+    {
+        if (ElementType is not StructType @struct || primaryKeys.Any(k => @struct.GetField(k) == null)) return this;
+        StructFieldConfig[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
+        return new ArrayTypeNode(@struct)
+        {
+            _elements = _elements.Where(e =>
+            {
+                return e is StructTypeNode structNode && 
+                       fields.Select(field => structNode.GetField(field.Name))
+                           .All(value => value is not null && !value.IsEmpty);
+            }).ToList()
+        };
     }
 
     public override object? ToTypeValue(Type type)
@@ -226,12 +246,12 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     public AnySchemaNode? GetValueByPaths(string paths) {
         if (ElementType != null)
         {
-            AnySchemeType? type = ElementType;
+            AnySchemaType? type = ElementType;
             foreach (string path in paths.Split('.', StringSplitOptions.RemoveEmptyEntries))
             {
                 if (type is not StructType @struct) return null;
                 type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
-                    ?.TypeNode;
+                    ?.SchemeType;
             }
 
             if (type == null) return null;
@@ -256,7 +276,23 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     }
 
     public override string ToString() => ToJson()?.ToString() ?? string.Empty;
-    
+
+    /// <summary>
+    /// Equals the other node
+    /// </summary>
+    public override bool Equals(AnySchemaNode other)
+    {
+        if (this == other) return true;
+        if (other is not ArrayTypeNode otherArray) return false;
+        if (ElementType != otherArray.ElementType) return false;
+        if (Count != otherArray.Count) return false;
+        for (int i = 0; i < Count; i++)
+        {
+            if (!this[i]!.Equals(otherArray[i])) return false;
+        }
+        return true;
+    }
+
     public IEnumerator<AnySchemaNode> GetEnumerator()
     {
         return _elements.GetEnumerator();

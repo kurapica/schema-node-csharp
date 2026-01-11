@@ -50,6 +50,11 @@ public enum SchemaType
     /// The work flow
     /// </summary>
     Workflow,
+    
+    /// <summary>
+    /// The permission policy
+    /// </summary>
+    Policy,
 
     /// <summary>
     /// The function node

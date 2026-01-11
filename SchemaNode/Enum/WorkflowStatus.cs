@@ -1,3 +1,5 @@
+using SchemaNode.Attribute;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -9,4 +11,5 @@ public enum WorkflowStatus
     Running,
     Done,
     Error,
+    Terminated
 }

@@ -19,4 +19,9 @@ public enum WorkflowMode
     /// Use event with arguments for waiting
     /// </summary>
     Event,
+    
+    /// <summary>
+    /// Use interaction for user interaction
+    /// </summary>
+    Interaction,
 }

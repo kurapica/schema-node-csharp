@@ -9,7 +9,6 @@ namespace SchemaNode.Http;
 public class CachedZipFileProvider : IFileProvider
 {
     private readonly ConcurrentDictionary<string, CachedFile> _files = new();
-    private readonly string _root;
 
     public CachedZipFileProvider(Assembly assembly, string resourceName, string root = "")
     {

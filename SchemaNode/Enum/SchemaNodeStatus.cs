@@ -1,8 +1,12 @@
+using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
-/// The schema node status, for system diagnois
+/// The schema node status, for system diagnosis
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA}.status")]
 public enum SchemaNodeStatus
 {
     /// <summary>
@@ -139,6 +143,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong arguments
     /// </summary>
     FunctionExpWrongFuncArgs,
+
+    /// <summary>
+    /// The function expression has wrong return value
+    /// </summary>
+    FunctionExpWrongReturn,
     
     /// <summary>
     /// The function has no expressions
@@ -154,27 +163,7 @@ public enum SchemaNodeStatus
     /// The function expression use duplicated name
     /// </summary>
     FunctionExpDuplicateName,
-    
-    /// <summary>
-    /// The function expression use wrong func for reduce
-    /// </summary>
-    FunctionExpWrongFuncForReduce,
-    
-    /// <summary>
-    /// The function expression use wrong func for first
-    /// </summary>
-    FunctionExpWrongFuncForFirst,
-    
-    /// <summary>
-    /// The function expression use wrong func for last
-    /// </summary>
-    FunctionExpWrongFuncForLast,
-    
-    /// <summary>
-    /// The function expression use wrong func for filter
-    /// </summary>
-    FunctionExpWrongFuncForFilter,
-    
+        
     /// <summary>
     /// The function return struct member type not valid
     /// </summary>
@@ -185,6 +174,26 @@ public enum SchemaNodeStatus
     /// </summary>
     FunctionExpsHasCompileError,
 
+    /// <summary>
+    /// The function can't be used as policy filter
+    /// </summary>
+    FunctionCantBeUsedAsPolicyFilter,
+
+    /// <summary>
+    /// The workflow has wrong func
+    /// </summary>
+    WorkflowWrongFunc,
+    
+    /// <summary>
+    /// The workflow has wrong event
+    /// </summary>
+    WorkflowWrongEvent,
+    
+    /// <summary>
+    /// The policy has wrong func
+    /// </summary>
+    PolicyWrongFunc,
+    
     /// <summary>
     /// The application invalid field
     /// </summary>
@@ -221,12 +230,27 @@ public enum SchemaNodeStatus
     ApplicationRelationWrongFunc,
     
     /// <summary>
-    /// The workflow has wrong func
+    /// The application data auth wrong func
     /// </summary>
-    WorkflowWrongFunc,
+    ApplicationDataAuthWrongFunc,
     
     /// <summary>
-    /// The workflow has wrong event
+    /// The application field data auth wrong func
     /// </summary>
-    WorkflowWrongEvent
+    ApplicationFieldDataAuthWrongFunc,
+
+    /// <summary>
+    /// The application field data auth wrong field
+    /// </summary>
+    ApplicationFieldDataAuthWrongField,
+    
+    /// <summary>
+    /// The application push data wrong func
+    /// </summary>
+    ApplicationPushDataWrongFunc,
+
+    /// <summary>
+    /// The data source compile error
+    /// </summary>
+    DataSourceComipleError,
 }

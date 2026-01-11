@@ -1,5 +1,3 @@
-using SchemaNode.Attribute;
-
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -36,4 +34,19 @@ public enum ExpressionType
     /// Filter the array elements by the function
     /// </summary>
     Filter,
+    
+    /// <summary>
+    /// Count the elements matched by the function
+    /// </summary>
+    Count,
+    
+    /// <summary>
+    /// All elements must match the function
+    /// </summary>
+    All,
+    
+    /// <summary>
+    /// Any element matches the function
+    /// </summary>
+    Any,
 }

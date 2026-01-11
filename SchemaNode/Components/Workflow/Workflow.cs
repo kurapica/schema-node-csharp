@@ -2,6 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Components;
 
@@ -49,7 +50,7 @@ public abstract class Workflow
     /// <summary>
     /// The payload type
     /// </summary>
-    internal AnySchemeType? PayloadType { get; set; }
+    internal AnySchemaType? PayloadType { get; set; }
 
     /// <summary>
     /// Whether the node can be triggered multiple times
@@ -61,7 +62,17 @@ public abstract class Workflow
     /// Fork primary key of the access path, used to identify different fork instances
     /// If a new workflow comes with the same fork key that not terminated, the new one will be ignored
     /// </summary>
-    internal string? ForkKey { get; set; }
+    internal string[]? ForkKey { get; set; }
+    
+    /// <summary>
+    /// Whether the current workflow is un-cancelable
+    /// </summary>
+    internal bool UnCancelable { get; set; }
+    
+    /// <summary>
+    /// Cancel the previous workflow(s) when this workflow is triggered
+    /// </summary>
+    internal bool CancelPre { get; set; }
 
     #endregion
 
@@ -80,7 +91,12 @@ public abstract class Workflow
         => Name.Equals(name, StringComparison.OrdinalIgnoreCase)
             ? this
             : Next?.Select(next => next.FindByName(name)).OfType<Workflow>().FirstOrDefault();
-
+    
+    /// <summary>
+    /// Whether it has forks in next nodes
+    /// </summary>
+    internal bool HasForksInNextNodes => Next != null && Next.Any(n => n.HasForksInNextNodes);
+    
     #endregion
 
     #region Abstract

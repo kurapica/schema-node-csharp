@@ -19,6 +19,7 @@ public static class Constant
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
     
     public const string NS_SYSTEM = "system";
+    public const string NS_SYSTEM_OBJECT = "system.object"; // any value
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
     public const string NS_SYSTEM_LIST = "system.list"; // generic array type
     public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
@@ -64,17 +65,20 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
     public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
     public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
+    public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
     public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
     public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
+    public const string NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE = "system.schema.evaluatorfunc";
+    public const string NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE = "system.schema.predicatefunc";
     public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
     public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
     public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
-    public const string NS_SYSTEM_SCHEMA_ANY_VALUE = "system.schema.anyvalue";
     
     public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
     public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
     public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
-    
+    public const string NS_SYSTEM_SCHEMA_APP_TARGET = "system.schema.apptarget";
+
     // function namespace
     public const string NS_SYSTEM_CONV = "system.conv";
     public const string NS_SYSTEM_MATH = "system.math";
@@ -89,6 +93,9 @@ public static class Constant
     
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";
+    
+    // context struct
+    public const string NS_SYSTEM_CONTEXT = "system.context";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
@@ -166,6 +173,19 @@ public static class Constant
 
     #endregion
 
+    #region Expression Priority
+
+    public const int EXP_CONSTANT_PRIORITY = 100;
+    public const int EXP_ASSIGN_PRIORITY = 95;
+    public const int EXP_BREAK_PRIORITY = 90;
+    public const int EXP_LOGIC_PRIORITY = 85;
+    public const int EXP_CONDITIONAL_PRIORITY = 80;
+    public const int EXP_ARITHMETIC_PRIORITY = 70;
+    public const int EXP_DATA_SOURCE_PRIORITY = 60;
+    public const int EXP_COLLECTION_PRIORITY = 10;
+
+    #endregion
+
     #region Message
 
     public const string TYPE_NOT_EXIST = "TYPE_NOT_EXIST";
@@ -181,6 +201,8 @@ public static class Constant
     public const string TYPE_FUNC_NEED_EXPS = "TYPE_FUNC_NEED_EXPS";
     public const string TYPE_FUNC_RETURN_NOT_VALID = "TYPE_FUNC_RETURN_NOT_VALID";
     public const string TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID = "TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID";
+    public const string TYPE_FUNC_COMPILE_ERROR = "TYPE_FUNC_COMPILE_ERROR";
+    public const string TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER = "TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER";
 
     public const string TYPE_FUNC_EXP_NAME_REQUIRED = "TYPE_FUNC_EXP_NAME_REQUIRED";
     public const string TYPE_FUNC_EXP_NAME_CONFLICT_ARG = "TYPE_FUNC_EXP_NAME_CONFLICT_ARG";
@@ -191,14 +213,12 @@ public static class Constant
     public const string TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALID = "TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALD";
     public const string TYPE_FUNC_EXP_ARGS_NOT_VALID = "TYPE_FUNC_EXP_ARGS_NOT_VALID";
     public const string TYPE_FUNC_EXP_CALL_NO_ARRAY = "TYPE_FUNC_EXP_CALL_NO_ARRAY";
-    public const string TYPE_FUNC_CANT_USE_AS_REDUCE = "TYPE_FUNC_CANT_USE_AS_REDUCE";
-    public const string TYPE_FUNC_CANT_USE_AS_FIRST = "TYPE_FUNC_CANT_USE_AS_FIRST";
-    public const string TYPE_FUNC_CANT_USE_AS_LAST = "TYPE_FUNC_CANT_USE_AS_LAST";
-    public const string TYPE_FUNC_CANT_USE_AS_FILTER = "TYPE_FUNC_CANT_USE_AS_FILTER";
     public const string TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH = "TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH";
     public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
     public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
-    
+
+    public const string TYPE_DATA_SOURCE_COMIPLE_ERROR = "TYPE_DATA_SOURCE_COMPILE_ERROR";
+
     public const string TYPE_ENUM_VALUE_HAS_SUBLIST = "TYPE_ENUM_VALUE_HAS_SUBLIST";
     
     public const string APP_NOT_FOUND = "APP_NOT_FOUND";
@@ -206,6 +226,13 @@ public static class Constant
     public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
     public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";
     public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
+    public const string APP_PUSH_DATA_WRONG_FUNC = "APP_PUSH_DATA_WRONG_FUNC";
+
+    public const string WORKFLOW_NOT_FOUND = "WORKFLOW_NOT_FOUND";
+    public const string WORKFLOW_NODE_NOT_FOUND = "WORKFLOW_NODE_NOT_FOUND";
+    public const string WORKFLOW_NOT_START = "WORKFLOW_NOT_START";
+    public const string WORKFLOW_NODE_NOT_RUNNING = "WORKFLOW_NODE_NOT_RUNNING";
+    public const string WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID = "WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID";
 
     #endregion
 }

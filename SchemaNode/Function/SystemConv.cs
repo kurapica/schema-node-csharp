@@ -1,29 +1,30 @@
 using SchemaNode.Attribute;
-using System.ComponentModel.DataAnnotations;
+using SchemaNode.Runtime;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
 
 /// <summary>
 /// system.conv apis
 /// </summary>
-[SchemaType("system.conv")]
+[Schema("system.conv")]
 public static class SystemConv
 {
     /// <summary>
     /// Assign value
     /// </summary>
-    [SchemaType]
-    public static T Assign<T>(T value) => value;
+    [Schema]
+    public static T? assign<T>(T? value) => value;
 
     /// <summary>
     /// Gets the default value if value is null
     /// </summary>
-    [SchemaType]
-    public static T Default<T>(T? a, T d) => a ?? d;
+    [Schema]
+    public static T @default<T>(T? a, T d) => a ?? d;
 
     /// <summary>
     /// Return the null value of the given type
     /// </summary>
-    [SchemaType]
-    public static T? Null<T>() => default;
+    [Schema]
+    public static T? @null<T>() => default;
 }

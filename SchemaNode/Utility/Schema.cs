@@ -8,7 +8,6 @@ using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using SchemaNode.Components;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -89,7 +88,7 @@ public static class Schema
             }
         }
 
-        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) - saved");
+        Console.WriteLine($"System schema: {schemaName}(${schema.Type}) {schema.Display?.Key ?? ""} - saved");
 
         // Register the type map
         if (type != null && schema.Type is SchemaType.Enum or SchemaType.Struct or SchemaType.Array or SchemaType.Event or SchemaType.Workflow)
@@ -111,16 +110,17 @@ public static class Schema
     /// </summary>
     /// <param name="type">The type</param>
     /// <param name="autoConv">Whether auto convert the type no matter the attribute existed</param>
+    /// <param name="defaultNs">The default namespace</param>
     /// <returns>The schema name be registered</returns>
-    internal static string? GetSchemaType(this Type type, bool autoConv = false)
+    internal static string? GetSchemaType(this Type type, bool autoConv = false, string? defaultNs = null)
     {
-        return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv);
+        return type.GetSchemaTypeInfo()?.GetSchemaType(autoConv, defaultNs);
     }
 
     /// <summary>
     /// Try get the schema name of a assembly type, with auto register
     /// </summary>
-    internal static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false)
+    static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false, string? defaultNs = null)
     {
         if (typeInfo.Complex) return NS_SYSTEM_JSON; // Complex type, use JsonNode
         if (typeInfo.BaseType == null) return null; // Generic, no schema type
@@ -204,7 +204,7 @@ public static class Schema
         {
             // try generate
             NodeSchema[]? schemas = null;
-            bool shouldConv = autoConv || type.GetCustomAttribute<SchemaTypeAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
+            bool shouldConv = autoConv || type.GetCustomAttribute<SchemaAttribute>() != null || type.GetCustomAttribute<SchemaAppAttribute>() != null;
             
             // common
             if (type.IsClass)
@@ -215,18 +215,18 @@ public static class Schema
                     if (type.IsSealed)
                     {
                         // static class as method container
-                        SchemaTypeAttribute? funcNsAttr = type.GetCustomAttribute<SchemaTypeAttribute>();
+                        SchemaAttribute? funcNsAttr = type.GetCustomAttribute<SchemaAttribute>();
                         if (funcNsAttr != null && !string.IsNullOrEmpty(funcNsAttr.Name))
                         {
                             List<NodeSchema> funcNs = [new NodeSchema
                             {
                                 Name = funcNsAttr.Name,
                                 Type = SchemaType.Namespace,
-                                Display = funcNsAttr.Display ?? funcNsAttr.Name,
+                                Display = funcNsAttr.Display ?? type.GetSummaryFromXmlDoc() ?? funcNsAttr.Name,
                                 LoadState = SchemaLoadState.System,
                                 Schemas = []
                             }];
-                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaTypeAttribute>() != null))
+                            foreach (MethodInfo info in type.GetMethods().Where(m => m.IsStatic && m.GetCustomAttribute<SchemaAttribute>() != null))
                             {
                                 NodeSchema? func = FunctionType.GenerateSystemFunction(info, funcNsAttr.Name);
                                 if (func == null) continue;
@@ -240,22 +240,22 @@ public static class Schema
                 {
                     // system event
                     schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else if (type.IsAssignableTo(typeof(Workflow)))
                 {
                     // system workflow
                     schemas = WorkflowType.GenerateSystemWorkflow(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else
                 {
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name : null) 
+                            ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
             }
             else if (type.IsValueType)
@@ -264,20 +264,21 @@ public static class Schema
                 {
                     if (shouldConv) 
                         schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
                     // struct
                     if (shouldConv) 
                         schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaTypeAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaTypeAttribute>()?.Name);
+                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
+                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
                 }
             }
 
             if (schemas is not { Length: > 0 }) return null;
+            
             foreach (NodeSchema schema in schemas)
             {
                 schema.LoadState = SchemaLoadState.System;
@@ -309,7 +310,7 @@ public static class Schema
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this Type? input, bool autoConv = false, string? defaultNs = null)
     {
         if (input == null) return null;
 
@@ -327,7 +328,7 @@ public static class Schema
                     BaseType = typeof(JsonNode),
                     SchemaType = NS_SYSTEM_JSON,
                 };
-            };
+            }
             
             result = GetSchemaTypeInfo(args[0]);
             if (result == null) return null;
@@ -398,7 +399,7 @@ public static class Schema
                        (isNumber ? ParameterTypeKind.Number : isFloat ? ParameterTypeKind.Float : ParameterTypeKind.Normal)
             };
         }
-        else if (input.IsArray)
+        else if (input.IsArray && input != typeof(string))
         {
             // only allow one-level array
             if (!input.IsSZArray) return null;
@@ -416,14 +417,14 @@ public static class Schema
 
         // auto conv type to schema type
         result.Type = input;
-        if (autoConv && result.BaseType != null) result.SchemaType = GetSchemaType(result, true);
+        if (autoConv && result.BaseType != null) result.SchemaType = GetSchemaType(result, true, defaultNs);
         return result;
     }
 
     /// <summary>
     /// Gets the schema type info from any schema node
     /// </summary>
-    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemeType node)
+    internal static SchemaParamTypeInfo? GetSchemaTypeInfo(this AnySchemaType node)
     {
         return node switch
         {
@@ -444,7 +445,7 @@ public static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    internal static Type ToCSharpType(this AnySchemeType node, bool? nullable = false)
+    internal static Type ToCSharpType(this AnySchemaType node, bool? nullable = false)
     {
         bool isArray = false;
         Type? type = null;
@@ -578,7 +579,7 @@ public static class Schema
                     // count field
                     foreach ((string field, DataCombineType method) in joinMethodMap)
                     {
-                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { TypeNode: ScalarType { IsNumber: true } })
+                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { SchemeType: ScalarType { IsNumber: true } })
                         {
                             @struct[field] = 1;
                         }
@@ -606,10 +607,10 @@ public static class Schema
                                     break;
                                 }
                             case DataCombineType.Sum:
-                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Sum(p => p is StructTypeNode obj && obj[field.Name] is ScalarTypeNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
+                                result[field.Name] = field.SchemeType is ScalarType { IsNumber: true } ? array.Sum(p => p is StructTypeNode obj && obj[field.Name] is ScalarTypeNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
                                 break;
                             case DataCombineType.Count:
-                                result[field.Name] = field.TypeNode is ScalarType { IsNumber: true } ? array.Count : null;
+                                result[field.Name] = field.SchemeType is ScalarType { IsNumber: true } ? array.Count : null;
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
@@ -716,7 +717,7 @@ public static class Schema
     internal static ArrayTypeNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (node.ElementSchemaType is not StructType structNode || node.Primary == null) return null;
-        Dictionary<string, AnySchemeType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.TypeNode);
+        Dictionary<string, AnySchemaType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemeType);
 
         // Result
         Dictionary<string, StructTypeNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);
@@ -731,8 +732,8 @@ public static class Schema
                         {
                             DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                             DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (SystemDate.NotEqual(ad, bd))
-                                return SystemDate.LessThan(ad,bd) ? -1 : 1;
+                            if (SystemDate.notequal(ad, bd))
+                                return SystemDate.lessthan(ad,bd) ? -1 : 1;
                             break;
                         }
                     case ScalarType { IsNumber: true }:
@@ -765,7 +766,7 @@ public static class Schema
     /// <summary>
     /// The generic type info
     /// </summary>
-    internal class SchemaParamTypeInfo
+    public class SchemaParamTypeInfo
     {
         /// <summary>
         /// The generic type, only allow "T", "T1", "T2" and etc
@@ -795,14 +796,16 @@ public static class Schema
         #region State
 
         public bool Nullable => (Kind & ParameterTypeKind.Nullable) > 0;
-        
+
+        public bool Params => (Kind & ParameterTypeKind.Params) > 0;
+
         public bool List => (Kind & (ParameterTypeKind.List)) > 0;
 
         public bool Enumerable => (Kind & (ParameterTypeKind.Enumerable)) > 0;
 
         public bool Array => (Kind & ParameterTypeKind.Array) > 0;
 
-        public bool AnyArray => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Array | ParameterTypeKind.Enumerable)) > 0;
+        public bool AnyArray => (Kind & (ParameterTypeKind.List | ParameterTypeKind.Array | ParameterTypeKind.Enumerable)) > 0 && !Params;
         
         public bool Task => (Kind & ParameterTypeKind.Task) > 0;
         
@@ -821,12 +824,16 @@ public static class Schema
         /// </summary>
         public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
         {
-            if (node == null || node.IsEmpty()) return (null, Type, generic);
+            Type? valueType = Type;
+            if (Params)
+                valueType = valueType?.GetElementType() ?? valueType;
+            
+            if (node == null || node.IsEmpty()) return (null, valueType, generic);
             if (Generic != null)
             {
                 if (node is JsonArray arr)
                 {
-                    if (!AnyArray) return (null, Type, generic);
+                    if (!AnyArray) return (null, valueType, generic);
                     if (generic == null)
                     {
                         if (arr.Count == 0) return (arr, typeof(JsonArray), null); // unkown
@@ -892,7 +899,7 @@ public static class Schema
                 }
                 
                 // single
-                if (AnyArray) return (null, Type, generic);
+                if (AnyArray) return (null, valueType, generic);
                 if (node is JsonObject obj)
                 {
                     return (obj, typeof(JsonObject), null);
@@ -900,7 +907,7 @@ public static class Schema
                 else if (node is JsonValue val)
                 {
                     (object? value, Type? type) = val.ParseValueAndType();
-                    if (value == null) return (null, Type, generic);
+                    if (value == null) return (null, valueType, generic);
                     if (generic != null)
                     {
                         try
@@ -910,21 +917,21 @@ public static class Schema
                         }
                         catch
                         {
-                            return (null, Type, generic);
+                            return (null, valueType, generic);
                         }
                     }
                     return (value, type, type);
                 }
             }
-            else if (Type != null)
+            else if (valueType != null)
             {
                 // list JsonArray for IList
-                if (Type.IsAssignableFrom(node.GetType())) return (node, Type, null);
+                if (valueType.IsInstanceOfType(node)) return (node, valueType, null);
 
                 // not generic
                 try
                 {
-                    return (node?.FromJson(Type), Type, null);
+                    return (node.FromJson(valueType), valueType, null);
                 }
                 catch
                 {
@@ -932,7 +939,7 @@ public static class Schema
                 }
             }
 
-            return (null, Type, generic);
+            return (null, valueType, generic);
         }
         
         #endregion
@@ -942,7 +949,7 @@ public static class Schema
     /// The parameter type kind
     /// </summary>
     [Flags]
-    internal enum ParameterTypeKind
+    public enum ParameterTypeKind
     {
         Normal = 0,
         Nullable = 1 << 0,
@@ -954,7 +961,8 @@ public static class Schema
         Task = 1 << 6,
         GenericType = 1 << 7,
         GenericParameter = 1 << 8,
-        Complex = 1 << 9, // Dict<TK, TV> || JsonNode || other complex type
+        Params = 1 << 9, // params T[]
+        Complex = 1 << 10, // Dict<TK, TV> || JsonNode || other complex type
     }
     
     #endregion
@@ -979,20 +987,20 @@ public static class Schema
         return arr.Select(a => (T)type.TryConvert(a)!).ToList();
     }
 
-    static ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
-    static ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
-    static ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
 
     // System type maps
-    private static ConcurrentDictionary<string, Type> _systemTypes = [];
-    private static ConcurrentDictionary<Type, string> _typeNames  = [];
-    private static ConcurrentDictionary<Type, string> _typeArrNames = [];
+    private static readonly ConcurrentDictionary<string, Type> _systemTypes = [];
+    private static readonly ConcurrentDictionary<Type, string> _typeNames  = [];
+    private static readonly ConcurrentDictionary<Type, string> _typeArrNames = [];
 
     #endregion
 
     #region Utility
 
-    static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)
+    internal static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)
     {
         return new NodeSchema
         {
@@ -1003,7 +1011,7 @@ public static class Schema
         };
     }
     
-    static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
+    internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
         return new NodeSchema
         {
@@ -1017,12 +1025,12 @@ public static class Schema
                 Error = enableError ? $"{name}.error" : null,
                 Regex = regex,
                 UpLimit = upLimit,
-                LowLimit = lowLimit
+                LowLimit = lowLimit,
             },
         };
     }
 
-    static NodeSchema NewSystemStruct(string name, (string name, string type, bool? require)[] fields)
+    internal static NodeSchema NewSystemStruct(string name, (string name, string type, bool? require)[] fields)
     {
         return new NodeSchema
         {
@@ -1043,7 +1051,7 @@ public static class Schema
         };
     }
     
-    static NodeSchema NewSystemArray(string name, string? eleType = null, params string[] primary)
+    internal static NodeSchema NewSystemArray(string name, string? eleType = null, params string[] primary)
     {
         return new NodeSchema
         {
@@ -1064,11 +1072,12 @@ public static class Schema
     #region System Schema
 
     // The basic system schema
-    static readonly NodeSchema _root = NewSystemSchema("").WithSchemas([
+    static readonly NodeSchema _root = NewSystemSchema("").With([
         // System types
-        NewSystemSchema(NS_SYSTEM).WithSchemas([
+        NewSystemSchema(NS_SYSTEM).With([
             #region base type
             
+            NewSystemScalar(NS_SYSTEM_OBJECT),
             NewSystemArray(NS_SYSTEM_ARRAY, ""),
             NewSystemArray(NS_SYSTEM_LIST, NS_GENERIC_TYPE),
             NewSystemStruct(NS_SYSTEM_STRUCT, []),
@@ -1081,7 +1090,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_BOOL, enableError: true),
             NewSystemScalar(NS_SYSTEM_DATE, enableError: true),
             NewSystemScalar(NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+(\\.\\d+)?(e\\-\\d+)?$"),
-            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^-?\\d+\\.?\\d+$"),
+            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+\\.?\\d+$"),
             NewSystemScalar(NS_SYSTEM_FLOAT, baseType:NS_SYSTEM_DOUBLE,  enableError:true, regex:@"^\\d+(\\.\\d+)?$"),
             NewSystemScalar(NS_SYSTEM_PERCENT, baseType:NS_SYSTEM_FLOAT, enableError:true, regex:@"^\\d+(\\.\\d+)?$", upLimit:100, lowLimit:0),
             NewSystemScalar(NS_SYSTEM_FULL_DATE, baseType:NS_SYSTEM_DATE, enableError:true),
@@ -1090,7 +1099,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, regex:@"^\\d{4}$"),
             NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
             NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
-            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}(-[A-Z]{2})?$", upLimit:8),
+            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}-?[A-Z]{2}$", upLimit:8),
             
             #endregion
 
@@ -1114,7 +1123,7 @@ public static class Schema
             #region System.Schema
 
             // place holder types
-            NewSystemSchema(NS_SYSTEM_SCHEMA).WithSchemas([
+            NewSystemSchema(NS_SYSTEM_SCHEMA).With([
                 // scalar
                 NewSystemScalar(NS_SYSTEM_SCHEMA_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
@@ -1125,22 +1134,25 @@ public static class Schema
                 NewSystemScalar(NS_SYSTEM_SCHEMA_FUNC_TYPE,NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_EVENT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WORKFLOW_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_POLICY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_VALUE),
                 
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
                 NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_SCHEMA_VAR_NAME),
+                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_TARGET, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
             ]),
             #endregion
 
             #region System.Workflow
 
-            NewSystemSchema(NS_SYSTEM_WORKFLOW).WithSchemas([
+            NewSystemSchema(NS_SYSTEM_WORKFLOW).With([
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
             ]),
 
