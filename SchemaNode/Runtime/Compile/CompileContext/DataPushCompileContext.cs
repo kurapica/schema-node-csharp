@@ -257,7 +257,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             {
                                 List<DataPushPrimaryMap> primaryMap = [];
 
-                                if (arrayType.Primary.Length != funcCallExp.Args.Length - 4)
+                                if (arrayType.Primary.Length != funcCallExp.Args.Length - 3)
                                     throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
                                         APP_PUSH_DATA_WRONG_FUNC);
 
@@ -265,7 +265,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                 // primary key mapping, just fail it and leave it for further handling
                                 for (int i = 0; i < arrayType.Primary.Length; i++)
                                 {
-                                    SchemaExpression? keyExp = funcCallExp.Args[i + 3];
+                                    SchemaExpression? keyExp = funcCallExp.Args[i + 2];
                                     while (keyExp != null)
                                     {
                                         switch (keyExp)
@@ -276,7 +276,9 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
                                             case FieldAccessExpression fieldAccessExp:
                                                 // The owner must be argument generated before
-                                                if (fieldAccessExp.Owner is not ArgumentExpression arg)
+                                                SchemaExpression owner = fieldAccessExp.Owner;
+                                                if (owner is VariableExpression vExp) owner = vExp.Value;
+                                                if (owner is not ArgumentExpression arg)
                                                     throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc, APP_PUSH_DATA_WRONG_FUNC);
 
                                                 primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? null : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));

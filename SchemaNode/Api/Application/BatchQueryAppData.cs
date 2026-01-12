@@ -64,7 +64,7 @@ public static class BatchQueryExtension
             if (node == null) continue;
             
             // set access
-            context.SetAccess(node.Name, query.Target);
+            context.SetAccess(node.Name, query.Target); 
 
             // load schema
             if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
@@ -186,7 +186,7 @@ public static class BatchQueryExtension
                     // mark loaded
                     fieldInfos[field.Name] = new AppDataFieldInfo
                     {
-                        Filter = filter?.ToFilter() ?? q?.Filter,
+                        Filter = q?.Filter,
                         OrderBy = q?.OrderBy,
                         Skip = q?.Skip ?? 0,
                         Take = take,

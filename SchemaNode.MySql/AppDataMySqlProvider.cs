@@ -646,7 +646,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? value = null, bool canAdd = true, bool onlyAdd = false)
+    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(
+            DynamicTableSchema schema, string target, AnySchemaNode? value = null, 
+            bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         string tableName = sqlProvider.QuoteTable(schema.Name);
         await EnsureOpenConnectionAsync();
@@ -901,7 +903,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     }
                 }
                 
-                if (!isInsert && !onlyAdd)
+                if (!isInsert && (!onlyAdd || overrides is { Length: > 0 }))
                 {
                     // query again
                     if (originPack == null)
@@ -923,6 +925,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     bool preCond = false;
                     foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, false, true))
                     {
+                        // Check override
+                        if (overrides is { Length: > 0 } && !overrides.Contains(fld, StringComparer.OrdinalIgnoreCase))
+                            continue;
+                        
                         sb.Append($"{(preCond ? "," : "")}{sqlProvider.QuoteField(fld)}={sqlProvider.Literal(v)}");
                         preCond = true;
                     }
@@ -942,7 +948,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         originPacks.Add(originPack);
                 }
             }
-            return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  onlyAdd ? null : new ArrayTypeNode(schema.SchemaType, originPacks) );
+            return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  (onlyAdd && (overrides == null || overrides.Length == 0)) ? null : new ArrayTypeNode(schema.SchemaType, originPacks) );
         }
     }
 

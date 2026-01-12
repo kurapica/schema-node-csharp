@@ -115,7 +115,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
         throw new NotImplementedException();
     }
 
-    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false)
+    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await Task.Yield();
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);

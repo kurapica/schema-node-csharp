@@ -459,7 +459,6 @@ public class FunctionType: AnySchemaType
     {
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
-
         FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
         
         // Generic types
@@ -483,7 +482,7 @@ public class FunctionType: AnySchemaType
         
         // parse parameters
         object?[] callArgs = new object[funcSchema.Args.Length];
-        for (int i = 0; i < funcInfo.Args.Length; i++)
+        for (int i = 0; i < Math.Min(funcSchema.Args.Length, funcInfo.Args.Length); i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
 
@@ -547,7 +546,7 @@ public class FunctionType: AnySchemaType
                 int count = 0;
                 for (int j = funcInfo.Args.Length - 1; j < Math.Max(args.Length, funcInfo.Args.Length); j++)
                 {
-                    object? argObj = args.ElementAtOrDefault(i);
+                    object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
                     AnySchemaNode? argNode = argObj as AnySchemaNode;
 
@@ -587,7 +586,7 @@ public class FunctionType: AnySchemaType
 
                     if (eleType == null) throw new Exception($"The {j + 1} argument not valid");
 
-                    array ??= Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, j - funcInfo.Args.Length + 2));
+                    array ??= Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, args.Length - j + 1));
                     array.SetValue(argObj, count++);
                 }
                 array ??= Array.CreateInstance(eleType?.GetElementType() ?? eleType ?? typeof(object), 0);
@@ -625,7 +624,7 @@ public class FunctionType: AnySchemaType
                 if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
                     callArgs[i] = argNode;
                 else
-                    callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    callArgs[i] = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
             }
             // object
             else

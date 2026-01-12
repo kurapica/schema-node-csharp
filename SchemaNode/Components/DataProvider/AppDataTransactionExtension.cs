@@ -77,7 +77,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false)
+    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -92,7 +92,7 @@ public static class AppDataTransactionExtension
 
         try
         {
-            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value, canAdd, onlyAdd);
+            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value, canAdd, onlyAdd, overrides);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Modify, update, origin);
             return result;
         }
@@ -673,6 +673,7 @@ public static class AppDataTransactionExtension
                 // Calc the origin and new push data
                 ArrayTypeNode oldResult = await CalcPushData(originsPush);
                 ArrayTypeNode newResult = await CalcPushData(updatesPush);
+                if (oldResult.IsEmpty && newResult.IsEmpty) continue;
                 
                 // Save the incremental data
                 await context.SaveIncrementalData(tarField, realTarget, newResult, oldResult);

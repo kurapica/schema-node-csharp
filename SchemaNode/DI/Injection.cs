@@ -286,11 +286,13 @@ public static class Injection
             using IServiceScope scope = app.Services.CreateScope();
             SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
             
-            // preload schema and app types
+            // preload schema and app types·
             context.LogInformation("[Preload] Loading schema ...");
+            context.ResetTypeNamespace();
             await context.GetSchemaTypeAsync("", preload: true);
             
             context.LogInformation("[Preload] Loading application ...");
+            context.ResetAppContainer();
             await context.GetAppTypeAsync("", preload: true);
             
             // re-compile function types
