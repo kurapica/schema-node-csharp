@@ -12,7 +12,8 @@ public class TimeScheduleWorkflow: Workflow,
 {
     public async Task<JobKey?> ProcessAsync(WorkflowContext context, JobKey? jobKey, TimeSchedule schedule)
     {
-        IScheduler scheduler = context.GetRequiredService<IScheduler>();
+        ISchedulerFactory factory = context.GetRequiredService<ISchedulerFactory>();
+        IScheduler scheduler = await factory.GetScheduler();
         try
         {
             if (jobKey != null) await scheduler.DeleteJob(jobKey);
@@ -55,13 +56,14 @@ public class TimeScheduleWorkflow: Workflow,
             .WithIdentity($"{context.Id}-{Name}-timeJob", "timeSchedule")
             .Build();
 
-        var triggerBuilder = TriggerBuilder.Create().WithCronSchedule(schedule.Cron);
-        if (schedule.End is not null)
-            triggerBuilder.EndAt(new DateTimeOffset(schedule.End.Value));
-        
-        var timeTrigger = triggerBuilder
-            .StartNow()
-            .Build();
+        var timeTrigger = schedule.End is not null
+            ? TriggerBuilder.Create().WithCronSchedule(schedule.Cron)
+                .EndAt(new DateTimeOffset(schedule.End.Value))
+                .StartNow()
+                .Build()
+            : TriggerBuilder.Create().WithCronSchedule(schedule.Cron)
+                .StartNow()
+                .Build();
         await scheduler.ScheduleJob(timeJob, timeTrigger);
         return timeJob.Key;
     }
@@ -69,9 +71,10 @@ public class TimeScheduleWorkflow: Workflow,
     /// <inheritdoc />
     public async Task ReleaseSessionAsync(WorkflowContext context, JobKey? session)
     {
-        IScheduler scheduler = context.GetRequiredService<IScheduler>();
-        if (session != null)
-            await scheduler.DeleteJob(session);
+        if (session == null) return;
+        ISchedulerFactory factory = context.GetRequiredService<ISchedulerFactory>();
+        IScheduler scheduler = await factory.GetScheduler();
+        await scheduler.DeleteJob(session);
     }
     
     /// <summary>

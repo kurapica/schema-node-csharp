@@ -62,7 +62,7 @@ public static class Injection
         services.AddQuartz(q =>
         {
             q.UseInMemoryStore();
-
+             
             q.UseDefaultThreadPool(tp =>
             {
                 tp.MaxConcurrency = SchemaContext.Config.MaxQuartzConcurrentThreads;

@@ -7,6 +7,7 @@ using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -65,6 +66,7 @@ public static class InteractionExtensions
         {
             // If terminate requested, just return
             if (request.Terminate == true) return null;
+            if (node is FormWorkflow && (request.Data == null || request.Data.IsEmpty())) return null;
             
             if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
                 throw new Exception(WORKFLOW_NODE_NOT_FOUND);
@@ -78,14 +80,14 @@ public static class InteractionExtensions
             ?? throw new Exception(WORKFLOW_NOT_FOUND);
         
         // Check if still working
-        WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
-        if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
         if (request.Terminate == true)
         {
             await workContext.TerminateAsync();
         }
         else
         {
+            WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
+            if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
             workContext.Done(node.Name, payload);
         }
 

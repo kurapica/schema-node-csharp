@@ -130,7 +130,17 @@ public class WorkflowContext: SchemaContext
             state.Payload = node.PayloadType?.CreateNode(nodeSnapshot.Payload);
             if (state.HasSession && nodeSnapshot.Session != null)
             {
-                ((dynamic)state).Session = nodeSnapshot.Session.FromJson(state.GetType().GetGenericArguments()[0]);
+                try
+                {
+                    ((dynamic)state).Session = nodeSnapshot.Session.FromJson(state.GetType().GetGenericArguments()[0]);
+                }
+                catch
+                {
+                    // pass
+                    ((dynamic)state).Session = null;
+                    if (node.Fork && state.Status == WorkflowStatus.Running) 
+                        state.Status = WorkflowStatus.Waiting;
+                }
             }
             // if the node is a fork and can't restore the session, set it to waiting
             // normally they use subscription need re-subscribe
@@ -588,19 +598,20 @@ public class WorkflowContext: SchemaContext
     {
         Logger.LogInformation($"[WorkflowContext]{Id} Terminated");
         
-        await PersistenceAsync();
-        
         foreach ((string name, WorkflowState value) in _states)
         {
             // release workflow state
             Workflow? workflow = _workflow?.FindByName(name);
             if (workflow != null) await value.ReleaseAsync(this, workflow);
+            value.Status = WorkflowStatus.Done;
             
             if (value.ForkContexts is not { Count: > 0 }) continue;
             foreach ((_, WorkflowContext key) in value.ForkContexts)
                 await key.TerminateAsync();
         }
         
+        await PersistenceAsync();
+
         Dispose();
     }
     
@@ -780,15 +791,16 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// Release the workflow state
         /// </summary>
-        public override Task ReleaseAsync(WorkflowContext context, Workflow workflow)
+        public override async Task ReleaseAsync(WorkflowContext context, Workflow workflow)
         {
-            return ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session);
+            await ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session);
+            Session = default;
         }
 
         /// <summary>
         /// The session
         /// </summary>
-        private T? Session { get; set; }
+        public T? Session { get; internal set; }
     }
 
     #endregion

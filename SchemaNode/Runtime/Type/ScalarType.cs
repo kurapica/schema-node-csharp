@@ -391,7 +391,7 @@ public class ScalarType: AnySchemaType
                 ? IsInt
                 : (scalar.IsNumber 
                         ? IsNumber 
-                        : scalar.ValueType == ValueType)),
+                        : (scalar.ValueType & ValueType) > 0)),
             EnumType @enum => @enum.ValueType switch
             {
                 EnumValueType.String => IsSingle,
