@@ -10,6 +10,7 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using System.Reflection;
 using Microsoft.AspNetCore.Http;
+using Quartz;
 using SchemaNode.Components.Context;
 using SchemaNode.Function;
 using SchemaNode.Http;
@@ -57,6 +58,22 @@ public static class Injection
         // critical region
         services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
 
+        // Quartz scheduler
+        services.AddQuartz(q =>
+        {
+            q.UseInMemoryStore();
+
+            q.UseDefaultThreadPool(tp =>
+            {
+                tp.MaxConcurrency = SchemaContext.Config.MaxQuartzConcurrentThreads;
+            });
+        });
+
+        services.AddQuartzHostedService(opt =>
+        {
+            opt.WaitForJobsToComplete = true;
+        });
+        
         // The schema context
         services.AddScoped<SchemaContext>();
         services.AddTransient<WorkflowContext>();

@@ -289,6 +289,48 @@ public static class BatchQueryExtension
                     }).ToArray()
                 } : null
             };
+            
+            // workflow states
+            if (query.Workflow == true && node.Workflows is { Count: > 0 })
+            {
+                List<AppWorkflowState> workflows = [];
+                foreach (AppWorkflowType wf in node.Workflows)
+                {
+                    if (wf.Nodes.Length == 0 || wf.RootWorkflowContext?.EntryWorkflow == null ||
+                        !await context.AuthorizeAsync(wf, PolicyScope.FuncExecute, true)) continue;
+                    Workflow firstNode = wf.RootWorkflowContext.EntryWorkflow;
+                    
+                    // Only show activated interaction workflow
+                    if (firstNode is not InteractionWorkflow interWorkflow) continue;
+                    
+                    // Check if only allow one workflow context
+                    Guid? workflowId = null;
+                    bool togglable = false;
+                    if (interWorkflow is { Fork: true, CancelPre: false, ForkKey.Length: > 0 } && 
+                        interWorkflow.ForkKey.Contains(nameof(InteractionPayload.Target), StringComparer.OrdinalIgnoreCase))
+                    {
+                        togglable = true;
+                        foreach (WorkflowContext forkContext in wf.RootWorkflowContext.GetForkedWorkflowContexts(firstNode))
+                        {
+                            StructTypeNode? payload = forkContext.GetWorkflowPayload(firstNode) as StructTypeNode;
+                            string? target = payload?.GetField(nameof(InteractionPayload.Target))?.ToValue<string>();
+                            if (target != null && target.Equals(query.Target, StringComparison.OrdinalIgnoreCase))
+                            {
+                                workflowId = forkContext.Id;
+                                break;
+                            }
+                        }
+                    }
+                    workflows.Add(new AppWorkflowState
+                    {
+                        Name = wf.Name,
+                        Togglable = togglable,
+                        WorkflowId = workflowId,
+                    });
+                }
+                appResult.Workflows = workflows.Count > 0 ? workflows.ToArray() : null;
+            }
+            
             results.Add(appResult);
 
             // raise event
@@ -462,6 +504,11 @@ public class AppDataQuery
     /// Only query the data without schema
     /// </summary>
     public bool? NoSchema { get; set; }
+    
+    /// <summary>
+    /// Query the interaction workflow data
+    /// </summary>
+    public bool? Workflow { get; set; }
 }
 
 public class AppDataFieldQuery
@@ -528,6 +575,11 @@ public class AppDataResult
     /// The query infos
     /// </summary>
     public Dictionary<string, AppDataFieldInfo>? Infos { get; set; }
+    
+    /// <summary>
+    /// The interaction workflows states
+    /// </summary>
+    public AppWorkflowState[]? Workflows { get; set; }
 }
 
 /// <summary>
@@ -599,4 +651,25 @@ public class AppDataFieldInfo
     ///  The filter args
     /// </summary>
     public JsonArray? FilterArgs { get; set; }
+}
+
+/// <summary>
+/// The interaction workflow state
+/// </summary>
+public class AppWorkflowState
+{
+    /// <summary>
+    /// The interaction workflow name
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// If the workflow is togglable
+    /// </summary>
+    public bool Togglable { get; set; }
+
+    /// <summary>
+    /// The activated workflow ID
+    /// </summary>
+    public Guid? WorkflowId { get; set; }
 }

@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

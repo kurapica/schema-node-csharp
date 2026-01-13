@@ -1,7 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Node;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -33,5 +31,4 @@ public class InteractionPayload
     /// The target
     /// </summary>
     public string Target { get; set; } = string.Empty;
-    
 }

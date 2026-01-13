@@ -89,6 +89,8 @@ public static class Constant
     
     // workflow namespace
     public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    public const string NS_SYSTEM_WORKFLOW_ID = "system.workflow.id";
+    public const string NS_SYSTEM_WORKFLOW_CRON = "system.workflow.cron";
     public const string NS_SYSTEM_WORKFLOW_NODE = "system.workflow.node";
     
     // event namespace

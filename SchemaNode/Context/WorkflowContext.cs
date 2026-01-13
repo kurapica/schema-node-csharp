@@ -117,7 +117,7 @@ public class WorkflowContext: SchemaContext
         if (snapshot is not { Status: WorkflowStatus.Running }) return;
         Id = snapshot.Id;
         CreateTime = snapshot.CreateTime;
-        
+
         // restore states
         foreach (var nodeSnapshot in snapshot.Nodes)
         {
@@ -255,6 +255,25 @@ public class WorkflowContext: SchemaContext
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Gets the forked workflow contexts by name
+    /// </summary>
+    public IEnumerable<WorkflowContext> GetForkedWorkflowContexts(string name)
+    {
+        if (!_states.TryGetValue(name, out WorkflowState? state) || state.ForkContexts == null) yield break;
+        foreach ((_, WorkflowContext context) in state.ForkContexts)
+            yield return context;
+    }
+
+    /// <summary>
+    /// Gets the forked workflow contexts by workflow
+    /// </summary>
+    public IEnumerable<WorkflowContext> GetForkedWorkflowContexts(Workflow workflow)
+    {
+        foreach (WorkflowContext ctx in GetForkedWorkflowContexts(workflow.Name))
+            yield return ctx;
     }
     
     /// <summary>

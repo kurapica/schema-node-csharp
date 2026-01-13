@@ -1153,6 +1153,8 @@ public static class Schema
             #region System.Workflow
 
             NewSystemSchema(NS_SYSTEM_WORKFLOW).With([
+                NewSystemScalar(NS_SYSTEM_WORKFLOW_ID, NS_SYSTEM_STRING, upLimit:128),
+                NewSystemScalar(NS_SYSTEM_WORKFLOW_CRON, NS_SYSTEM_STRING, upLimit:128),
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
             ]),
 
