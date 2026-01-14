@@ -15,15 +15,17 @@ public class RaiseInteractionWorkflow: Workflow
     /// <summary>
     /// Start the interaction workflow
     /// </summary>
-    public Task ProcessAsync(WorkflowContext context, 
+    public async Task ProcessAsync(WorkflowContext context, 
         [Schema(NS_SYSTEM_WORKFLOW_ID)] string workflow, 
         InteractionPayload payload)
     {
-        return context.InteractionAsync(new InteractionRequest
+        await context.InteractionAsync(new InteractionRequest
         {
             Workflow = workflow,
             App = payload.App,
             Target = payload.Target
         }, true);
+
+        context.Done(this);
     }
 }

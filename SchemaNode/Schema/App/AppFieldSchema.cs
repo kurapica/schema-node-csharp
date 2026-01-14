@@ -203,6 +203,11 @@ public class AppFieldSchema
     /// The combine rule for struct or struct-array type
     /// </summary>
     public DataCombine[]? Combines { get; set; }
+    
+    /// <summary>
+    /// The field filters
+    /// </summary>
+    public FieldFilter[]? Filters { get; set; }
 
     /// <summary>
     /// The additional data
@@ -285,4 +290,31 @@ public class ColPolicyItem
     [NotMapped]
     [JsonIgnore]
     public FunctionType[] Functions { get; set; } = [];
+}
+
+/// <summary>
+/// The field filter
+/// </summary>
+public class FieldFilter
+{
+    /// <summary>
+    /// The field name
+    /// </summary>
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string Field { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The filter mode
+    /// </summary>
+    public FieldFilterMode Mode { get; set; } = FieldFilterMode.Exactly;
+    
+    /// <summary>
+    /// The filter function for analysis
+    /// </summary>
+    public string? Func { get; set;  }
+    
+    /// <summary>
+    /// The filter arguments point refer to other app fields
+    /// </summary>
+    public string[]? Args { get; set; }
 }

@@ -144,6 +144,11 @@ public class AppWorkflowNodeSchema
     /// Cancel the previous fork branches
     /// </summary>
     public bool? CancelPre { get; set; }
+    
+    /// <summary>
+    /// Whether save the payload data
+    /// </summary>
+    public bool? PayloadSave { get; set; }
 
     /// <summary>
     /// The additional data

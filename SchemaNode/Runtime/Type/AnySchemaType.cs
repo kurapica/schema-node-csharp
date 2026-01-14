@@ -222,6 +222,9 @@ public abstract class AnySchemaType: IDisposable
     /// <returns></returns>
     public async Task<NodeSchema> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
     {
+        if (!this.Loaded)
+            await ctx.GetSchemaTypeAsync(this.Name);
+        
         types ??= [];
         root ??= new NodeSchema
         {

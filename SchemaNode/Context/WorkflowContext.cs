@@ -93,7 +93,7 @@ public class WorkflowContext: SchemaContext
                 Name = kv.Key,
                 Status = kv.Value.Status,
                 Error = kv.Value.Error,
-                Payload = kv.Value.Payload?.ToJson(),
+                Payload = kv.Value.PayloadSave ? kv.Value.Payload?.ToJson() : null,
                 Session = kv.Value.HasSession 
                     ? Extension.ToJsonNode((object?)((dynamic)kv.Value).Session, true)
                     : null
@@ -603,7 +603,8 @@ public class WorkflowContext: SchemaContext
             // release workflow state
             Workflow? workflow = _workflow?.FindByName(name);
             if (workflow != null) await value.ReleaseAsync(this, workflow);
-            value.Status = WorkflowStatus.Done;
+            if (value.Status is WorkflowStatus.Running or WorkflowStatus.Waiting)
+                value.Status = WorkflowStatus.Terminated;
             
             if (value.ForkContexts is not { Count: > 0 }) continue;
             foreach ((_, WorkflowContext key) in value.ForkContexts)
@@ -692,6 +693,11 @@ public class WorkflowContext: SchemaContext
         /// The workflow status
         /// </summary>
         public WorkflowStatus Status { get; set; } = WorkflowStatus.Waiting;
+        
+        /// <summary>
+        /// save payload flag
+        /// </summary>
+        public bool PayloadSave { get; set; } = false;
 
         /// <summary>
         /// The workflow payload
@@ -734,7 +740,7 @@ public class WorkflowContext: SchemaContext
                     else
                     {
                         AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
+                        args[i + 1] = arg.SchemeType?.CreateNode(payload)?.ToTypeValue(arg.SchemeType.ToCSharpType());
                     }
                 }
             }
@@ -849,7 +855,7 @@ public class WorkflowContext: SchemaContext
         {
             switch (state.Status)
             {
-                case WorkflowStatus.Error:
+                case WorkflowStatus.Error or WorkflowStatus.Terminated:
                     return true;
                 case WorkflowStatus.Waiting or WorkflowStatus.Running:
                     return false;
@@ -870,7 +876,7 @@ public class WorkflowContext: SchemaContext
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
-        return _states.GetOrAdd(workflow.Name, (_) =>
+        var state = _states.GetOrAdd(workflow.Name, (_) =>
         {
             Type workflowType = workflow.GetType();
             Type? inter = workflowType.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>));
@@ -882,6 +888,8 @@ public class WorkflowContext: SchemaContext
             }
             return new WorkflowState();
         });
+        state.PayloadSave = workflow.PayloadSave;
+        return state;
     }
     
     WorkflowState GetOrCreateWorkflowState(Workflow workflow) => GetOrCreateWorkflowState(workflow.Name);

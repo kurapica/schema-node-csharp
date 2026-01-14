@@ -286,7 +286,8 @@ public static class BatchQueryExtension
                             Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
                             Value = a.Value,
                         }).ToArray()
-                    }).ToArray()
+                    }).ToArray(),
+                    Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
                 } : null
             };
             

@@ -120,6 +120,11 @@ public class AppFieldType
     public DataCombine[]? Combines { get; private init; }
 
     /// <summary>
+    /// The field filters
+    /// </summary>
+    public FieldFilter[]? Filters { get; private init; }
+    
+    /// <summary>
     /// The additional data
     /// </summary>
     public Dictionary<string, JsonElement>? Additional { get; private init; }
@@ -286,6 +291,7 @@ public class AppFieldType
             Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
+            Filters = entity.Filters,
             Additional = entity.Additional,
         };
     }
@@ -318,6 +324,7 @@ public class AppFieldType
             Readonly = entity.Readonly,
             Combine = entity.Combine,
             Combines = entity.Combines,
+            Filters = entity.Filters,
             Additional = entity.Additional,
         };
     }

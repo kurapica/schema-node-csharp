@@ -144,6 +144,7 @@ public class AppWorkflowType: IDisposable
             wNode.ForkKey = node.ForkKey?.ToArray();
             wNode.UnCancelable = node.UnCancelable ?? false;
             wNode.CancelPre = node.CancelPre ?? false;
+            wNode.PayloadSave = node.PayloadSave ?? false;
 
             // payload type
             if (!string.IsNullOrWhiteSpace(node.Payload))

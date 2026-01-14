@@ -1,8 +1,3 @@
-using SchemaNode.Attribute;
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using static SchemaNode.Utility.Extension;
-
 namespace SchemaNode.Enum;
 
 /// <summary>

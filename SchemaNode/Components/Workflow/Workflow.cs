@@ -73,6 +73,11 @@ public abstract class Workflow
     /// Cancel the previous workflow(s) when this workflow is triggered
     /// </summary>
     internal bool CancelPre { get; set; }
+    
+    /// <summary>
+    /// Notify payload to save in workflow context
+    /// </summary>
+    internal bool PayloadSave { get; set; }
 
     #endregion
 
