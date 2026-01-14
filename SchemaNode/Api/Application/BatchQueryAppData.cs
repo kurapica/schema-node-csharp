@@ -149,7 +149,7 @@ public static class BatchQueryExtension
                                     }
 
                                     // Call filter func with policy filter compile context
-                                    AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, PolicyFilterCompileContext>(context, []);
+                                    AppSchemaDataFilter? f = await policy.FilterFunc.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, []);
                                     if (f == null)
                                     {
                                         authorized = false;
@@ -170,16 +170,18 @@ public static class BatchQueryExtension
 
                         if (allowRead)
                         {
+                            // Combine filters
                             if (filter != null)
                             {
-                                filter = filter.Combine(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, q?.Filter);
-                                (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
-                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                filter = filter.Combine(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, q?.Filter, field.Filters);
                             }
-                            else
+                            else if (q?.Filter != null)
                             {
-                                (result, total) = await context.GetFieldDataAsync(field, query.Target!, q?.Filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                filter = q.Filter.ToAppSchemaDataFilter(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
                             }
+                            
+                            (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
+                                filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                         }
                     }
                     

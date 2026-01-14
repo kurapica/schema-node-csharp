@@ -445,17 +445,17 @@ public static class Schema
     /// <summary>
     /// Gets the C# type by schema name
     /// </summary>
-    internal static Type ToCSharpType(this AnySchemaType node, bool? nullable = false)
+    internal static Type ToCSharpType(this AnySchemaType schemaType, bool? nullable = false)
     {
         bool isArray = false;
-        Type? type = null;
+        Type? cSharpType = null;
         
         // json
-        if (node is JsonType)
+        if (schemaType is JsonType)
             return typeof(JsonNode);
         
         // array
-        if (node is ArrayType array)
+        if (schemaType is ArrayType array)
         {
             if (array.ElementSchemaType == null)
             {
@@ -464,74 +464,74 @@ public static class Schema
             else
             {
                 isArray = true;
-                node = array.ElementSchemaType;
+                schemaType = array.ElementSchemaType;
             }
         }
 
         // generic type check
-        if (type is null && !_systemTypes.TryGetValue(node.Name.GetBaseType().ToLower(), out type))
+        if (cSharpType is null && !_systemTypes.TryGetValue(schemaType.Name.GetBaseType().ToLower(), out cSharpType))
         {
-            if (node is EnumType enumNode)
+            if (schemaType is EnumType enumNode)
             {
-                type = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(Int64);
+                cSharpType = enumNode.ValueType == EnumValueType.String ? typeof(string) : typeof(Int64);
             }
-            else if (node is ScalarType scalar)
+            else if (schemaType is ScalarType scalar)
             {
                 if (scalar.IsBool)
                 {
-                    type = typeof(bool);
+                    cSharpType = typeof(bool);
                 }
                 else if (scalar.IsInt)
                 {
-                    type = typeof(long);
+                    cSharpType = typeof(long);
                 }
                 else if(scalar.IsSingle)
                 {
-                    type = typeof(float);
+                    cSharpType = typeof(float);
                 }
                 else if(scalar.IsDouble)
                 {
-                    type = typeof(double);
+                    cSharpType = typeof(double);
                 }
                 else if(scalar.IsNumber)
                 {
-                    type = typeof(decimal);
+                    cSharpType = typeof(decimal);
                 }
                 else if (scalar.IsString)
                 {
-                    type = typeof(string);
+                    cSharpType = typeof(string);
                 }
                 else if (scalar.IsDate)
                 {
-                    type = typeof(DateTime);
+                    cSharpType = typeof(DateTime);
                 }
                 else
                 {
-                    type = isArray ? typeof(ArrayTypeNode) : typeof(ScalarTypeNode);
+                    cSharpType = isArray ? typeof(ArrayTypeNode) : typeof(ScalarTypeNode);
                     isArray = false;
                 }
             }
-            else if(node is StructType)
+            else if(schemaType is StructType)
             {
-                type = isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
+                cSharpType = isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
                 isArray = false;
             }
         }
 
         // cover all
-        if (type == null)
+        if (cSharpType == null)
         {
-            type ??= isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
+            cSharpType ??= isArray ? typeof(ArrayTypeNode) : typeof(StructTypeNode);
         }
         else if (isArray)
         {
-            type = typeof(List<>).MakeGenericType(type);
+            cSharpType = typeof(List<>).MakeGenericType(cSharpType);
         }
-        if ((nullable ?? false) && type.IsValueType)
+        if ((nullable ?? false) && cSharpType.IsValueType)
         {
-            type = typeof(Nullable<>).MakeGenericType(type);
+            cSharpType = typeof(Nullable<>).MakeGenericType(cSharpType);
         }
-        return type;
+        return cSharpType;
     }
 
     #endregion

@@ -168,6 +168,27 @@ public class DynamicTableSchema
         }
     }
 
+    public IEnumerable<DynamicTableField> GetDynamicTableFields(string fieldName)
+    {
+        foreach (DynamicTableField field in Fields)
+        {
+            if (field.Complex == null)
+            {
+                if (field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return field;
+                }
+            }
+            else
+            {
+                if (field.Complex.Main.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return field;
+                }
+            }
+        }
+    }
+    
     /// <summary>
     /// Gets the primary token from the data
     /// </summary>

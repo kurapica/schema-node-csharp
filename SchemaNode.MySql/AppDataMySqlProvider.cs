@@ -524,7 +524,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
 
         // exp node -> sql
-        string sql = filter?.ToSql(sqlProvider) ?? "";
+        string sql = filter?.ToSql(sqlProvider, schema) ?? "";
         if (!string.IsNullOrEmpty(sql))
         {
             sb.Append(" AND ");

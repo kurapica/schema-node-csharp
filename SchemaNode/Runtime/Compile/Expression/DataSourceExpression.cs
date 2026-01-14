@@ -130,7 +130,7 @@ public static class AppSchemaDataFilterExtensions
     /// <summary>
     /// Combine the access exp with the filter
     /// </summary>
-    public static AppSchemaDataFilter Combine(this AppSchemaDataFilter accessExp, StructType structType, JsonObject? filter = null)
+    public static AppSchemaDataFilter Combine(this AppSchemaDataFilter accessExp, StructType structType, JsonObject? filter = null, FieldFilter[]? fieldFilters = null)
     {
         if (filter == null || filter.IsEmpty()) return accessExp;
 
@@ -145,6 +145,9 @@ public static class AppSchemaDataFilterExtensions
             // additional filter
             if (fieldExp is not AppSchemaDataFilterBinary { Type: LogicExpType.Equal } binaryEqual)
             {
+                var filterMode = fieldFilters?.FirstOrDefault(f => f.Field.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
+                                 ?? FieldFilterMode.Exactly;
+                
                 accessExp = value switch
                 {
                     JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
@@ -152,7 +155,15 @@ public static class AppSchemaDataFilterExtensions
                             new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType!, arr)),
                             new AppSchemaDataFilterField(key))),
                     JsonValue val => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
-                        new AppSchemaDataFilterBinary(LogicExpType.Equal, new AppSchemaDataFilterField(key),
+                        new AppSchemaDataFilterBinary(filterMode switch
+                            {
+                                FieldFilterMode.Exactly => LogicExpType.Equal,
+                                FieldFilterMode.Prefix => LogicExpType.StartsWith,
+                                FieldFilterMode.Suffix => LogicExpType.EndsWith,
+                                FieldFilterMode.Contains => LogicExpType.Match,
+                                _ => LogicExpType.Equal
+                            }, 
+                            new AppSchemaDataFilterField(key),
                             new AppSchemaDataFilterValue(field.SchemeType!.CreateNode(val)!))),
                     _ => accessExp
                 };
@@ -170,6 +181,48 @@ public static class AppSchemaDataFilterExtensions
         return accessExp;
     }
 
+    internal static AppSchemaDataFilter? ToAppSchemaDataFilter(this JsonObject filter, StructType structType, FieldFilter[]? fieldFilters = null)
+    {
+        if (filter.IsEmpty()) return null;
+
+        AppSchemaDataFilter? accessExp = null;
+        foreach ((string key, JsonNode? value) in filter)
+        {
+            if (value == null || value.IsEmpty()) continue;
+            StructFieldConfig? field = structType.GetField(key);
+            
+            // only support scalar or locale string type
+            if (field is not { SchemeType: ScalarType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
+
+            // filter
+            var filterMode = fieldFilters?.FirstOrDefault(f => f.Field.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
+                             ?? FieldFilterMode.Exactly;
+            
+            var filterExp = value switch
+            {
+                JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType!, arr)),
+                        new AppSchemaDataFilterField(key)),
+                JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
+                        {
+                            FieldFilterMode.Exactly => LogicExpType.Equal,
+                            FieldFilterMode.Prefix => LogicExpType.StartsWith,
+                            FieldFilterMode.Suffix => LogicExpType.EndsWith,
+                            FieldFilterMode.Contains => LogicExpType.Match,
+                            _ => LogicExpType.Equal
+                        }, 
+                        new AppSchemaDataFilterField(key),
+                        new AppSchemaDataFilterValue(field.SchemeType!.CreateNode(val)!)),
+                _ => null
+            };
+            
+            accessExp = accessExp != null && filterExp != null
+                ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp, filterExp)
+                : filterExp;
+        }
+
+        return accessExp;
+    }
 
     /// <summary>
     /// Try to convert the access exp to filter json object
@@ -214,8 +267,8 @@ public static class AppSchemaDataFilterExtensions
     /// <summary>
     /// Convert the exp tree to SQL
     /// </summary>
-    public static string ToSql(this AppSchemaDataFilter accessExp, ISqlProvider sqlProvider, string prefix = "")
-        => ToSql(sqlProvider, accessExp, prefix);
+    public static string ToSql(this AppSchemaDataFilter accessExp, ISqlProvider sqlProvider, DynamicTableSchema tableSchema, string prefix = "")
+        => ToSql(sqlProvider, accessExp, tableSchema, prefix);
 
     static AppSchemaDataFilter? FindFieldAccessOper(this AppSchemaDataFilter accessExp, string fieldName)
     {
@@ -233,21 +286,34 @@ public static class AppSchemaDataFilterExtensions
     }
 
     // To sql
-    static string ToSql(ISqlProvider sqlProvider, AppSchemaDataFilter accessExp, string prefix)
+    static string ToSql(ISqlProvider sqlProvider, AppSchemaDataFilter accessExp, DynamicTableSchema tableSchema, string prefix)
     {
         switch (accessExp)
         {
             case AppSchemaDataFilterField access:
-                return $"{prefix}{sqlProvider.QuoteField(access.Field)}";
+            {
+                // Check if the field is complex field
+                string fieldName = "";
+                foreach (DynamicTableField field in  tableSchema.GetDynamicTableFields(access.Field))
+                {
+                    // Works for locale string key
+                    if (field is { Complex: not null, SchemaType: not ScalarType }) continue;
+                    fieldName = field.Name;
+                    break;
+                }
+                if (string.IsNullOrWhiteSpace(fieldName))
+                    throw new NotSupportedException($"The field not found in table schema: {access.Field}");
+                return $"{prefix}{sqlProvider.QuoteField(fieldName)}";
+            }
             case AppSchemaDataFilterUnary unary:
                 switch (unary.Type)
                 {
                     case LogicExpType.IsNull:
                     case LogicExpType.IsEmpty:
-                        return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, prefix));
+                        return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
                     case LogicExpType.NotNull:
                     case LogicExpType.NotEmpty:
-                        return sqlProvider.IsNotNull(ToSql(sqlProvider, unary.Operand, prefix));
+                        return sqlProvider.IsNotNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
                 }
@@ -263,44 +329,44 @@ public static class AppSchemaDataFilterExtensions
                     case LogicExpType.LessThan:
                     case LogicExpType.LessEqual:
                         return sqlProvider.Binary(binary.Type,
-                            ToSql(sqlProvider, binary.Left, prefix),
-                            ToSql(sqlProvider, binary.Right, prefix));
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix));
                     case LogicExpType.Contains:
                         return sqlProvider.In(
-                            ToSql(sqlProvider, binary.Right, prefix),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
                     case LogicExpType.NotContains:
                         return sqlProvider.NotIn(
-                            ToSql(sqlProvider, binary.Right, prefix),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
                     case LogicExpType.StartsWith:
                         return sqlProvider.LikeStartsWith(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The startsWith right value must be string"))!);
                     case LogicExpType.NotStartsWith:
                         return sqlProvider.NotLikeStartsWith(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notStartsWith right value must be string"))!);
                     case LogicExpType.EndsWith:
                         return sqlProvider.LikeEndsWith(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The endsWith right value must be string"))!);
                     case LogicExpType.NotEndsWith:
                         return sqlProvider.NotLikeEndsWith(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notEndsWith right value must be string"))!);
                     case LogicExpType.Match:
                         return sqlProvider.LikeContains(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The match right value must be string"))!);
                     case LogicExpType.NotMatch:
                         return sqlProvider.NotLikeContains(
-                            ToSql(sqlProvider, binary.Left, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notMatch right value must be string"))!);
                     default:

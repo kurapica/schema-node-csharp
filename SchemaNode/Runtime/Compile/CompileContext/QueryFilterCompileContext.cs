@@ -8,28 +8,28 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The policy filter compile context
 /// </summary>
-public class PolicyFilterCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
+public class QueryFilterCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
 {
     private LogicExpression? _lastLogicExp;
     
     /// <summary>
-    /// The policy field access expression
+    /// The field query access expression
     /// </summary>
-    record PolicyFieldAccessExpression(string FieldName, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+    record QueryFieldAccessExpression(string FieldName, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
 
     /// <summary>
     /// Transform the last logic expression to filter expression
     /// </summary>
     public override async Task<FunctionTypeSchema> VisitFunctionType()
     {
-        if (Function.TryGetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
+        if (Function.TryGetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(
                 out FunctionTypeSchema? schema))
         {
             _lastLogicExp = schema!.Exps.LastOrDefault()?.Value as LogicExpression;
             return schema;
         }
         
-        if (Function.Args.Length != 1 || Function.Args[0].SchemaType is not StructType)
+        if (Function.Args.Length < 1 || Function.Args[0].SchemaType is not StructType)
             throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
         
         schema = await base.VisitFunctionType();
@@ -38,8 +38,8 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
             throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
         
         // Re-write the return type to AppSchemaDataFilter
-        return Function.SetRuntimeFuncCache<PolicyFilterCompileContext, FunctionTypeSchema>(
-            new FunctionTypeSchema([], schema.Exps, typeof(AppSchemaDataFilter)))!;
+        return Function.SetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(
+            new FunctionTypeSchema(schema.Args.Skip(1).ToArray(), schema.Exps, typeof(AppSchemaDataFilter)))!;
     }
 
     /// <summary>
@@ -56,10 +56,10 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
                 var oldArg = funcCallExp.Args[i];
                 if (oldArg is FieldAccessExpression
                     {
-                        Owner: ArgumentExpression or VariableExpression { Value: ArgumentExpression }
+                        Owner: ArgumentExpression { Index: 0 } or VariableExpression { Value: ArgumentExpression { Index: 0 } }
                     } fExp)
                 {
-                    args[i] = new PolicyFieldAccessExpression(fExp.FieldName, fExp.SchemaType);
+                    args[i] = new QueryFieldAccessExpression(fExp.FieldName, fExp.SchemaType);
                     changed = true;
                 }
                 else
@@ -71,8 +71,9 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
                 exp = new FuncCallExpression(funcCallExp.Function, args, funcCallExp.SchemaType, funcCallExp.ExpType);
         }
         SchemaExpression result = await base.VisitSchemaExpAsync(exp);
-        return (result is FieldAccessExpression { Owner: ArgumentExpression or VariableExpression { Value: ArgumentExpression } } fieldExp)
-            ? new PolicyFieldAccessExpression(fieldExp.FieldName, fieldExp.SchemaType)
+        return (result is FieldAccessExpression { Owner: ArgumentExpression { Index: 0 } or 
+            VariableExpression { Value: ArgumentExpression { Index: 0 } } } fieldExp)
+            ? new QueryFieldAccessExpression(fieldExp.FieldName, fieldExp.SchemaType)
             : result;
     }
 
@@ -91,7 +92,7 @@ public class PolicyFilterCompileContext(SchemaContext context, FunctionType func
         return exp switch
         {
             VariableExpression varExp => await CompileDataSourceFilter(varExp.Value), // nested variable
-            PolicyFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
+            QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
             UnaryLogicExpression unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
             BinaryLogicExpression binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
             _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await base.CompileSchemaExpAsync(exp)),

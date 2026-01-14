@@ -2,7 +2,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -452,14 +451,12 @@ public class FunctionType: AnySchemaType
     #region Call Function
     
     /// <summary>
-    /// Call the function asynchronously
+    /// Call the system function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
-        where TC: CompileContext
+    private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null)
     {
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
-        FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
         
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -481,8 +478,8 @@ public class FunctionType: AnySchemaType
         }
         
         // parse parameters
-        object?[] callArgs = new object[funcSchema.Args.Length];
-        for (int i = 0; i < Math.Min(funcSchema.Args.Length, funcInfo.Args.Length); i++)
+        object?[] callArgs = new object[funcInfo.Args.Length];
+        for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
 
@@ -594,90 +591,103 @@ public class FunctionType: AnySchemaType
             }
         }
         
-        // for more arguments than defined, only custom function support
-        for (int i = funcInfo.Args.Length; i < funcSchema.Args.Length; i++)
-        {
-            ArgumentExpression arg = funcSchema.Args[i];
-            
-            object? argObj = args.ElementAtOrDefault(i);
-            JsonNode? argJson = argObj as JsonNode;
-            AnySchemaNode? argNode = argObj as AnySchemaNode;
-
-            // check null or empty
-            if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
-            {
-                if (arg.Nullable) continue;
-                throw new Exception($"The {i + 1} argument must be provided");
-            }
-
-            // Parse argument
-            Type eleType = arg.SchemaType.ToCSharpType();
-
-            // JsonNode
-            if (argJson != null)
-            {
-                callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-            // AnySchemaNode
-            else if (argNode != null)
-            {
-                if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
-                    callArgs[i] = argNode;
-                else
-                    callArgs[i] = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-            // object
-            else
-            {
-                callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-        }
-        
-
         if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
             callArgs = callArgs.Prepend(context).ToArray();
+        
+        // Call the method
+        MethodInfo callMethod = funcInfo.Method!;
 
+        // Gets the generic method instance
+        if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
+        {
+            if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
+
+            string genSign = string.Join('|', generics.Select(p => p!.Name));
+            callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
+        }
+
+        // Call the method
+        return (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
+            ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
+            : callMethod.Invoke(null, callArgs);
+    }
+    
+    /// <summary>
+    /// Call the function asynchronously
+    /// </summary>
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
+        where TC: CompileContext
+    {
         object? result;
 
         // Remote call
         if (IsRemoteCall)
         {
-            if (generics.Any(g => g == null))
-                throw new Exception($"The generic types can't be resolved for remote call");
-
             JsonArray cArgs = [];
             foreach (object? arg in args) 
                 cArgs.Add(arg is AnySchemaNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
             result = SchemaProvider != null
-                ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider))
-                    .CallFunctionAsync(Name, cArgs, rType, target)
+                ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider)).CallFunctionAsync(Name, cArgs, rType, target)
                 : null;
         }
 
         // Call system method
-        else if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
+        else if (IsSystemCall)
         {
-            MethodInfo callMethod = funcInfo.Method!;
-
-            // Gets the generic method instance
-            if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
-            {
-                if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
-
-                string genSign = string.Join('|', generics.Select(p => p!.Name));
-                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
-            }
-
-            // Call the method
-            result = (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
-                ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
-                : callMethod.Invoke(null, callArgs);
+            result = await CallSystemFuncAsync(context, args, rType);
         }
 
         // Invoke the dynamic method
         else
         {
+            // Argument validation
+            FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
+        
+            // parse parameters
+            object?[] callArgs = new object[funcSchema.Args.Length];
+            for (int i = 0; i < funcSchema.Args.Length; i++)
+            {
+                ArgumentExpression arg = funcSchema.Args[i];
+            
+                // validate argument
+                object? argObj = args.ElementAtOrDefault(i);
+                JsonNode? argJson = argObj as JsonNode;
+                AnySchemaNode? argNode = argObj as AnySchemaNode;
+
+                // check null or empty
+                if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+                {
+                    if (arg.Nullable) continue;
+                    throw new Exception($"The {i + 1} argument must be provided");
+                }
+
+                // Parse argument
+                var eleType = arg.SchemaType.ToCSharpType();
+
+                if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                {
+                    callArgs[i] = arg.SchemaType.CreateNode(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                }
+                else
+                {
+                    // AnySchemaNode
+                    if (argNode != null)
+                    {
+                        callArgs[i] = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                
+                    // JsonNode | object
+                    else
+                    {
+                        callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                }
+            }
+        
+            // All custom function use context
+            callArgs = callArgs.Prepend(context).ToArray();
+
             try
             {
                 Delegate method = await context.CompileFunctionTypeAsync<TC>(this)
@@ -712,17 +722,7 @@ public class FunctionType: AnySchemaType
         }
         else if (retType.IsAssignableTo(typeof(AnySchemaNode)))
         {
-            AnySchemaType? funcReturnType = !string.IsNullOrEmpty(funcInfo.Return.SchemaType)
-                ? await context.GetSchemaTypeAsync(funcInfo.Return.SchemaType)
-                : null;
-
-            if (funcReturnType is not { IsValueType: true } && funcInfo.Return.Generic != null)
-            {
-                string? returnType = GetArgType(funcInfo.Return)?.GetSchemaType();
-                funcReturnType = returnType != null ? await context.GetSchemaTypeAsync(returnType) : null;
-            }
-            
-            return (T)(object)(funcReturnType?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
+            return (T)(object)(ReturnNode?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
         }
         return (T?)typeof(T).TryConvert(result);
     }
@@ -930,16 +930,6 @@ public class FunctionType: AnySchemaType
     // static mappings
     private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
     private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
-
-    private static readonly string[] RetFunc =
-    [
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}",
-    ];
-    
-    const string GET_DATA_SOURCE = $"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}";
 
     #endregion
     

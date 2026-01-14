@@ -307,14 +307,4 @@ public class FieldFilter
     /// The filter mode
     /// </summary>
     public FieldFilterMode Mode { get; set; } = FieldFilterMode.Exactly;
-    
-    /// <summary>
-    /// The filter function for analysis
-    /// </summary>
-    public string? Func { get; set;  }
-    
-    /// <summary>
-    /// The filter arguments point refer to other app fields
-    /// </summary>
-    public string[]? Args { get; set; }
 }
