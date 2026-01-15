@@ -24,4 +24,9 @@ public enum FieldFilterMode
     /// Like / contains match
     /// </summary>
     Contains = 4,
+    
+    /// <summary>
+    /// The filter function
+    /// </summary>
+    Filter = 9,
 }

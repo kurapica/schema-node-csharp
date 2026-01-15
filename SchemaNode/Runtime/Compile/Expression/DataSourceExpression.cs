@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -145,7 +146,7 @@ public static class AppSchemaDataFilterExtensions
             // additional filter
             if (fieldExp is not AppSchemaDataFilterBinary { Type: LogicExpType.Equal } binaryEqual)
             {
-                var filterMode = fieldFilters?.FirstOrDefault(f => f.Field.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
+                var filterMode = fieldFilters?.FirstOrDefault(f => f.Filter.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
                                  ?? FieldFilterMode.Exactly;
                 
                 accessExp = value switch
@@ -181,7 +182,7 @@ public static class AppSchemaDataFilterExtensions
         return accessExp;
     }
 
-    internal static AppSchemaDataFilter? ToAppSchemaDataFilter(this JsonObject filter, StructType structType, FieldFilter[]? fieldFilters = null)
+    internal static async Task<AppSchemaDataFilter?> ToAppSchemaDataFilterAsync(this JsonObject filter, SchemaContext context, StructType structType, FieldFilter[]? fieldFilters = null)
     {
         if (filter.IsEmpty()) return null;
 
@@ -189,15 +190,35 @@ public static class AppSchemaDataFilterExtensions
         foreach ((string key, JsonNode? value) in filter)
         {
             if (value == null || value.IsEmpty()) continue;
+            
+            // filter
+            var filterMode = fieldFilters?.FirstOrDefault(f => f.Filter.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
+                             ?? FieldFilterMode.Exactly;
+
+            if (filterMode == FieldFilterMode.Filter)
+            {
+                // get the function
+                FunctionType? funcType = await context.GetSchemaTypeAsync<FunctionType>(key);
+                if (funcType != null && value is JsonArray { Count: > 0 } arr)
+                {
+                    // Call filter func with policy filter compile context
+                    AppSchemaDataFilter? f = await funcType.CallAsync<AppSchemaDataFilter, QueryFilterCompileContext>(context, arr.Select(a => (object)a!).ToArray());
+                    if (f != null)
+                    {
+                        accessExp = accessExp != null
+                            ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp, f)
+                            : f;
+                    }
+                }
+                continue;
+            }
+            
+            // get the field
             StructFieldConfig? field = structType.GetField(key);
             
             // only support scalar or locale string type
             if (field is not { SchemeType: ScalarType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
 
-            // filter
-            var filterMode = fieldFilters?.FirstOrDefault(f => f.Field.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
-                             ?? FieldFilterMode.Exactly;
-            
             var filterExp = value switch
             {
                 JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.Contains,

@@ -171,13 +171,10 @@ public static class BatchQueryExtension
                         if (allowRead)
                         {
                             // Combine filters
-                            if (filter != null)
+                            if (q?.Filter != null)
                             {
-                                filter = filter.Combine(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, q?.Filter, field.Filters);
-                            }
-                            else if (q?.Filter != null)
-                            {
-                                filter = q.Filter.ToAppSchemaDataFilter(((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
+                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
+                                filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                             }
                             
                             (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,

@@ -794,6 +794,7 @@ public class FunctionType: AnySchemaType
                 Nullable = pt.Nullable || p.HasDefaultValue || 
                     p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
                     p.IsDefined(typeof(DefaultAttribute), false),
+                Display = method.GetSummaryFromXmlDoc(p) ?? null,
                 Default = p.GetCustomAttribute<DefaultAttribute>()?.Value, // not the default value of the parameter
             };
             funcSchema.Func.Args[i] = arg;
@@ -948,6 +949,7 @@ public class FunctionType: AnySchemaType
                 Name = a.Name.ToCamelCase(),
                 Type = a.Type,
                 Nullable = a.Nullable,
+                Display = a.Display,
                 Params = a.Params,
                 Default = a.Default,
                 Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
@@ -978,19 +980,9 @@ public class FunctionType: AnySchemaType
 public abstract class FunctionNodeExpTree
 {
     /// <summary>
-    /// The leaf nodes as sub expressions
-    /// </summary>
-    public FunctionNodeExpTree?[] LeafNodes { get; set; } = [];
-
-    /// <summary>
     /// The type node
     /// </summary>
     public AnySchemaType? SchemaType { get; set; }
-
-    /// <summary>
-    /// The used by count, could be used to improve the dynamic complier
-    /// </summary>
-    public int Used { get; set; }
 }
 
 /// <summary>
@@ -1014,6 +1006,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// Whether nullable
     /// </summary>
     public bool? Nullable { get; init; }
+    
+    /// <summary>
+    /// The display name
+    /// </summary>
+    public LocaleString? Display { get; init; }
 
     /// <summary>
     /// Whether params argument
@@ -1050,6 +1047,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
             Name = arg.Name,
             Type = arg.Type,
             Nullable = arg.Nullable,
+            Display = arg.Display,
             Params = arg.Params,
             Default = arg.Default,
         };

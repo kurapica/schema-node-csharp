@@ -762,15 +762,41 @@ public static class Extension
         if (!string.IsNullOrEmpty(paramList))
             memberName += $"({paramList})";
 
-        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
+        return GetSummaryFromXmlDocInternal(type.Assembly, memberName, "summary");
     }
 
+    /// <summary>
+    /// Get summary contents of method from XML doc.
+    /// </summary>
+    internal static string? GetSummaryFromXmlDoc(this MethodInfo method, ParameterInfo parameter)
+    {
+        const string prefix = "M:";
+        var type = method.DeclaringType!;
+
+        string typeName = type.FullName!.Replace('+', '.');
+        string methodName = method.Name;
+
+        // Generic method: Method``1
+        if (method.IsGenericMethodDefinition)
+            methodName += $"``{method.GetGenericArguments().Length}";
+
+        // Parameters
+        string paramList = string.Join(",", method.GetParameters()
+            .Select(p => GetXmlDocTypeName(p.ParameterType)));
+
+        string memberName = $"{prefix}{typeName}.{methodName}";
+        if (!string.IsNullOrEmpty(paramList))
+            memberName += $"({paramList})";
+
+        return GetSummaryFromXmlDocInternal(type.Assembly, memberName, $"param[@name='{parameter.Name}']");
+    }
+    
     #region ---------- Shared Internal Helpers ----------
 
     /// <summary>
     /// Load XML once and query the node by name.
     /// </summary>
-    private static string? GetSummaryFromXmlDocInternal(Assembly asm, string memberName)
+    private static string? GetSummaryFromXmlDocInternal(Assembly asm, string memberName, string? subPath = null)
     {
         string xmlPath = asm.Location.Replace(".dll", ".xml");
         XmlDocument? doc = LoadXml(xmlPath);
@@ -783,7 +809,21 @@ public static class Extension
         {
             string? name = node.Attributes?[0]?.Value;
             if (name == memberName)
-                return CleanupSummary(node.InnerText);
+            {
+                switch (string.IsNullOrEmpty(subPath))
+                {
+                    case false:
+                    {
+                        XmlNode? subNode = node.SelectSingleNode(subPath);
+                        if (subNode != null)
+                            return CleanupSummary(subNode.InnerText);
+                        else
+                            return null;
+                    }
+                    default:
+                        return CleanupSummary(node.InnerText);
+                }
+            }
         }
 
         return null;

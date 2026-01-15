@@ -301,15 +301,10 @@ public class FieldFilter
     /// The filter mode
     /// </summary>
     public FieldFilterMode Mode { get; set; } = FieldFilterMode.Exactly;
-    
-    /// <summary>
-    /// The field name
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Field { get; set; }
 
     /// <summary>
-    /// The field function
+    /// The field name or filter function
     /// </summary>
-    public string? Filter { get; set; } 
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string Filter { get; set; } = string.Empty;
 }

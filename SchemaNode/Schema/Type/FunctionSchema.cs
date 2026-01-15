@@ -78,6 +78,11 @@ public class FuncArg
     /// Whether the argument is nullable
     /// </summary>
     public bool? Nullable { get; set; }
+    
+    /// <summary>
+    /// The argument display name
+    /// </summary>
+    public LocaleString? Display { get; set; }
 
     /// <summary>
     /// The argument is params

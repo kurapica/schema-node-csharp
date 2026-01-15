@@ -7,6 +7,14 @@
     <RootNamespace>SchemaNode.Example</RootNamespace>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DocumentationFile>bin\Debug\SchemaNode.Example.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DocumentationFile>bin\Release\SchemaNode.Example.xml</DocumentationFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Cszy.DistributedLock.Medallion" Version="0.0.195" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
