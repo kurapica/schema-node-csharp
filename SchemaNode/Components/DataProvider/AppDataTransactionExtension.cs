@@ -291,7 +291,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Commit transaction.
     /// </summary>
-    public static async Task CommitTransactionAsync(this SchemaContext context)
+    public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
@@ -302,6 +302,9 @@ public static class AppDataTransactionExtension
 
         // Commit
         await dataProvider.CommitTransactionAsync();
+
+        // No data event
+        if (noEvent) return;
 
         // Event after commit
         foreach (var (target, value) in transChangedData)

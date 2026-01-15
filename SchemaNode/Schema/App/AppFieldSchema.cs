@@ -298,13 +298,18 @@ public class ColPolicyItem
 public class FieldFilter
 {
     /// <summary>
-    /// The field name
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string Field { get; set; } = string.Empty;
-
-    /// <summary>
     /// The filter mode
     /// </summary>
     public FieldFilterMode Mode { get; set; } = FieldFilterMode.Exactly;
+    
+    /// <summary>
+    /// The field name
+    /// </summary>
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public string? Field { get; set; }
+
+    /// <summary>
+    /// The field function
+    /// </summary>
+    public string? Filter { get; set; } 
 }

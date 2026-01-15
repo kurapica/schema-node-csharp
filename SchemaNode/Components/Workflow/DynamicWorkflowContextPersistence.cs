@@ -17,7 +17,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             if (snapshot.Forks is { Length: > 0 })
                 await SaveForksAsync(snapshot.Forks);
             
-            await context.CommitTransactionAsync();
+            await context.CommitTransactionAsync(true);
         }
         catch (Exception e)
         {

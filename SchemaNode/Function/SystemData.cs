@@ -343,7 +343,8 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         [Schema(NS_GENERIC_TYPE)] JsonNode data,
-        string target
+        string target,
+        bool raiseEvent = false
     )
     {
         if (string.IsNullOrEmpty(target)) return null;
@@ -435,7 +436,7 @@ public static class SystemData
         }
 
         await context.SaveFieldDataAsync(fieldType, target, origin?.ToJson());
-        await context.CommitTransactionAsync();
+        await context.CommitTransactionAsync(!raiseEvent);
         return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
@@ -451,6 +452,7 @@ public static class SystemData
         [Schema(NS_GENERIC_TYPE)] JsonNode data,
         bool onlyAdd,
         string target,
+        bool raiseEvent = false,
         params string[] overrides
     )
     {
@@ -467,8 +469,8 @@ public static class SystemData
         context.SetAccess(app, target);
 
         await context.BeginTransactionAsync();
-        await context.SaveFieldDataAsync(fieldType!, target, dataNode, onlyAdd: onlyAdd);
-        await context.CommitTransactionAsync();
+        await context.SaveFieldDataAsync(fieldType!, target, dataNode, onlyAdd: onlyAdd, overrides: overrides);
+        await context.CommitTransactionAsync(!raiseEvent);
         return true;
     }
     

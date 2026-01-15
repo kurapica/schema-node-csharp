@@ -674,6 +674,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 }
                 return (false, null, null);
             }
+            if (origin != null && value.Equals(origin))
+                return (false, null, null);
 
             // Check the value type
             if (schema.Fields is [{ Name: DYNAMIC_TABLE_VALUE_FIELD }])
