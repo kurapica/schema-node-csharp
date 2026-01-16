@@ -16,12 +16,12 @@ public class MySqlProvider : ISqlProvider
     public string QuoteIndex(string indexName) => $"`{indexName}`";
     public string GenParameterName(int index) => $"@p{index}";
     public string Concat(string left, string right) => $"CONCAT({left}, {right})";
-    public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {param}, '%')";
-    public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({param}, '%')";
-    public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {param})";
-    public string NotLikeContains(string field, string param) => $"{field} NOT LIKE CONCAT('%', {param}, '%')";
-    public string NotLikeStartsWith(string field, string param) => $"{field} NOT LIKE CONCAT({param}, '%')";
-    public string NotLikeEndsWith(string field, string param) => $"{field} NOT LIKE CONCAT('%', {param})";
+    public string LikeContains(string field, string param) => $"{field} LIKE CONCAT('%', {Literal(param)}, '%')";
+    public string LikeStartsWith(string field, string param) => $"{field} LIKE CONCAT({Literal(param)}, '%')";
+    public string LikeEndsWith(string field, string param) => $"{field} LIKE CONCAT('%', {Literal(param)})";
+    public string NotLikeContains(string field, string param) => $"{field} NOT LIKE CONCAT('%', {Literal(param)}, '%')";
+    public string NotLikeStartsWith(string field, string param) => $"{field} NOT LIKE CONCAT({Literal(param)}, '%')";
+    public string NotLikeEndsWith(string field, string param) => $"{field} NOT LIKE CONCAT('%', {Literal(param)})";
 
     public string In(string field, IEnumerable<object> paramNames) => $"{field} IN ({string.Join(", ", paramNames.Select(Literal))})";
     public string NotIn(string field, IEnumerable<object> paramNames) => $"{field} NOT IN ({string.Join(", ", paramNames.Select(Literal))})";

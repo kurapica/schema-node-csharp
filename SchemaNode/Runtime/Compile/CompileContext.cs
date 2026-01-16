@@ -267,7 +267,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         };
         
         // Parse field access expression, special for display only field
-        SchemaExpression? ParseFieldAccess(VariableExpression varExp, string[] paths)
+        SchemaExpression? ParseFieldAccess(VariableExpression varExp, string[] paths, AnySchemaType? expectedType = null)
         {
             // replace with field access expression
             AnySchemaType? type = varExp.SchemaType;
@@ -285,11 +285,15 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     return null;
                 }
             }
+            // Replace the local string to string type
+            if (expectedType is ScalarType { IsString: true } && type?.Name == NS_SYSTEM_LOCALE_STRING)
+                type = expectedType;
+            
             return new FieldAccessExpression(varExp, string.Join(".", paths), type!);
         }
 
         // Get expression with visit count++ & Field Access support
-        bool GetExpression(string name, out SchemaExpression? value)
+        bool GetExpression(string name, out SchemaExpression? value, AnySchemaType? expectedType = null)
         {
             string[] access = name.Split('.', StringSplitOptions.RemoveEmptyEntries);
             if (expMaps.TryGetValue(access[0], out VariableExpression? varExp))
@@ -299,7 +303,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 
                 if (access.Length > 1)
                 {
-                    if (ParseFieldAccess(varExp, access.Skip(1).ToArray()) is not { } fieldExp)
+                    if (ParseFieldAccess(varExp, access.Skip(1).ToArray(), expectedType) is not { } fieldExp)
                     {
                         value = null;
                         return false;

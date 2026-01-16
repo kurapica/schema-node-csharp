@@ -248,6 +248,11 @@ public enum SchemaNodeStatus
     /// The application push data wrong func
     /// </summary>
     ApplicationPushDataWrongFunc,
+    
+    /// <summary>
+    /// The application field has wrong filter settings
+    /// </summary>
+    ApplicationFieldDataWrongFilter,
 
     /// <summary>
     /// The data source compile error

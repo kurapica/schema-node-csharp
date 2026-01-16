@@ -286,11 +286,11 @@ public class AppType
                     }
                 }
 
+                // valid the column policy | filter
                 StructType? structType = field.SchemaType as StructType
                     ?? (field.SchemaType is ArrayType { ElementSchemaType: StructType st } ? st : null);
                 if (structType != null)
                 {
-                    // valid the column policy
                     if (field.ColAuths != null)
                     {
                         foreach(ColPolicyItem colPolicy in field.ColAuths)
@@ -317,6 +317,32 @@ public class AppType
                                 }
                             }
                             colPolicy.Functions = funcs.ToArray();
+                        }
+                    }
+
+                    if (field.Filters is { Length: > 0 })
+                    {
+                        foreach (FieldFilter filter in field.Filters)
+                        {
+                            if (filter.Mode == FieldFilterMode.Filter)
+                            {
+                                if (await context.GetSchemaTypeAsync(filter.Filter) is not FunctionType funcType ||
+                                    funcType.Args.Length < 2 ||
+                                    funcType.Args[0].SchemaType == null ||
+                                    !funcType.Args[0].SchemaType!.CanBeUseAs(structType))
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                if (structType.GetField(filter.Filter) == null)
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -367,7 +393,7 @@ public class AppType
                     }
                 }
             }
-
+            
             // Use ref
             if (requireDb && useRef) {
                 string refType = typeof(List<AppRef>).GetSchemaType()!;
@@ -524,9 +550,18 @@ public class AppType
             cancellationToken?.ThrowIfCancellationRequested();
             
             if (fieldNode.SchemaType != null)
-             await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
             if (fieldNode.FuncNode != null)
-             await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            if (fieldNode.Filters is { Length: > 0 })
+            {
+                foreach (FieldFilter filter in fieldNode.Filters.Where(f => f.Mode == FieldFilterMode.Filter))
+                {
+                    AnySchemaType? filterType = await ctx.GetSchemaTypeAsync(filter.Filter);
+                    if (filterType != null)
+                        await filterType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                }
+            }
         }
 
         if (Relations is { Count: > 0 })

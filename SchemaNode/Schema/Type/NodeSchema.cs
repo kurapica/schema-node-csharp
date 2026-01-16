@@ -351,12 +351,26 @@ public class LocaleString : ICloneable
     }
 
     /// <summary>
+    /// Convert locale string to string
+    /// </summary>
+    public static implicit operator string(LocaleString locale)
+    {
+        return locale.Key;
+    }
+
+    /// <summary>
     /// Clone the locale string
     /// </summary>
     public object Clone()
     {
         return new LocaleString(Key, Trans?.Select(t => new LocaleTran(t.Lang, t.Tran)).ToArray() ?? []);
     }
+
+    /// <summary>
+    /// To string
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString() => Key;
 }
 
 /// <summary>

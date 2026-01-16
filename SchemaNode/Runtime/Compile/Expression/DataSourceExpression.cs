@@ -218,11 +218,15 @@ public static class AppSchemaDataFilterExtensions
             
             // only support scalar or locale string type
             if (field is not { SchemeType: ScalarType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
+            
+            AnySchemaType schemaType = field.SchemeType;
+            if (schemaType.Name.Equals(NS_SYSTEM_LOCALE_STRING, StringComparison.OrdinalIgnoreCase))
+                schemaType = (await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!;
 
             var filterExp = value switch
             {
                 JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.Contains,
-                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType!, arr)),
+                        new AppSchemaDataFilterValue(new ArrayTypeNode(schemaType, arr)),
                         new AppSchemaDataFilterField(key)),
                 JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
                         {
@@ -233,7 +237,7 @@ public static class AppSchemaDataFilterExtensions
                             _ => LogicExpType.Equal
                         }, 
                         new AppSchemaDataFilterField(key),
-                        new AppSchemaDataFilterValue(field.SchemeType!.CreateNode(val)!)),
+                        new AppSchemaDataFilterValue(schemaType.CreateNode(val)!)),
                 _ => null
             };
             
