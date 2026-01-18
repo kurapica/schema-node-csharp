@@ -45,35 +45,33 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
         if (to?.SchemaType is ArrayType { Primary.Length: > 0 } array && _thirdFields.Count > 0)
         {
             // Add third app field arguments
-            ArgumentExpression[] args = new ArgumentExpression[_thirdFields.Count + 1];
+            ArgumentExp[] args = new ArgumentExp[_thirdFields.Count + 1];
             args[0] = schema.Args[0];
             for (int i = 0; i < _thirdFields.Count; i++) args[i + 1] = _thirdFields[i].Arg;
 
             // Validate the struct build, all primary keys must be covered, all value must not from third field
-            StructResultExpression toStruct = schema.Exps.LastOrDefault()?.Value as StructResultExpression
-                                              ?? throw new FunctionVisitException(
-                                                  SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                                  APP_PUSH_DATA_WRONG_FUNC);
+            StructResultExp toStruct = schema.Exps.LastOrDefault()?.Value as StructResultExp
+                                              ?? throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
-            foreach (StructFieldExpression field in toStruct.Fields)
+            foreach (StructFieldExp field in toStruct.Fields)
             {
                 if (array.Primary.Contains(field.Name, StringComparer.OrdinalIgnoreCase))
                 {
                     // Primary key field, must be field access from argument or constant
                     bool fromValid = false;
-                    SchemaExpression? keyExp = field.Expression;
+                    SchemaExp? keyExp = field.Expression;
                     while (keyExp != null)
                     {
                         switch (keyExp)
                         {
-                            case VariableExpression varExp:
+                            case VariableExp varExp:
                                 keyExp = varExp.Value;
                                 break;
 
-                            case FieldAccessExpression fieldAccessExp:
-                                SchemaExpression owner = fieldAccessExp.Owner;
-                                if (owner is VariableExpression vExp) owner = vExp.Value;
-                                if (owner is ArgumentExpression argExp)
+                            case FieldAccessExp fieldAccessExp:
+                                SchemaExp owner = fieldAccessExp.Owner;
+                                if (owner is VariableExp vExp) owner = vExp.Value;
+                                if (owner is ArgumentExp argExp)
                                 {
                                     keyExp = null;
                                     fromValid = true;
@@ -88,32 +86,28 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                 }
                                 else
                                 {
-                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                        APP_PUSH_DATA_WRONG_FUNC);
+                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                                 }
 
                                 break;
 
-                            case ConstantExpression:
+                            case ConstantExp:
                                 // Constant is valid
                                 keyExp = null;
                                 fromValid = true;
                                 break;
 
                             default:
-                                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                    APP_PUSH_DATA_WRONG_FUNC);
+                                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                         }
                     }
 
                     if (!fromValid)
-                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                            APP_PUSH_DATA_WRONG_FUNC);
+                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                 }
                 else if (FromThirdField(field.Expression))
                 {
-                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                        APP_PUSH_DATA_WRONG_FUNC);
+                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                 }
             }
 
@@ -127,12 +121,12 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
     /// <summary>
     /// Check Get App data function call
     /// </summary>
-    public override async Task<SchemaExpression> VisitSchemaExpAsync(SchemaExpression exp)
+    public override async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
     {
         switch (exp)
         {
             // Record the push keys from the third field arguments
-            case FieldAccessExpression { Owner: ArgumentExpression { Index: > 0 } arg } fldAcces:
+            case FieldAccessExp { Owner: ArgumentExp { Index: > 0 } arg } fldAcces:
             {
                 var info = _thirdFields.First(a => a.Arg == arg);
                 if (!info.PushKeys.Contains(fldAcces.FieldName))
@@ -141,22 +135,21 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             }
             
             // Check the third field function call
-            case FuncCallExpression funcCallExp:
+            case FuncCallExp funcCallExp:
                 switch (funcCallExp.Function.Name)
                 {
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}":
                         // parameter fetch should not be used in data push
-                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                            APP_PUSH_DATA_WRONG_FUNC);
+                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}":
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}":
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
-                            funcCallExp.Args[0] is ConstantExpression { Value.IsEmpty: false } appExp &&
-                            funcCallExp.Args[1] is ConstantExpression { Value.IsEmpty: false } fieldExp &&
-                            funcCallExp.Args[2] is ConstantExpression { Value.IsEmpty: false } dataFieldExp
+                            funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false } appExp &&
+                            funcCallExp.Args[1] is ConstantExp { Value.IsEmpty: false } fieldExp &&
+                            funcCallExp.Args[2] is ConstantExp { Value.IsEmpty: false } dataFieldExp
                            )
                         {
                             _appType ??= await Context.GetAppTypeAsync(appExp.Value.ToValue<string>()!);
@@ -174,56 +167,53 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                 List<DataPushPrimaryMap> primaryMap = [];
 
                                 if (arrayType.Primary.Length != funcCallExp.Args.Length - 4)
-                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                        APP_PUSH_DATA_WRONG_FUNC);
+                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                                 // Key must be field access from argument, constant that generated before, otherwise we can't figure out the 
                                 // primary key mapping, just fail it and leave it for further handling
                                 for (int i = 0; i < arrayType.Primary.Length; i++)
                                 {
-                                    SchemaExpression? keyExp = funcCallExp.Args[i + 3];
+                                    SchemaExp? keyExp = funcCallExp.Args[i + 3];
                                     while (keyExp != null)
                                     {
                                         switch (keyExp)
                                         {
-                                            case VariableExpression varExp:
+                                            case VariableExp varExp:
                                                 keyExp = varExp.Value;
                                                 break;
 
-                                            case FieldAccessExpression fieldAccessExp:
+                                            case FieldAccessExp fieldAccessExp:
                                                 // The owner must be argument type generated before
-                                                SchemaExpression owner = fieldAccessExp.Owner;
-                                                if (owner is VariableExpression vExp) owner = vExp.Value;
+                                                SchemaExp owner = fieldAccessExp.Owner;
+                                                if (owner is VariableExp vExp) owner = vExp.Value;
                                                 
-                                                if (owner is not ArgumentExpression arg)
+                                                if (owner is not ArgumentExp arg)
                                                     throw new FunctionVisitException(
-                                                        SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                                        APP_PUSH_DATA_WRONG_FUNC);
+                                                        SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                                                 primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? null : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));
                                                 keyExp = null;
                                                 break;
 
-                                            case ConstantExpression constExp:
+                                            case ConstantExp constExp:
                                                 primaryMap.Add(new DataPushPrimaryConstant(arrayType.Primary[i], constExp.Value));
                                                 keyExp = null;
                                                 break;
 
                                             default:
                                                 throw new FunctionVisitException(
-                                                    SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                                    APP_PUSH_DATA_WRONG_FUNC);
+                                                    SchemaNodeStatus.ApplicationPushDataWrongFunc);
                                         }
                                     }
                                 }
 
                                 // Create new argument expression for the third field data
-                                ArgumentExpression newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
+                                ArgumentExp newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
                                 thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(),[dataField.Name]);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
-                            return new FieldAccessExpression(thirdFieldInfo.Arg, dataField.Name, dataField.SchemeType!);
+                            return new FieldAccessExp(thirdFieldInfo.Arg, dataField.Name, dataField.SchemeType!);
                         }
 
                         // Other app could be system parameters, leave it to the user
@@ -231,8 +221,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     }
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}":
                         // parameter fetch should not be used in data push
-                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                            APP_PUSH_DATA_WRONG_FUNC);
+                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyonekey)}":
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabytwokey)}":
@@ -240,8 +229,8 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyfourkey)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
-                            funcCallExp.Args[0] is ConstantExpression { Value.IsEmpty: false }  appExp &&
-                            funcCallExp.Args[1] is ConstantExpression { Value.IsEmpty: false }  fieldExp
+                            funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false }  appExp &&
+                            funcCallExp.Args[1] is ConstantExp { Value.IsEmpty: false }  fieldExp
                            )
                         {
                             _appType ??= await Context.GetAppTypeAsync(appExp.Value.ToValue<string>()!);
@@ -258,46 +247,45 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                 List<DataPushPrimaryMap> primaryMap = [];
 
                                 if (arrayType.Primary.Length != funcCallExp.Args.Length - 3)
-                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc,
-                                        APP_PUSH_DATA_WRONG_FUNC);
+                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                                 // Key must be field access from argument, constant that generated before, otherwise we can't figure out the 
                                 // primary key mapping, just fail it and leave it for further handling
                                 for (int i = 0; i < arrayType.Primary.Length; i++)
                                 {
-                                    SchemaExpression? keyExp = funcCallExp.Args[i + 2];
+                                    SchemaExp? keyExp = funcCallExp.Args[i + 2];
                                     while (keyExp != null)
                                     {
                                         switch (keyExp)
                                         {
-                                            case VariableExpression varExp:
+                                            case VariableExp varExp:
                                                 keyExp = varExp.Value;
                                                 break;
 
-                                            case FieldAccessExpression fieldAccessExp:
+                                            case FieldAccessExp fieldAccessExp:
                                                 // The owner must be argument generated before
-                                                SchemaExpression owner = fieldAccessExp.Owner;
-                                                if (owner is VariableExpression vExp) owner = vExp.Value;
-                                                if (owner is not ArgumentExpression arg)
-                                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc, APP_PUSH_DATA_WRONG_FUNC);
+                                                SchemaExp owner = fieldAccessExp.Owner;
+                                                if (owner is VariableExp vExp) owner = vExp.Value;
+                                                if (owner is not ArgumentExp arg)
+                                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                                                 primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? null : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));
                                                 keyExp = null;
                                                 break;
 
-                                            case ConstantExpression constExp:
+                                            case ConstantExp constExp:
                                                 primaryMap.Add(new DataPushPrimaryConstant(arrayType.Primary[i], constExp.Value));
                                                 keyExp = null;
                                                 break;
 
                                             default:
-                                                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc, APP_PUSH_DATA_WRONG_FUNC);
+                                                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                                         }
                                     }
                                 }
 
                                 // Create new argument expression for the third field data
-                                ArgumentExpression newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
+                                ArgumentExp newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
                                 thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(), []);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
@@ -318,16 +306,17 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
     /// <summary>
     /// No third app field involved
     /// </summary>
-    private static bool FromThirdField(SchemaExpression expression)
+    private static bool FromThirdField(SchemaExp expression)
     {
         return expression switch
         {
-            ArgumentExpression argExp => argExp.Index > 0, // Only allow first argument
-            VariableExpression varExp => FromThirdField(varExp.Value),
-            DefaultExpression defExp => FromThirdField(defExp.Inner),
-            ParamsExpression paramsExp => paramsExp.Exps.Any(FromThirdField),
-            IteratorExpression iterExp => FromThirdField(iterExp.Array),
-            FuncCallExpression funcCallExp => funcCallExp.Function.Name switch
+            ArgumentExp argExp => argExp.Index > 0, // Only allow first argument
+            VariableExp varExp => FromThirdField(varExp.Value),
+            DefaultExp defExp => FromThirdField(defExp.Inner),
+            ParamsExp paramsExp => paramsExp.Exps.Any(FromThirdField),
+            CollectionOperator collectionExp => FromThirdField(collectionExp.Root),
+            CollectionRootExp iterExp => FromThirdField(iterExp.Collection),
+            FuncCallExp funcCallExp => funcCallExp.Function.Name switch
             {
                 $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}"
                     or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}"
@@ -340,21 +329,18 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyfourkey)}" => false, // allow parameters
                 _ => funcCallExp.Args.Any(FromThirdField)
             },
-            UnaryLogicExpression unaryLogicExp => FromThirdField(unaryLogicExp.Inner),
-            BinaryLogicExpression binaryLogicExp => FromThirdField(binaryLogicExp.Left) || 
+            UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner),
+            BinaryLogicExp binaryLogicExp => FromThirdField(binaryLogicExp.Left) || 
                                                     FromThirdField(binaryLogicExp.Right),
-            ConditionalExpression condExp => FromThirdField(condExp.Condition) || 
+            ConditionalExp condExp => FromThirdField(condExp.Condition) || 
                                              FromThirdField(condExp.TrueExp) ||
                                              FromThirdField(condExp.FalseExp),
-            FieldAccessExpression fieldAccessExp => FromThirdField(fieldAccessExp.Owner),
-            CollectionExpression collectionExp => FromThirdField(collectionExp.Iterator) ||
-                                                  FromThirdField(collectionExp.Expression),
-            UnaryArithmeticExpression unaryArithmeticExp => FromThirdField(unaryArithmeticExp.Inner),
-            BinaryArithmeticExpression binaryArithmeticExp => FromThirdField(binaryArithmeticExp.Left) ||
-                                                              FromThirdField(binaryArithmeticExp.Right),
+            FieldAccessExp fieldAccessExp => FromThirdField(fieldAccessExp.Owner),
+            ArithmeticExp arithmeticExp => arithmeticExp.Args.Any(FromThirdField),
+            
             // No break/source exp in data push
-            DataSourceExpression or DataResultExpression or BreakExpression =>
-                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc, APP_PUSH_DATA_WRONG_FUNC),
+            DataSourceExp or DataResultExp or BreakExp =>
+                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc),
             _ => false,
         };
     }
@@ -365,7 +351,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 /// <summary>
 /// The third field info 
 /// </summary>
-public record DataPushThirdFieldInfo(ArgumentExpression Arg, string Field, DataPushPrimaryMap[] PrimaryMap, List<string> PushKeys);
+public record DataPushThirdFieldInfo(ArgumentExp Arg, string Field, DataPushPrimaryMap[] PrimaryMap, List<string> PushKeys);
 
 public abstract record DataPushPrimaryMap(string Key);
 

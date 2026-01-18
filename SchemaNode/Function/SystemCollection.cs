@@ -57,6 +57,7 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Schema]
+    [Logic(LogicType.Contains, true)]
     public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -70,6 +71,7 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
+    [Logic(LogicType.NotContains, true)]
     public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
@@ -185,124 +187,6 @@ public static class SystemCollection
         obj[field] = value;
         return obj;
     }
-
-    /// <summary>
-    /// Sets the field and return a new json object
-    /// </summary>
-    [Schema]
-    public static bool fieldequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        return EqualityComparer<T>.Default.Equals(node.ToValue<T>(), value);
-    }
-    
-    /// <summary>
-    /// system.collection.notequal
-    /// </summary>
-    [Schema]
-    public static bool fieldnotequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-        => !fieldequal(obj, field, value);
-
-    /// <summary>
-    /// system.collection.greateequal
-    /// </summary>
-    [Schema]
-    public static bool fieldgreateequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) >= 0;
-    }
-
-    /// <summary>
-    /// system.collection.greatethan
-    /// </summary>
-    [Schema]
-    public static bool fieldgreatethan<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) > 0;
-    }
-
-    /// <summary>
-    /// system.collection.lessequal
-    /// </summary>
-    [Schema]
-    public static bool fieldlessequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) <= 0;
-    }
-
-    /// <summary>
-    /// system.collection.lessthan
-    /// </summary>
-    [Schema]
-    public static bool fieldlessthan<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) < 0;
-    }
-    
-    /// <summary>
-    /// Field starts with
-    /// </summary>
-    [Schema]
-    public static bool fieldstartswith(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotstartswith(StructTypeNode obj, string field, string value)
-        => !fieldstartswith(obj, field, value);
-
-    /// <summary>
-    /// Field end with
-    /// </summary>
-    [Schema]
-    public static bool fieldendswith(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotendswith(StructTypeNode obj, string field, string value)
-        => !fieldendswith(obj, field, value);
-
-    /// <summary>
-    /// Field match
-    /// </summary>
-    [Schema]
-    public static bool fieldmatch(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.Contains(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotmatch(StructTypeNode obj, string field, string value)
-        => !fieldmatch(obj, field, value);
 
     /// <summary>
     /// order by the given field

@@ -20,37 +20,37 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The data source
 /// </summary>
-public record DataSource(string App, string Field, SchemaExpression? Target, AnySchemaType SchemaType);
+public record DataSource(string App, string Field, SchemaExp? Target, AnySchemaType SchemaType);
 
 /// <summary>
 /// The data source expression
 /// </summary>
-public record DataSourceExpression(DataSource Source) : SchemaExpression(Source.SchemaType);
+public record DataSourceExp(DataSource Source) : SchemaExp(Source.SchemaType);
 
 /// <summary>
 /// A ref expression for data source struct type
 /// </summary>
-public record DataSourceRefExpression(string App, string Field, AnySchemaType SchemaType) : SchemaExpression(SchemaType);
+public record DataSourceRefExp(string App, string Field, AnySchemaType SchemaType) : SchemaExp(SchemaType);
 
 /// <summary>
 /// The filter data source expression
 /// </summary>
-public record WhereDataSourceExpression(DataSourceExpression Previous, LogicExpression Filter) : DataSourceExpression(Previous.Source);
+public record WhereDataSourceExp(DataSourceExp Previous, LogicExp Filter) : DataSourceExp(Previous.Source);
 
 /// <summary>
 /// The order by data source expression
 /// </summary>
-public record OrderByDataSourceExpression(DataSourceExpression Previous, string OrderField, bool Descending) : DataSourceExpression(Previous.Source);
+public record OrderByDataSourceExp(DataSourceExp Previous, string OrderField, bool Descending) : DataSourceExp(Previous.Source);
 
 /// <summary>
 /// The take data source expression
 /// </summary>
-public record TakeDataSourceExpression(DataSourceExpression Previous, SchemaExpression TakeExp) : DataSourceExpression(Previous.Source);
+public record TakeDataSourceExp(DataSourceExp Previous, SchemaExp TakeExp) : DataSourceExp(Previous.Source);
 
 /// <summary>
 /// The skip data source expression
 /// </summary>
-public record SkipDataSourceExpression(DataSourceExpression Previous, SchemaExpression SkipExp) : DataSourceExpression(Previous.Source);
+public record SkipDataSourceExp(DataSourceExp Previous, SchemaExp SkipExp) : DataSourceExp(Previous.Source);
 
 #endregion
 
@@ -59,37 +59,37 @@ public record SkipDataSourceExpression(DataSourceExpression Previous, SchemaExpr
 /// <summary>
 /// The data source result
 /// </summary>
-public abstract record DataResultExpression(DataSourceExpression Source, AnySchemaType SchemaType): SchemaExpression(SchemaType);
+public abstract record DataResultExp(DataSourceExp Source, AnySchemaType SchemaType): SchemaExp(SchemaType);
 
 /// <summary>
 /// The count data source expression
 /// </summary>
-public record CountDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : DataResultExpression(Source, SchemaType);
+public record CountDataSourceExp(DataSourceExp Source, AnySchemaType SchemaType) : DataResultExp(Source, SchemaType);
 
 /// <summary>
 /// Exists data source expression
 /// </summary>
-public record ExistsDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : DataResultExpression(Source, SchemaType);
+public record ExistsDataSourceExp(DataSourceExp Source, AnySchemaType SchemaType) : DataResultExp(Source, SchemaType);
 
 /// <summary>
 /// No exists data source expression
 /// </summary>
-public record NoExistsDataSourceExpression(DataSourceExpression Source, AnySchemaType SchemaType) : DataResultExpression(Source, SchemaType);
+public record NoExistsDataSourceExp(DataSourceExp Source, AnySchemaType SchemaType) : DataResultExp(Source, SchemaType);
 
 /// <summary>
 /// The first data source expression
 /// </summary>
-public record FirstDataSourceExpression(DataSourceExpression Source) : DataResultExpression(Source, (Source.SchemaType as ArrayType)!.ElementSchemaType!);
+public record FirstDataSourceExp(DataSourceExp Source) : DataResultExp(Source, (Source.SchemaType as ArrayType)!.ElementSchemaType!);
 
 /// <summary>
 /// The last data source expression
 /// </summary>
-public record LastDataSourceExpression(DataSourceExpression Source) : DataResultExpression(Source, (Source.SchemaType as ArrayType)!.ElementSchemaType!);
+public record LastDataSourceExp(DataSourceExp Source) : DataResultExp(Source, (Source.SchemaType as ArrayType)!.ElementSchemaType!);
 
 /// <summary>
 /// The field access data source expression
 /// </summary>
-public record FieldsDataSourceExpression(DataSourceExpression Source, string FieldName, AnySchemaType SchemaType) : DataResultExpression(Source, SchemaType);
+public record FieldsDataSourceExp(DataSourceExp Source, string FieldName, AnySchemaType SchemaType) : DataResultExp(Source, SchemaType);
 
 #endregion
 
@@ -110,9 +110,9 @@ public enum AppSchemaDataResult
 
 public record AppSchemaDataFilterField(string Field): AppSchemaDataFilter;
 
-public record AppSchemaDataFilterUnary(LogicExpType Type, AppSchemaDataFilter Operand) : AppSchemaDataFilter;
+public record AppSchemaDataFilterUnary(LogicType Type, AppSchemaDataFilter Operand) : AppSchemaDataFilter;
 
-public record AppSchemaDataFilterBinary(LogicExpType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
+public record AppSchemaDataFilterBinary(LogicType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
 
 public record AppSchemaDataFilterValue(object Value) : AppSchemaDataFilter;
 
@@ -126,61 +126,7 @@ public static class AppSchemaDataFilterExtensions
     public static AppSchemaDataFilter AndAlso(this AppSchemaDataFilter left, AppSchemaDataFilter right)
         => left is AppSchemaDataFilterValue ? right
                 : right is AppSchemaDataFilterValue ? left
-                : new AppSchemaDataFilterBinary(LogicExpType.AndAlso, left, right);
-
-    /// <summary>
-    /// Combine the access exp with the filter
-    /// </summary>
-    public static AppSchemaDataFilter Combine(this AppSchemaDataFilter accessExp, StructType structType, JsonObject? filter = null, FieldFilter[]? fieldFilters = null)
-    {
-        if (filter == null || filter.IsEmpty()) return accessExp;
-
-        foreach ((string key, JsonNode? value) in filter)
-        {
-            if (value == null || value.IsEmpty()) continue;
-            StructFieldConfig? field = structType.GetField(key);
-            if (field is not { SchemeType: ScalarType }) continue;
-
-            AppSchemaDataFilter? fieldExp = accessExp.FindFieldAccessOper(key);
-
-            // additional filter
-            if (fieldExp is not AppSchemaDataFilterBinary { Type: LogicExpType.Equal } binaryEqual)
-            {
-                var filterMode = fieldFilters?.FirstOrDefault(f => f.Filter.Equals(key, StringComparison.OrdinalIgnoreCase))?.Mode 
-                                 ?? FieldFilterMode.Exactly;
-                
-                accessExp = value switch
-                {
-                    JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
-                        new AppSchemaDataFilterBinary(LogicExpType.Contains,
-                            new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType!, arr)),
-                            new AppSchemaDataFilterField(key))),
-                    JsonValue val => new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp,
-                        new AppSchemaDataFilterBinary(filterMode switch
-                            {
-                                FieldFilterMode.Exactly => LogicExpType.Equal,
-                                FieldFilterMode.Prefix => LogicExpType.StartsWith,
-                                FieldFilterMode.Suffix => LogicExpType.EndsWith,
-                                FieldFilterMode.Contains => LogicExpType.Match,
-                                _ => LogicExpType.Equal
-                            }, 
-                            new AppSchemaDataFilterField(key),
-                            new AppSchemaDataFilterValue(field.SchemeType!.CreateNode(val)!))),
-                    _ => accessExp
-                };
-            }
-
-            // write back to the filter
-            else
-            {
-                filter[key] = binaryEqual.Right is AppSchemaDataFilterValue valNode
-                    ? valNode.Value is AnySchemaNode node ? node.ToJsonNode() : valNode.Value.ToJsonNode()
-                    : null;
-            }
-        }
-
-        return accessExp;
-    }
+                : new AppSchemaDataFilterBinary(LogicType.AndAlso, left, right);
 
     internal static async Task<AppSchemaDataFilter?> ToAppSchemaDataFilterAsync(this JsonObject filter, SchemaContext context, StructType structType, FieldFilter[]? fieldFilters = null)
     {
@@ -206,7 +152,7 @@ public static class AppSchemaDataFilterExtensions
                     if (f != null)
                     {
                         accessExp = accessExp != null
-                            ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp, f)
+                            ? new AppSchemaDataFilterBinary(LogicType.AndAlso, accessExp, f)
                             : f;
                     }
                 }
@@ -219,30 +165,26 @@ public static class AppSchemaDataFilterExtensions
             // only support scalar or locale string type
             if (field is not { SchemeType: ScalarType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
             
-            AnySchemaType schemaType = field.SchemeType;
-            if (schemaType.Name.Equals(NS_SYSTEM_LOCALE_STRING, StringComparison.OrdinalIgnoreCase))
-                schemaType = (await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!;
-
             var filterExp = value switch
             {
-                JsonArray arr => new AppSchemaDataFilterBinary(LogicExpType.Contains,
-                        new AppSchemaDataFilterValue(new ArrayTypeNode(schemaType, arr)),
+                JsonArray arr => new AppSchemaDataFilterBinary(LogicType.Contains,
+                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType, arr)),
                         new AppSchemaDataFilterField(key)),
                 JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
                         {
-                            FieldFilterMode.Exactly => LogicExpType.Equal,
-                            FieldFilterMode.Prefix => LogicExpType.StartsWith,
-                            FieldFilterMode.Suffix => LogicExpType.EndsWith,
-                            FieldFilterMode.Contains => LogicExpType.Match,
-                            _ => LogicExpType.Equal
+                            FieldFilterMode.Exactly => LogicType.Equal,
+                            FieldFilterMode.Prefix => LogicType.StartsWith,
+                            FieldFilterMode.Suffix => LogicType.EndsWith,
+                            FieldFilterMode.Contains => LogicType.Match,
+                            _ => LogicType.Equal
                         }, 
                         new AppSchemaDataFilterField(key),
-                        new AppSchemaDataFilterValue(schemaType.CreateNode(val)!)),
+                        new AppSchemaDataFilterValue(field.SchemeType.CreateNode(val)!)),
                 _ => null
             };
             
             accessExp = accessExp != null && filterExp != null
-                ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, accessExp, filterExp)
+                ? new AppSchemaDataFilterBinary(LogicType.AndAlso, accessExp, filterExp)
                 : filterExp;
         }
 
@@ -256,7 +198,7 @@ public static class AppSchemaDataFilterExtensions
     {
         if (accessExp is AppSchemaDataFilterBinary binaryAccessExp)
         {
-            if (binaryAccessExp.Type == LogicExpType.AndAlso)
+            if (binaryAccessExp.Type == LogicType.AndAlso)
             {
                 JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
                 JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
@@ -277,7 +219,7 @@ public static class AppSchemaDataFilterExtensions
                 : binaryAccessExp.Left) as AppSchemaDataFilterValue;
             if (valueAccess == null) return null;
 
-            if (binaryAccessExp.Type is LogicExpType.Equal or LogicExpType.Contains)
+            if (binaryAccessExp.Type is LogicType.Equal or LogicType.Contains)
             {
                 return new JsonObject
                 {
@@ -333,11 +275,11 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterUnary unary:
                 switch (unary.Type)
                 {
-                    case LogicExpType.IsNull:
-                    case LogicExpType.IsEmpty:
+                    case LogicType.IsNull:
+                    case LogicType.IsEmpty:
                         return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
-                    case LogicExpType.NotNull:
-                    case LogicExpType.NotEmpty:
+                    case LogicType.NotNull:
+                    case LogicType.NotEmpty:
                         return sqlProvider.IsNotNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
@@ -345,51 +287,51 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterBinary binary:
                 switch (binary.Type)
                 {
-                    case LogicExpType.AndAlso:
-                    case LogicExpType.OrElse:
-                    case LogicExpType.Equal:
-                    case LogicExpType.NotEqual:
-                    case LogicExpType.GreaterThan:
-                    case LogicExpType.GreaterEqual:
-                    case LogicExpType.LessThan:
-                    case LogicExpType.LessEqual:
+                    case LogicType.AndAlso:
+                    case LogicType.OrElse:
+                    case LogicType.Equal:
+                    case LogicType.NotEqual:
+                    case LogicType.GreaterThan:
+                    case LogicType.GreaterEqual:
+                    case LogicType.LessThan:
+                    case LogicType.LessEqual:
                         return sqlProvider.Binary(binary.Type,
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             ToSql(sqlProvider, binary.Right, tableSchema, prefix));
-                    case LogicExpType.Contains:
+                    case LogicType.Contains:
                         return sqlProvider.In(
                             ToSql(sqlProvider, binary.Right, tableSchema, prefix),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
-                    case LogicExpType.NotContains:
+                    case LogicType.NotContains:
                         return sqlProvider.NotIn(
                             ToSql(sqlProvider, binary.Right, tableSchema, prefix),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
-                    case LogicExpType.StartsWith:
+                    case LogicType.StartsWith:
                         return sqlProvider.LikeStartsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The startsWith right value must be string"))!);
-                    case LogicExpType.NotStartsWith:
+                    case LogicType.NotStartsWith:
                         return sqlProvider.NotLikeStartsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notStartsWith right value must be string"))!);
-                    case LogicExpType.EndsWith:
+                    case LogicType.EndsWith:
                         return sqlProvider.LikeEndsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The endsWith right value must be string"))!);
-                    case LogicExpType.NotEndsWith:
+                    case LogicType.NotEndsWith:
                         return sqlProvider.NotLikeEndsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notEndsWith right value must be string"))!);
-                    case LogicExpType.Match:
+                    case LogicType.Match:
                         return sqlProvider.LikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The match right value must be string"))!);
-                    case LogicExpType.NotMatch:
+                    case LogicType.NotMatch:
                         return sqlProvider.NotLikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
@@ -411,27 +353,27 @@ public static class AppSchemaDataFilterExtensions
 /// <summary>
 /// The data source visitor
 /// </summary>
-public class DataSourceExpressionVisitor : IExpressionVisitor
+public class DataSourceExpVisitor : IExpVisitor
 {
     /// <inheritdoc />
     public int Priority => EXP_DATA_SOURCE_PRIORITY;
 
     /// <inheritdoc />
-    public async Task<SchemaExpression?> VisitExpAsync(CompileContext context, SchemaExpression exp)
+    public async Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
-        if (exp is not FuncCallExpression callExp) return null;
+        if (exp is not FuncCallExp callExp) return null;
 
         #region Data Source
 
         // Data source check
         if (callExp.Function.Name == $"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}")
         {
-            string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExpression appExp ? appExp.Value.ToValue<string>() :  null;
-            string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fldExp ? fldExp.Value.ToValue<string>() :  null;
+            string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExp appExp ? appExp.Value.ToValue<string>() :  null;
+            string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExp fldExp ? fldExp.Value.ToValue<string>() :  null;
 
             // App & Field must be provided
             if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(field))
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
             
             // App & Field must be valid
             AppType? appType = await context.GetAppTypeAsync(app);
@@ -440,7 +382,7 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
             if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
                 schemaType = await context.GetSchemaTypeAsync(appField.Type);
             return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
-                ? new DataSourceExpression(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), schemaType))
+                ? new DataSourceExp(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), schemaType))
                 : null; // call directly
         }
 
@@ -449,8 +391,8 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
         #region Linq
 
         // Indicate the source expression
-        DataSourceExpression? sourceExp = callExp.Args.FirstOrDefault(a => a is DataSourceExpression) as DataSourceExpression;
-        IteratorExpression? iter = callExp.Args.FirstOrDefault(a => a is IteratorExpression { Array: DataSourceExpression or FieldAccessExpression { Owner: DataSourceExpression } }) as IteratorExpression;
+        DataSourceExp? sourceExp = callExp.Args.FirstOrDefault(a => a is DataSourceExp) as DataSourceExp;
+        CollectionRootExp? iter = callExp.Args.FirstOrDefault(a => a is CollectionRootExp { Collection: DataSourceExp or FieldAccessExp { Owner: DataSourceExp } }) as CollectionRootExp;
         if (sourceExp == null && iter == null) return null;
 
         // Non-filter call
@@ -467,35 +409,35 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
                     {
                         // not support a.b.c deep field access
-                        string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
+                        string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || sourceExp.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                        return new FieldsDataSourceExpression(sourceExp, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                        return new FieldsDataSourceExp(sourceExp, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
                     }
                 
                     // source.length
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
-                        return new CountDataSourceExpression(sourceExp, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!);
+                        return new CountDataSourceExp(sourceExp, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!);
                 
                     // source.OrderBy(field, desc)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
                     {
-                        string orderField = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                        bool descending = callExp.Args.ElementAtOrDefault(2) is ConstantExpression descExp && descExp.Value.ToValue<bool>();
+                        string orderField = callExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
+                        bool descending = callExp.Args.ElementAtOrDefault(2) is ConstantExp descExp && descExp.Value.ToValue<bool>();
 
                         if (string.IsNullOrEmpty(orderField) || sourceExp.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(orderField) == null)
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     
-                        return new  OrderByDataSourceExpression(sourceExp, orderField, descending);
+                        return new OrderByDataSourceExp(sourceExp, orderField, descending);
                     }
                 
                     // source.skip(n)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.skip)}":
-                        return new SkipDataSourceExpression(sourceExp, callExp.Args.ElementAtOrDefault(1)!);
+                        return new SkipDataSourceExp(sourceExp, callExp.Args.ElementAtOrDefault(1)!);
                 
                     // source.take(n)
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.take)}":
-                        return new TakeDataSourceExpression(sourceExp, callExp.Args.ElementAtOrDefault(1)!);
+                        return new TakeDataSourceExp(sourceExp, callExp.Args.ElementAtOrDefault(1)!);
                 }
 
                 break;
@@ -512,20 +454,20 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
                     {
-                        if (iter.Array is not DataSourceExpression source) return null;
+                        if (iter.Collection is not DataSourceExp source) return null;
 
-                        string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExpression fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
+                        string fieldName = callExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || source.SchemaType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(fieldName) == null)
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
-                        return new FieldsDataSourceExpression(source, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                        return new FieldsDataSourceExp(source, fieldName, (await context.GetArrayType(structType.GetField(fieldName)!.SchemeType!))!);
                     }
 
                     // assign
                     case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.assign)}":
                     case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
                     {
-                        if (iter.Array is not FieldAccessExpression { Owner: DataSourceExpression source } fa || fa.FieldName.Contains('.')) return null;
-                        return new FieldsDataSourceExpression(source, fa.FieldName, (await context.GetArrayType(((source.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(fa.FieldName)!.SchemeType!))!);
+                        if (iter.Collection is not FieldAccessExp { Owner: DataSourceExp source } fa || fa.FieldName.Contains('.')) return null;
+                        return new FieldsDataSourceExp(source, fa.FieldName, (await context.GetArrayType(((source.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(fa.FieldName)!.SchemeType!))!);
                     }
                 }
                 return null;
@@ -538,38 +480,38 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
         
         // All other calls must have iterator
         if (iter == null) return null;
-        sourceExp = iter.Array as DataSourceExpression ?? (iter.Array as FieldAccessExpression)?.Owner as DataSourceExpression;
+        sourceExp = iter.Collection as DataSourceExp ?? (iter.Collection as FieldAccessExp)?.Owner as DataSourceExp;
         
         // Filter - only support system define functions
-        DataSourceRefExpression refExp = new DataSourceRefExpression(sourceExp!.Source.App, sourceExp.Source.Field, (sourceExp.SchemaType as ArrayType)!.ElementSchemaType!);
-        SchemaExpression[] refArgs = callExp.Args.Select(a => a == iter
-            ? (iter.Array is FieldAccessExpression fldAccess
-                ? new FieldAccessExpression(refExp, fldAccess.FieldName, fldAccess.SchemaType)
+        DataSourceRefExp refExp = new DataSourceRefExp(sourceExp!.Source.App, sourceExp.Source.Field, (sourceExp.SchemaType as ArrayType)!.ElementSchemaType!);
+        SchemaExp[] refArgs = callExp.Args.Select(a => a == iter
+            ? (iter.Collection is FieldAccessExp fldAccess
+                ? new FieldAccessExp(refExp, fldAccess.FieldName, fldAccess.SchemaType)
                 : refExp)
             : a).ToArray();
         
         // Must be boolean return type
-        SchemaExpression filterExp = new FuncCallExpression(callExp.Function, refArgs, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!);
+        SchemaExp filterExp = new FuncCallExp(callExp.Function, refArgs, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!);
         filterExp = await context.VisitSchemaExpAsync(filterExp);
         
         // Must be logic expression
-        if (filterExp is not LogicExpression logicExp) 
-            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+        if (filterExp is not LogicExp logicExp) 
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
 
         // Generate filter result
-        WhereDataSourceExpression filterResult = sourceExp is WhereDataSourceExpression whereSource
-            ? new WhereDataSourceExpression(whereSource.Previous, new BinaryLogicExpression(LogicExpType.AndAlso, whereSource.Filter, logicExp, logicExp.SchemaType))
-            : new WhereDataSourceExpression(sourceExp, logicExp);
+        WhereDataSourceExp filterResult = sourceExp is WhereDataSourceExp whereSource
+            ? new WhereDataSourceExp(whereSource.Previous, new BinaryLogicExp(LogicType.AndAlso, whereSource.Filter, logicExp, logicExp.SchemaType))
+            : new WhereDataSourceExp(sourceExp, logicExp);
 
         // Handle other expression types
         return callExp.ExpType switch
         {
             ExpressionType.Filter => filterResult,
-            ExpressionType.First => new FirstDataSourceExpression(filterResult),
-            ExpressionType.Last => new LastDataSourceExpression(filterResult),
-            ExpressionType.Count => new CountDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!),
-            ExpressionType.Any => new ExistsDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
-            ExpressionType.All => new NoExistsDataSourceExpression(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
+            ExpressionType.First => new FirstDataSourceExp(filterResult),
+            ExpressionType.Last => new LastDataSourceExp(filterResult),
+            ExpressionType.Count => new CountDataSourceExp(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!),
+            ExpressionType.Any => new ExistsDataSourceExp(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
+            ExpressionType.All => new NoExistsDataSourceExp(filterResult, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!),
             _ => null
         };
 
@@ -577,9 +519,9 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
     }
 
     /// <inheritdoc />
-    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExpression exp)
+    public async Task<Expression?> CompileExpAsync(CompileContext context, SchemaExp exp, Type expectedType)
     {
-        if (exp is not DataSourceExpression && exp is not DataResultExpression) return null;
+        if (exp is not DataSourceExp && exp is not DataResultExp) return null;
 
         AppSchemaDataResult resultType = AppSchemaDataResult.List;
         string? dataField = null;
@@ -589,23 +531,23 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
         List<AppSchemaDataOrder> orders = [];
 
         // handle source first
-        if (exp is DataResultExpression dataResultExp)
+        if (exp is DataResultExp dataResultExp)
         {
             resultType = dataResultExp switch
             {
-                CountDataSourceExpression => AppSchemaDataResult.Count,
-                ExistsDataSourceExpression => AppSchemaDataResult.Exist,
-                NoExistsDataSourceExpression => AppSchemaDataResult.NotExist,
-                FirstDataSourceExpression => AppSchemaDataResult.First,
-                LastDataSourceExpression => AppSchemaDataResult.Last,
-                FieldsDataSourceExpression => AppSchemaDataResult.Field,
+                CountDataSourceExp => AppSchemaDataResult.Count,
+                ExistsDataSourceExp => AppSchemaDataResult.Exist,
+                NoExistsDataSourceExp => AppSchemaDataResult.NotExist,
+                FirstDataSourceExp => AppSchemaDataResult.First,
+                LastDataSourceExp => AppSchemaDataResult.Last,
+                FieldsDataSourceExp => AppSchemaDataResult.Field,
                 _ => resultType
             };
-            dataField = (dataResultExp as FieldsDataSourceExpression)?.FieldName;
+            dataField = (dataResultExp as FieldsDataSourceExp)?.FieldName;
             exp = dataResultExp.Source;
         }
 
-        DataSourceExpression? sourceExp = exp as DataSourceExpression;
+        DataSourceExp? sourceExp = exp as DataSourceExp;
         string app = sourceExp!.Source.App;
         string field = sourceExp.Source.Field;
         Expression? target = null;
@@ -618,21 +560,21 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
 
             switch (sourceExp)
             {
-                case WhereDataSourceExpression whereExp:
+                case WhereDataSourceExp whereExp:
                     filter = filter != null 
-                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicExpType.AndAlso), filter, await CompileDataSourceFilter(context, whereExp.Filter))
+                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicType.AndAlso), filter, await CompileDataSourceFilter(context, whereExp.Filter))
                         : await CompileDataSourceFilter(context, whereExp.Filter);
                     sourceExp = whereExp.Previous;
                     break;
-                case OrderByDataSourceExpression orderByExp:
+                case OrderByDataSourceExp orderByExp:
                     orders.Add(new AppSchemaDataOrder(orderByExp.OrderField, orderByExp.Descending));
                     sourceExp = orderByExp.Previous;
                     break;
-                case TakeDataSourceExpression takeExp:
+                case TakeDataSourceExp takeExp:
                     take = await context.CompileSchemaExpAsync(takeExp.TakeExp);
                     sourceExp = takeExp.Previous;
                     break;
-                case SkipDataSourceExpression skipExp:
+                case SkipDataSourceExp skipExp:
                     skip = await context.CompileSchemaExpAsync(skipExp.SkipExp);
                     sourceExp = skipExp.Previous;
                     break;
@@ -662,13 +604,13 @@ public class DataSourceExpressionVisitor : IExpressionVisitor
         return Expression.Call(callExp, callExp.Type.GetMethod(nameof(System.Runtime.CompilerServices.TaskAwaiter<dynamic>.GetResult), Type.EmptyTypes)!);
     }
 
-    async Task<Expression> CompileDataSourceFilter(CompileContext context, SchemaExpression exp)
+    async Task<Expression> CompileDataSourceFilter(CompileContext context, SchemaExp exp)
     {
         return exp switch
         {
-            FieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
-            UnaryLogicExpression unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner)),
-            BinaryLogicExpression binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left), await CompileDataSourceFilter(context, binaryExp.Right)),
+            FieldAccessExp fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
+            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner)),
+            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left), await CompileDataSourceFilter(context, binaryExp.Right)),
             _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp)),
         };
     }

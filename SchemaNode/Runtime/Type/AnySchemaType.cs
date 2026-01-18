@@ -73,7 +73,7 @@ public abstract class AnySchemaType: IDisposable
     /// The type is loaded
     /// </summary>
     internal bool Loaded { get; set; }
-
+    
     #endregion
 
     #region Methods
@@ -127,6 +127,15 @@ public abstract class AnySchemaType: IDisposable
     /// </summary>
     public void AddRef(AnySchemaType type)
     {
+        // check compatibles, rare but important
+        if (IsValueType && type is FunctionType { Args.Length: 1, Converter: true } func && func.Args[0].SchemaType == this && 
+            func.ReturnNode != null && !CanBeUseAs(func.ReturnNode))
+        {
+            // Means this type can be converted to func.ReturnNode via func
+            _compatibles ??= [];
+            _compatibles.TryAdd(func.ReturnNode, func);
+        }
+        
         // system types are not tracked
         if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System && !(type is ArrayType arr && Name.Equals(arr.Element, StringComparison.OrdinalIgnoreCase))) return;
         UsedBy ??= new ConcurrentDictionary<AnySchemaType, bool>();
@@ -149,17 +158,20 @@ public abstract class AnySchemaType: IDisposable
     /// </summary>
     public void RemoveRef(AnySchemaType node)
     {
+        if (node is FunctionType { ReturnNode: not null } func 
+            && _compatibles != null
+            && _compatibles.TryGetValue(func.ReturnNode!, out var f) && f == func)
+        {
+            _compatibles.TryRemove(func.ReturnNode!, out _);
+        }
         UsedBy?.TryRemove(node, out _);
-    }
+    } 
 
     /// <summary>
     /// Remove ref for an application field
     /// </summary>
     /// <param name="type"></param>
-    public void RemoveRef(AppFieldType type)
-    {
-        UsedByApp?.TryRemove(type, out _);
-    }
+    public void RemoveRef(AppFieldType type) => UsedByApp?.TryRemove(type, out _);
 
     public AnySchemaNode? CreateNode(object? value = null) => Type switch
     {
@@ -183,8 +195,10 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Whether the schema type can be used as the other
     /// </summary>
-    public virtual bool CanBeUseAs(AnySchemaType other) => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT);
-    
+    public virtual bool CanBeUseAs(AnySchemaType other)
+        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT) || 
+            _compatibles != null && (_compatibles.ContainsKey(other) || _compatibles.Keys.Any(k => k.CanBeUseAs(other)));
+
     /// <summary>
     /// Gets the array node that use this node as element
     /// </summary>
@@ -244,8 +258,7 @@ public abstract class AnySchemaType: IDisposable
             fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
                 
             parent.Schemas ??= [];
-            NodeSchema? sub =
-                parent.Schemas.FirstOrDefault(s => fullPath.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
+            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => fullPath.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
             if (sub == null)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
@@ -348,13 +361,15 @@ public abstract class AnySchemaType: IDisposable
             Status = Status == SchemaNodeStatus.Ready ? null : Status,
             Auth = Auth?.Name,
             Used = IsUsed,
+            Compatibles = _compatibles?.Select(p => new CompatibleSchema(p.Key.Name, p.Value.Name)).ToArray()
         };
     }
     
     #endregion
 
     #region Utility
-    
+
+    private ConcurrentDictionary<AnySchemaType, FunctionType>? _compatibles;
     internal ConcurrentDictionary<AnySchemaType, bool>? UsedBy;
     internal ConcurrentDictionary<AppFieldType, bool>? UsedByApp;
 

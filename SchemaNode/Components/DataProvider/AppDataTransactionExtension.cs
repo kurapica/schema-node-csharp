@@ -564,7 +564,7 @@ public static class AppDataTransactionExtension
                                 ArrayTypeNode? keysNode = CombineField(changeInfos, item.First().Key);
                                 if (keysNode == null || keysNode.Count == 0) continue;
 
-                                filter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                filter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                     new AppSchemaDataFilterValue(keysNode),
                                     new AppSchemaDataFilterField(item.First().DataField));
                                 break;
@@ -593,12 +593,12 @@ public static class AppDataTransactionExtension
                                                 caseFilter = null;
                                                 break;
                                             }
-                                            var kFilter = new AppSchemaDataFilterBinary(LogicExpType.Equal,
+                                            var kFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
                                                 new AppSchemaDataFilterField(map.DataField),
                                                 new AppSchemaDataFilterValue(keyNode)
                                             );
                                             caseFilter = caseFilter != null
-                                                ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kFilter)
+                                                ? new AppSchemaDataFilterBinary(LogicType.AndAlso, caseFilter, kFilter)
                                                 : kFilter;
                                             keys[keyIdx++] = keyNode.ToString();
                                         }
@@ -606,7 +606,7 @@ public static class AppDataTransactionExtension
                                         if (caseFilter == null || !existedKeys.Add(string.Join(':', keys))) continue;
 
                                         combineCase = combineCase != null
-                                            ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, combineCase, caseFilter)
+                                            ? new AppSchemaDataFilterBinary(LogicType.OrElse, combineCase, caseFilter)
                                             : caseFilter;
                                     }
 
@@ -615,15 +615,15 @@ public static class AppDataTransactionExtension
 
                                 AppSchemaDataFilter? caseFilters = buildMapCase(changeInfos.Origins.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
 
                                 caseFilters = buildMapCase(changeInfos.Updates.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
 
                                 caseFilters = buildMapCase(changeInfos.UnChanged.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
                                                                 
                                 // Use contains instead of combine key cases
                                 if (filter == null || existedKeys.Count > MAX_COMBINE_CASE_COUNT)
@@ -634,10 +634,10 @@ public static class AppDataTransactionExtension
                                         ArrayTypeNode? keysNode = CombineField(changeInfos, map.Key);
                                         if (keysNode == null || keysNode.Count == 0) continue;
 
-                                        AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                        AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                             new AppSchemaDataFilterValue(keysNode),
                                             new AppSchemaDataFilterField(map.DataField));
-                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, filter, kFilter) : kFilter;
+                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, kFilter) : kFilter;
                                     }
                                 }
                                 break;
@@ -780,10 +780,10 @@ public static class AppDataTransactionExtension
                                     }
                                     if (keysNode == null) continue;
 
-                                    AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                    AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                         new AppSchemaDataFilterValue(keysNode),
                                         new AppSchemaDataFilterField(primaries[k]));
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, filter, kFilter) : kFilter;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, kFilter) : kFilter;
                                 }
                             }
                             // Use key match
@@ -795,18 +795,18 @@ public static class AppDataTransactionExtension
                                     
                                     for (int k = 0; k < primaries.Length; k++)
                                     {
-                                        AppSchemaDataFilter kMatch = new AppSchemaDataFilterBinary(LogicExpType.Equal,
+                                        AppSchemaDataFilter kMatch = new AppSchemaDataFilterBinary(LogicType.Equal,
                                             new AppSchemaDataFilterField(primaries[k]),
                                             new AppSchemaDataFilterValue(item.Item1[k]));
 
                                         caseFilter = caseFilter != null
-                                            ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kMatch)
+                                            ? new AppSchemaDataFilterBinary(LogicType.AndAlso, caseFilter, kMatch)
                                             : kMatch;
                                     }
                                     
                                     if (caseFilter == null) continue;
                                     filter = filter != null
-                                        ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilter)
+                                        ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilter)
                                         : caseFilter;
                                 }
                             }

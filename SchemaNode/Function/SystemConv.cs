@@ -6,6 +6,7 @@ namespace SchemaNode.Function;
 
 /// <summary>
 /// system.conv apis
+/// Language intrinsic functions (DO NOT EXTEND)
 /// </summary>
 [Schema("system.conv")]
 public static class SystemConv

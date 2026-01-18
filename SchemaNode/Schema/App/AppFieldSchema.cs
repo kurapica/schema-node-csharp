@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -100,18 +101,8 @@ public class AppFieldSchema
     [NotMapped]
     public bool? Frontend
     {
-        get => (Flags & AppFieldFlags.Frontend) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= AppFieldFlags.Frontend;
-            }
-            else
-            {
-                Flags &= ~AppFieldFlags.Frontend;
-            }
-        }
+        get => Flags.Has(AppFieldFlags.Frontend);
+        init => Flags = Flags.Turn(AppFieldFlags.Frontend, value);
     }
 
     /// <summary>
@@ -120,18 +111,8 @@ public class AppFieldSchema
     [NotMapped]
     public bool? Disable
     {
-        get => (Flags & AppFieldFlags.Disable) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= AppFieldFlags.Disable;
-            }
-            else
-            {
-                Flags &= ~AppFieldFlags.Disable;
-            }
-        }
+        get => Flags.Has(AppFieldFlags.Disable);
+        init => Flags = Flags.Turn(AppFieldFlags.Disable, value);
     }
 
     /// <summary>
@@ -140,18 +121,8 @@ public class AppFieldSchema
     [NotMapped]
     public bool? Readonly
     {
-        get => (Flags & AppFieldFlags.Readonly) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= AppFieldFlags.Readonly;
-            }
-            else
-            {
-                Flags &= ~AppFieldFlags.Readonly;
-            }
-        }
+        get => Flags.Has(AppFieldFlags.Readonly);
+        init => Flags = Flags.Turn(AppFieldFlags.Readonly, value);
     }
 
     /// <summary>
@@ -160,18 +131,8 @@ public class AppFieldSchema
     [NotMapped]
     public bool? IncrUpdate
     {
-        get => (Flags & AppFieldFlags.IncrUpdate) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= AppFieldFlags.IncrUpdate;
-            }
-            else
-            {
-                Flags &= ~AppFieldFlags.IncrUpdate;
-            }
-        }
+        get => Flags.Has(AppFieldFlags.IncrUpdate);
+        init => Flags = Flags.Turn(AppFieldFlags.IncrUpdate, value);
     }
 
     /// <summary>
@@ -180,18 +141,8 @@ public class AppFieldSchema
     [NotMapped]
     public bool? TrackPush
     {
-        get => (Flags & AppFieldFlags.TrackPush) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= AppFieldFlags.TrackPush;
-            }
-            else
-            {
-                Flags &= ~AppFieldFlags.TrackPush;
-            }
-        }
+        get => Flags.Has(AppFieldFlags.TrackPush);
+        init => Flags = Flags.Turn(AppFieldFlags.TrackPush, value);
     }
 
     /// <summary>

@@ -6,6 +6,8 @@ using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using SchemaNode.Utility;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -45,16 +47,80 @@ public class FunctionSchema
     /// T1, T2(for multi generic type)
     /// </summary>
     public string[]? Generic { get; set; }
+    
+    /// <summary>
+    /// The function flags
+    /// </summary>
+    public FuncTraits Flags { get; set; } = FuncTraits.None;
+    
+    /// <summary>
+    /// As type converter
+    /// </summary>
+    [NotMapped]
+    public bool? Converter
+    {
+        get => Flags.Has(FuncTraits.Converter);
+        init => Flags = Flags.Turn(FuncTraits.Converter, value);
+    }
 
     /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; set; }
+    [NotMapped]
+    public bool? Server 
+    {
+        get => Flags.Has(FuncTraits.Server);
+        init => Flags = Flags.Turn(FuncTraits.Server, value);
+    }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; set; }
+    [NotMapped]
+    public bool? Nocache 
+    {
+        get => Flags.Has(FuncTraits.NoCache);
+        init => Flags = Flags.Turn(FuncTraits.NoCache, value);
+    }
+    
+    /// <summary>
+    /// The function has side effects
+    /// </summary>
+    [NotMapped]
+    public bool? SideEffect 
+    {
+        get => Flags.Has(FuncTraits.SideEffect);
+        init => Flags = Flags.Turn(FuncTraits.SideEffect, value);
+    }
+    
+    /// <summary>
+    /// The function traits
+    /// </summary>
+    [Flags]
+    public enum FuncTraits
+    {
+        None = 0,
+
+        /// <summary>
+        /// Declares this function as a valid type conversion
+        /// </summary>
+        Converter = 1 << 0,
+
+        /// <summary>
+        /// Result must not be cached
+        /// </summary>
+        NoCache = 1 << 1,
+
+        /// <summary>
+        /// Requires server-side execution
+        /// </summary>
+        Server = 1 << 2,
+
+        /// <summary>
+        /// Has observable side effects
+        /// </summary>
+        SideEffect = 1 << 3,
+    }
 }
 
 /**

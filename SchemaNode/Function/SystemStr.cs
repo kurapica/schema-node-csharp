@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable InconsistentNaming
 
@@ -14,21 +15,27 @@ public static class SystemStr
     #region Logic
 
     [Schema]
+    [Logic(LogicType.StartsWith, true)]
     public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    [Logic(LogicType.NotStartsWith, true)]
     public static bool notstartswith([Default("")] string str, string prefix) => !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    [Logic(LogicType.EndsWith, true)]
     public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    [Logic(LogicType.NotEndsWith, true)]
     public static bool notendswith([Default("")] string str, string suffix) => !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    [Logic(LogicType.Match, true)]
     public static bool match([Default("")] string str, string substr) => str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
+    [Logic(LogicType.NotMatch, true)]
     public static bool notmatch([Default("")] string str, string substr) => !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
     #endregion
@@ -54,8 +61,11 @@ public static class SystemStr
     [Schema]
     public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
 
-    [Schema]
+    [Schema] [Converter]
     public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");
+    
+    [Schema] [Converter]
+    public static string tolocalestring(LocaleString? locale) => locale?.Key ?? "";
 
     [Schema]
     public static Entry toentry(StructTypeNode node, string valueField, string labelField)

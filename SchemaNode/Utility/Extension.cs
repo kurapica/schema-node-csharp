@@ -927,4 +927,34 @@ public static class Extension
     }
 
     #endregion
+
+    #region Flags
+
+    internal static bool? Has<TEnum>(this TEnum flag, TEnum flags)
+        where TEnum : struct, System.Enum
+    {
+        var flagValue  = Convert.ToUInt64(flag);
+        var flagsValue = Convert.ToUInt64(flags);
+
+        return (flagsValue & flagValue) != 0 ? true : null;
+    }
+
+    internal static TEnum Turn<TEnum>(
+        this TEnum flags,
+        TEnum flag,
+        bool? on)
+        where TEnum : struct, System.Enum
+    {
+        ulong flagsValue = Convert.ToUInt64(flags);
+        ulong flagValue  = Convert.ToUInt64(flag);
+
+        if (on is true)
+            flagsValue |= flagValue;
+        else
+            flagsValue &= ~flagValue;
+
+        return (TEnum)System.Enum.ToObject(typeof(TEnum), flagsValue);
+    }
+
+    #endregion
 }

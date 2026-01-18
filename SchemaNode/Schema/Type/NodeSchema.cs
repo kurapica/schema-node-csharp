@@ -141,6 +141,12 @@ public class NodeSchema
     /// </summary>
     [NotMapped]
     public NodeSchema[]? Schemas  { get; set; }
+    
+    /// <summary>
+    /// The compatible schemas
+    /// </summary>
+    [NotMapped]
+    public CompatibleSchema[]? Compatibles { get; set; }
 
     /// <summary>
     /// The schema provider used to fetch the node schema
@@ -391,3 +397,10 @@ public class Entry
     /// </summary>
     public LocaleString? Label { get; set; }
 }
+
+/// <summary>
+/// The compatible schema record
+/// </summary>
+/// <param name="To">The compatible type</param>
+/// <param name="Convert">The convert function</param>
+public record CompatibleSchema(string To, string Convert);

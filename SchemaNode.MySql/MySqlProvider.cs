@@ -45,18 +45,18 @@ public class MySqlProvider : ISqlProvider
         };
     }
 
-    public string Binary(LogicExpType type, string left, string right)
+    public string Binary(LogicType type, string left, string right)
     {
         var op = type switch
         {
-            LogicExpType.AndAlso => "AND",
-            LogicExpType.OrElse => "OR",
-            LogicExpType.Equal => "=",
-            LogicExpType.NotEqual => "<>",
-            LogicExpType.GreaterThan => ">",
-            LogicExpType.GreaterEqual => ">=",
-            LogicExpType.LessThan => "<",
-            LogicExpType.LessEqual => "<=",
+            LogicType.AndAlso => "AND",
+            LogicType.OrElse => "OR",
+            LogicType.Equal => "=",
+            LogicType.NotEqual => "<>",
+            LogicType.GreaterThan => ">",
+            LogicType.GreaterEqual => ">=",
+            LogicType.LessThan => "<",
+            LogicType.LessEqual => "<=",
             _ => throw new NotSupportedException($"Unsupported BinaryExpType: {type}")
         };
 

@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public class RefFilterCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
 {
-    DataSourceExpression? _lastDataSourceExp;
+    DataSourceExp? _lastDataSourceExp;
 
     /// <summary>
     /// Transform the last logic expression to filter expression
@@ -18,14 +18,14 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType functio
     {
         if (Function.TryGetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
         {
-            _lastDataSourceExp = schema!.Exps.LastOrDefault()?.Value as DataSourceExpression;
+            _lastDataSourceExp = schema!.Exps.LastOrDefault()?.Value as DataSourceExp;
             return schema;
         }
 
         schema = await base.VisitFunctionType();
-        _lastDataSourceExp = schema.Exps.LastOrDefault()?.Value as DataSourceExpression;
+        _lastDataSourceExp = schema.Exps.LastOrDefault()?.Value as DataSourceExp;
         if (_lastDataSourceExp == null)
-            throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter, TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER);
+            throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
         
         // Re-write the return type to AppSchemaDataFilter
         return Function.SetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(
@@ -35,29 +35,29 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType functio
     /// <summary>
     /// Compile the last logic exp as app schema data filter
     /// </summary>
-    public override async Task<Expression> CompileSchemaExpAsync(SchemaExpression exp, Type? expectedType = null)
+    public override async Task<Expression> CompileSchemaExpAsync(SchemaExp exp, Type? expectedType = null)
     {
         if (exp != _lastDataSourceExp) return await base.CompileSchemaExpAsync(exp, expectedType);
         
-        DataSourceExpression? sourceExp = _lastDataSourceExp;
+        DataSourceExp? sourceExp = _lastDataSourceExp;
         Expression? filter = null;
         while (sourceExp != null)
         {
             switch (sourceExp)
             {
-                case WhereDataSourceExpression whereExp:
+                case WhereDataSourceExp whereExp:
                     filter = filter != null 
-                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicExpType.AndAlso), filter, await CompileDataSourceFilter(whereExp.Filter))
+                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicType.AndAlso), filter, await CompileDataSourceFilter(whereExp.Filter))
                         : await CompileDataSourceFilter(whereExp.Filter);
                     sourceExp = whereExp.Previous;
                     break;
-                case OrderByDataSourceExpression orderByExp:
+                case OrderByDataSourceExp orderByExp:
                     sourceExp = orderByExp.Previous;
                     break;
-                case TakeDataSourceExpression takeExp:
+                case TakeDataSourceExp takeExp:
                     sourceExp = takeExp.Previous;
                     break;
-                case SkipDataSourceExpression skipExp:
+                case SkipDataSourceExp skipExp:
                     sourceExp = skipExp.Previous;
                     break;
                 default:
@@ -69,13 +69,13 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType functio
         return filter ?? Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Constant(true));
     }
 
-    async Task<Expression>  CompileDataSourceFilter(SchemaExpression exp)
+    async Task<Expression>  CompileDataSourceFilter(SchemaExp exp)
     {
         return exp switch
         {
-            FieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
-            UnaryLogicExpression unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
-            BinaryLogicExpression binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
+            FieldAccessExp fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
+            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
+            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
             _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await base.CompileSchemaExpAsync(exp)),
         };
     }

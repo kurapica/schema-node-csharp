@@ -22,10 +22,10 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public class FunctionType: AnySchemaType
+public class FunctionType : AnySchemaType
 {
     #region Data
-    
+
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
@@ -50,16 +50,31 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; private set; }
+    public bool? Server { get; private set; }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; private set; }
+    public bool? Nocache { get; private set; }
+
+    /// <summary>
+    /// As type converter
+    /// </summary>
+    public bool? Converter { get; private set; }
+
+    /// <summary>
+    /// The function has side effects
+    /// </summary>
+    public bool? SideEffect { get; private set; }
     
     #endregion
     
     #region Status
+    
+    /// <summary>
+    /// The method info of the function if it's a system function
+    /// </summary>
+    public MethodInfo? MethodInfo { get; private set; }
     
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Func;
@@ -114,6 +129,9 @@ public class FunctionType: AnySchemaType
         Generic = func?.Generic != null ? new AnySchemaType?[func.Generic.Length] : [];
         Server = func?.Server;
         Nocache = func?.Nocache;
+        Converter = func?.Converter;
+        SideEffect = func?.SideEffect;
+        MethodInfo = StaticMethodMap[Name]?.Method; // Atomic method
 
         // Status
         if (func == null)
@@ -648,7 +666,7 @@ public class FunctionType: AnySchemaType
             object?[] callArgs = new object[funcSchema.Args.Length];
             for (int i = 0; i < funcSchema.Args.Length; i++)
             {
-                ArgumentExpression arg = funcSchema.Args[i];
+                ArgumentExp arg = funcSchema.Args[i];
             
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
@@ -773,8 +791,10 @@ public class FunctionType: AnySchemaType
                 Return = string.Empty,
                 Args = new FuncArg[parameters.Length],
                 Exps = [],
-                Nocache = method.GetCustomAttribute<NoCacheAttribute>() != null,
-                Server = method.GetCustomAttribute<ServerOnlyAttribute>() != null,
+                Nocache = method.IsDefined(typeof(NoCacheAttribute)),
+                Server = method.IsDefined(typeof(ServerOnlyAttribute)),
+                SideEffect = method.IsDefined(typeof(SideEffectAttribute)),
+                Converter = method.IsDefined(typeof(ConverterAttribute)),
                 Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
@@ -966,6 +986,8 @@ public class FunctionType: AnySchemaType
             Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
             Server = schema.Server,
             Nocache = schema.Nocache,
+            SideEffect = schema.SideEffect,
+            Converter = schema.Converter,
         });
     }
     
