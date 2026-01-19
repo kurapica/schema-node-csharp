@@ -28,6 +28,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode.Kafka\SchemaNode.Kafka.csproj" />
+    <ProjectReference Include="..\SchemaNode.McpHost\SchemaNode.McpHost.csproj" />
     <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
     <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
   </ItemGroup>
