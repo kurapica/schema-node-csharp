@@ -198,9 +198,9 @@ public class StructType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemaType other)
+    public override bool CanBeUseAs(AnySchemaType other, bool exactly = false)
     {
-        if (base.CanBeUseAs(other) || Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT)) return true;
+        if (Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT) || base.CanBeUseAs(other, exactly)) return true;
         if (other is not StructType @struct) return false;
         StructType? baseNode = BaseNode;
         while (baseNode != null && baseNode != @struct) baseNode = baseNode.BaseNode;

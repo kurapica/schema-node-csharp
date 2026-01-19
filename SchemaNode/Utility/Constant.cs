@@ -180,8 +180,8 @@ public static class Constant
     public const int EXP_INTRINSIC_PRIORITY = 100;
     public const int EXP_LOGIC_PRIORITY = 90;
     public const int EXP_ARITHMETIC_PRIORITY = 80;
-    public const int EXP_DATA_SOURCE_PRIORITY = 70;
-    public const int EXP_COLLECTION_PRIORITY = 60;
+    public const int EXP_COLLECTION_PRIORITY = 70;
+    public const int EXP_DATA_SOURCE_PRIORITY = 60;
 
     #endregion
 

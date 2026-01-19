@@ -160,12 +160,19 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Expression
 
+        // Share by helpers
         CollectionRootExp? colSource = null;
         CollectionItemExp? iteratorExp = null;
+        HashSet<string> currAccessCount = [];
         foreach (FunctionNodeExpression exp in Function.Exps)
         {
             colSource = null; // share by helpers
+            iteratorExp = null;
+            currAccessCount.Clear();
             await GenFuncCallExpression(exp);
+            // Merge access count
+            foreach (var kv in currAccessCount)
+                accessCount[kv] = accessCount.GetValueOrDefault(kv, 0) + 1;
         }
 
         #endregion
@@ -268,7 +275,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             CollectionRootExp c => UnpackCollectionRootExp(c),
             
             // Iterator expression
-            CollectionItemExp i => new CollectionItemExp(UnpackCollectionRootExp(i.Collection), i.SchemaType),
+            CollectionItemExp i => new CollectionItemExp(UnpackCollectionRootExp(i.Root), i.SchemaType),
             
             // Default expression
             DefaultExp de => new DefaultExp(Inline(de.Inner), de.Default),
@@ -291,7 +298,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 type = arrayType.ElementSchemaType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 
                 // Only allow one collection root in one function call
-                if (colSource != null && colSource.Collection != varExp) throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                if (colSource != null && colSource.Collection != varExp) throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongCollection);
                 colSource ??= new CollectionRootExp(varExp, varExp.SchemaType);
                 iteratorExp ??= new CollectionItemExp(colSource, type);
                 owner = iteratorExp;
@@ -319,7 +326,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (expMaps.TryGetValue(access[0], out VariableExp? varExp))
             {
                 SchemaExp exp = varExp;
-                accessCount[access[0]] = accessCount.GetValueOrDefault(access[0], 0) + 1;
+                currAccessCount.Add(access[0]);
                 
                 if (access.Length > 1)
                 {
@@ -610,7 +617,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
 
-                    // If has iter exp, the colSource must exist
+                    // If has CollectionItemExp exp, the colSource must exist
                     if (colSource == null)
                     {
                         colSource = new CollectionRootExp(argExp, argExp.SchemaType!);
@@ -618,10 +625,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         argExp = iteratorExp;
                     }
                     else if (colSource.Collection is VariableExp varExp && ( colSource.Collection == argExp ||
-                                 argExp is FieldAccessExp{ Owner: CollectionItemExp iterExp } && iterExp.Collection == colSource))
+                                 argExp is FieldAccessExp{ Owner: CollectionItemExp iterExp } && iterExp.Root == colSource))
                     {
-                        // The same reduce the access count
-                        accessCount[varExp.Name] = accessCount.GetValueOrDefault(varExp.Name, 0) - 1;
+                        if (argExp is not FieldAccessExp) argExp = iteratorExp; // direct use iterator exp
                     }
                     else
                     {
@@ -640,7 +646,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (argDef.Params == true && argExp == null) return;
 
                 // Default expression & not iterator exp
-                if (argDef.Default != null && argExp is not CollectionRootExp && argExp is not FieldAccessExp{ Owner: CollectionItemExp })
+                if (argDef.Default != null && argExp is not CollectionRootExp && argExp is not FieldAccessExp { Owner: CollectionItemExp })
                 {
                     if (argExp == null)
                     {

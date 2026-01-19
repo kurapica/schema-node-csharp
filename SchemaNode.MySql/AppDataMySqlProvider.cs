@@ -533,11 +533,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
         // Query Total
         int total = 0;
-        if (type == AppSchemaDataResult.List || type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.NotExist || type == AppSchemaDataResult.Count)
+        if (type == AppSchemaDataResult.List || type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.Count)
         {
             DbCommand totalCommand = GetDbCommand();
             // only used to check existence
-            if (type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.NotExist)
+            if (type == AppSchemaDataResult.Exist)
             {
                 totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
             }
@@ -555,8 +555,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     case AppSchemaDataResult.Exist:
                         return ((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(total > 0), total);
-                    case AppSchemaDataResult.NotExist:
-                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(total == 0), total);
                     case AppSchemaDataResult.Count:
                         return ((await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(total), total);
                 }

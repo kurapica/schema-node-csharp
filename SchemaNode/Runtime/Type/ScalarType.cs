@@ -381,8 +381,8 @@ public class ScalarType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemaType other) =>
-        base.CanBeUseAs(other) 
+    public override bool CanBeUseAs(AnySchemaType other, bool exactly = false) =>
+        base.CanBeUseAs(other, exactly) 
         || other switch
         {
             ScalarType scalar =>

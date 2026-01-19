@@ -129,7 +129,7 @@ public abstract class AnySchemaType: IDisposable
     {
         // check compatibles, rare but important
         if (IsValueType && type is FunctionType { Args.Length: 1, Converter: true } func && func.Args[0].SchemaType == this && 
-            func.ReturnNode != null && !CanBeUseAs(func.ReturnNode))
+            func.ReturnNode != null && !CanBeUseAs(func.ReturnNode) && func.Converter == true)
         {
             // Means this type can be converted to func.ReturnNode via func
             _compatibles ??= [];
@@ -195,9 +195,10 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Whether the schema type can be used as the other
     /// </summary>
-    public virtual bool CanBeUseAs(AnySchemaType other)
-        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_OBJECT) || 
-            _compatibles != null && (_compatibles.ContainsKey(other) || _compatibles.Keys.Any(k => k.CanBeUseAs(other)));
+    public virtual bool CanBeUseAs(AnySchemaType other, bool exactly = false)
+        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) ||
+           other.Name.Equals(NS_SYSTEM_OBJECT) ||
+           !exactly && _compatibles != null && (_compatibles.ContainsKey(other) || _compatibles.Keys.Any(k => k.CanBeUseAs(other, true)));
 
     /// <summary>
     /// Gets the array node that use this node as element

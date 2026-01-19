@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
+using SchemaNode.Components;
 using SchemaNode.Context;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public class RefFilterCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
 {
-    DataSourceExp? _lastDataSourceExp;
+    CollectionOperator? _lastDataSourceExp;
 
     /// <summary>
     /// Transform the last logic expression to filter expression
@@ -18,14 +18,13 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType functio
     {
         if (Function.TryGetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
         {
-            _lastDataSourceExp = schema!.Exps.LastOrDefault()?.Value as DataSourceExp;
+            _lastDataSourceExp = schema!.Exps.LastOrDefault()?.Value as CollectionOperator;
             return schema;
         }
 
         schema = await base.VisitFunctionType();
-        _lastDataSourceExp = schema.Exps.LastOrDefault()?.Value as DataSourceExp;
-        if (_lastDataSourceExp == null)
-            throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+        _lastDataSourceExp = schema.Exps.LastOrDefault()?.Value as CollectionOperator
+            ?? throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
         
         // Re-write the return type to AppSchemaDataFilter
         return Function.SetRuntimeFuncCache<RefFilterCompileContext, FunctionTypeSchema>(
@@ -39,26 +38,21 @@ public class RefFilterCompileContext(SchemaContext context, FunctionType functio
     {
         if (exp != _lastDataSourceExp) return await base.CompileSchemaExpAsync(exp, expectedType);
         
-        DataSourceExp? sourceExp = _lastDataSourceExp;
+        CollectionRootExp? sourceExp = _lastDataSourceExp;
         Expression? filter = null;
         while (sourceExp != null)
         {
             switch (sourceExp)
             {
-                case WhereDataSourceExp whereExp:
+                case PredicateCollectionOperator whereExp:
                     filter = filter != null 
-                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicType.AndAlso), filter, await CompileDataSourceFilter(whereExp.Filter))
-                        : await CompileDataSourceFilter(whereExp.Filter);
-                    sourceExp = whereExp.Previous;
+                        ? Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(LogicType.AndAlso), filter,
+                            await CompileDataSourceFilter(whereExp.Predicate))
+                        : await CompileDataSourceFilter(whereExp.Predicate);
+                    sourceExp = whereExp.Root;
                     break;
-                case OrderByDataSourceExp orderByExp:
-                    sourceExp = orderByExp.Previous;
-                    break;
-                case TakeDataSourceExp takeExp:
-                    sourceExp = takeExp.Previous;
-                    break;
-                case SkipDataSourceExp skipExp:
-                    sourceExp = skipExp.Previous;
+                case CollectionOperator oper:
+                    sourceExp = oper.Root;
                     break;
                 default:
                     sourceExp = null;

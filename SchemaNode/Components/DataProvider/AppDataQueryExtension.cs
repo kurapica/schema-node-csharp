@@ -226,7 +226,6 @@ public static class AppDataQueryExtension
             {
                 AppSchemaDataResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(0),
                 AppSchemaDataResult.Exist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(false),
-                AppSchemaDataResult.NotExist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(true),
                 AppSchemaDataResult.First => null,
                 AppSchemaDataResult.Last => null,
                 AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!),
@@ -234,7 +233,7 @@ public static class AppDataQueryExtension
             };
         }
 
-        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take,  desc, orderBy, dataField);
+        (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take, desc, orderBy, dataField);
         return res;
     }
 }

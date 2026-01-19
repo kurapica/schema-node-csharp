@@ -1,6 +1,6 @@
 ﻿using SchemaNode.Context;
 using System.Linq.Expressions;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Components;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
 namespace SchemaNode.Runtime;
@@ -22,8 +22,7 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
     /// </summary>
     public override async Task<FunctionTypeSchema> VisitFunctionType()
     {
-        if (Function.TryGetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(
-                out FunctionTypeSchema? schema))
+        if (Function.TryGetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
         {
             _lastLogicExp = schema!.Exps.LastOrDefault()?.Value as LogicExp;
             return schema;

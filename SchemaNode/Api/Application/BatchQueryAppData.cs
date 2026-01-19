@@ -177,8 +177,9 @@ public static class BatchQueryExtension
                                 filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                             }
                             
-                            (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
-                                filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                            if (filter == null || filter.IsValid())
+                                (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
+                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                         }
                     }
                     

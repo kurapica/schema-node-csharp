@@ -339,7 +339,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             ArithmeticExp arithmeticExp => arithmeticExp.Args.Any(FromThirdField),
             
             // No break/source exp in data push
-            DataSourceExp or DataResultExp or BreakExp =>
+            DataSourceExp or BreakExp =>
                 throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc),
             _ => false,
         };

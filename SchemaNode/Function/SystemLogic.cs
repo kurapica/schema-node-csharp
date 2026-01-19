@@ -133,7 +133,7 @@ public static class SystemLogic
     /// </summary>
     [Schema]
     [Logic(LogicType.NotEmpty, true)]
-    public static bool notempty<T>(T? a) => !isempty(a);
+    public static bool notempty(object? a) => !isempty(a);
 
     /// <summary>
     /// system.logic.equal

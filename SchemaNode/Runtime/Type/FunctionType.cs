@@ -131,7 +131,7 @@ public class FunctionType : AnySchemaType
         Nocache = func?.Nocache;
         Converter = func?.Converter;
         SideEffect = func?.SideEffect;
-        MethodInfo = StaticMethodMap[Name]?.Method; // Atomic method
+        MethodInfo = StaticMethodMap.TryGetValue(schema.Name, out SchemaFuncInfo? info) ? info.Method : null;
 
         // Status
         if (func == null)
@@ -263,7 +263,7 @@ public class FunctionType : AnySchemaType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemaType other) => false;
+    public override bool CanBeUseAs(AnySchemaType other, bool exactly = false) => false;
 
     /// <inheritdoc />
     public override ArrayType? GetArrayType(bool exactly = false) => null;

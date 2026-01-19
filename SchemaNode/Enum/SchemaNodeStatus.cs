@@ -143,6 +143,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong arguments
     /// </summary>
     FunctionExpWrongFuncArgs,
+    
+    /// <summary>
+    /// The function expression has wrong collection
+    /// </summary>
+    FunctionExpWrongCollection,
 
     /// <summary>
     /// The function expression has wrong return value
