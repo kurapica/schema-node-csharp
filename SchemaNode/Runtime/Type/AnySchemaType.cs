@@ -237,8 +237,7 @@ public abstract class AnySchemaType: IDisposable
     /// <returns></returns>
     public async Task<NodeSchema> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
     {
-        if (!this.Loaded)
-            await ctx.GetSchemaTypeAsync(this.Name);
+        if (!this.Loaded) await ctx.GetSchemaTypeAsync(this.Name);
         
         types ??= [];
         root ??= new NodeSchema
@@ -264,8 +263,7 @@ public abstract class AnySchemaType: IDisposable
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 
-                AnySchemaType type = await ctx.GetSchemaTypeAsync(fullPath) ??
-                                     new TypeNamespace { Name = fullPath };
+                AnySchemaType type = await ctx.GetSchemaTypeAsync(fullPath) ?? new TypeNamespace { Name = fullPath };
                 sub = type;
                 parent.Schemas = parent.Schemas == null ? [sub!] : parent.Schemas.Append(sub!).ToArray();
             }
@@ -279,12 +277,13 @@ public abstract class AnySchemaType: IDisposable
             schema.UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
         }
 
-        if (parent != root)
+        if (parent.Schemas == null || !parent.Schemas.Any(s => s.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)))
         {
             parent.Schemas ??= [];
             parent.Schemas = parent.Schemas.Append(schema).ToArray();
         }
-        else if (this is TypeNamespace ns)
+        
+        if (this is TypeNamespace ns)
         {
             foreach (var s in ns.SchemaNodes)
             {

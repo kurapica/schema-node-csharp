@@ -1,12 +1,10 @@
 using Microsoft.OpenApi.Models;
 using MySqlConnector;
 using SchemaNode;
-using SchemaNode.Api.Schema.Info;
 using SchemaNode.Components;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
 using SchemaNode.McpHost;
-using SchemaNode.McpHost.Tools;
 using SchemaNode.MySql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -70,7 +68,7 @@ builder.Services
     //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp
-    .AddMcpHost();
+    .AddSchemaMcpHost();
 
 // App
 var app = builder.Build();
@@ -80,7 +78,7 @@ app.UseMiddleware<UserInfoMiddleware>();
 app
     .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true)
     .PreLoadSchemaNodes()
-    .MapMcpHost();
+    .MapSchemaMcpHost();
 
 // Swagger
 if (app.Environment.IsDevelopment())

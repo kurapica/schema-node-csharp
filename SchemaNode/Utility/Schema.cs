@@ -277,6 +277,8 @@ public static class Schema
                 }
             }
 
+            // No root node, that means type from not registered assembly
+            schemas = schemas?.Where(s => s.Name.Contains(".")).ToArray(); 
             if (schemas is not { Length: > 0 }) return null;
             
             foreach (NodeSchema schema in schemas)
