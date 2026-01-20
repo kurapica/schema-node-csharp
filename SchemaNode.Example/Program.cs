@@ -58,7 +58,7 @@ builder.Services
             Version = "v1"
         });
     })
-    
+
     // schema context items
     .AddScoped<UserInfo>()
     .AddScoped<UserInfoProvider>()
@@ -66,10 +66,11 @@ builder.Services
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    .AddAppSchemaDataProvider<AppDataMySqlProvider>();       // Mysql application data provider
-    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
+    .AddAppSchemaDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
-    builder.Services.AddMcpHost();
+    // Mcp
+    .AddMcpHost();
 
 // App
 var app = builder.Build();
@@ -77,8 +78,9 @@ app.UseCors("AllowAll");
 app.UseMiddleware<UserInfoMiddleware>();
 
 app
-    .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)
-    .PreLoadSchemaNodes();
+    .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true)
+    .PreLoadSchemaNodes()
+    .MapMcpHost();
 
 // Swagger
 if (app.Environment.IsDevelopment())
@@ -90,8 +92,5 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = string.Empty;
     });
 }
-
-// Mcp
-app.MapMcp("mcp");
 
 app.Run();
