@@ -21,7 +21,8 @@ public abstract class SchemaApi<TRequest, TResponse>
         Services = request.Context!.RequestServices;
         Logger = logger;
         _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(Services.GetRequiredService<ICriticalRegionProvider>);
-        _schemaContext = new Lazy<SchemaContext>(Services.GetRequiredService<SchemaContext>);
+        SchemaContext = Services.GetRequiredService<SchemaContext>();
+        if (!string.IsNullOrEmpty(request.Locale)) SchemaContext.SetLocale(request.Locale);
         return await ExecuteAsync(request, request.Context.RequestAborted);
     }
     
@@ -50,8 +51,7 @@ public abstract class SchemaApi<TRequest, TResponse>
     /// <summary>
     /// The schema context
     /// </summary>
-    protected SchemaContext SchemaContext => _schemaContext.Value;
-    private Lazy<SchemaContext> _schemaContext = null!;
+    protected SchemaContext SchemaContext { get; private set; } = null!;
     
     #endregion
     
@@ -95,6 +95,11 @@ public abstract class SchemaApiRequest
     /// </summary>
     [JsonIgnore]
     public IFormFileCollection? Files { get; set; }
+    
+    /// <summary>
+    /// The locale setting
+    /// </summary>
+    public string? Locale { get; set; }
 }
 
 /// <summary>
