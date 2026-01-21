@@ -40,12 +40,8 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 
             if (node is TypeNamespace ns)
-            {
                 foreach (KeyValuePair<string, AnySchemaType> pair in ns.SchemaNodes)
-                {
                     await pair.Value.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
-                }   
-            }
         }
 
         return new LoadSchemaResponse

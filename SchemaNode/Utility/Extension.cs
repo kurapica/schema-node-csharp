@@ -194,7 +194,7 @@ public static class Extension
         }
     }
 
-    public class UniversalFlexibleEnumConverter : JsonConverterFactory
+    private class UniversalFlexibleEnumConverter : JsonConverterFactory
     {
         public override bool CanConvert(Type typeToConvert) => typeToConvert.IsEnum;
 
@@ -236,20 +236,17 @@ public static class Extension
     /// <summary>
     /// To http result
     /// </summary>
-    public static IResult ToResult<T>(this T value)
+    internal static IResult ToResult<T>(this T value)
     {
         return Results.Json(value, NoIndentJsonOption);
     }
-    
+
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    public static T? FromJson<T>(this string value)
-    {
-        return JsonSerializer.Deserialize<T>(value, NoIndentJsonOption);
-    }
+    public static T? FromJson<T>(this string value) => (T?)value.FromJson(typeof(T));
 
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
@@ -266,12 +263,12 @@ public static class Extension
         return JsonSerializer.Deserialize(value, type, NoIndentJsonOption);
     }
 
-    internal static T? FromJson<T>(this JsonNode value)
-    {
-        return value.Deserialize<T>(NoIndentJsonOption);
-    }
+    /// <summary>
+    /// Convert the JsonNode to the given type
+    /// </summary>
+    public static T? FromJson<T>(this JsonNode value) => (T?)value.FromJson(typeof(T));
 
-    internal static object? FromJson(this JsonNode value, Type type)
+    public static object? FromJson(this JsonNode value, Type type)
     {
         if (type == typeof(JsonObject))
         {
@@ -292,7 +289,7 @@ public static class Extension
         return value.Deserialize(type, NoIndentJsonOption);
     }
     
-    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
+    public static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
         try
         {
@@ -356,7 +353,7 @@ public static class Extension
     /// <summary>
     /// Whether the json node is empty
     /// </summary>
-    internal static bool IsEmpty(this JsonNode? node)
+    public static bool IsEmpty(this JsonNode? node)
     {
         if (node == null) return true;
         return node switch
@@ -403,7 +400,7 @@ public static class Extension
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
+    internal static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>
     /// Try get the value with name
@@ -814,7 +811,7 @@ public static class Extension
                 {
                     case false:
                     {
-                        XmlNode? subNode = node.SelectSingleNode(subPath);
+                        XmlNode? subNode = node.SelectSingleNode(subPath!);
                         if (subNode != null)
                             return CleanupSummary(subNode.InnerText);
                         else

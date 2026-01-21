@@ -11,6 +11,7 @@ using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Excel;
 
@@ -18,14 +19,14 @@ namespace SchemaNode.Excel;
 /// <summary>
 /// The schema node excel template manager
 /// </summary>
-public class SchemaNodeExcelTemplateManager
+public class TemplateManager
 {
     #region Constructor
 
     /// <summary>
     /// Init the excel template manager
     /// </summary>
-    public SchemaNodeExcelTemplateManager(SchemaContext context, AppFieldType appField, IFormFile? file = null)
+    public TemplateManager(SchemaContext context, AppFieldType appField, IFormFile? file = null)
     {
         _context = context;
         _arrayType = appField.SchemaType as ArrayType ?? throw new InvalidCastException("The app field type is not an array type");
@@ -184,7 +185,7 @@ public class SchemaNodeExcelTemplateManager
     /// <summary>
     /// Download excel upload template for the given type
     /// </summary>
-    public async Task<SchemaApiFile> DownloadTemplate(int inputRow = 10)
+    public async Task<SchemaApiFile> DownloadTemplateAsync(int inputRow = 10)
     {
         if (_readMode) throw new Exception("The template manager is in read mode");
 
@@ -587,7 +588,7 @@ public class SchemaNodeExcelTemplateManager
     /// <summary>
     /// Read valid data from the excel file
     /// </summary>
-    public async Task<JsonArray> ReadData()
+    public async Task<JsonArray> ReadUploadsAsync()
     {
         await Task.Yield();
         

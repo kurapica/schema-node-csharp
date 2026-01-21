@@ -84,7 +84,7 @@ public class StructFieldConfig
     /// <summary>
     /// The struct field flags
     /// </summary>
-    public StructFieldFlags Flags { get; set; }
+    public StructFieldFlags Flags { get; set; } = StructFieldFlags.None;
 
     /// <summary>
     /// The node data is required.

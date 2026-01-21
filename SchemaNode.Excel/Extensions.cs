@@ -126,24 +126,5 @@ internal static class Extensions
     }
     
     #endregion
-    
-    #region Json
-    
-    /// <summary>
-    /// Whether the json node is empty
-    /// </summary>
-    internal static bool IsEmpty(this JsonNode? node)
-    {
-        if (node == null) return true;
-        return node switch
-        {
-            JsonArray a => a.Count == 0,
-            JsonObject o => o.Count == 0,
-            JsonValue v => v.ToJsonString() == "null" || string.IsNullOrWhiteSpace(v.ToString()),
-            _ => true
-        };
-    }
-
-    #endregion
 }
 
