@@ -166,36 +166,44 @@ public static class AppSchemaDataFilterExtensions
     /// </summary>
     public static JsonObject? ToFilter(this AppSchemaDataFilter accessExp)
     {
-        if (accessExp is AppSchemaDataFilterBinary binaryAccessExp)
+        if (accessExp is not AppSchemaDataFilterBinary binaryAccessExp) return null;
+        if (binaryAccessExp.Type == LogicType.AndAlso)
         {
-            if (binaryAccessExp.Type == LogicType.AndAlso)
-            {
-                JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
-                JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
-                if (leftFilter == null) return null;
-                if (rightFilter == null) return null;
+            JsonObject? leftFilter = binaryAccessExp.Left.ToFilter();
+            JsonObject? rightFilter = binaryAccessExp.Right.ToFilter();
+            if (leftFilter == null) return null;
+            if (rightFilter == null) return null;
 
-                // merge
-                foreach ((string key, JsonNode? value) in rightFilter)
-                    leftFilter[key] = value?.DeepClone();
-                return leftFilter;
-            }
+            // merge
+            foreach ((string key, JsonNode? value) in rightFilter)
+                leftFilter[key] = value?.DeepClone();
+            return leftFilter;
+        }
 
-            AppSchemaDataFilterField? accessNode = binaryAccessExp.Left as AppSchemaDataFilterField ??
-                                                   binaryAccessExp.Right as AppSchemaDataFilterField;
-            if (accessNode == null) return null;
-            AppSchemaDataFilterValue? valueAccess = (binaryAccessExp.Left == accessNode
-                ? binaryAccessExp.Right
-                : binaryAccessExp.Left) as AppSchemaDataFilterValue;
-            if (valueAccess == null) return null;
+        AppSchemaDataFilterField? accessNode = binaryAccessExp.Left as AppSchemaDataFilterField ??
+                                               binaryAccessExp.Right as AppSchemaDataFilterField;
+        if (accessNode == null) return null;
+        AppSchemaDataFilterValue? valueAccess = (binaryAccessExp.Left == accessNode
+            ? binaryAccessExp.Right
+            : binaryAccessExp.Left) as AppSchemaDataFilterValue;
+        if (valueAccess == null) return null;
 
-            if (binaryAccessExp.Type is LogicType.Equal or LogicType.Contains)
-            {
+        switch (binaryAccessExp.Type)
+        {
+            case LogicType.Equal:
                 return new JsonObject
                 {
                     [accessNode.Field] = valueAccess.Value.ToJson()
                 };
-            }
+            case LogicType.Contains:
+                if (valueAccess.Value is ArrayTypeNode { Count: 1 } arrayNode)
+                {
+                    return new JsonObject
+                    {
+                        [accessNode.Field] = arrayNode[0]!.ToJson()
+                    };
+                }
+                break;
         }
 
         return null;

@@ -186,7 +186,7 @@ public static class BatchQueryExtension
                     // mark loaded
                     fieldInfos[field.Name] = new AppDataFieldInfo
                     {
-                        Filter = q?.Filter,
+                        Filter = filter?.ToFilter() ?? q?.Filter,
                         OrderBy = q?.OrderBy,
                         Skip = q?.Skip ?? 0,
                         Take = take,
