@@ -2,6 +2,8 @@
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Api.Schema.Application;
+using SchemaNode.Attribute;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -15,6 +17,7 @@ namespace SchemaNode.Excel;
 /// <summary>
 /// The Excel template download/upload api
 /// </summary>
+[Plugin("EXCEL_TEMPLATE")]
 public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResponse>
 {
     const string APP_FIELD_TYPE_NOT_SUPPORT_EXCEL_TEMPLATE = "APP_FIELD_TYPE_NOT_SUPPORT_EXCEL_TEMPLATE";
@@ -29,6 +32,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         if (field.SchemaType is not ArrayType) throw new Exception(APP_FIELD_TYPE_NOT_SUPPORT_EXCEL_TEMPLATE);
 
         IFormFile? file = request.Files?.FirstOrDefault();
+
         TemplateManager manager = new (SchemaContext, field, file);
         
         // Entries
@@ -82,7 +86,15 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
                 {
                     List<StructFieldConfig>? types = dynamicFields.FromJson<List<StructFieldConfig>>();
                     if (types is { Count: > 0 })
+                    {
+                        foreach (StructFieldConfig type in types)
+                        {
+                            type.SchemeType = !string.IsNullOrWhiteSpace(type.Type) 
+                                ? await SchemaContext.GetSchemaTypeAsync(type.Type) 
+                                : null;
+                        }
                         manager.UseStructFieldsForJsonField(k, types);
+                    }
                 }
                 catch
                 {
@@ -96,16 +108,31 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         {
             return new ExcelTemplateResponse
             {
-                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 10)
+                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 10, request.NoHelper)
             };
         }
         
         // upload data
         else
         {
+            JsonArray uploads = await manager.ReadUploadsAsync();
+            if (request.Save == true && !string.IsNullOrEmpty(request.Target))
+            {
+                Dictionary<string, AppDataFieldPushQuery> pushData = [];
+                pushData[request.Field] = new AppDataFieldPushQuery { Data = uploads };
+                
+                (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, pushData);
+                return new ExcelTemplateResponse
+                {
+                    Uploads = uploads,
+                    Result = result,
+                    Error = error
+                };
+            }
+            
             return new ExcelTemplateResponse
             {
-                Uploads = await manager.ReadUploadsAsync()
+                Uploads = uploads
             };
         }
     }
@@ -147,6 +174,16 @@ public class ExcelTemplateRequest : SchemaApiRequest
     /// The input row count
     /// </summary>
     public int? InputCount { get; set; }
+    
+    /// <summary>
+    /// Whether to save the uploaded data
+    /// </summary>
+    public bool? Save { get; set; }
+    
+    /// <summary>
+    /// Not helpers field map
+    /// </summary>
+    public bool? NoHelper { get; set; }
 }
 
 /// <summary>
@@ -158,4 +195,14 @@ public class ExcelTemplateResponse : SchemaApiResponse
     /// The upload data
     /// </summary>
     public JsonArray? Uploads { get; set; }
+    
+    /// <summary>
+    /// The auto save result
+    /// </summary>
+    public bool? Result { get; set; }
+    
+    /// <summary>
+    /// The error data
+    /// </summary>
+    public JsonNode? Error { get; set; }
 }

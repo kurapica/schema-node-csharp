@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,8 +79,22 @@ public interface ISchemaApiProtocol
                 JsonObject result = new ();
                 foreach (KeyValuePair<string, StringValues> item in ctx.Request.Form)
                 {
-                    if (!string.IsNullOrEmpty(item.Value))
-                        result.Add(item.Key, item.Key.Equals("Params", StringComparison.OrdinalIgnoreCase) ? JsonNode.Parse(item.Value!) : JsonValue.Create(item.Value));
+                    if (item.Value.Count ==0) continue;
+                    string? data = item.Value[0];
+                    if (string.IsNullOrWhiteSpace(data)) continue;
+
+                    JsonNode? node = null;
+                    try
+                    {
+                        node = JsonNode.Parse(data);
+                    }
+                    catch
+                    {
+                        node = JsonValue.Create(data);
+                    }
+                    
+                    if (node != null)
+                        result.Add(item.Key, node);
                 }
                 requestBody = result.ToString();
             }
@@ -149,18 +164,24 @@ public interface ISchemaApiProtocol
         {
             string extension = Path.GetExtension(response.Output.Name);
             if (string.IsNullOrWhiteSpace(extension)) extension = response.Output.Extension;
-            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.')) extension = $".{extension}";
-            if (string.IsNullOrWhiteSpace(extension) || !new FileExtensionContentTypeProvider().TryGetContentType(extension, out string? contentType))
-                contentType = "text/plain";
-            FileStreamResult result = new(response.Output.Stream, contentType);
-            if (!string.IsNullOrWhiteSpace(response.Output.Name))
+            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.'))
+                extension = $".{extension}";
+
+            if (string.IsNullOrWhiteSpace(extension)
+                || !new FileExtensionContentTypeProvider()
+                    .TryGetContentType(extension, out string? contentType))
             {
-                result.FileDownloadName = response.Output.Name;
+                contentType = "application/octet-stream";
             }
+
             ctx.Response.Headers.AccessControlExposeHeaders = new StringValues("Content-Disposition");
-            return Results.File(response.Output.Stream);
+
+            return Results.File(
+                response.Output.Stream,
+                contentType,
+                fileDownloadName: response.Output.Name
+            );
         }
-        
         return GenerateResult(response);
     }
     

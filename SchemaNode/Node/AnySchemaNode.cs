@@ -45,8 +45,10 @@ public abstract class AnySchemaNode
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    public virtual bool Equals(AnySchemaNode other) 
-        => this == other || _value == other._value;
+    public virtual bool Equals(AnySchemaNode other)
+    {
+        return ReferenceEquals(this, other) || object.Equals(_value, other._value);
+    }
 
     /// <summary>
     /// Convert to type value

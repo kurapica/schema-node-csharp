@@ -185,11 +185,11 @@ public class TemplateManager
     /// <summary>
     /// Download excel upload template for the given type
     /// </summary>
-    public async Task<SchemaApiFile> DownloadTemplateAsync(int inputRow = 10)
+    public async Task<SchemaApiFile> DownloadTemplateAsync(int inputRow = 10, bool? noFieldMap = null)
     {
         if (_readMode) throw new Exception("The template manager is in read mode");
 
-        int maxRowHeader = _structType.Fields.Max(f => GetDepth(f.SchemeType));
+        int maxRowHeader = _structType.Fields.Max(f => GetDepth(f.SchemeType, f.Name));
         int result = 0;
 
         foreach (var field in _structType.Fields.Where(f => !(f.DisplayOnly ?? false) && !(f.Invisible ?? false)))
@@ -202,17 +202,20 @@ public class TemplateManager
         _sheet!.CreateFreezePane(0, maxRowHeader);
         
         // Draw field map, may not existed when upload, so just a backup plan
-        var fieldMapSheet = _workbook!.GetSheet(FieldMap);
-        int rowIndex = 0;
-        foreach (KeyValuePair<int, string> p in _fieldMap)
+        if (noFieldMap != true)
         {
-            IRow enumRow = fieldMapSheet.GetOrCreateRow(rowIndex++);
-                        
-            ICell enumCell = enumRow.GetOrCreateCell(0);
-            enumCell.SetCellValue(p.Key);
+            var fieldMapSheet = _workbook!.CreateSheet(FieldMap);
+            int rowIndex = 0;
+            foreach (KeyValuePair<int, string> p in _fieldMap)
+            {
+                IRow enumRow = fieldMapSheet.GetOrCreateRow(rowIndex++);
 
-            enumCell = enumRow.GetOrCreateCell(1);
-            enumCell.SetCellValue(p.Value);
+                ICell enumCell = enumRow.GetOrCreateCell(0);
+                enumCell.SetCellValue(p.Key);
+
+                enumCell = enumRow.GetOrCreateCell(1);
+                enumCell.SetCellValue(p.Value);
+            }
         }
 
         // generate
@@ -276,7 +279,7 @@ public class TemplateManager
                         enumCascade -= list.Length;
                     }
                     await GenerateEnumList(enumType, valueList,
-                        await _context.LoadEnumSubListAsync(enumType, field.Root),
+                        await enumType.LoadEnumSubListAsync(_context, field.Root, true),
                         field.AnyLevel ?? false,
                         enumCascade,
                         field.WhiteList,
@@ -343,10 +346,10 @@ public class TemplateManager
                     {
                         IRow enumRow = enumSheet.GetOrCreateRow(k);
                         ICell enumCell = enumRow.GetOrCreateCell(0);
-                        enumCell.SetCellValue(entries[k].Value);
+                        enumCell.SetCellValue(_context.GetLocaleString(entries[k].Label) ?? entries[k].Value);
                         
                         enumCell = enumRow.GetOrCreateCell(1);
-                        enumCell.SetCellValue(_context.GetLocaleString(entries[k].Label) ?? entries[k].Value);
+                        enumCell.SetCellValue(entries[k].Value);
                     }
 
                     // Example data cell
@@ -517,6 +520,28 @@ public class TemplateManager
                     MergeHeaderCells(startRow, startRow, beginCol, startCol - 1, isPrimary);
                     return startCol;
                 }
+
+            case JsonType:
+            {
+                if (_jsonTypeMap.TryGetValue(token, out List<StructFieldConfig>? list))
+                {
+                    int beginCol = startCol;
+                    string display = _context.GetLocaleString(field.Display) ?? field.Name;
+                    if (!string.IsNullOrWhiteSpace(prevDisplay)) display = $"{prevDisplay}-{display}";
+                    foreach (var structNodeField in list)
+                    {
+                        startCol = await DrawFieldColumns(structNodeField, startCol, startRow + 1, remainRows - 1, inputRow, $"{token}.",  display, isPrimary);
+                    }
+                    IRow row = _sheet!.GetOrCreateRow(startRow);
+                    ICell cell = row.GetOrCreateCell(beginCol);
+                    cell.CellStyle = isPrimary ? _pheaderCellStyle : _headerCellStyle;
+                    cell.SetCellValue($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}");
+
+                    MergeHeaderCells(startRow, startRow, beginCol, startCol - 1, isPrimary);
+                }
+                
+                return startCol;
+            }
             default:
                 return startCol;
         }
@@ -533,7 +558,7 @@ public class TemplateManager
             ScalarType => 1,
             ArrayType => throw new InvalidOperationException("The array element type not supported"),
             StructType @struct => 1 + @struct.Fields.Max(f => GetDepth(f.SchemeType, f.Name)),
-            JsonType => !string.IsNullOrEmpty(name) && _jsonTypeMap.TryGetValue(name, out var list) ? list.Max(f => GetDepth(f.SchemeType, f.Name)) : 0,
+            JsonType => !string.IsNullOrEmpty(name) && _jsonTypeMap.TryGetValue(name, out _) ? 2 : 0,
             _ => 0
         };
     }
@@ -619,7 +644,7 @@ public class TemplateManager
         }
 
         // Read header rows
-        int maxRowHeader = _structType.Fields.Max(f => GetDepth(f.SchemeType));
+        int maxRowHeader = _structType.Fields.Max(f => GetDepth(f.SchemeType, f.Name));
         Dictionary<int, List<StructFieldConfig>> colMap = new();
         _structType.Fields.Where(f => !(f.DisplayOnly ?? false) && !(f.Invisible ?? false)).Aggregate(0, (current, field) 
             => ResolveFieldColumns(field, colMap, current, 0));
@@ -755,7 +780,7 @@ public class TemplateManager
                 if (_arrayType.Primary.Any(n => node[n].IsEmpty())) continue;
                 string key = string.Join('^', _arrayType.Primary.Select(n => node[n]!.ToString()));
                 if (map.Add(key))
-                    combineAray.Add(node);
+                    combineAray.Add(node.DeepClone());
             }
 
             array = combineAray;
@@ -773,46 +798,58 @@ public class TemplateManager
         switch (field.SchemeType)
         {
             case EnumType:
+            {
+                // code
+                IRow row = _sheet!.GetOrCreateRow(startRow);
+                ICell cell = row.GetOrCreateCell(startCol);
+
+                if (cell.GetCellStringValue().Equals(field.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    // code
-                    IRow row = _sheet!.GetOrCreateRow(startRow);
-                    ICell cell = row.GetOrCreateCell(startCol);
-
-                    if (cell.GetCellStringValue().Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        colMap[startCol] = CombineFields(fields, field);
-                    }
-
-                    return startCol + 2;
+                    colMap[startCol] = CombineFields(fields, field);
                 }
+
+                return startCol + 2;
+            }
             case ScalarType:
+            {
+                IRow row = _sheet!.GetOrCreateRow(startRow);
+                ICell cell = row.GetOrCreateCell(startCol);
+
+                // Entry
+                if (cell.GetCellStringValue().Equals(field.Name, StringComparison.OrdinalIgnoreCase))
                 {
-                    IRow row = _sheet!.GetOrCreateRow(startRow);
-                    ICell cell = row.GetOrCreateCell(startCol);
-
-                    // Entry
-                    if (cell.GetCellStringValue().Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        colMap[startCol++] = CombineFields(fields, field);
-                    }
-                    // Common
-                    else if (cell.GetCellStringValue().Equals($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}"))
-                    {
-                        colMap[startCol] = CombineFields(fields, field);
-                    }
-                    else if (_fieldMap.ContainsValue(token))
-                    {
-                        startCol = _fieldMap.First(f => f.Value == token).Key;
-                        colMap[startCol] = CombineFields(fields, field);
-                    }
-
-                    return startCol + 1;
+                    colMap[startCol++] = CombineFields(fields, field);
                 }
+                // Common
+                else if (cell.GetCellStringValue().Equals($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}"))
+                {
+                    colMap[startCol] = CombineFields(fields, field);
+                }
+                else if (_fieldMap.ContainsValue(token))
+                {
+                    startCol = _fieldMap.First(f => f.Value == token).Key;
+                    colMap[startCol] = CombineFields(fields, field);
+                }
+
+                return startCol + 1;
+            }
             case StructType subStructType:
+            {
+                List<StructFieldConfig> combine = CombineFields(fields, field);
+                return subStructType.Fields.Aggregate(startCol, (current, structNodeField) => ResolveFieldColumns(structNodeField, colMap, current, startRow + 1, combine));
+            }
+            case JsonType:
+            {
+                if (_jsonTypeMap.TryGetValue(token, out List<StructFieldConfig>? list))
                 {
                     List<StructFieldConfig> combine = CombineFields(fields, field);
-                    return subStructType.Fields.Aggregate(startCol, (current, structNodeField) => ResolveFieldColumns(structNodeField, colMap, current, startRow + 1, combine));
+                    return list.Aggregate(startCol,
+                        (current, structNodeField) =>
+                            ResolveFieldColumns(structNodeField, colMap, current, startRow + 1, combine));
                 }
+
+                return startCol;
+            }
             default:
                 return startCol;
         }

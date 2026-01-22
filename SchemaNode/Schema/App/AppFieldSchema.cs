@@ -146,6 +146,16 @@ public class AppFieldSchema
     }
 
     /// <summary>
+    /// Enable the template download for the field
+    /// </summary>
+    [NotMapped]
+    public bool? Template
+    {
+        get => Flags.Has(AppFieldFlags.Template);
+        init => Flags = Flags.Turn(AppFieldFlags.Template, value);
+    }
+
+    /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
     public DataCombineType? Combine { get; set; }
@@ -183,6 +193,7 @@ public class AppFieldSchema
         Readonly = 1 << 2,
         IncrUpdate = 1 << 3,
         TrackPush = 1 << 4,
+        Template = 1 << 5,
     }
 
     #endregion

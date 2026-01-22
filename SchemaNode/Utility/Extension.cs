@@ -236,7 +236,7 @@ public static class Extension
     /// <summary>
     /// To http result
     /// </summary>
-    internal static IResult ToResult<T>(this T value)
+    public static IResult ToResult<T>(this T value)
     {
         return Results.Json(value, NoIndentJsonOption);
     }

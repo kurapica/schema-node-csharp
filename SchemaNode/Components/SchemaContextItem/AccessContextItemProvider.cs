@@ -1,4 +1,6 @@
+using System.Text.RegularExpressions;
 using SchemaNode.Context;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -79,6 +81,25 @@ public static class AccessContextItemProviderExtensions
     /// Gets the locale string value
     /// </summary>
     public static string? GetLocaleString(this SchemaContext context, LocaleString? locale)
+    {
+        string? key = context.GetLocaleStringKey(locale);
+        // Fetch the replace type like {@system.xxx}
+        if (key != null && key.Contains("{@"))
+        {
+            Match match = System.Text.RegularExpressions.Regex.Match(key, @"\{\@([a-zA-Z0-9_.\-]+)\}");
+            if (match.Success && match.Groups.Count > 1)
+            {
+                string systemKey = match.Groups[1].Value;
+                AnySchemaType? systemValue = context.GetSchemaTypeAsync(systemKey).GetAwaiter().GetResult();
+                if (systemValue != null)
+                    return context.GetLocaleString(systemValue.Display) ?? systemValue.Name;
+            }
+        }
+
+        return key;
+    }
+    
+    static string? GetLocaleStringKey(this SchemaContext context, LocaleString? locale)
     {
         if (string.IsNullOrWhiteSpace(locale?.Key)) return null;
         if (locale?.Trans == null || locale.Trans.Length == 0) return locale?.Key;

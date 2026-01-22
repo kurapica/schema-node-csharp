@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,7 +27,8 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
         {
             Name = protocolMeta.Name,
             Request = protocolMeta.Request?.ToJsonNode(),
-            Response = protocolMeta.Response?.ToJsonNode()
+            Response = protocolMeta.Response?.ToJsonNode(),
+            Plugins = Injection.Plugins.ToArray()
         };
     }
 }
@@ -45,7 +45,23 @@ public class ProtocolRequest : SchemaApiRequest
 /// </summary>
 public class ProtocolResponse : SchemaApiResponse
 {
+    /// <summary>
+    /// The protocol name
+    /// </summary>
     public string? Name { get; init; }
+    
+    /// <summary>
+    /// The request schema
+    /// </summary>
     public JsonNode? Request { get; init; } 
+    
+    /// <summary>
+    /// The response schema
+    /// </summary>
     public JsonNode? Response { get; init; }
+    
+    /// <summary>
+    /// The plugins used in this server
+    /// </summary>
+    public string[] Plugins { get; init; }
 }

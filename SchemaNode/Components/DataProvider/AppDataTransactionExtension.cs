@@ -930,15 +930,37 @@ public static class AppDataTransactionExtension
                                         StructTypeNode? origin = origins.GetValueOrDefault(key);
 
                                         // check push key changes
-                                        if (origin == null || thirdInfo == null || (from pushKey in thirdInfo.PushKeys
-                                                let oVal = origin.GetField(pushKey)
-                                                let nVal = structTypeNode.GetField(pushKey)
-                                                where oVal is { IsEmpty: false } || nVal is { IsEmpty: false }
-                                                where oVal == null || nVal == null || !oVal.Equals(nVal)
-                                                select oVal).Any())
+                                        if (origin == null || thirdInfo == null)
                                             updates[key] = structTypeNode;
                                         else
-                                            origins.Remove(key); // No change
+                                        {
+                                            bool isEqual = true;
+                                            foreach (string pushKey in thirdInfo.PushKeys)
+                                            {
+                                                AnySchemaNode? oVal = origin.GetField(pushKey);
+                                                AnySchemaNode? nVal = structTypeNode.GetField(pushKey);
+                                                if (oVal is { IsEmpty: false } || nVal is { IsEmpty: false })
+                                                {
+                                                    if (oVal == null || oVal.IsEmpty || nVal == null || nVal.IsEmpty)
+                                                    {
+                                                        isEqual = false;
+                                                        break;
+                                                    }
+                                                    else if (!oVal.Equals(nVal))
+                                                    {
+                                                        isEqual = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
+                                            if (!isEqual)
+                                            {
+                                                updates[key] = structTypeNode;
+                                            }
+                                            else
+                                                origins.Remove(key); // No change
+                                        }
                                     }
 
                                     break;

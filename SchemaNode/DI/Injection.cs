@@ -374,6 +374,7 @@ public static class Injection
     
     internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
     internal static ConcurrentBag<AppWorkflowType>? WorkflowTypes = [];
+    internal static ConcurrentBag<string> Plugins = [];
     
     #endregion
 
@@ -409,6 +410,10 @@ public static class Injection
 
         foreach ((SchemaApiType apiType, string url)  in GetSchemaApis())
         {
+            // Plugin check
+            if (apiType.Api.GetCustomAttribute<PluginAttribute>() is { } pluginAttr)
+                Plugins.Add(pluginAttr.Identity);
+            
             if (apiType.Api.Assembly == schemaAssembly)
             {
                 // no storage no edit

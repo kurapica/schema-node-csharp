@@ -65,6 +65,11 @@ public class AppFieldType
     public bool? TrackPush { get; private init; }
     
     /// <summary>
+    /// Enable template feature
+    /// </summary>
+    public bool? Template { get; private init; }
+    
+    /// <summary>
     /// The calculate function
     /// </summary>
     public string? Func { get; init; }
@@ -280,6 +285,7 @@ public class AppFieldType
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
+            Template = entity.Template,
             Func = entity.Func,
             Arg = entity.Arg,
             Auths = entity.Auths,
@@ -313,6 +319,7 @@ public class AppFieldType
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
+            Template = entity.Template,
             Func = entity.Func,
             Arg = entity.Arg,
             Auths = entity.Auths,
