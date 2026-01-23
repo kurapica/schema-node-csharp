@@ -13,6 +13,9 @@ namespace SchemaNode.Components;
 
 public abstract record AppSchemaDataFilter;
 
+/// <summary>
+/// The app scheme data query result type
+/// </summary>
 public enum AppSchemaDataResult
 {
     List,
@@ -42,15 +45,19 @@ public static class AppSchemaDataFilterExtensions
         => left is AppSchemaDataFilterValue ? right
                 : right is AppSchemaDataFilterValue ? left
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, left, right);
-
-    public static bool IsValid(this AppSchemaDataFilter filter)
+    
+    /// <summary>
+    /// Validate and transform the filter
+    /// </summary>
+    public static bool Transform(this AppSchemaDataFilter filter, out AppSchemaDataFilter? result)
     {
+        result = filter;
         switch (filter)
         {
-            case AppSchemaDataFilterField access:
-            {
+            case AppSchemaDataFilterValue:
+            case AppSchemaDataFilterField:
                 return true;
-            }
+            
             case AppSchemaDataFilterUnary unary:
                 switch (unary.Type)
                 {
@@ -58,42 +65,145 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.IsEmpty:
                     case LogicType.NotNull:
                     case LogicType.NotEmpty:
-                        return unary.Operand.IsValid();
+                        if (!unary.Operand.Transform(out AppSchemaDataFilter? transformedOperand) ||
+                            transformedOperand is not AppSchemaDataFilterField) return false;
+                        result = new AppSchemaDataFilterUnary(unary.Type, transformedOperand!);
+                        return true;
                     default:
-                        throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
+                        return false;
                 }
             case AppSchemaDataFilterBinary binary:
+                if (!binary.Left.Transform(out AppSchemaDataFilter? leftTransformed)) return false;
+                if (!binary.Right.Transform(out AppSchemaDataFilter? rightTransformed)) return false;
+
+                // Logic simplification
                 switch (binary.Type)
                 {
                     case LogicType.AndAlso:
+                    {
+                        if (leftTransformed is AppSchemaDataFilterValue leftVal)
+                        {
+                            switch (leftVal.Value)
+                            {
+                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
+                                    result = scalar.ToValue<bool>() ? rightTransformed : leftVal;
+                                    return true; // Don't return false, maybe OrElse on the root
+                                case bool left:
+                                    result = left ? rightTransformed : leftVal;
+                                    return true;
+                                default:
+                                    // type not supported
+                                    return false;
+                            }
+                        }
+
+                        if (rightTransformed is AppSchemaDataFilterValue rightVal)
+                        {
+                            switch (rightVal.Value)
+                            {
+                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
+                                    result = scalar.ToValue<bool>() ? leftTransformed : rightVal;
+                                    return true; // Don't return false, maybe OrElse on the root
+                                case bool right:
+                                    result = right ? leftTransformed : rightVal;
+                                    return true;
+                                default:
+                                    // type not supported
+                                    return false;
+                            }
+                        }
+
+                        result = new AppSchemaDataFilterBinary(LogicType.AndAlso, leftTransformed!, rightTransformed!);
+                        return true;
+                    }
                     case LogicType.OrElse:
+                    {
+                        if (leftTransformed is AppSchemaDataFilterValue leftVal)
+                        {
+                            switch (leftVal.Value)
+                            {
+                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
+                                    result = scalar.ToValue<bool>() ? leftVal : rightTransformed;
+                                    return true;
+                                case bool left:
+                                    result = left ? leftVal : rightTransformed;
+                                    return true;
+                                default:
+                                    // type not supported
+                                    return false;
+                            }
+                        }
+
+                        if (rightTransformed is AppSchemaDataFilterValue rightVal)
+                        {
+                            switch (rightVal.Value)
+                            {
+                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
+                                    result = scalar.ToValue<bool>() ? rightVal : leftTransformed;
+                                    return true; // Don't return false, maybe OrElse on the root
+                                case bool right:
+                                    result = right ? rightVal : leftTransformed;
+                                    return true;
+                                default:
+                                    // type not supported
+                                    return false;
+                            }
+                        }
+
+                        result = new AppSchemaDataFilterBinary(LogicType.OrElse, leftTransformed!, rightTransformed!);
+                        return true;
+                    }
+                }
+
+                // if a OP null, should use isnull(a) instead, so return false here
+                if (leftTransformed is AppSchemaDataFilterValue leftOp)
+                {
+                    if (leftOp.Value is AnySchemaNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
+                        ? SystemCollection.arrlen(leftOp.Value) == 0
+                        : string.IsNullOrWhiteSpace(leftOp.Value.ToString()))
+                    {
+                        result = new AppSchemaDataFilterValue(false);
+                        return true;
+                    }
+                }
+                if (rightTransformed is AppSchemaDataFilterValue rightOp)
+                {
+                    if (rightOp.Value is AnySchemaNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
+                            ? SystemCollection.arrlen(rightOp.Value) == 0
+                            : string.IsNullOrWhiteSpace(rightOp.Value.ToString()))
+                    {
+                        result = new AppSchemaDataFilterValue(false);
+                        return true;
+                    }
+                }
+                
+                // Compare simplification
+                switch (binary.Type)
+                {
                     case LogicType.Equal:
                     case LogicType.NotEqual:
                     case LogicType.GreaterThan:
                     case LogicType.GreaterEqual:
                     case LogicType.LessThan:
                     case LogicType.LessEqual:
-                        return binary.Left.IsValid() && binary.Right.IsValid();
                     case LogicType.Contains:
                     case LogicType.NotContains:
-                        if (binary.Left is not AppSchemaDataFilterValue val || SystemLogic.isempty(val.Value)) return false;
-                        return binary.Right.IsValid();  
                     case LogicType.StartsWith:
                     case LogicType.NotStartsWith:
                     case LogicType.EndsWith:
                     case LogicType.NotEndsWith:
                     case LogicType.Match:
                     case LogicType.NotMatch:
-                        if (binary.Right is not AppSchemaDataFilterValue swVal || SystemLogic.isempty(swVal.Value)) return false;
-                        return binary.Left.IsValid();
+                    {
+                        result = new AppSchemaDataFilterBinary(binary.Type, leftTransformed!, rightTransformed!);
+                        return true;
+                    }
                     default:
-                        throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
+                        return false;
                 }
-            case AppSchemaDataFilterValue value:
-                return !SystemLogic.isempty(value.Value);
         }
 
-    return false;
+        return false;
     }
 
     internal static async Task<AppSchemaDataFilter?> ToAppSchemaDataFilterAsync(this JsonObject filter, SchemaContext context, StructType structType, FieldFilter[]? fieldFilters = null)
@@ -193,14 +303,14 @@ public static class AppSchemaDataFilterExtensions
             case LogicType.Equal:
                 return new JsonObject
                 {
-                    [accessNode.Field] = valueAccess.Value.ToJson()
+                    [accessNode.Field] = valueAccess.Value.ToString()
                 };
             case LogicType.Contains:
                 if (valueAccess.Value is ArrayTypeNode { Count: 1 } arrayNode)
                 {
                     return new JsonObject
                     {
-                        [accessNode.Field] = arrayNode[0]!.ToJson()
+                        [accessNode.Field] = arrayNode[0]!.ToString()
                     };
                 }
                 break;

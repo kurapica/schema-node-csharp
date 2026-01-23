@@ -177,7 +177,19 @@ public static class BatchQueryExtension
                                 filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                             }
                             
-                            if (filter == null || filter.IsValid())
+                            // Validate and transform filter
+                            bool isValidFilter = filter == null;
+                            if (filter != null)
+                            {
+                                isValidFilter = filter.Transform(out AppSchemaDataFilter? final);
+                                filter = final;
+
+                                // Avoid invalid filter types like false means no data
+                                if (isValidFilter && filter is AppSchemaDataFilterValue or AppSchemaDataFilterField)
+                                    isValidFilter = false;
+                            }
+                            
+                            if (isValidFilter)
                                 (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
                                     filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
                         }

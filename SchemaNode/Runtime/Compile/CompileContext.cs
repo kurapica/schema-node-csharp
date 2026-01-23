@@ -624,7 +624,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         iteratorExp = new CollectionItemExp(colSource, argExp.SchemaType is ArrayType at ? at.ElementSchemaType! : argExp.SchemaType!);
                         argExp = iteratorExp;
                     }
-                    else if (colSource.Collection is VariableExp varExp && ( colSource.Collection == argExp ||
+                    else if (colSource.Collection is VariableExp && ( colSource.Collection == argExp ||
                                  argExp is FieldAccessExp{ Owner: CollectionItemExp iterExp } && iterExp.Root == colSource))
                     {
                         if (argExp is not FieldAccessExp) argExp = iteratorExp; // direct use iterator exp

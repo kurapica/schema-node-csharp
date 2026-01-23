@@ -338,6 +338,7 @@ public static class SystemData
     /// Incr the app field data
     /// </summary>
     [Schema]
+    [SideEffect]
     public static async Task<JsonNode?> incrappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
@@ -444,7 +445,20 @@ public static class SystemData
         return null;
     }
 
+    /// <summary>
+    /// Save the app field data
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="app">The application</param>
+    /// <param name="field">The field</param>
+    /// <param name="data">The data</param>
+    /// <param name="onlyAdd">Only add no update</param>
+    /// <param name="target">The target</param>
+    /// <param name="raiseEvent">Whether raise event</param>
+    /// <param name="overrides">Override existed columns</param>
+    /// <returns></returns>
     [Schema]
+    [SideEffect]
     public static async Task<bool> saveappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
