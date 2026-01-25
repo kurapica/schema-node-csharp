@@ -218,20 +218,31 @@ public static class AppDataQueryExtension
         AppType? appType = await context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
         if (appField == null) return null;
+        
+        // Validate and transform filter
+        bool isValidFilter = filter == null;
+        if (filter != null)
+        {
+            isValidFilter = filter.Transform(out AppSchemaDataFilter? final);
+            filter = final;
+
+            // Avoid invalid filter types like false means no data
+            if (isValidFilter && filter is AppSchemaDataFilterValue or AppSchemaDataFilterField)
+                isValidFilter = false;
+        }
 
         if (string.IsNullOrEmpty(target))
-        {
             target = context.GetSchemaContextItem<Access>()?.Target ?? string.Empty;
-            if (string.IsNullOrEmpty(target)) return type switch
-            {
-                AppSchemaDataResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(0),
-                AppSchemaDataResult.Exist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(false),
-                AppSchemaDataResult.First => null,
-                AppSchemaDataResult.Last => null,
-                AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!),
-                _ => new ArrayTypeNode(appField.SchemaType!)
-            };
-        }
+        
+        if (!isValidFilter || string.IsNullOrEmpty(target)) return type switch
+        {
+            AppSchemaDataResult.Count => (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(0),
+            AppSchemaDataResult.Exist => (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(false),
+            AppSchemaDataResult.First => null,
+            AppSchemaDataResult.Last => null,
+            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!),
+            _ => new ArrayTypeNode(appField.SchemaType!)
+        };
 
         (AnySchemaNode? res, _) = await context.GetFieldDataAsync(appField, target, type, filter, skip, take, desc, orderBy, dataField);
         return res;

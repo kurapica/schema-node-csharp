@@ -57,12 +57,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// <summary>
     /// The schema context
     /// </summary>
-    protected readonly SchemaContext Context = context;
+    public readonly SchemaContext Context = context;
     
     /// <summary>
     /// The function type
     /// </summary>
-    protected readonly FunctionType Function = function;
+    public readonly FunctionType Function = function;
 
     #endregion
     
@@ -170,6 +170,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             iteratorExp = null;
             currAccessCount.Clear();
             await GenFuncCallExpression(exp);
+            
             // Merge access count
             foreach (var kv in currAccessCount)
                 accessCount[kv] = accessCount.GetValueOrDefault(kv, 0) + 1;

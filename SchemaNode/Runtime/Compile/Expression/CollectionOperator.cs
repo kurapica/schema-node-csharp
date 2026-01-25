@@ -9,6 +9,8 @@ using ExpressionType = SchemaNode.Enum.ExpressionType;
 
 namespace SchemaNode.Runtime;
 
+#region Collection Expressions
+
 /// <summary>
 /// The iterator expression represents an iteration over an array within a schema expression tree.
 /// </summary>
@@ -104,6 +106,8 @@ public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp I
 /// </summary>
 public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, AnySchemaType SchemaType)
     : CollectionResult(Root, SchemaType);
+
+#endregion
 
 /// <summary>
 /// The collection expression visitor
@@ -255,7 +259,6 @@ public class CollectionExpVisitor : IExpVisitor
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
-                        // replace iterator to loop argument
                         funcExp.Args,
                         (funcExp.SchemaType as ArrayType)!.ElementSchemaType!
                     )),

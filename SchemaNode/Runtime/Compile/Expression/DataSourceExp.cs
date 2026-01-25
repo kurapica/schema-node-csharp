@@ -172,11 +172,47 @@ public class DataSourceExpVisitor : IExpVisitor
         return Expression.Call(callExp, callExp.Type.GetMethod(nameof(System.Runtime.CompilerServices.TaskAwaiter<dynamic>.GetResult), Type.EmptyTypes)!);
     }
 
-    async Task<Expression> CompileDataSourceFilter(CompileContext context, SchemaExp exp)
+    async Task<Expression> CompileDataSourceFilter(CompileContext context, SchemaExp exp, Dictionary<SchemaExp, SchemaExp>? expReplace = null)
     {
+        // Try inline function call
+        if (exp is FuncCallExp funcCall)
+        {
+            FunctionTypeSchema inlineFunc = await context.VisitFunctionTypeAsync(funcCall.Function);
+            if (inlineFunc.Exps is [{ Value: LogicExp inlineExp }])
+            {
+                // Replace parameters
+                Dictionary<SchemaExp, SchemaExp> paramMap = new();
+                for (int i = 0; i < inlineFunc.Args.Length; i++)
+                {
+                    ArgumentExp arg = inlineFunc.Args[i];
+                    SchemaExp? item = funcCall.Args.ElementAtOrDefault(i);
+                    if (item == null)
+                    {
+                        paramMap[arg] = arg.Nullable ? new ConstantExp(arg.SchemaType.CreateNode(null)!)
+                                : throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                    }
+                    else
+                    {
+                        paramMap[arg] = item;
+                    }
+                }
+                return await CompileDataSourceFilter(context, inlineExp, paramMap); 
+            }
+        }
+        
+        if (expReplace != null && expReplace.TryGetValue(exp, out SchemaExp? replacedExp))
+            exp = replacedExp;
+        
         return exp switch
         {
-            FieldAccessExp fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
+            FieldAccessExp fieldExp => fieldExp.Owner is CollectionItemExp 
+                                       || expReplace != null && expReplace.TryGetValue(fieldExp.Owner, out SchemaExp? rep) && rep is CollectionItemExp
+                ? Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName))
+                : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(new FieldAccessExp(
+                    expReplace != null && expReplace.TryGetValue(fieldExp.Owner, out SchemaExp? newOwner) 
+                        ? newOwner 
+                        : fieldExp.Owner, fieldExp.FieldName, fieldExp.SchemaType
+                    ))),
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner)),
             BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left), await CompileDataSourceFilter(context, binaryExp.Right)),
             _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp)),

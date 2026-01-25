@@ -10,9 +10,9 @@ public static class FunctionCompileExtensions
     /// <summary>
     /// Visit the function type with the given compile context to generate the function schema
     /// </summary>
-    public static async Task<FunctionTypeSchema> VisitFunctionTypeAsync(this CompileContext context, FunctionType funcType, CompileContext compileContext)
-        => funcType.TryGetRuntimeFuncCache(compileContext.GetType(), out FunctionTypeSchema? funcSchema) ? funcSchema! 
-            : funcType.SetRuntimeFuncCache(compileContext.GetType(), await compileContext.VisitFunctionType())!;
+    public static async Task<FunctionTypeSchema> VisitFunctionTypeAsync(this CompileContext context, FunctionType funcType)
+        => funcType.TryGetRuntimeFuncCache(context.GetType(), out FunctionTypeSchema? funcSchema) ? funcSchema! 
+            : funcType.SetRuntimeFuncCache(context.GetType(), await (Activator.CreateInstance(context.GetType(), context.Context, funcType) as CompileContext)!.VisitFunctionType())!;
     
     /// <summary>
     /// Visit the function type to generate the function schema
