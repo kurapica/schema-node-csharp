@@ -16,27 +16,27 @@ public static class SystemStr
 
     [Schema]
     [Logic(LogicType.StartsWith, true)]
-    public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    public static bool startswith([Default("")] string str, [Default("")]string prefix) => !string.IsNullOrWhiteSpace(prefix) && str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     [Logic(LogicType.NotStartsWith, true)]
-    public static bool notstartswith([Default("")] string str, string prefix) => !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    public static bool notstartswith([Default("")] string str, [Default("")]string prefix) => !string.IsNullOrWhiteSpace(prefix) && !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     [Logic(LogicType.EndsWith, true)]
-    public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+    public static bool endswith([Default("")] string str, [Default("")]string suffix) => !string.IsNullOrWhiteSpace(suffix) && str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     [Logic(LogicType.NotEndsWith, true)]
-    public static bool notendswith([Default("")] string str, string suffix) => !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+    public static bool notendswith([Default("")] string str, [Default("")]string suffix) => !string.IsNullOrWhiteSpace(suffix) && !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     [Logic(LogicType.Match, true)]
-    public static bool match([Default("")] string str, string substr) => str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+    public static bool match([Default("")] string str, [Default("")] string substr) => !string.IsNullOrWhiteSpace(substr) && str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
     [Schema]
     [Logic(LogicType.NotMatch, true)]
-    public static bool notmatch([Default("")] string str, string substr) => !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+    public static bool notmatch([Default("")] string str, [Default("")]string substr) => !string.IsNullOrWhiteSpace(substr) && !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
     #endregion
 

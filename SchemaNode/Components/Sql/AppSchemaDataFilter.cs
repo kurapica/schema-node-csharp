@@ -168,9 +168,10 @@ public static class AppSchemaDataFilterExtensions
                 }
                 if (rightTransformed is AppSchemaDataFilterValue rightOp)
                 {
-                    if (rightOp.Value is AnySchemaNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
+                    if (rightOp.Value is null || 
+                        (rightOp.Value is AnySchemaNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
                             ? SystemCollection.arrlen(rightOp.Value) == 0
-                            : string.IsNullOrWhiteSpace(rightOp.Value.ToString()))
+                            : string.IsNullOrWhiteSpace(rightOp.Value.ToString())))
                     {
                         result = new AppSchemaDataFilterValue(false);
                         return true;

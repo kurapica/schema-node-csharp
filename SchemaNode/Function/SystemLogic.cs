@@ -140,40 +140,40 @@ public static class SystemLogic
     /// </summary>
     [Schema]
     [Logic(LogicType.Equal)]
-    public static bool equal<T>(T a, T b) where T: IComparable => a.Equals(b);
+    public static bool equal<T>(T? a, T? b) where T: IComparable => a == null && b == null || a != null && a.Equals(b);
 
     /// <summary>
     /// system.logic.notequal
     /// </summary>
     [Schema]
     [Logic(LogicType.NotEqual)]
-    public static bool notequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) != 0;
+    public static bool notequal<T>(T? a, T? b) where T : IComparable => !equal(a, b);
 
     /// <summary>
     /// system.logic.greateequal
     /// </summary>
     [Schema]
     [Logic(LogicType.GreaterEqual)]
-    public static bool greateequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) >= 0;
+    public static bool greateequal<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) >= 0;
 
     /// <summary>
     /// system.logic.greatethan
     /// </summary>
     [Schema]
     [Logic(LogicType.GreaterThan)]
-    public static bool greatethan<T>(T a, T b) where T: IComparable => a.CompareTo(b) > 0;
+    public static bool greatethan<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) > 0;
 
     /// <summary>
     /// system.logic.lessequal
     /// </summary>
     [Schema]
     [Logic(LogicType.LessEqual)]
-    public static bool lessequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) <= 0;
+    public static bool lessequal<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) <= 0;
 
     /// <summary>
     /// system.logic.lessthan
     /// </summary>
     [Schema]
     [Logic(LogicType.LessThan)]
-    public static bool lessthan<T>(T a, T b) where T: IComparable => a.CompareTo(b) < 0;
+    public static bool lessthan<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) < 0;
 }

@@ -34,7 +34,7 @@ public abstract record CollectionOperator(CollectionRootExp Root, AnySchemaType 
 /// <summary>
 /// The predicate collection expression
 /// </summary>
-public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, LogicExp Predicate, AnySchemaType SchemaType)
+public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, AnySchemaType SchemaType)
     : CollectionOperator(Root, SchemaType);
 
 /// <summary>
@@ -203,9 +203,7 @@ public class CollectionExpVisitor : IExpVisitor
             // Default filter
             case ExpressionType.Filter:
                 return new PredicateCollectionOperator(source, item,
-                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, 
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!)) as LogicExp 
-                        ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc), 
+                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!)), 
                     funcExp.SchemaType); 
             
             // Reduce the collection source
