@@ -28,6 +28,7 @@ public class TemplateManager
     /// </summary>
     public TemplateManager(SchemaContext context, AppFieldType appField, IFormFile? file = null)
     {
+        _appField = appField;
         _context = context;
         _arrayType = appField.SchemaType as ArrayType ?? throw new InvalidCastException("The app field type is not an array type");
         _structType = _arrayType.ElementSchemaType as StructType ?? throw new InvalidCastException("The app field type is not an array type");
@@ -558,7 +559,7 @@ public class TemplateManager
             ScalarType => 1,
             ArrayType => throw new InvalidOperationException("The array element type not supported"),
             StructType @struct => 1 + @struct.Fields.Max(f => GetDepth(f.SchemeType, f.Name)),
-            JsonType => !string.IsNullOrEmpty(name) && _jsonTypeMap.TryGetValue(name, out _) ? 2 : 0,
+            JsonType => !string.IsNullOrEmpty(name) && _jsonTypeMap.TryGetValue(name.ToLower(), out _) ? 2 : 0,
             _ => 0
         };
     }
@@ -655,7 +656,7 @@ public class TemplateManager
         List<CellRangeAddress> mergedCells = _sheet!.MergedRegions;
         while (i <= _sheet.LastRowNum)
         {
-            IRow row = _sheet.GetRow(i);
+            IRow row = _sheet.GetRow(i++);
             if (row == null) continue;
 
             JsonObject data = new();
@@ -757,15 +758,47 @@ public class TemplateManager
                     }
                 }
             }
-
-            array.Add(data);
-
-            i++;
+            
+            if (!data.IsEmpty())
+                array.Add(data);
         }
 
         _workbook.Close();
         _ms?.Close();
+        
 
+        // Init-only field check, normally for primary key
+        if (_structType.Relations != null)
+        {
+            foreach (StructFieldRelation relation in _structType.Relations.Where(r =>
+                         r.Type == RelationType.InitOnly))
+            {
+                StructFieldConfig? field = _structType.Fields.FirstOrDefault(f => f.Name == relation.Field);
+                if (field == null) continue;
+                FunctionType? funcType = await _context.GetSchemaTypeAsync<FunctionType>(relation.Func);
+                if (funcType is null) continue;
+
+                foreach (JsonNode? node in array)
+                {
+                    if (node is not JsonObject data) continue;
+                    if (!(data[field.Name]?.IsEmpty() ?? true)) continue;
+                    object[] args = new  Object[relation.Args.Length];
+                    for (int k = 0; k < relation.Args.Length; k++)
+                    {
+                        FuncCallArg arg = relation.Args[k];
+                        if (!string.IsNullOrEmpty(arg.Name))
+                        {
+                            args[k] = data[arg.Name]!;
+                        }
+                        else
+                        {
+                            args[i] = (object?)arg.SchemeType?.CreateNode(arg.Value) ?? arg.Value!;
+                        }
+                    }
+                    data[field.Name] = await funcType.CallAsync<JsonValue>(_context, args);
+                }
+            }
+        }
         // Filter with primary key
         if (_arrayType.Primary is { Length: > 0 })
         {
@@ -895,6 +928,7 @@ public class TemplateManager
     private readonly MemoryStream? _ms;
     private readonly bool _readMode;
     private readonly SchemaContext _context;
+    private readonly AppFieldType _appField;
     private readonly ArrayType _arrayType;
     private readonly StructType _structType;
     private readonly string _sheetName;

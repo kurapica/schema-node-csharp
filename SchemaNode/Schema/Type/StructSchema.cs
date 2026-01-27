@@ -185,6 +185,26 @@ public class StructFieldConfig
             }
         }
     }
+    
+    /// <summary>
+    /// Upack/pack additional data for the json node.
+    /// </summary>
+    [NotMapped]
+    public bool? Unpack
+    {
+        get => (Flags & StructFieldFlags.Unpack) != 0 ? true : null;
+        set
+        {
+            if (value == true)
+            {
+                Flags |= StructFieldFlags.Unpack;
+            }
+            else
+            {
+                Flags &= ~StructFieldFlags.Unpack;
+            }
+        }
+    }
 
     /// <summary>
     /// The unit of the node data like 'm/s', '%', '°C'.
@@ -355,7 +375,8 @@ public class StructFieldConfig
         AsSuggest = 1 << 5,
         UseOriginForUpLimit = 1 << 6,
         AnyLevel = 1 << 7,
-        SingleFlag = 1 << 8
+        SingleFlag = 1 << 8,
+        Unpack = 1 << 9,
     }
 
     #endregion

@@ -130,7 +130,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     if (!names.Remove(key))
                     {
                         sb ??= new StringBuilder();
-                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField))});");
+                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField).Prepend(DYNAMIC_TABLE_TARG_FIELD))});");
                     }
                 }
             }

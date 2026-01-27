@@ -3,6 +3,7 @@ using System.Runtime.Serialization;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
@@ -107,10 +108,30 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is JsonObject obj)
             {
-                var fields = (SchemaType as StructType)!.Fields;
+                StructFieldConfig[] fields = (SchemaType as StructType)!.Fields;
+                JsonTypeNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = obj[fields[i].Name];
+                    if (fields[i].Unpack ?? true)
+                        unpackNode = Fields[i] as JsonTypeNode;
+                }
+
+                if (unpackNode != null)
+                {
+                    JsonObject v = unpackNode.Value as JsonObject ?? new JsonObject();
+                    if (v.IsEmpty())
+                    {
+                        foreach ((string key, JsonNode? val) in obj)
+                        {
+                            if (fields.All(f => f.Name != key))
+                            {
+                                v[key] = val?.DeepClone();
+                            }
+                        }
+
+                        unpackNode.Value = v;
+                    }
                 }
             }
             else if(value.GetType() == CsharpType)
@@ -180,7 +201,24 @@ public class StructTypeNode : AnySchemaNode
         for (int i = 0; i < fields.Length; i++)
         {
             JsonNode? d = Fields[i].ToJson();
-            if (d != null && !d.IsEmpty()) result.Add(fields[i].Name, d);
+            if (d != null && !d.IsEmpty())
+            {
+                if (fields[i].Unpack ?? false)
+                {
+                    if (d is JsonObject obj)
+                    {
+                        foreach ((string key, JsonNode? val) in obj)
+                        {
+                            if (!result.ContainsKey(key))
+                                result[key] = val?.DeepClone();
+                        }
+                    }
+                }
+                else
+                {
+                    result.Add(fields[i].Name, d);
+                }
+            }
         }
         return result;
     }

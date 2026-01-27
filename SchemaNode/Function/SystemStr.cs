@@ -104,7 +104,8 @@ public static class SystemStr
     }
 
     [Schema]
-    public static string newguid() => Guid.NewGuid().ToString();
+    [ServerOnly]
+    public static string newguid() => Guid.CreateVersion7().ToString();
 
     #endregion
 }

@@ -285,10 +285,12 @@ public abstract class AnySchemaType: IDisposable
         
         if (this is TypeNamespace ns)
         {
-            foreach (var s in ns.SchemaNodes)
+            foreach (var s in ns.Schemas)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                await s.Value.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                var sns = await ctx.GetSchemaTypeAsync(s.Name);
+                if (sns != null)
+                    await sns.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
             }
         }
 
