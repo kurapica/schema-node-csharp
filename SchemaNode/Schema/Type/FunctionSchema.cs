@@ -94,6 +94,16 @@ public class FunctionSchema
     }
     
     /// <summary>
+    /// The function can only be used in workflow
+    /// </summary>
+    [NotMapped]
+    public bool? WorkflowOnly
+    {
+        get => Flags.Has(FuncTraits.WorkflowOnly);
+        init => Flags = Flags.Turn(FuncTraits.WorkflowOnly, value);
+    }
+    
+    /// <summary>
     /// The function traits
     /// </summary>
     [Flags]
@@ -120,6 +130,11 @@ public class FunctionSchema
         /// Has observable side effects
         /// </summary>
         SideEffect = 1 << 3,
+        
+        /// <summary>
+        /// The function can only be used in workflow
+        /// </summary>
+        WorkflowOnly = 1 << 4,
     }
 }
 

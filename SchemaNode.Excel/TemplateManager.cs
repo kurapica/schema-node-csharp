@@ -766,59 +766,6 @@ public class TemplateManager
         _workbook.Close();
         _ms?.Close();
         
-
-        // Init-only field check, normally for primary key
-        if (_structType.Relations != null)
-        {
-            foreach (StructFieldRelation relation in _structType.Relations.Where(r =>
-                         r.Type == RelationType.InitOnly))
-            {
-                StructFieldConfig? field = _structType.Fields.FirstOrDefault(f => f.Name == relation.Field);
-                if (field == null) continue;
-                FunctionType? funcType = await _context.GetSchemaTypeAsync<FunctionType>(relation.Func);
-                if (funcType is null) continue;
-
-                foreach (JsonNode? node in array)
-                {
-                    if (node is not JsonObject data) continue;
-                    if (!(data[field.Name]?.IsEmpty() ?? true)) continue;
-                    object[] args = new  Object[relation.Args.Length];
-                    for (int k = 0; k < relation.Args.Length; k++)
-                    {
-                        FuncCallArg arg = relation.Args[k];
-                        if (!string.IsNullOrEmpty(arg.Name))
-                        {
-                            args[k] = data[arg.Name]!;
-                        }
-                        else
-                        {
-                            args[i] = (object?)arg.SchemeType?.CreateNode(arg.Value) ?? arg.Value!;
-                        }
-                    }
-                    data[field.Name] = await funcType.CallAsync<JsonValue>(_context, args);
-                }
-            }
-        }
-        // Filter with primary key
-        if (_arrayType.Primary is { Length: > 0 })
-        {
-            JsonArray combineAray = [];
-            HashSet<string> map = [];
-
-            foreach (JsonNode? item in array)
-            {
-                JsonObject? node = item as JsonObject;
-                if (node == null || node.IsEmpty()) continue;
-
-                if (_arrayType.Primary.Any(n => node[n].IsEmpty())) continue;
-                string key = string.Join('^', _arrayType.Primary.Select(n => node[n]!.ToString()));
-                if (map.Add(key))
-                    combineAray.Add(node.DeepClone());
-            }
-
-            array = combineAray;
-        }
-
         return array;
     }
 

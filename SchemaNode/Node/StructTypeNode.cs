@@ -3,6 +3,8 @@ using System.Runtime.Serialization;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Node;

@@ -162,7 +162,7 @@ public class StructType: AnySchemaType
     /// <inheritdoc />
     public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
     {
-        if (value is not JsonObject jobject)
+        if (value is not JsonObject jObject)
             return (null, TYPE_VALUE_NOT_VALID);
         
         // validate fields
@@ -173,9 +173,9 @@ public class StructType: AnySchemaType
             if (field.DisplayOnly ?? false) continue;
             if (field.SchemeType is null) continue;
 
-            if (jobject.ContainsKey(field.Name) && !jobject[field.Name].IsEmpty())
+            if (jObject.ContainsKey(field.Name) && !jObject[field.Name].IsEmpty())
             {
-                (AnySchemaNode? v, JsonNode? e) = await field.SchemeType.ValidateValueAsync(context, jobject[field.Name]!);
+                (AnySchemaNode? v, JsonNode? e) = await field.SchemeType.ValidateValueAsync(context, jObject[field.Name]!);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -188,6 +188,35 @@ public class StructType: AnySchemaType
             }
             else if (field.Require ?? false)
             {
+                StructFieldRelation? r = Relations?.FirstOrDefault(r => 
+                    r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
+                    r.Type is RelationType.InitOnly or RelationType.Assign or RelationType.Default);
+
+                // Complete by relation
+                if (r != null)
+                {
+                    r.FuncNode ??=  await context.GetSchemaTypeAsync<FunctionType>(r.Func);
+                    if (r.FuncNode != null)
+                    {
+                        object?[] args = new Object[r.Args.Length];
+                        for (int k = 0; k < r.Args.Length; k++)
+                        {
+                            FuncCallArg arg = r.Args[k];
+                            if (!string.IsNullOrEmpty(arg.Name))
+                            {
+                                args[k] = result.GetValueByPaths(arg.Name.Split('.', StringSplitOptions.RemoveEmptyEntries));
+                            }
+                            else
+                            {
+                                args[k] = (object?)arg.SchemeType?.CreateNode(arg.Value) ?? arg.Value!;
+                            }
+                        }
+                        result[field.Name] = await r.FuncNode.CallAsync<JsonNode>(context, args);
+                        if (!result.GetField(field.Name)!.IsEmpty)
+                            continue;
+                    }
+                }
+                
                 error ??= new JsonObject();
                 error[field.Name] = TYPE_VALUE_STRUCT_MEMBER_REQUIRE;
             }

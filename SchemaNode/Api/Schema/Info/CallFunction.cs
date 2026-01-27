@@ -22,7 +22,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
 
         // get function node
         AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);
-        if (node is not FunctionType func)  return new  CallFunctionResponse { Result = null };
+        if (node is not FunctionType func || func.WorkflowOnly == true)  return new  CallFunctionResponse { Result = null };
 
         // set target
         if (!string.IsNullOrWhiteSpace(request.Target))

@@ -477,9 +477,11 @@ public static class SystemData
             : null;
 
         AppFieldType? fieldType = appType?.GetField(field);
-        AnySchemaNode? dataNode = fieldType?.SchemaType?.CreateNode(data);
-        if (dataNode == null || dataNode.IsEmpty) return false;
-
+        if (fieldType == null) return false;
+        
+        (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
+        if (error != null || dataNode == null || dataNode.IsEmpty) return false;
+        
         context.SetAccess(app, target);
 
         await context.BeginTransactionAsync();

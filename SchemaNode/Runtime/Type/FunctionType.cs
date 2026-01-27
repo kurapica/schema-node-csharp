@@ -67,6 +67,11 @@ public class FunctionType : AnySchemaType
     /// </summary>
     public bool? SideEffect { get; private set; }
     
+    /// <summary>
+    /// The function is workflow only
+    /// </summary>
+    public bool? WorkflowOnly { get; private set; }
+    
     #endregion
     
     #region Status
@@ -131,6 +136,7 @@ public class FunctionType : AnySchemaType
         Nocache = func?.Nocache;
         Converter = func?.Converter;
         SideEffect = func?.SideEffect;
+        WorkflowOnly = func?.WorkflowOnly;
         MethodInfo = StaticMethodMap.TryGetValue(schema.Name, out SchemaFuncInfo? info) ? info.Method : null;
 
         // Status
@@ -795,6 +801,7 @@ public class FunctionType : AnySchemaType
                 Server = method.IsDefined(typeof(ServerOnlyAttribute)),
                 SideEffect = method.IsDefined(typeof(SideEffectAttribute)),
                 Converter = method.IsDefined(typeof(ConverterAttribute)),
+                WorkflowOnly = method.IsDefined(typeof(WorkflowOnlyAttribute)),
                 Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
@@ -987,6 +994,7 @@ public class FunctionType : AnySchemaType
             Server = schema.Server,
             Nocache = schema.Nocache,
             SideEffect = schema.SideEffect,
+            WorkflowOnly = schema.WorkflowOnly,
             Converter = schema.Converter,
         });
     }
