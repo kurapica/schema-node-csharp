@@ -583,11 +583,11 @@ public class TemplateManager
         _sheet!.AddMergedRegion(new CellRangeAddress(startRow, endRow, startCol, endCol));
     }
 
-    async Task GenerateEnumList(EnumType node, List<(string, string)> enumList, EnumValueInfo[] values, bool anyLevel, int level, string[]? whiteList = null, string[]? blackList = null, string prefix = "")
+    async Task GenerateEnumList(EnumType node, List<(string, string)> enumList, EnumValueInfo[] values, bool anyLevel, int level, JsonArray? whiteList = null, JsonArray? blackList = null, string prefix = "")
     {
         (string, string, bool)[] items = values.Select(v => (v.Value, _context.GetLocaleString(v.Name)!, v.HasSubList ?? false)).ToArray();
-        if (whiteList is { Length: > 0 }) items = items.Where(v => whiteList.Contains(v.Item1)).ToArray();
-        if (blackList is { Length: > 0 }) items = items.Where(v => !blackList.Contains(v.Item1)).ToArray();
+        if (whiteList is { Count: > 0 }) items = items.Where(v => whiteList.Contains(v.Item1)).ToArray();
+        if (blackList is { Count: > 0 }) items = items.Where(v => !blackList.Contains(v.Item1)).ToArray();
 
         level = level - 1;
         if (level > 0)

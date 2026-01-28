@@ -6,6 +6,8 @@ using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Nodes;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -240,12 +242,12 @@ public class StructFieldConfig
     /// <summary>
     /// The white list
     /// </summary>
-    public string[]? WhiteList { get; set; }
+    public JsonArray? WhiteList { get; set; }
     
     /// <summary>
     /// The black list
     /// </summary>
-    public string[]? BlackList { get; set; }
+    public JsonArray? BlackList { get; set; }
 
     /// <summary>
     /// The low limit of the scalar value.

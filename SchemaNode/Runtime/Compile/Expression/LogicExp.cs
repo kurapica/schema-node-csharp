@@ -2,6 +2,7 @@
 using SchemaNode.Function;
 using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
 
@@ -79,7 +80,7 @@ public abstract record LogicExp(LogicType Type, AnySchemaType SchemaType) : Sche
 /// <param name="Inner">The inner exp</param>
 /// <param name="SchemaType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record UnaryLogicExp(LogicType Type, SchemaExp Inner, AnySchemaType SchemaType, MethodInfo? Method = null) : LogicExp(Type, SchemaType);
+public record UnaryLogicExp(LogicType Type, SchemaExp Inner, AnySchemaType SchemaType, FunctionType? Method = null) : LogicExp(Type, SchemaType);
 
 /// <summary>
 /// The binary logic expression
@@ -89,7 +90,7 @@ public record UnaryLogicExp(LogicType Type, SchemaExp Inner, AnySchemaType Schem
 /// <param name="Right">The right exp</param>
 /// <param name="SchemaType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, AnySchemaType SchemaType, MethodInfo? Method = null) : LogicExp(Type, SchemaType);
+public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, AnySchemaType SchemaType, FunctionType? Method = null) : LogicExp(Type, SchemaType);
 
 #endregion
 
@@ -131,14 +132,14 @@ public class LogicExpVisitor : IExpVisitor
 
         LogicExp? logicExp = callExp.Function.Args.Length switch
         {
-            1 => new UnaryLogicExp(logicAttr.Type, callExp.Args[0], exp.SchemaType, logicAttr.IncludeMethod ? method : null),
-            2 => new BinaryLogicExp(logicAttr.Type, callExp.Args[0], callExp.Args[1], exp.SchemaType, logicAttr.IncludeMethod ? method : null),
+            1 => new UnaryLogicExp(logicAttr.Type, callExp.Args[0], exp.SchemaType, logicAttr.IncludeMethod ? callExp.Function : null),
+            2 => new BinaryLogicExp(logicAttr.Type, callExp.Args[0], callExp.Args[1], exp.SchemaType, logicAttr.IncludeMethod ? callExp.Function : null),
             _ => null
         };
 
         // Simplify NOT expressions
         if (logicExp?.Type == LogicType.Not && logicExp is UnaryLogicExp { Inner: LogicExp innerExp })
-            logicExp = NotExp(innerExp) ?? logicExp;
+            logicExp = (await NotExpAsync(context.Context, innerExp)) ?? logicExp;
         
         // Re-order the compare expressions
         return ReOrderCompareExp(logicExp);
@@ -170,7 +171,7 @@ public class LogicExpVisitor : IExpVisitor
                     }
                     case LogicType.IsEmpty:
                     case LogicType.NotEmpty:
-                        return Expression.Call(null, unExp.Method!, await context.CompileSchemaExpAsync(unExp.Inner));
+                        return await context.CompileSchemaExpAsync(new FuncCallExp(unExp.Method!, [unExp.Inner], unExp.SchemaType));
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -191,14 +192,14 @@ public class LogicExpVisitor : IExpVisitor
                     LogicType.GreaterEqual => Expression.GreaterThanOrEqual(left, right),
                     LogicType.LessThan => Expression.LessThan(left, right),
                     LogicType.LessEqual => Expression.LessThanOrEqual(left, right),
-                    _ => Expression.Call(null, binExp.Method!, left, right)
+                    _ => await context.CompileSchemaExpAsync(new FuncCallExp(binExp.Method!, [binExp.Left, binExp.Right], binExp.SchemaType))
                 };
         }
 
         return null;
     }
     
-    LogicExp? NotExp(LogicExp exp)
+    async Task<LogicExp?> NotExpAsync(SchemaContext context, LogicExp exp)
     {
         return exp switch
         {
@@ -208,25 +209,23 @@ public class LogicExpVisitor : IExpVisitor
                 
                 LogicType.IsNull => new UnaryLogicExp(LogicType.NotNull, unaryLogicExp.Inner, exp.SchemaType),
                 
-                LogicType.IsEmpty => new UnaryLogicExp(LogicType.NotEmpty, unaryLogicExp.Inner, exp.SchemaType,
-                    typeof(SystemLogic).GetMethod(nameof(SystemLogic.notempty), BindingFlags.Public|BindingFlags.Static)),
+                LogicType.IsEmpty => new UnaryLogicExp(LogicType.NotEmpty, unaryLogicExp.Inner, exp.SchemaType, await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}") ),
                 
                 LogicType.NotNull => new UnaryLogicExp(LogicType.IsNull, unaryLogicExp.Inner, exp.SchemaType),
                 
-                LogicType.NotEmpty => new UnaryLogicExp(LogicType.IsEmpty, unaryLogicExp.Inner, exp.SchemaType,
-                    typeof(SystemLogic).GetMethod(nameof(SystemLogic.isempty), BindingFlags.Public|BindingFlags.Static)),
+                LogicType.NotEmpty => new UnaryLogicExp(LogicType.IsEmpty, unaryLogicExp.Inner, exp.SchemaType, await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.isempty)}") ),
                 _ => null
             },
             BinaryLogicExp binaryLogicExp => binaryLogicExp.Type switch
             {
                 LogicType.AndAlso => new BinaryLogicExp(LogicType.OrElse, 
-                    NotExp((binaryLogicExp.Left as LogicExp)!)!,
-                    NotExp((binaryLogicExp.Right as LogicExp)!)!, 
+                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!))!,
+                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!))!, 
                         exp.SchemaType),
                 
                 LogicType.OrElse => new BinaryLogicExp(LogicType.AndAlso,
-                    NotExp((binaryLogicExp.Left as LogicExp)!)!,
-                    NotExp((binaryLogicExp.Right as LogicExp)!)!, 
+                    (await NotExpAsync(context, (binaryLogicExp.Left as LogicExp)!))!,
+                    (await NotExpAsync(context, (binaryLogicExp.Right as LogicExp)!))!, 
                         exp.SchemaType),
                             
                 LogicType.Equal => new BinaryLogicExp(LogicType.NotEqual, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType),
@@ -235,29 +234,30 @@ public class LogicExpVisitor : IExpVisitor
                 LogicType.GreaterEqual => new BinaryLogicExp(LogicType.LessThan, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType),
                 LogicType.LessThan => new BinaryLogicExp(LogicType.GreaterEqual, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType),
                 LogicType.LessEqual => new BinaryLogicExp(LogicType.GreaterThan, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType),
+                
                 LogicType.Contains => new BinaryLogicExp(LogicType.NotContains, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemCollection).GetMethod(nameof(SystemCollection.notcontains), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.notcontains)}") ),
                 
                 LogicType.NotContains => new BinaryLogicExp(LogicType.Contains, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemCollection).GetMethod(nameof(SystemCollection.contains), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}") ),
                 
                 LogicType.StartsWith => new BinaryLogicExp(LogicType.NotStartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.notstartswith), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notstartswith)}") ),
                 
                 LogicType.NotStartsWith => new BinaryLogicExp(LogicType.StartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.startswith), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.startswith)}") ),
                 
                 LogicType.EndsWith => new BinaryLogicExp(LogicType.NotEndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.notendswith), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notendswith)}") ),
                 
                 LogicType.NotEndsWith => new BinaryLogicExp(LogicType.EndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.endswith), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.endswith)}") ),
                 
                 LogicType.Match => new BinaryLogicExp(LogicType.NotMatch, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.notmatch), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notmatch)}") ),
                 
                 LogicType.NotMatch => new BinaryLogicExp(LogicType.Match, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    typeof(SystemStr).GetMethod(nameof(SystemStr.match), BindingFlags.Public|BindingFlags.Static)),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.match)}") ),
                 
                 _ => null
             },

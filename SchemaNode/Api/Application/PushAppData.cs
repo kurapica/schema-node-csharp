@@ -175,7 +175,7 @@ public static class PushDataExtenstion
             if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }
-        catch
+        catch(Exception ex)
         {
             throw new UnauthorizedAccessException();
         }
