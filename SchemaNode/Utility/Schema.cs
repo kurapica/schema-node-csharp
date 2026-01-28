@@ -32,7 +32,7 @@ public static class Schema
         foreach (string path in schemaName.SplitTypeName())
         {
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-            node = node.Schemas?.FirstOrDefault(x => x.Name == fullPath);
+            node = node.Schemas?.FirstOrDefault(x => x.Name.Equals(fullPath));
             if (node == null) return null;
         }
         return node;

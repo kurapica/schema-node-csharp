@@ -786,7 +786,7 @@ public class FunctionType : AnySchemaType
         }
 
         // Generate func schema
-        var name = funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name.ToLowerInvariant()}";
+        var name = (funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name}").ToLowerInvariant();
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
