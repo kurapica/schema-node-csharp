@@ -196,6 +196,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
                         }
                         fields.Add(new StructFieldExp(f.Name, fieldExp));
+
+                        string acc = f.Name.Split('.').First();
+                        accessCount[acc] = accessCount.GetValueOrDefault(acc, 0) + 1;
                     }
                     else if (f.Require ?? false)
                     {
@@ -854,7 +857,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
         for (int i = _visitors.Length - 1; i >= 0; i--)
         {
             Expression? resExp = await _visitors[i].CompileExpAsync(this, exp, expectedType);
-            if (resExp != null) return ConvertExp(expectedType, resExp);
+            if (resExp != null) 
+                return ConvertExp(expectedType, resExp);
         }
         
         #endregion 

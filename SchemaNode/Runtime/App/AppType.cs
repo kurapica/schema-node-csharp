@@ -209,8 +209,9 @@ public class AppType
                             {
                                 field.Status = fv.Status;
                             }
-                            catch
+                            catch(Exception ex)
                             {
+                                context.LogError(ex,$"AppType.LoadAsync: push function compile error for app {Name} field {field.Name}");
                                 field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
                             }
                         }

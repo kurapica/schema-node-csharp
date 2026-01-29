@@ -220,8 +220,10 @@ public class IntrinsicExpVisitor : IExpVisitor
             case DefaultExp defaultExp:
             {
                 if (defaultExp.Inner is LogicExp) return await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
-                return Expression.Coalesce(await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType),
-                    Expression.Constant(expectedType.TryConvert(defaultExp.Default.Value), expectedType));
+                var inner = await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
+                return inner.Type.IsNullable() ? Expression.Coalesce(inner,
+                    Expression.Constant(expectedType.TryConvert(defaultExp.Default.Value), expectedType))
+                        : inner;
             }
             
             // null
