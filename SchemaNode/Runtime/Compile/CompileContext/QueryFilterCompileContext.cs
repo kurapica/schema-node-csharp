@@ -91,6 +91,7 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
         return exp switch
         {
             VariableExp varExp => await CompileDataSourceFilter(varExp.Value), // nested variable
+            DefaultExp defaultExp => await CompileDataSourceFilter(defaultExp.Inner),
             QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
             BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),

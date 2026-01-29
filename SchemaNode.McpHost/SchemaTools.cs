@@ -97,7 +97,7 @@ public class SchemaTools
         [Description(
             "Function input arguments as a JSON array. " +
             "Each element corresponds to a parameter defined in the function's schema signature."
-            )]JsonArray? parameters = null,
+            )]JsonNode[] parameters,
         [Description(
             "Optional schema type name that defines the expected return structure. " +
             "If provided, the result will conform to this schema type."
@@ -107,9 +107,10 @@ public class SchemaTools
         if (node is not FunctionType functionType)
             throw new InvalidOperationException($"Function '{functionName}' not found.");
 
-        return await context.CallFunctionAsync(functionType, parameters ?? [], returnType);
+        return await functionType.CallAsync<JsonNode>(context, parameters as object[], returnType);
     }
-
+#if false
+    
     [McpServerTool, Description(
          "Create or update a schema node definition in the schema type system. " +
          "This operation modifies the schema type model by saving the provided node schema. " +
@@ -161,6 +162,6 @@ public class SchemaTools
     {
         return await context.DeleteSchemaAsync(name);
     }
-    
+#endif
     #endregion
 }

@@ -111,29 +111,31 @@ public class StructTypeNode : AnySchemaNode
             else if(value is JsonObject obj)
             {
                 StructFieldConfig[] fields = (SchemaType as StructType)!.Fields;
+                Dictionary<string, AnySchemaNode> fieldMap = [];
                 JsonTypeNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    Fields[i].Value = obj[fields[i].Name];
-                    if (fields[i].Unpack ?? true)
+                    fieldMap[fields[i].Name.ToLower()] = Fields[i];
+                    if (fields[i].Unpack ?? false)
                         unpackNode = Fields[i] as JsonTypeNode;
                 }
 
-                if (unpackNode != null)
+                JsonObject? packData = unpackNode != null ? new JsonObject() : null;
+                foreach ((string key, JsonNode? val) in obj)
                 {
-                    JsonObject v = unpackNode.Value as JsonObject ?? new JsonObject();
-                    if (v.IsEmpty())
+                    if (fieldMap.TryGetValue(key.ToLower(), out AnySchemaNode? field))
                     {
-                        foreach ((string key, JsonNode? val) in obj)
-                        {
-                            if (fields.All(f => f.Name != key))
-                            {
-                                v[key] = val?.DeepClone();
-                            }
-                        }
-
-                        unpackNode.Value = v;
+                        field.Value = val;
                     }
+                    else if (packData != null)
+                    {
+                        packData[key] = val?.DeepClone();
+                    }
+                }
+                
+                if (unpackNode != null && (unpackNode.Value is not JsonObject jobj || jobj.IsEmpty()))
+                {
+                    unpackNode.Value = packData;
                 }
             }
             else if(value.GetType() == CsharpType)
@@ -211,7 +213,7 @@ public class StructTypeNode : AnySchemaNode
                     {
                         foreach ((string key, JsonNode? val) in obj)
                         {
-                            if (!result.ContainsKey(key))
+                            if (!result.ContainsKey(key) && val != null && !val.IsEmpty())
                                 result[key] = val?.DeepClone();
                         }
                     }

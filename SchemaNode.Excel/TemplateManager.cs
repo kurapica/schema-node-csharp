@@ -318,9 +318,18 @@ public class TemplateManager
             }
             case ScalarType scalarType:
             {
-                // Works like enum type
-                if(_entryListMap.TryGetValue(token, out List<Entry>? entries))
+                if (!_entryListMap.TryGetValue(token, out List<Entry>? entries))
                 {
+                    if (field.Entries is { Length: > 0 })
+                        entries = field.Entries.ToList();
+                }
+                
+                // Works like enum type
+                if (entries is { Count: > 0 })
+                {
+                    List<(string, string)> enumList = [];
+                    GenerateEntryList(entries, enumList, field.AnyLevel ?? false);
+                    
                     // code
                     IRow row = _sheet!.GetOrCreateRow(startRow);
                     ICell cell = row.GetOrCreateCell(startCol);
@@ -343,14 +352,14 @@ public class TemplateManager
                     string sheetName = _context.GetLocaleString(field.Display) ?? field.Name;
                     if (!string.IsNullOrWhiteSpace(prevDisplay)) sheetName = $"{prevDisplay}-{sheetName}";
                     ISheet enumSheet = _workbook!.CreateSheet(sheetName);
-                    for (int k = 0; k < entries.Count; k++)
+                    for (int k = 0; k < enumList.Count; k++)
                     {
                         IRow enumRow = enumSheet.GetOrCreateRow(k);
                         ICell enumCell = enumRow.GetOrCreateCell(0);
-                        enumCell.SetCellValue(_context.GetLocaleString(entries[k].Label) ?? entries[k].Value);
+                        enumCell.SetCellValue(enumList[k].Item2);
                         
                         enumCell = enumRow.GetOrCreateCell(1);
-                        enumCell.SetCellValue(entries[k].Value);
+                        enumCell.SetCellValue(enumList[k].Item1);
                     }
 
                     // Example data cell
@@ -583,11 +592,11 @@ public class TemplateManager
         _sheet!.AddMergedRegion(new CellRangeAddress(startRow, endRow, startCol, endCol));
     }
 
-    async Task GenerateEnumList(EnumType node, List<(string, string)> enumList, EnumValueInfo[] values, bool anyLevel, int level, JsonArray? whiteList = null, JsonArray? blackList = null, string prefix = "")
+    async Task GenerateEnumList(EnumType node, List<(string, string)> enumList, EnumValueInfo[] values, bool anyLevel, int level, string[]? whiteList = null, string[]? blackList = null, string prefix = "")
     {
         (string, string, bool)[] items = values.Select(v => (v.Value, _context.GetLocaleString(v.Name)!, v.HasSubList ?? false)).ToArray();
-        if (whiteList is { Count: > 0 }) items = items.Where(v => whiteList.Contains(v.Item1)).ToArray();
-        if (blackList is { Count: > 0 }) items = items.Where(v => !blackList.Contains(v.Item1)).ToArray();
+        if (whiteList is { Length: > 0 }) items = items.Where(v => whiteList.Contains(v.Item1)).ToArray();
+        if (blackList is { Length: > 0 }) items = items.Where(v => !blackList.Contains(v.Item1)).ToArray();
 
         level = level - 1;
         if (level > 0)
@@ -604,6 +613,19 @@ public class TemplateManager
         {
             prefix = string.IsNullOrWhiteSpace(prefix) ? "" : $"{prefix}/";
             enumList.AddRange(items.Select(i => (i.Item1, $"{prefix}{i.Item2}")));
+        }
+    }
+
+    void  GenerateEntryList(IEnumerable<Entry> entries, List<(string, string)> enumList, bool anyLevel, string prefix = "")
+    {
+        (string, string, Entry[]?)[] items = entries.Select(v => (v.Value, _context.GetLocaleString(v.Label) ?? v.Value, v.Children is { Length: > 0 } ? v.Children : null)).ToArray();
+        
+        foreach ((string, string, Entry[]?) item in items)
+        {
+            string name = string.IsNullOrWhiteSpace(prefix) ? item.Item2 : $"{prefix}/{item.Item2}";
+            if (anyLevel || item.Item3 == null) enumList.Add((item.Item1, name));
+            if (item.Item3 != null)
+                GenerateEntryList(item.Item3, enumList, anyLevel, name);
         }
     }
 
@@ -705,7 +727,7 @@ public class TemplateManager
                         {
                             validValue = JsonValue.Create(value == Yes);
                         }
-                        if (@scalar.IsDate)
+                        else if (@scalar.IsDate)
                         {
                             if (DateTime.TryParse(value, out DateTime date))
                                 validValue = JsonValue.Create(date);

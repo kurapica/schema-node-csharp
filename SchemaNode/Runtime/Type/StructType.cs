@@ -284,20 +284,118 @@ public class StructType: AnySchemaType
             type is { IsClass: true, IsAbstract: true } ||
             (type.IsValueType && type.IsPrimitiveLike())) return [];
         
-        PropertyInfo[] properties = type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>
-            p.GetMethod?.IsPrivate != true &&
-            p.GetCustomAttribute<NotMappedAttribute>() == null &&
-            p is { CanRead: true, CanWrite: true } && (
-                p.GetCustomAttribute<SchemaAttribute>() != null ||
-                !string.IsNullOrWhiteSpace(p.PropertyType.GetSchemaType(true)))
-            ).OrderBy(p => p.MetadataToken).ToArray();
-        if (properties.Length == 0) return [];
-
         List<PropertyInfo> fieldMaps = [];
         string[] primarys = [];
         Dictionary<string, string[]> indexes = [];
         SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
+        bool hasNestArray = false;
+
+        List<StructFieldConfig> fieldConfigs = [];
+        foreach (PropertyInfo p in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>
+                     p.GetMethod?.IsPrivate != true &&
+                     p.GetCustomAttribute<NotMappedAttribute>() == null &&
+                     p is { CanRead: true, CanWrite: true })
+                     .OrderBy(p => p.MetadataToken))
+        {
+
+            SchemaAttribute? fieldAttr = p.GetCustomAttribute<SchemaAttribute>();
+            string fieldName = p.Name.ToCamelCase();
+            
+            // Gets the field type
+            string? fieldType = fieldAttr?.Name;
+            if (string.IsNullOrWhiteSpace(fieldType))
+            {
+                var info = p.PropertyType.GetSchemaTypeInfo();
+                if (info?.BaseType == type)
+                {
+                    if (info.AnyArray)
+                    {
+                        hasNestArray = true;
+                        fieldType = $"{typeName}s";
+                    }
+                    else
+                        fieldType = typeName;
+                }
+                else
+                    fieldType = info?.GetSchemaType(true, ns);
+                if (string.IsNullOrWhiteSpace(fieldType))
+                    continue;
+            }
+            
+            StructFieldConfig config = new ()
+            {
+                Name = fieldName,
+                Type = fieldType,
+                Require = p.GetCustomAttribute<RequiredAttribute>() != null,
+                Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
+            };
+
+            // limit check
+            if (config.Type == NS_SYSTEM_STRING)
+            {
+                StringLengthAttribute? strLenAttr = p.GetCustomAttribute<StringLengthAttribute>();
+                MaxLengthAttribute? maxLengthAttribute = p.GetCustomAttribute<MaxLengthAttribute>();
+                config.UpLimit = (strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length)?.ToString();
+                config.LowLimit = (strLenAttr?.MinimumLength ?? 0).ToString();
+            }
+            else
+            {
+                RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
+                if (rangeAttr != null)
+                {
+                    config.LowLimit = rangeAttr.Minimum.ToLiteral();
+                    config.UpLimit = rangeAttr.Maximum.ToLiteral();
+                }
+            }
+
+            // index check
+            foreach(IndexAttribute attr in p.GetCustomAttributes<IndexAttribute>())
+            {
+                if (string.IsNullOrEmpty(attr.Name))
+                {
+                    // primary
+                    if (attr.Order >= primarys.Length)
+                        Array.Resize(ref primarys, attr.Order + 1);
+
+                    if (string.IsNullOrWhiteSpace(primarys[attr.Order]))
+                    {
+                        // with given order
+                        primarys[attr.Order] = config.Name;
+                    }
+                    else
+                    {
+                        // follow default order
+                        Array.Resize(ref primarys, primarys.Length + 1);
+                        primarys[^1] = config.Name;
+                    }
+                }
+                else
+                {
+                    // normal index
+                    if (!indexes.ContainsKey(attr.Name)) indexes[attr.Name] = [];
+                    string[] fields = indexes[attr.Name];
+                    if (attr.Order >= fields.Length)
+                        Array.Resize(ref fields, attr.Order + 1);
+
+                    if (string.IsNullOrWhiteSpace(fields[attr.Order]))
+                    {
+                        // with given order
+                        fields[attr.Order] = config.Name;
+                    }
+                    else
+                    {
+                        // follow default order
+                        Array.Resize(ref fields, fields.Length + 1);
+                        fields[^1] = config.Name;
+                    }
+                    indexes[attr.Name] = fields;
+                }
+            }
+            
+            fieldMaps.Add(p);
+            fieldConfigs.Add(config);
+        }
 
         NodeSchema structSchema = new ()
         {
@@ -306,89 +404,12 @@ public class StructType: AnySchemaType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Struct = new StructSchema
             {
-                Fields = properties.Select(p =>
-                {
-                    fieldMaps.Add(p);
-
-                    SchemaAttribute? fieldAttr = p.GetCustomAttribute<SchemaAttribute>();
-                    string fieldName = p.Name.ToCamelCase();
-                    StructFieldConfig config = new ()
-                    {
-                        Name = fieldName,
-                        Type = fieldAttr?.Name ?? p.PropertyType.GetSchemaType(defaultNs: ns)!,
-                        Require = p.GetCustomAttribute<RequiredAttribute>() != null,
-                        Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
-                    };
-
-                    // limit check
-                    if (config.Type == NS_SYSTEM_STRING)
-                    {
-                        StringLengthAttribute? strLenAttr = p.GetCustomAttribute<StringLengthAttribute>();
-                        MaxLengthAttribute? maxLengthAttribute = p.GetCustomAttribute<MaxLengthAttribute>();
-                        config.UpLimit = (strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length)?.ToString();
-                        config.LowLimit = (strLenAttr?.MinimumLength ?? 0).ToString();
-                    }
-                    else
-                    {
-                        RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
-                        if (rangeAttr != null)
-                        {
-                            config.LowLimit = rangeAttr.Minimum.ToLiteral();
-                            config.UpLimit = rangeAttr.Maximum.ToLiteral();
-                        }
-                    }
-
-                    // index check
-                    foreach(IndexAttribute attr in p.GetCustomAttributes<IndexAttribute>())
-                    {
-                        if (string.IsNullOrEmpty(attr.Name))
-                        {
-                            // primary
-                            if (attr.Order >= primarys.Length)
-                                Array.Resize(ref primarys, attr.Order + 1);
-
-                            if (string.IsNullOrWhiteSpace(primarys[attr.Order]))
-                            {
-                                // with given order
-                                primarys[attr.Order] = config.Name;
-                            }
-                            else
-                            {
-                                // follow default order
-                                Array.Resize(ref primarys, primarys.Length + 1);
-                                primarys[^1] = config.Name;
-                            }
-                        }
-                        else
-                        {
-                            // normal index
-                            if (!indexes.ContainsKey(attr.Name)) indexes[attr.Name] = [];
-                            string[] fields = indexes[attr.Name];
-                            if (attr.Order >= fields.Length)
-                                Array.Resize(ref fields, attr.Order + 1);
-
-                            if (string.IsNullOrWhiteSpace(fields[attr.Order]))
-                            {
-                                // with given order
-                                fields[attr.Order] = config.Name;
-                            }
-                            else
-                            {
-                                // follow default order
-                                Array.Resize(ref fields, fields.Length + 1);
-                                fields[^1] = config.Name;
-                            }
-                            indexes[attr.Name] = fields;
-                        }
-                    }
-
-                    return config;
-                }).ToArray()
+                Fields = fieldConfigs.ToArray()
             }
         };
         CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
         
-        if (primarys.Length == 0) return [structSchema];
+        if (primarys.Length == 0 && !hasNestArray) return [structSchema];
         CSharpTypePrimaryProperties[structSchema.Name.ToLower()] = primarys.Select(p => fieldMaps.First(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray();
 
         NodeSchema arraySchema = new NodeSchema
@@ -400,6 +421,7 @@ public class StructType: AnySchemaType
             {
                 Element = structSchema.Name,
                 Primary = primarys,
+                Single = hasNestArray ? true : null,
                 Indexes = indexes.Select(kv => new DataIndex
                 {
                     Name = kv.Key,

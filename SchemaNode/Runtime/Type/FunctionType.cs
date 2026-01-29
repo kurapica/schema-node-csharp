@@ -232,8 +232,17 @@ public class FunctionType : AnySchemaType
                 exp.SchemaType?.AddRef(this);
                 exp.FuncNode?.AddRef(this);
                 
+                // State taint
                 if (exp.FuncNode?.RequireRemoteCall == true)
                     RequireRemoteCall = true;
+                if (exp.FuncNode?.Server == true)
+                    Server = true;
+                if (exp.FuncNode?.WorkflowOnly == true)
+                    WorkflowOnly = true;
+                if (exp.FuncNode?.SideEffect == true)
+                    SideEffect = true;
+                if (exp.FuncNode?.Nocache == true)
+                    Nocache = true;
             }
         }
         else if (isOkay)

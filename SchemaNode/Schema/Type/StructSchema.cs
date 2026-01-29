@@ -240,14 +240,19 @@ public class StructFieldConfig
     public string? Root { get; set; }
     
     /// <summary>
+    /// The scalar entries
+    /// </summary>
+    public Entry[]? Entries { get; set; }
+    
+    /// <summary>
     /// The white list
     /// </summary>
-    public JsonArray? WhiteList { get; set; }
+    public string[]? WhiteList { get; set; }
     
     /// <summary>
     /// The black list
     /// </summary>
-    public JsonArray? BlackList { get; set; }
+    public string[]? BlackList { get; set; }
 
     /// <summary>
     /// The low limit of the scalar value.

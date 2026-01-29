@@ -120,7 +120,7 @@ public static class Schema
     /// <summary>
     /// Try get the schema name of a assembly type, with auto register
     /// </summary>
-    static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false, string? defaultNs = null)
+    internal  static string? GetSchemaType(this SchemaParamTypeInfo typeInfo, bool autoConv = false, string? defaultNs = null)
     {
         if (typeInfo.Complex) return NS_SYSTEM_JSON; // Complex type, use JsonNode
         if (typeInfo.BaseType == null) return null; // Generic, no schema type

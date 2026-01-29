@@ -396,6 +396,11 @@ public class Entry
     /// The entry label
     /// </summary>
     public LocaleString? Label { get; set; }
+    
+    /// <summary>
+    /// The entry children
+    /// </summary>
+    public Entry[]? Children { get; set; }
 }
 
 /// <summary>
