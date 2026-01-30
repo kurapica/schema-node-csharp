@@ -63,5 +63,5 @@ public class ProtocolResponse : SchemaApiResponse
     /// <summary>
     /// The plugins used in this server
     /// </summary>
-    public string[] Plugins { get; init; }
+    public string[]? Plugins { get; init; }
 }

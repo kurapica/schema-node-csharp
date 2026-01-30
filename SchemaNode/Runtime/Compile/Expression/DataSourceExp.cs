@@ -114,6 +114,10 @@ public class DataSourceExpVisitor : IExpVisitor
             };
             dataField = (dataResultExp as FieldsCollectionResult)?.Field;
             exp = dataResultExp.Root;
+            
+            // predicate check
+            if (dataResultExp is PredicateCollectionResult { Predicate: not null } predicateResultExp)
+                filter = await CompileDataSourceFilter(context, predicateResultExp.Predicate);
         }
         
         string app = dataSource.Source.App;

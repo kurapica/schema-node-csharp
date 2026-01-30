@@ -406,7 +406,6 @@ public static class Injection
         bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
         
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();
-        var protocolMeta = apiProtocol.GetProtocolMeta(app.Services);
 
         foreach ((SchemaApiType apiType, string url)  in GetSchemaApis())
         {
@@ -466,7 +465,7 @@ public static class Injection
                 html = html.Replace("</head>", string.Join("", [
                     "<meta name=\"schema-embedded\" content=\"true\">",
                     $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",
-                    $"<meta name=\"schema-api-protocol\" content='{protocolMeta.ToJson()}'></head>"]));
+                    $"<meta name=\"schema-api-protocol\" content='{apiProtocol.GetProtocolMeta(app.Services).ToJson()}'></head>"]));
     
                 context.Response.ContentType = "text/html";
                 await context.Response.WriteAsync(html);

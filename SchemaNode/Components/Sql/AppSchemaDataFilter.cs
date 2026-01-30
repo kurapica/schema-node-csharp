@@ -158,9 +158,9 @@ public static class AppSchemaDataFilterExtensions
                 // if a OP null, should use isnull(a) instead, so return false here
                 if (leftTransformed is AppSchemaDataFilterValue leftOp)
                 {
-                    if (leftOp.Value is AnySchemaNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
+                    if (leftOp.Value is null || (leftOp.Value is AnySchemaNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
                         ? SystemCollection.arrlen(leftOp.Value) == 0
-                        : string.IsNullOrWhiteSpace(leftOp.Value.ToString()))
+                        : string.IsNullOrWhiteSpace(leftOp.Value.ToString())))
                     {
                         result = new AppSchemaDataFilterValue(false);
                         return true;

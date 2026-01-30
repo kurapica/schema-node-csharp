@@ -55,35 +55,38 @@ public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, Any
 public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, AnySchemaType SchemaType)
     : CollectionOperator(Root, SchemaType);
 
+public abstract record PredicateCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : CollectionResult(Root, SchemaType);
+
 /// <summary>
 /// The count collection expression
 /// </summary>
-public record CountCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, LogicExp? Expression = null)
-    : CollectionResult(Root, SchemaType);
+public record CountCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : PredicateCollectionResult(Root, SchemaType, Item, Predicate);
 
 /// <summary>
 /// The any collection expression
 /// </summary>
-public record AnyCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, LogicExp? Expression = null)
-    : CollectionResult(Root, SchemaType);
+public record AnyCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : PredicateCollectionResult(Root, SchemaType, Item, Predicate);
 
 /// <summary>
 /// The all collection expression
 /// </summary>
-public record AllCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, LogicExp? Expression = null)
-    : CollectionResult(Root, SchemaType);
+public record AllCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : PredicateCollectionResult(Root, SchemaType, Item, Predicate);
 
 /// <summary>
 /// The first collection expression
 /// </summary>
-public record FirstCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, LogicExp? Expression = null)
-    : CollectionResult(Root, SchemaType);
+public record FirstCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : PredicateCollectionResult(Root, SchemaType, Item, Predicate);
 
 /// <summary>
 /// The last collection expression
 /// </summary>
-public record LastCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, LogicExp? Expression = null)
-    : CollectionResult(Root, SchemaType);
+public record LastCollectionResult(CollectionRootExp Root, AnySchemaType SchemaType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
+    : PredicateCollectionResult(Root, SchemaType, Item, Predicate);
 
 /// <summary>
 /// The fields collection expression
@@ -481,7 +484,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(countExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(int));
-                Expression callMethod = await context.CompileSchemaExpAsync(countExp.Expression!);
+                Expression callMethod = await context.CompileSchemaExpAsync(countExp.Predicate!);
 
                 return Expression.Block(
                     [arrExp, resultExp, start, stop],
@@ -508,7 +511,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(anyExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(anyExp.Expression!);
+                Expression callMethod = await context.CompileSchemaExpAsync(anyExp.Predicate!);
 
                 // Compile
                 return Expression.Block(
@@ -540,7 +543,7 @@ public class CollectionExpVisitor : IExpVisitor
 
                 context.SetCompiledExpression(allExp.Item, iterator);
                 ParameterExpression resultExp = Expression.Variable(typeof(bool));
-                Expression callMethod = await context.CompileSchemaExpAsync(allExp.Expression!);
+                Expression callMethod = await context.CompileSchemaExpAsync(allExp.Predicate!);
 
                 // Compile
                 return Expression.Block(
@@ -591,7 +594,7 @@ public class CollectionExpVisitor : IExpVisitor
                 // Replace the call args
                 Expression temp = iterator;
                 context.SetCompiledExpression(firstExp.Item, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(firstExp.Expression!);
+                Expression callMethod = await context.CompileSchemaExpAsync(firstExp.Predicate!);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
@@ -646,7 +649,7 @@ public class CollectionExpVisitor : IExpVisitor
                 // Replace the call args
                 Expression temp = iterator;
                 context.SetCompiledExpression(lastExp.Item, resultExp);
-                Expression callMethod = await context.CompileSchemaExpAsync(lastExp.Expression!);
+                Expression callMethod = await context.CompileSchemaExpAsync(lastExp.Predicate!);
 
                 // New init parameter
                 ParameterExpression init = Expression.Parameter(resultExp.Type, "_init");
