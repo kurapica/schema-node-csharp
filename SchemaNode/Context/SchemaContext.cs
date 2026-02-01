@@ -23,6 +23,21 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// The max take count for increment field query
     /// </summary>
     internal static readonly SchemaNodeConfig Config = new ();
+
+    /// <summary>
+    /// The system boolean type
+    /// </summary>
+    public static ScalarType SystemBool { get; private set; } = null!;
+    
+    /// <summary>
+    /// The system integer type
+    /// </summary>
+    public static ScalarType SystemInt { get; private set; } = null!;
+    
+    /// <summary>
+    /// The system string type
+    /// </summary>
+    public static ScalarType SystemString { get; private set; } = null!;
     
     #endregion
 
@@ -40,6 +55,11 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         ResetTypeNamespace();
         ResetAppContainer();
         
+        // Set system basic types
+        SystemBool = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_BOOL))!;
+        SystemInt = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT))!;
+        SystemString = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_STRING))!;
+        
         LogInformation("[Runtime] System Schemas are registered.");
     }
 
@@ -54,13 +74,14 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     internal void ResetAppContainer(AppType? root = null)
     {
         root ??= RootAppType;
+        
+        // @TODO: Skip if has system defined fields, maybe support partial reload later
         if (root.Fields is { Count: > 0 }) return;
+        
         root.Loaded = false;
-        if (root.SubAppList != null)
-        {
-            foreach (AppType app in root.SubAppList.Values)
-                ResetAppContainer(app);
-        }
+        if (root.SubAppList == null) return;
+        foreach (AppType app in root.SubAppList.Values)
+            ResetAppContainer(app);
     }
     
     #endregion

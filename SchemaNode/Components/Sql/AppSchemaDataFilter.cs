@@ -47,6 +47,14 @@ public static class AppSchemaDataFilterExtensions
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, left, right);
     
     /// <summary>
+    /// Combine two filters with OR ELSE
+    /// </summary>
+    public static AppSchemaDataFilter OrElse(this AppSchemaDataFilter left, AppSchemaDataFilter right)
+        => left is AppSchemaDataFilterValue ? right
+                : right is AppSchemaDataFilterValue ? left
+                : new AppSchemaDataFilterBinary(LogicType.OrElse, left, right);
+    
+    /// <summary>
     /// Validate and transform the filter
     /// </summary>
     public static bool Transform(this AppSchemaDataFilter filter, out AppSchemaDataFilter? result)

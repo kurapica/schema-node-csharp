@@ -34,7 +34,7 @@ public static class AppDataTransactionExtension
     public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string target, T value)
     {
         (AppFieldType appFieldType, _) = await context.AssertAppField<T>();
-        return await SaveFieldDataAsync(context, appFieldType, target, appFieldType.SchemaType!.CreateNode(value));
+        return await context.SaveFieldDataAsync(appFieldType, target, appFieldType.SchemaType!.CreateNode(value));
     }
 
     /// <summary>
@@ -44,7 +44,7 @@ public static class AppDataTransactionExtension
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
         if (primaries == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
-        return await SaveFieldDataAsync(context, appFieldType, target, appFieldType.SchemaType!.CreateNode(values));
+        return await context.SaveFieldDataAsync(appFieldType, target, appFieldType.SchemaType!.CreateNode(values));
     }
 
     /// <summary>
@@ -53,7 +53,7 @@ public static class AppDataTransactionExtension
     public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
     {
         context.AssertType<T>(field);
-        return SaveFieldDataAsync(context, field, target, field.SchemaType!.CreateNode(value));
+        return context.SaveFieldDataAsync(field, target, field.SchemaType!.CreateNode(value));
     }
 
     /// <summary>
@@ -62,7 +62,7 @@ public static class AppDataTransactionExtension
     public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> values)
     {
         context.AssertType<T>(field);
-        return SaveFieldDataAsync(context, field, target, field.SchemaType!.CreateNode(values));
+        return context.SaveFieldDataAsync(field, target, field.SchemaType!.CreateNode(values));
     }
 
     /// <summary>
@@ -71,7 +71,7 @@ public static class AppDataTransactionExtension
     public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, JsonNode? value = null)
     {
         AnySchemaNode data = field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException();
-        return SaveFieldDataAsync(context, field, target, data);
+        return context.SaveFieldDataAsync(field, target, data);
     }
 
     /// <summary>
@@ -110,45 +110,38 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
+    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-
-        if (primaries != null)
-        {
-            JsonObject query = [];
-            foreach (PropertyInfo prop in primaries)
-            {
-                query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-            }
-            await DeleteFieldListDataAsync(context, appFieldType, target, [query]);
-        }
-        else
-        {
-            await SaveFieldDataAsync(context, appFieldType, target, null);
-        }
+        if (primaries == null) return await context.SaveFieldDataAsync(appFieldType, target, null);
+        
+        // only pass primary keys
+        JsonObject query = [];
+        foreach (PropertyInfo prop in primaries)
+            query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
+        return await context.DeleteFieldListDataAsync(appFieldType, target, [query]);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
+    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-        if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+        if (primaries == null || primaries.Count == 0)
+            return await context.SaveFieldDataAsync(appFieldType, target, null);
 
+        if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
         JsonObject query = [];
         for (int i = 0; i < keys.Length; i++)
             query[primaries[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
-
-        await DeleteFieldListDataAsync(context, appFieldType, target, [query]);
+        return await context.DeleteFieldListDataAsync(appFieldType, target, [query]);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
+    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
         if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
@@ -163,80 +156,64 @@ public static class AppDataTransactionExtension
             }
             query.Add(q);
         }
-
-        await DeleteFieldListDataAsync(context, appFieldType, target, query);
+        return await context.DeleteFieldListDataAsync(appFieldType, target, query);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
+    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
     {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-
-        EntityConditionVisitor visitor = new();
-        visitor.Visit(cond);
-        JsonNode filter = visitor.Condition;
-
-        if (filter is JsonObject obj && !obj.IsEmpty())
-            await DeleteFieldListDataAsync(context, appFieldType, target, [filter]);
-        else
-            throw new ArgumentException("The condition not valid");
+        (AppFieldType appFieldType, _) = await context.AssertAppField<T>();
+        return await context.DeleteFieldEntityAsync(appFieldType, target, cond);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
     {
         context.AssertType<T>(field);
-        return DeleteFieldListDataAsync(context, field, target, [value.ToJsonNode()]);
+        return context.DeleteFieldListDataAsync(field, target, [value.ToJsonNode()]);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task DeleteEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
     {
         context.AssertType<T>(field);
-        return DeleteFieldListDataAsync(context, field, target, (JsonArray?)value.ToJsonNode() ?? []);
+        return context.DeleteFieldListDataAsync(field, target, (JsonArray?)value.ToJsonNode() ?? []);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
     {
         context.AssertType<T>(field);
 
-        EntityConditionVisitor visitor = new();
-        visitor.Visit(cond);
-        JsonNode filter = visitor.Condition;
-
-        if (filter is JsonObject obj && !obj.IsEmpty())
-            await DeleteFieldListDataAsync(context, field, target, [filter]);
-        else
-            throw new ArgumentException("The condition not valid");
+        AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
+        return context.DeleteFieldListDataAsync(field, target, filter);
     }
 
     /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public static async Task DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, JsonArray query, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, JsonArray query, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return;
+        if (!field.EnableDynamicTable) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
         // Only non-single schema can be used
-        if (schema.Single) return;
+        if (schema.Single) return false;
         try
         {
-            if (query.Count == 0) return;
+            if (query.Count == 0) return false;
             (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, query);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
         }
@@ -245,35 +222,40 @@ public static class AppDataTransactionExtension
             context.Logger.LogError(ex.Message);
             throw;
         }
+
+        return true;
     }
 
     /// <summary>
-    /// Delete the target's field data
+    /// Delete the list from a list-struct type field data by filter
     /// </summary>
-    public static async Task DeleteFieldDataAsync(this SchemaContext context, AppFieldType field, string target, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, AppSchemaDataFilter filter)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return;
+        if (!field.EnableDynamicTable) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
+        // Only non-single schema can be used
+        if (schema.Single) return false;
         try
         {
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target);
-            if (result)
-                OnFieldDataChanged(context, target, field,
-                    schema.Single ? TransactionChangeOperation.Delete : TransactionChangeOperation.DropAll,
-                    null, origin);
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, filter);
+            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
             context.Logger.LogError(ex.Message);
             throw;
         }
+
+        return true;
     }
 
+    
+    
     #endregion
 
     #region Transaction & Data Push

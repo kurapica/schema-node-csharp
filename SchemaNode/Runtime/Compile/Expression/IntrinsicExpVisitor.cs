@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
@@ -236,12 +237,12 @@ public class IntrinsicExpVisitor : IExpVisitor
                 return fldAccess.Default != null
                     ? await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}"))!,
-                        [fldAccess.Owner, new ConstantExp((await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(fldAccess.FieldName)!), fldAccess.Default],
+                        [fldAccess.Owner, new ConstantExp(SchemaContext.SystemString.CreateNode(fldAccess.FieldName)!), fldAccess.Default],
                         fldAccess.SchemaType
                     ), expectedType)
                     : await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExp((await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(fldAccess.FieldName)!)],
+                        [fldAccess.Owner, new ConstantExp(SchemaContext.SystemString.CreateNode(fldAccess.FieldName)!)],
                         fldAccess.SchemaType
                     ), expectedType);
             }

@@ -297,77 +297,84 @@ public static class Injection
     {
         app.Lifetime.ApplicationStarted.Register(async void () =>
         {
-            using IServiceScope scope = app.Services.CreateScope();
-            SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
-            
-            // preload schema and app types·
-            context.LogInformation("[Preload] Loading schema ...");
-            context.ResetTypeNamespace();
-            await context.GetSchemaTypeAsync("", preload: true);
-            
-            context.LogInformation("[Preload] Loading application ...");
-            context.ResetAppContainer();
-            await context.GetAppTypeAsync("", preload: true);
-            
-            // re-compile function types
-            FunctionType[] funcs = ReCompileFuncTypes?.ToArray() ?? [];
-            ReCompileFuncTypes?.Clear();
-            
-            if (funcs.Length > 0)
-                context.LogInformation($"Re compiling {funcs.Length} function types ...");
-
-            int old = 0;
-            while (old != funcs.Length)
+            try
             {
-                foreach (var funcType in funcs)
-                {
-                    context.LogInformation($"Re compiling function type: {funcType.Name}");
-                    funcType.Status = SchemaNodeStatus.Ready;
-                    await funcType.PreCompileAsync(context);
-
-                    if (funcType.Status == SchemaNodeStatus.Ready) continue;
-                    ReCompileFuncTypes ??= [];
-                    ReCompileFuncTypes.Add(funcType);
-                }
-                old = funcs.Length;
-                funcs = ReCompileFuncTypes?.ToArray() ?? [];
+                using IServiceScope scope = app.Services.CreateScope();
+                SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+            
+                // preload schema and app types·
+                context.LogInformation("[Preload] Loading schema ...");
+                context.ResetTypeNamespace();
+                await context.GetSchemaTypeAsync("", preload: true);
+            
+                context.LogInformation("[Preload] Loading application ...");
+                context.ResetAppContainer();
+                await context.GetAppTypeAsync("", preload: true);
+            
+                // re-compile function types
+                FunctionType[] funcs = ReCompileFuncTypes?.ToArray() ?? [];
                 ReCompileFuncTypes?.Clear();
-            }
-            ReCompileFuncTypes = null;
             
-            // start work flows
-            context.LogInformation("[Preload] Starting workflows ...");
-            foreach(AppWorkflowType workflow in WorkflowTypes ?? [])
-            {
-                try
-                {
-                    context.LogInformation($"Starting workflow: {workflow.Name}");
-                    await workflow.LoadAsync(context);
-                }
-                catch (Exception ex)
-                {
-                    context.LogError(ex, $"Failed to start workflow: {workflow.Name}, error: {ex.Message}");
-                }
-            }
-            WorkflowTypes = null;
+                if (funcs.Length > 0)
+                    context.LogInformation($"Re compiling {funcs.Length} function types ...");
 
-            // start event source
-            context.LogInformation("[Preload] Starting event sources ...");
-            foreach(IEventSource eventSource in app.Services.GetServices<IEventSource>())
-            {
-                try
+                int old = 0;
+                while (old != funcs.Length)
                 {
-                    context.LogInformation($"Starting event source: {eventSource.GetType().FullName}");
-                    await eventSource.StartAsync(context, app.Lifetime.ApplicationStopping);
+                    foreach (var funcType in funcs)
+                    {
+                        context.LogInformation($"Re compiling function type: {funcType.Name}");
+                        funcType.Status = SchemaNodeStatus.Ready;
+                        await funcType.PreCompileAsync(context);
+
+                        if (funcType.Status == SchemaNodeStatus.Ready) continue;
+                        ReCompileFuncTypes ??= [];
+                        ReCompileFuncTypes.Add(funcType);
+                    }
+                    old = funcs.Length;
+                    funcs = ReCompileFuncTypes?.ToArray() ?? [];
+                    ReCompileFuncTypes?.Clear();
                 }
-                catch (Exception ex)
-                {
-                    context.LogError(ex, $"Failed to start event source: {eventSource.GetType().FullName}, error: {ex.Message}");
-                }
-            }
+                ReCompileFuncTypes = null;
             
-            // Preload completed
-            context.LogInformation("[Preload] Completed, starting service.");
+                // start work flows
+                context.LogInformation("[Preload] Starting workflows ...");
+                foreach(AppWorkflowType workflow in WorkflowTypes ?? [])
+                {
+                    try
+                    {
+                        context.LogInformation($"Starting workflow: {workflow.Name}");
+                        await workflow.LoadAsync(context);
+                    }
+                    catch (Exception ex)
+                    {
+                        context.LogError(ex, $"Failed to start workflow: {workflow.Name}, error: {ex.Message}");
+                    }
+                }
+                WorkflowTypes = null;
+
+                // start event source
+                context.LogInformation("[Preload] Starting event sources ...");
+                foreach(IEventSource eventSource in app.Services.GetServices<IEventSource>())
+                {
+                    try
+                    {
+                        context.LogInformation($"Starting event source: {eventSource.GetType().FullName}");
+                        await eventSource.StartAsync(context, app.Lifetime.ApplicationStopping);
+                    }
+                    catch (Exception ex)
+                    {
+                        context.LogError(ex, $"Failed to start event source: {eventSource.GetType().FullName}, error: {ex.Message}");
+                    }
+                }
+            
+                // Preload completed
+                context.LogInformation("[Preload] Completed, starting service.");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"[Preload] Failed: {e.Message}");
+            }
         });
         return app;
     }

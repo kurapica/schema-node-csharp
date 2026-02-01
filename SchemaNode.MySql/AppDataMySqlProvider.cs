@@ -8,7 +8,6 @@ using MySqlConnector;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -505,7 +504,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
     
     // <inheritdoc />
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
+        AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, 
+        AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
     {
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);
@@ -533,7 +534,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
         // Query Total
         int total = 0;
-        if (type == AppSchemaDataResult.List || type == AppSchemaDataResult.Exist || type == AppSchemaDataResult.Count)
+        if (type is AppSchemaDataResult.List or AppSchemaDataResult.Exist or AppSchemaDataResult.Count && !forUpdate)
         {
             DbCommand totalCommand = GetDbCommand();
             // only used to check existence
@@ -554,9 +555,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 switch(type)
                 {
                     case AppSchemaDataResult.Exist:
-                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(total > 0), total);
+                        return (SchemaContext.SystemBool.CreateNode(total > 0), total);
                     case AppSchemaDataResult.Count:
-                        return ((await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!.CreateNode(total), total);
+                        return (SchemaContext.SystemInt.CreateNode(total), total);
                 }
             }
             finally
@@ -579,7 +580,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (d) sb.Append(" DESC ");
         }
 
-        if (type == AppSchemaDataResult.First || type == AppSchemaDataResult.Last)
+        if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
             sb.Append(" LIMIT 1");
         else if (take is > 0)
             sb.Append($" LIMIT {take}");
@@ -609,8 +610,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             select.Append($"o.{field}");
             if (d) select.Append(" DESC ");
         }
-
-        select.Append(";");
+        select.Append(forUpdate ? " FOR UPDATE;" : ";");
+        
         ArrayTypeNode? value = null;
         DbCommand command = GetDbCommand();
         command.CommandText = select.ToString();
@@ -638,7 +639,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await reader.CloseAsync();
         }
 
-        if (type == AppSchemaDataResult.First || type == AppSchemaDataResult.Last)
+        if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
             return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
         return (value, total > 0 ? total : (value?.Count ?? 0));
     }
@@ -993,6 +994,45 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         return (false, null);
     }
 
+    /// <inheritdoc />
+    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
+    {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
+        await EnsureOpenConnectionAsync();
+        target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
+
+        if (string.IsNullOrWhiteSpace(target)) return (false, null);
+        
+        // single row
+        if (schema.Single)
+        {
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
+            if (origin is null) return (false, null);
+            
+            DbCommand command = GetDbCommand();
+            command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync();
+            
+            return (true, origin);
+        }
+        
+        // multi rows
+        else
+        {
+            _whereClause = null;
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, filter, forUpdate: true);
+            if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
+            
+            DbCommand command = GetDbCommand();
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync();
+            
+            return (true, origin);
+        }
+    }
+    
     /// <inheritdoc />
     public async Task DropDynamicTableAsync(string dynamicTableName)
     {

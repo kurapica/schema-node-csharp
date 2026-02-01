@@ -440,7 +440,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.Filter:
@@ -454,7 +454,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.Count:
@@ -464,7 +464,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.All:
@@ -475,7 +475,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
             }

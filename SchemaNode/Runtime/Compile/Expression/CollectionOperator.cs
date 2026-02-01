@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Node;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Schema;
@@ -152,7 +153,7 @@ public class CollectionExpVisitor : IExpVisitor
             
                 // source.length
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
-                    return new CountCollectionResult(sourceExp, (await context.GetSchemaTypeAsync(NS_SYSTEM_INT))!);
+                    return new CountCollectionResult(sourceExp, SchemaContext.SystemInt);
             
                 // source.OrderBy(field, desc)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
@@ -206,7 +207,7 @@ public class CollectionExpVisitor : IExpVisitor
             // Default filter
             case ExpressionType.Filter:
                 return new PredicateCollectionOperator(source, item,
-                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!)), 
+                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, SchemaContext.SystemBool)), 
                     funcExp.SchemaType); 
             
             // Reduce the collection source
@@ -272,7 +273,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!
+                        SchemaContext.SystemBool
                     )) as LogicExp
                 );
             
@@ -282,7 +283,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!
+                        SchemaContext.SystemBool
                     )) as LogicExp
                 );
             case ExpressionType.Count:
@@ -291,7 +292,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!
+                        SchemaContext.SystemBool
                     )) as LogicExp
                 );
             case ExpressionType.All:
@@ -300,7 +301,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!
+                        SchemaContext.SystemBool
                     )) as LogicExp
                 );
             case ExpressionType.Any:
@@ -309,7 +310,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!
+                        SchemaContext.SystemBool
                     )) as LogicExp
                 );
             default:
@@ -335,8 +336,8 @@ public class CollectionExpVisitor : IExpVisitor
                     (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}"))!,
                     [
                         orderBy.Root,
-                        new ConstantExp((await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(orderBy.OrderField)!),
-                        new ConstantExp((await context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!.CreateNode(orderBy.Descending)!)
+                        new ConstantExp(SchemaContext.SystemString.CreateNode(orderBy.OrderField)!),
+                        new ConstantExp(SchemaContext.SystemBool.CreateNode(orderBy.Descending)!)
                     ],
                     exp.SchemaType));
             
@@ -346,7 +347,7 @@ public class CollectionExpVisitor : IExpVisitor
                     (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}"))!,
                     [
                         fieldsResult.Root,
-                        new ConstantExp((await context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(fieldsResult.Field)!),
+                        new ConstantExp(SchemaContext.SystemString.CreateNode(fieldsResult.Field)!),
                     ],
                     exp.SchemaType));
         }

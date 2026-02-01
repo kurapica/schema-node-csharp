@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json.Nodes;
-using SchemaNode.Context;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 
 namespace SchemaNode.Components;
 
@@ -108,9 +106,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
         }
     }
 
-    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type,
+    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, AppSchemaDataResult type,
         AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
-        string? dataField = null)
+        string? dataField = null, bool forUpdate = false)
     {
         throw new NotImplementedException();
     }
@@ -289,6 +287,11 @@ public class InMemoryAppDataProvider: IAppDataProvider
             list.Clear();
             return (true, schema.SchemaType.CreateNode(origin));
         }
+    }
+
+    public Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
+    {
+        throw new NotImplementedException();
     }
     
     public async Task DropDynamicTableAsync(string dynamicTableName)

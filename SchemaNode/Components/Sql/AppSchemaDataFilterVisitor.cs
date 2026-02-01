@@ -39,7 +39,7 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
         var visitor = new AppSchemaDataFilterVisitor();
         visitor.Visit(predicate);
         AppSchemaDataFilter filter = visitor.GetFilter();
-        if (filter.Transform(out AppSchemaDataFilter? transformed) && transformed != null)
+        if (filter.Transform(out AppSchemaDataFilter? transformed) && transformed != null && transformed is not AppSchemaDataFilterValue)
             return transformed;
         throw new NotSupportedException("The lambda expression cannot be transformed into an AppSchemaDataFilter.");
     }
@@ -56,9 +56,7 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
     // <inheritdoc/>
     protected override Expression VisitParameter(ParameterExpression node)
     {
-        if (node.Name != _parameterName)
-            throw new NotSupportedException($"Unexpected parameter '{node.Name}'.");
-        return base.VisitParameter(node);
+        return node.Name != _parameterName ? throw new NotSupportedException($"Unexpected parameter '{node.Name}'.") : base.VisitParameter(node);
     }
 
     // <inheritdoc/>
@@ -75,7 +73,7 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
                 _filters.Push(left.AndAlso(right));
                 break;
             case ExpressionType.OrElse:
-                _filters.Push(new AppSchemaDataFilterBinary(LogicType.OrElse, left, right));
+                _filters.Push(left.OrElse(right));
                 break;
             default:
                 if (!BinaryLogicMap.TryGetValue(node.NodeType, out LogicType logicType))
@@ -206,8 +204,8 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
     // Resolves the collection and field for Contains method.
     (AppSchemaDataFilterValue collection, AppSchemaDataFilter field) ResolveCollectionAndField(AppSchemaDataFilter? instance, AppSchemaDataFilter[] args)
     {
-        IEnumerable<AppSchemaDataFilter> candidates = BuildCandidates(instance, args);
-        AppSchemaDataFilterValue? valueCandidate = candidates .OfType<AppSchemaDataFilterValue>()
+        AppSchemaDataFilter[] candidates = BuildCandidates(instance, args).ToArray();
+        AppSchemaDataFilterValue? valueCandidate = candidates.OfType<AppSchemaDataFilterValue>()
             .FirstOrDefault(v => IsEnumerable(v.Value));
         AppSchemaDataFilter? fieldCandidate = candidates.FirstOrDefault(f => f is AppSchemaDataFilterField);
 
@@ -227,7 +225,7 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
     }
 
     // Negates the given filter.
-    static bool IsEnumerable(object? value) => value is ArrayTypeNode || (value is IEnumerable enumerable && value is not string);
+    static bool IsEnumerable(object? value) => value is ArrayTypeNode or IEnumerable and not string;
 
     // Negates the given filter.
     static AppSchemaDataFilterValue EnsureEnumerable(AppSchemaDataFilterValue value)
