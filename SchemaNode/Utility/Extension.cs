@@ -1,13 +1,14 @@
 using SchemaNode.Node;
 using System.Collections;
 using System.Collections.Concurrent;
-using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using Microsoft.AspNetCore.Http;
+using SchemaNode.Converter;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Utility;
 
@@ -84,161 +85,60 @@ public static class Extension
     
     #endregion
 
-    #region JSON
+    #region Json Options
 
-    internal class FlexibleLongConverter : JsonConverter<long>
+    private static readonly ConcurrentDictionary<DateFormatMode, JsonSerializerOptions> IndentJsonOptions = new();
+    private static readonly ConcurrentDictionary<DateFormatMode, JsonSerializerOptions> NoIndentJsonOptions = new();
+    
+    internal static JsonSerializerOptions GetJsonOptions(bool indent, DateFormatMode? dateFormat = null)
     {
-        public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        var dict = indent ? IndentJsonOptions : NoIndentJsonOptions;
+        return dict.GetOrAdd(dateFormat ?? DateFormatMode.Iso8601, dfm =>
         {
-            return reader.TokenType switch
+            var options = new JsonSerializerOptions
             {
-                JsonTokenType.Number when reader.TryGetInt64(out var l) => l,
-                JsonTokenType.Number when reader.TryGetDouble(out var d) => Convert.ToInt64(d),
-                JsonTokenType.Number when reader.TryGetDecimal(out var d) => Convert.ToInt64(d),
-                JsonTokenType.String when long.TryParse(reader.GetString(), out var l) => l,
-                _ => throw new JsonException($"Cannot convert {reader.GetString()} to long")
+                WriteIndented = indent,
+                Converters =
+                {
+                    new UniversalFlexibleEnumConverter(),
+                    new ForceStringConverter(),
+                    new FlexibleLongConverter(),
+                    new JsonDateTimeConverter(dateFormat ?? DateFormatMode.Iso8601),
+                    new JsonDateTimeOffsetConverter(dateFormat ?? DateFormatMode.Iso8601),
+                    new JsonNodeDateFormatConverter(dateFormat ?? DateFormatMode.Iso8601),
+                },
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             };
-        }
-
-        public override void Write(Utf8JsonWriter writer, long value, JsonSerializerOptions options)
-        {
-            writer.WriteNumberValue(value);
-        }
+            return options;
+        });
     }
 
-    internal class JsonDateTimeIsoConverter : JsonConverter<DateTime>
-    {
-        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-
-        public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            return DateTime.Parse(reader.GetString() ?? "", null, DateTimeStyles.RoundtripKind);
-        }
-
-        public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-        {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
-        }
-    }
-    internal class ForceStringConverter : JsonConverter<string>
-    {
-        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            return reader.TokenType switch
-            {
-                JsonTokenType.Number => reader.GetDecimal().ToString(CultureInfo.InvariantCulture),
-                JsonTokenType.True => "true",
-                JsonTokenType.False => "false",
-                JsonTokenType.Null => null,
-                JsonTokenType.StartObject => null,
-                JsonTokenType.EndObject => null,
-                JsonTokenType.StartArray => null,
-                JsonTokenType.EndArray => null,
-                _ => reader.GetString()
-            } ?? "";
-        }
-
-        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
-        {
-            writer.WriteStringValue(value);
-        }
-    }
-
-    internal class JsonDateTimeOffsetIsoConverter : JsonConverter<DateTimeOffset>
-    {
-        private const string Format = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
-
-        public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            return DateTimeOffset.Parse(reader.GetString() ?? "", null, DateTimeStyles.RoundtripKind);
-        }
-
-        public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
-        {
-            writer.WriteStringValue(value.ToUniversalTime().ToString(Format));
-        }
-    }
-
-    internal class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, System.Enum
-    {       
-        public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            if (reader.TokenType == JsonTokenType.String)
-            {
-                var str = reader.GetString();
-                if (System.Enum.TryParse<T>(str, ignoreCase: true, out var result))
-                    return result;
-                throw new JsonException($"Invalid enum value '{str}' for {typeof(T)}");
-            }
-
-            if (reader.TokenType == JsonTokenType.Number)
-            {
-                var val = reader.GetInt64();
-                return (T)System.Enum.ToObject(typeof(T), val);
-            }
-
-            throw new JsonException($"Unexpected token {reader.TokenType} when parsing enum {typeof(T)}");
-        }
-
-        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
-        {
-            var isFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
-            if (isFlags)
-            {
-                writer.WriteNumberValue(Convert.ToInt64(value));
-            }
-            else
-            {
-                writer.WriteStringValue(value.ToString());
-            }
-        }
-    }
-
-    private class UniversalFlexibleEnumConverter : JsonConverterFactory
-    {
-        public override bool CanConvert(Type typeToConvert) => typeToConvert.IsEnum;
-
-        public override JsonConverter CreateConverter(Type typeToConvert, JsonSerializerOptions options)
-        {
-            return FlagsEnums.GetOrAdd(typeToConvert, t =>
-            {
-                var isFlags = t.IsDefined(typeof(FlagsAttribute), false);
-                if (isFlags)
-                {
-                    var converterType = typeof(FlexibleEnumConverter<>).MakeGenericType(t);
-                    return (JsonConverter)Activator.CreateInstance(converterType)!;
-                }
-                else
-                {
-                    return NormalEnumConverter.CreateConverter(t, options);
-                }
-            });
-        }
-
-        static readonly JsonStringEnumConverter NormalEnumConverter = new (JsonNamingPolicy.CamelCase);
-        private static readonly ConcurrentDictionary<Type, JsonConverter> FlagsEnums = [];
-    }
-
+    #endregion
+    
+    #region JSON
+    
     /// <summary>
     /// Serializes a .NET value to JSON string.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
-    public static string ToJson<T>(this T value, bool indent = false)
+    /// <param name="mode">The datetime format</param>
+    public static string ToJson<T>(this T value, bool indent = false, DateFormatMode? mode = null)
     {
         if (value is JsonNode json) return json.ToString();
         
         // Generate the JSON string.
-        return JsonSerializer.Serialize(value, indent ? IndentJsonOption : NoIndentJsonOption);
+        return JsonSerializer.Serialize(value, GetJsonOptions(indent, mode));
     }
 
     /// <summary>
     /// To http result
     /// </summary>
-    public static IResult ToResult<T>(this T value)
+    public static IResult ToResult<T>(this T value, bool indent = false, DateFormatMode? mode = null)
     {
-        return Results.Json(value, NoIndentJsonOption);
+        return Results.Json(value, GetJsonOptions(indent, mode));
     }
 
     /// <summary>
@@ -246,12 +146,13 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    public static T? FromJson<T>(this string value) => (T?)value.FromJson(typeof(T));
+    /// <param name="mode">The date format</param>
+    public static T? FromJson<T>(this string value, DateFormatMode? mode = null) => (T?)value.FromJson(typeof(T), mode);
 
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
-    public static object? FromJson(this string value, Type type)
+    public static object? FromJson(this string value, Type type, DateFormatMode? mode = null)
     {
         if (type == typeof(string))
             return value;
@@ -260,7 +161,7 @@ public static class Extension
         if (type == typeof(DateTime))
             return DateTime.Parse(value);
 
-        return JsonSerializer.Deserialize(value, type, NoIndentJsonOption);
+        return JsonSerializer.Deserialize(value, type, GetJsonOptions(false, mode));
     }
 
     /// <summary>
@@ -268,7 +169,7 @@ public static class Extension
     /// </summary>
     public static T? FromJson<T>(this JsonNode value) => (T?)value.FromJson(typeof(T));
 
-    public static object? FromJson(this JsonNode value, Type type)
+    public static object? FromJson(this JsonNode value, Type type, DateFormatMode? mode = null)
     {
         if (type == typeof(JsonObject))
         {
@@ -286,16 +187,16 @@ public static class Extension
         {
             return value;
         }
-        return value.Deserialize(type, NoIndentJsonOption);
+        return value.Deserialize(type, GetJsonOptions(false, mode));
     }
     
-    public static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
+    public static JsonNode? ToJsonNode<T>(this T? value, bool noError = false, DateFormatMode? mode = null)
     {
         try
         {
             if (value == null) return null;
             if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
-            return JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+            return JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
         }
         catch 
         {
@@ -320,6 +221,8 @@ public static class Extension
             case JsonValueKind.String:
                 if (val.TryGetValue(out string? s))
                 {
+                    if (DateTimeOffset.TryParse(s, out var dt))
+                        return (dt, typeof(DateTimeOffset));
                     if (DateTime.TryParse(s, out DateTime d))
                         return (d, typeof(DateTime));
                     return (s, typeof(string));
@@ -415,36 +318,6 @@ public static class Extension
         value = null;
         return false;
     }
-
-    internal static readonly JsonSerializerOptions IndentJsonOption = new()
-    {
-        WriteIndented = true,
-        Converters =
-        {
-            new UniversalFlexibleEnumConverter(),
-            new JsonDateTimeIsoConverter(),
-            new JsonDateTimeOffsetIsoConverter(),
-            new ForceStringConverter(),
-            new FlexibleLongConverter(),
-        },
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-    
-    internal static readonly JsonSerializerOptions NoIndentJsonOption = new()
-    {
-        WriteIndented = false,
-        Converters =
-        {
-            new UniversalFlexibleEnumConverter(),
-            new JsonDateTimeIsoConverter(),
-            new JsonDateTimeOffsetIsoConverter(),
-            new ForceStringConverter(),
-            new FlexibleLongConverter(),
-        },
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     #endregion
 
@@ -557,7 +430,7 @@ public static class Extension
     /// <summary>
     /// Try to convert the value for the given type, only for enum & primitive values
     /// </summary>
-    internal static object? TryConvert(this Type type, object? value)
+    internal static object? TryConvert(this Type type, object? value, DateFormatMode? mode = null)
     {
         try
         {
@@ -575,12 +448,12 @@ public static class Extension
             }
             else if (type == typeof(JsonArray))
             {
-                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
                 return result is JsonArray ? result : null;
             }
             else if (type == typeof(JsonObject))
             {
-                var result = JsonSerializer.SerializeToNode(value, NoIndentJsonOption);
+                var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
                 return result is JsonObject ? result : null;
             }
 
@@ -703,7 +576,7 @@ public static class Extension
             }
             else
             {
-                return JsonSerializer.Deserialize(JsonSerializer.SerializeToNode(value, NoIndentJsonOption)!.ToJsonString(), type, NoIndentJsonOption);
+                return JsonSerializer.Deserialize(JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode))!.ToJsonString(), type, GetJsonOptions(false, mode));
             }
         }
         catch(Exception ex)

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Components;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Http;
 
@@ -100,6 +101,11 @@ public abstract class SchemaApiRequest
     /// The locale setting
     /// </summary>
     public string? Locale { get; set; }
+    
+    /// <summary>
+    /// The date format mode
+    /// </summary>
+    public DateFormatMode? DateFormat { get; set; }
 }
 
 /// <summary>

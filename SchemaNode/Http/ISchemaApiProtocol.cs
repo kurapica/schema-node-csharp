@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 // ReSharper disable CollectionNeverQueried.Global
@@ -36,12 +37,12 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Read request from body
     /// </summary>
-    TRequest ReadRequest<TRequest>(string requestBody) where TRequest : SchemaApiRequest;
+    TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest;
 
     /// <summary>
     /// Generate the result based on the response
     /// </summary>
-    IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse;
+    IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null) where TResponse : SchemaApiResponse;
 
     /// <summary>
     /// Generate error response based on exception
@@ -66,6 +67,7 @@ public interface ISchemaApiProtocol
         
         string requestBody = "";
         IFormFileCollection? files = null;
+        DateFormatMode? dateFormat = null;
         try
         {
             if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
@@ -83,7 +85,7 @@ public interface ISchemaApiProtocol
                     string? data = item.Value[0];
                     if (string.IsNullOrWhiteSpace(data)) continue;
 
-                    JsonNode? node = null;
+                    JsonNode? node;
                     try
                     {
                         node = JsonNode.Parse(data);
@@ -109,6 +111,12 @@ public interface ISchemaApiProtocol
         try
         {
             request = ReadRequest<TRequest>(requestBody);
+
+            if (request.DateFormat != null && request.DateFormat != DateFormatMode.Iso8601)
+            {
+                dateFormat = request.DateFormat;
+                request = ReadRequest<TRequest>(requestBody, dateFormat);
+            }
         }
         catch (Exception ex)
         {
@@ -182,7 +190,7 @@ public interface ISchemaApiProtocol
                 fileDownloadName: response.Output.Name
             );
         }
-        return GenerateResult(response);
+        return GenerateResult(response, dateFormat);
     }
     
     /// <summary>

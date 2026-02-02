@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
@@ -5,8 +7,17 @@ namespace SchemaNode.Node;
 
 public class JsonTypeNode: AnySchemaNode
 {
-    internal JsonTypeNode(JsonType type, object? value = null) : base(type, value)
+    private const string IsoFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
+    
+    internal JsonTypeNode(JsonType type, object? value = null) : base(type, null)
     {
+        Value = value switch
+        {
+            // init value
+            JsonNode jsonNode => ParseJsonNode(jsonNode),
+            AnySchemaNode node => node.ToJsonNode(),
+            _ => value?.ToJsonNode() ?? new JsonObject()
+        };
     }
 
     public override bool Equals(AnySchemaNode other)
@@ -15,5 +26,44 @@ public class JsonTypeNode: AnySchemaNode
         if (other is not JsonTypeNode otherJson) return false;
 
         return this.ToLiteral() == otherJson.ToLiteral();
+    }
+    
+    JsonNode? ParseJsonNode(JsonNode? node)
+    {
+        switch (node)
+        {
+            case JsonObject obj:
+            {
+                JsonObject jsonObject = new ();
+                foreach (var (key, value) in obj)
+                {
+                    var childNode = ParseJsonNode(value);
+                    if (childNode != null && !childNode.IsEmpty())
+                        jsonObject[key] = childNode.DeepClone();
+                }
+                return jsonObject;
+            }
+            case JsonArray arr:
+            {
+                JsonArray res = [];
+                foreach (JsonNode? n in arr)
+                {
+                    var childNode = ParseJsonNode(n);
+                    if (childNode != null && !childNode.IsEmpty())
+                        res.Add(childNode.DeepClone());
+                }
+
+                return res;
+            }
+            case JsonValue val when !val.IsEmpty() && val.GetValueKind() is JsonValueKind.String:
+            {
+                (object? v, _)  = val.ParseValueAndType();
+                if (v != null)
+                    return JsonValue.Create(v);
+                break;
+            }
+        }
+
+        return node;
     }
 }

@@ -1126,7 +1126,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if (resExp == null)
         {
             MethodInfo method = typeof(Extension).GetMethod(nameof(Extension.TryConvert), BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp), type);
+            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp, Expression.Constant(null, typeof(DateFormatMode?))), type);
         }
 
         // nullable result

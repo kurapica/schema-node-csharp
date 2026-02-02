@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Extension;
@@ -55,9 +56,9 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public TRequest ReadRequest<TRequest>(string requestBody) where TRequest : SchemaApiRequest
+    public TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest
     {
-        JsonRpcRequestMessage<TRequest> requestMessage = requestBody.FromJson<JsonRpcRequestMessage<TRequest>>() 
+        JsonRpcRequestMessage<TRequest> requestMessage = requestBody.FromJson<JsonRpcRequestMessage<TRequest>>(mode) 
                 ?? throw new Exception("Failed to parse the request body.");
         if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
             throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
@@ -66,14 +67,14 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null) where TResponse : SchemaApiResponse
     {
         return new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }.ToResult();
+        }.ToResult(false, mode);
     }
 
     public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
