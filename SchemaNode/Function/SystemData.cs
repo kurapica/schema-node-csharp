@@ -23,7 +23,6 @@ public static class SystemData
     /// Gets the context item
     /// </summary>
     [Schema]
-    [NoCache]
     public static AnySchemaNode? getcontextitem(SchemaContext context, string item) 
         => context.GetSchemaContextItem(item);
 
