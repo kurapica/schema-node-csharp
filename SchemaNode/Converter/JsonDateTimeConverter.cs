@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 
 namespace SchemaNode.Converter;
 
@@ -49,10 +50,10 @@ internal static class DateFormatModeSerializer
                 writer.WriteStringValue(value.ToString(IsoFormat, Culture));
                 break;
             case DateFormatMode.DateOnly:
-                writer.WriteStringValue(utc.ToString(DateOnlyFormat, Culture));
+                writer.WriteStringValue(utc.DateTime.FromUtc().ToString(DateOnlyFormat, Culture));
                 break;
             case DateFormatMode.DateTime:
-                writer.WriteStringValue(utc.ToString(DateTimeFormat, Culture));
+                writer.WriteStringValue(utc.DateTime.FromUtc().ToString(DateTimeFormat, Culture));
                 break;
             case DateFormatMode.Compact:
                 writer.WriteStringValue(utc.ToString(utc.TimeOfDay == TimeSpan.Zero ? CompactDateFormat : CompactDateTimeFormat, Culture));

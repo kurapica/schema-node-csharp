@@ -104,7 +104,14 @@ internal static class Extensions
                     return cell.NumericCellValue.ToString(CultureInfo.InvariantCulture);
                 }
             default:
-                return cell.StringCellValue;
+                try
+                {
+                    return cell.StringCellValue;
+                }
+                catch
+                {
+                    return string.Empty;
+                }
         }
     }
 

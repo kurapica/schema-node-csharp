@@ -26,7 +26,7 @@ public class TemplateManager
     /// <summary>
     /// Init the excel template manager
     /// </summary>
-    public TemplateManager(SchemaContext context, AppFieldType appField, IFormFile? file = null)
+    public TemplateManager(SchemaContext context, AppFieldType appField, IFormFile? file = null, string? uploadUrl = null, string? fileSuffix = null)
     {
         _appField = appField;
         _context = context;
@@ -38,7 +38,7 @@ public class TemplateManager
                      ?? "Sheet1";
 
         // write mode
-        if (file == null)
+        if (file == null && string.IsNullOrWhiteSpace(uploadUrl))
         {
             // Prepare the excel
             _workbook = new XSSFWorkbook();
@@ -132,7 +132,7 @@ public class TemplateManager
         }
         
         // read mode
-        else
+        else if (file != null)
         {
             _readMode = true;
             string suffix = Path.GetExtension(file.FileName.ToLower());
@@ -150,6 +150,34 @@ public class TemplateManager
                 _ms = new MemoryStream();
                 file.CopyTo(_ms);
                 _ms.Seek(0, SeekOrigin.Begin);
+                _workbook = new HSSFWorkbook(_ms);
+                _sheet = _workbook.GetSheetAt(0);
+            }
+            else
+            {
+                throw new Exception("The file is not a valid excel file");
+            }
+        }
+        else
+        {
+            // load from url
+            _readMode = true;
+            _ms = new MemoryStream();
+
+            using HttpClient client = new();
+            using HttpResponseMessage response = client.GetAsync(uploadUrl).GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
+            response.Content.CopyToAsync(_ms).GetAwaiter().GetResult();
+            _ms.Seek(0, SeekOrigin.Begin);
+
+            string suffix = !string.IsNullOrWhiteSpace(fileSuffix) ? fileSuffix : Path.GetExtension(uploadUrl!.ToLowerInvariant());
+            if (suffix.EndsWith("xlsx"))
+            {
+                _workbook = new XSSFWorkbook(_ms);
+                _sheet = _workbook.GetSheetAt(0);
+            }
+            else if (suffix.EndsWith("xls"))
+            {
                 _workbook = new HSSFWorkbook(_ms);
                 _sheet = _workbook.GetSheetAt(0);
             }

@@ -20,7 +20,7 @@ public static class SystemDate
     /// Convert from UTC
     /// </summary>
     public static DateTime FromUtc(this DateTime date) => TimeZoneInfo.ConvertTimeFromUtc(date, _timeZone);
-
+    
     /// <summary>
     /// system.datetime.now
     /// </summary>

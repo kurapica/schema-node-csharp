@@ -33,7 +33,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
 
         IFormFile? file = request.Files?.FirstOrDefault();
 
-        TemplateManager manager = new (SchemaContext, field, file);
+        TemplateManager manager = new (SchemaContext, field, file, request.Url, request.Suffix);
         
         // Entries
         if (!request.Entries.IsEmpty())
@@ -104,7 +104,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         }
         
         // download template
-        if (file is null)
+        if (file is null && string.IsNullOrEmpty(request.Url))
         {
             return new ExcelTemplateResponse
             {
@@ -179,6 +179,16 @@ public class ExcelTemplateRequest : SchemaApiRequest
     /// Whether to save the uploaded data
     /// </summary>
     public bool? Save { get; set; }
+    
+    /// <summary>
+    /// The upload file url
+    /// </summary>
+    public string? Url { get; set; }
+    
+    /// <summary>
+    /// The file suffix
+    /// </summary>
+    public string? Suffix { get; set; }
     
     /// <summary>
     /// Not helpers field map
