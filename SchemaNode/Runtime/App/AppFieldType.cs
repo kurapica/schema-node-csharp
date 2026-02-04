@@ -70,6 +70,11 @@ public class AppFieldType
     public bool? Template { get; private init; }
     
     /// <summary>
+    /// Enable clear data
+    /// </summary>
+    public bool? AllowClear { get; private init; }
+    
+    /// <summary>
     /// The calculate function
     /// </summary>
     public string? Func { get; init; }
@@ -286,6 +291,7 @@ public class AppFieldType
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
             Template = entity.Template,
+            AllowClear =  entity.AllowClear,
             Func = entity.Func,
             Arg = entity.Arg,
             Auths = entity.Auths,
@@ -320,6 +326,7 @@ public class AppFieldType
             SourceField = entity.SourceField,
             TrackPush = entity.TrackPush,
             Template = entity.Template,
+            AllowClear = entity.AllowClear,
             Func = entity.Func,
             Arg = entity.Arg,
             Auths = entity.Auths,

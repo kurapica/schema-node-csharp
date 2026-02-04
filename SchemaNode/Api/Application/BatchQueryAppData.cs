@@ -191,7 +191,7 @@ public static class BatchQueryExtension
                             
                             if (isValidFilter)
                                 (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
-                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy);
+                                    filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
                         }
                     }
                     

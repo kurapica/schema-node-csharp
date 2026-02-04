@@ -34,6 +34,7 @@ public interface IAppDataProvider
     Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, 
         string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null);
     
+    
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
@@ -43,6 +44,11 @@ public interface IAppDataProvider
     /// Delete the dynamic table data with the filter
     /// </summary>
     Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter);
+    
+    /// <summary>
+    /// Clear all dynamic table data
+    /// </summary>
+    Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target);
     
     /// <summary>
     /// Drop the dynamic table

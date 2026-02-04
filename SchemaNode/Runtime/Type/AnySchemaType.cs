@@ -196,8 +196,8 @@ public abstract class AnySchemaType: IDisposable
     /// Whether the schema type can be used as the other
     /// </summary>
     public virtual bool CanBeUseAs(AnySchemaType other, bool exactly = false)
-        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) ||
-           other.Name.Equals(NS_SYSTEM_OBJECT) ||
+        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || Name.Equals(NS_SYSTEM_JSON) ||
+           other.Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_JSON) ||
            !exactly && _compatibles != null && (_compatibles.ContainsKey(other) || _compatibles.Keys.Any(k => k.CanBeUseAs(other, true)));
 
     /// <summary>

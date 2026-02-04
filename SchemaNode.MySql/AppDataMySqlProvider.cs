@@ -1032,7 +1032,48 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             return (true, origin);
         }
     }
-    
+
+    /// <summary>
+    /// Clear all dynamic table data
+    /// </summary>
+    public async Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target)
+    {
+        string tableName = sqlProvider.QuoteTable(schema.Name);
+        await EnsureOpenConnectionAsync();
+        target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
+
+        if (string.IsNullOrWhiteSpace(target)) return (false, null);
+        
+        // single row
+        if (schema.Single)
+        {
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
+            if (origin is null) return (false, null);
+            
+            DbCommand command = GetDbCommand();
+            command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync();
+            
+            return (true, origin);
+        }
+        
+        // multi rows
+        else
+        {
+            _whereClause = null;
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, null, forUpdate: true);
+            if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
+            
+            DbCommand command = GetDbCommand();
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync();
+            
+            return (true, origin);
+        }
+    }
+
     /// <inheritdoc />
     public async Task DropDynamicTableAsync(string dynamicTableName)
     {

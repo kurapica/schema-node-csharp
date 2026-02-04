@@ -103,6 +103,30 @@ public static class AppDataTransactionExtension
         }
     }
 
+    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, string target, bool innerCall = false)
+    {
+        // no front only & enable & no source ref
+        if (!field.EnableDynamicTable) return false;
+        if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
+
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+
+        // Prepare
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+
+        try
+        {
+            (bool result, AnySchemaNode? origin) = await dataProvider.ClearDynamicTableDataAsync(schema, target);
+            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.DropAll, null, origin);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError(ex.Message);
+            throw;
+        }
+    }
+
     #endregion
 
     #region Delete

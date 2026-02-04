@@ -72,6 +72,10 @@ public static class PushDataExtenstion
                 // no permission to delete data
                 if (!canDel && push.Deletes is { Count: > 0 })
                     throw new UnauthorizedAccessException();
+                
+                // Check clear all
+                if (push.ClearAll == true && (!canDel || appField.AllowClear != true))
+                    throw new UnauthorizedAccessException();
 
                 // row access check
                 FunctionType? rowChecker = null;
@@ -137,6 +141,12 @@ public static class PushDataExtenstion
                     await context.BeginTransactionAsync();
                 }
 
+                if (push.ClearAll == true)
+                {
+                    await context.ClearFieldDataAsync(appField, target);
+                    continue;
+                }
+
                 // validate and save data
                 if (push.Data != null)
                 {
@@ -175,7 +185,7 @@ public static class PushDataExtenstion
             if (res is not JsonValue boolVal || !boolVal.TryGetValue(out bool allowed) || !allowed)
                 throw new UnauthorizedAccessException();
         }
-        catch(Exception ex)
+        catch
         {
             throw new UnauthorizedAccessException();
         }
@@ -232,4 +242,9 @@ public class AppDataFieldPushQuery
     /// The deleted data
     /// </summary>
     public JsonArray? Deletes { get; set; }
+    
+    /// <summary>
+    /// Clear all existing data for the field
+    /// </summary>
+    public bool? ClearAll { get; set; }
 }

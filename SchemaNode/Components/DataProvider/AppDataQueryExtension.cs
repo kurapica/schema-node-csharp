@@ -92,7 +92,9 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context, AppFieldType field, 
+        string target, JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
+        bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -111,7 +113,8 @@ public static class AppDataQueryExtension
             (AnySchemaNode? result, int total) = await dataProvider.QueryDynamicTableAsync(schema, target, filter, skip, take, desc, orderBy, forUpdate);
 
             // Generate display only fields
-            await schema.GenerateDisplayOnlyFields(context, result);
+            if (genDisplayOnly)
+                await schema.GenerateDisplayOnlyFields(context, result);
 
             return (result, total);
         }
@@ -127,7 +130,8 @@ public static class AppDataQueryExtension
     /// </summary>
     public static async Task<(AnySchemaNode? value, int total)> GetFieldDataAsync(this SchemaContext context,
         AppFieldType field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter,
-        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
+        int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, 
+        bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
         if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
@@ -147,7 +151,8 @@ public static class AppDataQueryExtension
                 .QueryDynamicTableAsync(schema, target, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
 
             // Generate display only fields
-            await schema.GenerateDisplayOnlyFields(context, result);
+            if (genDisplayOnly)
+                await schema.GenerateDisplayOnlyFields(context, result);
 
             return (result, total);
         }

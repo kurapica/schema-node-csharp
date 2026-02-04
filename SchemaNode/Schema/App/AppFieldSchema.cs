@@ -156,6 +156,16 @@ public class AppFieldSchema
     }
 
     /// <summary>
+    /// Enable the all clear option for the field
+    /// </summary>
+    [NotMapped]
+    public bool? AllowClear
+    {
+        get => Flags.Has(AppFieldFlags.AllowClear);
+        init => Flags = Flags.Turn(AppFieldFlags.AllowClear, value);
+    }
+
+    /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
     public DataCombineType? Combine { get; set; }
@@ -194,6 +204,7 @@ public class AppFieldSchema
         IncrUpdate = 1 << 3,
         TrackPush = 1 << 4,
         Template = 1 << 5,
+        AllowClear = 1 << 6,
     }
 
     #endregion

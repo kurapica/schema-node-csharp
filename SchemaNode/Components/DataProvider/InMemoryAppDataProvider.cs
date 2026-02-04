@@ -289,6 +289,14 @@ public class InMemoryAppDataProvider: IAppDataProvider
         }
     }
 
+    /// <summary>
+    /// Clear all dynamic table data
+    /// </summary>
+    public Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target)
+    {
+        throw new NotImplementedException();
+    }
+    
     public Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
     {
         throw new NotImplementedException();

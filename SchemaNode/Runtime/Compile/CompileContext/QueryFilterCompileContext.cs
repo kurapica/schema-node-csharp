@@ -53,7 +53,8 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
             for (int i = 0; i < funcCallExp.Args.Length; i++)
             {
                 var oldArg = funcCallExp.Args[i];
-                if (oldArg is FieldAccessExp
+                var innerArg = oldArg is DefaultExp dftExp ? dftExp.Inner : oldArg;
+                if (innerArg is FieldAccessExp
                     {
                         Owner: ArgumentExp { Index: 0 } or VariableExp { Value: ArgumentExp { Index: 0 } }
                     } fExp)
