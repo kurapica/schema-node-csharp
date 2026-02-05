@@ -51,9 +51,19 @@ public static class SchemaStorageProviderExtension
                 ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
         }
         await context.GetSchemaTypeAsync(schema.Name, reload: true); // force reload
-
+        
+        // check sub schemas
+        if (schema is { Type: SchemaType.Namespace, Schemas.Length: > 0 })
+        {
+            foreach (var subSchema in schema.Schemas)
+            {
+                await context.SaveSchemaAsync(subSchema);
+            }
+        }
+        
         // event
         context.RaiseEvent<SchemaChangeEvent>(schema.Name);
+
         return true;
     }
 

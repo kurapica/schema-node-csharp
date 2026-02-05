@@ -214,7 +214,7 @@ public class TemplateManager
     /// <summary>
     /// Download excel upload template for the given type
     /// </summary>
-    public async Task<SchemaApiFile> DownloadTemplateAsync(int inputRow = 10, bool? noFieldMap = null)
+    public async Task<SchemaApiFile> DownloadTemplateAsync(int inputRow = 10)
     {
         if (_readMode) throw new Exception("The template manager is in read mode");
 
@@ -231,19 +231,23 @@ public class TemplateManager
         _sheet!.CreateFreezePane(0, maxRowHeader);
         
         // Draw field map, may not existed when upload, so just a backup plan
-        if (noFieldMap != true)
+        var fieldMapSheet = _workbook!.CreateSheet(FieldMap);
+        _workbook.SetSheetHidden(_workbook.GetSheetIndex(fieldMapSheet), SheetVisibility.VeryHidden);
+        int rowIndex = 0;
+        foreach (KeyValuePair<int, (string, string?)> p in _fieldMap)
         {
-            var fieldMapSheet = _workbook!.CreateSheet(FieldMap);
-            int rowIndex = 0;
-            foreach (KeyValuePair<int, string> p in _fieldMap)
+            IRow enumRow = fieldMapSheet.GetOrCreateRow(rowIndex++);
+
+            ICell enumCell = enumRow.GetOrCreateCell(0);
+            enumCell.SetCellValue(p.Key);
+
+            enumCell = enumRow.GetOrCreateCell(1);
+            enumCell.SetCellValue(p.Value.Item1);
+            
+            if (!string.IsNullOrWhiteSpace(p.Value.Item2))
             {
-                IRow enumRow = fieldMapSheet.GetOrCreateRow(rowIndex++);
-
-                ICell enumCell = enumRow.GetOrCreateCell(0);
-                enumCell.SetCellValue(p.Key);
-
-                enumCell = enumRow.GetOrCreateCell(1);
-                enumCell.SetCellValue(p.Value);
+                enumCell = enumRow.GetOrCreateCell(2);
+                enumCell.SetCellValue(p.Value.Item2);
             }
         }
 
@@ -280,19 +284,9 @@ public class TemplateManager
                 IRow row = _sheet!.GetOrCreateRow(startRow);
                 ICell cell = row.GetOrCreateCell(startCol);
                 cell.CellStyle = isPrimary ? _pheaderCellStyle : _headerCellStyle;
-
-                cell.SetCellValue(field.Name);
-                _sheet!.SetColumnHidden(startCol, true);
-                MergeHeaderCells(startRow, startRow + remainRows - 1, startCol, startCol, isPrimary);
-
-                // register field map
-                _fieldMap[startCol] = token;
-
-                // name
-                cell = row.GetOrCreateCell(++startCol);
-                cell.CellStyle = isPrimary ? _pheaderCellStyle : _headerCellStyle;
                 cell.SetCellValue($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}");
-                _sheet.SetColumnWidth(startCol, 20 * WidthScale);
+                
+                _sheet!.SetColumnWidth(startCol, 20 * WidthScale);
                 MergeHeaderCells(startRow, startRow + remainRows - 1, startCol, startCol, isPrimary);
 
                 // enum-sheet
@@ -300,6 +294,7 @@ public class TemplateManager
                 if (_workbook!.GetSheet(enumDisplay) == null)
                 {
                     ISheet enumSheet = _workbook.CreateSheet(enumDisplay);
+                    _workbook.SetSheetHidden(_workbook.GetSheetIndex(enumSheet), SheetVisibility.VeryHidden);
                     List<(string, string)> valueList = new();
                     int enumCascade = field.Cascade ?? (enumType.Cascade is { Length: > 0 } ? enumType.Cascade.Length : 1);
                     if (!string.IsNullOrWhiteSpace(field.Root))
@@ -325,6 +320,9 @@ public class TemplateManager
                     }
                 }
 
+                // register field map
+                _fieldMap[startCol] = (token, enumDisplay);
+
                 // Example data cell
                 startRow += remainRows;
                 for (int i = 0; i < inputRow; i++)
@@ -332,10 +330,6 @@ public class TemplateManager
                     row = _sheet.GetOrCreateRow(startRow + i);
                     cell = row.GetOrCreateCell(startCol);
                     cell.CellStyle = isPrimary ? _pborderCellStyle : _borderCellStyle;
-
-                    cell = row.GetOrCreateCell(startCol - 1);
-                    cell.CellStyle = isPrimary ? _pborderCellStyle : _borderCellStyle;
-                    cell.SetCellFormula($"IFERROR(VLOOKUP({ParseCell(startRow + i, startCol)},'{enumDisplay}'!A:B,2,0),\"\")");
                 }
 
                 IDataValidation validation = _validationHelper!.CreateValidation(_validationHelper.CreateFormulaListConstraint($"'{enumDisplay}'!$A:$A"), new CellRangeAddressList(startRow, startRow + inputRow - 1, startCol, startCol));
@@ -362,24 +356,18 @@ public class TemplateManager
                     IRow row = _sheet!.GetOrCreateRow(startRow);
                     ICell cell = row.GetOrCreateCell(startCol);
                     cell.CellStyle = isPrimary ? _pheaderCellStyle : _headerCellStyle;
-
-                    cell.SetCellValue(field.Name);
-                    _sheet!.SetColumnHidden(startCol, true);
-                    MergeHeaderCells(startRow, startRow + remainRows - 1, startCol, startCol, isPrimary);
-
-                    // register field map
-                    _fieldMap[startCol] = token;
-
-                    // name
-                    cell = row.GetOrCreateCell(++startCol);
-                    cell.CellStyle = isPrimary ? _pheaderCellStyle : _headerCellStyle;
                     cell.SetCellValue($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}");
-                    _sheet.SetColumnWidth(startCol, 20 * WidthScale);
+                    _sheet!.SetColumnWidth(startCol, 20 * WidthScale);
                     MergeHeaderCells(startRow, startRow + remainRows - 1, startCol, startCol, isPrimary);
 
                     string sheetName = _context.GetLocaleString(field.Display) ?? field.Name;
                     if (!string.IsNullOrWhiteSpace(prevDisplay)) sheetName = $"{prevDisplay}-{sheetName}";
+                    
+                    // register field map
+                    _fieldMap[startCol] = (token, sheetName);
+
                     ISheet enumSheet = _workbook!.CreateSheet(sheetName);
+                    _workbook.SetSheetHidden(_workbook.GetSheetIndex(enumSheet), SheetVisibility.VeryHidden);
                     for (int k = 0; k < enumList.Count; k++)
                     {
                         IRow enumRow = enumSheet.GetOrCreateRow(k);
@@ -397,10 +385,6 @@ public class TemplateManager
                         row = _sheet.GetOrCreateRow(startRow + i);
                         cell = row.GetOrCreateCell(startCol);
                         cell.CellStyle = isPrimary ? _pborderCellStyle : _borderCellStyle;
-
-                        cell = row.GetOrCreateCell(startCol - 1);
-                        cell.CellStyle = isPrimary ? _pborderCellStyle : _borderCellStyle;
-                        cell.SetCellFormula($"IFERROR(VLOOKUP({ParseCell(startRow + i, startCol)},'{sheetName}'!A:B,2,0),\"\")");
                     }
 
                     IDataValidation validation = _validationHelper!.CreateValidation(_validationHelper.CreateFormulaListConstraint($"'{sheetName}'!$A:$A"), new CellRangeAddressList(startRow, startRow + inputRow - 1, startCol, startCol));
@@ -425,14 +409,19 @@ public class TemplateManager
                     CellRangeAddressList address = new(startRow, startRow + inputRow - 1, startCol, startCol);
 
                     // register field map
-                    _fieldMap[startCol] = token;
-
+                    _fieldMap[startCol] = (token, null);
+                    
                     // Check enum map
                     if (_enumListMap.TryGetValue(token, out List<string>? values))
                     {
                         string sheetName = _context.GetLocaleString(field.Display) ?? field.Name;
                         if (!string.IsNullOrWhiteSpace(prevDisplay)) sheetName = $"{prevDisplay}-{sheetName}";
+                        
+                        // register field map
+                        _fieldMap[startCol] = (token, sheetName);
+                        
                         ISheet enumSheet = _workbook!.CreateSheet(sheetName);
+                        _workbook.SetSheetHidden(_workbook.GetSheetIndex(enumSheet), SheetVisibility.VeryHidden);
                         for (int k = 0; k < values.Count; k++)
                         {
                             IRow enumRow = enumSheet.GetOrCreateRow(k);
@@ -440,8 +429,7 @@ public class TemplateManager
                             enumCell.SetCellValue(values[k]);
                         }
 
-                        IDataValidation validation = _validationHelper!.CreateValidation(
-                            _validationHelper.CreateFormulaListConstraint($"'{sheetName}'!$A:$A"), address);
+                        IDataValidation validation = _validationHelper!.CreateValidation(_validationHelper.CreateFormulaListConstraint($"'{sheetName}'!$A:$A"), address);
                         validation.EmptyCellAllowed = true;
                         _sheet.AddValidationData(validation);
                     }
@@ -450,9 +438,14 @@ public class TemplateManager
                         if (scalarType.IsBool)
                         {
                             string sheetName = "_BoolList";
+                            // register field map
+                            _fieldMap[startCol] = (token, sheetName);
+                            
                             if (_workbook!.GetSheet(sheetName) == null)
                             {
                                 ISheet enumSheet = _workbook.CreateSheet(sheetName);
+                                _workbook.SetSheetHidden(_workbook.GetSheetIndex(enumSheet), SheetVisibility.VeryHidden);
+                                
                                 IRow enumRow = enumSheet.GetOrCreateRow(0);
                                 ICell enumCell = enumRow.GetOrCreateCell(0);
                                 enumCell.SetCellValue(No);
@@ -664,33 +657,62 @@ public class TemplateManager
     /// <summary>
     /// Read valid data from the excel file
     /// </summary>
-    public async Task<JsonArray> ReadUploadsAsync()
+    public async Task<JsonArray> ReadUploadsAsync(string[]? requires = null)
     {
         await Task.Yield();
         
-        // Try read field map sheet
-        var fieldMapSheet = _workbook!.GetSheet(FieldMap);
-        if (fieldMapSheet != null)
+        // Read all help sheets
+        for (int idx = 1; idx < _workbook!.NumberOfSheets; idx++)
         {
-            _fieldMap.Clear();
-            for (int r = 0; r <= fieldMapSheet.LastRowNum; r++)
+            var sheet = _workbook.GetSheetAt(idx);
+            if (sheet.SheetName == FieldMap)
             {
-                IRow row = fieldMapSheet.GetRow(r);
-                if (row == null) continue;
+                _fieldMap.Clear();
+                for (int r = 0; r <= sheet.LastRowNum; r++)
+                {
+                    IRow row = sheet.GetRow(r);
+                    if (row == null) continue;
 
-                ICell keyCell = row.GetCell(0);
-                ICell valueCell = row.GetCell(1);
-                if (keyCell is not { CellType: CellType.Numeric } || valueCell == null) continue;
-                try
-                {
-                    // This is only suggest, could be changed by the uploader
-                    // But could be use when since locale match may not be available
-                    _fieldMap[(int)keyCell.NumericCellValue] = valueCell.GetCellStringValue();
+                    ICell keyCell = row.GetCell(0);
+                    ICell valueCell = row.GetCell(1);
+                    ICell enumCell = row.GetOrCreateCell(2);
+                    if (keyCell is not { CellType: CellType.Numeric } || valueCell == null) continue;
+                    try
+                    {
+                        // This is only suggest, could be changed by the uploader
+                        // But could be use when since locale match may not be available
+                        _fieldMap[(int)keyCell.NumericCellValue] = (valueCell.GetCellStringValue(), enumCell.GetCellStringValue());
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
                 }
-                catch
+            }
+            else
+            {
+                Dictionary<string, string> enumValueMap = new();
+                for (int r = 0; r <= sheet.LastRowNum; r++)
                 {
-                    // ignore
+                    IRow row = sheet.GetRow(r);
+                    if (row == null) continue;
+
+                    ICell keyCell = row.GetCell(0);
+                    ICell valueCell = row.GetCell(1);
+                    if (keyCell == null || valueCell == null) continue;
+                    try
+                    {
+                        string? key = keyCell.GetCellStringValue()?.Trim();
+                        string? value = valueCell.GetCellStringValue()?.Trim();
+                        if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
+                            enumValueMap[key] = value;
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
                 }
+                _enumMaps[sheet.SheetName.ToLower()] = enumValueMap;
             }
         }
 
@@ -718,6 +740,7 @@ public class TemplateManager
                     ICell cell = row.GetCell(j);
                     if (cell == null) continue;
                     string value = cell.GetCellStringValue();
+                    if (string.IsNullOrEmpty(value)) continue;
 
                     // Check the merged cells
                     if (string.IsNullOrWhiteSpace(value))
@@ -730,6 +753,22 @@ public class TemplateManager
                             value = _sheet.GetCellStringValue(mcell);
                         }
                         if (string.IsNullOrWhiteSpace(value)) continue;
+                    }
+                    
+                    // check by white list
+                    if (_fieldMap.TryGetValue(j, out var map))
+                    {
+                        if (!string.IsNullOrWhiteSpace(map.Item2))
+                        {
+                            string enumKey = map.Item2.ToLower();
+                            if (_enumMaps.TryGetValue(enumKey, out Dictionary<string, string>? enumValueMap))
+                            {
+                                if (enumValueMap.TryGetValue(value, out string? enumValue))
+                                {
+                                    value = enumValue;
+                                }
+                            }
+                        }
                     }
 
                     // Validate by the fields
@@ -808,9 +847,27 @@ public class TemplateManager
                     }
                 }
             }
-            
+
             if (!data.IsEmpty())
-                array.Add(data);
+            {
+                if (requires is { Length: > 0 })
+                {
+                    bool valid = false;
+                    foreach (var (key, _) in data)
+                    {
+                        if (requires.Any(i => i.Equals(key, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            valid = true;
+                            break;
+                        }
+                    }
+
+                    if (valid)
+                        array.Add(data);
+                }
+                else
+                    array.Add(data);
+            }
         }
 
         _workbook.Close();
@@ -838,26 +895,21 @@ public class TemplateManager
                     colMap[startCol] = CombineFields(fields, field);
                 }
 
-                return startCol + 2;
+                return startCol + 1;
             }
             case ScalarType:
             {
                 IRow row = _sheet!.GetOrCreateRow(startRow);
                 ICell cell = row.GetOrCreateCell(startCol);
-
-                // Entry
-                if (cell.GetCellStringValue().Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    colMap[startCol++] = CombineFields(fields, field);
-                }
+                
                 // Common
-                else if (cell.GetCellStringValue().Equals($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}"))
+                if (cell.GetCellStringValue().Equals($"{_context.GetLocaleString(field.Display) ?? field.Name}{(!string.IsNullOrWhiteSpace(field.Unit?.Key) ? $"({_context.GetLocaleString(field.Unit)})" : "")}"))
                 {
                     colMap[startCol] = CombineFields(fields, field);
                 }
-                else if (_fieldMap.ContainsValue(token))
+                else
                 {
-                    startCol = _fieldMap.First(f => f.Value == token).Key;
+                    startCol = _fieldMap.First(f => f.Value.Item1 == token).Key;
                     colMap[startCol] = CombineFields(fields, field);
                 }
 
@@ -946,8 +998,9 @@ public class TemplateManager
     private readonly ICellStyle? _pyearMonthCellStyle;
     private readonly ICellStyle? _pfullDateCellStyle;
     private readonly ICellStyle? _pintCellStyle;
-    private readonly Dictionary<int, string> _fieldMap = [];
+    private readonly Dictionary<int, (string, string?)> _fieldMap = [];
     private readonly Dictionary<string, List<string>> _enumListMap = [];
+    private readonly Dictionary<string, Dictionary<string, string>> _enumMaps = [];
     private readonly Dictionary<string, List<Entry>> _entryListMap = [];
     private readonly Dictionary<string, List<StructFieldConfig>> _jsonTypeMap = [];
 

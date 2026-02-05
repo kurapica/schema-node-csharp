@@ -29,7 +29,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         
         AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
         AppFieldType field = app.GetField(request.Field) ?? throw new Exception(APP_FIELD_NOT_FOUND);
-        if (field.SchemaType is not ArrayType) throw new Exception(APP_FIELD_TYPE_NOT_SUPPORT_EXCEL_TEMPLATE);
+        if (field.SchemaType is not ArrayType arrayType) throw new Exception(APP_FIELD_TYPE_NOT_SUPPORT_EXCEL_TEMPLATE);
 
         IFormFile? file = request.Files?.FirstOrDefault();
 
@@ -108,14 +108,29 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         {
             return new ExcelTemplateResponse
             {
-                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 10, request.NoHelper)
+                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 10)
             };
         }
         
         // upload data
         else
         {
-            JsonArray uploads = await manager.ReadUploadsAsync();
+            // temp use struct index for require
+            List<string> requireFields = [];
+            if (arrayType.Primary is { Length: > 0 } primaryKeys)
+            {
+                requireFields.AddRange(primaryKeys);
+            }
+
+            if (arrayType.Indexes is { Length: > 0 } indexes)
+            {
+                foreach (DataIndex dataIndex in indexes)
+                {
+                    requireFields.AddRange(dataIndex.Fields);
+                }
+            }
+            
+            JsonArray uploads = await manager.ReadUploadsAsync(requireFields.Distinct().ToArray());
             if (request.Save == true && !string.IsNullOrEmpty(request.Target))
             {
                 Dictionary<string, AppDataFieldPushQuery> pushData = [];
@@ -189,11 +204,6 @@ public class ExcelTemplateRequest : SchemaApiRequest
     /// The file suffix
     /// </summary>
     public string? Suffix { get; set; }
-    
-    /// <summary>
-    /// Not helpers field map
-    /// </summary>
-    public bool? NoHelper { get; set; }
 }
 
 /// <summary>
