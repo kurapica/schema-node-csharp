@@ -76,7 +76,16 @@ public class DynamicTableField
         object? data;
         if (Type == DynamicTableFieldType.Json)
         {
-            data = JsonNode.Parse(reader.GetString(col));
+            object raw = reader.GetValue(col);
+
+            JsonNode? json = raw is DBNull ? null : raw switch
+            {
+                string s => JsonNode.Parse(s),
+                byte[] b => JsonNode.Parse(b),
+                _ => null
+            };
+
+            data = json;
         }
         else
         {

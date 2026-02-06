@@ -168,6 +168,7 @@ public class StructType: AnySchemaType
         // validate fields
         StructTypeNode result = new(this);
         JsonObject? error = null;
+        string? additionalField = null;
         foreach (StructFieldConfig field in Fields)
         {
             if (field.DisplayOnly ?? false) continue;
@@ -185,6 +186,10 @@ public class StructType: AnySchemaType
                 {
                     result[field.Name] = v;
                 }
+            }
+            else if (field.Unpack ?? false)
+            {
+                additionalField = field.Name;
             }
             else if (field.Require ?? false)
             {
@@ -220,6 +225,23 @@ public class StructType: AnySchemaType
                 error ??= new JsonObject();
                 error[field.Name] = TYPE_VALUE_STRUCT_MEMBER_REQUIRE;
             }
+        }
+
+        if (additionalField != null)
+        {
+            string[] fieldsName = Fields.Select(f => f.Name).ToArray();
+            JsonObject additionalData = new();
+            foreach (var kv in jObject)
+            {
+                if (kv.Value != null && !kv.Value.IsEmpty() && !fieldsName.Any(f => f.Equals(kv.Key, StringComparison.OrdinalIgnoreCase)))
+                {
+                    additionalData[kv.Key] = kv.Value.DeepClone();
+                }
+            }
+
+            var jsonNode = result.GetField(additionalField);
+            if (jsonNode != null) 
+                jsonNode.Value = additionalData;
         }
         
         // @TODO: Union validation

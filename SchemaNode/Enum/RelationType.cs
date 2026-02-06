@@ -81,6 +81,11 @@ public enum RelationType
     SingleFlag,
     
     /// <summary>
+    /// The display name of the node
+    /// </summary>
+    Display,
+    
+    /// <summary>
     /// Union validation
     /// </summary>
     Validation,

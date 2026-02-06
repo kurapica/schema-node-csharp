@@ -1,6 +1,7 @@
 using SchemaNode.Node;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -210,7 +211,17 @@ public static class Extension
     {
         return (T?)(TryConvert(typeof(T), node) ?? default);
     }
-
+    static readonly string[] DateFormats =
+    {
+        "yyyy-MM-dd",
+        "yyyy/MM/dd",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ssZ",
+        "yyyy-MM-ddTHH:mm:ss.fffZ",
+        "yyyy-MM-dd HH:mm:ss.fff",
+        "yyyy-MM-ddTHH:mm:sszzz",
+    };
     /// <summary>
     /// Try parse the json value to value and type
     /// </summary>
@@ -220,11 +231,26 @@ public static class Extension
         {
             case JsonValueKind.String:
                 if (val.TryGetValue(out string? s))
-                {
-                    if (DateTimeOffset.TryParse(s, out var dt))
-                        return (dt, typeof(DateTimeOffset));
-                    if (DateTime.TryParse(s, out DateTime d))
-                        return (d, typeof(DateTime));
+                { 
+                    if (DateTimeOffset.TryParseExact(
+                          s,
+                          DateFormats,
+                          CultureInfo.InvariantCulture,
+                          DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                          out var dto))
+                    {
+                        return (dto, typeof(DateTimeOffset));
+                    }
+
+                    if (DateTime.TryParseExact(
+                            s,
+                            DateFormats,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None,
+                            out var dt))
+                    {
+                        return (dt, typeof(DateTime));
+                    }
                     return (s, typeof(string));
                 }
                 return (null, typeof(string));

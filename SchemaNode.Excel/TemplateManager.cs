@@ -702,8 +702,8 @@ public class TemplateManager
                     if (keyCell == null || valueCell == null) continue;
                     try
                     {
-                        string? key = keyCell.GetCellStringValue()?.Trim();
-                        string? value = valueCell.GetCellStringValue()?.Trim();
+                        string? key = keyCell.GetCellStringValue(true)?.Trim();
+                        string? value = valueCell.GetCellStringValue(true)?.Trim();
                         if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(value))
                             enumValueMap[key] = value;
                     }
@@ -739,7 +739,21 @@ public class TemplateManager
                     // Gets the value
                     ICell cell = row.GetCell(j);
                     if (cell == null) continue;
-                    string value = cell.GetCellStringValue();
+                    
+                    // check by white list
+                    Dictionary<string, string>? enumValueMap = null;
+                    if (_fieldMap.TryGetValue(j, out var map))
+                    {
+                        if (!string.IsNullOrWhiteSpace(map.Item2))
+                        {
+                            string enumKey = map.Item2.ToLower();
+                            _enumMaps.TryGetValue(enumKey, out enumValueMap);
+                        }
+                    }
+
+                    bool forceString = enumValueMap != null;
+
+                    string value = cell.GetCellStringValue(forceString);
                     if (string.IsNullOrEmpty(value)) continue;
 
                     // Check the merged cells
@@ -750,25 +764,14 @@ public class TemplateManager
                             CellRangeAddress? mcell = mergedCells.FirstOrDefault(m => m.IsInRange(cell.RowIndex, cell.ColumnIndex));
                             if (mcell == null) continue;
 
-                            value = _sheet.GetCellStringValue(mcell);
+                            value = _sheet.GetCellStringValue(mcell, forceString);
                         }
                         if (string.IsNullOrWhiteSpace(value)) continue;
                     }
                     
-                    // check by white list
-                    if (_fieldMap.TryGetValue(j, out var map))
+                    if (enumValueMap != null && enumValueMap.TryGetValue(value, out string? enumValue))
                     {
-                        if (!string.IsNullOrWhiteSpace(map.Item2))
-                        {
-                            string enumKey = map.Item2.ToLower();
-                            if (_enumMaps.TryGetValue(enumKey, out Dictionary<string, string>? enumValueMap))
-                            {
-                                if (enumValueMap.TryGetValue(value, out string? enumValue))
-                                {
-                                    value = enumValue;
-                                }
-                            }
-                        }
+                        value = enumValue;
                     }
 
                     // Validate by the fields

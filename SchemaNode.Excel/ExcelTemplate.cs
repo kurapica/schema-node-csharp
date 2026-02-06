@@ -131,6 +131,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
             }
             
             JsonArray uploads = await manager.ReadUploadsAsync(requireFields.Distinct().ToArray());
+            if (uploads.IsEmpty()) throw new Exception("EXCEL_TEMPLATE_NO_VALID_DATA");
             if (request.Save == true && !string.IsNullOrEmpty(request.Target))
             {
                 Dictionary<string, AppDataFieldPushQuery> pushData = [];

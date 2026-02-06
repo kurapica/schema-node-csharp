@@ -82,9 +82,10 @@ internal static class Extensions
     /// <summary>
     /// Get cell string value
     /// </summary>
-    internal static string GetCellStringValue(this ICell? cell)
+    internal static string GetCellStringValue(this ICell? cell, bool forceString = false)
     {
         if (cell == null) return "";
+        if (forceString) return cell.StringCellValue;
 
         switch (cell.CellType)
         {
@@ -115,7 +116,7 @@ internal static class Extensions
         }
     }
 
-    internal static string GetCellStringValue(this ISheet sheet, CellRangeAddress mergedCell)
+    internal static string GetCellStringValue(this ISheet sheet, CellRangeAddress mergedCell, bool forceString = false)
     {
         for (int i = mergedCell.FirstRow; i <= mergedCell.LastRow; i++)
         {
@@ -125,7 +126,7 @@ internal static class Extensions
             {
                 ICell cell = row.GetCell(j);
                 if (cell == null) continue;
-                string value = cell.GetCellStringValue();
+                string value = cell.GetCellStringValue(forceString);
                 if(!string.IsNullOrWhiteSpace(value)) return value;
             }
         }
