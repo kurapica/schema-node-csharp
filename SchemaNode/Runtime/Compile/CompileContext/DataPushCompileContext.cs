@@ -129,11 +129,11 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
         switch (curr)
         {
             // Record the push keys from the third field arguments
-            case FieldAccessExp { Owner: ArgumentExp { Index: > 0 } arg } fldAcces:
+            case FieldAccessExp { Owner: ArgumentExp { Index: > 0 } arg } fldAccess:
             {
                 var info = _thirdFields.First(a => a.Arg == arg);
-                if (!info.PushKeys.Contains(fldAcces.FieldName))
-                    info.PushKeys.Add(fldAcces.FieldName);
+                if (!info.PushKeys.Contains(fldAccess.FieldName))
+                    info.PushKeys.Add(fldAccess.FieldName);
                 break;
             }
             
@@ -146,6 +146,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                         throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}":
+                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}":
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}":
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}":
                     {
@@ -189,10 +190,8 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                                 // The owner must be argument type generated before
                                                 SchemaExp owner = fieldAccessExp.Owner;
                                                 if (owner is VariableExp vExp) owner = vExp.Value;
-                                                
                                                 if (owner is not ArgumentExp arg)
-                                                    throw new FunctionVisitException(
-                                                        SchemaNodeStatus.ApplicationPushDataWrongFunc);
+                                                    throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
 
                                                 primaryMap.Add(new DataPushPrimaryFieldAccess(arrayType.Primary[i], arg.Index == 0 ? null : _thirdFields[arg.Index - 1].Field, arg.Index, fieldAccessExp.FieldName));
                                                 keyExp = null;
@@ -305,18 +304,40 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
         return await base.VisitSchemaExpAsync(exp);
     }
+
+    private bool NotCondVisit(FieldAccessExp fieldAccessExp)
+    {
+        SchemaExp owner = fieldAccessExp.Owner;
+        if (owner is VariableExp vExp) owner = vExp.Value;
+        if (owner is ArgumentExp argExp)
+        {
+            // Record the thrid field's push key for later compare
+            if (argExp.Index > 0)
+            {
+                DataPushThirdFieldInfo fldInfo = _thirdFields.First(a => a.Arg == argExp);
+                if (!fldInfo.PushKeys.Contains(fieldAccessExp.FieldName))
+                    fldInfo.PushKeys.Add(fieldAccessExp.FieldName);
+            }
+        }
+        else
+        {
+            throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
+        }
+
+        return false;
+    }
     
     /// <summary>
     /// No third app field involved
     /// </summary>
-    private static bool FromThirdField(SchemaExp expression)
+    private bool FromThirdField(SchemaExp expression, bool isCond = false)
     {
         return expression switch
         {
             ArgumentExp argExp => argExp.Index > 0, // Only allow first argument
-            VariableExp varExp => FromThirdField(varExp.Value),
-            DefaultExp defExp => FromThirdField(defExp.Inner),
-            ParamsExp paramsExp => paramsExp.Exps.Any(FromThirdField),
+            VariableExp varExp => FromThirdField(varExp.Value, isCond),
+            DefaultExp defExp => FromThirdField(defExp.Inner, isCond),
+            ParamsExp paramsExp => paramsExp.Exps.Any(e => FromThirdField(e, isCond)),
             CollectionOperator collectionExp => FromThirdField(collectionExp.Root),
             CollectionRootExp iterExp => FromThirdField(iterExp.Collection),
             FuncCallExp funcCallExp => funcCallExp.Function.Name switch
@@ -330,20 +351,19 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabytwokey)}"
                     or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabythreekey)}"
                     or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyfourkey)}" => false, // allow parameters
-                _ => funcCallExp.Args.Any(FromThirdField)
+                _ => funcCallExp.Args.Any(e => FromThirdField(e, isCond))
             },
-            UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner),
-            BinaryLogicExp binaryLogicExp => FromThirdField(binaryLogicExp.Left) || 
-                                                    FromThirdField(binaryLogicExp.Right),
-            ConditionalExp condExp => FromThirdField(condExp.Condition) || 
+            UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner, isCond),
+            BinaryLogicExp binaryLogicExp => FromThirdField(binaryLogicExp.Left, isCond) || 
+                                                    FromThirdField(binaryLogicExp.Right, isCond),
+            ConditionalExp condExp => FromThirdField(condExp.Condition, true) ||
                                              FromThirdField(condExp.TrueExp) ||
                                              FromThirdField(condExp.FalseExp),
-            FieldAccessExp fieldAccessExp => FromThirdField(fieldAccessExp.Owner),
-            ArithmeticExp arithmeticExp => arithmeticExp.Args.Any(FromThirdField),
+            FieldAccessExp fieldAccessExp => isCond ? NotCondVisit(fieldAccessExp) : FromThirdField(fieldAccessExp.Owner),
+            ArithmeticExp arithmeticExp => arithmeticExp.Args.Any(e => FromThirdField(e)),
             
             // No break/source exp in data push
-            DataSourceExp or BreakExp =>
-                throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc),
+            DataSourceExp or BreakExp => throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc),
             _ => false,
         };
     }
