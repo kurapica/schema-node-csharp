@@ -204,11 +204,8 @@ public class IntrinsicExpVisitor : IExpVisitor
                 // For reduce
                 if (constExp.Value.IsEmpty && !expectedType.IsNullable())
                     return Expression.Default(expectedType);
-
-                object? value = expectedType.GetNotNullType().TryConvert(constExp.Value);
-                return value != null && value.GetType().IsSafeConstantValue()
-                    ? Expression.Constant(value, expectedType)
-                    : Expression.Default(expectedType);
+                
+                return Expression.Constant(constExp.Value.Value, expectedType);
             }
             
             // a ? b : c

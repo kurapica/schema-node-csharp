@@ -111,7 +111,7 @@ public static class SystemLogic
             case JsonNode j:
                 return j.IsEmpty();
             case string s:
-                return s.Length == 0;
+                return string.IsNullOrWhiteSpace(s);
             case IEnumerable e:
             {
                 IEnumerator enumerator = e.GetEnumerator();

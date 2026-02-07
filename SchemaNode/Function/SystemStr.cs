@@ -48,6 +48,9 @@ public static class SystemStr
     #endregion
 
     #region Conversion
+    
+    [Schema]
+    public static string prespace(string str, long count) => new string(' ', (int)count) + str;
 
     [Schema]
     public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
@@ -60,6 +63,9 @@ public static class SystemStr
 
     [Schema]
     public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
+    
+    [Schema]
+    public static string trim([Default("")] string str) => str.Trim();
 
     [Schema] [Converter]
     public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");

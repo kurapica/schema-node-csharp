@@ -108,7 +108,7 @@ public class ExcelTemplateApi: SchemaApi<ExcelTemplateRequest, ExcelTemplateResp
         {
             return new ExcelTemplateResponse
             {
-                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 10)
+                Output = await manager.DownloadTemplateAsync(request.InputCount ?? 100)
             };
         }
         

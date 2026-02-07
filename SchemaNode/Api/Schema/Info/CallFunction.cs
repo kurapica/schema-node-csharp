@@ -18,7 +18,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
     protected override async Task<CallFunctionResponse?> ExecuteAsync(CallFunctionRequest request,
         CancellationToken cancellationToken)
     {
-        Logger.LogDebug("[Api]CallFunction [Request]{request}", request);
+        Logger.LogInformation("[Api]CallFunction [Request]{request}", request);
 
         // get function node
         AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(request.Name);

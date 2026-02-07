@@ -77,6 +77,16 @@ public class TemplateManager
             _pheaderCellStyle.CloneStyleFrom(_headerCellStyle);
             _pheaderCellStyle.FillForegroundColor = PrimaryColor;
             _pheaderCellStyle.FillPattern = FillPattern.SolidForeground;
+            
+            // string cell
+            _textCellStyle = _workbook.CreateCellStyle();
+            _textCellStyle.CloneStyleFrom(_borderCellStyle);
+            _textCellStyle.DataFormat = format.GetFormat("Text");
+            
+            _ptextCellStyle = _workbook.CreateCellStyle();
+            _ptextCellStyle.CloneStyleFrom(_textCellStyle);
+            _ptextCellStyle.FillForegroundColor = PrimaryColor;
+            _ptextCellStyle.FillPattern = FillPattern.SolidForeground;
 
             // number cell
             _numberCellStyle = _workbook.CreateCellStyle();
@@ -520,6 +530,10 @@ public class TemplateManager
                                 }
                             }
                         }
+                        else
+                        {
+                            cellStyle = (isPrimary ? _ptextCellStyle : _textCellStyle)!;
+                        }
                     }
 
                     // Example data cell
@@ -769,9 +783,10 @@ public class TemplateManager
                         if (string.IsNullOrWhiteSpace(value)) continue;
                     }
                     
-                    if (enumValueMap != null && enumValueMap.TryGetValue(value, out string? enumValue))
+                    if (enumValueMap != null)
                     {
-                        value = enumValue;
+                        value = enumValueMap.GetValueOrDefault(value, "");
+                        if (string.IsNullOrEmpty(value)) continue;
                     }
 
                     // Validate by the fields
@@ -989,11 +1004,13 @@ public class TemplateManager
     private readonly XSSFDataValidationHelper? _validationHelper;
     private readonly ICellStyle? _borderCellStyle;
     private readonly ICellStyle? _headerCellStyle;
+    private readonly ICellStyle? _textCellStyle;
     private readonly ICellStyle? _numberCellStyle;
     private readonly ICellStyle? _dateCellStyle;
     private readonly ICellStyle? _yearMonthCellStyle;
     private readonly ICellStyle? _fullDateCellStyle;
     private readonly ICellStyle? _intCellStyle;
+    private readonly ICellStyle? _ptextCellStyle;
     private readonly ICellStyle? _pborderCellStyle;
     private readonly ICellStyle? _pheaderCellStyle;
     private readonly ICellStyle? _pnumberCellStyle;

@@ -9,7 +9,6 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The schema of the recognizer type
 /// </summary>
-[SchemaApp]
 public class RecognizerSchema
 {
     /// <summary>

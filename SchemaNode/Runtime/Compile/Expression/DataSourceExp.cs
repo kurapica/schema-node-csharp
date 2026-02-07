@@ -229,7 +229,7 @@ public class DataSourceExpVisitor : IExpVisitor
             DefaultExp dftExp => await CompileDataSourceFilter(context, dftExp.Inner, expReplace), // unpack the default
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner, expReplace)),
             BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(context, binaryExp.Left, expReplace), await CompileDataSourceFilter(context, binaryExp.Right, expReplace)),
-            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp)),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await context.CompileSchemaExpAsync(exp, typeof(object))),
         };
 
         SchemaExp ReplaceExp(SchemaExp e)

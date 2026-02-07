@@ -123,7 +123,10 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
     /// </summary>
     public override async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
     {
-        switch (exp)
+        SchemaExp curr = exp;
+        if (curr is DefaultExp defaultExp) curr = defaultExp.Inner;
+        
+        switch (curr)
         {
             // Record the push keys from the third field arguments
             case FieldAccessExp { Owner: ArgumentExp { Index: > 0 } arg } fldAcces:
