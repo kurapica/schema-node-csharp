@@ -192,6 +192,7 @@ public class AppType
                             field.PushSource = pushSource;
                     
                             // Compile with data push compile context
+                            funcNode.ClearRuntimeFuncCache<DataPushCompileContext>(); // must reset the field reference
                             DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
                             try
                             {

@@ -110,7 +110,13 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
                 }
             }
-
+            
+            // Check break logic for third field push keys
+            foreach (BreakExp breakExp in schema.Exps.Where(e => e.Value is BreakExp).Select(e => e.Value).Cast<BreakExp>())
+            {
+                FromThirdField(breakExp.Cond, true);
+            }
+            
             schema = new FunctionTypeSchema(args, schema.Exps, schema.Return);
         }
 

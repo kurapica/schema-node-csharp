@@ -371,6 +371,22 @@ public class FunctionType : AnySchemaType
         value = default;
         return false;
     }
+    
+    /// <summary>
+    /// Clear the runtime function cache for the type
+    /// </summary>
+    public void ClearRuntimeFuncCache(Type TK)
+    {
+        _runtimeFuncCache.TryRemove(TK, out _);
+    }
+    
+    /// <summary>
+    /// Clear the runtime function cache for the type
+    /// </summary>
+    public void ClearRuntimeFuncCache<TK>()
+    {
+        _runtimeFuncCache.TryRemove(typeof(TK), out _);
+    }
 
     #endregion
 
