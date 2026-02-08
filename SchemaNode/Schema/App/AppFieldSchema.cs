@@ -91,6 +91,11 @@ public class AppFieldSchema
     public ColPolicyItem[]? ColAuths { get; set; }
     
     /// <summary>
+    /// The field storage topology, which defines how the field data is stored in the database.
+    /// </summary>
+    public FieldStorageTopology? Topology { get; set; }
+    
+    /// <summary>
     /// The field flags
     /// </summary>
     public AppFieldFlags Flags { get; set; } = AppFieldFlags.None;

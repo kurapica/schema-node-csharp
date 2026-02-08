@@ -356,7 +356,7 @@ public class AppType
                 Relations = schema.Relations.Select(r => new AppRelationSchema
                 {
                     AppField = r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty,
-                    DataField = r.Field.Contains(".") ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
+                    DataField = r.Field.Contains('.') ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
                     Type = r.Type,
                     Func = r.Func,
                     Args = r.Args.Select(a => new AppArgSchema
@@ -435,9 +435,12 @@ public class AppType
         }
         
         // load workflows
+        List<AppWorkflowType>? oldWorkflows = Workflows;
         Workflows = schema.Workflows?.Select(w =>
         {
-            var wft = (AppWorkflowType)w;
+            // if the workflow is activated, keep the old instance to avoid breaking the running workflow, otherwise create a new instance
+            AppWorkflowType wft = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
+                ? old : w;
             wft.Application = this;
             return wft;
         }).ToList();

@@ -42,30 +42,11 @@ public class DynamicTableField
     /// The data dict type
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }
-
+    
     /// <summary>
-    /// The struct field node of primary field
+    /// Whether the field is used as attribute table for dynamic type
     /// </summary>
-    public StructFieldConfig? StructFieldNode { get; init; }
-
-    /// <summary>
-    /// Whether the type is string data
-    /// </summary>
-    public bool IsString => Type switch
-    {
-        DynamicTableFieldType.Bool => false,
-        DynamicTableFieldType.Smallint => false,
-        DynamicTableFieldType.USmallint => false,
-        DynamicTableFieldType.Mediumint => false,
-        DynamicTableFieldType.UMediumint => false,
-        DynamicTableFieldType.Int => false,
-        DynamicTableFieldType.UInt => false,
-        DynamicTableFieldType.BigInt => false,
-        DynamicTableFieldType.UBigInt => false,
-        DynamicTableFieldType.Float => false,
-        DynamicTableFieldType.Double => false,
-        _ => true
-    };
+    public AppRelationSchema? RelationType { get; init; }
 
     /// <summary>
     /// Get JToken from reader
@@ -122,37 +103,6 @@ public class DynamicTableField
             DynamicTableFieldType.Bool => value.ToValue<bool>() ? "1" : "0",
             DynamicTableFieldType.DateTime => value.ToValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
             _ => value.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Gets the string of the JToken value
-    /// </summary>
-    public string? ToString(object? value)
-    {
-        if (value == null) return null;
-
-        return Type switch
-        {
-            DynamicTableFieldType.Bool => Convert.ToBoolean(value) ? "1" : "0",
-            DynamicTableFieldType.DateTime => Convert.ToDateTime(value).ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => value.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Gets the string of the JToken value
-    /// </summary>
-    public string? ToString(JsonNode? value)
-    {
-        if (value == null && value.IsEmpty()) return null;
-        JsonNode v = value!;
-        return Type switch
-        {
-            DynamicTableFieldType.Bool => v.GetValue<bool>() ? "1" : "0",
-            DynamicTableFieldType.DateTime => v.GetValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            DynamicTableFieldType.Json => v.ToJsonString(),
-            _ => v.ToValue<string>()
         };
     }
 }

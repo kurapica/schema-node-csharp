@@ -284,7 +284,6 @@ public static class Injection
             // keep it simple, just set it
             ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
             services.AddSingleton(instance);
-            DynamicTableSchema.SqlProvider = instance;
         }
         
         return services.AddScoped<T>();

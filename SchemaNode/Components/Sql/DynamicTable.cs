@@ -19,19 +19,14 @@ namespace SchemaNode.Components;
 public class DynamicTableSchema
 {
     /// <summary>
-    /// The sql provider
-    /// </summary>
-    internal static ISqlProvider SqlProvider = new DefaultSqlProvider();
-
-    /// <summary>
     /// The dynamic table name
     /// </summary>
     public required string Name { get; init; }
-
+    
     /// <summary>
-    /// The data type name
+    /// The attribute table name for dynamic fields
     /// </summary>
-    public required string DataType { get; init; }
+    public string? AttrTable { get; init; }
 
     /// <summary>
     /// Whether the table is single row
@@ -57,6 +52,11 @@ public class DynamicTableSchema
     /// The data type node
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }
+    
+    /// <summary>
+    /// Whether enable attribute table, the dynamic field value will be stored in attribute table to support different custom types
+    /// </summary>
+    public FieldStorageTopology? Topology { get; init; }
 
     /// <summary>
     /// Gets the field values by the fields
@@ -194,8 +194,10 @@ public class DynamicTableSchema
     /// </summary>
     public string? GetPrimaryKey(JsonObject pack)
     {
-        StructTypeNode? node = ToStructTypeNode(pack);
-        return node != null ? GetPrimaryKey(node) : null;
+        if (pack.IsEmpty()) return null;
+        return (SchemaType is ArrayType array 
+            ? array.ElementSchemaType : SchemaType)?.CreateNode(pack) is StructTypeNode node 
+            ? GetPrimaryKey(node) : null;
     }
 
     /// <summary>
@@ -233,9 +235,7 @@ public class DynamicTableSchema
     {
         // single value
         if (Fields.Count == 1 && Fields[0].SchemaType == SchemaType)
-        {
             return Fields[0].FromReader(reader, offset);
-        }
 
         StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
         foreach (DynamicTableField field in Fields)
@@ -329,12 +329,6 @@ public class DynamicTableSchema
         $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}",
         $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}",
     ];
-
-    private StructTypeNode? ToStructTypeNode(JsonObject? obj)
-    {
-        if (obj == null || obj.IsEmpty()) return null;
-        return (SchemaType is ArrayType array ? array.ElementSchemaType : SchemaType)?.CreateNode(obj) as StructTypeNode;
-    }
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 
@@ -54,7 +55,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
             // Check the new schema
             StringBuilder? sb = null;
-            foreach (DynamicTableField dyFld in schema.Fields)
+            foreach (DynamicTableField dyFld in schema.Fields.Where(f => f.RelationType == null))
             {
                 string dataType = DataType(dyFld);
                 if (!nameTypes.TryGetValue(dyFld.Name, out string? type))
@@ -178,7 +179,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             sb.Append($"{_refTarget} VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
 
             // Generate the column lists
-            foreach (DynamicTableField tableField in schema.Fields)
+            foreach (DynamicTableField tableField in schema.Fields.Where(f => f.RelationType == null))
             {
                 // Name-Type
                 sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}");
@@ -232,6 +233,76 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         {
             Logger.LogError(ex.Message);
             throw;
+        }
+        
+        // Check if require EAV table
+        if (schema.Topology == FieldStorageTopology.AttributeBased)
+        {
+            // Create the attribute-value table
+            try
+            {
+                tableName = sqlProvider.QuoteTable(schema.AttrTable!);
+                StringBuilder sb = new();
+
+                // Create the data table
+                sb.Append($"CREATE TABLE IF NOT EXISTS {tableName} (");
+
+                // The primary key
+                sb.Append($"{_refTarget} VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
+                
+                // Generate the primary fields
+                foreach (DynamicTableField tableField in schema.Fields.Where(f => f.Primary))
+                    sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)} NOT NULL, ");
+                
+                // The attribute field
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_FIELD)} VARCHAR({EAV_TABLE_FIELD_MAX_LENGTH}) NOT NULL, ");
+                
+                // The value field
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)} BIGINT, ");
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)} VARCHAR({ENTITY_PRIMARY_KEY_MAX_LEN}), ");
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)} DATETIME, ");
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_DOUBLE_FIELD)} DOUBLE, ");
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD)} TEXT, ");
+                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD)} JSON, ");
+                
+                // Append primary key
+                // Use auto-incr seqNo as primary key
+                sb.Append($"PRIMARY KEY({_refTarget}");
+
+                // Use other primary key as unique index
+                foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
+                    sb.Append($", {sqlProvider.QuoteField(tableField.Name)}");
+                sb.Append($", {sqlProvider.QuoteField(EAV_TABLE_FIELD)})");
+
+                // End the building
+                sb.Append(") engine=InnoDB;");
+                
+                DbCommand command = GetDbCommand();
+                command.CommandText = sb.ToString();
+                Logger.LogInformation(command.CommandText);
+                await command.ExecuteNonQueryAsync();
+                
+                // Create the indexes
+                sb = new StringBuilder();
+                sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_INT")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_STR")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_DAT")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)});");
+                
+                command = GetDbCommand();
+                command.CommandText = sb.ToString();
+                Logger.LogInformation(command.CommandText);
+                await command.ExecuteNonQueryAsync();
+            }
+            catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateKeyName)
+            {
+                // Ignore duplicate key error
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+                throw;
+            }
         }
 
         return true;
@@ -337,13 +408,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
                     if (!fullFill)
                     {
-                        foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, noPrimary:true))
+                        foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, noPrimary: true))
                         {
                             if (v is { IsEmpty: false })
                             {
                                 if (v is ArrayTypeNode arr)
                                 {
-                                    sb.Append($" AND {sqlProvider.In(fld, arr.Where(a => !a.IsEmpty).Select(a => a.Value!))}");
+                                    sb.Append(
+                                        $" AND {sqlProvider.In(fld, arr.Where(a => !a.IsEmpty).Select(a => a.Value!))}");
                                 }
                                 else
                                 {
@@ -441,18 +513,19 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Append the rest
             sb.Append(" ORDER BY ");
             bool first = false;
-            foreach(var (field, d) in schema.GetOrderBys(desc, orderBy))
+            foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
             {
                 if (first) sb.Append(", ");
                 first = true;
                 sb.Append($"{field}");
                 if (d) sb.Append(" DESC ");
             }
+
             if (take is > 0)
                 sb.Append($" LIMIT {take}");
             if (skip is > 0)
                 sb.Append($" OFFSET {skip}");
-            
+
             // Query Data
             StringBuilder select = new();
             select.Append("SELECT ");
@@ -469,7 +542,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             select.Append(_refSeqNo);
             select.Append(" ORDER BY ");
             first = false;
-            foreach(var (field, d) in schema.GetOrderBys(desc, orderBy))
+            foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
             {
                 if (first) select.Append(", ");
                 first = true;
@@ -499,6 +572,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await reader.CloseAsync();
             }
             
+            // Load the attribute-based fields if need
+            await FillAttributeDataAsync(schema, target, value, forUpdate);
+
             return (value, (fullFill || forUpdate) ? value.Count : total);
         }
     }
@@ -639,11 +715,134 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await reader.CloseAsync();
         }
 
+        // Load the attribute-based fields if need
+        await FillAttributeDataAsync(schema, target, value, forUpdate);
+
         if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
             return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
         return (value, total > 0 ? total : (value?.Count ?? 0));
     }
 
+    async Task FillAttributeDataAsync(DynamicTableSchema schema, string target, ArrayTypeNode? value, bool forUpdate = false)
+    {
+        // Load the attribute-based fields if need
+        if (value is { Count: > 0 } && schema.Topology == FieldStorageTopology.AttributeBased &&
+            schema.Fields.FirstOrDefault(p => p.RelationType != null) is {} dynamicField)
+        {
+            StringBuilder select = new();
+            select.Append("SELECT ");
+            foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
+                select.Append($"{sqlProvider.QuoteField(tableField.Name)}, ");
+
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_DOUBLE_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD)}, ");
+            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD)} FROM {sqlProvider.QuoteTable(schema.AttrTable!)} ");
+            select.Append($"WHERE {_refTarget} = {sqlProvider.Literal(target)} ");
+
+            if (value.Count > MAX_COMBINE_CASE_COUNT)
+            {
+                foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
+                    select.Append($"AND {sqlProvider.QuoteField(tableField.Name)} IN ({string.Join(',', value.Cast<StructTypeNode>().Select(v => sqlProvider.Literal(v[tableField.Name])))} ) ");
+            }
+            else
+            {
+                select.Append("AND (");
+                bool hasQuery = false;
+                foreach (StructTypeNode node in value.Cast<StructTypeNode>())
+                {
+                    select.Append(hasQuery ? "OR (" : "(");
+                    bool first = false;
+                    hasQuery = true;
+                    foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
+                    {
+                        if (first) select.Append(" AND ");
+                        first = true;
+                        select.Append($"{sqlProvider.QuoteField(tableField.Name)} = {sqlProvider.Literal(node[tableField.Name])}");
+                    }
+                    select.Append(")");
+                }
+                select.Append(")");
+            }
+            
+            select.Append(forUpdate ? " FOR UPDATE;" : ";");
+            var command = GetDbCommand();
+            command.CommandText = select.ToString();
+            Logger.LogDebug(command.CommandText);
+            var reader = await command.ExecuteReaderAsync();
+            try
+            {
+                if (reader.HasRows)
+                {
+                    while (await reader.ReadAsync())
+                    {
+                        int offset = 0;
+                        IEnumerable<StructTypeNode> nodes = value.Cast<StructTypeNode>();
+                        foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
+                        {
+                            AnySchemaNode? val = tableField.FromReader(reader, offset++);
+                            if (val == null || val.IsEmpty) break;
+                            nodes = nodes.Where(n => val.Equals(n.GetField(tableField.Name)!));
+                        }
+                        StructTypeNode[] matched = nodes.ToArray();
+                        if (matched.Length != 1) continue;
+
+                        StructTypeNode pack = matched[0];
+                        string attr = reader.GetString(offset++);
+                        if (string.IsNullOrWhiteSpace(attr)) continue;
+                        
+                        JsonTypeNode jsonNode = (pack.GetField(dynamicField.Name) as JsonTypeNode)!;
+                        jsonNode.Value ??= new JsonObject();
+                        
+                        // bigint
+                        if (!reader.IsDBNull(offset))
+                        {
+                            (jsonNode.Value as JsonObject)![attr] = reader.GetInt64(offset);
+                        }
+                        // string
+                        else if (!reader.IsDBNull(offset + 1))
+                        {
+                            (jsonNode.Value as JsonObject)![attr] = reader.GetString(offset + 1);
+                        }
+                        // datetime
+                        else if (!reader.IsDBNull(offset + 2))
+                        {
+                            (jsonNode.Value as JsonObject)![attr] = reader.GetDateTime(offset + 2);
+                        }
+                        // double
+                        else if (!reader.IsDBNull(offset + 3))
+                        {
+                            (jsonNode.Value as JsonObject)![attr] = reader.GetDouble(offset + 3);
+                        }
+                        // text
+                        else if (!reader.IsDBNull(offset + 4))
+                        {
+                            (jsonNode.Value as JsonObject)![attr] = reader.GetString(offset + 3);
+                        }
+                        // json
+                        else if (!reader.IsDBNull(offset + 5))
+                        {
+                            object raw = reader.GetValue(offset + 5);
+                            (jsonNode.Value as JsonObject)![attr] = raw is DBNull ? null : raw switch
+                            {
+                                string s => JsonNode.Parse(s),
+                                byte[] b => JsonNode.Parse(b),
+                                _ => null
+                            };
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                await reader.CloseAsync();
+            }
+        }
+    }
+    
     /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(
             DynamicTableSchema schema, string target, AnySchemaNode? value = null, 
@@ -1125,7 +1324,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     void AppendFields(StringBuilder sb, DynamicTableSchema schema, string prefix = "")
     {
         bool appendComma = false;
-        foreach (DynamicTableField field in schema.Fields)
+        foreach (DynamicTableField field in schema.Fields.Where(f => f.RelationType == null))
         {
             if (appendComma) sb.Append(", ");
             appendComma = true;

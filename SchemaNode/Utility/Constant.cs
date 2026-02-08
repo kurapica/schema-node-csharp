@@ -124,6 +124,16 @@ public static class Constant
     public const int DYNAMIC_TABLE_TARG_LEN = 64;
 
     /// <summary>
+    /// The max length for EAV table field name, to avoid abuse of long field name which may cause performance issue. 
+    /// </summary>
+    public const int EAV_TABLE_FIELD_MAX_LENGTH = 64;
+
+    /// <summary>
+    /// The max combine case count, to avoid abuse of too many cases which may cause performance issue.
+    /// </summary>
+    public const int MAX_COMBINE_CASE_COUNT = 15;
+    
+    /// <summary>
     /// DYNAMIC TABLE VALUE FIELD
     /// </summary>
     public const string DYNAMIC_TABLE_VALUE_FIELD = "_data";
@@ -132,12 +142,52 @@ public static class Constant
     /// DYNAMIC TABLE SEQNO FIELD
     /// </summary>
     public const string DYNAMIC_TABLE_SEQNO_FIELD = "_seqno";
-
+    
     /// <summary>
     /// DYNAMIC TABLE PREFIX
     /// </summary>
     public const string DYNAMIC_TABLE_PREFIX = "dyn";
+    
+    /// <summary>
+    /// Entity-ATTRIBUTE-VALUE TABLE PREFIX
+    /// </summary>
+    public const string EAV_TABLE_PREFIX = "eav";
 
+    /// <summary>
+    /// The field name for EAV table to store the attribute name
+    /// </summary>
+    public const string EAV_TABLE_FIELD = "_field";
+    
+    /// <summary>
+    /// The big int field
+    /// </summary>
+    public const string EAV_TABLE_BIGINT_FIELD = "_bigint";
+
+    /// <summary>
+    /// The double field
+    /// </summary>
+    public const string EAV_TABLE_DOUBLE_FIELD = "_double";
+    
+    /// <summary>
+    /// The index-able string with 128 max length
+    /// </summary>
+    public const string EAV_TABLE_STRING_FIELD = "_str";
+    
+    /// <summary>
+    /// The text field
+    /// </summary>
+    public const string EAV_TABLE_TEXT_FIELD = "_text";
+    
+    /// <summary>
+    /// The datetime field
+    /// </summary>
+    public const string EAV_TABLE_DATETIME_FIELD = "_datetime";
+    
+    /// <summary>
+    /// The JSON field
+    /// </summary>
+    public const string EAV_TABLE_JSON_FIELD = "_json";
+    
     /// <summary>
     /// DYNAMIC UNIQUE INDEX
     /// </summary>

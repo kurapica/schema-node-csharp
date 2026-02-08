@@ -22,7 +22,7 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
     protected override async Task<PushAppDataResponse?> ExecuteAsync(PushAppDataRequest request,
         CancellationToken cancellationToken)
     {
-        Logger.LogInformation("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
+        Logger.LogDebug("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
         
         using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target);
         (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas);

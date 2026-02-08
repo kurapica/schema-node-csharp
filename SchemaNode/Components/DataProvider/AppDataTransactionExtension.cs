@@ -17,15 +17,6 @@ namespace SchemaNode.Components;
 
 public static class AppDataTransactionExtension
 {
-    #region Constant
-
-    /// <summary>
-    /// The max combine case count
-    /// </summary>
-    private const int MAX_COMBINE_CASE_COUNT = 15;
-
-    #endregion
-    
     #region Save
 
     /// <summary>

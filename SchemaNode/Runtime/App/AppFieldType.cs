@@ -60,27 +60,12 @@ public class AppFieldType
     public string? SourceField { get; private init; }
 
     /// <summary>
-    /// Track the push data to the source field, so toggle the source target, will also re-push the data
-    /// </summary>
-    public bool? TrackPush { get; private init; }
-    
-    /// <summary>
-    /// Enable template feature
-    /// </summary>
-    public bool? Template { get; private init; }
-    
-    /// <summary>
-    /// Enable clear data
-    /// </summary>
-    public bool? AllowClear { get; private init; }
-    
-    /// <summary>
-    /// The calculate function
+    /// The push function
     /// </summary>
     public string? Func { get; init; }
 
     /// <summary>
-    /// The input fields
+    /// The push source field
     /// </summary>
     public string? Arg { get; init; }
 
@@ -98,6 +83,26 @@ public class AppFieldType
     /// The column access policy
     /// </summary>
     public ColPolicyItem[]? ColAuths { get; private init; }
+
+    /// <summary>
+    /// The field storage topology, which defines how the field data is stored in the database.
+    /// </summary>
+    public FieldStorageTopology? Topology { get; set; }
+
+    /// <summary>
+    /// Track the push data to the source field, so toggle the source target, will also re-push the data
+    /// </summary>
+    public bool? TrackPush { get; private init; }
+    
+    /// <summary>
+    /// Enable template feature
+    /// </summary>
+    public bool? Template { get; private init; }
+    
+    /// <summary>
+    /// Enable clear data
+    /// </summary>
+    public bool? AllowClear { get; private init; }
 
     /// <summary>
     /// The field is using increase update, no full data push allowed
@@ -289,6 +294,7 @@ public class AppFieldType
             Desc = entity.Desc,
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
+            Topology = entity.Topology,
             TrackPush = entity.TrackPush,
             Template = entity.Template,
             AllowClear =  entity.AllowClear,
@@ -324,6 +330,7 @@ public class AppFieldType
             Status = entity.Status,
             SourceApp = entity.SourceApp,
             SourceField = entity.SourceField,
+            Topology = entity.Topology,
             TrackPush = entity.TrackPush,
             Template = entity.Template,
             AllowClear = entity.AllowClear,
@@ -349,6 +356,11 @@ public class AppFieldType
 
     // Gets the data field dynamic table name
     public string DynamicTableName => $"{DYNAMIC_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
+    
+    /// <summary>
+    /// Gets the attribute table name for the field, which is used to store the attribute data of the field, only for dynamic type
+    /// </summary>
+    public string AttributeTableName => $"{EAV_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
 
     // Generate the dynamic table schema
     public DynamicTableSchema GenDynamicTableSchema()
@@ -358,6 +370,7 @@ public class AppFieldType
         List<DynamicTableField> fields = [];
         DataIndex[]? indexes = null;
         bool single = true;
+        bool enableAttrTable = false;
         DataTypeInfo info;
 
         if (Frontend ?? false)
@@ -365,7 +378,6 @@ public class AppFieldType
             return new DynamicTableSchema
             {
                 Name = DynamicTableName,
-                DataType = Type,
                 SchemaType = node,
                 Single = true,
                 Fields = fields,
@@ -436,6 +448,7 @@ public class AppFieldType
                 if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
                 {
                     single = false;
+                    enableAttrTable = Topology == FieldStorageTopology.AttributeBased;
 
                     // Add primary fields
                     foreach (string n in arrayNode.Primary)
@@ -448,14 +461,14 @@ public class AppFieldType
                             Type = info.Type,
                             Primary = true,
                             MaxLength = info.MaxLength,
-                            SchemaType = sField.SchemeType!,
-                            StructFieldNode = sField,
+                            SchemaType = sField.SchemeType!
                         });
                     }
+                    
                     // Add normal fields
                     foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
                     {
-                        // Check if the sfield use a struct type
+                        // Check if the s-field use a struct type
                         if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {
                             // As complex fields
@@ -475,6 +488,22 @@ public class AppFieldType
                                     SchemaType = ifield.SchemeType!
                                 });
                             }
+                        }
+                        // Check if the field is a dynamic JSON field with attribute-based topology, which need to be stored in separated attribute table
+                        else if (sField.SchemeType is JsonType && enableAttrTable)
+                        {
+                            AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r => r.Type == RelationType.Type && 
+                                r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
+                            
+                            info = GetDataTypeInfo(sField.SchemeType, sField);
+                            fields.Add(new DynamicTableField
+                            {
+                                Name = sField.Name,
+                                Type = info.Type,
+                                MaxLength = info.MaxLength,
+                                SchemaType = sField.SchemeType!,
+                                RelationType = typeRelation
+                            });
                         }
                         else
                         {
@@ -506,8 +535,9 @@ public class AppFieldType
         return new DynamicTableSchema
         {
             Name = DynamicTableName,
-            DataType = Type,
+            AttrTable = enableAttrTable ? AttributeTableName : null,
             SchemaType = node,
+            Topology = Topology,
             Single = single,
             Fields = fields,
             Indexes = indexes,

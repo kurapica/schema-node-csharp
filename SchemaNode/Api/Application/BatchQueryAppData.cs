@@ -22,7 +22,7 @@ public class BatchQueryAppDataApi : SchemaApi<BatchQueryAppDataRequest, BatchQue
     protected override async Task<BatchQueryAppDataResponse?> ExecuteAsync(BatchQueryAppDataRequest request,
         CancellationToken cancellationToken)
     {
-        Logger.LogInformation("[Api]BatchQueryAppData [Request]{request}", request);
+        Logger.LogDebug("[Api]BatchQueryAppData [Request]{request}", request);
         
         (AppDataResult[] result, NodeSchema[]? schemas) = await SchemaContext.BatchQueryAppDataAsync(request.Queries, cancellationToken);
         
