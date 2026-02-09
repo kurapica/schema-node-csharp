@@ -3,13 +3,14 @@ using SchemaNode.Utility;
 using System.Collections;
 using System.Text.Json.Nodes;
 using Microsoft.VisualBasic;
+using SchemaNode.Context;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
 public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(type)
+    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(SchemaContext.GetArraySchemaType(type)!)
     {
         ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;

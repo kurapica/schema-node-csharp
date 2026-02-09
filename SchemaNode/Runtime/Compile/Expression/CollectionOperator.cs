@@ -148,7 +148,7 @@ public class CollectionExpVisitor : IExpVisitor
                         type = field.SchemeType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
                     
-                    return new FieldsCollectionResult(sourceExp, fieldName, await context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                    return new FieldsCollectionResult(sourceExp, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
                 }
             
                 // source.length
@@ -244,7 +244,7 @@ public class CollectionExpVisitor : IExpVisitor
                             type = field.SchemeType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                         }
                     
-                        return new FieldsCollectionResult(source, fieldName, await context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                        return new FieldsCollectionResult(source, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
                     }
 
                     // assign
@@ -252,7 +252,7 @@ public class CollectionExpVisitor : IExpVisitor
                     case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
                     {
                         if (iterArg is FieldAccessExp fieldExp)
-                            return new FieldsCollectionResult(source, fieldExp.FieldName, await context.GetArrayType(fieldExp.SchemaType) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                            return new FieldsCollectionResult(source, fieldExp.FieldName, context.GetArrayType(fieldExp.SchemaType) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
                         break;
                     }
                 }

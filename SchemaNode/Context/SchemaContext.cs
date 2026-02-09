@@ -39,6 +39,11 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// </summary>
     public static ScalarType SystemString { get; private set; } = null!;
     
+    /// <summary>
+    /// The system list type
+    /// </summary>
+    public static ArrayType SystemList { get; private set; } = null!;
+    
     #endregion
 
     #region Init System Types
@@ -59,6 +64,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         SystemBool = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_BOOL))!;
         SystemInt = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT))!;
         SystemString = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_STRING))!;
+        SystemList = (await GetSchemaTypeAsync<ArrayType>(NS_SYSTEM_LIST))!;
         
         LogInformation("[Runtime] System Schemas are registered.");
     }
@@ -360,14 +366,14 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// <summary>
     /// Gets the array schema type
     /// </summary>
-    public async Task<ArrayType?> GetArraySchemaTypeAsync(AnySchemaType? type)
+    public static ArrayType? GetArraySchemaType(AnySchemaType? type)
     {
         return type switch
         {
             null => null,
             ArrayType arrayType => arrayType,
             _ => type.GetArrayType() ??
-                 await ((await GetSchemaTypeAsync(NS_SYSTEM_LIST)) as ArrayType)!.GetGenericTypeAsync(this, type.Name)
+                 SystemList.GetGenericType(type)
         };
     }
     

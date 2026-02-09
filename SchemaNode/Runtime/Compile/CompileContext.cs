@@ -667,7 +667,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (argExp == null) return;
                     var old = args[expFuncType.Args.Length - 1] as ParamsExp;
-                    args[expFuncType.Args.Length - 1] = new ParamsExp(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? (await Context.GetArraySchemaTypeAsync(argType))!);
+                    args[expFuncType.Args.Length - 1] = new ParamsExp(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? SchemaContext.GetArraySchemaType(argType)!);
                 }
 
                 // Nullable check
@@ -841,7 +841,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public Task<ArrayType?> GetArrayType(AnySchemaType elementType) => Context.GetArraySchemaTypeAsync(elementType);
+    public ArrayType? GetArrayType(AnySchemaType elementType) => SchemaContext.GetArraySchemaType(elementType);
     
     /// <summary>
     /// Compile the schema expression to Expression

@@ -165,7 +165,7 @@ public static class SystemCollection
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
         if (f.SchemeType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        AnySchemaType arrayNode = await context.GetArraySchemaTypeAsync(f.SchemeType)
+        AnySchemaType arrayNode = SchemaContext.GetArraySchemaType(f.SchemeType)
                                   ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);

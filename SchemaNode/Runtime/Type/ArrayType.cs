@@ -300,6 +300,35 @@ public class ArrayType: AnySchemaType
         });
     }
 
+    /// <summary>
+    /// Gets the generic type of the array
+    /// </summary>
+    public ArrayType? GetGenericType(AnySchemaType elementType)
+    {
+        if (ElementSchemaType is not GenericType) return null;
+        _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
+        
+        if (elementType is null or GenericType or ArrayType) return null;
+        
+        return _genericArrayTypes.GetOrAdd(elementType.Name.ToLower(), _ =>
+        {
+            ArrayType arrayType = new()
+            {
+                Name = $"{Name}<{elementType}>",
+                Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
+                Namespace = Namespace,
+                Element = elementType.Name,
+                Single = Single,
+                ElementSchemaType = elementType,
+                Loaded = true,
+                LoadState = LoadState,
+                SchemaProvider = SchemaProvider
+            };
+            elementType.AddRef(arrayType);
+            return arrayType;
+        });
+    }
+    
     private ConcurrentDictionary<string, ArrayType>? _genericArrayTypes;
 
     #endregion
