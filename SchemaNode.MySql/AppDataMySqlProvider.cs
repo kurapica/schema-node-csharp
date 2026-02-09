@@ -6,9 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using SchemaNode.Components;
+using SchemaNode.Components.Context;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.MySql;
@@ -20,9 +24,24 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 {
     #region Properties and Fields
 
-    readonly string _refTarget = sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD);
-    readonly string _refIndex = sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX);
-    readonly string _refSeqNo = sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD);
+    private readonly string _refTarget = sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD);
+    private readonly string _refIndex = sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX);
+    private readonly string _refSeqNo = sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD);
+
+    private readonly string _refAttrField = sqlProvider.QuoteField(EAV_TABLE_FIELD);
+    private readonly string _refAttrIntField = sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD);
+    private readonly string _refAttrStrField = sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD);
+    private readonly string _refAttrDatField = sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD);
+    private readonly string _refAttrDblField = sqlProvider.QuoteField(EAV_TABLE_DOUBLE_FIELD);
+    private readonly string _refAttrTxtField = sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD);
+    private readonly string _refAttrJsonField = sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD);
+
+    private const int EavTableIntField = 0;
+    private const int EavTableStrField = 1;
+    private const int EavTableDatField = 2;
+    private const int EavTableDblField = 3;
+    private const int EavTableTxtField = 4;
+    private const int EavTableJsonField = 5;
 
     #endregion
 
@@ -31,7 +50,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <inheritdoc />
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         
         // Check to update the data table
@@ -236,12 +255,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         
         // Check if require EAV table
-        if (schema.Topology == FieldStorageTopology.AttributeBased)
+        if (schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased)
         {
             // Create the attribute-value table
             try
             {
-                tableName = sqlProvider.QuoteTable(schema.AttrTable!);
+                tableName = sqlProvider.QuoteTable(schema.AppFieldType.AttributeTableName);
                 StringBuilder sb = new();
 
                 // Create the data table
@@ -255,15 +274,15 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)} NOT NULL, ");
                 
                 // The attribute field
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_FIELD)} VARCHAR({EAV_TABLE_FIELD_MAX_LENGTH}) NOT NULL, ");
+                sb.Append($"{_refAttrField} VARCHAR({EAV_TABLE_FIELD_MAX_LENGTH}) NOT NULL, ");
                 
                 // The value field
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)} BIGINT, ");
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)} VARCHAR({ENTITY_PRIMARY_KEY_MAX_LEN}), ");
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)} DATETIME, ");
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_DOUBLE_FIELD)} DOUBLE, ");
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD)} TEXT, ");
-                sb.Append($"{sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD)} JSON, ");
+                sb.Append($"{_refAttrIntField} BIGINT, ");
+                sb.Append($"{_refAttrStrField} VARCHAR({ENTITY_PRIMARY_KEY_MAX_LEN}), ");
+                sb.Append($"{_refAttrDatField} DATETIME, ");
+                sb.Append($"{_refAttrDblField} DOUBLE, ");
+                sb.Append($"{_refAttrTxtField} TEXT, ");
+                sb.Append($"{_refAttrJsonField} JSON, ");
                 
                 // Append primary key
                 // Use auto-incr seqNo as primary key
@@ -272,7 +291,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 // Use other primary key as unique index
                 foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                     sb.Append($", {sqlProvider.QuoteField(tableField.Name)}");
-                sb.Append($", {sqlProvider.QuoteField(EAV_TABLE_FIELD)})");
+                sb.Append($", {_refAttrField})");
 
                 // End the building
                 sb.Append(") engine=InnoDB;");
@@ -284,10 +303,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 
                 // Create the indexes
                 sb = new StringBuilder();
-                sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_INT")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_STR")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_DAT")}({_refTarget}, {sqlProvider.QuoteField(EAV_TABLE_FIELD)}, {sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)});");
+                sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD")}({_refTarget}, {_refAttrField}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_INT")}({_refTarget}, {_refAttrField}, {_refAttrIntField}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_STR")}({_refTarget}, {_refAttrField}, {_refAttrStrField}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_DAT")}({_refTarget}, {_refAttrField}, {_refAttrDatField});");
                 
                 command = GetDbCommand();
                 command.CommandText = sb.ToString();
@@ -313,7 +332,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
         bool forUpdate = false, bool onlyCount = false)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();        
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
 
@@ -531,7 +550,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             select.Append("SELECT ");
             AppendFields(select, schema, "o.");
             select.Append(" FROM ");
-            select.Append(schema.Name);
+            select.Append(tableName);
             select.Append(" o JOIN (SELECT ");
             select.Append(_refSeqNo);
             select.Append(" ");
@@ -587,7 +606,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single) return await QueryDynamicTableAsync(schema, target);
 
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         if (string.IsNullOrWhiteSpace(target)) return (null, -1);
 
@@ -668,7 +687,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         select.Append("SELECT ");
         AppendFields(select, schema, "o.");
         select.Append(" FROM ");
-        select.Append(schema.Name);
+        select.Append(tableName);
         select.Append(" o JOIN (SELECT ");
         select.Append(_refSeqNo);
         select.Append(" ");
@@ -723,10 +742,17 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         return (value, total > 0 ? total : (value?.Count ?? 0));
     }
 
+    /// <summary>
+    /// Fill the attribute-based fields for the value list
+    /// </summary>
+    /// <param name="schema"></param>
+    /// <param name="target"></param>
+    /// <param name="value"></param>
+    /// <param name="forUpdate"></param>
     async Task FillAttributeDataAsync(DynamicTableSchema schema, string target, ArrayTypeNode? value, bool forUpdate = false)
     {
         // Load the attribute-based fields if need
-        if (value is { Count: > 0 } && schema.Topology == FieldStorageTopology.AttributeBased &&
+        if (value is { Count: > 0 } && schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased &&
             schema.Fields.FirstOrDefault(p => p.RelationType != null) is {} dynamicField)
         {
             StringBuilder select = new();
@@ -734,13 +760,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                 select.Append($"{sqlProvider.QuoteField(tableField.Name)}, ");
 
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_STRING_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_DATETIME_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_DOUBLE_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD)}, ");
-            select.Append($"{sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD)} FROM {sqlProvider.QuoteTable(schema.AttrTable!)} ");
+            select.Append($"{_refAttrField}, ");
+            select.Append($"{_refAttrIntField}, ");
+            select.Append($"{_refAttrStrField}, ");
+            select.Append($"{_refAttrDatField}, ");
+            select.Append($"{_refAttrDblField}, ");
+            select.Append($"{_refAttrTxtField}, ");
+            select.Append($"{_refAttrJsonField} FROM {sqlProvider.QuoteTable(schema.AppFieldType.AttributeTableName)} ");
             select.Append($"WHERE {_refTarget} = {sqlProvider.Literal(target)} ");
 
             if (value.Count > MAX_COMBINE_CASE_COUNT)
@@ -793,40 +819,53 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         StructTypeNode pack = matched[0];
                         string attr = reader.GetString(offset++);
                         if (string.IsNullOrWhiteSpace(attr)) continue;
-                        
+
+                        // For multi struct field, the attr field is in format "structField_attrField", we need to split it to get the real attr field
+                        string[] paths = attr.Split('_', StringSplitOptions.RemoveEmptyEntries);
                         JsonTypeNode jsonNode = (pack.GetField(dynamicField.Name) as JsonTypeNode)!;
                         jsonNode.Value ??= new JsonObject();
+                        JsonObject container = (jsonNode.Value as JsonObject)!;
+                        for(int i = 0; i < paths.Length - 1; i++)
+                        {
+                            if (!container.TryGetPropertyValue(paths[i], out JsonNode? next) || next == null || next is not JsonObject)
+                            {
+                                next = new JsonObject();
+                                container[paths[i]] = next;
+                            }
+                            container = (JsonObject)next;
+                        }
+                        attr = paths[^1];
                         
                         // bigint
                         if (!reader.IsDBNull(offset))
                         {
-                            (jsonNode.Value as JsonObject)![attr] = reader.GetInt64(offset);
+                            container[attr] = reader.GetInt64(offset);
                         }
                         // string
                         else if (!reader.IsDBNull(offset + 1))
                         {
-                            (jsonNode.Value as JsonObject)![attr] = reader.GetString(offset + 1);
+                            container[attr] = reader.GetString(offset + 1);
                         }
                         // datetime
                         else if (!reader.IsDBNull(offset + 2))
                         {
-                            (jsonNode.Value as JsonObject)![attr] = reader.GetDateTime(offset + 2);
+                            container[attr] = reader.GetDateTime(offset + 2);
                         }
                         // double
                         else if (!reader.IsDBNull(offset + 3))
                         {
-                            (jsonNode.Value as JsonObject)![attr] = reader.GetDouble(offset + 3);
+                            container[attr] = reader.GetDouble(offset + 3);
                         }
                         // text
                         else if (!reader.IsDBNull(offset + 4))
                         {
-                            (jsonNode.Value as JsonObject)![attr] = reader.GetString(offset + 3);
+                            container[attr] = reader.GetString(offset + 3);
                         }
                         // json
                         else if (!reader.IsDBNull(offset + 5))
                         {
                             object raw = reader.GetValue(offset + 5);
-                            (jsonNode.Value as JsonObject)![attr] = raw is DBNull ? null : raw switch
+                            container[attr] = raw is DBNull ? null : raw switch
                             {
                                 string s => JsonNode.Parse(s),
                                 byte[] b => JsonNode.Parse(b),
@@ -848,7 +887,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             DynamicTableSchema schema, string target, AnySchemaNode? value = null, 
             bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
         if (string.IsNullOrWhiteSpace(target)) return (false, null, null);
@@ -1010,10 +1049,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
             if (array.Count == 0) return (false, null, null);
             
+            // Query
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
             ArrayTypeNode? oArr = origin as ArrayTypeNode;
             if (!canAdd && (oArr == null || oArr.Count < array.Count))
                 throw new UnauthorizedAccessException();
+            
+            // attribute-based fields query map if needed
+            Dictionary<string, StructFieldConfig[]> relationTypeMaps = [];
 
             // record exist rows
             Dictionary<string, StructTypeNode> existKeys = [];
@@ -1147,6 +1190,25 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     if (originPack != null)
                         originPacks.Add(originPack);
                 }
+                
+                // Save attribute-based fields if needed
+                if (schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased)
+                {
+                    SchemaContext context = serviceProvider.GetService<SchemaContext>()!;
+                    foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.RelationType != null))
+                    {
+                        var fields = await GetStructFieldConfigs(schema.AppFieldType.Application, target,
+                            dynamic.RelationType!);
+                        if (fields.Length == 0) continue;
+
+                        List<(string, AnySchemaNode v)> primaries = [];
+                        foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
+                            primaries.Add((fld, v!));
+
+                        await SaveAttributeBasedFieldAsync(context, schema.AppFieldType.AttributeTableName, target, fields,
+                            (pack.GetField(dynamic.Name) as JsonTypeNode)?.Value as JsonObject, dynamic.Name.ToLower(), primaries);
+                    }
+                }
             }
             return (true, new ArrayTypeNode(schema.SchemaType, updatedPacks),  (onlyAdd && (overrides == null || overrides.Length == 0)) ? null : new ArrayTypeNode(schema.SchemaType, originPacks) );
         }
@@ -1155,7 +1217,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
@@ -1186,7 +1248,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
-            
+
+            await DeleteAttributeBasedFieldAsync(schema, target, arr);
             return (true, origin);
         }
 
@@ -1196,7 +1259,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
@@ -1227,7 +1290,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
-            
+
+            await DeleteAttributeBasedFieldAsync(schema, target, arr);
             return (true, origin);
         }
     }
@@ -1237,7 +1301,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// </summary>
     public async Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target)
     {
-        string tableName = sqlProvider.QuoteTable(schema.Name);
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
         target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
 
@@ -1269,6 +1333,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
+            await DeleteAttributeBasedFieldAsync(schema, target, arr);
             return (true, origin);
         }
     }
@@ -1353,6 +1418,232 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // ignore
         }
     }
+
+    /// <summary>
+    /// Gets the struct field config for dynamic type from the relation
+    /// </summary>
+    async Task<StructFieldConfig[]> GetStructFieldConfigs(AppType app, string target, AppRelationSchema relation)
+    {
+        SchemaContext context = serviceProvider.GetService<SchemaContext>() ?? throw new Exception("The Schema context missing");
+        if (relation.FunctionNode == null) throw new Exception("The function node missing");
+        
+        // If the arguments is another field, we can query it directly, since it's designed to be used in frontend,
+        // means it's value is small and easy to query, otherwise the function can be executed to gets the value directly
+        object?[] args = new object[relation.Args.Length];
+        for (int i = 0; i < relation.Args.Length; i++)
+        {
+            var arg = relation.Args[i];
+            if (!string.IsNullOrEmpty(arg.AppField))
+            {
+                if (relationDataCache.TryGetValue(arg.AppField.ToLower(), out AnySchemaNode? cache) && cache != null)
+                {
+                    args[i] = cache;
+                }
+                else
+                {
+                    var schema = app.GetField(arg.AppField)?.Schema;
+                    if (schema == null)
+                        throw new Exception($"The field {arg.AppField} not found in app {app.Name}");
+                    (AnySchemaNode? result, int total) = await QueryDynamicTableAsync(schema, target);
+                    if (total > 50)
+                        Logger.LogWarning($"The query result of field {arg.AppField} in app {app.Name} is too large, total {total}, relation function {relation.Func} may not work properly");
+                    
+                    relationDataCache[arg.AppField.ToLower()] = result;
+                    args[i] = result;
+                }
+                
+                if (args[i] != null && !string.IsNullOrWhiteSpace(arg.DataField))
+                    args[i] = (args[i] as StructTypeNode)?.GetValueByPaths(arg.DataField);
+            }
+            else if (arg.Value != null)
+            {
+                args[i] = arg.Value;
+            }
+        }
+        
+        // build the unique key for cache
+        string? uniqueKey = args.All(a => a is ScalarTypeNode or EnumTypeNode or JsonValue)
+            ? $"{relation.FunctionNode.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
+            : null;
+
+        StructFieldConfig[]? fields = null;
+        if (!string.IsNullOrEmpty(uniqueKey) && attrFields.TryGetValue(uniqueKey, out fields))
+            return fields;
+        
+        // Execute the function to get the struct field configs
+        try
+        {
+            JsonNode? result = await relation.FunctionNode.CallAsync<JsonNode>(context, args, null, target);
+            // try convert
+            if (result is JsonArray arr)
+            {
+                fields = arr.FromJson<StructFieldConfig[]>();
+            }
+            // try type name
+            else if (result is JsonValue)
+            {
+                string typeName = result.ToJsonString().Trim('"');
+                AnySchemaType? type = await context.GetSchemaTypeAsync(typeName);
+                if (type is ArrayType arrType)
+                    type = arrType.ElementSchemaType;
+                if (type is StructType structType)
+                {
+                    fields = structType.Fields.Select(f => new StructFieldConfig
+                    {
+                        Name = f.Name,
+                        Type = f.Type
+                    }).ToArray();
+                }
+            }
+
+            fields ??= [];
+            
+            if (!string.IsNullOrEmpty(uniqueKey))
+                attrFields[uniqueKey] = fields;
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, $"Could not find unique field for {relation.FunctionNode.Name}");
+        }
+        
+        return [];
+    }
+    
+    /// <summary>
+    /// Save the attribute-based field value to the attribute table, the attr field is in format "structField_attrField"
+    /// </summary>
+    async Task<bool> SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, string target, StructFieldConfig[] fields, JsonObject? value, string prev, List<(string k, AnySchemaNode v)> primaries)
+    {
+        string insertTemplate = $"INSERT INTO {sqlProvider.QuoteTable(attrTable)} ({_refTarget}, {string.Join(',', primaries.Select(p => sqlProvider.QuoteField(p.k)))}, {_refAttrField}, {_refAttrIntField}, {_refAttrStrField}, {_refAttrDatField}, {_refAttrDblField}, {_refAttrTxtField}, {_refAttrJsonField}) VALUES ({sqlProvider.Literal(target)}, {string.Join(',', primaries.Select(p => sqlProvider.Literal(p.v)))}, {{0}}, {{1}}, {{2}}, {{3}}, {{4}}, {{5}}, {{6}}) ON DUPLICATE KEY UPDATE {_refAttrIntField} = {{1}}, {_refAttrStrField} = {{2}}, {_refAttrDatField} = {{3}}, {_refAttrDblField} = {{4}}, {_refAttrTxtField} = {{5}}, {_refAttrJsonField} = {{6}};";
+        
+        foreach (StructFieldConfig field in fields.Where(f => f.DisplayOnly != true))
+        {
+            AnySchemaType? type = await context.GetSchemaTypeAsync(field.Type);
+            if (type == null)
+            {
+                Logger.LogWarning($"The attribute field {field.Name} type not found, will be ignored");
+                continue;
+            }
+            
+            string attrField = $"{prev}_{field.Name.ToLower()}";
+            JsonNode? r = null;
+            if (value != null)
+            {
+                foreach (var (key, jsonNode) in value)
+                {
+                    if (!key.Equals(attrField, StringComparison.InvariantCultureIgnoreCase)) continue;
+                    r = jsonNode;
+                    break;
+                }
+            }
+
+            // For struct type, we need to save the nested fields separately, since the attribute table is designed to be flat, means the field name is in format "structField_attrField"
+            if (type is StructType structType)
+            {
+                await SaveAttributeBasedFieldAsync(context, attrTable, target, structType.Fields.ToArray(), r as JsonObject, attrField, primaries);
+                continue;
+            }
+            
+            // For one field value
+            AnySchemaNode? node = r != null && !r.IsEmpty() ? type.CreateNode(r) : null;
+            if (node is { IsEmpty: false }) {
+                AnySchemaNode?[] args = new AnySchemaNode?[6];
+                if (node is ScalarTypeNode scalar)
+                {
+                    ScalarType scalarType = scalar.SchemaType as ScalarType ?? throw new Exception($"The scalar type of field {field.Name} is invalid");
+                    if (scalarType.IsBool || scalarType.IsInt)
+                    {
+                        args[EavTableIntField] = node;
+                    }
+                    else if (scalarType.IsNumber)
+                    {
+                        args[EavTableDblField] = node;
+                    }
+                    else if (scalarType.IsString)
+                    {
+                        if (scalarType.IsIndexable)
+                        {
+                            args[EavTableStrField] = node;
+                        }
+                        else
+                        {
+                            args[EavTableTxtField] = node;
+                        }
+                    }
+                    else if (scalarType.IsDate)
+                    {
+                        args[EavTableDatField] = node;
+                    }
+                }
+                else
+                {
+                    args[EavTableJsonField] = node;
+                }
+                
+                DbCommand command = GetDbCommand();
+                command.CommandText = string.Format(insertTemplate, attrField, args);
+                Logger.LogInformation(command.CommandText);
+                await command.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                await DeleteAttributeBasedFieldAsync(context, attrTable, target, field, prev, primaries);
+            }
+        }
+        
+        return true;
+    }
+    
+    async Task<bool> DeleteAttributeBasedFieldAsync(SchemaContext context, string attrTable, string target, StructFieldConfig field, string prev, List<(string k, AnySchemaNode v)> primaries)
+    {
+        string attrField = $"{prev}_{field.Name.ToLower()}";
+        AnySchemaType? type = await context.GetSchemaTypeAsync(attrField);
+        if (type is StructType @struct)
+        {
+            foreach (StructFieldConfig f in @struct.Fields.Where(f => f.DisplayOnly != true))
+            {
+                await DeleteAttributeBasedFieldAsync(context, attrTable, target, f, attrField, primaries);
+            }
+        }
+        else
+        {
+            DbCommand command = GetDbCommand();
+            command.CommandText =
+                $"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {_refTarget} = {sqlProvider.Literal(target)} AND {_refAttrField} = {sqlProvider.Literal(attrField)} AND {string.Join(" AND ", primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}"))};";
+            Logger.LogInformation(command.CommandText);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        return true;
+    }
+    
+    async Task<bool> DeleteAttributeBasedFieldAsync(DynamicTableSchema schema, string target, ArrayTypeNode arr)
+    {
+        if (schema.AppFieldType.Topology != FieldStorageTopology.AttributeBased) return true;
+        
+        SchemaContext context = serviceProvider.GetService<SchemaContext>()!;
+        
+        foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.RelationType != null))
+        {
+            var fields = await GetStructFieldConfigs(schema.AppFieldType.Application, target,
+                dynamic.RelationType!);
+            if (fields.Length == 0) continue;
+
+            foreach (StructTypeNode pack in arr.Cast<StructTypeNode>())
+            {
+                List<(string, AnySchemaNode v)> primaries = [];
+                foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
+                    primaries.Add((fld, v!));
+
+                foreach (StructFieldConfig field in fields)
+                {
+                    await DeleteAttributeBasedFieldAsync(context, schema.AppFieldType.AttributeTableName, target, field, dynamic.Name.ToLower(), primaries);
+                }
+            }
+        }
+
+        return true;
+    }
     
     /// <summary>
     /// The mysql data type
@@ -1392,6 +1683,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
     private readonly Lazy<ILogger> _loggerThunk = new (serviceProvider.GetRequiredService<ILogger<AppDataMySqlProvider>>);
     private string? _whereClause;
+
+    private readonly Dictionary<string, AnySchemaNode?> relationDataCache = [];
+    private readonly Dictionary<string, StructFieldConfig[]> attrFields = [];
 
     #endregion
 }

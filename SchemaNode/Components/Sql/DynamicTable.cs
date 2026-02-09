@@ -18,16 +18,8 @@ namespace SchemaNode.Components;
 /// </summary>
 public class DynamicTableSchema
 {
-    /// <summary>
-    /// The dynamic table name
-    /// </summary>
-    public required string Name { get; init; }
+    public AppFieldType AppFieldType { get; init; }
     
-    /// <summary>
-    /// The attribute table name for dynamic fields
-    /// </summary>
-    public string? AttrTable { get; init; }
-
     /// <summary>
     /// Whether the table is single row
     /// </summary>
@@ -53,11 +45,6 @@ public class DynamicTableSchema
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }
     
-    /// <summary>
-    /// Whether enable attribute table, the dynamic field value will be stored in attribute table to support different custom types
-    /// </summary>
-    public FieldStorageTopology? Topology { get; init; }
-
     /// <summary>
     /// Gets the field values by the fields
     /// </summary>
@@ -136,7 +123,7 @@ public class DynamicTableSchema
 
     public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
-        IEnumerable<DynamicTableField> fields = Fields;
+        IEnumerable<DynamicTableField> fields = Fields.Where(f => f.RelationType == null);
         if (primaryOnly) fields = Fields.Where(p => p.Primary);
         else if (noPrimary) fields = Fields.Where(p => !p.Primary);
         foreach (DynamicTableField field in fields)

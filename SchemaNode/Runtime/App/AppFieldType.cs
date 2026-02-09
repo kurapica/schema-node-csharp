@@ -377,7 +377,6 @@ public class AppFieldType
         {
             return new DynamicTableSchema
             {
-                Name = DynamicTableName,
                 SchemaType = node,
                 Single = true,
                 Fields = fields,
@@ -534,10 +533,8 @@ public class AppFieldType
         }
         return new DynamicTableSchema
         {
-            Name = DynamicTableName,
-            AttrTable = enableAttrTable ? AttributeTableName : null,
+            AppFieldType = this,
             SchemaType = node,
-            Topology = Topology,
             Single = single,
             Fields = fields,
             Indexes = indexes,

@@ -20,7 +20,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
         bool forUpdate = false, bool onlyCount = false)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
+        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
         List<JsonNode> list = table.GetOrAdd(target, _ => []);
         
         if (!schema.Single)
@@ -116,7 +116,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
     public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
+        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
         List<JsonNode> list = table.GetOrAdd(target, _ => []);
 
         if (!schema.Single)
@@ -192,7 +192,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
+        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
         List<JsonNode> list = table.GetOrAdd(target, _ => []);
 
         if (!schema.Single)
