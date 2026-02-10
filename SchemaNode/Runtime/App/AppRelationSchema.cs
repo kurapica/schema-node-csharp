@@ -46,7 +46,7 @@ public class AppRelationSchema
     /// The function node
     /// </summary>
     [JsonIgnore]
-    public FunctionType? FunctionNode { get; set; }
+    public FunctionType? FuncNode { get; set; }
 
     /// <summary>
     /// The relation status

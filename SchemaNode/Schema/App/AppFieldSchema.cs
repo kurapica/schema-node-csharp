@@ -285,4 +285,9 @@ public class FieldFilter
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Filter { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The field filter resolve type, which defines how to resolve the filter when no match found
+    /// </summary>
+    public FieldFilterResolve? Resolve { get; set; }
 }

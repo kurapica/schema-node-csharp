@@ -649,7 +649,8 @@ public class FunctionType : AnySchemaType
         // Gets the generic method instance
         if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
         {
-            if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
+            for (int i = 0; i < generics.Length; i++) generics[i] ??= typeof(object);
+            if (generics.Any(g => g is null)) throw new Exception("The generic types must be provided");
 
             string genSign = string.Join('|', generics.Select(p => p!.Name));
             callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));

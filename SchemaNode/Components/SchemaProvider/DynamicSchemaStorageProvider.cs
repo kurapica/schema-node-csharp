@@ -307,7 +307,9 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             List<EnumValueAccess> accesses = [];
             
             NodeSchema? schema = await context.GetEntityAsync<NodeSchema>(Target, schemaName);
-            if (schema?.Type != SchemaType.Enum || schema.Enum == null) return [];
+            if (schema?.Type != SchemaType.Enum) return [];
+            schema.Enum = await context.GetEntityAsync<EnumSchema>(Target, schemaName);
+            if (schema.Enum == null) return [];
             
             string previous = "";
             while (!string.IsNullOrEmpty(value))

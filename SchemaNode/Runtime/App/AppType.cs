@@ -386,7 +386,7 @@ public class AppType
                         if (relationFunc is FunctionType funcNode)
                         {
                             funcNode.AddRef(field);
-                            relation.FunctionNode = funcNode;
+                            relation.FuncNode = funcNode;
                         }
                         else
                         {
@@ -475,7 +475,7 @@ public class AppType
         Relations?.ForEach(r =>
         {
             if (r.FieldNode != null)
-                r.FunctionNode?.RemoveRef(r.FieldNode);
+                r.FuncNode?.RemoveRef(r.FieldNode);
         });
     }
 
@@ -575,8 +575,8 @@ public class AppType
             {
                 cancellationToken?.ThrowIfCancellationRequested();
                 
-                if (relation.FunctionNode != null)
-                    await relation.FunctionNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                if (relation.FuncNode != null)
+                    await relation.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
             }
         }
 

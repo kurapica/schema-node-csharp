@@ -5,6 +5,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
@@ -54,6 +55,76 @@ public static class SystemData
         return value != null ? value.ToValue<T>() : default;
     }
     
+    static async Task<AnySchemaNode?> getappdatainner(
+        SchemaContext context,
+        string app,
+        string field,
+        string target,
+        params object?[] args)
+    {
+        // get the app field type
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        AppFieldType? fieldType = appType?.GetField(field);
+        if (fieldType is not { EnableDynamicTable: true } || 
+            fieldType.SchemaType is not ArrayType { Primary: { Length: > 0 }} arrType ||
+            arrType.Primary.Length != args.Length) return null;
+
+        // get the key type
+        string[] keys = arrType.Primary;
+        List<AnySchemaNode>[] keyValues = new List<AnySchemaNode>[keys.Length];
+        AppSchemaDataFilter? filter = null;
+        for (int i = 0; i < keys.Length; i++)
+        {
+            AnySchemaType? keyType = (arrType.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemeType;
+            AnySchemaNode? valueNode = keyType?.CreateNode(args[i]);
+            if (valueNode == null || valueNode.IsEmpty) return null;
+            
+            if (keyType is EnumType { Cascade: { Length: > 1 }} enumType &&
+                fieldType.Filters != null && 
+                fieldType.Filters.Any(f => f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) && f.Resolve == Enum.FieldFilterResolve.CascadeParent))
+            {
+                EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(), noSubList: true, withSubList: false);
+                if (access.Length == 0) return null;
+                keyValues[i] = access.Select(a => keyType.CreateNode(a.Value)!).ToList();
+            }
+            else
+            {
+                keyValues[i] = [valueNode];
+            }
+            
+            // filter
+            var keyFilter = keyValues[i].Count > 1
+                ? new AppSchemaDataFilterBinary(LogicType.Contains,
+                    new AppSchemaDataFilterValue(keyValues[i]),
+                    new AppSchemaDataFilterField(keys[i]))
+                : new AppSchemaDataFilterBinary(LogicType.Equal,
+                    new AppSchemaDataFilterField(keys[i]),
+                    new AppSchemaDataFilterValue(keyValues[i][0]));
+            
+            filter = filter == null ? keyFilter : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
+        }
+        
+        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(fieldType, target, AppSchemaDataResult.List, filter);
+        if (value is not ArrayTypeNode { Count: > 0 } result) return null;
+
+        // find the match item
+        StructTypeNode[] items = result.Cast<StructTypeNode>().ToArray();
+        for (int i = 0; i < keyValues.Length; i++)
+        {
+            if (keyValues[i].Count == 1) continue;
+            
+            // match the last
+            for (int j = keyValues[i].Count - 1; j >= 0; j--)
+            {
+                AnySchemaNode key = keyValues[i][j];
+                if (!items.Any(n => key.Equals(n.GetField(keys[i])!))) continue;
+                items = items.Where(n => key.Equals(n.GetField(keys[i])!)).ToArray();
+                break;
+            }
+        }
+        return items.Length > 0 ? items[0] : null;
+    }
+    
     /// <summary>
     /// Gets the application data by one key
     /// </summary>
@@ -71,21 +142,7 @@ public static class SystemData
             if (string.IsNullOrEmpty(target)) return default;
         }
 
-        JsonValue? jsonKey = JsonValue.Create(key);
-        if (jsonKey == null || jsonKey.IsEmpty()) return default;
-        
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
-
-        AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || fieldType.SchemaType is not ArrayType { Primary.Length: 1 } arrType) return default;
-
-        JsonObject query = new()
-        {
-            [arrType.Primary[0]] = jsonKey
-        };
-        var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
+        AnySchemaNode? value = await getappdatainner(context, app, field, target, key);
         return value switch
         {
             ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
@@ -111,25 +168,13 @@ public static class SystemData
             if (string.IsNullOrEmpty(target)) return default;
         }
 
-        JsonValue? jsonKey1 = JsonValue.Create(key1);
-        JsonValue? jsonKey2 = JsonValue.Create(key2);
-        if (jsonKey1 == null || jsonKey1.IsEmpty()) return default;
-        if (jsonKey2 == null || jsonKey2.IsEmpty()) return default;
-        
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
-
-        AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || fieldType.SchemaType is not ArrayType { Primary.Length: 2 } arrType) return default;
-
-        JsonObject query = new()
+        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2);
+        return value switch
         {
-            [arrType.Primary[0]] = jsonKey1,
-            [arrType.Primary[1]] = jsonKey2
+            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
+            { IsEmpty: false } => value.ToValue<T>(),
+            _ => default
         };
-        var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
-        return value is ArrayTypeNode arrayNode && arrayNode.Count > 0 ? arrayNode.First().ToValue<T>() : default;
     }
 
     /// <summary>
@@ -149,28 +194,13 @@ public static class SystemData
             if (string.IsNullOrEmpty(target)) return default;
         }
 
-        JsonValue? jsonKey1 = JsonValue.Create(key1);
-        JsonValue? jsonKey2 = JsonValue.Create(key2);
-        JsonValue? jsonKey3 = JsonValue.Create(key3);
-        if (jsonKey1 == null || jsonKey1.IsEmpty()) return default;
-        if (jsonKey2 == null || jsonKey2.IsEmpty()) return default;
-        if (jsonKey3 == null || jsonKey3.IsEmpty()) return default;
-        
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
-
-        AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || fieldType.SchemaType is not ArrayType { Primary.Length: 3 } arrType) return default;
-
-        JsonObject query = new()
+        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2, key3);
+        return value switch
         {
-            [arrType.Primary[0]] = jsonKey1,
-            [arrType.Primary[1]] = jsonKey2,
-            [arrType.Primary[2]] = jsonKey3
+            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
+            { IsEmpty: false } => value.ToValue<T>(),
+            _ => default
         };
-        var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
-        return value is ArrayTypeNode arrayNode && arrayNode.Count > 0 ? arrayNode.First().ToValue<T>() : default;
     }
 
     /// <summary>
@@ -190,31 +220,13 @@ public static class SystemData
             if (string.IsNullOrEmpty(target)) return default;
         }
 
-        JsonValue? jsonKey1 = JsonValue.Create(key1);
-        JsonValue? jsonKey2 = JsonValue.Create(key2);
-        JsonValue? jsonKey3 = JsonValue.Create(key3);
-        JsonValue? jsonKey4 = JsonValue.Create(key4);
-        if (jsonKey1 == null || jsonKey1.IsEmpty()) return default;
-        if (jsonKey2 == null || jsonKey2.IsEmpty()) return default;
-        if (jsonKey3 == null || jsonKey3.IsEmpty()) return default;
-        if (jsonKey4 == null || jsonKey4.IsEmpty()) return default;
-        
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
-
-        AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || fieldType.SchemaType is not ArrayType { Primary.Length: 4 } arrType) return default;
-
-        JsonObject query = new()
+        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2, key3, key4);
+        return value switch
         {
-            [arrType.Primary[0]] = jsonKey1,
-            [arrType.Primary[1]] = jsonKey2,
-            [arrType.Primary[2]] = jsonKey3,
-            [arrType.Primary[3]] = jsonKey4
+            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
+            { IsEmpty: false } => value.ToValue<T>(),
+            _ => default
         };
-        var (value, _) = await context.GetFieldDataAsync(fieldType, target, query);
-        return value is ArrayTypeNode arrayNode && arrayNode.Count > 0 ? arrayNode.First().ToValue<T>() : default;
     }
 
     #endregion

@@ -47,6 +47,16 @@ public class DynamicTableField
     /// Whether the field is used as attribute table for dynamic type
     /// </summary>
     public AppRelationSchema? RelationType { get; init; }
+    
+    /// <summary>
+    /// The struct field relation for struct type
+    /// </summary>
+    public StructFieldRelation? StructRelation { get; init; }
+    
+    /// <summary>
+    /// The relation type, either RelationType or StructRelation
+    /// </summary>
+    public bool HasTypeRelation => RelationType != null || StructRelation != null;
 
     /// <summary>
     /// Get JToken from reader

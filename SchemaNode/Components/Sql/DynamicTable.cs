@@ -126,7 +126,7 @@ public class DynamicTableSchema
         IEnumerable<DynamicTableField> fields = Fields;
         if (primaryOnly) fields = Fields.Where(p => p.Primary);
         else if (noPrimary) fields = Fields.Where(p => !p.Primary);
-        foreach (DynamicTableField field in fields.Where(f => f.RelationType == null))
+        foreach (DynamicTableField field in fields.Where(f => !f.HasTypeRelation))
         {
             if (field.Complex == null)
             {
@@ -225,7 +225,7 @@ public class DynamicTableSchema
             return Fields[0].FromReader(reader, offset);
 
         StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
-        foreach (DynamicTableField field in Fields.Where(r => r.RelationType == null))
+        foreach (DynamicTableField field in Fields.Where(r => !r.HasTypeRelation))
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
             if (val == null) continue;
@@ -255,7 +255,7 @@ public class DynamicTableSchema
     {
         int offset = 0;
         StructTypeNode? complexResult = null;
-        foreach (DynamicTableField field in Fields.Where(f => f.RelationType == null))
+        foreach (DynamicTableField field in Fields.Where(f => !f.HasTypeRelation))
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {

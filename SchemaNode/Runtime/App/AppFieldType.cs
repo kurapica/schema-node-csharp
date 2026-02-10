@@ -493,6 +493,8 @@ public class AppFieldType
                         {
                             AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r => r.Type == RelationType.Type && 
                                 r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
+                            StructFieldRelation? fieldRelation = structNode.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
+                                r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
                             
                             info = GetDataTypeInfo(sField.SchemeType, sField);
                             fields.Add(new DynamicTableField
@@ -501,7 +503,8 @@ public class AppFieldType
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
                                 SchemaType = sField.SchemeType!,
-                                RelationType = typeRelation
+                                RelationType = typeRelation,
+                                StructRelation = fieldRelation
                             });
                         }
                         else

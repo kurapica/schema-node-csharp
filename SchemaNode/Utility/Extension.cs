@@ -221,6 +221,10 @@ public static class Extension
         "yyyy-MM-ddTHH:mm:ss.fffZ",
         "yyyy-MM-dd HH:mm:ss.fff",
         "yyyy-MM-ddTHH:mm:sszzz",
+        "yyyy/M/d H:mm:ss zzz",
+         "yyyy/M/d H:mm:ss",
+         "yyyyMMdd",
+         "yyyyMMddHHmmss"
     };
     /// <summary>
     /// Try parse the json value to value and type
@@ -579,7 +583,28 @@ public static class Extension
                 case TypeCode.Decimal:
                     return Convert.ToDecimal(value);
                 case TypeCode.DateTime:
+                {
+                    if (DateTimeOffset.TryParseExact(
+                            value.ToString(),
+                            DateFormats,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                            out var dto))
+                    {
+                        return dto.DateTime;
+                    }
+
+                    if (DateTime.TryParseExact(
+                            value.ToString(),
+                            DateFormats,
+                            CultureInfo.InvariantCulture,
+                            DateTimeStyles.None,
+                            out var dt))
+                    {
+                        return dt;
+                    }
                     return Convert.ToDateTime(value);
+                }
                 case TypeCode.String:                    
                     return Convert.ToString(value);
                 default:
