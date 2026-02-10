@@ -1,0 +1,75 @@
+﻿{
+  "Name": "SKU.Electronics",
+  "State": "app.skuElectronicsState",
+  "Steps": [
+    {
+      "Name": "Brand",
+      "Type": "Charset",
+      "Set": "A-Z",
+      "Min": 2,
+      "Max": 4
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Line",
+      "Type": "Charset",
+      "Set": "A-Z",
+      "Min": 2,
+      "Max": 4
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Model",
+      "Type": "Charset",
+      "Set": "0-9",
+      "Min": 3,
+      "Max": 5
+    },
+    {
+      "Name": "Revision",
+      "Type": "Branch",
+      "Nexts": [
+        {
+          "Type": "Group",
+          "Steps": [
+            { "Type": "Literal", "Text": "R" },
+            { "Name": "Revision", "Type": "Charset", "Set": "0-9", "Min": 1, "Max": 2 }
+          ]
+        },
+        { "Type": "Group", "Steps": [] }
+      ]
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Region",
+      "Type": "Branch",
+      "Nexts": [
+        { "Type": "Literal", "Text": "US" },
+        { "Type": "Literal", "Text": "EU" },
+        { "Type": "Literal", "Text": "JP" },
+        { "Type": "Literal", "Text": "CN" }
+      ]
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Batch",
+      "Type": "Charset",
+      "Set": "0-9",
+      "Min": 4,
+      "Max": 4
+    }
+  ]
+}
+

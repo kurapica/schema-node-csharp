@@ -1,0 +1,96 @@
+﻿{
+  "Name": "SKU.Apparel",
+  "State": "app.skuApparelState",
+  "Steps": [
+    {
+      "Name": "Brand",
+      "Type": "Charset",
+      "Set": "A-Z",
+      "Min": 2,
+      "Max": 3
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Category",
+      "Type": "Charset",
+      "Set": "A-Z",
+      "Min": 2,
+      "Max": 4
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Year",
+      "Type": "Charset",
+      "Set": "0-9",
+      "Min": 2,
+      "Max": 2
+    },
+    {
+      "Name": "Season",
+      "Type": "Branch",
+      "Nexts": [
+        { "Type": "Literal", "Text": "SP" },
+        { "Type": "Literal", "Text": "SU" },
+        { "Type": "Literal", "Text": "FA" },
+        { "Type": "Literal", "Text": "WI" }
+      ]
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Style",
+      "Type": "Charset",
+      "Set": "A-Z0-9",
+      "Min": 3,
+      "Max": 5
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Color",
+      "Type": "Charset",
+      "Set": "A-Z",
+      "Min": 2,
+      "Max": 3
+    },
+    {
+      "Type": "Literal",
+      "Text": "-"
+    },
+    {
+      "Name": "Size",
+      "Type": "Branch",
+      "Nexts": [
+        { "Type": "Literal", "Text": "XS" },
+        { "Type": "Literal", "Text": "S" },
+        { "Type": "Literal", "Text": "M" },
+        { "Type": "Literal", "Text": "L" },
+        { "Type": "Literal", "Text": "XL" },
+        { "Type": "Literal", "Text": "XXL" },
+        {
+          "Type": "Group",
+          "Steps": [
+            { "Type": "Literal", "Text": "W" },
+            { "Type": "Literal", "Text": "-" },
+            { "Type": "Literal", "Text": "L" },
+            { "Type": "Literal", "Text": "-" },
+            { "Name": "Waist", "Type": "Charset", "Set": "0-9", "Min": 2, "Max": 2 },
+            { "Type": "Literal", "Text": "-" },
+            { "Name": "Length", "Type": "Charset", "Set": "0-9", "Min": 2, "Max": 2 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
