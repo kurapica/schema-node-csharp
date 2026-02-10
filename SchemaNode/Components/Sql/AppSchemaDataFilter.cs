@@ -250,9 +250,9 @@ public static class AppSchemaDataFilterExtensions
             StructFieldConfig? field = structType.GetField(key);
             
             // only support scalar or locale string type
-            if (field is not { SchemeType: ScalarType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
+            if (field is not { SchemeType: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
 
-            AnySchemaType valueType = field.SchemeType as ScalarType ?? (await context.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_STRING))!;
+            AnySchemaType valueType = field.SchemeType is StructType ? SchemaContext.SystemString : field.SchemeType;
             
             var filterExp = value switch
             {
