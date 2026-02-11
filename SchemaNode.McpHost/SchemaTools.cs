@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
+using SchemaNode.Api.Schema.Application;
 using SchemaNode.Api.Schema.Edit;
 using SchemaNode.Components;
 using SchemaNode.Context;
@@ -354,5 +356,51 @@ public class SchemaTools
         return await context.DeleteAppFieldSchemaAsync(appName, fieldName);
     }
 
+    #endregion
+    
+    #region Data
+    
+    [McpServerTool, Description(
+         "Batch data retrieval tool for querying application data. " +
+         "Accepts multiple queries in a single request. " +
+         "Each query specifies the target application schema, fields to retrieve, and optional filter conditions. " +
+         "Returns the results for each query, structured according to the corresponding application schema definitions. " +
+         "This tool is used to efficiently fetch data from one or more applications in a single call."
+     )]
+    public static async Task<BatchQueryAppDataResponse> BatchQueryAppData(
+        SchemaContext context,
+        [Description("Array of application data queries to retrieve application data in batch.")]
+        AppDataQuery[] queries)
+    {
+        (AppDataResult[] result, NodeSchema[]? schemas) = await context.BatchQueryAppDataAsync(queries);
+        return new BatchQueryAppDataResponse
+        {
+            Results = result,
+            Schemas = schemas
+        };
+    }
+    
+    [McpServerTool, Description(
+         "Batch data push tool for saving application data. " +
+         "Accepts multiple data push operations in a single request. " +
+         "Each operation specifies the target application schema, fields to update, new data values, and optional delete instructions. " +
+         "The tool validates and saves the provided data according to the application schema definitions and field-level rules. " +
+         "Returns the success status and any error information for each push operation. " +
+         "This tool is used to efficiently update data in one or more applications in a single call."
+     )]
+    public static async Task<PushAppDataResponse> PushAppData(
+        SchemaContext context,
+        [Description("The application schema name where data will be pushed.")] string app,
+        [Description("The target within the application where data will be pushed.")] string target,
+        [Description("Dictionary of data fields and their corresponding push queries.")] Dictionary<string, AppDataFieldPushQuery>? datas)
+    {
+        var (result, error) = await context.PushAppDataAsync(app, target, datas);
+        return new PushAppDataResponse
+        {
+            Result = result,
+            Error = error
+        };
+    }
+    
     #endregion
 }
