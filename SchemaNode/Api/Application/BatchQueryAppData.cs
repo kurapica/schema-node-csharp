@@ -7,7 +7,9 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -123,7 +125,7 @@ public static class BatchQueryExtension
                             if (await context.GetSchemaTypeAsync(q.FilterFunc) is not FunctionType filterFunc) continue;
                             
                             // Call filter func with policy filter compile context
-                            filter = await filterFunc.CallAsync<AppSchemaDataFilter, RefFilterCompileContext>(context, q.FilterArgs?.Select(object? (p) => p).ToArray() ?? []);
+                            filter = await filterFunc.CallAsync<AppSchemaDataFilter, RefFilterCompileContext>(context, q.FilterArgsArray?.Select(object? (p) => p).ToArray() ?? []);
                         }
 
                         // row access check
@@ -205,7 +207,7 @@ public static class BatchQueryExtension
                         Descend = q?.Descend ?? query.Descend ?? false,
                         Total = total,
                         FilterFunc = q?.FilterFunc,
-                        FilterArgs = q?.FilterArgs?.DeepClone() as JsonArray,
+                        FilterArgs = q?.FilterArgsArray?.DeepClone() as JsonArray,
                         AllowRead = allowRead,
                         AllowCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true),
                         AllowUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true),
@@ -559,7 +561,12 @@ public class AppDataFieldQuery
     /// <summary>
     /// The filter function args
     /// </summary>
-    public JsonArray? FilterArgs { get; set; }
+    public JsonElement? FilterArgs { get; set; }
+    
+    [JsonIgnore]
+    public JsonArray? FilterArgsArray => FilterArgs is { ValueKind: JsonValueKind.Array }
+        ? JsonNode.Parse(FilterArgs.Value.GetRawText()) as JsonArray
+        : null;
 }
 
 public class AppDataResult

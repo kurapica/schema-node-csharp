@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
 using SchemaNode.Api.Schema.Application;
@@ -392,14 +393,47 @@ public class SchemaTools
         SchemaContext context,
         [Description("The application schema name where data will be pushed.")] string app,
         [Description("The target within the application where data will be pushed.")] string target,
-        [Description("Dictionary of data fields and their corresponding push queries.")] Dictionary<string, AppDataFieldPushQuery>? datas)
+        [Description("Dictionary of data fields and their corresponding push queries.")] Dictionary<string, DataFieldPushQuery> datas)
     {
-        var (result, error) = await context.PushAppDataAsync(app, target, datas);
+        Dictionary<string, AppDataFieldPushQuery> convData = [];
+        foreach (var (key, value) in datas)
+        {
+            JsonElement? data = value.Data;
+            JsonElement? deletes = value.Deletes;
+            JsonNode? update = null;
+            JsonArray? delete = null;
+            if (data != null && data.Value.ValueKind != JsonValueKind.Null)
+                update = JsonNode.Parse(data.Value.GetRawText());
+            if (deletes != null && deletes.Value.ValueKind != JsonValueKind.Null)
+            {
+                delete = JsonNode.Parse(deletes.Value.GetRawText()) as JsonArray;
+            }
+            
+            convData[key] = new AppDataFieldPushQuery
+            {
+                Data = update,
+                Deletes = delete
+            };
+        }
+        var (result, error) = await context.PushAppDataAsync(app, target, convData);
         return new PushAppDataResponse
         {
             Result = result,
             Error = error
         };
+    }
+
+    public class DataFieldPushQuery
+    {
+        /// <summary>
+        /// The push data
+        /// </summary>
+        public JsonElement? Data { get; set; }
+    
+        /// <summary>
+        /// The deleted data
+        /// </summary>
+        public JsonElement? Deletes { get; set; }
     }
     
     #endregion

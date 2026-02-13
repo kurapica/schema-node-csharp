@@ -302,10 +302,10 @@ public class InMemoryAppDataProvider: IAppDataProvider
         throw new NotImplementedException();
     }
     
-    public async Task DropDynamicTableAsync(string dynamicTableName)
+    public async Task DropDynamicTableAsync(DynamicTableSchema schema)
     {
         await Task.Yield();
-        _dynamicTables.TryRemove(dynamicTableName, out _);
+        _dynamicTables.TryRemove(schema.AppFieldType.DynamicTableName, out _);
     }
 
     public Task BeginTransactionAsync()

@@ -1324,14 +1324,29 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task DropDynamicTableAsync(string dynamicTableName)
+    public async Task DropDynamicTableAsync(DynamicTableSchema schema)
     {
-        string tableName = sqlProvider.QuoteTable(dynamicTableName);
+        await Task.Yield();
+        
+        #if DEBUG
+        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
+        
         DbCommand command = GetDbCommand();
         command.CommandText = $"DROP TABLE IF EXISTS {tableName};";
         Logger.LogInformation(command.CommandText);
         await command.ExecuteNonQueryAsync();
+        
+        if (schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased)
+        {
+            string attrTableName = sqlProvider.QuoteTable(schema.AppFieldType.AttributeTableName);
+            DbCommand attrCommand = GetDbCommand();
+            attrCommand.CommandText = $"DROP TABLE IF EXISTS {attrTableName};";
+            Logger.LogInformation(attrCommand.CommandText);
+            await attrCommand.ExecuteNonQueryAsync();
+        }
+        #endif
+        
     }
     
     /// <inheritdoc />

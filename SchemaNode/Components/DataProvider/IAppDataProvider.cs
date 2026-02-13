@@ -53,7 +53,7 @@ public interface IAppDataProvider
     /// <summary>
     /// Drop the dynamic table
     /// </summary>
-    Task DropDynamicTableAsync(string dynamicTableName);
+    Task DropDynamicTableAsync(DynamicTableSchema schema);
     
     /// <summary>
     /// Begin a transaction

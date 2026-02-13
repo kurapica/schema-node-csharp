@@ -256,7 +256,7 @@ public static class SchemaStorageProviderExtension
         if (appField.EnableDynamicTable)
         {
             var dataProvider = context.GetService<IAppDataProvider>();
-            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.DynamicTableName);
+            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.Schema!);
         }
 
         return true;
