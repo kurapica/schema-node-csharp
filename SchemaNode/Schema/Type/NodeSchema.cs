@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// The schema is used to describe the data node
 /// </summary>
 [SchemaApp]
-public class NodeSchema
+public class  NodeSchema
 {
     /// <summary>
     /// The parent schema name
