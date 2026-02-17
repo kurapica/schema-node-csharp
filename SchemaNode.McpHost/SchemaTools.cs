@@ -199,6 +199,7 @@ public class SchemaTools
             Name = node.Name,
             Display = node.Display,
             Desc = node.Desc,
+            ScopePolicy = node.ScopePolicy,
             Auth = node.Auth?.Name,
             Auths = node.Auths,
             Status = node.Status,

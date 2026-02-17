@@ -5,6 +5,8 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using SchemaNode.Components;
+using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -33,14 +35,31 @@ public class AppType
     public LocaleString? Desc { get; private set; }
     
     /// <summary>
+    /// The target policies, can only be changeable when no app & no fields or in debug mode
+    /// </summary>
+    public AppScopePolicy? ScopePolicy { get; private set; }
+
+    /// <summary>
+    /// The target scope type, default to business target if no scope policy defined
+    /// </summary>
+    public AppScopeType ScopeType => ScopePolicy?.Type ?? AppScopeType.BusinessTarget;
+
+    /// <summary>
+    /// The scope target
+    /// </summary>
+    public string ScopeTarget => !string.IsNullOrWhiteSpace(ScopePolicy?.BusinessKey)
+        ? ScopePolicy!.BusinessKey
+        : DYNAMIC_TABLE_TARG_FIELD;
+    
+    /// <summary>
     /// The authentication policy type
     /// </summary>
-    public PolicyType? Auth { get; set; }
+    public PolicyType? Auth { get; private set; }
     
     /// <summary>
     /// The data authentication policy type
     /// </summary>
-    public PolicyItem[]? Auths { get; set; }
+    public PolicyItem[]? Auths { get; private set; }
 
     /// <summary>
     /// The application field relations
@@ -61,7 +80,7 @@ public class AppType
     /// <summary>
     /// The root application
     /// </summary>
-    public AppType? RootApp { get; set; }
+    public AppType? RootApp { get; init; }
 
     #endregion
 
@@ -125,6 +144,7 @@ public class AppType
         // data
         Display = schema.Display;
         Desc = schema.Desc;
+        ScopePolicy = schema.ScopePolicy;
         Auth = !string.IsNullOrEmpty(schema.Auth)
             ? await context.GetSchemaTypeAsync(schema.Auth) as PolicyType
             : null;
@@ -583,6 +603,20 @@ public class AppType
         return root.Schemas!;
     }
 
+    /// <summary>
+    /// Gets the scope context items for the application, which will be used for policy evaluation and data push
+    /// </summary>
+    public IEnumerable<(string item, AnySchemaNode? value)> GetScopeContextItems(SchemaContext ctx)
+    {
+        if (ScopePolicy is not { Type: AppScopeType.IsolationContext, ContextMaps.Length: > 0 }) yield break;
+        
+        foreach (var map in ScopePolicy.ContextMaps)
+        {
+            AnySchemaNode? value = ctx.GetSchemaContextItem(map.ContextItem);
+            yield return ( !string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{map.ContextItem.Split('.').Last().ToCamelCase()}", value);
+        }
+    }
+    
     #endregion
 } 
 

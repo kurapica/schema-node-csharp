@@ -29,7 +29,7 @@ public static class AppSourceFieldExtension
             if (refField == null) continue;
 
             // Get the track data
-            (AnySchemaNode? trackData, _) = await context.GetFieldDataAsync(trackPushField, target);
+            (AnySchemaNode? trackData, _) = await context.GetAppFieldDataAsync(trackPushField, target, AppSchemaDataResult.List);
             if (trackData == null || trackData.IsEmpty) continue;
 
             // clear the track data from old target

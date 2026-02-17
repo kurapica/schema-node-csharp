@@ -27,6 +27,16 @@ public class DynamicTableField
     /// The complex field info
     /// </summary>
     public DataFieldComplexInfo? Complex { get; init; }
+    
+    /// <summary>
+    /// The scope field, used for data partition
+    /// </summary>
+    public bool Scope { get; init; }
+    
+    /// <summary>
+    /// The target field, used for data query target
+    /// </summary>
+    public bool Target { get; init; }
 
     /// <summary>
     /// Whether the field is primary
@@ -57,6 +67,16 @@ public class DynamicTableField
     /// The relation type, either RelationType or StructRelation
     /// </summary>
     public bool HasTypeRelation => RelationType != null || StructRelation != null;
+
+    /// <summary>
+    /// The field is a value field if it has no type relation, and is not scope or target field
+    /// </summary>
+    public bool IsValueField => !HasTypeRelation && !IsKeyField;
+    
+    /// <summary>
+    /// The field is a key field if it is primary, or scope or target field
+    /// </summary>
+    public bool IsKeyField => Primary || Scope || Target;
 
     /// <summary>
     /// Get JToken from reader

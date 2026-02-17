@@ -53,7 +53,7 @@ internal static class App
         };
     }
 
-    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null, Type? type = null)
+    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null, Type? type = null, AppScopePolicy? policy = null)
     {
         appName = appName.ToLower();
         AppSchema app = Root;
@@ -68,7 +68,8 @@ internal static class App
                 {
                     Name = fullPath,
                     LoadState = SchemaLoadState.System,
-                    Display = fullPath == appName ? display : fullPath
+                    Display = fullPath == appName ? display : fullPath,
+                    ScopePolicy = fullPath == appName ? policy : null
                 };
                 app.Apps = app.Apps != null ? app.Apps.Concat([next]).ToArray() : [next];
             }

@@ -66,7 +66,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
             // Check the new schema
             StringBuilder? sb = null;
-            foreach (DynamicTableField dyFld in schema.Fields.Where(f => !f.HasTypeRelation))
+            foreach (DynamicTableField dyFld in schema.ValueFields)
             {
                 string dataType = DataType(dyFld);
                 if (!nameTypes.TryGetValue(dyFld.Name, out string? type))
@@ -112,9 +112,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Check unique indexes
             if (!schema.Single)
             {
-                List<string> chkUniqueIndex = [DYNAMIC_TABLE_TARG_FIELD];
-                foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
-                    chkUniqueIndex.Add(tableField.Name);
+                List<string> chkUniqueIndex =schema.KeyFields.Select(tableField => tableField.Name).ToList();
 
                 // Compares the unique indexes
                 if (chkUniqueIndex.Count != uniqueIndex.Count || chkUniqueIndex.Where((p, i) => !p.Equals(uniqueIndex[i])).Any())
@@ -141,7 +139,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     if (!names.Remove(key))
                     {
                         sb ??= new StringBuilder();
-                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', index.Fields.Select(sqlProvider.QuoteField).Prepend(DYNAMIC_TABLE_TARG_FIELD))});");
+                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', schema.ScopeTargetFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat(index.Fields.Select(sqlProvider.QuoteField)))});");
                     }
                 }
             }
@@ -187,24 +185,25 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // The primary key
             if (!schema.Single)
                 sb.Append($"{_refSeqNo} BIGINT UNSIGNED AUTO_INCREMENT,");
-            sb.Append($"{_refTarget} VARCHAR({DYNAMIC_TABLE_TARG_LEN}) NOT NULL, ");
+            
+            // Generate key columns
+            foreach (DynamicTableField keyField in schema.KeyFields)
+            {
+                sb.Append($"{sqlProvider.QuoteField(keyField.Name)} {DataType(keyField)} NOT NULL, ");
+            }
 
             // Generate the column lists
-            foreach (DynamicTableField tableField in schema.Fields.Where(f => !f.HasTypeRelation))
+            foreach (DynamicTableField tableField in schema.Fields.Where(f => f.IsValueField))
             {
                 // Name-Type
-                sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}");
-
-                // Not Null
-                if (tableField.Primary) sb.Append(" NOT NULL");
-
-                // End
-                sb.Append(", ");
+                sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}, ");
             }
 
             // Append primary key
             if (schema.Single)
+            {
                 sb.Append($"PRIMARY KEY({_refTarget})");
+            }
             else
             {
                 // Use auto-incr seqNo as primary key
@@ -319,15 +318,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         return true;
     }
     
-    /// <inheritdoc />
+    // <inheritdoc />
     public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
-        JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
-        bool forUpdate = false, bool onlyCount = false)
+        AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, bool desc = false, 
+        AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
     {
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        await EnsureOpenConnectionAsync();        
-        if (string.IsNullOrWhiteSpace(target)) return (null, -1);
-
+        
         // single row
         if (schema.Single)
         {
@@ -384,123 +381,38 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
             return (value, value == null ? 0 : 1);
         }
-
-        // multi rows
         else
         {
-            // Build sql
-            bool fullFill = false;
+            await EnsureOpenConnectionAsync();
+            if (string.IsNullOrWhiteSpace(target)) return (null, -1);
+
+            if (type == AppSchemaDataResult.Last) desc = !desc;
+
+            // Build SQL
             StringBuilder sb = new();
-            sb.Append($" From {tableName} FORCE INDEX({_refIndex}) ");
+            sb.Append($" From {tableName} ");
 
             // Conditions
             sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
-            switch (filter)
+
+            // exp node -> sql
+            string sql = filter?.ToSql(sqlProvider, schema) ?? "";
+            if (!string.IsNullOrEmpty(sql))
             {
-                // Query based on the conditions
-                case JsonObject pack:
-                {
-                    fullFill = true;
-                    foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
-                    {
-                        if (v == null || v.IsEmpty)
-                        {
-                            fullFill = false;
-                        }
-                        else if (v is ArrayTypeNode arr)
-                        {
-                            sb.Append($" AND {sqlProvider.In(fld, arr.Where(a => !a.IsEmpty).Select(a => a.Value!))}");
-                        }
-                        else
-                        {
-                            sb.Append($" AND {sqlProvider.QuoteField(fld)} = {sqlProvider.Literal(v.Value)}");
-                        }
-                    }
-
-                    if (!fullFill)
-                    {
-                        foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, noPrimary: true))
-                        {
-                            if (v is { IsEmpty: false })
-                            {
-                                if (v is ArrayTypeNode arr)
-                                {
-                                    sb.Append(
-                                        $" AND {sqlProvider.In(fld, arr.Where(a => !a.IsEmpty).Select(a => a.Value!))}");
-                                }
-                                else
-                                {
-                                    sb.Append($" AND {sqlProvider.QuoteField(fld)} = {sqlProvider.Literal(v.Value)}");
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                }
-                case JsonArray array:
-                {
-                    if (array.Count == 0) break;
-
-                    fullFill = true;
-                    bool hasQuery = false;
-                    sb.Append(" AND (");
-
-                    // Only allow full-fill query
-                    foreach (var token in array)
-                    {
-                        if (token is not JsonObject pack)
-                            continue;
-
-                        // Pre
-                        fullFill = true;
-                        bool appAnd = false;
-
-                        // Build the query
-                        if (hasQuery) sb.Append(" OR ");
-                        hasQuery = true;
-                        sb.Append("(");
-                        foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
-                        {
-                            if (v == null || v.IsEmpty || v is ArrayTypeNode)
-                            {
-                                fullFill = false;
-                                break;
-                            }
-
-                            if (appAnd) sb.Append(" AND ");
-                            sb.Append($"{sqlProvider.QuoteField(fld)} = {sqlProvider.Literal(v.Value)}");
-                            appAnd = true;
-                        }
-
-                        sb.Append(")");
-
-                        // Only allow full query here
-                        if (!fullFill)
-                            return (null, 0);
-                    }
-
-                    // Tail
-                    sb.Append(")");
-
-                    // Continue
-                    break;
-                }
+                sb.Append(" AND ");
+                sb.Append(sql);
             }
 
             // Query Total
             int total = 0;
-            if (!fullFill && !forUpdate || onlyCount)
+            if (type is AppSchemaDataResult.List or AppSchemaDataResult.Exist or AppSchemaDataResult.Count &&
+                !forUpdate)
             {
                 DbCommand totalCommand = GetDbCommand();
-                if (onlyCount && take == 1)
-                {
-                    totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
-                }
-                else
-                {
-                    totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
-                }
+                // only used to check existence
+                totalCommand.CommandText = type == AppSchemaDataResult.Exist 
+                    ? $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;" 
+                    : $"SELECT COUNT(*) {sb};";
 
                 Logger.LogInformation(totalCommand.CommandText);
                 DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
@@ -508,9 +420,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     if (totalReader.HasRows && await totalReader.ReadAsync())
                         total = totalReader.GetInt32(0);
-
-                    if (onlyCount)
-                        return (null, total);
+                    switch (type)
+                    {
+                        case AppSchemaDataResult.Exist:
+                            return (SchemaContext.SystemBool.CreateNode(total > 0), total);
+                        case AppSchemaDataResult.Count:
+                            return (SchemaContext.SystemInt.CreateNode(total), total);
+                    }
                 }
                 finally
                 {
@@ -532,7 +448,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 if (d) sb.Append(" DESC ");
             }
 
-            if (take is > 0)
+            if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
+                sb.Append(" LIMIT 1");
+            else if (take is > 0)
                 sb.Append($" LIMIT {take}");
             if (skip is > 0)
                 sb.Append($" OFFSET {skip}");
@@ -562,7 +480,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             select.Append(forUpdate ? " FOR UPDATE;" : ";");
-            ArrayTypeNode value = new ArrayTypeNode(schema.SchemaType);
+
+            ArrayTypeNode? value = null;
             DbCommand command = GetDbCommand();
             command.CommandText = select.ToString();
             Logger.LogDebug(command.CommandText);
@@ -573,8 +492,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     while (await reader.ReadAsync())
                     {
-                        AnySchemaNode? pack = schema.GetFieldPack(reader);
-                        if (pack != null) value.Add(pack);
+                        AnySchemaNode? pack = type == AppSchemaDataResult.Field
+                            ? schema.GetFieldPack(reader, dataField ?? "")
+                            : schema.GetFieldPack(reader);
+                        if (pack != null)
+                        {
+                            value ??= new ArrayTypeNode(pack.SchemaType);
+                            value.Add(pack);
+                        }
                     }
                 }
             }
@@ -582,156 +507,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             {
                 await reader.CloseAsync();
             }
-            
-            // Load the attribute-based fields if need
+
+            // Load the attribute-based fields if needed
             await FillAttributeDataAsync(schema, target, value, forUpdate);
 
-            return (value, (fullFill || forUpdate) ? value.Count : total);
+            if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
+                return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
+            return (value, total > 0 ? total : (value?.Count ?? 0));
         }
-    }
-    
-    // <inheritdoc />
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
-        AppSchemaDataResult type, AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, 
-        AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
-    {
-        // single row
-        if (schema.Single) return await QueryDynamicTableAsync(schema, target);
-
-        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        await EnsureOpenConnectionAsync();
-        if (string.IsNullOrWhiteSpace(target)) return (null, -1);
-
-        if (type == AppSchemaDataResult.Last) desc = !desc;
-
-        // Build sql
-        StringBuilder sb = new();
-        sb.Append($" From {tableName} ");
-
-        // Conditions
-        sb.Append($" WHERE {_refTarget} = {sqlProvider.Literal(target)}");
-
-        // exp node -> sql
-        string sql = filter?.ToSql(sqlProvider, schema) ?? "";
-        if (!string.IsNullOrEmpty(sql))
-        {
-            sb.Append(" AND ");
-            sb.Append(sql);
-        }
-
-        // Query Total
-        int total = 0;
-        if (type is AppSchemaDataResult.List or AppSchemaDataResult.Exist or AppSchemaDataResult.Count && !forUpdate)
-        {
-            DbCommand totalCommand = GetDbCommand();
-            // only used to check existence
-            if (type == AppSchemaDataResult.Exist)
-            {
-                totalCommand.CommandText = $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;";
-            }
-            else
-            {
-                totalCommand.CommandText = $"SELECT COUNT(*) {sb};";
-            }
-            Logger.LogInformation(totalCommand.CommandText);
-            DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
-            try
-            {
-                if (totalReader.HasRows && await totalReader.ReadAsync())
-                    total = totalReader.GetInt32(0);
-                switch(type)
-                {
-                    case AppSchemaDataResult.Exist:
-                        return (SchemaContext.SystemBool.CreateNode(total > 0), total);
-                    case AppSchemaDataResult.Count:
-                        return (SchemaContext.SystemInt.CreateNode(total), total);
-                }
-            }
-            finally
-            {
-                await totalReader.CloseAsync();
-            }
-        }
-
-        // for other
-        _whereClause = $"{sb}";
-
-        // Append the rest
-        sb.Append(" ORDER BY ");
-        bool first = false;
-        foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
-        {
-            if (first) sb.Append(", ");
-            first = true;
-            sb.Append($"{field}");
-            if (d) sb.Append(" DESC ");
-        }
-
-        if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
-            sb.Append(" LIMIT 1");
-        else if (take is > 0)
-            sb.Append($" LIMIT {take}");
-        if (skip is > 0)
-            sb.Append($" OFFSET {skip}");
-
-        // Query Data
-        StringBuilder select = new();
-        select.Append("SELECT ");
-        AppendFields(select, schema, "o.");
-        select.Append(" FROM ");
-        select.Append(tableName);
-        select.Append(" o JOIN (SELECT ");
-        select.Append(_refSeqNo);
-        select.Append(" ");
-        select.Append(sb.ToString());
-        select.Append(") t ON o.");
-        select.Append(_refSeqNo);
-        select.Append(" = t.");
-        select.Append(_refSeqNo);
-        select.Append(" ORDER BY ");
-        first = false;
-        foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
-        {
-            if (first) select.Append(", ");
-            first = true;
-            select.Append($"o.{field}");
-            if (d) select.Append(" DESC ");
-        }
-        select.Append(forUpdate ? " FOR UPDATE;" : ";");
-        
-        ArrayTypeNode? value = null;
-        DbCommand command = GetDbCommand();
-        command.CommandText = select.ToString();
-        Logger.LogDebug(command.CommandText);
-        DbDataReader reader = await command.ExecuteReaderAsync();
-        try
-        {
-            if (reader.HasRows)
-            {
-                while (await reader.ReadAsync())
-                {
-                    AnySchemaNode? pack = type == AppSchemaDataResult.Field
-                        ? schema.GetFieldPack(reader, dataField ?? "")
-                        : schema.GetFieldPack(reader);
-                    if (pack != null)
-                    {
-                        value ??= new ArrayTypeNode(pack.SchemaType);
-                        value.Add(pack);
-                    }
-                }
-            }
-        }
-        finally
-        {
-            await reader.CloseAsync();
-        }
-
-        // Load the attribute-based fields if need
-        await FillAttributeDataAsync(schema, target, value, forUpdate);
-
-        if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
-            return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
-        return (value, total > 0 ? total : (value?.Count ?? 0));
     }
 
     /// <summary>
@@ -743,7 +526,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <param name="forUpdate"></param>
     async Task FillAttributeDataAsync(DynamicTableSchema schema, string target, ArrayTypeNode? value, bool forUpdate = false)
     {
-        // Load the attribute-based fields if need
+        // Load the attribute-based fields if needed
         if (value is { Count: > 0 } && 
             schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased &&
             schema.Fields.Any(p => p.HasTypeRelation))
@@ -883,7 +666,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         if (schema.Single)
         {
             // Gets the origin value
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First);
 
             // Delete if null
             if (value == null)
@@ -897,6 +680,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     return (true, null, origin);
                 }
                 return (false, null, null);
+            }
+            
+            if (value is ArrayTypeNode arr)
+            {
+                if (arr is [not null])
+                    value = arr.First();
+                else
+                    return (false, null, null);
             }
             if (origin != null && value.Equals(origin))
                 return (false, null, null);
@@ -932,8 +723,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     // Gets the origin value again
                     if (origin == null)
-                        (origin, _) = await QueryDynamicTableAsync(schema, target);
-                    
+                        (origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First);
+
                     DbCommand command = GetDbCommand();
                     command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(result)} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
                     Logger.LogInformation(command.CommandText);
@@ -943,7 +734,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
             else if (value is StructTypeNode pack)
             {
-                // Build the sql
+                // Build the SQL
                 StringBuilder sb = new();
                 bool isInsert = false;
 
@@ -982,8 +773,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     // Gets the origin value again
                     if (origin == null)
-                        (origin, _) = await QueryDynamicTableAsync(schema, target);
-                    
+                        (origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First);
+
                     // Header
                     sb.Clear();
                     sb.Append($"UPDATE {tableName} SET ");
@@ -1016,32 +807,29 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // multi rows
         else
         {
-            JsonArray array;
             StringBuilder sb = new();
 
             // Prepare the data
-            IEnumerable<StructTypeNode> packs;
+            StructTypeNode[] packs;
             switch (value)
             {
                 case ArrayTypeNode arr:
-                    array = arr.ToJson()!;
-                    packs = arr.OfType<StructTypeNode>();
+                    if (arr.Count == 0) return (false, null, null);
+                    packs = arr.Cast<StructTypeNode>().ToArray();
                     break;
                 case StructTypeNode obj:
-                    array = [obj.ToJson()];
                     packs = [obj];
                     break;
                 default:
                     return (false, null, null);
             }
-            if (array.Count == 0) return (false, null, null);
-            
+
             // Query
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, array, forUpdate: true);
+            AnySchemaNode? origin = await this.QueryOriginNodesAsync(schema, target, packs, forUpdate: true);
             ArrayTypeNode? oArr = origin as ArrayTypeNode;
-            if (!canAdd && (oArr == null || oArr.Count < array.Count))
+            if (!canAdd && (oArr == null || oArr.Count < packs.Length))
                 throw new UnauthorizedAccessException();
-            
+
             // record exist rows
             Dictionary<string, StructTypeNode> existKeys = [];
             List<string> keys = [];
@@ -1095,7 +883,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
                 // Query the origin
                 string where = sb.ToString();
-                
+
                 // Insert
                 bool isInsert = false;
                 if (!existKeys.TryGetValue(string.Join('|', keys), out StructTypeNode? originPack))
@@ -1120,7 +908,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         Logger.LogInformation(command.CommandText);
                         await command.ExecuteNonQueryAsync();
                         isInsert = true;
-                        
+
                         updatedPacks.Add(pack);
                     }
                     catch (MySqlException ex)
@@ -1129,21 +917,21 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             throw;
                     }
                 }
-                
+
                 if (!isInsert && (!onlyAdd || overrides is { Length: > 0 }))
                 {
                     // query again
                     if (originPack == null)
                     {
-                        (origin, _) = await QueryDynamicTableAsync(schema, target, pack.ToJson(), forUpdate: true);
+                        origin = await this.QueryOriginNodesAsync(schema, target, [pack], forUpdate: true);
                         if (origin is ArrayTypeNode { Count: 1 } arr)
                             originPack = arr[0] as StructTypeNode;
                     }
-                    
+
                     // Skip if no change
                     if (originPack != null && originPack.Equals(pack))
                         continue;
-                    
+
                     // Header
                     sb.Clear();
                     sb.Append($"UPDATE {tableName} SET ");
@@ -1155,7 +943,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         // Check override
                         if (overrides is { Length: > 0 } && !overrides.Contains(fld, StringComparer.OrdinalIgnoreCase))
                             continue;
-                        
+
                         sb.Append($"{(preCond ? "," : "")}{sqlProvider.QuoteField(fld)}={sqlProvider.Literal(v)}");
                         preCond = true;
                     }
@@ -1169,12 +957,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     command.CommandText = sb.ToString();
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
-                    
+
                     updatedPacks.Add(pack);
                     if (originPack != null)
                         originPacks.Add(originPack);
                 }
-                
+
                 // Save attribute-based fields if needed
                 if (schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased)
                 {
@@ -1200,48 +988,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
-    {
-        string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        await EnsureOpenConnectionAsync();
-        target = !string.IsNullOrWhiteSpace(target) ? MySqlHelper.EscapeString(target) : "";
-
-        if (string.IsNullOrWhiteSpace(target)) return (false, null);
-        
-        // single row
-        if (schema.Single)
-        {
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
-            if (origin is null) return (false, null);
-            
-            DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE FROM {tableName} WHERE {_refTarget} = {sqlProvider.Literal(target)}";
-            Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
-            
-            return (true, origin);
-        }
-        
-        // multi rows
-        else if (!schema.IncrUpdate || filter is JsonArray { Count: > 0 })
-        {
-            _whereClause = null;
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, filter, forUpdate: true);
-            if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
-            
-            DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
-            Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
-
-            await DeleteAttributeBasedFieldAsync(schema, target, arr);
-            return (true, origin);
-        }
-
-        return (false, null);
-    }
-
-    /// <inheritdoc />
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
     {
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
@@ -1253,7 +999,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, forUpdate: true);
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
@@ -1295,7 +1041,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, forUpdate: true);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, forUpdate: true);
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
@@ -1310,7 +1056,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         else
         {
             _whereClause = null;
-            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, null, forUpdate: true);
+            (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, forUpdate: true);
             if (origin is not ArrayTypeNode arr || arr.Count == 0 || _whereClause == null) return (false, null);
             
             DbCommand command = GetDbCommand();
@@ -1389,7 +1135,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     void AppendFields(StringBuilder sb, DynamicTableSchema schema, string prefix = "")
     {
         bool appendComma = false;
-        foreach (DynamicTableField field in schema.Fields.Where(f => !f.HasTypeRelation))
+        foreach (DynamicTableField field in schema.Fields.Where(f => f.IsValueField))
         {
             if (appendComma) sb.Append(", ");
             appendComma = true;
@@ -1448,7 +1194,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     var schema = appField.Application.GetField(arg.AppField)?.Schema;
                     if (schema == null)
                         throw new Exception($"The field {arg.AppField} not found in app {appField.Application.Name}");
-                    (AnySchemaNode? result, int total) = await QueryDynamicTableAsync(schema, target);
+                    (AnySchemaNode? result, int total) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List);
                     if (total > 50)
                         Logger.LogWarning($"The query result of field {arg.AppField} in app {appField.Application.Name} is too large, total {total}, relation function {relation.Func} may not work properly");
                     
@@ -1596,7 +1342,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     async Task SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, string target, StructFieldConfig[] fields, JsonObject? value, string prev, List<(string k, AnySchemaNode v)> primaries)
     {
         string insertTemplate = $"INSERT INTO {sqlProvider.QuoteTable(attrTable)} ({_refTarget}, {string.Join(',', primaries.Select(p => sqlProvider.QuoteField(p.k)))}, {_refAttrField}, {_refAttrIntField}, {_refAttrStrField}, {_refAttrDatField}, {_refAttrDblField}, {_refAttrTxtField}, {_refAttrJsonField}) VALUES ({sqlProvider.Literal(target)}, {string.Join(',', primaries.Select(p => sqlProvider.Literal(p.v)))}, {{0}}, {{1}}, {{2}}, {{3}}, {{4}}, {{5}}, {{6}}) ON DUPLICATE KEY UPDATE {_refAttrIntField} = {{1}}, {_refAttrStrField} = {{2}}, {_refAttrDatField} = {{3}}, {_refAttrDblField} = {{4}}, {_refAttrTxtField} = {{5}}, {_refAttrJsonField} = {{6}};";
-        
+
         foreach (StructFieldConfig field in fields.Where(f => f.DisplayOnly != true))
         {
             AnySchemaType? type = await context.GetSchemaTypeAsync(field.Type);
@@ -1624,7 +1370,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await SaveAttributeBasedFieldAsync(context, attrTable, target, structType.Fields.ToArray(), r as JsonObject, attrField, primaries);
                 continue;
             }
-            
+
             // For one field value
             AnySchemaNode? node = r != null && !r.IsEmpty() ? type.CreateNode(r) : null;
             if (node is { IsEmpty: false })
@@ -1709,13 +1455,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         else
         {
             DbCommand command = GetDbCommand();
-            command.CommandText =
-                $"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {_refTarget} = {sqlProvider.Literal(target)} AND {_refAttrField} = {sqlProvider.Literal(attrField)} AND {string.Join(" AND ", primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}"))};";
+            command.CommandText =$"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {_refTarget} = {sqlProvider.Literal(target)} AND {_refAttrField} = {sqlProvider.Literal(attrField)} AND {string.Join(" AND ", primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}"))};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
         }
     }
-    
+
     async Task DeleteAttributeBasedFieldAsync(DynamicTableSchema schema, string target, ArrayTypeNode arr)
     {
         if (schema.AppFieldType.Topology != FieldStorageTopology.AttributeBased) return;
@@ -1765,9 +1510,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         DynamicTableFieldType.MediumBlob => "MEDIUMBLOB",
         DynamicTableFieldType.LongBlob => "LONGBLOB",
         DynamicTableFieldType.Char => "CHAR",
-        DynamicTableFieldType.VarChar => field.MaxLength.HasValue 
+        DynamicTableFieldType.VarChar => field.MaxLength.HasValue
             ? $"VARCHAR({field.MaxLength.Value})"
-            : "VARCHAR",
+            : "VARCHAR(255)", // default length
         DynamicTableFieldType.TinyText => "TINYTEXT",
         DynamicTableFieldType.Text => "TEXT",
         DynamicTableFieldType.MediumText => "MEDIUMTEXT",

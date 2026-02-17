@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
@@ -153,6 +154,20 @@ public static class SchemaStorageProviderExtension
         else
         {
             await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+
+            // Check app scope policy, allow change when DEBUG
+            #if !DEBUG
+            if ((node.ScopePolicy != null || app.ScopePolicy != null && 
+                (node.Apps is { Length: > 0 } || node.Fields is { Count: > 0 }) &&
+                (node.ScopePolicy == null || !node.ScopePolicy.Equals(app.ScopePolicy))))
+            {
+                throw new Exception(APP_TARGET_POLICY_CANT_CHANGE);
+            }
+            #endif
+
+            if (node.ScopePolicy?.Type == AppScopeType.IsolationContext && (node.ScopePolicy.ContextMaps == null ||
+                                                                            node.ScopePolicy.ContextMaps.Length == 0))
+                throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
         }
 
         // Ges the storage provider
@@ -210,6 +225,24 @@ public static class SchemaStorageProviderExtension
     {
         AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
+        
+        // validate by app scope policy
+        AnySchemaType fieldType = await context.GetSchemaTypeAsync(field.Type) ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is ArrayType arrType) fieldType = arrType.ElementSchemaType ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is StructType structType)
+        {
+            if (structType.Fields.Length == 0) throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            if (node.ScopePolicy?.ContextMaps is { Length: > 0 })
+            {
+                if (structType.Fields.Any(f => node.ScopePolicy.ContextMaps.Any(m => f.Name.Equals(m.MapKey, StringComparison.OrdinalIgnoreCase))))
+                    throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            }
+            else if (!string.IsNullOrWhiteSpace(node.ScopePolicy?.BusinessKey))
+            {
+                if (structType.Fields.Any(f => f.Name.Equals(node.ScopePolicy.BusinessKey, StringComparison.OrdinalIgnoreCase)))
+                    throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            }
+        }
 
         // authorize
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);

@@ -41,6 +41,11 @@ public class AppSchema
     public LocaleString? Desc { get; set; }
     
     /// <summary>
+    /// The target policies, can only be changeable when no app & no fields or in debug mode
+    /// </summary>
+    public AppScopePolicy? ScopePolicy { get; set; }
+    
+    /// <summary>
     /// The authentication policy type
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
@@ -128,4 +133,65 @@ public class AppRef
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Target { get; set; }
+}
+
+/// <summary>
+/// The app target policy
+/// </summary>
+public class AppScopePolicy: IEquatable<AppScopePolicy>
+{
+    /// <summary>
+    /// The app target policy type
+    /// </summary>
+    public AppScopeType Type { get; set; }
+    
+    /// <summary>
+    /// The context maps for the context item mapping when the target policy is IsolationContext, can be used for multiple context items mapping
+    /// </summary>
+    public AppScopeContextMap[]? ContextMaps { get; set; }
+    
+    /// <summary>
+    /// The business key for the BusinessTarget policy, used for the target resolution when the policy is BusinessTarget, default "_target"
+    /// </summary>
+    public string? BusinessKey { get; set; }
+    
+    public bool Equals(AppScopePolicy? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Type == other.Type && 
+               (string.IsNullOrWhiteSpace(BusinessKey) 
+                   ? string.IsNullOrWhiteSpace(other.BusinessKey)
+                   : BusinessKey.Equals(other.BusinessKey)) &&
+               ((ContextMaps == null && other.ContextMaps == null) || 
+                (ContextMaps != null && other.ContextMaps != null && 
+                 ContextMaps.SequenceEqual(other.ContextMaps)));
+               
+    }
+}
+
+/// <summary>
+/// The application scope context map, used for the context item mapping when the target policy is IsolationContext
+/// </summary>
+public class AppScopeContextMap: IEquatable<AppScopeContextMap>
+{
+    /// <summary>
+    /// The context item
+    /// </summary>
+    public required string ContextItem { get; set; }
+    
+    /// <summary>
+    /// The map key
+    /// </summary>
+    public string? MapKey { get; set; }
+
+    public bool Equals(AppScopeContextMap? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return ContextItem.Equals(other.ContextItem) &&
+               (string.IsNullOrWhiteSpace(MapKey) 
+                   ? string.IsNullOrWhiteSpace(other.MapKey)
+                   : MapKey.Equals(other.MapKey));
+    }
 }

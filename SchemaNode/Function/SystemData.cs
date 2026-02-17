@@ -51,7 +51,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType is not { EnableDynamicTable: true } || !fieldType.Single) return default;
 
-        var (value, _) = await context.GetFieldDataAsync(fieldType, target);
+        var (value, _) = await context.GetAppFieldDataAsync(fieldType, target, AppSchemaDataResult.List);
         return value != null ? value.ToValue<T>() : default;
     }
     
@@ -104,7 +104,7 @@ public static class SystemData
             filter = filter == null ? keyFilter : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
         
-        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(fieldType, target, AppSchemaDataResult.List, filter);
+        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, target, AppSchemaDataResult.List, filter);
         if (value is not ArrayTypeNode { Count: > 0 } result) return null;
 
         // find the match item
@@ -377,7 +377,7 @@ public static class SystemData
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         await context.BeginTransactionAsync();
-        (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(fieldType, target, dataNode.ToJson(), forUpdate: true);
+        AnySchemaNode? origin = await context.GetAppFieldDataAsync(fieldType, target, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
 
         switch (fieldType.SchemaType)

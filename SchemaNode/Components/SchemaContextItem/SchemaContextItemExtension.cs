@@ -19,7 +19,7 @@ public static class SchemaContextItemExtension
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
 
-        if (!ItemProvider.TryGetValue(paths[0], out (string schemaType, Type providerType) set)) return null;
+        if (!ItemProvider.TryGetValue(paths[0].ToLower(), out (string schemaType, Type providerType) set)) return null;
 
         // Gets the field type
         AnySchemaType type = context.GetSchemaTypeAsync(set.schemaType).GetAwaiter().GetResult()!;
@@ -97,6 +97,7 @@ public static class SchemaContextItemExtension
 
     internal static void BindSchemaContextItemProvider(string field, string schemaType, Type providerType, Type itemType)
     {
+        field = field.ToLower();
         ItemProvider[field] = (schemaType, providerType);
         TypeFieldMap[itemType] = field;
     }

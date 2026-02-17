@@ -192,7 +192,7 @@ public static class BatchQueryExtension
                             }
                             
                             if (isValidFilter)
-                                (result, total) = await context.GetFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
+                                (result, total) = await context.GetAppFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
                                     filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
                         }
                     }
@@ -288,6 +288,7 @@ public static class BatchQueryExtension
                     Name = node.Name,
                     Display = node.Display,
                     Desc = node.Desc,
+                    ScopePolicy = node.ScopePolicy,
                     HasFields = node.Fields is { Count: > 0 },
                     Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
                     Relations = node.Relations?.Select(r => new StructFieldRelation

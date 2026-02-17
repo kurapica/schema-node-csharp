@@ -44,6 +44,11 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// </summary>
     public static ArrayType SystemList { get; private set; } = null!;
     
+    /// <summary>
+    /// The system context type
+    /// </summary>
+    public static StructType SystemContext { get; private set; } = null!;
+    
     #endregion
 
     #region Init System Types
@@ -65,6 +70,7 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         SystemInt = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT))!;
         SystemString = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_STRING))!;
         SystemList = (await GetSchemaTypeAsync<ArrayType>(NS_SYSTEM_LIST))!;
+        SystemContext = (await GetSchemaTypeAsync<StructType>(NS_SYSTEM_CONTEXT))!;
         
         LogInformation("[Runtime] System Schemas are registered.");
     }

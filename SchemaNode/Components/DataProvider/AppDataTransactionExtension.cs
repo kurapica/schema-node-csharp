@@ -129,12 +129,9 @@ public static class AppDataTransactionExtension
     {
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
         if (primaries == null) return await context.SaveFieldDataAsync(appFieldType, target, null);
-        
-        // only pass primary keys
-        JsonObject query = [];
-        foreach (PropertyInfo prop in primaries)
-            query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-        return await context.DeleteFieldListDataAsync(appFieldType, target, [query]);
+
+        var node = await context.GetSchemaNodeAsync(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
+        return await context.DeleteFieldListDataAsync(appFieldType, target, node);
     }
 
     /// <summary>
@@ -147,10 +144,16 @@ public static class AppDataTransactionExtension
             return await context.SaveFieldDataAsync(appFieldType, target, null);
 
         if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
-        JsonObject query = [];
+        AppSchemaDataFilter? filter = null;
         for (int i = 0; i < keys.Length; i++)
-            query[primaries[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
-        return await context.DeleteFieldListDataAsync(appFieldType, target, [query]);
+        {
+            AppSchemaDataFilterBinary keyFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
+                new AppSchemaDataFilterField(primaries[i].Name.ToCamelCase()),
+                new AppSchemaDataFilterValue(keys[i]));
+            filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter) : keyFilter;
+        }
+        if (filter == null) throw new ArgumentException($"The type {typeof(T).FullName} primary key is invalid");
+        return await context.DeleteFieldListDataAsync(appFieldType, target, filter);
     }
 
     /// <summary>
@@ -161,17 +164,13 @@ public static class AppDataTransactionExtension
         (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
         if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
 
-        JsonArray query = [];
+        ArrayTypeNode array = new ArrayTypeNode(appFieldType.SchemaType!);
         foreach (T valueItem in value)
         {
-            JsonObject q = [];
-            foreach (PropertyInfo prop in primaries)
-            {
-                q[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-            }
-            query.Add(q);
+            var node = await context.GetSchemaNodeAsync(valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
+            array.Add(node);
         }
-        return await context.DeleteFieldListDataAsync(appFieldType, target, query);
+        return await context.DeleteFieldListDataAsync(appFieldType, target, array);
     }
 
     /// <summary>
@@ -186,19 +185,26 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
+    public static async Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
     {
         context.AssertType<T>(field);
-        return context.DeleteFieldListDataAsync(field, target, [value.ToJsonNode()]);
+        var node = await context.GetSchemaNodeAsync(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
+        return await context.DeleteFieldListDataAsync(field, target, node);
     }
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
+    public static async Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
     {
         context.AssertType<T>(field);
-        return context.DeleteFieldListDataAsync(field, target, (JsonArray?)value.ToJsonNode() ?? []);
+        ArrayTypeNode array = new ArrayTypeNode(field.SchemaType!);
+        foreach (T valueItem in value)
+        {
+            var node = await context.GetSchemaNodeAsync(valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
+            array.Add(node);
+        }
+        return await context.DeleteFieldListDataAsync(field, target, array);
     }
 
     /// <summary>
@@ -207,7 +213,6 @@ public static class AppDataTransactionExtension
     public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
     {
         context.AssertType<T>(field);
-
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
         return context.DeleteFieldListDataAsync(field, target, filter);
     }
@@ -215,7 +220,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, JsonArray query, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode nodes, bool innerCall = false)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -228,8 +233,8 @@ public static class AppDataTransactionExtension
         if (schema.Single) return false;
         try
         {
-            if (query.Count == 0) return false;
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, query);
+            if (nodes is ArrayTypeNode { Count: 0 }) return false; // pass if no node to delete
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, target, nodes);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
@@ -268,8 +273,6 @@ public static class AppDataTransactionExtension
 
         return true;
     }
-
-    
     
     #endregion
 
@@ -1015,7 +1018,7 @@ public static class AppDataTransactionExtension
             case EnumType:
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Assign;
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
                     AnySchemaNode? now = GroupJoin(newResult, method);
 
                     // Update with join method
@@ -1040,7 +1043,7 @@ public static class AppDataTransactionExtension
                     DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
 
                     // Part
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
                     AnySchemaNode? now = GroupJoin(scalar, newResult, method);
 
@@ -1086,7 +1089,7 @@ public static class AppDataTransactionExtension
                     }
 
                     // Gets the result
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
                     AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
 
@@ -1191,37 +1194,23 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
-                    HashSet<string> keys = new();
-                    JsonArray query = new();
-                    foreach ((string key, StructTypeNode obj) in oldMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-                    foreach ((string key, StructTypeNode obj) in nowMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-
+                    var origins = await context.GetAppFieldDataAsync(field, target,oldMap.Values.Concat(nowMap.Values));
+                    
                     // Gets the original data
                     Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
-                    if (!query.IsEmpty())
+                    if (origins is ArrayTypeNode arr)
                     {
-                        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(field, target, query);
-                        if (value is ArrayTypeNode arr)
+                        foreach (AnySchemaNode token in arr)
                         {
-                            foreach (AnySchemaNode token in arr)
-                            {
-                                if (token is not StructTypeNode obj) continue;
-                                string? key = array.GetPrimaryKey(obj);
-                                if (string.IsNullOrWhiteSpace(key)) continue;
-                                resultMap[key] = obj;
-                            }
+                            if (token is not StructTypeNode obj) continue;
+                            string? key = array.GetPrimaryKey(obj);
+                            if (string.IsNullOrWhiteSpace(key)) continue;
+                            resultMap[key] = obj;
                         }
                     }
 
                     // Generate the result map
+                    var keys = new HashSet<string>(oldMap.Keys.Concat(nowMap.Keys));
                     foreach (string key in keys)
                     {
                         if (resultMap.TryGetValue(key, out var res1))

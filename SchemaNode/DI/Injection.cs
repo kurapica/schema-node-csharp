@@ -130,6 +130,7 @@ public static class Injection
                 }
             }
             
+            // System App
             SchemaAppAttribute? appAttr = assembly.GetCustomAttribute<SchemaAppAttribute>();
             string appName = assembly.GetName().Name?.ToLower() ?? "app";
             if (appAttr?.Application != null)
@@ -137,16 +138,35 @@ public static class Injection
                 appName = appAttr.Application;
                 string[] displaySeg = appAttr.Display?.Split('.') ?? [];
                 string[] nameSeg = appName.Split('.');
+                SchemaAppScopeAttribute[] scopes = assembly.GetCustomAttributes<SchemaAppScopeAttribute>().ToArray();
+                AppScopePolicy policy = new AppScopePolicy { Type = AppScopeType.BusinessTarget };
+                if (scopes.Length > 0)
+                {
+                    policy.Type = scopes[0].Type;
+                    if (policy.Type == AppScopeType.IsolationContext)
+                    {
+                        policy.ContextMaps = scopes.Where(s => 
+                                s.Type == AppScopeType.IsolationContext && 
+                                !string.IsNullOrEmpty(s.ContextItem))
+                            .Select(p => new AppScopeContextMap
+                            {
+                                ContextItem = p.ContextItem ?? "",
+                                MapKey = p.MapKey ?? "",
+                            }).ToArray();
+                    }
+                    policy.BusinessKey = scopes.FirstOrDefault(s => s.Type == AppScopeType.BusinessTarget)?.MapKey;
+                }
+                
                 if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)
                 {
                     for (int i = 0; i < nameSeg.Length; i++)
                     {
-                        SaveSystemAppField(string.Join('.', nameSeg[..(i + 1)]), display: displaySeg[i]);
+                        SaveSystemAppField(string.Join('.', nameSeg[..(i + 1)]), display: displaySeg[i], policy:i == nameSeg.Length - 1 ? policy : null);
                     }
                 }
                 else
                 {
-                    SaveSystemAppField(appAttr.Application, display: appAttr.Display);
+                    SaveSystemAppField(appAttr.Application, display: appAttr.Display, policy: policy);
                 }
             }
 

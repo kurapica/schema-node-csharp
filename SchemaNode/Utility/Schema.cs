@@ -713,6 +713,22 @@ public static class Schema
         return new();
     }
 
+    internal static AppSchemaDataFilter? GetQueryFilter(this StructTypeNode node, ArrayType array)
+    {
+        if (array.Primary is not { Length: > 0 }) return null;
+        AppSchemaDataFilter? filter = null;
+        foreach (string primary in array.Primary)
+        {
+            if (node.GetField(primary) is not AnySchemaNode { IsEmpty: false } val) return null;
+            var keyFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
+                new AppSchemaDataFilterField(primary.ToCamelCase()),
+                new AppSchemaDataFilterValue(val));
+            filter = filter == null ? keyFilter : filter.AndAlso(keyFilter);
+        }
+        return filter;
+
+    }
+    
     /// <summary>
     /// Join to array
     /// </summary>
