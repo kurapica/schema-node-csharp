@@ -6,6 +6,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -52,6 +53,16 @@ public class DynamicTableSchema
     /// Gets the value fields
     /// </summary>
     public IEnumerable<DynamicTableField> ValueFields => Fields.Where(f => f.IsValueField);
+
+    /// <summary>
+    /// Gets the fields without type relation, used for data query and save
+    /// </summary>
+    public IEnumerable<DynamicTableField> AllFields => Fields.Where(f => !f.HasTypeRelation);
+    
+    /// <summary>
+    /// Non-scope and non-target fields, used for data query and save
+    /// </summary>
+    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f is { Scope: false, Target: false, HasTypeRelation: false });
 
     /// <summary>
     /// The dynamic table indexes
@@ -141,10 +152,10 @@ public class DynamicTableSchema
 
     public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
-        IEnumerable<DynamicTableField> fields = Fields;
+        IEnumerable<DynamicTableField> fields = NonScopeFields;
         if (primaryOnly) fields = Fields.Where(p => p.Primary);
         else if (noPrimary) fields = Fields.Where(p => !p.Primary);
-        foreach (DynamicTableField field in fields.Where(f => f.IsValueField))
+        foreach (DynamicTableField field in fields)
         {
             if (field.Complex == null)
             {
@@ -192,6 +203,14 @@ public class DynamicTableSchema
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the scope context items for the dynamic table, used for data partition and target selection
+    /// </summary>
+    public IEnumerable<(string item, AnySchemaNode? value)> GetScopeItems(IServiceProvider provider)
+    {
+        return AppFieldType.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>());
     }
     
     /// <summary>
