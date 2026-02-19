@@ -95,9 +95,9 @@ public class StructTypeNode : AnySchemaNode
             _csharpObject = null;
             if (value == null)
             {
-                foreach (var field in Fields)
+                foreach (AnySchemaNode @field in Fields)
                 {
-                    field.Value = null;
+                    @field.Value = null;
                 }
             }
             else if(value is StructTypeNode @struct)
@@ -123,9 +123,9 @@ public class StructTypeNode : AnySchemaNode
                 JsonObject? packData = unpackNode != null ? new JsonObject() : null;
                 foreach ((string key, JsonNode? val) in obj)
                 {
-                    if (fieldMap.TryGetValue(key.ToLower(), out AnySchemaNode? field))
+                    if (fieldMap.TryGetValue(key.ToLower(), out AnySchemaNode? @field))
                     {
-                        field.Value = val;
+                        @field.Value = val;
                     }
                     else if (packData != null)
                     {

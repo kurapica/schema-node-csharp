@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Components;
 
@@ -414,7 +415,13 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         return filter switch
         {
-            AppSchemaDataFilterValue v => v.Value is AnySchemaNode n ? n.ToJson() : JsonValue.Create(v.Value),
+            AppSchemaDataFilterValue v => v.Value switch
+            {
+                AnySchemaNode n => n.ToJson(),
+                JsonValue j => JsonValue.Create(j.ToValue<string>()),
+                string s => JsonValue.Create(s),
+                _ => JsonValue.Create(v.Value)
+            },
             AppSchemaDataFilterField f => record[f.Field],
             _ => null // Complex expr as value? Not supported in simple evaluator
         };

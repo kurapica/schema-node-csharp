@@ -22,3 +22,5 @@ SchemaNode.sln.DotSettings.user
 /SchemaNode.McpHost/obj
 /SchemaNode.Excel/obj
 /SchemaNode.Excel/bin
+/SchemaNode.UnitTest/obj
+/SchemaNode.UnitTest/bin

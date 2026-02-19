@@ -398,6 +398,67 @@ public static class Injection
         return app;
     }
     
+    public static async Task<IServiceProvider> PreLoadSchemaNodes(this IServiceProvider provider)
+    {
+        using IServiceScope scope = provider.CreateScope();
+        SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
+    
+        // preload schema and app types·
+        context.LogInformation("[Preload] Loading schema ...");
+        context.ResetTypeNamespace();
+        await context.GetSchemaTypeAsync("", preload: true);
+    
+        context.LogInformation("[Preload] Loading application ...");
+        context.ResetAppContainer();
+        await context.GetAppTypeAsync("", preload: true);
+    
+        // re-compile function types
+        FunctionType[] funcs = ReCompileFuncTypes?.ToArray() ?? [];
+        ReCompileFuncTypes?.Clear();
+    
+        if (funcs.Length > 0)
+            context.LogInformation($"Re compiling {funcs.Length} function types ...");
+
+        int old = 0;
+        while (old != funcs.Length)
+        {
+            foreach (var funcType in funcs)
+            {
+                context.LogInformation($"Re compiling function type: {funcType.Name}");
+                funcType.Status = SchemaNodeStatus.Ready;
+                await funcType.PreCompileAsync(context);
+
+                if (funcType.Status == SchemaNodeStatus.Ready) continue;
+                ReCompileFuncTypes ??= [];
+                ReCompileFuncTypes.Add(funcType);
+            }
+            old = funcs.Length;
+            funcs = ReCompileFuncTypes?.ToArray() ?? [];
+            ReCompileFuncTypes?.Clear();
+        }
+        ReCompileFuncTypes = null;
+    
+        // start work flows
+        context.LogInformation("[Preload] Starting workflows ...");
+        foreach(AppWorkflowType workflow in WorkflowTypes ?? [])
+        {
+            try
+            {
+                context.LogInformation($"Starting workflow: {workflow.Name}");
+                await workflow.LoadAsync(context);
+            }
+            catch (Exception ex)
+            {
+                context.LogError(ex, $"Failed to start workflow: {workflow.Name}, error: {ex.Message}");
+            }
+        }
+        WorkflowTypes = null;
+    
+        // Preload completed
+        context.LogInformation("[Preload] Completed, starting service.");
+        return provider;
+    }
+    
     internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
     internal static ConcurrentBag<AppWorkflowType>? WorkflowTypes = [];
     internal static ConcurrentBag<string> Plugins = [];

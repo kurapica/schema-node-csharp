@@ -231,7 +231,7 @@ public static class AppDataQueryExtension
     /// Gets the filter field data for data source compile expression
     /// </summary>
     public static async Task<AnySchemaNode?> GetSchemaDataAsync(
-        this SchemaContext context, string app, string field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter, 
+        this SchemaContext context, string app, string field, string target, AppSchemaDataResult type, AppSchemaDataFilter? filter = null, 
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
         AppType? appType = await context.GetAppTypeAsync(app);
