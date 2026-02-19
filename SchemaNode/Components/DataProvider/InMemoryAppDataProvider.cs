@@ -9,7 +9,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The in memory app schema data provider, for unit test only
 /// </summary>
-public class InMemoryAppDataProvider: IAppDataProvider
+public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppDataProvider
 {
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
@@ -22,8 +22,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
         string? dataField = null, bool forUpdate = false)
     {
         await Task.Yield();
+        string compositeKey = PrepareKey(schema, target);
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
+        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
@@ -82,8 +83,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
     public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await Task.Yield();
+        string compositeKey = PrepareKey(schema, target);
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
+        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
@@ -161,8 +163,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
     public async Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target)
     {
         await Task.Yield();
+        string compositeKey = PrepareKey(schema, target);
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        if (table.TryRemove(target, out List<JsonNode>? list))
+        if (table.TryRemove(compositeKey, out List<JsonNode>? list))
         {
             return (true, new ArrayTypeNode(schema.SchemaType, list));
         }
@@ -173,8 +176,9 @@ public class InMemoryAppDataProvider: IAppDataProvider
     public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter)
     {
         await Task.Yield();
+        string compositeKey = PrepareKey(schema, target);
         ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
+        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
@@ -189,7 +193,7 @@ public class InMemoryAppDataProvider: IAppDataProvider
                     remains.Add(t);
             }
 
-            table[target] = remains;
+            table[compositeKey] = remains;
             return (true, new ArrayTypeNode(schema.SchemaType, origins));
         }
         else
@@ -225,6 +229,37 @@ public class InMemoryAppDataProvider: IAppDataProvider
     #region Utility
 
     static ConcurrentDictionary<string, ConcurrentDictionary<string, List<JsonNode>>> _dynamicTables = [];
+
+    /// <summary>
+    /// Prepare the composite key from scope and target fields
+    /// </summary>
+    private string PrepareKey(DynamicTableSchema schema, string target)
+    {
+        List<string> keyParts = [];
+        
+        // Add scope items
+        if (schema.Fields.Any(f => f.Scope))
+        {
+            foreach ((string item, AnySchemaNode? value) in schema.GetScopeItems(serviceProvider))
+            {
+                if (value == null || value.IsEmpty)
+                    throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
+                keyParts.Add($"{item}:{value}");
+            }
+        }
+        
+        // Add target field
+        var tarField = schema.Fields.FirstOrDefault(f => f.Target);
+        if (tarField != null)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+                throw new InvalidOperationException($"The target field {tarField.Name} is required for querying dynamic table data.");
+            keyParts.Add($"{tarField.Name}:{target}");
+        }
+        
+        // If no scope and no target, use a default key
+        return keyParts.Count > 0 ? string.Join("|", keyParts) : "_default";
+    }
 
     private bool Match(AppSchemaDataFilter filter, JsonObject record)
     {

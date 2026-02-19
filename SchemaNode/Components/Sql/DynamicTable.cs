@@ -153,8 +153,8 @@ public class DynamicTableSchema
     public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
         IEnumerable<DynamicTableField> fields = NonScopeFields;
-        if (primaryOnly) fields = Fields.Where(p => p.Primary);
-        else if (noPrimary) fields = Fields.Where(p => !p.Primary);
+        if (primaryOnly) fields = fields.Where(p => p.Primary);
+        else if (noPrimary) fields = fields.Where(p => !p.Primary);
         foreach (DynamicTableField field in fields)
         {
             if (field.Complex == null)
@@ -262,7 +262,7 @@ public class DynamicTableSchema
             return Fields[0].FromReader(reader, offset);
 
         StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
-        foreach (DynamicTableField field in Fields.Where(r => r.IsValueField))
+        foreach (DynamicTableField field in NonScopeFields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
             if (val == null) continue;
@@ -292,7 +292,7 @@ public class DynamicTableSchema
     {
         int offset = 0;
         StructTypeNode? complexResult = null;
-        foreach (DynamicTableField field in Fields.Where(f => f.IsValueField))
+        foreach (DynamicTableField field in NonScopeFields)
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {

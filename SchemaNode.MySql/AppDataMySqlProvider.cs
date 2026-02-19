@@ -23,7 +23,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 {
     #region Properties and Fields
 
-    private readonly string _refTarget = sqlProvider.QuoteField(DYNAMIC_TABLE_TARG_FIELD);
     private readonly string _refIndex = sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX);
     private readonly string _refSeqNo = sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD);
     private readonly string _trueCond = "1=1";
@@ -192,7 +191,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 sb.Append($"{sqlProvider.QuoteField(keyField.Name)} {DataType(keyField)} NOT NULL, ");
 
             // Generate the column lists
-            foreach (DynamicTableField tableField in schema.Fields.Where(f => f.IsValueField))
+            foreach (DynamicTableField tableField in schema.ValueFields)
                 sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}, ");
 
             // Append primary key
@@ -277,12 +276,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 await command.ExecuteNonQueryAsync();
                 
                 // Create the indexes
-                string scopeTargetPart = string.Join(',', schema.ScopeTargetFields.Select(f => sqlProvider.QuoteField(f.Name)));
+                string scopeTargetPart = string.Join(',', schema.ScopeTargetFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat([_refAttrField]));
                 sb = new StringBuilder();
-                sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD")}({scopeTargetPart}, {_refAttrField}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_INT")}({scopeTargetPart}, {_refAttrField}, {_refAttrIntField}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_STR")}({scopeTargetPart}, {_refAttrField}, {_refAttrStrField}),");
-                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_DAT")}({scopeTargetPart}, {_refAttrField}, {_refAttrDatField});");
+                sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD")}({scopeTargetPart}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_INT")}({scopeTargetPart}, {_refAttrIntField}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_STR")}({scopeTargetPart}, {_refAttrStrField}),");
+                sb.Append($"ADD INDEX {sqlProvider.QuoteIndex("IDX_TAR_FLD_DAT")}({scopeTargetPart}, {_refAttrDatField});");
                 
                 command = GetDbCommand();
                 command.CommandText = sb.ToString();
@@ -375,7 +374,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         else
         {
-            if (string.IsNullOrWhiteSpace(target)) return (null, -1);
             if (type == AppSchemaDataResult.Last) desc = !desc;
 
             // Build SQL
@@ -407,7 +405,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     ? $"SELECT EXISTS (SELECT 1 {sb} LIMIT 1) AS exists_flag;" 
                     : $"SELECT COUNT(*) {sb};";
 
-                Logger.LogInformation(totalCommand.CommandText);
+                Logger.LogDebug(totalCommand.CommandText);
                 DbDataReader totalReader = await totalCommand.ExecuteReaderAsync();
                 try
                 {
@@ -448,7 +446,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Query Data
             StringBuilder select = new();
             select.Append("SELECT ");
-            sb.Append(string.Join(',', schema.NonScopeFields.Select(f => $"o.{sqlProvider.QuoteField(f.Name)}")));
+            select.Append(string.Join(',', schema.NonScopeFields.Select(f => $"o.{sqlProvider.QuoteField(f.Name)}")));
             select.Append(" FROM ");
             select.Append(tableName);
             select.Append(" o JOIN (SELECT ");
@@ -656,8 +654,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         (string wherePrefix, Dictionary<string, string> scopeItems) = PrepareWhere(schema, target);
         
-        string insertTemplate = $"INSERT INTO {tableName} ({string.Join(',', schema.AllFields.Select(f => sqlProvider.QuoteField(f.Name)))}) VALUES ({string.Join(',', schema.ScopeTargetFields.Select(f => scopeItems[f.Name]))}, {{0}});";
-        
+        string insertTemplate = $"INSERT INTO {tableName} ({string.Join(',', schema.AllFields.Select(f => sqlProvider.QuoteField(f.Name)))}) VALUES ({string.Join(',', schema.ScopeTargetFields.Select(f => scopeItems[f.Name]))}{(schema.ScopeTargetFields.Any() ? ",": "")} {{0}});";
+       
         // single row
         if (schema.Single)
         {
@@ -855,6 +853,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     sb.Append($"`{fld}` = {sqlProvider.Literal(v)} AND ");
                 }
                 if (!fullFill) continue;
+                sb.Append(_trueCond);
 
                 // Query the origin
                 string where = sb.ToString();
@@ -955,11 +954,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         await EnsureOpenConnectionAsync();
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        (string wherePrefix, _) = PrepareWhere(schema, target);
         
         // single row
         if (schema.Single)
         {
+            (string wherePrefix, _) = PrepareWhere(schema, target);
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, forUpdate: true);
             if (origin is null) return (false, null);
             
@@ -995,11 +994,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         await EnsureOpenConnectionAsync();
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        (string wherePrefix, _) = PrepareWhere(schema, target);
         
         // single row
         if (schema.Single)
         {
+            (string wherePrefix, _) = PrepareWhere(schema, target);
             (AnySchemaNode? origin, _) = await QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, forUpdate: true);
             if (origin is null) return (false, null);
             
@@ -1286,7 +1285,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     async Task SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldConfig[] fields, JsonObject? value, string prev, List<(string k, AnySchemaNode v)> primaries)
     {
         string[] scopeKeys = scopeItems.Keys.ToArray();
-        string insertTemplate = $"INSERT INTO {sqlProvider.QuoteTable(attrTable)} ({string.Join(',', scopeKeys.Select(sqlProvider.QuoteField))}, {string.Join(',', primaries.Select(p => sqlProvider.QuoteField(p.k)))}, {_refAttrField}, {_refAttrIntField}, {_refAttrStrField}, {_refAttrDatField}, {_refAttrDblField}, {_refAttrTxtField}, {_refAttrJsonField}) VALUES ({string.Join(',', scopeKeys.Select(k => scopeItems[k]))}, {string.Join(',', primaries.Select(p => sqlProvider.Literal(p.v)))}, {{0}}, {{1}}, {{2}}, {{3}}, {{4}}, {{5}}, {{6}}) ON DUPLICATE KEY UPDATE {_refAttrIntField} = {{1}}, {_refAttrStrField} = {{2}}, {_refAttrDatField} = {{3}}, {_refAttrDblField} = {{4}}, {_refAttrTxtField} = {{5}}, {_refAttrJsonField} = {{6}};";
+        string insertTemplate = $"INSERT INTO {sqlProvider.QuoteTable(attrTable)} ({string.Join(',', scopeKeys.Select(sqlProvider.QuoteField).Concat(primaries.Select(p => sqlProvider.QuoteField(p.k))).Concat([_refAttrField, _refAttrIntField, _refAttrStrField, _refAttrDatField, _refAttrDblField, _refAttrTxtField, _refAttrJsonField]))}) VALUES ({string.Join(',', scopeKeys.Select(k => scopeItems[k]).Concat(primaries.Select(p => sqlProvider.Literal(p.v))))}{(scopeKeys.Length > 0 || primaries.Count > 0 ? "," : "")} {{0}}, {{1}}, {{2}}, {{3}}, {{4}}, {{5}}, {{6}}) ON DUPLICATE KEY UPDATE {_refAttrIntField} = {{1}}, {_refAttrStrField} = {{2}}, {_refAttrDatField} = {{3}}, {_refAttrDblField} = {{4}}, {_refAttrTxtField} = {{5}}, {_refAttrJsonField} = {{6}};";
 
         foreach (StructFieldConfig field in fields.Where(f => f.DisplayOnly != true))
         {
@@ -1400,7 +1399,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         else
         {
             DbCommand command = GetDbCommand();
-            command.CommandText =$"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {string.Join(" AND ", scopeItems.Select(p => $"{sqlProvider.QuoteField(p.Key)} = {p.Value}"))} AND {_refAttrField} = {sqlProvider.Literal(attrField)} AND {string.Join(" AND ", primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}"))};";
+            command.CommandText =$"DELETE FROM {sqlProvider.QuoteTable(attrTable)} WHERE {string.Join(" AND ", scopeItems.Select(p => $"{sqlProvider.QuoteField(p.Key)} = {p.Value}").Concat([$"{_refAttrField} = {sqlProvider.Literal(attrField)}"]).Concat(primaries.Select(p => $"{sqlProvider.QuoteField(p.k)} = {sqlProvider.Literal(p.v)}")))};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
         }
@@ -1435,25 +1434,47 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
     (string where, Dictionary<string, string> scopeItems) PrepareWhere(DynamicTableSchema schema, string target)
     {
+        string unionKey = $"{schema.AppFieldType.Application.Name}:{target}";
+        if (_whereCache.TryGetValue(unionKey, out var cache))
+            return cache;
+        
         StringBuilder sb = new(" WHERE ");
         Dictionary<string, string> items = [];
-        if (schema.Fields[0].Scope)
+        if (schema.Fields.Any(f => f.Scope))
         {
             foreach ((string item, AnySchemaNode? value)  in schema.GetScopeItems(serviceProvider))
             {
                 if (value == null || value.IsEmpty)
                     throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
-                sb.Append($"{sqlProvider.QuoteField(item)} = {sqlProvider.Literal(value)} AND ");
                 items[item] = sqlProvider.Literal(value);
             }
         }
         DynamicTableField? tarField = schema.Fields.FirstOrDefault(f => f.Target);
         if (tarField != null)
         {
-            sb.Append($"{sqlProvider.QuoteField(tarField.Name)} = {sqlProvider.Literal(target)} AND ");
+            if (string.IsNullOrWhiteSpace(target))
+                throw new InvalidOperationException($"The target field {tarField.Name} is required for querying dynamic table data.");
             items[tarField.Name] = sqlProvider.Literal(target);
         }
-        return (sb.ToString(), items);
+        
+        // check
+        foreach (DynamicTableField field in schema.ScopeTargetFields)
+        {
+            if (!items.TryGetValue(field.Name, out string? value))
+            {
+                var key = items.Keys.FirstOrDefault(k => k.Equals(field.Name, StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(key))
+                    throw new InvalidOperationException($"The scope/target field {field.Name} is required for querying dynamic table data.");
+                value = items[key];
+                items.Remove(key);
+                items[field.Name] = value;
+            }
+            sb.Append($"{sqlProvider.QuoteField(field.Name)} = {value} AND ");
+        }
+        
+        var result = (sb.ToString(), items);
+        _whereCache[unionKey] = result;
+        return result;
     }
     
     /// <summary>
@@ -1495,6 +1516,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
     private readonly Lazy<ILogger> _loggerThunk = new (serviceProvider.GetRequiredService<ILogger<AppDataMySqlProvider>>);
     
+    private readonly Dictionary<string, (string where, Dictionary<string, string> scopeItems)> _whereCache = [];
     private readonly Dictionary<string, AnySchemaNode?> _relationDataCache = [];
     private readonly Dictionary<string, StructFieldConfig[]> _attrFields = [];
     private readonly Dictionary<string, StructFieldConfig[]> _attrFieldsFromStruct = [];

@@ -161,7 +161,7 @@ public static class PushDataExtenstion
 
                 if (push.Deletes is { Count: > 0 })
                 {
-                    (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
+                    (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Deletes);
                     if (error != null)
                     {
                         if (hasData) await context.RollbackTransactionAsync();
