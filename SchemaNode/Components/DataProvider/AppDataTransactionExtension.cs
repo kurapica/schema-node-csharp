@@ -495,25 +495,11 @@ public static class AppDataTransactionExtension
         #endregion
 
         // Process data push
-        HashSet<string> otherTargets = [];
         while (root?.Fields.Count is > 0)
         {
             foreach (AppFieldType field in root.Fields)
             {
                 if (field.PushSource == null || field.PushFuncSchema == null) continue;
-                
-                // Check ref
-                AppFieldType? tarField = field;
-                string realTarget = target;
-                bool notRefField = field.SourceAppType == null || field.TrackPush == true;
-
-                // push to source directly
-                if (!notRefField)
-                {
-                    (tarField, realTarget) = await context.GetSourceFieldNode(field, target, true);
-                    if (tarField == null) continue;
-                    if (realTarget != target) otherTargets.Add(realTarget);
-                }
                 
                 // Gather the field change infos
                 Dictionary<AppFieldType, (DataPushThirdFieldInfo? ThirdInfo, 
@@ -682,17 +668,7 @@ public static class AppDataTransactionExtension
                 if (oldResult.IsEmpty && newResult.IsEmpty) continue;
                 
                 // Save the incremental data
-                await context.SaveIncrementalData(tarField, realTarget, newResult, oldResult);
-
-                // Check if track push field
-                if (tarField.EnablePushTrackTable)
-                {
-                    // push to the real target
-                    (AppFieldType? refField, string refTarget) = await context.GetSourceFieldNode(tarField, realTarget, true);
-                    if (refField == null || refField == tarField) continue;
-                    if (refTarget != target) otherTargets.Add(refTarget);
-                    await context.SaveIncrementalData(refField, refTarget, newResult, oldResult);
-                }
+                await context.SaveIncrementalData(field, target, newResult, oldResult);
 
                 continue;
 
@@ -998,14 +974,6 @@ public static class AppDataTransactionExtension
 
             // Process next level
             root = root.Next;
-        }
-
-        // Process other targets
-        foreach (string tar in otherTargets)
-        {
-            var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
-            if (transChangedData.TryGetValue(tar, out TransactionChangeData? val))
-                await ProcessDataPush(context, tar, val);
         }
     }
 

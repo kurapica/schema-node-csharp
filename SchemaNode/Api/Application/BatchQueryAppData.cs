@@ -72,16 +72,16 @@ public static class BatchQueryExtension
             if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
             // query fields
-            IEnumerable<AppFieldType> fields = node.Fields?.Where(f => f.IsQueryable) ?? [];
+            IEnumerable<AppFieldType> fields = node.Fields?.Where(f => f.EnableDynamicTable) ?? [];
             fields = query.Fields is { Length: > 0 }
                 ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
                 : fields;
             
             // filter input/output fields
             if (query.OnlyInput == true)
-                fields = fields.Where(f => string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
+                fields = fields.Where(f => string.IsNullOrEmpty(f.Func));
             else if (query.OnlyOutput == true)
-                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func) && string.IsNullOrEmpty(f.SourceApp));
+                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func));
 
             // result
             Dictionary<string, JsonNode> fieldResults = [];

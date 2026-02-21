@@ -231,21 +231,6 @@ public class AppType
                         }
                     }
                 }
-
-                // valid source
-                if (!string.IsNullOrWhiteSpace(field.SourceApp) && !string.IsNullOrWhiteSpace(field.SourceField))
-                {
-                    AppType? sourceApp = await context.GetAppTypeAsync(field.SourceApp);
-                    if (sourceApp?.GetField(field.SourceField) == null)
-                    {
-                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
-                    }
-                    else
-                    {
-                        useRef = true;
-                        field.SourceAppType = sourceApp;
-                    }
-                }
                 
                 if (field.EnableDynamicTable)
                     requireDb = true;

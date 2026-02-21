@@ -112,7 +112,7 @@ namespace SchemaNode.UnitTest
                         },
                         new JsonObject
                         {
-                            ["type"] = "Value2",
+                            ["type"] = 2,
                             ["name"] = "Bob",
                             ["age"] = JsonValue.Create(25)
                         }

@@ -98,20 +98,16 @@ public static class AppDataQueryExtension
         bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
-        if ((field.Frontend ?? false) || (field.Disable ?? false)) return (null, 0);
+        if (!field.EnableDynamicTable) return (null, 0);
 
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
-        if (sourceField == null) return (null, 0);
-        
-
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
         try
         {
-            context.SetAccess(sourceField.App, sourceTarget);
+            context.SetAccess(field.App, target);
             (AnySchemaNode? result, int total) = await dataProvider
                 .QueryDynamicTableAsync(schema, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
 
@@ -126,11 +122,6 @@ public static class AppDataQueryExtension
             context.Logger.LogError(ex.Message);
             throw;
         }
-        finally
-        {
-            if (field != sourceField || sourceTarget != target)
-                context.SetAccess(field.App, target);
-        }
     }
 
     /// <summary>
@@ -140,19 +131,16 @@ public static class AppDataQueryExtension
         AppFieldType field, string target, AnySchemaNode nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
-        if ((field.Frontend ?? false) || (field.Disable ?? false)) return null;
+        if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
-        if (sourceField == null) return null;
-
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
         try
         {
-            context.SetAccess(sourceField.App, sourceTarget);
+            context.SetAccess(field.App, target);
             AnySchemaNode? result = null;
 
             if (field.SchemaType is ArrayType { Primary: { Length: > 0 } } arrType)
@@ -198,11 +186,6 @@ public static class AppDataQueryExtension
             context.Logger.LogError(ex.Message);
             throw;
         }
-        finally
-        {
-            if (field != sourceField || sourceTarget != target)
-                context.SetAccess(field.App, target);
-        }
     }
     
     /// <summary>
@@ -212,19 +195,16 @@ public static class AppDataQueryExtension
         AppFieldType field, string target, IEnumerable<StructTypeNode> nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
-        if ((field.Frontend ?? false) || (field.Disable ?? false)) return null;
+        if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
-        if (sourceField == null) return null;
-
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
         try
         {
-            context.SetAccess(sourceField.App, sourceTarget);
+            context.SetAccess(field.App, target);
             AnySchemaNode? result = null;
 
             if (field.SchemaType is ArrayType { Primary: { Length: > 0 } })
@@ -240,11 +220,6 @@ public static class AppDataQueryExtension
         {
             context.Logger.LogError(ex.Message);
             throw;
-        }
-        finally
-        {
-            if (field != sourceField || sourceTarget != target)
-                context.SetAccess(field.App, target);
         }
     }
     

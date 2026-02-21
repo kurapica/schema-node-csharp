@@ -53,18 +53,6 @@ public class AppFieldSchema
     public LocaleString? Desc { get; set; }
     
     /// <summary>
-    /// The source application
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? SourceApp { get; set; }
-    
-    /// <summary>
-    /// The source field
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? SourceField { get; set; }
-    
-    /// <summary>
     /// The calculate function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
@@ -151,16 +139,6 @@ public class AppFieldSchema
     }
 
     /// <summary>
-    /// Track the push data to the source field, so toggle the source target, will also re-push the data
-    /// </summary>
-    [NotMapped]
-    public bool? TrackPush
-    {
-        get => Flags.Has(AppFieldFlags.TrackPush);
-        init => Flags = Flags.Turn(AppFieldFlags.TrackPush, value);
-    }
-
-    /// <summary>
     /// Enable the template download for the field
     /// </summary>
     [NotMapped]
@@ -217,9 +195,8 @@ public class AppFieldSchema
         Disable = 1 << 1,
         Readonly = 1 << 2,
         IncrUpdate = 1 << 3,
-        TrackPush = 1 << 4,
+        AllowClear = 1 << 4,
         Template = 1 << 5,
-        AllowClear = 1 << 6,
     }
 
     #endregion

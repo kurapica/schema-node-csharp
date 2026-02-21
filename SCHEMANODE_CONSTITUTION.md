@@ -409,8 +409,6 @@ abstract class SchemaApi<TRequest, TResponse> {
 #### 应用数据 API
 - `BatchQueryAppData`: 批量查询应用数据
 - `PushAppData`: 推送应用数据
-- `GetSourceTarget`: 获取数据源目标
-- `SetSourceTarget`: 设置数据源目标
 
 #### 工作流 API
 - `WorkflowInfo`: 获取工作流信息
