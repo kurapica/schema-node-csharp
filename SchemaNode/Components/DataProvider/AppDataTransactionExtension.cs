@@ -83,7 +83,8 @@ public static class AppDataTransactionExtension
 
         try
         {
-            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value, canAdd, onlyAdd, overrides);
+            context.SetAccess(field.App, target);
+            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, value, canAdd, onlyAdd, overrides);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Modify, update, origin);
             return result;
         }
@@ -107,7 +108,8 @@ public static class AppDataTransactionExtension
 
         try
         {
-            (bool result, AnySchemaNode? origin) = await dataProvider.ClearDynamicTableDataAsync(schema, target);
+            context.SetAccess(field.App, target);
+            (bool result, AnySchemaNode? origin) = await dataProvider.ClearDynamicTableDataAsync(schema);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.DropAll, null, origin);
             return result;
         }
@@ -262,7 +264,8 @@ public static class AppDataTransactionExtension
         if (schema.Single) return false;
         try
         {
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, filter);
+            context.SetAccess(field.App, target);
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
             if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)

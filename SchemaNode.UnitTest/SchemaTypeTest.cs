@@ -1,5 +1,5 @@
-﻿﻿using System.Text.Json.Nodes;
- using Microsoft.Extensions.DependencyInjection;
+﻿using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SchemaNode.Api.Schema.Application;
 using SchemaNode.Components;
@@ -108,13 +108,13 @@ namespace SchemaNode.UnitTest
                         {
                             ["type"] = 1,
                             ["name"] = "Alice",
-                            ["age"] = 30
+                            ["age"] = JsonValue.Create(30)
                         },
                         new JsonObject
                         {
-                            ["type"] = 2,
+                            ["type"] = "Value2",
                             ["name"] = "Bob",
-                            ["age"] = 25
+                            ["age"] = JsonValue.Create(25)
                         }
                     }
                 }

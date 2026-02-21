@@ -165,9 +165,19 @@ public static class SchemaStorageProviderExtension
             }
             #endif
 
-            if (node.ScopePolicy?.Type == AppScopeType.IsolationContext && (node.ScopePolicy.ContextMaps == null ||
-                                                                            node.ScopePolicy.ContextMaps.Length == 0))
-                throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
+            if (node.ScopePolicy?.Type == AppScopeType.IsolationContext)
+            {
+                if (node.ScopePolicy.ContextMaps == null || node.ScopePolicy.ContextMaps.Length == 0)
+                    throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
+                
+                node.ScopePolicy.ContextMaps.Sort((a, b) =>
+                {
+                    // put Access.Target last 
+                    if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))
+                        return 1;
+                    return -1;
+                });
+            }
         }
 
         // Ges the storage provider
@@ -235,11 +245,6 @@ public static class SchemaStorageProviderExtension
             if (node.ScopePolicy?.ContextMaps is { Length: > 0 })
             {
                 if (structType.Fields.Any(f => node.ScopePolicy.ContextMaps.Any(m => f.Name.Equals(m.MapKey, StringComparison.OrdinalIgnoreCase))))
-                    throw new Exception(APP_FIELD_TYPE_NOT_VALID);
-            }
-            else if (!string.IsNullOrWhiteSpace(node.ScopePolicy?.BusinessKey))
-            {
-                if (structType.Fields.Any(f => f.Name.Equals(node.ScopePolicy.BusinessKey, StringComparison.OrdinalIgnoreCase)))
                     throw new Exception(APP_FIELD_TYPE_NOT_VALID);
             }
         }

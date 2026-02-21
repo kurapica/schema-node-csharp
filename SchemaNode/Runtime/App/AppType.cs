@@ -43,13 +43,6 @@ public class AppType
     /// The target scope type, default to business target if no scope policy defined
     /// </summary>
     public AppScopeType ScopeType => ScopePolicy?.Type ?? AppScopeType.BusinessTarget;
-
-    /// <summary>
-    /// The scope target
-    /// </summary>
-    public string ScopeTarget => !string.IsNullOrWhiteSpace(ScopePolicy?.BusinessKey)
-        ? ScopePolicy!.BusinessKey
-        : DYNAMIC_TABLE_TARG_FIELD;
     
     /// <summary>
     /// The authentication policy type
@@ -606,14 +599,70 @@ public class AppType
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
+    public IEnumerable<(string item, AnySchemaType type)> GetScopeContextItems()
+    {
+        if (ScopePolicy?.Type == AppScopeType.SystemLevel)
+            yield break;
+
+        StructType contextType = SchemaContext.SystemContext;
+        if (ScopePolicy is { ContextMaps.Length: > 0 })
+        {
+            foreach (var map in ScopePolicy.ContextMaps)
+            {
+                AnySchemaType? mapType = contextType;
+                string last = map.ContextItem;
+                
+                foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    StructFieldConfig? field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.SchemeType;
+                    last = field?.Name ?? string.Empty;
+                }
+
+                if (mapType == null)
+                    throw new Exception($"Invalid context item {map.ContextItem} in app {Name} scope policy");
+                
+                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", mapType);
+            }
+        }
+        else
+        {
+            yield return ($"_{nameof(Access.Target).ToCamelCase()}", SchemaContext.SystemString);
+        }
+    }
+    
+    /// <summary>
+    /// Gets the scope context items for the application, which will be used for policy evaluation and data push
+    /// </summary>
     public IEnumerable<(string item, AnySchemaNode? value)> GetScopeContextItems(SchemaContext ctx)
     {
-        if (ScopePolicy is not { Type: AppScopeType.IsolationContext, ContextMaps.Length: > 0 }) yield break;
-        
-        foreach (var map in ScopePolicy.ContextMaps)
+        if (ScopePolicy?.Type == AppScopeType.SystemLevel)
+            yield break;
+
+        StructType contextType = SchemaContext.SystemContext;
+        if (ScopePolicy is { ContextMaps.Length: > 0 })
         {
-            AnySchemaNode? value = ctx.GetSchemaContextItem(map.ContextItem);
-            yield return ( !string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{map.ContextItem.Split('.').Last().ToCamelCase()}", value);
+            foreach (var map in ScopePolicy.ContextMaps)
+            {
+                AnySchemaType? mapType = contextType;
+                string last = map.ContextItem;
+                
+                foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    StructFieldConfig? field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.SchemeType;
+                    last = field?.Name ?? string.Empty;
+                }
+
+                if (mapType == null)
+                    throw new Exception($"Invalid context item {map.ContextItem} in app {Name} scope policy");
+                
+                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", ctx.GetSchemaContextItem(map.ContextItem));
+            }
+        }
+        else
+        {
+            yield return ($"_{nameof(Access.Target).ToCamelCase()}", ctx.GetSchemaContextItem($"{nameof(Access)}.{nameof(Access.Target)}"));
         }
     }
     

@@ -393,7 +393,6 @@ public class AppFieldType
         List<DynamicTableField> fields = [];
         DataIndex[]? indexes = null;
         bool single = true;
-        DataTypeInfo info;
 
         if (Frontend ?? false)
         {
@@ -406,59 +405,29 @@ public class AppFieldType
         }
 
         // context item isolation scope
-        if (Application.ScopeType == AppScopeType.IsolationContext)
+        foreach ((string item, AnySchemaType type) in Application.GetScopeContextItems())
         {
-            var contextMaps = Application.ScopePolicy?.ContextMaps;
-            if (contextMaps == null)
-                throw new Exception($"Context maps is required for IsolationContext scope type in app {Application.Name}");
-            
-            foreach (AppScopeContextMap contextMap in contextMaps)
-            {
-                if (string.IsNullOrWhiteSpace(contextMap.ContextItem))
-                    throw new Exception($"Context item is required for context map in app {Application.Name}");
-
-                AnySchemaType contextType = SchemaContext.SystemContext;
-                foreach (string path in contextMap.ContextItem.Split('.'))
-                {
-                    contextType = (contextType as StructType)?.GetField(path)?.SchemeType
-                                  ?? throw new Exception($"Invalid context item path {contextMap.ContextItem} for app {Application.Name}");
-                }
-
-                info = GetDataTypeInfo(contextType);
-                fields.Add(new DynamicTableField
-                {
-                    Name = string.IsNullOrWhiteSpace(contextMap.MapKey) ? $"_{contextMap.ContextItem.Split('.').Last().ToCamelCase()}" : contextMap.MapKey,
-                    Type = info.Type,
-                    MaxLength = info.MaxLength ?? (contextType is ScalarType { IsString: true }
-                        ? DYNAMIC_TABLE_TARG_LEN
-                        : null),
-                    SchemaType = contextType,
-                    Scope = true
-                });
-            }
-        }
-        
-        // business target field
-        if (Application.ScopeType != AppScopeType.SystemLevel)
-        {
-            info = GetDataTypeInfo(SchemaContext.SystemString);
+            DataTypeInfo info = GetDataTypeInfo(type);
             fields.Add(new DynamicTableField
             {
-                Name = Application.ScopeTarget,
+                Name = item,
                 Type = info.Type,
-                MaxLength = DYNAMIC_TABLE_TARG_LEN,
-                SchemaType = SchemaContext.SystemString,
-                Target = true
+                MaxLength = info.MaxLength ?? (type is ScalarType { IsString: true }
+                    ? DYNAMIC_TABLE_TARG_LEN
+                    : null),
+                SchemaType = type,
+                Scope = true
             });
         }
-
+        
+        // value fields
         switch (node.Type)
         {
             case SchemaNode.Enum.SchemaType.Scalar:
             case SchemaNode.Enum.SchemaType.Enum:
             case SchemaNode.Enum.SchemaType.Json:
             {
-                info = GetDataTypeInfo(node);
+                DataTypeInfo info = GetDataTypeInfo(node);
                 fields.Add(new DynamicTableField
                 {
                     Name = DYNAMIC_TABLE_VALUE_FIELD,
@@ -479,7 +448,7 @@ public class AppFieldType
                         StructType subStructNode = (StructType)sField.SchemeType;
                         foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                         {
-                            info = GetDataTypeInfo(iField.SchemeType!, iField);
+                            DataTypeInfo info = GetDataTypeInfo(iField.SchemeType!, iField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
@@ -496,7 +465,7 @@ public class AppFieldType
                     }
                     else
                     {
-                        info = GetDataTypeInfo(sField.SchemeType!, sField);
+                        DataTypeInfo info = GetDataTypeInfo(sField.SchemeType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
@@ -522,7 +491,7 @@ public class AppFieldType
                     foreach (string n in arrayNode.Primary)
                     {
                         var sField = structNode.Fields.First(p => p.Name == n);
-                        info = GetDataTypeInfo(sField.SchemeType!, sField);
+                        DataTypeInfo info = GetDataTypeInfo(sField.SchemeType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
@@ -542,7 +511,7 @@ public class AppFieldType
                             // As complex fields
                             foreach (var ifield in ((StructType)sField.SchemeType).Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
-                                info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -565,7 +534,7 @@ public class AppFieldType
                             StructFieldRelation? fieldRelation = structNode.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
                             
-                            info = GetDataTypeInfo(sField.SchemeType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
@@ -578,7 +547,7 @@ public class AppFieldType
                         }
                         else
                         {
-                            info = GetDataTypeInfo(sField.SchemeType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,

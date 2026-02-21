@@ -150,23 +150,14 @@ public class AppScopePolicy: IEquatable<AppScopePolicy>
     /// </summary>
     public AppScopeContextMap[]? ContextMaps { get; set; }
     
-    /// <summary>
-    /// The business key for the BusinessTarget policy, used for the target resolution when the policy is BusinessTarget, default "_target"
-    /// </summary>
-    public string? BusinessKey { get; set; }
-    
     public bool Equals(AppScopePolicy? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Type == other.Type && 
-               (string.IsNullOrWhiteSpace(BusinessKey) 
-                   ? string.IsNullOrWhiteSpace(other.BusinessKey)
-                   : BusinessKey.Equals(other.BusinessKey)) &&
                ((ContextMaps == null && other.ContextMaps == null) || 
                 (ContextMaps != null && other.ContextMaps != null && 
                  ContextMaps.SequenceEqual(other.ContextMaps)));
-               
     }
 }
 

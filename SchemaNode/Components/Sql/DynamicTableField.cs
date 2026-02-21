@@ -34,11 +34,6 @@ public class DynamicTableField
     public bool Scope { get; init; }
     
     /// <summary>
-    /// The target field, used for data query target
-    /// </summary>
-    public bool Target { get; init; }
-
-    /// <summary>
     /// Whether the field is primary
     /// </summary>
     public bool Primary { get; init; }
@@ -76,7 +71,7 @@ public class DynamicTableField
     /// <summary>
     /// The field is a key field if it is primary, or scope or target field
     /// </summary>
-    public bool IsKeyField => Primary || Scope || Target;
+    public bool IsKeyField => Primary || Scope;
 
     /// <summary>
     /// Get JToken from reader

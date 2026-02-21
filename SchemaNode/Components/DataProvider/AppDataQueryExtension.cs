@@ -103,16 +103,17 @@ public static class AppDataQueryExtension
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
         if (sourceField == null) return (null, 0);
-        field = sourceField;
+        
 
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
 
         try
         {
+            context.SetAccess(sourceField.App, sourceTarget);
             (AnySchemaNode? result, int total) = await dataProvider
-                .QueryDynamicTableAsync(schema, target, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
+                .QueryDynamicTableAsync(schema, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
 
             // Generate display only fields
             if (genDisplayOnly)
@@ -124,6 +125,11 @@ public static class AppDataQueryExtension
         {
             context.Logger.LogError(ex.Message);
             throw;
+        }
+        finally
+        {
+            if (field != sourceField || sourceTarget != target)
+                context.SetAccess(field.App, target);
         }
     }
 
@@ -139,16 +145,16 @@ public static class AppDataQueryExtension
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
         if (sourceField == null) return null;
-        field = sourceField;
 
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
 
         try
         {
+            context.SetAccess(sourceField.App, sourceTarget);
             AnySchemaNode? result = null;
-            
+
             if (field.SchemaType is ArrayType { Primary: { Length: > 0 } } arrType)
             {
                 if (nodes is StructTypeNode @struct)
@@ -163,19 +169,24 @@ public static class AppDataQueryExtension
                             new AppSchemaDataFilterValue(fieldNode));
                         filter = filter == null ? caseFilter : filter.AndAlso(caseFilter);
                     }
-                    (result, _) = await dataProvider.QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, filter, forUpdate: forUpdate);
+
+                    (result, _) = await dataProvider.QueryDynamicTableAsync(schema, AppSchemaDataResult.First, filter,
+                        forUpdate: forUpdate);
                 }
-                else if (nodes is ArrayTypeNode { Count: > 0} arrNodes)
+                else if (nodes is ArrayTypeNode { Count: > 0 } arrNodes)
                 {
-                    result = await dataProvider.QueryOriginNodesAsync(schema, target, arrNodes.Cast<StructTypeNode>(), forUpdate);
+                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.Cast<StructTypeNode>(),
+                        forUpdate);
                 }
             }
             else
             {
                 // single record, just query directly
-                (result, _) = await dataProvider.QueryDynamicTableAsync(schema, target, AppSchemaDataResult.First, null, forUpdate: forUpdate);
+                (result, _) =
+                    await dataProvider.QueryDynamicTableAsync(schema, AppSchemaDataResult.First, null,
+                        forUpdate: forUpdate);
             }
-            
+
             // Generate display only fields
             if (genDisplayOnly)
                 await schema.GenerateDisplayOnlyFields(context, result);
@@ -186,6 +197,11 @@ public static class AppDataQueryExtension
         {
             context.Logger.LogError(ex.Message);
             throw;
+        }
+        finally
+        {
+            if (field != sourceField || sourceTarget != target)
+                context.SetAccess(field.App, target);
         }
     }
     
@@ -201,19 +217,19 @@ public static class AppDataQueryExtension
         var dataProvider = context.GetService<IAppDataProvider>();
         if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
-        (AppFieldType? sourceField, target) = await context.GetSourceFieldNode(field, target);
+        (AppFieldType? sourceField, string sourceTarget) = await context.GetSourceFieldNode(field, target);
         if (sourceField == null) return null;
-        field = sourceField;
 
-        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(sourceField);
 
         try
         {
+            context.SetAccess(sourceField.App, sourceTarget);
             AnySchemaNode? result = null;
-            
+
             if (field.SchemaType is ArrayType { Primary: { Length: > 0 } })
-                result = await dataProvider.QueryOriginNodesAsync(schema, target, nodes, forUpdate);
-            
+                result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
+
             // Generate display only fields
             if (genDisplayOnly)
                 await schema.GenerateDisplayOnlyFields(context, result);
@@ -224,6 +240,11 @@ public static class AppDataQueryExtension
         {
             context.Logger.LogError(ex.Message);
             throw;
+        }
+        finally
+        {
+            if (field != sourceField || sourceTarget != target)
+                context.SetAccess(field.App, target);
         }
     }
     

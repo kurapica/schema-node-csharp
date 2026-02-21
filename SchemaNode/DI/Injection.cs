@@ -153,8 +153,14 @@ public static class Injection
                                 ContextItem = p.ContextItem ?? "",
                                 MapKey = p.MapKey ?? "",
                             }).ToArray();
+                        policy.ContextMaps.Sort((a, b) =>
+                        {
+                            // put Access.Target last 
+                            if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))
+                                return 1;
+                            return -1;
+                        });
                     }
-                    policy.BusinessKey = scopes.FirstOrDefault(s => s.Type == AppScopeType.BusinessTarget)?.MapKey;
                 }
                 
                 if (displaySeg.Length > 1 && displaySeg.Length == nameSeg.Length)

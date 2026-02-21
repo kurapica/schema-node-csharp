@@ -42,8 +42,13 @@ public class DynamicTableSchema
     /// <summary>
     /// The scope target fields
     /// </summary>
-    public IEnumerable<DynamicTableField> ScopeTargetFields => Fields.Where(f => f.Scope || f.Target);
+    public IEnumerable<DynamicTableField> ScopeFields => Fields.Where(f => f.Scope);
     
+    /// <summary>
+    /// Non-scope and non-target fields, used for data query and save
+    /// </summary>
+    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f is { Scope: false, HasTypeRelation: false });
+
     /// <summary>
     /// Gets the key fields
     /// </summary>
@@ -59,11 +64,6 @@ public class DynamicTableSchema
     /// </summary>
     public IEnumerable<DynamicTableField> AllFields => Fields.Where(f => !f.HasTypeRelation);
     
-    /// <summary>
-    /// Non-scope and non-target fields, used for data query and save
-    /// </summary>
-    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f is { Scope: false, Target: false, HasTypeRelation: false });
-
     /// <summary>
     /// The dynamic table indexes
     /// </summary>

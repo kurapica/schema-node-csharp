@@ -19,24 +19,24 @@ public interface IAppDataProvider
     /// Query dynamic table data with the filter and paging
     /// </summary>
     Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, 
-        string target, AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, 
+        AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, 
         bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false);
     
     /// <summary>
     /// Save the dynamic table data
     /// </summary>
     Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, 
-        string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null);
+        AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null);
 
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, AppSchemaDataFilter filter);
+    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter filter);
     
     /// <summary>
     /// Clear all dynamic table data
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema, string target);
+    Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema);
     
     /// <summary>
     /// Drop the dynamic table
@@ -68,7 +68,7 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Gets the data with the given nodes
     /// </summary>
-    public static async Task<AnySchemaNode?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, string target, IEnumerable<StructTypeNode> nodes, bool forUpdate = false)
+    public static async Task<AnySchemaNode?> QueryOriginNodesAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, IEnumerable<StructTypeNode> nodes, bool forUpdate = false)
     {
         if (schema.Single) return null; // not supported for single record tables
         
@@ -104,7 +104,7 @@ public static class AppDataProviderExtension
             }
 
             // 3. Query
-            (AnySchemaNode? res, _) = await dataProvider.QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (AnySchemaNode? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
 
             // 4. Filter results by combined PKs
             if (res is ArrayTypeNode resultArray)
@@ -136,7 +136,7 @@ public static class AppDataProviderExtension
                     filter = filter == null ? caseFilter : filter.OrElse(caseFilter);
             }
             
-            (AnySchemaNode? res, _) = await dataProvider.QueryDynamicTableAsync(schema, target, AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+            (AnySchemaNode? res, _) = await dataProvider.QueryDynamicTableAsync(schema,AppSchemaDataResult.List, filter, forUpdate: forUpdate);
             return res;
         }
     }
@@ -147,7 +147,7 @@ public static class AppDataProviderExtension
     public static async Task<(bool result, AnySchemaNode? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, string target, AnySchemaNode node)
     {
         if (schema.Single)
-            return await dataProvider.ClearDynamicTableDataAsync(schema, target);
+            return await dataProvider.ClearDynamicTableDataAsync(schema);
 
         var arrayType = schema.AppFieldType.SchemaType as ArrayType ?? throw new InvalidOperationException("Invalid array schema");
         
@@ -155,7 +155,7 @@ public static class AppDataProviderExtension
         {
             var filter = structNode.GetQueryFilter(arrayType);
             if (filter == null) return (false, null);
-            return await dataProvider.DeleteDynamicTableDataAsync(schema, target, filter);
+            return await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
         }
         else if (node is ArrayTypeNode arrNode)
         {
@@ -177,7 +177,7 @@ public static class AppDataProviderExtension
 
                 if (filter != null)
                 {
-                    var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, filter);
+                    var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
                     if (result && deleted is ArrayTypeNode deletedArray)
                     {
                          count += deletedArray.Count;
