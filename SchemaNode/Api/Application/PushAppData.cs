@@ -143,7 +143,7 @@ public static class PushDataExtenstion
 
                 if (push.ClearAll == true)
                 {
-                    await context.ClearFieldDataAsync(appField, target);
+                    await context.ClearFieldDataAsync(appField);
                     continue;
                 }
 
@@ -156,7 +156,7 @@ public static class PushDataExtenstion
                         if (hasData) await context.RollbackTransactionAsync();
                         return (false, error);
                     }
-                    await context.SaveFieldDataAsync(appField, target, result, canAdd: canAdd);
+                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd);
                 }
 
                 if (push.Deletes is { Count: > 0 })
@@ -168,7 +168,7 @@ public static class PushDataExtenstion
                         return (false, error);
                     }
                     if (result != null)
-                        await context.DeleteFieldListDataAsync(appField, target, result);
+                        await context.DeleteFieldListDataAsync(appField, result);
                 }
             }
 

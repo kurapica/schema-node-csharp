@@ -51,7 +51,8 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType is not { EnableDynamicTable: true } || !fieldType.Single) return default;
 
-        var (value, _) = await context.GetAppFieldDataAsync(fieldType, target, AppSchemaDataResult.List);
+        using var stack = context.StackAccess(appType!.Name, target);
+        var (value, _) = await context.GetAppFieldDataAsync(fieldType, AppSchemaDataResult.List);
         return value != null ? value.ToValue<T>() : default;
     }
     
@@ -68,6 +69,8 @@ public static class SystemData
         if (fieldType is not { EnableDynamicTable: true } || 
             fieldType.SchemaType is not ArrayType { Primary: { Length: > 0 }} arrType ||
             arrType.Primary.Length != args.Length) return null;
+        
+        using AccessScope stack = context.StackAccess(app, target);
 
         // get the key type
         string[] keys = arrType.Primary;
@@ -78,12 +81,15 @@ public static class SystemData
             AnySchemaType? keyType = (arrType.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemeType;
             AnySchemaNode? valueNode = keyType?.CreateNode(args[i]);
             if (valueNode == null || valueNode.IsEmpty) return null;
-            
-            if (keyType is EnumType { Cascade: { Length: > 1 }} enumType &&
-                fieldType.Filters != null && 
-                fieldType.Filters.Any(f => f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) && f.Resolve == Enum.FieldFilterResolve.CascadeParent))
+
+            if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
+                fieldType.Filters != null &&
+                fieldType.Filters.Any(f =>
+                    f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
+                    f.Resolve == Enum.FieldFilterResolve.CascadeParent))
             {
-                EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(), noSubList: true, withSubList: false);
+                EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(),
+                    noSubList: true, withSubList: false);
                 if (access.Length == 0) return null;
                 keyValues[i] = access.Select(a => keyType.CreateNode(a.Value)!).ToList();
             }
@@ -91,7 +97,7 @@ public static class SystemData
             {
                 keyValues[i] = [valueNode];
             }
-            
+
             // filter
             var keyFilter = keyValues[i].Count > 1
                 ? new AppSchemaDataFilterBinary(LogicType.Contains,
@@ -100,11 +106,13 @@ public static class SystemData
                 : new AppSchemaDataFilterBinary(LogicType.Equal,
                     new AppSchemaDataFilterField(keys[i]),
                     new AppSchemaDataFilterValue(keyValues[i][0]));
-            
-            filter = filter == null ? keyFilter : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
+
+            filter = filter == null
+                ? keyFilter
+                : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
-        
-        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, target, AppSchemaDataResult.List, filter);
+
+        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, AppSchemaDataResult.List, filter);
         if (value is not ArrayTypeNode { Count: > 0 } result) return null;
 
         // find the match item
@@ -112,7 +120,7 @@ public static class SystemData
         for (int i = 0; i < keyValues.Length; i++)
         {
             if (keyValues[i].Count == 1) continue;
-            
+
             // match the last
             for (int j = keyValues[i].Count - 1; j >= 0; j--)
             {
@@ -122,6 +130,7 @@ public static class SystemData
                 break;
             }
         }
+
         return items.Length > 0 ? items[0] : null;
     }
     
@@ -376,8 +385,9 @@ public static class SystemData
         AnySchemaNode? dataNode = fieldType.SchemaType?.CreateNode(data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
+        using var stack = context.StackAccess(appType!.Name, target);
         await context.BeginTransactionAsync();
-        AnySchemaNode? origin = await context.GetAppFieldDataAsync(fieldType, target, dataNode, forUpdate: true);
+        AnySchemaNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
 
         switch (fieldType.SchemaType)
@@ -447,7 +457,7 @@ public static class SystemData
                 }
         }
 
-        await context.SaveFieldDataAsync(fieldType, target, origin?.ToJson());
+        await context.SaveFieldDataAsync(fieldType, origin?.ToJson());
         await context.CommitTransactionAsync(!raiseEvent);
         return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
@@ -493,10 +503,10 @@ public static class SystemData
         (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
         if (error != null || dataNode == null || dataNode.IsEmpty) return false;
         
-        context.SetAccess(app, target);
+        using var access = context.StackAccess(app, target);
 
         await context.BeginTransactionAsync();
-        await context.SaveFieldDataAsync(fieldType!, target, dataNode, onlyAdd: onlyAdd, overrides: overrides);
+        await context.SaveFieldDataAsync(fieldType, dataNode, onlyAdd: onlyAdd, overrides: overrides);
         await context.CommitTransactionAsync(!raiseEvent);
         return true;
     }

@@ -144,7 +144,7 @@ public static class AppDataProviderExtension
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    public static async Task<(bool result, AnySchemaNode? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, string target, AnySchemaNode node)
+    public static async Task<(bool result, AnySchemaNode? origin)> DeleteSchemaNodeAsync(this IAppDataProvider dataProvider, DynamicTableSchema schema, AnySchemaNode node)
     {
         if (schema.Single)
             return await dataProvider.ClearDynamicTableDataAsync(schema);
@@ -166,7 +166,7 @@ public static class AppDataProviderExtension
             var origin = new ArrayTypeNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
             for (int i = 0; i < arrNode.Count; i += MAX_COMBINE_CASE_COUNT)
             {
-                var batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).Cast<StructTypeNode>().ToArray();
+                StructTypeNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).Cast<StructTypeNode>().ToArray();
                 AppSchemaDataFilter? filter = null;
                 foreach (var item in batch)
                 {

@@ -35,6 +35,59 @@ public class Access
     /// The locale information
     /// </summary>
     public string? Locale { get; set; }
+    
+    /// <summary>
+    /// Sets the access information, and will clear the stack and reset to the new state
+    /// </summary>
+    /// <param name="app"></param>
+    /// <param name="target"></param>
+    /// <param name="locale"></param>
+    internal void SetAccess(string? app = null, string? target = null, string? locale = null)
+    {
+        App = app;
+        Target = target;
+        Locale = locale;
+        _stack.Clear();
+    }
+
+    internal bool Stack(string? app = null, string? target = null)
+    {
+        bool hasChange = App != app || Target != target;
+        _stack.Push((App, Target));
+        App = app;
+        Target = target;
+        return hasChange;
+    }
+    
+    internal bool Unstack()
+    {
+        if (_stack.Count > 0)
+        {
+            var (app, target) = _stack.Pop();
+            bool hasChange = App != app || Target != target;
+            App = app;
+            Target = target;
+            return hasChange;
+        }
+        else
+        {
+            App = null;
+            Target = null;
+            return true;
+        }
+    }
+    
+    Stack<(string? App, string? Target)> _stack = new ();
+}
+
+public sealed class AccessScope(SchemaContext context) : IDisposable
+{
+    public void Dispose()
+    {
+        var access = context.GetRequiredService<Access>();
+        if (access.Unstack())
+            context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+    }
 }
 
 /// <summary>
@@ -52,11 +105,27 @@ public static class AccessContextItemProviderExtensions
         
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
-        access.App = app;
-        access.Target = target;
-        access.Locale = locale;
+        access.SetAccess(app, target, locale);
     }
-
+    
+    /// <summary>
+    /// Stack the access information, and will be unstacked when the context is disposed
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="app"></param>
+    /// <param name="target"></param>
+    public static AccessScope StackAccess(this SchemaContext context, string? app = null, string? target = null)
+    {
+        // Gets the shared access
+        var access = context.GetRequiredService<Access>();
+        
+        // Clear the policy evaluation cache if changed
+        if(access.Stack(app, target))
+            context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+            
+        return new AccessScope(context);
+    }
+    
     /// <summary>
     /// Set the locale information
     /// </summary>

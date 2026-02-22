@@ -7,6 +7,6 @@ namespace SchemaNode.Components;
 /// Fired when query the target data in the application
 /// </summary>
 [Schema($"{NS_SYSTEM_EVENT}.app.data.read")]
-public class AppDataReadEvent(string app, string target) : AppDataEvent(app, target)
+public class AppDataReadEvent(string app, string? target) : AppDataEvent(app, target)
 {
 }

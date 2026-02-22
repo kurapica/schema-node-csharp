@@ -20,55 +20,15 @@ public static class AppDataTransactionExtension
     #region Save
 
     /// <summary>
-    /// Save entity data
-    /// </summary>
-    public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string target, T value)
-    {
-        (AppFieldType appFieldType, _) = await context.AssertAppField<T>();
-        return await context.SaveFieldDataAsync(appFieldType, target, appFieldType.SchemaType!.CreateNode(value));
-    }
-
-    /// <summary>
-    /// Save entity list data
-    /// </summary>
-    public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string target, List<T> values)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
-        return await context.SaveFieldDataAsync(appFieldType, target, appFieldType.SchemaType!.CreateNode(values));
-    }
-
-    /// <summary>
-    /// Save entity data
-    /// </summary>
-    public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
-    {
-        context.AssertType<T>(field);
-        return context.SaveFieldDataAsync(field, target, field.SchemaType!.CreateNode(value));
-    }
-
-    /// <summary>
-    /// Save entity list data
-    /// </summary>
-    public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> values)
-    {
-        context.AssertType<T>(field);
-        return context.SaveFieldDataAsync(field, target, field.SchemaType!.CreateNode(values));
-    }
-
-    /// <summary>
     /// Save field data
     /// </summary>
-    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, JsonNode? value = null)
-    {
-        AnySchemaNode data = field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException();
-        return context.SaveFieldDataAsync(field, target, data);
-    }
+    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
+        => context.SaveFieldDataAsync(field, field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
+    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -83,9 +43,8 @@ public static class AppDataTransactionExtension
 
         try
         {
-            context.SetAccess(field.App, target);
             (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, value, canAdd, onlyAdd, overrides);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Modify, update, origin);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Modify, update, origin);
             return result;
         }
         catch (Exception ex)
@@ -95,7 +54,7 @@ public static class AppDataTransactionExtension
         }
     }
 
-    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, string target, bool innerCall = false)
+    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, bool innerCall = false)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -108,9 +67,8 @@ public static class AppDataTransactionExtension
 
         try
         {
-            context.SetAccess(field.App, target);
             (bool result, AnySchemaNode? origin) = await dataProvider.ClearDynamicTableDataAsync(schema);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.DropAll, null, origin);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.DropAll, null, origin);
             return result;
         }
         catch (Exception ex)
@@ -125,104 +83,9 @@ public static class AppDataTransactionExtension
     #region Delete
 
     /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) return await context.SaveFieldDataAsync(appFieldType, target, null);
-
-        var node = await context.GetSchemaNodeAsync(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-        return await context.DeleteFieldListDataAsync(appFieldType, target, node);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null || primaries.Count == 0)
-            return await context.SaveFieldDataAsync(appFieldType, target, null);
-
-        if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
-        AppSchemaDataFilter? filter = null;
-        for (int i = 0; i < keys.Length; i++)
-        {
-            AppSchemaDataFilterBinary keyFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
-                new AppSchemaDataFilterField(primaries[i].Name.ToCamelCase()),
-                new AppSchemaDataFilterValue(keys[i]));
-            filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter) : keyFilter;
-        }
-        if (filter == null) throw new ArgumentException($"The type {typeof(T).FullName} primary key is invalid");
-        return await context.DeleteFieldListDataAsync(appFieldType, target, filter);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-
-        ArrayTypeNode array = new ArrayTypeNode(appFieldType.SchemaType!);
-        foreach (T valueItem in value)
-        {
-            var node = await context.GetSchemaNodeAsync(valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-            array.Add(node);
-        }
-        return await context.DeleteFieldListDataAsync(appFieldType, target, array);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
-    {
-        (AppFieldType appFieldType, _) = await context.AssertAppField<T>();
-        return await context.DeleteFieldEntityAsync(appFieldType, target, cond);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
-    {
-        context.AssertType<T>(field);
-        var node = await context.GetSchemaNodeAsync(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-        return await context.DeleteFieldListDataAsync(field, target, node);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
-    {
-        context.AssertType<T>(field);
-        ArrayTypeNode array = new ArrayTypeNode(field.SchemaType!);
-        foreach (T valueItem in value)
-        {
-            var node = await context.GetSchemaNodeAsync(valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
-            array.Add(node);
-        }
-        return await context.DeleteFieldListDataAsync(field, target, array);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
-    {
-        context.AssertType<T>(field);
-        AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
-        return context.DeleteFieldListDataAsync(field, target, filter);
-    }
-
-    /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode nodes, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode nodes)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -236,8 +99,8 @@ public static class AppDataTransactionExtension
         try
         {
             if (nodes is ArrayTypeNode { Count: 0 }) return false; // pass if no node to delete
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, target, nodes);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, nodes);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
@@ -251,7 +114,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Delete the list from a list-struct type field data by filter
     /// </summary>
-    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, AppSchemaDataFilter filter)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AppSchemaDataFilter filter)
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable) return false;
@@ -264,9 +127,8 @@ public static class AppDataTransactionExtension
         if (schema.Single) return false;
         try
         {
-            context.SetAccess(field.App, target);
             (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
@@ -500,6 +362,8 @@ public static class AppDataTransactionExtension
             foreach (AppFieldType field in root.Fields)
             {
                 if (field.PushSource == null || field.PushFuncSchema == null) continue;
+
+                using var stack = context.StackAccess(field.App, target);
                 
                 // Gather the field change infos
                 Dictionary<AppFieldType, (DataPushThirdFieldInfo? ThirdInfo, 
@@ -668,7 +532,7 @@ public static class AppDataTransactionExtension
                 if (oldResult.IsEmpty && newResult.IsEmpty) continue;
                 
                 // Save the incremental data
-                await context.SaveIncrementalData(field, target, newResult, oldResult);
+                await context.SaveIncrementalData(field, newResult, oldResult);
 
                 continue;
 
@@ -980,7 +844,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Save the incremental data
     /// </summary>
-    internal static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? newResult, AnySchemaNode? oldResult)
+    static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, AnySchemaNode? newResult, AnySchemaNode? oldResult)
     {
         // Join the result
         AnySchemaNode? result = null;
@@ -989,7 +853,7 @@ public static class AppDataTransactionExtension
             case EnumType:
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Assign;
-                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? now = GroupJoin(newResult, method);
 
                     // Update with join method
@@ -1014,7 +878,7 @@ public static class AppDataTransactionExtension
                     DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
 
                     // Part
-                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
                     AnySchemaNode? now = GroupJoin(scalar, newResult, method);
 
@@ -1060,7 +924,7 @@ public static class AppDataTransactionExtension
                     }
 
                     // Gets the result
-                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, target, AppSchemaDataResult.List);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
                     AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
 
@@ -1165,7 +1029,7 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
-                    var origins = await context.GetAppFieldDataAsync(field, target,oldMap.Values.Concat(nowMap.Values));
+                    var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values));
                     
                     // Gets the original data
                     Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
@@ -1292,13 +1156,15 @@ public static class AppDataTransactionExtension
         }
 
         // Save
-        await SaveFieldDataAsync(context, field, target, result, true);
+        await context.SaveFieldDataAsync(field, result, true);
     }
 
     // Record the changed fields with changed values
-    static void OnFieldDataChanged(SchemaContext context, string target, AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
+    static void OnFieldDataChanged(SchemaContext context,  AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
     {
         var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        var access = context.GetSchemaContextItem<Access>();
+        string target = access!.Target ?? Guid.Empty.ToString();
         if (!transChangedData.TryGetValue(target, out TransactionChangeData? changeData))
         {
             changeData = new TransactionChangeData();

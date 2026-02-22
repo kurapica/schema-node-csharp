@@ -61,9 +61,11 @@ public static class BatchQueryExtension
             cancellationToken?.ThrowIfCancellationRequested();
             
             if (string.IsNullOrWhiteSpace(query.App)) continue;
-            if (string.IsNullOrWhiteSpace(query.Target)) continue;
             AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
+            
+            // check scope, if not system level scope, target is required
+            if (node.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(query.Target)) continue;
             
             // set access
             context.SetAccess(node.Name, query.Target); 
@@ -192,7 +194,7 @@ public static class BatchQueryExtension
                             }
                             
                             if (isValidFilter)
-                                (result, total) = await context.GetAppFieldDataAsync( field, query.Target!, AppSchemaDataResult.List,
+                                (result, total) = await context.GetAppFieldDataAsync( field,AppSchemaDataResult.List,
                                     filter, q?.Skip ?? 0, take, q?.Descend ?? query.Descend ?? false, q?.OrderBy, genDisplayOnly:true);
                         }
                     }

@@ -448,7 +448,7 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(appField, target, AppSchemaDataResult.List, filter);
+                        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
 
                         // set the display only field value
                         switch (primary.Length)

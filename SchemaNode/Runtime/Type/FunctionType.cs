@@ -728,9 +728,15 @@ public class FunctionType : AnySchemaType
                     }
                 
                     // JsonNode | object
-                    else
+                    else if (argJson != null)
                     {
                         callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                    
+                    // other
+                    else
+                    {
+                        callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                     }
                 }
             }
