@@ -25,6 +25,8 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
         if (Function.TryGetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
         {
             _lastLogicExp = schema!.Exps.LastOrDefault()?.Value as LogicExp;
+            if (_lastLogicExp == null)
+                throw new FunctionVisitException(Enum.SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
             return schema;
         }
         
@@ -82,7 +84,7 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
     /// </summary>
     public override Task<Expression> CompileSchemaExpAsync(SchemaExp exp, Type? expectedType = null)
     {
-        return (exp == _lastLogicExp)
+        return ReferenceEquals(exp, _lastLogicExp)
             ? CompileDataSourceFilter(_lastLogicExp)
             : base.CompileSchemaExpAsync(exp, expectedType);
     }
@@ -96,7 +98,7 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
             QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
             BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
-            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], await base.CompileSchemaExpAsync(exp)),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Convert(await base.CompileSchemaExpAsync(exp), typeof(object))),
         };
     }
 }

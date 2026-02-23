@@ -117,11 +117,6 @@ public class AppType
     /// </summary>
     public List<AppWorkflowType>? Workflows { get; set; }
 
-    /// <summary>
-    /// The ref field
-    /// </summary>
-    public AppFieldType? RefField { get; set; }
-
     #endregion
 
     #region Methods
@@ -393,23 +388,6 @@ public class AppType
                     }
                 }
             }
-            
-            // Use ref
-            if (requireDb && useRef) {
-                string refType = typeof(List<AppRef>).GetSchemaType()!;
-
-                RefField = new AppFieldType
-                {
-                    App = Name,
-                    Name = APP_FIELD_REF_NAME,
-                    Type = refType,
-                    SchemaType = await context.GetSchemaTypeAsync(refType)
-                };
-            }
-            else
-            {
-                RefField = null;
-            }
         }
 
         // load data auths
@@ -485,7 +463,7 @@ public class AppType
         // use system for root
         if (RootApp == null)
         {
-            if (SubAppList?[NS_SYSTEM] is { } system)
+            if (SubAppList?.TryGetValue(NS_SYSTEM, out AppType? system) == true)
             {
                 foreach (var item in system.GetAuthPolicies(scope))
                     yield return item;

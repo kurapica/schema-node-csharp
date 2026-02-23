@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -462,8 +463,8 @@ public class AppFieldType
                     }
                     
                     // Add normal fields
-                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && !(p.DisplayOnly ?? false)))
-                    {
+                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && p.DisplayOnly != true))
+                    {                        
                         // Check if the s-field use a struct type
                         if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {

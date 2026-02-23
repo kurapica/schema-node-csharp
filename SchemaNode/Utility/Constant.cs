@@ -1,4 +1,7 @@
 // ReSharper disable InconsistentNaming
+
+using SchemaNode.Function;
+
 namespace SchemaNode.Utility;
 
 /// <summary>
@@ -283,6 +286,19 @@ public static class Constant
     public const string WORKFLOW_NOT_START = "WORKFLOW_NOT_START";
     public const string WORKFLOW_NODE_NOT_RUNNING = "WORKFLOW_NODE_NOT_RUNNING";
     public const string WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID = "WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID";
+
+    #endregion
+
+    #region Sets
+    
+    internal static readonly string[] GetAppFieldDataFuncs =
+    [
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}",
+        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}",
+    ];
 
     #endregion
 }

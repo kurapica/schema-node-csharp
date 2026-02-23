@@ -47,12 +47,15 @@ public static class PushDataExtenstion
         Dictionary<string, AppDataFieldPushQuery>? data)
     {
         if (string.IsNullOrWhiteSpace(app)) return (false, APP_NOT_FOUND);
-        if (string.IsNullOrWhiteSpace(target)) return (false, APP_TARGET_REQUIRED);
         if (data == null || data.Count == 0) return (false, APP_PUSH_DATA_REQUIRED);
 
         AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, APP_NOT_FOUND);
-        
+
+        // target is required for non-system-level apps
+        if (appNode.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
+            return (false, APP_TARGET_REQUIRED);
+
         // set access
         context.SetAccess(appNode.Name, target);
         
@@ -217,10 +220,9 @@ public class PushAppDataRequest : SchemaApiRequest
     public required string App { get; set; }
 
     /// <summary>
-    /// The target
+    /// The target (not required for system-level scope apps)
     /// </summary>
-    [Required]
-    public required string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>
     /// The push data

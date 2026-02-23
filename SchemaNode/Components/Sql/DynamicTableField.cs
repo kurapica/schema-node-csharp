@@ -42,7 +42,7 @@ public class DynamicTableField
     /// The max length of the string type
     /// </summary>
     public int? MaxLength { get; init; }
-
+    
     /// <summary>
     /// The data dict type
     /// </summary>

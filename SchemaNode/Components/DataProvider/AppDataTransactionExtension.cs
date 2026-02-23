@@ -5,9 +5,6 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
-using System.Linq.Expressions;
-using System.Reflection;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
@@ -506,7 +503,7 @@ public static class AppDataTransactionExtension
                         if (fetchData == null) continue;
                         
                         // Fill unchange data
-                        DynamicTableSchema schema = fromField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = fromField.Schema ?? fromField.GenDynamicTableSchema();
                         foreach (AnySchemaNode node in fetchData)
                         {
                             if (node is not StructTypeNode structNode) continue;
@@ -559,7 +556,7 @@ public static class AppDataTransactionExtension
                         DataPushThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
                         AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
                         if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var thirdChangeInfos)) continue;
-                        DynamicTableSchema schema = thirdAppField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = thirdAppField.Schema ?? thirdAppField.GenDynamicTableSchema();
                         
                         // Fill data
                         Dictionary<string, (AnySchemaNode[], List<AnySchemaNode?[]>)> loadingMap = [];
@@ -727,7 +724,7 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructTypeNode> UnChanged) GatherFieldChangeInfos(AppFieldType appField, DataPushThirdFieldInfo? thirdInfo = null)
                 {
                     List<FieldDataChangeData>? changes = changeData.Changes.GetValueOrDefault(appField);
-                    DynamicTableSchema schema = appField.GenDynamicTableSchema();
+                    DynamicTableSchema schema = appField.Schema ?? appField.GenDynamicTableSchema();
 
                     Dictionary<string, StructTypeNode> origins = [];
                     Dictionary<string, StructTypeNode> updates = [];

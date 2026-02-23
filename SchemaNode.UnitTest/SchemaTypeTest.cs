@@ -16,11 +16,11 @@ namespace SchemaNode.UnitTest
     public class SchemaTypeTest : TestBase
     {
         // ─────────────────────────────────────────────────────────────────────
-        // 1. 系统基础类型 (System scalar types)
+        // 1. System scalar types
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 验证系统标量类型 (system.bool / system.int / system.string) 正确加载
+        /// Verify that system scalar types (system.bool / system.int / system.string) are loaded correctly
         /// </summary>
         [TestMethod]
         public async Task SystemScalarTypes_AreLoaded()
@@ -45,7 +45,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 标量节点基本值操作：创建节点、设置/读取值
+        /// Basic scalar node operations: create a node, set and get its value
         /// </summary>
         [TestMethod]
         public async Task ScalarNode_SetAndGetValue()
@@ -63,11 +63,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 2. 自定义枚举类型 (Custom EnumType)
+        // 2. Custom EnumType
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存整型枚举 Schema 并验证其加载后的结构
+        /// Save an integer enum schema and verify its loaded structure
         /// </summary>
         [TestMethod]
         public async Task EnumType_SaveAndLoad()
@@ -98,7 +98,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 枚举节点可以正确存储和读取值
+        /// Enum node can store and retrieve values correctly
         /// </summary>
         [TestMethod]
         public async Task EnumNode_SetAndGetValue()
@@ -129,11 +129,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 3. 自定义结构类型 (Custom StructType)
+        // 3. Custom StructType
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存 StructType 并验证字段映射正确
+        /// Save a StructType and verify the field mapping is correct
         /// </summary>
         [TestMethod]
         public async Task StructType_SaveAndLoad()
@@ -163,7 +163,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// StructTypeNode 字段读写操作
+        /// StructTypeNode field read/write operations
         /// </summary>
         [TestMethod]
         public async Task StructNode_SetAndGetFields()
@@ -198,7 +198,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// StructType 支持继承：子类型的 BaseNode 指向父类型
+        /// StructType supports inheritance: the child type's BaseNode references the parent type
         /// </summary>
         [TestMethod]
         public async Task StructType_Inheritance()
@@ -233,11 +233,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 4. 数组类型 (ArrayType)
+        // 4. ArrayType
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存 ArrayType，验证元素类型和主键正确
+        /// Save an ArrayType and verify the element type and primary key are correct
         /// </summary>
         [TestMethod]
         public async Task ArrayType_SaveAndLoad()
@@ -278,7 +278,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// ArrayTypeNode 添加和读取元素
+        /// ArrayTypeNode: add and iterate elements
         /// </summary>
         [TestMethod]
         public async Task ArrayNode_AddAndIterate()
@@ -317,11 +317,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 5. 系统内置函数调用 (System built-in function calls)
+        // 5. System built-in function calls
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 调用 system.math.add 验证整数加法
+        /// Call system.math.add to verify integer addition
         /// </summary>
         [TestMethod]
         public async Task SystemMath_Add_Int()
@@ -335,7 +335,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.math.multiply 验证乘法
+        /// Call system.math.multiply to verify multiplication
         /// </summary>
         [TestMethod]
         public async Task SystemMath_Multiply()
@@ -349,7 +349,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.math.subtract
+        /// Call system.math.subtract
         /// </summary>
         [TestMethod]
         public async Task SystemMath_Subtract()
@@ -363,7 +363,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.math.percent 百分比计算
+        /// Call system.math.percent for percentage calculation
         /// </summary>
         [TestMethod]
         public async Task SystemMath_Percent()
@@ -378,7 +378,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.str.concat 字符串拼接
+        /// Call system.str.concat for string concatenation
         /// </summary>
         [TestMethod]
         public async Task SystemStr_Concat()
@@ -392,7 +392,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.str.len 字符串长度
+        /// Call system.str.len for string length
         /// </summary>
         [TestMethod]
         public async Task SystemStr_Len()
@@ -406,7 +406,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.str.trim 去除空白
+        /// Call system.str.trim to strip whitespace
         /// </summary>
         [TestMethod]
         public async Task SystemStr_Trim()
@@ -420,7 +420,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.logic.andalso 逻辑与
+        /// Call system.logic.andalso for logical AND
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_AndAlso()
@@ -435,7 +435,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.logic.orelse 逻辑或
+        /// Call system.logic.orelse for logical OR
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_OrElse()
@@ -450,7 +450,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.logic.not 逻辑非
+        /// Call system.logic.not for logical NOT
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_Not()
@@ -464,7 +464,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 调用 system.logic.cond 条件选择
+        /// Call system.logic.cond for conditional selection
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_Cond()
@@ -481,11 +481,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 6. 自定义函数定义与调用 (Custom FunctionType)
+        // 6. Custom FunctionType definition and invocation
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存自定义函数 double(x) = x + x，调用并验证结果
+        /// Save custom function double(x) = x + x, call it and verify the result
         /// </summary>
         [TestMethod]
         public async Task CustomFunction_SaveAndCall()
@@ -527,7 +527,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 自定义函数：通过多步表达式 negate(x) = 0 - x
+        /// Custom function: negate(x) = 0 - x via a single-expression subtraction
         /// </summary>
         [TestMethod]
         public async Task CustomFunction_Negate()
@@ -568,11 +568,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 7. 应用与字段管理 (AppType / AppFieldType)
+        // 7. App and field management (AppType / AppFieldType)
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存 AppSchema，验证 AppType 正确加载
+        /// Save an AppSchema and verify the AppType is loaded correctly
         /// </summary>
         [TestMethod]
         public async Task AppType_SaveAndLoad()
@@ -587,7 +587,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 向应用添加字段，验证字段列表
+        /// Add a field to an app and verify the field list
         /// </summary>
         [TestMethod]
         public async Task AppType_SaveAndLoadFields()
@@ -613,7 +613,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 嵌套 AppSchema（子应用）创建与加载
+        /// Create and load a nested AppSchema (sub-app)
         /// </summary>
         [TestMethod]
         public async Task AppType_SubApp()
@@ -632,11 +632,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 8. 应用数据 CRUD (App data persistence using InMemoryAppDataProvider)
+        // 8. App data CRUD (persistence using InMemoryAppDataProvider)
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 完整流程：定义类型 → 应用 → 写入 → 读取验证（复现原始示例）
+        /// Full flow: define type → app → write → read and verify (reproduces the original sample)
         /// </summary>
         [TestMethod]
         public async Task ComplexAppTest()
@@ -711,7 +711,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// SystemLevel 应用：无需 target，数据全局共享
+        /// SystemLevel app: no target required, data is globally shared
         /// </summary>
         [TestMethod]
         public async Task AppData_SystemLevel_NoTarget()
@@ -765,7 +765,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 更新数据：通过主键匹配更新已存在条目
+        /// Update data: update an existing entry matched by primary key
         /// </summary>
         [TestMethod]
         public async Task AppData_Update_ExistingRecord()
@@ -798,7 +798,7 @@ namespace SchemaNode.UnitTest
 
             var target = "store-1";
 
-            // 初始写入
+            // initial write
             await ctx.PushAppDataAsync("shop", target, new Dictionary<string, AppDataFieldPushQuery>
             {
                 ["inventory"] = new AppDataFieldPushQuery
@@ -810,7 +810,7 @@ namespace SchemaNode.UnitTest
                 }
             });
 
-            // 更新 price
+            // update price
             await ctx.PushAppDataAsync("shop", target, new Dictionary<string, AppDataFieldPushQuery>
             {
                 ["inventory"] = new AppDataFieldPushQuery
@@ -832,7 +832,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 删除数据条目，剩余条目数量正确
+        /// Delete a data record and verify the remaining count is correct
         /// </summary>
         [TestMethod]
         public async Task AppData_Delete_Record()
@@ -877,7 +877,7 @@ namespace SchemaNode.UnitTest
                 }
             });
 
-            // 删除 id=1
+            // delete id=1
             await ctx.PushAppDataAsync("todos", target, new Dictionary<string, AppDataFieldPushQuery>
             {
                 ["items"] = new AppDataFieldPushQuery
@@ -896,7 +896,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// AppSchemaDataResult.Count 返回正确数量
+        /// AppSchemaDataResult.Count returns the correct count
         /// </summary>
         [TestMethod]
         public async Task AppData_Query_Count()
@@ -944,7 +944,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// AppSchemaDataResult.First / Last 返回正确的首尾元素
+        /// AppSchemaDataResult.First / Last returns the correct first and last element
         /// </summary>
         [TestMethod]
         public async Task AppData_Query_FirstLast()
@@ -1000,11 +1000,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 9. 批量查询 (BatchQueryAppData)
+        // 9. BatchQueryAppData
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// BatchQueryAppData 可以同时查询多个字段并返回结果
+        /// BatchQueryAppData queries multiple fields simultaneously and returns results
         /// </summary>
         [TestMethod]
         public async Task BatchQuery_MultipleFields()
@@ -1067,11 +1067,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 10. SchemaContext 上下文项 (Context Items)
+        // 10. SchemaContext context items
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// SetContextItem / GetContextItem 泛型存取
+        /// SetContextItem / GetContextItem generic store and retrieve
         /// </summary>
         [TestMethod]
         public void ContextItem_SetAndGet()
@@ -1084,7 +1084,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// 未设置的上下文项返回 null
+        /// An unset context item returns null
         /// </summary>
         [TestMethod]
         public void ContextItem_GetMissing_ReturnsNull()
@@ -1095,7 +1095,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// TryGetContextItem 行为验证
+        /// Verify TryGetContextItem behavior
         /// </summary>
         [TestMethod]
         public void ContextItem_TryGet()
@@ -1109,7 +1109,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// GetOrCreateContextItem 未存在时自动创建，再次获取返回同一实例
+        /// GetOrCreateContextItem creates automatically when absent; subsequent calls return the same instance
         /// </summary>
         [TestMethod]
         public void ContextItem_GetOrCreate()
@@ -1123,11 +1123,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 11. Schema 删除 (DeleteSchema)
+        // 11. Schema deletion
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 保存后删除，再查找应返回 null
+        /// After saving and deleting a schema, lookup should return null
         /// </summary>
         [TestMethod]
         public async Task Schema_Delete()
@@ -1155,11 +1155,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 12. 类型兼容性 (CanBeUseAs)
+        // 12. Type compatibility (CanBeUseAs)
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 同类型可相互使用，不同类型不可
+        /// The same type can be used as itself; incompatible types cannot
         /// </summary>
         [TestMethod]
         public async Task SchemaType_CanBeUseAs()
@@ -1174,11 +1174,11 @@ namespace SchemaNode.UnitTest
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // 13. 节点 JSON 序列化
+        // 13. Node JSON serialization
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// ScalarTypeNode.ToJson() 产出正确值
+        /// ScalarTypeNode.ToJson() produces the correct value
         /// </summary>
         [TestMethod]
         public async Task SchemaNode_ToJson()
@@ -1194,7 +1194,7 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// StructTypeNode.ToJson() 包含所有字段
+        /// StructTypeNode.ToJson() includes all fields
         /// </summary>
         [TestMethod]
         public async Task StructNode_ToJson()
@@ -1226,6 +1226,1049 @@ namespace SchemaNode.UnitTest
             Assert.IsNotNull(json);
             Assert.AreEqual("foo", (string?)json["a"]);
             Assert.AreEqual(99L,   (long?)  json["b"]);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 14. Additional built-in function tests
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// system.math.divide: division and divide-by-zero protection (returns 0)
+        /// </summary>
+        [TestMethod]
+        public async Task SystemMath_Divide()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.divide");
+            Assert.IsNotNull(func);
+
+            Assert.AreEqual(5L, await func.CallAsync<long>(ctx, [10L, 2L]));
+            Assert.AreEqual(0L, await func.CallAsync<long>(ctx, [5L,  0L])); // divide by zero → 0
+        }
+
+        /// <summary>
+        /// system.math.modulo: modulo operation
+        /// </summary>
+        [TestMethod]
+        public async Task SystemMath_Modulo()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.modulo");
+            Assert.IsNotNull(func);
+
+            Assert.AreEqual(1L, await func.CallAsync<long>(ctx, [10L, 3L]));
+            Assert.AreEqual(0L, await func.CallAsync<long>(ctx, [9L,  3L]));
+        }
+
+        /// <summary>
+        /// system.math.max / min: maximum and minimum values
+        /// </summary>
+        [TestMethod]
+        public async Task SystemMath_Max_Min()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var maxF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.max");
+            var minF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.min");
+            Assert.IsNotNull(maxF);
+            Assert.IsNotNull(minF);
+
+            Assert.AreEqual(9L, await maxF.CallAsync<long>(ctx, [3L, 9L]));
+            Assert.AreEqual(3L, await minF.CallAsync<long>(ctx, [3L, 9L]));
+        }
+
+        /// <summary>
+        /// system.math.abs: absolute value
+        /// </summary>
+        [TestMethod]
+        public async Task SystemMath_Abs()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.abs");
+            Assert.IsNotNull(func);
+
+            Assert.AreEqual(7L, await func.CallAsync<long>(ctx, [-7L]));
+            Assert.AreEqual(5L, await func.CallAsync<long>(ctx, [5L]));
+        }
+
+        /// <summary>
+        /// system.str.replace: string replacement
+        /// </summary>
+        [TestMethod]
+        public async Task SystemStr_Replace()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.replace");
+            Assert.IsNotNull(func);
+
+            var result = await func.CallAsync<string>(ctx, ["hello world", "world", "SchemaNode"]);
+            Assert.AreEqual("hello SchemaNode", result);
+        }
+
+        /// <summary>
+        /// system.str.substr: substring extraction
+        /// </summary>
+        [TestMethod]
+        public async Task SystemStr_Substr()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.substr");
+            Assert.IsNotNull(func);
+
+            // "HelloWorld".Substring(5, 10-5) = "World"
+            var result = await func.CallAsync<string>(ctx, ["HelloWorld", 5, 10]);
+            Assert.AreEqual("World", result);
+        }
+
+        /// <summary>
+        /// system.str.startswith / endswith: string prefix and suffix check
+        /// </summary>
+        [TestMethod]
+        public async Task SystemStr_StartsWith_EndsWith()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+            var swF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.startswith");
+            var ewF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.endswith");
+            Assert.IsNotNull(swF);
+            Assert.IsNotNull(ewF);
+
+            Assert.IsTrue(await swF.CallAsync<bool>(ctx,  ["SchemaNode", "Schema"]));
+            Assert.IsFalse(await swF.CallAsync<bool>(ctx, ["SchemaNode", "Node"]));
+            Assert.IsTrue(await ewF.CallAsync<bool>(ctx,  ["SchemaNode", "Node"]));
+            Assert.IsFalse(await ewF.CallAsync<bool>(ctx, ["SchemaNode", "Schema"]));
+        }
+
+        /// <summary>
+        /// system.logic.equal / notequal: equality and inequality comparison
+        /// </summary>
+        [TestMethod]
+        public async Task SystemLogic_Equal_NotEqual()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var eqF  = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.equal");
+            var neqF = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.notequal");
+            Assert.IsNotNull(eqF);
+            Assert.IsNotNull(neqF);
+
+            Assert.IsTrue(await eqF.CallAsync<bool>(ctx,   [42L, 42L]));
+            Assert.IsFalse(await eqF.CallAsync<bool>(ctx,  [42L, 0L]));
+            Assert.IsTrue(await neqF.CallAsync<bool>(ctx,  [1L, 2L]));
+            Assert.IsFalse(await neqF.CallAsync<bool>(ctx, [1L, 1L]));
+        }
+
+        /// <summary>
+        /// system.logic.isnull / notnull: null check
+        /// </summary>
+        [TestMethod]
+        public async Task SystemLogic_IsNull_NotNull()
+        {
+            var ctx      = ServiceProvider.GetRequiredService<SchemaContext>();
+            var isnullF  = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.isnull");
+            var notnullF = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.notnull");
+            Assert.IsNotNull(isnullF);
+            Assert.IsNotNull(notnullF);
+
+            Assert.IsFalse(await isnullF.CallAsync<bool>(ctx,  [42L]));
+            Assert.IsTrue(await notnullF.CallAsync<bool>(ctx,  [42L]));
+            Assert.IsTrue(await notnullF.CallAsync<bool>(ctx,  [""])); // empty string is not null
+        }
+
+        /// <summary>
+        /// system.logic.between: range check with inclusive and exclusive boundary variants
+        /// </summary>
+        [TestMethod]
+        public async Task SystemLogic_Between()
+        {
+            var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.between");
+            Assert.IsNotNull(func);
+
+            // 5 in (3, 10) exclusive → true
+            Assert.IsTrue(await func.CallAsync<bool>(ctx,  [5L, 3L, 10L, null, null]));
+            // 3 in (3, 10) exclusive lower → false
+            Assert.IsFalse(await func.CallAsync<bool>(ctx, [3L, 3L, 10L, null, null]));
+            // 3 in [3, 10) inclusive lower → true
+            Assert.IsTrue(await func.CallAsync<bool>(ctx,  [3L, 3L, 10L, true, null]));
+            // 10 in (3, 10] inclusive upper → true
+            Assert.IsTrue(await func.CallAsync<bool>(ctx,  [10L, 3L, 10L, null, true]));
+        }
+
+        /// <summary>
+        /// system.logic.isempty / notempty: empty value and empty string detection
+        /// </summary>
+        [TestMethod]
+        public async Task SystemLogic_IsEmpty_NotEmpty()
+        {
+            var ctx       = ServiceProvider.GetRequiredService<SchemaContext>();
+            var isemptyF  = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.isempty");
+            var notemptyF = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.notempty");
+            Assert.IsNotNull(isemptyF);
+            Assert.IsNotNull(notemptyF);
+
+            Assert.IsTrue(await isemptyF.CallAsync<bool>(ctx,   [""]));
+            Assert.IsFalse(await isemptyF.CallAsync<bool>(ctx,  ["hello"]));
+            Assert.IsTrue(await notemptyF.CallAsync<bool>(ctx,  ["hi"]));
+            Assert.IsFalse(await notemptyF.CallAsync<bool>(ctx, [""]));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 15. PushAppData error handling
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns APP_NOT_FOUND when the app name is empty
+        /// </summary>
+        [TestMethod]
+        public async Task PushAppData_EmptyApp_ReturnsNotFound()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            var (result, error) = await ctx.PushAppDataAsync("", "t1", new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["f"] = new AppDataFieldPushQuery { Data = JsonValue.Create(1) }
+            });
+
+            Assert.IsFalse(result);
+            Assert.IsNotNull(error);
+            Assert.AreEqual(APP_NOT_FOUND, (error as JsonValue)!.GetValue<string>());
+        }
+
+        /// <summary>
+        /// Returns APP_PUSH_DATA_REQUIRED when the data dictionary is null
+        /// </summary>
+        [TestMethod]
+        public async Task PushAppData_EmptyData_ReturnsError()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            var (result, error) = await ctx.PushAppDataAsync("anyapp", "t1", null);
+
+            Assert.IsFalse(result);
+            Assert.IsNotNull(error);
+            Assert.AreEqual(APP_PUSH_DATA_REQUIRED, (error as JsonValue)!.GetValue<string>());
+        }
+
+        /// <summary>
+        /// Returns APP_TARGET_REQUIRED when target is omitted for a BusinessTarget-scoped app
+        /// </summary>
+        [TestMethod]
+        public async Task PushAppData_MissingTarget_ReturnsTargetRequired()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            // Default scope is BusinessTarget
+            await ctx.SaveAppSchemaAsync(new AppSchema { Name = "errtest" });
+
+            var (result, error) = await ctx.PushAppDataAsync("errtest", null, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["anyfield"] = new AppDataFieldPushQuery { Data = JsonValue.Create("value") }
+            });
+
+            Assert.IsFalse(result);
+            Assert.IsNotNull(error);
+            Assert.AreEqual(APP_TARGET_REQUIRED, (error as JsonValue)!.GetValue<string>());
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 16. Target data isolation
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Data for different targets is isolated and does not interfere with each other
+        /// </summary>
+        [TestMethod]
+        public async Task AppData_TargetIsolation()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name   = "test.item",
+                Type   = SchemaType.Struct,
+                Struct = new StructSchema
+                {
+                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.itemlist",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = "test.item", Primary = ["id"] }
+            });
+
+            await ctx.SaveAppSchemaAsync(new AppSchema { Name = "isolatedapp" });
+            await ctx.SaveAppFieldSchemaAsync("isolatedapp", new AppFieldSchema { Name = "items", Type = "test.itemlist" });
+
+            await ctx.PushAppDataAsync("isolatedapp", "tenant-1", new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["items"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray { new JsonObject { ["id"] = "t1-item" } }
+                }
+            });
+
+            await ctx.PushAppDataAsync("isolatedapp", "tenant-2", new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["items"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray { new JsonObject { ["id"] = "t2-item" } }
+                }
+            });
+
+            var res1 = (await ctx.GetSchemaDataAsync("isolatedapp", "items", "tenant-1", AppSchemaDataResult.List)) as ArrayTypeNode;
+            var res2 = (await ctx.GetSchemaDataAsync("isolatedapp", "items", "tenant-2", AppSchemaDataResult.List)) as ArrayTypeNode;
+
+            Assert.IsNotNull(res1);
+            Assert.IsNotNull(res2);
+            Assert.AreEqual(1, res1.Count);
+            Assert.AreEqual(1, res2.Count);
+            Assert.AreEqual("t1-item", (res1[0] as StructTypeNode)?.GetField("id")?.ToValue<string>());
+            Assert.AreEqual("t2-item", (res2[0] as StructTypeNode)?.GetField("id")?.ToValue<string>());
+        }
+
+        /// <summary>
+        /// SystemLevel app data is globally shared; querying with any target yields the same result
+        /// </summary>
+        [TestMethod]
+        public async Task AppData_SystemLevel_SharedAcrossTargets()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name   = "test.sysitem",
+                Type   = SchemaType.Struct,
+                Struct = new StructSchema
+                {
+                    Fields = [new StructFieldConfig { Name = "key", Type = NS_SYSTEM_STRING }]
+                }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.sysitems",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = "test.sysitem", Primary = ["key"] }
+            });
+
+            await ctx.SaveAppSchemaAsync(new AppSchema
+            {
+                Name        = "sysshared",
+                ScopePolicy = new AppScopePolicy { Type = AppScopeType.SystemLevel }
+            });
+
+            await ctx.SaveAppFieldSchemaAsync("sysshared", new AppFieldSchema { Name = "data", Type = "test.sysitems" });
+
+            // Push with no target (SystemLevel)
+            await ctx.PushAppDataAsync("sysshared", null, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["data"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray
+                    {
+                        new JsonObject { ["key"] = "global-a" },
+                        new JsonObject { ["key"] = "global-b" }
+                    }
+                }
+            });
+
+            // Read with no target
+            var resNull = (await ctx.GetSchemaDataAsync("sysshared", "data", null, AppSchemaDataResult.List)) as ArrayTypeNode;
+            // Read with any non-null target — should see the same global data
+            var resAny  = (await ctx.GetSchemaDataAsync("sysshared", "data", "any-tenant", AppSchemaDataResult.List)) as ArrayTypeNode;
+
+            Assert.IsNotNull(resNull);
+            Assert.IsNotNull(resAny);
+            Assert.AreEqual(2, resNull.Count);
+            Assert.AreEqual(resNull.Count, resAny.Count);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 17. ClearAll
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ClearAll wipes all field data; subsequent queries return an empty result
+        /// </summary>
+        [TestMethod]
+        public async Task AppData_ClearAll()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name   = "test.clearrec",
+                Type   = SchemaType.Struct,
+                Struct = new StructSchema
+                {
+                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.clearrecs",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = "test.clearrec", Primary = ["id"] }
+            });
+
+            await ctx.SaveAppSchemaAsync(new AppSchema { Name = "clearapp" });
+            await ctx.SaveAppFieldSchemaAsync("clearapp", new AppFieldSchema
+            {
+                Name       = "records",
+                Type       = "test.clearrecs",
+                AllowClear = true
+            });
+
+            const string target = "target-c";
+
+            await ctx.PushAppDataAsync("clearapp", target, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["records"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray
+                    {
+                        new JsonObject { ["id"] = "r1" },
+                        new JsonObject { ["id"] = "r2" }
+                    }
+                }
+            });
+
+            var before = (await ctx.GetSchemaDataAsync("clearapp", "records", target, AppSchemaDataResult.List)) as ArrayTypeNode;
+            Assert.AreEqual(2, before?.Count);
+
+            // Clear all records
+            await ctx.PushAppDataAsync("clearapp", target, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["records"] = new AppDataFieldPushQuery { ClearAll = true }
+            });
+
+            var after = (await ctx.GetSchemaDataAsync("clearapp", "records", target, AppSchemaDataResult.Count));
+            Assert.AreEqual(0L, after?.ToValue<long>() ?? 0L);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 18. Exist query
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// AppSchemaDataResult.Exist returns true when data exists and false when the set is empty
+        /// </summary>
+        [TestMethod]
+        public async Task AppData_Query_Exist()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name   = "test.existrec",
+                Type   = SchemaType.Struct,
+                Struct = new StructSchema
+                {
+                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.existrecs",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = "test.existrec", Primary = ["id"] }
+            });
+
+            await ctx.SaveAppSchemaAsync(new AppSchema { Name = "existapp" });
+            await ctx.SaveAppFieldSchemaAsync("existapp", new AppFieldSchema { Name = "items", Type = "test.existrecs" });
+
+            const string target = "ex-t1";
+
+            // No data yet → Exist = false
+            var empty = await ctx.GetSchemaDataAsync("existapp", "items", target, AppSchemaDataResult.Exist);
+            Assert.IsNotNull(empty);
+            Assert.IsFalse(empty.ToValue<bool>());
+
+            // Push one record
+            await ctx.PushAppDataAsync("existapp", target, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["items"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray { new JsonObject { ["id"] = "e1" } }
+                }
+            });
+
+            var exist = await ctx.GetSchemaDataAsync("existapp", "items", target, AppSchemaDataResult.Exist);
+            Assert.IsNotNull(exist);
+            Assert.IsTrue(exist.ToValue<bool>());
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 19. Scalar field storage
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A scalar (non-array) field can be written to and read back correctly
+        /// </summary>
+        [TestMethod]
+        public async Task AppData_ScalarField()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveAppSchemaAsync(new AppSchema
+            {
+                Name        = "scalarfieldapp",
+                ScopePolicy = new AppScopePolicy { Type = AppScopeType.SystemLevel }
+            });
+
+            await ctx.SaveAppFieldSchemaAsync("scalarfieldapp", new AppFieldSchema
+            {
+                Name = "version",
+                Type = NS_SYSTEM_STRING
+            });
+
+            await ctx.PushAppDataAsync("scalarfieldapp", null, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["version"] = new AppDataFieldPushQuery { Data = JsonValue.Create("v2.0") }
+            });
+
+            var res = await ctx.GetSchemaDataAsync("scalarfieldapp", "version", null, AppSchemaDataResult.List);
+            Assert.IsNotNull(res);
+            Assert.AreEqual("v2.0", res.ToValue<string>());
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 20. BatchQuery with SystemLevel (no target required)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// SystemLevel apps do not require a target in batch queries
+        /// </summary>
+        [TestMethod]
+        public async Task BatchQuery_SystemLevel_NoTarget()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name   = "test.syscfg",
+                Type   = SchemaType.Struct,
+                Struct = new StructSchema
+                {
+                    Fields = [new StructFieldConfig { Name = "name", Type = NS_SYSTEM_STRING }]
+                }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.syscfgs",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = "test.syscfg", Primary = ["name"] }
+            });
+
+            await ctx.SaveAppSchemaAsync(new AppSchema
+            {
+                Name        = "sysbatchapp",
+                ScopePolicy = new AppScopePolicy { Type = AppScopeType.SystemLevel }
+            });
+
+            await ctx.SaveAppFieldSchemaAsync("sysbatchapp", new AppFieldSchema { Name = "configs", Type = "test.syscfgs" });
+
+            await ctx.PushAppDataAsync("sysbatchapp", null, new Dictionary<string, AppDataFieldPushQuery>
+            {
+                ["configs"] = new AppDataFieldPushQuery
+                {
+                    Data = new JsonArray
+                    {
+                        new JsonObject { ["name"] = "debug" },
+                        new JsonObject { ["name"] = "verbose" }
+                    }
+                }
+            });
+
+            // Target is null — allowed for SystemLevel
+            var (results, _) = await ctx.BatchQueryAppDataAsync(
+            [
+                new AppDataQuery { App = "sysbatchapp", Target = null, Fields = ["configs"] }
+            ]);
+
+            Assert.IsNotNull(results);
+            Assert.AreEqual(1, results.Length);
+            Assert.IsNotNull(results[0].Results?.GetValueOrDefault("configs"));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 21. Multi-step custom function
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Multi-step expression function: square_plus_one(x) = x*x + 1, verifying inter-step result passing
+        /// </summary>
+        [TestMethod]
+        public async Task CustomFunction_MultiStep()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.squareplusone",
+                Type = SchemaType.Func,
+                Func = new FunctionSchema
+                {
+                    Return = NS_SYSTEM_INT,
+                    Args   = [new FuncArg { Name = "x", Type = NS_SYSTEM_INT }],
+                    Exps   =
+                    [
+                        new FuncExp
+                        {
+                            Name   = "sq",
+                            Func   = "system.math.multiply",
+                            Return = NS_SYSTEM_INT,
+                            Args   =
+                            [
+                                new FuncCallArg { Name = "x" },
+                                new FuncCallArg { Name = "x" }
+                            ]
+                        },
+                        new FuncExp
+                        {
+                            Name   = "result",
+                            Func   = "system.math.add",
+                            Return = NS_SYSTEM_INT,
+                            Args   =
+                            [
+                                new FuncCallArg { Name  = "sq" },
+                                new FuncCallArg { Value = JsonValue.Create(1L) }
+                            ]
+                        }
+                    ]
+                }
+            });
+
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("test.squareplusone");
+            Assert.IsNotNull(func);
+            Assert.AreEqual(SchemaNodeStatus.Ready, func.Status);
+
+            // 4*4 + 1 = 17
+            Assert.AreEqual(17L, await func.CallAsync<long>(ctx, [4L]));
+            // 0*0 + 1 = 1
+            Assert.AreEqual(1L,  await func.CallAsync<long>(ctx, [0L]));
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 22. ArrayTypeNode JSON serialization
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// ArrayTypeNode.ToJson() serializes correctly into a JsonArray
+        /// </summary>
+        [TestMethod]
+        public async Task ArrayNode_ToJson()
+        {
+            var ctx      = ServiceProvider.GetRequiredService<SchemaContext>();
+            var intsType = await ctx.GetSchemaTypeAsync<ArrayType>(NS_SYSTEM_INTS);
+            Assert.IsNotNull(intsType);
+
+            var arrNode = new ArrayTypeNode(intsType);
+            arrNode[0] = 10;
+            arrNode[1] = 20;
+            arrNode[2] = 30;
+
+            var json = arrNode.ToJson() as JsonArray;
+            Assert.IsNotNull(json);
+            Assert.AreEqual(3, json.Count);
+            Assert.AreEqual(10L, (long?)json[0]);
+            Assert.AreEqual(20L, (long?)json[1]);
+            Assert.AreEqual(30L, (long?)json[2]);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 23. Extended type compatibility
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// A subtype can be used as its base type; the reverse does not hold
+        /// </summary>
+        [TestMethod]
+        public async Task ScalarType_CanBeUseAs_BaseType()
+        {
+            var ctx    = ServiceProvider.GetRequiredService<SchemaContext>();
+            var intT   = (await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT))!;
+            var numT   = (await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_NUMBER))!;
+            var doubleT = (await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_DOUBLE))!;
+
+            // int extends number — int can be used as number
+            Assert.IsTrue(intT.CanBeUseAs(numT),    "int can be used as number");
+            // double extends number
+            Assert.IsTrue(doubleT.CanBeUseAs(numT), "double can be used as number");
+            // number is more general — cannot be used as int
+            Assert.IsFalse(numT.CanBeUseAs(intT),   "number cannot be used as int");
+        }
+
+        /// <summary>
+        /// ArrayType CanBeUseAs: arrays with the same element type are compatible; different element types are not
+        /// </summary>
+        [TestMethod]
+        public async Task ArrayType_CanBeUseAs()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.intarr",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = NS_SYSTEM_INT }
+            });
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name  = "test.strarr",
+                Type  = SchemaType.Array,
+                Array = new ArraySchema { Element = NS_SYSTEM_STRING }
+            });
+
+            var intArrT = (await ctx.GetSchemaTypeAsync<ArrayType>("test.intarr"))!;
+            var strArrT = (await ctx.GetSchemaTypeAsync<ArrayType>("test.strarr"))!;
+
+            Assert.IsTrue(intArrT.CanBeUseAs(intArrT),   "int-array is compatible with itself");
+            // string can be used as int? No — check this direction
+            Assert.IsFalse(strArrT.CanBeUseAs(intArrT), "string-array is not compatible with int-array");
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // 24. Cascading enum values
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Save a 2-level cascade enum and verify the Cascade labels and root values are loaded correctly
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_Schema_CascadeLabelsAndRootValues()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  =
+                    [
+                        new EnumValueInfo { Value = "CN", Name = "China" },
+                        new EnumValueInfo { Value = "US", Name = "USA"   }
+                    ]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+            Assert.AreEqual(2, enumType.Cascade?.Length,    "Cascade should have 2 labels");
+            Assert.AreEqual("Country", (string)enumType.Cascade![0]);
+            Assert.AreEqual("City",    (string)enumType.Cascade![1]);
+            Assert.AreEqual(2, enumType.Root.SubList?.Length ?? 0, "Root should have 2 top-level values");
+            Assert.IsTrue(enumType.Root.SubList!.Any(v => v.Value == "CN"));
+            Assert.IsTrue(enumType.Root.SubList!.Any(v => v.Value == "US"));
+        }
+
+        /// <summary>
+        /// SaveEnumSubListAsync stores child values under a parent; LoadEnumSubListAsync retrieves them and HasSubList is set
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_SaveSubList_LoadChildren()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  =
+                    [
+                        new EnumValueInfo { Value = "CN", Name = "China" },
+                        new EnumValueInfo { Value = "US", Name = "USA"   }
+                    ]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            bool saved = await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing"  },
+                new EnumValueInfo { Value = "SH", Name = "Shanghai" }
+            ], false);
+            Assert.IsTrue(saved);
+
+            var cities = await enumType.LoadEnumSubListAsync(ctx, "CN", false);
+            Assert.AreEqual(2, cities.Length);
+            Assert.IsTrue(cities.Any(c => c.Value == "BJ"));
+            Assert.IsTrue(cities.Any(c => c.Value == "SH"));
+
+            var cnNode = enumType.Root.SubList?.FirstOrDefault(v => v.Value == "CN");
+            Assert.IsNotNull(cnNode);
+            Assert.IsTrue(cnNode.HasSubList ?? false, "CN should have HasSubList = true after saving children");
+        }
+
+        /// <summary>
+        /// Appending to a sub-list adds new values without removing existing ones
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_AppendSubList()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  = [new EnumValueInfo { Value = "CN", Name = "China" }]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing"  },
+                new EnumValueInfo { Value = "SH", Name = "Shanghai" }
+            ], false);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "GZ", Name = "Guangzhou" }
+            ], true);
+
+            var cities = await enumType.LoadEnumSubListAsync(ctx, "CN", false);
+            Assert.AreEqual(3, cities.Length);
+            Assert.IsTrue(cities.Any(c => c.Value == "BJ"));
+            Assert.IsTrue(cities.Any(c => c.Value == "SH"));
+            Assert.IsTrue(cities.Any(c => c.Value == "GZ"));
+        }
+
+        /// <summary>
+        /// Replacing a sub-list (append = false) removes values absent from the new set
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_ReplaceSubList()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  = [new EnumValueInfo { Value = "CN", Name = "China" }]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing"  },
+                new EnumValueInfo { Value = "SH", Name = "Shanghai" }
+            ], false);
+
+            // Replace: keep only BJ
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing" }
+            ], false);
+
+            var cities = await enumType.LoadEnumSubListAsync(ctx, "CN", false);
+            Assert.AreEqual(1, cities.Length);
+            Assert.AreEqual("BJ", cities[0].Value);
+        }
+
+        /// <summary>
+        /// GetEnumAccesses returns the full path from the virtual root down to the requested leaf value
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_GetEnumAccesses_PathNavigation()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  =
+                    [
+                        new EnumValueInfo { Value = "CN", Name = "China" },
+                        new EnumValueInfo { Value = "US", Name = "USA"   }
+                    ]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing"  },
+                new EnumValueInfo { Value = "SH", Name = "Shanghai" }
+            ], false);
+
+            // BJ path: virtual-root ("") → CN → BJ
+            var bjAccesses = enumType.Root.GetEnumAccesses("BJ");
+            Assert.IsNotNull(bjAccesses);
+            Assert.AreEqual(3, bjAccesses.Length, "Path should be: root → CN → BJ");
+            Assert.AreEqual("CN", bjAccesses[1].Value);
+            Assert.AreEqual("BJ", bjAccesses[2].Value);
+
+            // CN path: virtual-root → CN (length 2)
+            var cnAccesses = enumType.Root.GetEnumAccesses("CN");
+            Assert.IsNotNull(cnAccesses);
+            Assert.AreEqual(2, cnAccesses.Length);
+            Assert.AreEqual("CN", cnAccesses[1].Value);
+        }
+
+        /// <summary>
+        /// LoadEnumAccessListAsync returns each cascade level's selected value and its sibling sub-list
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_LoadEnumAccessList()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  =
+                    [
+                        new EnumValueInfo { Value = "CN", Name = "China" },
+                        new EnumValueInfo { Value = "US", Name = "USA"   }
+                    ]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing"  },
+                new EnumValueInfo { Value = "SH", Name = "Shanghai" }
+            ], false);
+
+            // For leaf "BJ":
+            //   accessList[0] → { Value="CN", Name="Country", SubList=[CN, US] }
+            //   accessList[1] → { Value="BJ", Name="City",    SubList=[BJ, SH] }
+            var accessList = await enumType.LoadEnumAccessListAsync(ctx, "BJ", false, false);
+            Assert.AreEqual(2, accessList.Length);
+
+            Assert.AreEqual("CN",      accessList[0].Value);
+            Assert.AreEqual("Country", (string)accessList[0].Name!);
+            Assert.AreEqual(2,         accessList[0].SubList?.Length ?? 0, "Country level should list [CN, US]");
+
+            Assert.AreEqual("BJ",   accessList[1].Value);
+            Assert.AreEqual("City", (string)accessList[1].Name!);
+            Assert.AreEqual(2,      accessList[1].SubList?.Length ?? 0, "City level should list [BJ, SH]");
+        }
+
+        /// <summary>
+        /// Saving an empty sub-list clears all children and sets HasSubList to false
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_EmptySubList_ClearsChildren()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  = [new EnumValueInfo { Value = "CN", Name = "China" }]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing" }
+            ], false);
+
+            Assert.AreEqual(1, (await enumType.LoadEnumSubListAsync(ctx, "CN", false)).Length);
+
+            // Save empty list — should clear all children
+            await ctx.SaveEnumSubListAsync("test.region", "CN", [], false);
+
+            var cnNode = enumType.Root.SubList?.FirstOrDefault(v => v.Value == "CN");
+            Assert.IsNotNull(cnNode);
+            Assert.IsFalse(cnNode.HasSubList ?? false, "CN should have HasSubList = false after clearing");
+
+            var afterClear = await enumType.LoadEnumSubListAsync(ctx, "CN", false);
+            Assert.AreEqual(0, afterClear.Length, "No children should remain after clearing");
+        }
+
+        /// <summary>
+        /// ValidateValueAsync accepts a known cascade leaf value and rejects an unknown value
+        /// </summary>
+        [TestMethod]
+        public async Task CascadeEnum_ValidateValue()
+        {
+            var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
+
+            await ctx.SaveSchemaAsync(new NodeSchema
+            {
+                Name = "test.region",
+                Type = SchemaType.Enum,
+                Enum = new EnumSchema
+                {
+                    Type    = EnumValueType.String,
+                    Cascade = ["Country", "City"],
+                    Values  = [new EnumValueInfo { Value = "CN", Name = "China" }]
+                }
+            });
+
+            var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.region");
+            Assert.IsNotNull(enumType);
+
+            await ctx.SaveEnumSubListAsync("test.region", "CN",
+            [
+                new EnumValueInfo { Value = "BJ", Name = "Beijing" }
+            ], false);
+
+            // "BJ" exists in the cascade tree → valid
+            var (validNode, validError) = await enumType.ValidateValueAsync(ctx, JsonValue.Create("BJ")!);
+            Assert.IsNull(validError,   "BJ is a known cascade leaf and should be valid");
+            Assert.IsNotNull(validNode, "A valid cascade value should return a non-null node");
+
+            // "XX" does not exist → invalid
+            var (invalidNode, invalidError) = await enumType.ValidateValueAsync(ctx, JsonValue.Create("XX")!);
+            Assert.IsNull(invalidNode,    "XX does not exist in the cascade tree");
+            Assert.IsNotNull(invalidError, "An unknown cascade value should return an error");
         }
     }
 }

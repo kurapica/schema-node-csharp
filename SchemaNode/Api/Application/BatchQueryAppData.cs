@@ -273,7 +273,7 @@ public static class BatchQueryExtension
                         }
                         
                         // scan enum access
-                        if (!query.NoSchema ?? false)
+                        if (!(query.NoSchema ?? false))
                             await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
                     }
                 }
@@ -354,7 +354,7 @@ public static class BatchQueryExtension
             // raise event
             context.RaiseEvent(new AppDataReadEvent(node.Name, query.Target));
         }
-        
+
         return (results.ToArray(), root.Schemas);
     }
 

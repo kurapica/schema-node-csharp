@@ -117,25 +117,6 @@ public class AppSchema
 }
 
 /// <summary>
-/// The application ref
-/// </summary>
-public class AppRef
-{
-    /// <summary>
-    /// The source app
-    /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string App { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The source target
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Target { get; set; }
-}
-
-/// <summary>
 /// The app target policy
 /// </summary>
 public class AppScopePolicy: IEquatable<AppScopePolicy>

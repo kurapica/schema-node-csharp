@@ -7,7 +7,6 @@ using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -345,15 +344,6 @@ public class DynamicTableSchema
 
     #region Utility
 
-    private static readonly string[] JoinFuncs =
-    [
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}",
-    ];
-
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
     {
@@ -366,7 +356,7 @@ public class DynamicTableSchema
                 if (type.Relations != null)
                 {
                     foreach (StructFieldRelation relation in (type.Relations.Where(r =>
-                                 r.Type == RelationType.Default && JoinFuncs.Contains(r.Func) &&
+                                 r.Type == RelationType.Default && GetAppFieldDataFuncs.Contains(r.Func) &&
                                  type.GetField(r.Field) != null && (type.GetField(r.Field)?.DisplayOnly ?? false))))
                     {
                         // app
@@ -409,7 +399,9 @@ public class DynamicTableSchema
                         {
                             foreach (AnySchemaNode row in array)
                             {
-                                if (row is not StructTypeNode pack) continue;
+                                if (row is not StructTypeNode pack || 
+                                    pack.GetField(relation.Field) is null ||
+                                    !pack.GetField(relation.Field)!.IsEmpty) continue;
 
                                 // build primary key
                                 List<string> keys = [];
@@ -539,7 +531,7 @@ public class DynamicTableSchema
                         if (relation == null) continue;
                         
                         // handled by array node
-                        if (joinHandled && JoinFuncs.Contains(relation.Func)) continue; 
+                        if (joinHandled && GetAppFieldDataFuncs.Contains(relation.Func)) continue; 
 
                         // call function to get value
                         JsonArray args = [];
