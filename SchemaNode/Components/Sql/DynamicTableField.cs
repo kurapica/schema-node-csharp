@@ -44,6 +44,16 @@ public class DynamicTableField
     public int? MaxLength { get; init; }
     
     /// <summary>
+    /// The join field
+    /// </summary>
+    public string? JoinAppField { get; init; }
+    
+    /// <summary>
+    /// The join data field
+    /// </summary>
+    public string? JoinDataField { get; init; }
+    
+    /// <summary>
     /// The data dict type
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }

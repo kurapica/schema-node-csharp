@@ -67,6 +67,11 @@ public class DynamicTableSchema
     /// The dynamic table indexes
     /// </summary>
     public DataIndex[]? Indexes { get; init; } = [];
+    
+    /// <summary>
+    /// The dynamic table joins
+    /// </summary>
+    public DynamicTableJoin[]? Joins { get; init; } = [];
 
     /// <summary>
     /// The data type node
