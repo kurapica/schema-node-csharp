@@ -330,7 +330,7 @@ public class AppFieldType
     #region Dynamic table
 
     // Gets the data field dynamic table name
-    public string DynamicTableName => !string.IsNullOrWhiteSpace(TableName) 
+    public string DynamicTableName => !string.IsNullOrWhiteSpace(TableName)
         ? TableName 
         : $"{DYNAMIC_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
     
@@ -367,14 +367,15 @@ public class AppFieldType
         // context item isolation scope
         foreach ((string item, AnySchemaType type) in Application.GetScopeContextItems())
         {
-            DataTypeInfo info = GetDataTypeInfo(type);
+            DataTypeInfo info = GetDataTypeInfo(type, new StructFieldConfig
+            {
+                UpLimit = type is ScalarType { IsString: true } ? ENTITY_PRIMARY_KEY_MAX_LEN.ToString() : null
+            });
             fields.Add(new DynamicTableField
             {
                 Name = item,
                 Type = info.Type,
-                MaxLength = info.MaxLength ?? (type is ScalarType { IsString: true }
-                    ? DYNAMIC_TABLE_TARG_LEN
-                    : null),
+                MaxLength = info.MaxLength,
                 SchemaType = type,
                 Scope = true
             });
