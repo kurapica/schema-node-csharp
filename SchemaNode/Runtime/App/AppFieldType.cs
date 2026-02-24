@@ -1,14 +1,15 @@
-using System.Runtime.InteropServices;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using SchemaNode.Components;
-using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -447,6 +448,7 @@ public class AppFieldType
                 {
                     single = false;
                     var enableAttrTable = Topology == FieldStorageTopology.AttributeBased;
+                    List<DynamicTableJoin>? joins = null;
 
                     // Add primary fields
                     foreach (string n in arrayNode.Primary)
@@ -464,10 +466,100 @@ public class AppFieldType
                     }
                     
                     // Add normal fields
-                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name) && p.DisplayOnly != true))
-                    {                        
+                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name)))
+                    {
+                        // Check if join the other field for display only
+                        if (sField.DisplayOnly ?? false)
+                        {
+                            StructFieldRelation? relation = structNode.Relations?.FirstOrDefault(r => 
+                                r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) && 
+                                r.Type == RelationType.Default && GetAppFieldDataFuncs.Contains(r.Func));
+                            if (relation == null) continue;
+
+                            // app
+                            string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                            if (string.IsNullOrWhiteSpace(app) || !App.Equals(app, StringComparison.OrdinalIgnoreCase)) continue; // the same app
+
+                            // app field
+                            string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                            if (string.IsNullOrWhiteSpace(field)) continue; // no app field
+                            AppFieldType? appField = Application.GetField(field);
+                            if (appField == null) continue; // app field not exist
+
+                            // primary & struct
+                            string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
+                            StructType? structType = (appField.SchemaType is ArrayType arr ? arr.ElementSchemaType : appField.SchemaType) as StructType;
+                            if (structType == null || structType.Fields.Length == 0 || primary.Length == 0) continue;
+                            if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not match
+
+                            // data field
+                            string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                            if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
+                            StructFieldConfig? dataFieldType = structType.GetField(dataField);
+                            if (dataFieldType == null) continue; // data field not exist
+
+                            // target
+                            var targetArg = relation.Args.Last();
+                            string? target = targetArg.Value?.ToValue<string>();
+                            if (!string.IsNullOrWhiteSpace(target)) continue; // should be the same target
+
+                            if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                // collect keys
+                                Dictionary<string, AppSchemaDataFilter> keyMap = new();
+
+                                // build primary key
+                                for (int i = 3; i < relation.Args.Length - 1; i++)
+                                {
+                                    keyMap[primary[i - 3]] = !string.IsNullOrEmpty(relation.Args[i].Name)
+                                        ? new AppSchemaDataFilterField(relation.Args[i].Name!)
+                                        : new AppSchemaDataFilterValue(relation.Args[i].Value?.ToValue<string>() ?? string.Empty);
+                                }
+
+                                joins ??= [];
+                                joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
+                            }
+
+                            if (dataFieldType.SchemeType is StructType @struct)
+                            {
+                                // As complex fields
+                                foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                                {
+                                    DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                    fields.Add(new DynamicTableField
+                                    {
+                                        Name = $"{field}{COMPLEX_SEP}{ifield.Name}",
+                                        Complex = new DataFieldComplexInfo
+                                        {
+                                            Main = field,
+                                            Field = ifield.Name
+                                        },
+                                        Type = info.Type,
+                                        MaxLength = info.MaxLength,
+                                        SchemaType = ifield.SchemeType!,
+                                        JoinAppField = field,
+                                        JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                // As normal field
+                                DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemeType!, dataFieldType);
+                                fields.Add(new DynamicTableField
+                                {
+                                    Name = field,
+                                    Type = info.Type,
+                                    MaxLength = info.MaxLength,
+                                    SchemaType = dataFieldType.SchemeType!,
+                                    JoinAppField = field,
+                                    JoinDataField = dataField
+                                });
+                            }
+                        }
+
                         // Check if the s-field use a struct type
-                        if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
+                        else  if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {
                             // As complex fields
                             foreach (var ifield in ((StructType)sField.SchemeType).Fields.Where(p => !(p.DisplayOnly ?? false)))
@@ -490,11 +582,11 @@ public class AppFieldType
                         // Check if the field is a dynamic JSON field with attribute-based topology, which need to be stored in separated attribute table
                         else if (sField.SchemeType is JsonType && enableAttrTable)
                         {
-                            AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r => r.Type == RelationType.Type && 
+                            AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
                                 r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
                             StructFieldRelation? fieldRelation = structNode.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
-                            
+
                             DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
                             fields.Add(new DynamicTableField
                             {
