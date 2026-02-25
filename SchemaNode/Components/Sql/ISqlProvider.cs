@@ -58,6 +58,12 @@ public interface ISqlProvider
     /// </summary>
     string Binary(LogicType type, string left, string right);
 
+    /// <summary>
+    /// Formats an arithmetic expression: (left OP right)
+    /// Example: (a + b), (a - b)
+    /// </summary>
+    string Arithmetic(ArithmeticType type, string left, string right);
+
     /* ===========================
      *      Text / Pattern Matching
      * =========================== */

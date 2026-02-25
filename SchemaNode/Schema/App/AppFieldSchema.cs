@@ -167,6 +167,12 @@ public class AppFieldSchema
         get => Flags.Has(AppFieldFlags.AllowClear);
         init => Flags = Flags.Turn(AppFieldFlags.AllowClear, value);
     }
+    
+    /// <summary>
+    /// The dynamic table is maintained by system, means the schema don't create or update the table
+    /// </summary>
+    [NotMapped]
+    public bool? SystemMaintain { get; set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type

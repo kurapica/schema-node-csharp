@@ -98,6 +98,7 @@ public class QueryFilterCompileContext(SchemaContext context, FunctionType funct
             QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
             BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
+            ArithmeticExp arithExp => Expression.New(typeof(AppSchemaDataFilterArith).GetConstructors()[0], Expression.Constant(arithExp.Type), await CompileDataSourceFilter(arithExp.Args[0]), await CompileDataSourceFilter(arithExp.Args[1])),
             _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Convert(await base.CompileSchemaExpAsync(exp), typeof(object))),
         };
     }

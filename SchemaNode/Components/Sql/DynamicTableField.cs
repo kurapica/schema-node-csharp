@@ -76,12 +76,17 @@ public class DynamicTableField
     /// <summary>
     /// The field is a value field if it has no type relation, and is not scope or target field
     /// </summary>
-    public bool IsValueField => !HasTypeRelation && !IsKeyField && string.IsNullOrWhiteSpace(JoinAppField);
+    public bool IsValueField => !HasTypeRelation && !IsKeyField && !IsJoinField;
     
     /// <summary>
     /// The field is a key field if it is primary, or scope or target field
     /// </summary>
     public bool IsKeyField => Primary || Scope;
+    
+    /// <summary>
+    /// The field is a join field if it has JoinAppField
+    /// </summary>
+    public bool IsJoinField => !string.IsNullOrWhiteSpace(JoinAppField);
 
     /// <summary>
     /// Get JToken from reader

@@ -75,6 +75,15 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
             case ExpressionType.OrElse:
                 _filters.Push(left.OrElse(right));
                 break;
+            case ExpressionType.Add:
+                _filters.Push(new AppSchemaDataFilterArith(ArithmeticType.Add, left, right));
+                break;
+            case ExpressionType.Subtract:
+                _filters.Push(new AppSchemaDataFilterArith(ArithmeticType.Subtract, left, right));
+                break;
+            case ExpressionType.Multiply:
+                _filters.Push(new AppSchemaDataFilterArith(ArithmeticType.Multiply, left, right));
+                break;
             default:
                 if (!BinaryLogicMap.TryGetValue(node.NodeType, out LogicType logicType))
                     throw new NotSupportedException($"Binary expression '{node.NodeType}' is not supported.");

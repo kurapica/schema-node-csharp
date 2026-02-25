@@ -1,5 +1,8 @@
-﻿using System.Data;
+﻿using System.ComponentModel;
+using System.Data;
 using System.Data.Common;
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Text;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +28,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
     private readonly string _refIndex = sqlProvider.QuoteIndex(DYNAMIC_UNIQUE_INDEX);
     private readonly string _refSeqNo = sqlProvider.QuoteField(DYNAMIC_TABLE_SEQNO_FIELD);
-    private readonly string _trueCond = "1=1";
+    private const string TrueCond = "1=1";
+    private const string MainTable = "_main";
 
     private readonly string _refAttrField = sqlProvider.QuoteField(EAV_TABLE_FIELD);
     private readonly string _refAttrIntField = sqlProvider.QuoteField(EAV_TABLE_BIGINT_FIELD);
@@ -112,7 +116,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Check unique indexes
             if (!schema.Single)
             {
-                List<string> chkUniqueIndex =schema.KeyFields.Select(tableField => tableField.Name).ToList();
+                List<string> chkUniqueIndex =schema.KeyFields.Select(field => field.Name).ToList();
 
                 // Compares the unique indexes
                 if (chkUniqueIndex.Count != uniqueIndex.Count || chkUniqueIndex.Where((p, i) => !p.Equals(uniqueIndex[i])).Any())
@@ -308,7 +312,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
     {
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
-        (string wherePrefix, _) = PrepareWhere(schema);
+        (string wherePrefix, _) = PrepareWhere(schema, "t0");
         string querySuffix = forUpdate ? " FOR UPDATE;" : ";";
         
         await EnsureOpenConnectionAsync();
@@ -323,7 +327,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             {
                 // Single value
                 DbCommand command = GetDbCommand();
-                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName}{wherePrefix}{_trueCond}{querySuffix}";
+                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName}{wherePrefix}{TrueCond}{querySuffix}";
                 Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
@@ -348,7 +352,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 sb.Append(" FROM ");
                 sb.Append(tableName);
                 sb.Append(wherePrefix);
-                sb.Append(_trueCond);
+                sb.Append(TrueCond);
                 sb.Append(querySuffix);
 
                 // Get data
@@ -375,29 +379,97 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         else
         {
             if (type == AppSchemaDataResult.Last) desc = !desc;
+            Dictionary<string, string> prefixes = new (StringComparer.OrdinalIgnoreCase)
+            {
+                [MainTable] = "t0"
+            };
 
+            // Join
+            Dictionary<string, string>? fieldJoins = null;
+            Dictionary<string, string>? fieldMaps = null;
+            if (!forUpdate && schema.Joins is { Length: > 0 })
+            {
+                Dictionary<string, AppFieldType> joinFields = new (StringComparer.OrdinalIgnoreCase);
+                fieldJoins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                
+                foreach (var join in schema.Joins)
+                {
+                    AppFieldType joinField = schema.AppFieldType.Application.GetField(join.Field)
+                                             ?? throw new InvalidOperationException($"Join field {join.Field} not found in application {schema.AppFieldType.Application.Name}");
+
+                    joinFields[join.Field] = joinField;
+                    prefixes[join.Field] = $"t{prefixes.Count}";
+                }
+                
+                // field map
+                fieldMaps = new Dictionary<string, string>();
+                foreach (DynamicTableField joinField in schema.JoinFields)
+                {
+                    if (!joinFields.TryGetValue(joinField.JoinAppField!, out AppFieldType? joinAppField))
+                        throw new InvalidOperationException($"Join field {joinField.JoinAppField} not found in application {schema.AppFieldType.Application.Name}");
+                    fieldMaps[joinField.Name] = $"{prefixes[joinField.JoinAppField!]}.{sqlProvider.QuoteField(joinField.JoinDataField!)}";
+                }
+                
+                // join condition
+                foreach (var join in schema.Joins)
+                {
+                    AppFieldType joinField = schema.AppFieldType.Application.GetField(join.Field)!;
+                    StringBuilder joinWhere = new(JoinWhere(schema, prefixes[MainTable],prefixes[join.Field]));
+                    foreach (var (key, appSchemaDataFilter) in join.Matches)
+                    {
+                        switch (appSchemaDataFilter)
+                        {
+                            case AppSchemaDataFilterField filterField:
+                                // @TODO for simple now, may check in schema validation later, a waste for nothing
+                                if (fieldMaps.TryGetValue(filterField.Field, out string? map))
+                                    joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {map} AND ");
+                                else
+                                    joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {prefixes[MainTable]}.{sqlProvider.QuoteField(filterField.Field)} AND ");
+                                break;
+                            case AppSchemaDataFilterValue valueFilter:
+                                joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {sqlProvider.Literal(valueFilter.Value)} AND ");
+                                break;
+                            default:
+                                throw new InvalidOperationException($"Unsupported filter type {appSchemaDataFilter.GetType().FullName} in join condition");
+                        }
+                    }
+                    joinWhere.Append(TrueCond);
+                    fieldJoins[join.Field] = $" LEFT JOIN {sqlProvider.QuoteTable(joinField.DynamicTableName)} {prefixes[join.Field]} ON {joinWhere} ";
+                }
+            }
+            
             // Build SQL
             StringBuilder sb = new();
             sb.Append(" From ");
             sb.Append(tableName);
-            sb.Append(wherePrefix);
+            sb.Append(' ');
+            sb.Append(prefixes[MainTable]);
 
             // exp node -> sql
-            string sql = filter?.ToSql(sqlProvider, schema) ?? "";
+            string sql = filter?.ToSql(sqlProvider, schema, prefixes[MainTable], fieldMaps) ?? "";
+            bool joinQuery = fieldMaps != null && fieldMaps.Values.Any(k => sql.Contains(k, StringComparison.OrdinalIgnoreCase));
+            
+            // join first if the filter contains join field to avoid wrong result due to filter before join
+            if (joinQuery)
+            {
+                foreach (string join in fieldJoins!.Values)
+                    sb.Append(join);
+            }
+            
+            sb.Append(wherePrefix);
             if (!string.IsNullOrEmpty(sql))
             {
                 sb.Append(sql);
                 sb.Append(" AND ");
             }
-            sb.Append(_trueCond);
+            sb.Append(TrueCond);
 
             // record
             _whereClause = sb.ToString();
 
             // Query Total
             int total = 0;
-            if (type is AppSchemaDataResult.List or AppSchemaDataResult.Exist or AppSchemaDataResult.Count &&
-                !forUpdate)
+            if (type is AppSchemaDataResult.List or AppSchemaDataResult.Exist or AppSchemaDataResult.Count && !forUpdate)
             {
                 DbCommand totalCommand = GetDbCommand();
                 // only used to check existence
@@ -418,6 +490,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         case AppSchemaDataResult.Count:
                             return (SchemaContext.SystemInt.CreateNode(total), total);
                     }
+
+                    if (total == 0)
+                        return (null, 0);
                 }
                 finally
                 {
@@ -425,14 +500,16 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 }
             }
 
-            // Append the rest
+            // Page info
             sb.Append(" ORDER BY ");
             bool first = false;
             foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
             {
                 if (first) sb.Append(", ");
                 first = true;
-                sb.Append($"{field}");
+                sb.Append(prefixes[MainTable]);
+                sb.Append('.');
+                sb.Append(sqlProvider.QuoteField(field));
                 if (d) sb.Append(" DESC ");
             }
 
@@ -446,26 +523,71 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Query Data
             StringBuilder select = new();
             select.Append("SELECT ");
-            select.Append(string.Join(',', schema.NonScopeFields.Select(f => $"o.{sqlProvider.QuoteField(f.Name)}")));
-            select.Append(" FROM ");
-            select.Append(tableName);
-            select.Append(" o JOIN (SELECT ");
-            select.Append(_refSeqNo);
-            select.Append(" ");
-            select.Append(sb.ToString());
-            select.Append(") t ON o.");
-            select.Append(_refSeqNo);
-            select.Append(" = t.");
-            select.Append(_refSeqNo);
-            select.Append(" ORDER BY ");
             first = false;
-            foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
+            foreach (var field in forUpdate ? schema.NonScopeFields : schema.QueryFields)
             {
                 if (first) select.Append(", ");
                 first = true;
-                select.Append($"o.{field}");
-                if (d) select.Append(" DESC ");
+
+                if (field.IsJoinField)
+                {
+                    select.Append(prefixes[field.JoinAppField!]);
+                    select.Append('.');
+                    select.Append(sqlProvider.QuoteField(field.JoinDataField!));
+                    select.Append(" AS ");
+                    select.Append(sqlProvider.QuoteField(field.Name));
+                }
+                else
+                {
+                    select.Append(prefixes[MainTable]);
+                    select.Append('.');
+                    select.Append(sqlProvider.QuoteField(field.Name));
+                }
             }
+            
+            // Already joined, no inner query
+            if (joinQuery)
+            {
+                select.Append(sb);
+            }
+            else
+            {
+                // Build the rest
+                select.Append(" FROM ");
+                select.Append(tableName);
+                select.Append(' ');
+                select.Append(prefixes[MainTable]);
+                select.Append(" JOIN (SELECT ");
+                select.Append(_refSeqNo);
+                select.Append(' ');
+                select.Append(sb);
+                select.Append(") t ON ");
+                select.Append(prefixes[MainTable]);
+                select.Append('.');
+                select.Append(_refSeqNo);
+                select.Append(" = t.");
+                select.Append(_refSeqNo);
+                
+                // join again if not joined in filter
+                if (fieldJoins is { Count: > 0 })
+                {
+                    foreach (string join in fieldJoins!.Values)
+                        select.Append(join);
+                }
+                
+                select.Append(" ORDER BY ");
+                first = false;
+                foreach (var (field, d) in schema.GetOrderBys(desc, orderBy))
+                {
+                    if (first) select.Append(", ");
+                    first = true;
+                    select.Append(prefixes[MainTable]);
+                    select.Append('.');
+                    select.Append(sqlProvider.QuoteField(field));
+                    if (d) select.Append(" DESC ");
+                }
+            }
+
             select.Append(querySuffix);
 
             ArrayTypeNode? value = null;
@@ -480,8 +602,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     while (await reader.ReadAsync())
                     {
                         AnySchemaNode? pack = type == AppSchemaDataResult.Field
-                            ? schema.GetFieldPack(reader, dataField ?? "")
-                            : schema.GetFieldPack(reader);
+                            ? schema.GetFieldPack(reader, dataField ?? "", !forUpdate)
+                            : schema.GetFieldPack(reader, 0, !forUpdate);
                         if (pack != null)
                         {
                             value ??= new ArrayTypeNode(pack.SchemaType);
@@ -532,7 +654,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             {
                 foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                     select.Append($"{sqlProvider.QuoteField(tableField.Name)} IN ({string.Join(',', value.Cast<StructTypeNode>().Select(v => sqlProvider.Literal(v[tableField.Name])))}) AND ");
-                select.Append(_trueCond);
+                select.Append(TrueCond);
             }
             else
             {
@@ -669,7 +791,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 if (origin != null)
                 {
                     DbCommand command = GetDbCommand();
-                    command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{_trueCond};";
+                    command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                     return (true, null, origin);
@@ -712,7 +834,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
 
                     DbCommand command = GetDbCommand();
-                    command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(value)}{wherePrefix}{_trueCond};";
+                    command.CommandText = $"UPDATE {tableName} SET {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} = {sqlProvider.Literal(value)}{wherePrefix}{TrueCond};";
                     Logger.LogInformation(command.CommandText);
                     await command.ExecuteNonQueryAsync();
                 }
@@ -763,7 +885,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     }
 
                     // Footer
-                    sb.Append($"{wherePrefix}{_trueCond};");
+                    sb.Append($"{wherePrefix}{TrueCond};");
 
                     // Execute
                     DbCommand command = GetDbCommand();
@@ -852,7 +974,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     sb.Append($"`{fld}` = {sqlProvider.Literal(v)} AND ");
                 }
                 if (!fullFill) continue;
-                sb.Append(_trueCond);
+                sb.Append(TrueCond);
 
                 // Query the origin
                 string where = sb.ToString();
@@ -962,7 +1084,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{_trueCond};";
+            command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -977,7 +1099,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (origin is not ArrayTypeNode arr || arr.Count == 0 || string.IsNullOrWhiteSpace(_whereClause)) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "").Replace("t0.", "").Replace(" t0 ", " ")};"; // Can change to deleted flag controls
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
 
@@ -1002,7 +1124,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (origin is null) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{_trueCond};";
+            command.CommandText = $"DELETE FROM {tableName}{wherePrefix}{TrueCond};";
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -1017,7 +1139,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (origin is not ArrayTypeNode arr || arr.Count == 0 || string.IsNullOrWhiteSpace(_whereClause)) return (false, null);
             
             DbCommand command = GetDbCommand();
-            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "")};"; // Can change to deleted flag controls
+            command.CommandText = $"DELETE {_whereClause.Replace($"FORCE INDEX({_refIndex})", "").Replace("t0.", "").Replace(" t0 ", " ")};"; // Can change to deleted flag controls
             Logger.LogInformation(command.CommandText);
             await command.ExecuteNonQueryAsync();
             
@@ -1435,10 +1557,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
 
-    (string where, Dictionary<string, string> scopeItems) PrepareWhere(DynamicTableSchema schema)
+    (string where, Dictionary<string, string> scopeItems) PrepareWhere(DynamicTableSchema schema, string prefix = "")
     {
         StringBuilder sb = new(" WHERE ");
         Dictionary<string, string> items = [];
+        if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith(".")) prefix += ".";
         
         // Prepare the scope items
         foreach ((string item, AnySchemaNode? value)  in schema.GetScopeItems(serviceProvider))
@@ -1446,11 +1569,24 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (value == null || value.IsEmpty)
                 throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
             items[item] = sqlProvider.Literal(value);
-            sb.Append($"{sqlProvider.QuoteField(item)} = {items[item]} AND ");
+            sb.Append($"{prefix}{sqlProvider.QuoteField(item)} = {items[item]} AND ");
         }
         
         var result = (sb.ToString(), items);
         return result;
+    }
+    
+    string JoinWhere(DynamicTableSchema schema, string main, string sub)
+    {
+        StringBuilder sb = new(" ");
+        if (!string.IsNullOrEmpty(main) && !main.EndsWith(".")) main += ".";
+        if (!string.IsNullOrEmpty(sub) && !sub.EndsWith(".")) sub += ".";
+        
+        // Prepare the scope items
+        foreach ((string item, _)  in schema.GetScopeItems(serviceProvider))
+            sb.Append($"{sub}{sqlProvider.QuoteField(item)} = {main}{sqlProvider.QuoteField(item)} AND ");
+        
+        return sb.ToString();
     }
     
     /// <summary>

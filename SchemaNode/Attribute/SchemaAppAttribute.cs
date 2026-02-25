@@ -21,16 +21,25 @@ public class SchemaAppAttribute: System.Attribute
     /// </summary>
     public string? Display { get; }
     
+    /// <summary>
+    /// The field is incr-update
+    /// </summary>
     public bool? IncrUpdate { get; }
+    
+    /// <summary>
+    /// The field is system maintain, which means the field is maintained by system and not allowed to be updated by app
+    /// </summary>
+    public bool? SystemMaintain { get; }
     
     /// <summary>
     /// Binding the application & field
     /// </summary>
-    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool incrUpdate = false)
+    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool incrUpdate = false, bool systemMaintain = false)
     {
         Application = app;
         Field = field;
         Display = display;
         IncrUpdate = incrUpdate;
+        SystemMaintain = systemMaintain;
     }
 }

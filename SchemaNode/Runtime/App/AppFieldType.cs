@@ -121,6 +121,11 @@ public class AppFieldType
     /// The field is readonly
     /// </summary>
     public bool? Readonly { get; private init; }
+    
+    /// <summary>
+    /// The dynamic table is maintained by system, means the schema don't create or update the table
+    /// </summary>
+    public bool? SystemMaintain { get; set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -284,6 +289,7 @@ public class AppFieldType
             Frontend = entity.Frontend,
             Disable = entity.Disable,
             Readonly = entity.Readonly,
+            SystemMaintain =  entity.SystemMaintain,
             Combine = entity.Combine,
             Combines = entity.Combines,
             Filters = entity.Filters,
@@ -319,6 +325,7 @@ public class AppFieldType
             Frontend = entity.Frontend,
             Disable = entity.Disable,
             Readonly = entity.Readonly,
+            SystemMaintain =  entity.SystemMaintain,
             Combine = entity.Combine,
             Combines = entity.Combines,
             Filters = entity.Filters,
@@ -352,6 +359,7 @@ public class AppFieldType
         // Generate the fields
         AnySchemaType node = SchemaType!;
         List<DynamicTableField> fields = [];
+        List<DynamicTableJoin>? joins = null;
         DataIndex[]? indexes = null;
         bool single = true;
 
@@ -448,7 +456,6 @@ public class AppFieldType
                 {
                     single = false;
                     var enableAttrTable = Topology == FieldStorageTopology.AttributeBased;
-                    List<DynamicTableJoin>? joins = null;
 
                     // Add primary fields
                     foreach (string n in arrayNode.Primary)
@@ -494,7 +501,7 @@ public class AppFieldType
 
                             // data field
                             string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
-                            if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
+                            if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
                             StructFieldConfig? dataFieldType = structType.GetField(dataField);
                             if (dataFieldType == null) continue; // data field not exist
 
@@ -528,10 +535,10 @@ public class AppFieldType
                                     DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
                                     fields.Add(new DynamicTableField
                                     {
-                                        Name = $"{field}{COMPLEX_SEP}{ifield.Name}",
+                                        Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
                                         Complex = new DataFieldComplexInfo
                                         {
-                                            Main = field,
+                                            Main = sField.Name,
                                             Field = ifield.Name
                                         },
                                         Type = info.Type,
@@ -548,7 +555,7 @@ public class AppFieldType
                                 DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemeType!, dataFieldType);
                                 fields.Add(new DynamicTableField
                                 {
-                                    Name = field,
+                                    Name = sField.Name,
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
                                     SchemaType = dataFieldType.SchemeType!,
@@ -633,6 +640,7 @@ public class AppFieldType
             Fields = fields,
             Indexes = indexes,
             IncrUpdate = IncrUpdate ?? false,
+            Joins = joins?.ToArray()
         };
     }
 

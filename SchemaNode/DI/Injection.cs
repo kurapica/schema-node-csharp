@@ -153,7 +153,7 @@ public static class Injection
                                 ContextItem = p.ContextItem ?? "",
                                 MapKey = p.MapKey ?? "",
                             }).ToArray();
-                        policy.ContextMaps.Sort((a, b) =>
+                        Array.Sort(policy.ContextMaps, (a, b) =>
                         {
                             // put Access.Target last 
                             if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))
@@ -214,6 +214,7 @@ public static class Injection
                                     : typeName,
                                 Display = attr.Display ?? type.GetSummaryFromXmlDoc() ?? fieldName,
                                 IncrUpdate = attr.IncrUpdate,
+                                SystemMaintain =  attr.SystemMaintain,
                             }, type: type);
                         }
                     }

@@ -170,7 +170,7 @@ public static class SchemaStorageProviderExtension
                 if (node.ScopePolicy.ContextMaps == null || node.ScopePolicy.ContextMaps.Length == 0)
                     throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
                 
-                node.ScopePolicy.ContextMaps.Sort((a, b) =>
+                Array.Sort(node.ScopePolicy.ContextMaps, (a, b) =>
                 {
                     // put Access.Target last 
                     if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))

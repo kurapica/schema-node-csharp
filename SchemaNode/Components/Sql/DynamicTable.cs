@@ -46,7 +46,17 @@ public class DynamicTableSchema
     /// <summary>
     /// Non-scope and non-target fields, used for data query and save
     /// </summary>
-    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f is { Scope: false, HasTypeRelation: false });
+    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f.Primary || f.IsValueField);
+    
+    /// <summary>
+    /// The fields used for query, including primary fields, value fields and join fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> QueryFields => Fields.Where(f => f.Primary || f.IsValueField || f.IsJoinField);
+    
+    /// <summary>
+    /// The join fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> JoinFields => Fields.Where(f => f.IsJoinField);
 
     /// <summary>
     /// Gets the key fields
@@ -61,7 +71,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the fields without type relation, used for data query and save
     /// </summary>
-    public IEnumerable<DynamicTableField> AllFields => Fields.Where(f => !f.HasTypeRelation);
+    public IEnumerable<DynamicTableField> AllFields => Fields.Where(f => f.IsKeyField || f.IsValueField);
     
     /// <summary>
     /// The dynamic table indexes
@@ -259,17 +269,23 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0)
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0, bool joinInclude = false)
     {
         // single value
         if (Fields.Count == 1 && Fields[0].SchemaType == SchemaType)
             return Fields[0].FromReader(reader, offset);
 
         StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
-        foreach (DynamicTableField field in NonScopeFields)
+        foreach (DynamicTableField field in joinInclude ? QueryFields : NonScopeFields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
-            if (val == null) continue;
+            if (val == null)
+            {
+                if (field is { IsJoinField: true, SchemaType: ScalarType { IsNumber: true }})
+                    val = field.SchemaType.CreateNode(0);
+                else
+                    continue;
+            }
             if (field.Complex == null)
             {
                 result.SetField(field.Name, val);
@@ -292,11 +308,11 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName)
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName, bool joinInclude = false)
     {
         int offset = 0;
         StructTypeNode? complexResult = null;
-        foreach (DynamicTableField field in NonScopeFields)
+        foreach (DynamicTableField field in joinInclude ? QueryFields : NonScopeFields)
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {

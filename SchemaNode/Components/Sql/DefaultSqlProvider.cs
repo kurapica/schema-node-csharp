@@ -57,4 +57,17 @@ public class DefaultSqlProvider : ISqlProvider
 
         return $"({left} {op} {right})";
     }
+
+    public string Arithmetic(ArithmeticType type, string left, string right)
+    {
+        var op = type switch
+        {
+            ArithmeticType.Add => "+",
+            ArithmeticType.Subtract => "-",
+            ArithmeticType.Multiply => "*",
+            _ => throw new NotSupportedException($"Unsupported ArithmeticType: {type}")
+        };
+
+        return $"({left} {op} {right})";
+    }
 }

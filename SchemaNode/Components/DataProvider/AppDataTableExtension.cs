@@ -30,7 +30,19 @@ public static class AppDataTableExtension
             if (schema != null) return schema;
 
             schema = field.GenDynamicTableSchema();
-            await dataProvider.EnsureDynamicTableAsync(schema);
+            if (field.SystemMaintain != true)
+            {
+                await dataProvider.EnsureDynamicTableAsync(schema);
+                if (schema.Joins is { Length: > 0 })
+                {
+                    foreach (DynamicTableJoin join in schema.Joins)
+                    {
+                        AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
+                        await context.PrepareFieldDataAsync(joinField);
+                    }
+                }
+            }
+
             field.Schema = schema;
             return schema;
         }

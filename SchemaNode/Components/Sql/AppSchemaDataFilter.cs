@@ -32,6 +32,8 @@ public record AppSchemaDataFilterUnary(LogicType Type, AppSchemaDataFilter Opera
 
 public record AppSchemaDataFilterBinary(LogicType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
 
+public record AppSchemaDataFilterArith(ArithmeticType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
+
 public record AppSchemaDataFilterValue(object Value) : AppSchemaDataFilter;
 
 public record AppSchemaDataOrder(string Field, bool Desc);
@@ -210,6 +212,11 @@ public static class AppSchemaDataFilterExtensions
                     default:
                         return false;
                 }
+            case AppSchemaDataFilterArith arith:
+                if (!arith.Left.Transform(out AppSchemaDataFilter? leftArith)) return false;
+                if (!arith.Right.Transform(out AppSchemaDataFilter? rightArith)) return false;
+                result = new AppSchemaDataFilterArith(arith.Type, leftArith!, rightArith!);
+                return true;
         }
 
         return false;
@@ -331,11 +338,11 @@ public static class AppSchemaDataFilterExtensions
     /// <summary>
     /// Convert the exp tree to SQL
     /// </summary>
-    public static string ToSql(this AppSchemaDataFilter accessExp, ISqlProvider sqlProvider, DynamicTableSchema tableSchema, string prefix = "")
-        => ToSql(sqlProvider, accessExp, tableSchema, prefix);
+    public static string ToSql(this AppSchemaDataFilter accessExp, ISqlProvider sqlProvider, DynamicTableSchema tableSchema, string prefix = "", Dictionary<string, string>? fieldMaps = null)
+        => ToSql(sqlProvider, accessExp, tableSchema, string.IsNullOrWhiteSpace(prefix) ? "" : prefix.EndsWith('.') ? prefix : $"{prefix}.", fieldMaps);
 
     // To sql
-    static string ToSql(ISqlProvider sqlProvider, AppSchemaDataFilter accessExp, DynamicTableSchema tableSchema, string prefix)
+    static string ToSql(ISqlProvider sqlProvider, AppSchemaDataFilter accessExp, DynamicTableSchema tableSchema, string prefix, Dictionary<string, string>? fieldMaps = null)
     {
         switch (accessExp)
         {
@@ -352,17 +359,17 @@ public static class AppSchemaDataFilterExtensions
                 }
                 if (string.IsNullOrWhiteSpace(fieldName))
                     throw new NotSupportedException($"The field not found in table schema: {access.Field}");
-                return $"{prefix}{sqlProvider.QuoteField(fieldName)}";
+                return fieldMaps != null && fieldMaps.TryGetValue(fieldName, out string? name) ? name : $"{prefix}{sqlProvider.QuoteField(fieldName)}";
             }
             case AppSchemaDataFilterUnary unary:
                 switch (unary.Type)
                 {
                     case LogicType.IsNull:
                     case LogicType.IsEmpty:
-                        return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
+                        return sqlProvider.IsNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix, fieldMaps));
                     case LogicType.NotNull:
                     case LogicType.NotEmpty:
-                        return sqlProvider.IsNotNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix));
+                        return sqlProvider.IsNotNull(ToSql(sqlProvider, unary.Operand, tableSchema, prefix, fieldMaps));
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
                 }
@@ -378,49 +385,53 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.LessThan:
                     case LogicType.LessEqual:
                         return sqlProvider.Binary(binary.Type,
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
-                            ToSql(sqlProvider, binary.Right, tableSchema, prefix));
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix, fieldMaps));
                     case LogicType.Contains:
                         return sqlProvider.In(
-                            ToSql(sqlProvider, binary.Right, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix, fieldMaps),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
                     case LogicType.NotContains:
                         return sqlProvider.NotIn(
-                            ToSql(sqlProvider, binary.Right, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Right, tableSchema, prefix, fieldMaps),
                             ((binary.Left as AppSchemaDataFilterValue)!.Value as IEnumerable<object>)!);
                     case LogicType.StartsWith:
                         return sqlProvider.LikeStartsWith(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The startsWith right value must be string"))!);
                     case LogicType.NotStartsWith:
                         return sqlProvider.NotLikeStartsWith(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notStartsWith right value must be string"))!);
                     case LogicType.EndsWith:
                         return sqlProvider.LikeEndsWith(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The endsWith right value must be string"))!);
                     case LogicType.NotEndsWith:
                         return sqlProvider.NotLikeEndsWith(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notEndsWith right value must be string"))!);
                     case LogicType.Match:
                         return sqlProvider.LikeContains(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The match right value must be string"))!);
                     case LogicType.NotMatch:
                         return sqlProvider.NotLikeContains(
-                            ToSql(sqlProvider, binary.Left, tableSchema, prefix),
+                            ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The notMatch right value must be string"))!);
                     default:
                         throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
                 }
+            case AppSchemaDataFilterArith arith:
+                return sqlProvider.Arithmetic(arith.Type,
+                    ToSql(sqlProvider, arith.Left, tableSchema, prefix, fieldMaps),
+                    ToSql(sqlProvider, arith.Right, tableSchema, prefix, fieldMaps));
             case AppSchemaDataFilterValue value:
                 return sqlProvider.Literal(value.Value);
         }
