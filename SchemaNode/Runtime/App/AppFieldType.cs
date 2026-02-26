@@ -4,12 +4,10 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 

@@ -31,7 +31,7 @@ public interface IAppDataProvider
     /// <summary>
     /// Delete the dynamic table data with the filter
     /// </summary>
-    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter filter);
+    Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter);
     
     /// <summary>
     /// Clear all dynamic table data

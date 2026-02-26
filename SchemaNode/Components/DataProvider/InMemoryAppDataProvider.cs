@@ -174,7 +174,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         return (false, null);
     }
     
-    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter filter)
+    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
