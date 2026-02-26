@@ -102,7 +102,7 @@ public static class BatchQueryExtension
                     
                     // limit incr field take count
                     int take = q?.Take ?? query.Take ?? 0;
-                    if (field.IncrUpdate == true)
+                    if (field.IncrUpdate == true && (string.IsNullOrWhiteSpace(q?.FilterFunc) || q?.FilterAll != true))
                     {
                         take = take <= 0 
                             ? SchemaContext.Config.IncrFieldDefaultTakeCount 
@@ -565,6 +565,11 @@ public class AppDataFieldQuery
     /// The filter function args
     /// </summary>
     public JsonElement? FilterArgs { get; set; }
+    
+    /// <summary>
+    /// Filter all data without paging, only used when the field is incr update, and take is not set or less than 0, to avoid performance issue
+    /// </summary>
+    public bool? FilterAll { get; set; }
     
     [JsonIgnore]
     public JsonArray? FilterArgsArray => FilterArgs is { ValueKind: JsonValueKind.Array }
