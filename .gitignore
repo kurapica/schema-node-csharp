@@ -24,3 +24,4 @@ SchemaNode.sln.DotSettings.user
 /SchemaNode.Excel/bin
 /SchemaNode.UnitTest/obj
 /SchemaNode.UnitTest/bin
+SchemaNode.Example/SchemaNode.Example.csproj.user

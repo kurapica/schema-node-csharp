@@ -45,8 +45,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         string tableName = sqlProvider.QuoteTable(schema.AppFieldType.DynamicTableName);
         await EnsureOpenConnectionAsync();
-        
+
         // Check to update the data table
+        bool exist = false;
         try
         {
             // Gets the existed fields
@@ -66,19 +67,17 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             // Check the new columns since we won't touch key fields
-            StringBuilder? sb = null;
+            List<string> sb = [];
             foreach (DynamicTableField dyFld in schema.ValueFields)
             {
                 string dataType = DataType(dyFld);
                 if (!nameTypes.TryGetValue(dyFld.Name, out string? type))
                 {
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {tableName} ADD {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
+                    sb.Add($"ALTER TABLE {tableName} ADD {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
                 }
                 else if (!type.Equals(dataType, StringComparison.OrdinalIgnoreCase))
                 {
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {tableName} MODIFY COLUMN {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
+                    sb.Add($"ALTER TABLE {tableName} MODIFY COLUMN {sqlProvider.QuoteField(dyFld.Name)} {dataType};");
                 }
             }
 
@@ -121,13 +120,11 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     // Remove the old unique index
                     if (uniqueIndex.Count > 0)
                     {
-                        sb ??= new StringBuilder();
-                        sb.Append($"DROP INDEX {_refIndex} ON {tableName};");
+                        sb.Add($"DROP INDEX {_refIndex} ON {tableName};");
                     }
 
                     // Add the unique index
-                    sb ??= new StringBuilder();
-                    sb.Append($"ALTER TABLE {tableName} ADD UNIQUE INDEX {_refIndex}({string.Join(',', chkUniqueIndex.Select(sqlProvider.QuoteField))});");
+                    sb.Add($"ALTER TABLE {tableName} ADD UNIQUE INDEX {_refIndex}({string.Join(',', chkUniqueIndex.Select(sqlProvider.QuoteField))});");
                 }
             }
 
@@ -139,8 +136,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     string key = $"IDX_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
                     if (!names.Remove(key))
                     {
-                        sb ??= new StringBuilder();
-                        sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', schema.ScopeFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat(index.Fields.Select(sqlProvider.QuoteField)))});");
+                        sb.Add($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', schema.ScopeFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat(index.Fields.Select(sqlProvider.QuoteField)))});");
                     }
                 }
             }
@@ -148,20 +144,22 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // Remove no use indexes
             foreach (string name in names.Keys.Where(p => !p.Equals(DYNAMIC_UNIQUE_INDEX)))
             {
-                sb ??= new StringBuilder();
-                sb.Append($"DROP INDEX {sqlProvider.QuoteIndex(name)} ON {tableName};");
+                sb.Add($"DROP INDEX {sqlProvider.QuoteIndex(name)} ON {tableName};");
             }
 
             // Update the table
-            if (sb != null)
+            if (sb.Count > 0)
             {
-                DbCommand updateCommand = GetDbCommand();
-                updateCommand.CommandText = sb.ToString();
-                Logger.LogInformation(updateCommand.CommandText);
-                await updateCommand.ExecuteNonQueryAsync();
+                for (int i = 0; i < sb.Count; i++)
+                {
+                    DbCommand updateCommand = GetDbCommand();
+                    updateCommand.CommandText = sb[i];
+                    Logger.LogInformation(updateCommand.CommandText);
+                    await updateCommand.ExecuteNonQueryAsync();
+                }
             }
 
-            return true;
+            exist = true;
         }
         catch (MySqlException ex)
         {
@@ -175,69 +173,77 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             throw;
         }
 
-        // Create the data table
-        try
+        if (!exist)
         {
-            StringBuilder sb = new();
-
             // Create the data table
-            sb.Append($"CREATE TABLE IF NOT EXISTS {tableName} (");
-
-            // The primary key
-            if (!schema.Single)
-                sb.Append($"{_refSeqNo} BIGINT UNSIGNED AUTO_INCREMENT,");
-            
-            // Generate key columns
-            foreach (DynamicTableField keyField in schema.KeyFields)
-                sb.Append($"{sqlProvider.QuoteField(keyField.Name)} {DataType(keyField)} NOT NULL, ");
-
-            // Generate the column lists
-            foreach (DynamicTableField tableField in schema.ValueFields)
-                sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}, ");
-
-            // Append primary key
-            if (schema.Single)
+            try
             {
-                sb.Append($"PRIMARY KEY({string.Join(',', schema.KeyFields.Select(f => sqlProvider.QuoteField(f.Name)))})");
-            }
-            else
-            {
-                // Use auto-incr seqNo as primary key
-                sb.Append($"PRIMARY KEY({_refSeqNo})");
+                StringBuilder sb = new();
 
-                // Use scope target and other primary key as unique index
-                sb.Append($", UNIQUE INDEX {_refIndex} ({string.Join(',', schema.KeyFields.Select(f => sqlProvider.QuoteField(f.Name)))})");
-            }
+                // Create the data table
+                sb.Append($"CREATE TABLE IF NOT EXISTS {tableName} (");
 
-            // End the building
-            sb.Append(") engine=InnoDB;");
-            DbCommand command = GetDbCommand();
-            command.CommandText = sb.ToString();
-            Logger.LogInformation(command.CommandText);
-            await command.ExecuteNonQueryAsync();
-            
-            // Create the indexes
-            if (schema.Indexes is { Length: > 0 })
-            {
-                sb = new StringBuilder();
-                foreach (var index in schema.Indexes)
+                // The primary key
+                if (!schema.Single)
+                    sb.Append($"{_refSeqNo} BIGINT UNSIGNED AUTO_INCREMENT,");
+
+                // Generate key columns
+                foreach (DynamicTableField keyField in schema.KeyFields)
+                    sb.Append($"{sqlProvider.QuoteField(keyField.Name)} {DataType(keyField)} NOT NULL, ");
+
+                // Generate the column lists
+                foreach (DynamicTableField tableField in schema.ValueFields)
+                    sb.Append($"{sqlProvider.QuoteField(tableField.Name)} {DataType(tableField)}, ");
+
+                // Append primary key
+                if (schema.Single)
                 {
-                    string key = $"IDX_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
-                    sb.Append($"ALTER TABLE {tableName} ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', schema.ScopeFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat(index.Fields.Select(sqlProvider.QuoteField)))});");
+                    sb.Append($"PRIMARY KEY({string.Join(',', schema.KeyFields.Select(f => sqlProvider.QuoteField(f.Name)))})");
                 }
-                
-                command = GetDbCommand();
+                else
+                {
+                    // Use auto-incr seqNo as primary key
+                    sb.Append($"PRIMARY KEY({_refSeqNo})");
+
+                    // Use scope target and other primary key as unique index
+                    sb.Append($", UNIQUE INDEX {_refIndex} ({string.Join(',', schema.KeyFields.Select(f => sqlProvider.QuoteField(f.Name)))})");
+                }
+
+                // End the building
+                sb.Append(") engine=InnoDB;");
+                DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
                 Logger.LogInformation(command.CommandText);
                 await command.ExecuteNonQueryAsync();
+
+                // Create the indexes
+                if (schema.Indexes is { Length: > 0 })
+                {
+                    sb = new StringBuilder();
+                    sb.Append($"ALTER TABLE {tableName} ");
+                    bool firstIdx = true;
+                    foreach (var index in schema.Indexes)
+                    {
+                        string key = $"IDX_{string.Join('_', index.Fields.Select(f => f.ToLower()))}";
+                        if (!firstIdx) sb.Append(',');
+                        sb.Append($"ADD INDEX {sqlProvider.QuoteIndex(key)}({string.Join(',', schema.ScopeFields.Select(f => sqlProvider.QuoteField(f.Name)).Concat(index.Fields.Select(sqlProvider.QuoteField)))})");
+                        firstIdx = false;
+                    }
+                    sb.Append(';');
+
+                    command = GetDbCommand();
+                    command.CommandText = sb.ToString();
+                    Logger.LogInformation(command.CommandText);
+                    await command.ExecuteNonQueryAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex.Message);
+                throw;
             }
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex.Message);
-            throw;
-        }
-        
+
         // Check if require EAV table
         if (schema.AppFieldType.Topology == FieldStorageTopology.AttributeBased)
         {
@@ -303,7 +309,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         return true;
     }
     
-    // <inheritdoc />
+    /// <inheritdoc />
     public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, 
         AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, bool desc = false, 
         AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
