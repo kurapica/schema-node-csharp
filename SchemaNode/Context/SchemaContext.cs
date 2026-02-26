@@ -7,6 +7,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using static SchemaNode.Utility.Constant;
 
@@ -367,6 +368,29 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         if (value is null) return null;
         string? schemaType = typeof(T).GetSchemaType(true);
         return string.IsNullOrEmpty(schemaType) ? null : (await GetSchemaTypeAsync(schemaType))?.CreateNode(value);
+    }
+
+    /// <summary>
+    /// Try convert the value to schema node with expected type, if type is null, try to parse the type from value
+    /// </summary>
+    /// <param name="type"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    /// <exception cref="FunctionVisitException"></exception>
+    public async Task<AnySchemaNode?> GetSchemaNodeAsync(AnySchemaType? type, JsonNode? value)
+    {
+        if (type != null) return type.CreateNode(value);
+
+        switch (value)
+        {
+            case JsonValue jsonValue:
+                var (v, t) = jsonValue.ParseValueAndType();
+                string? schemaType = t?.GetSchemaType();
+                return string.IsNullOrEmpty(schemaType) ? null : (await GetSchemaTypeAsync(schemaType))?.CreateNode(v);
+
+            default:
+                return null;
+        }
     }
 
     /// <summary>
