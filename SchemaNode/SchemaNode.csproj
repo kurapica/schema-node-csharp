@@ -29,4 +29,10 @@
       <None Remove="www.zip" />
       <EmbeddedResource Include="www.zip" />
     </ItemGroup>
+
+    <ItemGroup>
+      <None Include="locale\*.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
 </Project>

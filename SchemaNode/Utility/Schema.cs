@@ -1016,6 +1016,63 @@ public static class Schema
 
     #endregion
 
+    #region Locale
+
+    /// <summary>
+    /// Applies loaded locale translations to all statically defined system schemas in the root tree.
+    /// Should be called after the full system preload so that dynamically registered schemas are also covered.
+    /// </summary>
+    internal static void ApplySystemLocales()
+    {
+        if (!SystemLocale.HasLocales) return;
+        ApplySchemaLocales(_root);
+    }
+
+    private static void ApplySchemaLocales(NodeSchema schema)
+    {
+        // Type-level display: look up by schema.Name (the full dotted path)
+        if (schema.Display != null && !string.IsNullOrEmpty(schema.Name))
+            SystemLocale.Translate(schema.Display, schema.Name);
+
+        // Scalar: error message and unit use their own Key for lookup
+        if (schema.Scalar != null)
+        {
+            SystemLocale.Translate(schema.Scalar.Error);
+            SystemLocale.Translate(schema.Scalar.Unit);
+        }
+
+        // Struct: each field Display uses its own Key (e.g. "system.rangedate.start")
+        if (schema.Struct != null)
+        {
+            foreach (StructFieldConfig field in schema.Struct.Fields)
+                SystemLocale.Translate(field.Display);
+        }
+
+        // Enum: each value Name uses its own Key (e.g. "system.schema.workflowstatus.waiting")
+        if (schema.Enum != null)
+        {
+            if (schema.Enum.Values != null)
+            {
+                foreach (EnumValueInfo value in schema.Enum.Values)
+                    SystemLocale.Translate(value.Name);
+            }
+            if (schema.Enum.Cascade != null)
+            {
+                foreach (LocaleString cascade in schema.Enum.Cascade)
+                    SystemLocale.Translate(cascade);
+            }
+        }
+
+        // Recurse into sub-schemas
+        if (schema.Schemas != null)
+        {
+            foreach (NodeSchema sub in schema.Schemas)
+                ApplySchemaLocales(sub);
+        }
+    }
+
+    #endregion
+
     #region Utility
 
     internal static NodeSchema NewSystemSchema(string name, SchemaType type = SchemaType.Namespace)

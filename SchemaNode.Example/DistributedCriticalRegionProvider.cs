@@ -66,6 +66,7 @@ public class DistributedCriticalRegionProvider : ICriticalRegionProvider, IDispo
 
     string GetLockKey(string name) => $"DistributedCritcalRegion_{name}";
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         _redisConnection.Dispose();

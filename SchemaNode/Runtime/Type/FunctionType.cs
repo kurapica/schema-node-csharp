@@ -960,6 +960,9 @@ public class FunctionType : AnySchemaType
             Return = retInfo
         });
 
+        if (Utility.SystemLocale.HasLocales)
+            Utility.SystemLocale.Translate(funcSchema.Display, funcSchema.Name);
+
         return funcSchema;
     }
 

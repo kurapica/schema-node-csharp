@@ -81,7 +81,10 @@ public class EventType: AnySchemaType
                 Payload = payloadType?.GetSchemaType(true) ?? (type.IsAssignableTo(typeof(IEventPayload)) ? "T" :  ""),
             }
         };
-        
+
+        if (Utility.SystemLocale.HasLocales)
+            Utility.SystemLocale.Translate(eventSchema.Display, eventSchema.Name);
+
         EventTypeNames[type] = typeName;
         return [ eventSchema ];
     }

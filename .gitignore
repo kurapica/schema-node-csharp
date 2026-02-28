@@ -25,3 +25,7 @@ SchemaNode.sln.DotSettings.user
 /SchemaNode.UnitTest/obj
 /SchemaNode.UnitTest/bin
 SchemaNode.Example/SchemaNode.Example.csproj.user
+/SchemaNode.PostgreSQL/bin
+/SchemaNode.PostgreSQL/obj
+/SchemaNode.AI/obj
+/SchemaNode.AI/bin

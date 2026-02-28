@@ -59,10 +59,17 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// </summary>
     internal async Task InitSystemContextAsync()
     {
+        // Load locale translations from the output directory
+        Utility.SystemLocale.TryLoad();
+
         // Load system schemas
         SystemOnly = true;
         await GetSchemaTypeAsync("", preload: true);
         await GetAppTypeAsync("", preload: true);
+
+        // Apply locales to all statically defined system schemas
+        Utility.Schema.ApplySystemLocales();
+
         ResetTypeNamespace();
         ResetAppContainer();
         

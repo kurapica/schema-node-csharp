@@ -155,7 +155,7 @@ public static class AccessContextItemProviderExtensions
         // Fetch the replace type like {@system.xxx}
         if (key != null && key.Contains("{@"))
         {
-            Match match = System.Text.RegularExpressions.Regex.Match(key, @"\{\@([a-zA-Z0-9_.\-]+)\}");
+            Match match = Regex.Match(key, @"\{\@([a-zA-Z0-9_.\-]+)\}");
             if (match.Success && match.Groups.Count > 1)
             {
                 string systemKey = match.Groups[1].Value;

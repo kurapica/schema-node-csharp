@@ -184,6 +184,9 @@ public class WorkflowType: AnySchemaType
             }
         }
 
+        if (Utility.SystemLocale.HasLocales)
+            Utility.SystemLocale.Translate(workflowSchema.Display, workflowSchema.Name);
+
         return [ workflowSchema ];
     }
     

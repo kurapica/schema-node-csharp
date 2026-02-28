@@ -430,7 +430,14 @@ public class StructType: AnySchemaType
             }
         };
         CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
-        
+
+        if (Utility.SystemLocale.HasLocales)
+        {
+            Utility.SystemLocale.Translate(structSchema.Display, structSchema.Name);
+            foreach (StructFieldConfig field in structSchema.Struct!.Fields)
+                Utility.SystemLocale.Translate(field.Display);
+        }
+
         if (primarys.Length == 0 && !hasNestArray) return [structSchema];
         CSharpTypePrimaryProperties[structSchema.Name.ToLower()] = primarys.Select(p => fieldMaps.First(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray();
 

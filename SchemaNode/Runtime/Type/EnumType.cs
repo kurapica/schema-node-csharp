@@ -336,7 +336,14 @@ public class EnumType: AnySchemaType
                 }).ToArray(),
             }
         };
-        
+
+        if (Utility.SystemLocale.HasLocales)
+        {
+            Utility.SystemLocale.Translate(enumSchema.Display, enumSchema.Name);
+            foreach (EnumValueInfo value in enumSchema.Enum!.Values)
+                Utility.SystemLocale.Translate(value.Name);
+        }
+
         return [ enumSchema ];
     }
 
