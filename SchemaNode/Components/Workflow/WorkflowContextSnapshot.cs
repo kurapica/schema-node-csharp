@@ -44,6 +44,11 @@ public class WorkflowContextSnapshot
     /// The creation time
     /// </summary>
     public DateTime CreateTime { get; set; }
+    
+    /// <summary>
+    /// The last update time
+    /// </summary>
+    public DateTime UpdateTime { get; set; }
 
     /// <summary>
     /// The root id
