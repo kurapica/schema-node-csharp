@@ -24,7 +24,7 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
     {
         Logger.LogDebug("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
         
-        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target);
+        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target ?? Guid.Empty.ToString());
         (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas);
         
         return new PushAppDataResponse

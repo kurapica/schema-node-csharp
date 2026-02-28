@@ -85,6 +85,7 @@ public class WorkflowContext: SchemaContext
             Workflow = WorkflowType.Name,
             Start = _workflow.Name,
             CreateTime = CreateTime,
+            UpdateTime =  DateTime.UtcNow,
             RootId = _root?.Id ?? Guid.Empty,
             Id = Id,
             Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running,
