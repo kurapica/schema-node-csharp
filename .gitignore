@@ -29,3 +29,6 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.PostgreSQL/obj
 /SchemaNode.AI/obj
 /SchemaNode.AI/bin
+/SchemaNode.Ontology/bin
+/SchemaNode.Ontology/obj
+/SchemaNode.Workflow/obj

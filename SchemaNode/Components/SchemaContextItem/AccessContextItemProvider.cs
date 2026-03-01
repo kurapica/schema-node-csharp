@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using SchemaNode.Context;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -149,39 +150,48 @@ public static class AccessContextItemProviderExtensions
     /// <summary>
     /// Gets the locale string value
     /// </summary>
-    public static string? GetLocaleString(this SchemaContext context, LocaleString? locale)
+    public static string? GetLocaleString(this SchemaContext context, LocaleString? localeStr, string? locale =  null)
     {
-        string? key = context.GetLocaleStringKey(locale);
-        // Fetch the replace type like {@system.xxx}
-        if (key != null && key.Contains("{@"))
+        string? key = context.GetLocaleStringKey(localeStr, locale);
+        if (key == null) return null;
+
+        // Replace {[TOKEN]} patterns with SystemLocale values (e.g. {[LIST.PREFIX]}, {[LIST.SUFFIX]})
+        if (key.Contains("{["))
         {
-            Match match = Regex.Match(key, @"\{\@([a-zA-Z0-9_.\-]+)\}");
-            if (match.Success && match.Groups.Count > 1)
+            string? localeKey = !string.IsNullOrWhiteSpace(locale) ? locale : context.GetLocale();
+            key = Regex.Replace(key, @"\{\[([^\]]+)\]\}", m =>
+                SystemLocale.GetString(m.Groups[1].Value, localeKey) ?? string.Empty);
+        }
+
+        // Replace {@type.path} patterns with the localized display name of the referenced schema type
+        if (key.Contains("{@"))
+        {
+            key = Regex.Replace(key, @"\{\@([a-zA-Z0-9_.\-]+)\}", m =>
             {
-                string systemKey = match.Groups[1].Value;
-                AnySchemaType? systemValue = context.GetSchemaTypeAsync(systemKey).GetAwaiter().GetResult();
+                AnySchemaType? systemValue = context.GetSchemaTypeAsync(m.Groups[1].Value).GetAwaiter().GetResult();
                 if (systemValue != null)
-                    return context.GetLocaleString(systemValue.Display) ?? systemValue.Name;
-            }
+                    return context.GetLocaleString(systemValue.Display, locale) ?? systemValue.Name ?? string.Empty;
+                return m.Value;
+            });
         }
 
         return key;
     }
     
-    static string? GetLocaleStringKey(this SchemaContext context, LocaleString? locale)
+    static string? GetLocaleStringKey(this SchemaContext context, LocaleString? localeStr, string? locale)
     {
-        if (string.IsNullOrWhiteSpace(locale?.Key)) return null;
-        if (locale?.Trans == null || locale.Trans.Length == 0) return locale?.Key;
-        string? localeKey = context.GetLocale();
-        if (string.IsNullOrWhiteSpace(localeKey)) return locale.Key;
+        if (string.IsNullOrWhiteSpace(localeStr?.Key)) return null;
+        if (localeStr?.Trans == null || localeStr.Trans.Length == 0) return localeStr?.Key;
+        string? localeKey = !string.IsNullOrWhiteSpace(locale) ? locale : context.GetLocale();
+        if (string.IsNullOrWhiteSpace(localeKey)) return localeStr.Key;
         
         // Try match the locale
         localeKey = localeKey.Replace("-", ""); // for simply only replace zh-CN to zhCN
-        foreach (LocaleTran item in locale.Trans)
+        foreach (LocaleTran item in localeStr.Trans)
         {
             if (localeKey.Equals(item.Lang.Replace("-", ""), StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.Tran))
                 return item.Tran;
         }
-        return locale.Key;
+        return localeStr.Key;
     }
 }

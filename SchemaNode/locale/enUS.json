@@ -663,5 +663,12 @@
   "system.schema.fieldpolicy.auths": "Authorization List",
   "system.schema.appscopecontextmap": "App Scope Context Map",
   "system.schema.appscopecontextmap.contextItem": "Context Item",
-  "system.schema.appscopecontextmap.mapKey": "Map Key"
+  "system.schema.appscopecontextmap.mapKey": "Map Key",
+
+  "ontology.atom.vocabularyvalue": "Vocabulary value {0} of {1}, meaning: {2}",
+  "ontology.atom.structfield": "Field {0} of type {2} in entity {1}, meaning: {3}",
+  "ontology.atom.functionparam": "Parameter {0} of type {2} in function {1}, meaning: {3}",
+  "ontology.atom.apptable": "Table {0} of type {2} in app {1}, meaning: {3}",
+  "LIST.PREFIX": "",
+  "LIST.SUFFIX": " Array"
 }

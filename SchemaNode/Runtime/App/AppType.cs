@@ -141,8 +141,6 @@ public class AppType
         Additional = schema.Additional;
 
         // Load the application fields
-        bool useRef = false;
-        bool requireDb = false;
         Fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
         Relations = null;
         if (Fields is { Count: > 0 })
@@ -226,10 +224,7 @@ public class AppType
                         }
                     }
                 }
-                
-                if (field.EnableDynamicTable)
-                    requireDb = true;
-                
+                                
                 // valid the auths
                 if (field.Auths != null)
                 {

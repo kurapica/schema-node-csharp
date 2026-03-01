@@ -6,7 +6,7 @@ namespace SchemaNode.Components;
 /// <param name="app"></param>
 /// <param name="target"></param>
 /// <param name="field"></param>
-public abstract class AppFieldDataEvent(string app, string target, string field): AppDataEvent(app, target)
+public abstract class AppFieldDataEvent(string app, string target, string @field): AppDataEvent(app, target)
 {
-    public override string Topic => $"{base.Topic}/{field}";
+    public override string Topic => $"{base.Topic}/{@field}";
 }

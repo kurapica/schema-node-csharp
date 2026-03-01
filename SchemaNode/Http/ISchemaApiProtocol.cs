@@ -3,14 +3,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -27,12 +24,12 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Gets the wrapped response schema.
     /// </summary>
-    OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema);
+    IOpenApiSchema WrapResponseSchema(DocumentFilterContext context, IOpenApiSchema innerSchema);
 
     /// <summary>
     /// Gets the wrapped request schema.
     /// </summary>
-    OpenApiSchema WrapRequestSchema(DocumentFilterContext context, OpenApiSchema innerSchema);
+    IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema);
 
     /// <summary>
     /// Read request from body
@@ -229,11 +226,11 @@ public interface ISchemaApiProtocol
             schemaGenerator, schemaRepository);
         OpenApiSchema innerSchema = new(); // placeholder
         
-        OpenApiSchema reqSchema = WrapRequestSchema(context, innerSchema);
-        OpenApiSchema resSchema = WrapResponseSchema(context, innerSchema);
+        IOpenApiSchema reqSchema = WrapRequestSchema(context, innerSchema);
+        IOpenApiSchema resSchema = WrapResponseSchema(context, innerSchema);
         
         var reqMeta = new SchemaApiProtocolRequestMeta();
-        if (reqSchema is { Type: "object", Properties: not null })
+        if (reqSchema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             foreach (var (key, value) in reqSchema.Properties)
             {
@@ -250,7 +247,7 @@ public interface ISchemaApiProtocol
         }
         
         var resMeta = new SchemaApiProtocolResponseMeta();
-        if (resSchema is { Type: "object", Properties: not null })
+        if (resSchema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             foreach (var (key, value) in resSchema.Properties)
             {
@@ -273,9 +270,9 @@ public interface ISchemaApiProtocol
         };
     }
 
-    JsonNode GenerateJsonDesc(OpenApiSchema schema)
+    JsonNode GenerateJsonDesc(IOpenApiSchema schema)
     {
-        if (schema is { Type: "object", Properties: not null })
+        if (schema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             JsonObject obj = new();
             foreach (var (key, value) in schema.Properties)
@@ -284,7 +281,7 @@ public interface ISchemaApiProtocol
             }
             return obj;
         }
-        else if (schema is { Type: "array", Items: not null })
+        else if (schema is { Type: JsonSchemaType.Array, Items: not null })
         {
             JsonArray arr = new();
             arr.Add(GenerateJsonDesc(schema.Items));
@@ -292,14 +289,7 @@ public interface ISchemaApiProtocol
         }
         else
         {
-            string? example = schema.Example switch
-            {
-                OpenApiString str => str.Value,
-                OpenApiInteger integer => integer.Value.ToString(),
-                OpenApiFloat flt => flt.Value.ToString(CultureInfo.InvariantCulture),
-                OpenApiBoolean boolean => boolean.Value.ToString(),
-                _ => null
-            };
+            string? example = schema.Example?.ToString();
             return JsonValue.Create($"{schema.Type}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
         }
     }

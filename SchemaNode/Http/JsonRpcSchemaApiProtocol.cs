@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -17,16 +16,16 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     #region Implements ISchemaApiProcessor
     
     /// <inheritdoc />
-    public OpenApiSchema WrapRequestSchema(DocumentFilterContext context, OpenApiSchema innerSchema)
+    public IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema)
     {
         return new OpenApiSchema
         {
-            Type = "object",
-            Properties = new Dictionary<string, OpenApiSchema>
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>
             {
-                ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
-                ["id"] = new OpenApiSchema { Type = "string", Format="uuid", Example = new OpenApiString(Guid.NewGuid().ToString()) },
-                ["method"] = new OpenApiSchema { Type = "string", Format="url" },
+                ["jsonrpc"] = new OpenApiSchema { Type = JsonSchemaType.String, Example = "2.0" },
+                ["id"] = new OpenApiSchema { Type = JsonSchemaType.String, Format="uuid", Example = Guid.NewGuid().ToString() },
+                ["method"] = new OpenApiSchema { Type = JsonSchemaType.String, Format="url" },
                 ["params"] = innerSchema
             },
             Required = new HashSet<string> { "jsonrpc", "id", "params" }
@@ -34,21 +33,21 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema)
+    public IOpenApiSchema WrapResponseSchema(DocumentFilterContext context, IOpenApiSchema innerSchema)
     {   
         return new OpenApiSchema
         {
-            Type = "object",
-            Properties = new Dictionary<string, OpenApiSchema>
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>
             {
-                ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
-                ["id"] = new OpenApiSchema { Type = "string" },
-                ["code"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(0) },
-                ["error"] = new OpenApiSchema { Type = "object", Properties = new Dictionary<string, OpenApiSchema>
+                ["jsonrpc"] = new OpenApiSchema { Type = JsonSchemaType.String, Example = "2.0" },
+                ["id"] = new OpenApiSchema { Type = JsonSchemaType.String },
+                ["code"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Example = 0 },
+                ["error"] = new OpenApiSchema { Type = JsonSchemaType.Object, Properties = new Dictionary<string, IOpenApiSchema>
                 {
-                    ["code"] = new OpenApiSchema { Type = "integer" },
-                    ["message"] = new OpenApiSchema { Type = "string", Format = "error"},
-                    ["data"] = new OpenApiSchema { Type = "object" },
+                    ["code"] = new OpenApiSchema { Type = JsonSchemaType.Integer },
+                    ["message"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "error"},
+                    ["data"] = new OpenApiSchema { Type = JsonSchemaType.Object },
                 }},
                 ["result"] = innerSchema,
             },

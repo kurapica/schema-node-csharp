@@ -664,5 +664,7 @@
   "system.schema.fieldpolicy.auths": "权限列表",
   "system.schema.appscopecontextmap": "上下文映射",
   "system.schema.appscopecontextmap.contextItem": "上下文",
-  "system.schema.appscopecontextmap.mapKey": "映射键"
+  "system.schema.appscopecontextmap.mapKey": "映射键",
+  "LIST.PREFIX": "",
+  "LIST.SUFFIX": "数组"
 }

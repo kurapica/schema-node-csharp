@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace SchemaNode.Http;
@@ -30,22 +30,24 @@ public class SchemaApiDocumentFilter : IDocumentFilter
 
             swaggerDoc.Paths[$"/{url.TrimStart('/')}"] = new OpenApiPathItem
             {
-                Operations =
+                Operations = new Dictionary<HttpMethod, OpenApiOperation>
                 {
-                    [OperationType.Post] = new OpenApiOperation
+                    [HttpMethod.Post] = new OpenApiOperation
                     {
-                        Tags = [ new OpenApiTag { Name = string.Join('.', type.FullName!.Split(".", StringSplitOptions.RemoveEmptyEntries).SkipLast(1).Select(s => s.ToLower())) } ],
+                        Tags = new HashSet<OpenApiTagReference> {
+                            new OpenApiTagReference(string.Join('.', type.FullName!.Split(".", StringSplitOptions.RemoveEmptyEntries).SkipLast(1).Select(s => s.ToLower(System.Globalization.CultureInfo.CurrentCulture)))) 
+                        },
                         Summary = $"Schema API ({type.Name})",
                         RequestBody = new OpenApiRequestBody
                         {
-                            Content = { ["application/json"] = new OpenApiMediaType { Schema = wrappedReq } }
+                            Content = new Dictionary<string, OpenApiMediaType> { ["application/json"] = new OpenApiMediaType { Schema = wrappedReq } }
                         },
-                        Responses =
+                        Responses = new OpenApiResponses
                         {
                             ["200"] = new OpenApiResponse
                             {
                                 Description = "Success",
-                                Content = { ["application/json"] = new OpenApiMediaType { Schema = wrappedRes } }
+                                Content = new Dictionary<string, OpenApiMediaType> { ["application/json"] = new OpenApiMediaType { Schema = wrappedRes } }
                             }
                         }
                     }

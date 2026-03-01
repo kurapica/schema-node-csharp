@@ -1,3 +1,4 @@
+using SchemaNode.Context;
 using SchemaNode.Schema;
 using System.Text.Json;
 
@@ -6,7 +7,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// Provides system-level locale translations loaded from locale JSON files in the output directory.
 /// </summary>
-internal static class SystemLocale
+public static class SystemLocale
 {
     // locale code → (schema key → translated text)
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _locales
@@ -15,7 +16,7 @@ internal static class SystemLocale
     /// <summary>
     /// Whether any locale data has been loaded
     /// </summary>
-    internal static bool HasLocales => _locales.Count > 0;
+    public static bool HasLocales => _locales.Count > 0;
 
     /// <summary>
     /// Tries to load locale JSON files from the given directory (defaults to {BaseDirectory}/locale).
@@ -47,8 +48,26 @@ internal static class SystemLocale
     }
 
     /// <summary>
+    /// Returns the translated string for <paramref name="key"/> in the given <paramref name="locale"/>,
+    /// or <see langword="null"/> when the key or locale is not found.
+    /// </summary>
+    public static string? GetString(string key, string? locale)
+    {
+        if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(locale)) return null;
+        if (_locales.TryGetValue(locale, out IReadOnlyDictionary<string, string>? dict)
+            && dict.TryGetValue(key, out string? value))
+            return value;
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the list of available locale codes loaded from JSON files, e.g. "enUS", "zhCN".
+    /// </summary>
+    public static IEnumerable<string> GetAvailableLocales(this SchemaContext context) => _locales.Keys;
+
+    /// <summary>
     /// Supplements the <see cref="LocaleString.Trans"/> array with translations found in the loaded
-    /// locale dictionaries. Uses <paramref name="lookupKey"/> (defaulting to
+    /// locale dictionaries.
     /// <see cref="LocaleString.Key"/>) as the lookup key.
     /// The original <see cref="LocaleString.Key"/> is never modified.
     /// </summary>

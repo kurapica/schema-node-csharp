@@ -109,27 +109,38 @@ public class InitOntologyVectorsApi
     {
         int count = 0;
 
-        // Collect additional locales from translation labels (e.g. "zhCN", "zhTW").
-        // "enUS" is handled separately using the default (Language == null) labels.
         var extraLocales = OntologyTextTemplates.CollectLocales(graph)
             .Where(l => !l.Equals("enUS", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        // Always index with "enUS" using the default key labels.
+        // Block atoms — full SSP text, one block per schema entry per locale
         string sspDefault = OntologyTextTemplates.Render(graph, OntologyTextTemplates.FormatSsp, null);
-        foreach (var (key, content) in OntologySspParser.ParseBlocks(sspDefault))
+        foreach (SemanticAtom atom in OntologySspParser.ParseBlocks(sspDefault))
         {
-            await vectorService.IndexAsync(key, content, category, "enUS", cancellationToken);
+            await vectorService.IndexAsync(atom, category, "enUS", cancellationToken);
             count++;
         }
-
-        // Index each additional locale found in the graph.
         foreach (string locale in extraLocales)
         {
             string ssp = OntologyTextTemplates.Render(graph, OntologyTextTemplates.FormatSsp, locale);
-            foreach (var (key, content) in OntologySspParser.ParseBlocks(ssp))
+            foreach (SemanticAtom atom in OntologySspParser.ParseBlocks(ssp))
             {
-                await vectorService.IndexAsync(key, content, category, locale, cancellationToken);
+                await vectorService.IndexAsync(atom, category, locale, cancellationToken);
+                count++;
+            }
+        }
+
+        // Granular atoms — resolved directly from the typed model (labels already include DB locale data)
+        foreach (SemanticAtom atom in OntologySspParser.ParseAtoms(graph, "enUS"))
+        {
+            await vectorService.IndexAsync(atom, category, "enUS", cancellationToken);
+            count++;
+        }
+        foreach (string locale in extraLocales)
+        {
+            foreach (SemanticAtom atom in OntologySspParser.ParseAtoms(graph, locale))
+            {
+                await vectorService.IndexAsync(atom, category, locale, cancellationToken);
                 count++;
             }
         }

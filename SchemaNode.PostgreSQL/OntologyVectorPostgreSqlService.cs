@@ -1,6 +1,7 @@
 using Microsoft.SemanticKernel.Embeddings;
 using Npgsql;
 using Pgvector;
+using SchemaNode.AI.Ontology;
 using SchemaNode.AI.Services;
 
 namespace SchemaNode.PostgreSQL;
@@ -8,7 +9,7 @@ namespace SchemaNode.PostgreSQL;
 /// <summary>
 /// PostgreSQL + pgvector implementation of <see cref="IOntologyVectorService"/>.
 /// <para>
-/// Each SSP block is embedded via <see cref="ITextEmbeddingGenerationService"/> and stored
+/// Each <see cref="SemanticAtom"/> is embedded via <see cref="ITextEmbeddingGenerationService"/> and stored
 /// in a dedicated table with a <c>vector(N)</c> column.  Vector dimensions are controlled
 /// by <see cref="OntologyVectorOptions.Dimensions"/> — change this value to match your
 /// embedding model (e.g. 1536 for <c>text-embedding-3-small</c>).
@@ -38,16 +39,24 @@ public class OntologyVectorPostgreSqlService(
             CREATE TABLE IF NOT EXISTS "{_table}" (
                 id         BIGSERIAL    PRIMARY KEY,
                 schema_key TEXT         NOT NULL,
+                kind       TEXT         NOT NULL DEFAULT 'Block',
+                name       TEXT         NOT NULL DEFAULT '',
+                parent     TEXT,
                 locale     TEXT         NOT NULL DEFAULT 'enUS',
                 category   TEXT         NOT NULL,
                 content    TEXT         NOT NULL,
                 embedding  vector({options.Dimensions}),
                 indexed_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
             );
+            ALTER TABLE "{_table}" ADD COLUMN IF NOT EXISTS kind   TEXT NOT NULL DEFAULT 'Block';
+            ALTER TABLE "{_table}" ADD COLUMN IF NOT EXISTS name   TEXT NOT NULL DEFAULT '';
+            ALTER TABLE "{_table}" ADD COLUMN IF NOT EXISTS parent TEXT;
             ALTER TABLE "{_table}" ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'enUS';
             DROP INDEX IF EXISTS "{_table}_schema_key_idx";
             CREATE UNIQUE INDEX IF NOT EXISTS "{_table}_schema_key_locale_idx"
                 ON "{_table}" (schema_key, locale);
+            CREATE INDEX IF NOT EXISTS "{_table}_parent_idx"
+                ON "{_table}" (parent) WHERE parent IS NOT NULL;
             CREATE INDEX IF NOT EXISTS "{_table}_embedding_idx"
                 ON "{_table}" USING hnsw (embedding vector_cosine_ops);
             """;
@@ -59,34 +68,41 @@ public class OntologyVectorPostgreSqlService(
     {
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();
-        cmd.CommandText = $"""DELETE FROM "{_table}" WHERE schema_key = $1;""";
+        // Delete the block atom itself and all its child atoms (enum values, struct fields, …)
+        cmd.CommandText = $"""DELETE FROM "{_table}" WHERE schema_key = $1 OR parent = $1;""";
         cmd.Parameters.AddWithValue(schemaKey);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
 
     /// <inheritdoc />
     public async Task IndexAsync(
-        string schemaKey, string sspContent, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default)
+        SemanticAtom atom, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default)
     {
         IList<ReadOnlyMemory<float>> embeddings =
-            await embeddingService.GenerateEmbeddingsAsync([sspContent], cancellationToken: cancellationToken);
+            await embeddingService.GenerateEmbeddingsAsync([atom.Content], cancellationToken: cancellationToken);
         var vector = new Vector(embeddings[0].ToArray());
 
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();
         cmd.CommandText = $"""
-            INSERT INTO "{_table}" (schema_key, locale, category, content, embedding)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO "{_table}" (schema_key, kind, name, parent, locale, category, content, embedding)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             ON CONFLICT (schema_key, locale) DO UPDATE SET
+                kind       = EXCLUDED.kind,
+                name       = EXCLUDED.name,
+                parent     = EXCLUDED.parent,
                 category   = EXCLUDED.category,
                 content    = EXCLUDED.content,
                 embedding  = EXCLUDED.embedding,
                 indexed_at = NOW();
             """;
-        cmd.Parameters.AddWithValue(schemaKey);
+        cmd.Parameters.AddWithValue(atom.Id);
+        cmd.Parameters.AddWithValue(atom.Kind.ToString());
+        cmd.Parameters.AddWithValue(atom.Name);
+        cmd.Parameters.AddWithValue(atom.Parent is null ? DBNull.Value : (object)atom.Parent);
         cmd.Parameters.AddWithValue(locale);
         cmd.Parameters.AddWithValue(category.ToString());
-        cmd.Parameters.AddWithValue(sspContent);
+        cmd.Parameters.AddWithValue(atom.Content);
         cmd.Parameters.AddWithValue(vector);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -109,7 +125,7 @@ public class OntologyVectorPostgreSqlService(
         string whereClause = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
 
         cmd.CommandText = $"""
-            SELECT schema_key, category, content, locale, 1 - (embedding <=> $1) AS score
+            SELECT schema_key, kind, name, parent, category, content, locale, 1 - (embedding <=> $1) AS score
             FROM   "{_table}"
             {whereClause}
             ORDER  BY embedding <=> $1
@@ -127,10 +143,13 @@ public class OntologyVectorPostgreSqlService(
             results.Add(new OntologyVectorMatch
             {
                 SchemaKey = reader.GetString(0),
-                Category  = System.Enum.Parse<OntologyVectorCategory>(reader.GetString(1)),
-                Content   = reader.GetString(2),
-                Locale    = reader.GetString(3),
-                Score     = reader.GetDouble(4),
+                Kind      = System.Enum.TryParse<SemanticKind>(reader.GetString(1), out SemanticKind k) ? k : SemanticKind.Block,
+                Name      = reader.IsDBNull(2) ? null : reader.GetString(2),
+                Parent    = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Category  = System.Enum.Parse<OntologyVectorCategory>(reader.GetString(4)),
+                Content   = reader.GetString(5),
+                Locale    = reader.GetString(6),
+                Score     = reader.GetDouble(7),
             });
         }
         return results;

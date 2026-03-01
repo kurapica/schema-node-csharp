@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <LangVersion>13</LangVersion>
+	<TargetFramework>net10.0</TargetFramework>
+	<LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SchemaNode.Example</RootNamespace>
@@ -17,21 +17,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cszy.DistributedLock.Medallion" Version="0.0.195" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+    <PackageReference Include="Cszy.DistributedLock.Medallion" Version="0.0.240" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Npgsql" Version="10.0.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageReference Include="Npgsql.Json.NET" Version="9.0.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.6" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.6" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.6" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageReference Include="Npgsql.Json.NET" Version="10.0.1" />
+    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.4" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
     <ProjectReference Include="..\SchemaNode.Kafka\SchemaNode.Kafka.csproj" />
     <ProjectReference Include="..\SchemaNode.McpHost\SchemaNode.McpHost.csproj" />
     <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
+    <ProjectReference Include="..\SchemaNode.Ontology\SchemaNode.Ontology.csproj" />
     <ProjectReference Include="..\SchemaNode.PostgreSQL\SchemaNode.PostgreSQL.csproj" />
     <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
   </ItemGroup>

@@ -1,7 +1,9 @@
+using SchemaNode.AI.Ontology;
+
 namespace SchemaNode.AI.Services;
 
 /// <summary>
-/// Abstracts embedding generation and vector storage for SSP ontology blocks.
+/// Abstracts embedding generation and vector storage for SSP ontology atoms.
 /// Implement this interface with a concrete vector-database back-end
 /// (e.g. <c>SchemaNode.PostgreSQL.OntologyVectorPostgreSqlService</c>).
 /// </summary>
@@ -15,27 +17,23 @@ public interface IOntologyVectorService
     Task EnsureTableAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Embeds the given SSP content block and upserts it in the vector store,
-    /// keyed by <paramref name="schemaKey"/> + <paramref name="locale"/>.
-    /// Any previously indexed block with the same key and locale is replaced.
+    /// Embeds <see cref="SemanticAtom.Content"/> and upserts the atom in the vector store,
+    /// keyed by <see cref="SemanticAtom.Id"/> + <paramref name="locale"/>.
+    /// Any previously indexed atom with the same id and locale is replaced.
     /// </summary>
-    /// <param name="schemaKey">
-    /// The schema identifier, matching the <c>Schema:</c> header in the SSP block
-    /// (e.g. <c>"Order"</c>, <c>"OrderStatus"</c>).
-    /// </param>
-    /// <param name="sspContent">The full SSP block text to embed.</param>
-    /// <param name="category">Ontology partition this block belongs to.</param>
+    /// <param name="atom">The semantic atom to embed and store.</param>
+    /// <param name="category">Ontology partition this atom belongs to.</param>
     /// <param name="locale">
     /// Language tag the content was rendered in (e.g. <c>"enUS"</c>, <c>"zhCN"</c>).
-    /// Pass <c>"enUS"</c> for the default / key-only rendering.
     /// </param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    Task IndexAsync(string schemaKey, string sspContent, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default);
+    Task IndexAsync(SemanticAtom atom, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes all vectors indexed under <paramref name="schemaKey"/> from the store,
-    /// across all locales.
-    /// No-op when the key is not present.
+    /// Removes all vectors whose <c>schema_key</c> equals <paramref name="schemaKey"/> OR
+    /// whose <c>parent</c> equals <paramref name="schemaKey"/> from the store, across all locales.
+    /// This ensures that both the block atom and all its child atoms (enum values, struct fields, …)
+    /// are cleaned up together.  No-op when the key is not present.
     /// </summary>
     /// <param name="schemaKey">The schema key to delete (e.g. <c>"Order"</c>).</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -43,7 +41,7 @@ public interface IOntologyVectorService
 
     /// <summary>
     /// Embeds <paramref name="queryText"/> and returns the top-<paramref name="topK"/>
-    /// most similar ontology blocks ranked by cosine similarity.
+    /// most similar ontology atoms ranked by cosine similarity.
     /// </summary>
     /// <param name="queryText">Natural-language or structured query text.</param>
     /// <param name="topK">Maximum number of results to return (default 5).</param>

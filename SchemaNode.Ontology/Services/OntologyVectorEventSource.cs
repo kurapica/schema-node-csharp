@@ -175,19 +175,34 @@ public sealed class OntologyVectorEventSource : IEventSource
             .Where(l => !l.Equals("enUS", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
+        // Block atoms — full SSP text per locale
         string sspDefault = OntologyTextTemplates.Render(graph, OntologyTextTemplates.FormatSsp, null);
-        foreach (var (key, content) in OntologySspParser.ParseBlocks(sspDefault))
+        foreach (SemanticAtom atom in OntologySspParser.ParseBlocks(sspDefault))
         {
-            await vectorService.IndexAsync(key, content, category, "enUS");
+            await vectorService.IndexAsync(atom, category, "enUS");
             count++;
         }
-
         foreach (string locale in extraLocales)
         {
             string ssp = OntologyTextTemplates.Render(graph, OntologyTextTemplates.FormatSsp, locale);
-            foreach (var (key, content) in OntologySspParser.ParseBlocks(ssp))
+            foreach (SemanticAtom atom in OntologySspParser.ParseBlocks(ssp))
             {
-                await vectorService.IndexAsync(key, content, category, locale);
+                await vectorService.IndexAsync(atom, category, locale);
+                count++;
+            }
+        }
+
+        // Granular atoms — resolved directly from the typed model
+        foreach (SemanticAtom atom in OntologySspParser.ParseAtoms(graph, "enUS"))
+        {
+            await vectorService.IndexAsync(atom, category, "enUS");
+            count++;
+        }
+        foreach (string locale in extraLocales)
+        {
+            foreach (SemanticAtom atom in OntologySspParser.ParseAtoms(graph, locale))
+            {
+                await vectorService.IndexAsync(atom, category, locale);
                 count++;
             }
         }

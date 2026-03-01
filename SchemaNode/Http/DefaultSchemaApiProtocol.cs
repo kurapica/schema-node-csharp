@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -13,10 +13,10 @@ namespace SchemaNode.Http;
 public class DefaultSchemaApiProtocol: ISchemaApiProtocol
 {
     /// <inheritdoc />
-    public OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema) => innerSchema;
+    public IOpenApiSchema WrapResponseSchema(DocumentFilterContext context, IOpenApiSchema innerSchema) => innerSchema;
 
     /// <inheritdoc />
-    public OpenApiSchema WrapRequestSchema(DocumentFilterContext context, OpenApiSchema innerSchema) => innerSchema;
+    public IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema) => innerSchema;
     
     /// <inheritdoc />
     public TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest

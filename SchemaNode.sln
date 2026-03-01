@@ -21,7 +21,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.UnitTest", "Sche
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.PostgreSQL", "SchemaNode.PostgreSQL\SchemaNode.PostgreSQL.csproj", "{98CE8F3B-D7C8-ECCA-DB5D-C2BF029A2256}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.AI", "SchemaNode.AI\SchemaNode.AI.csproj", "{FC1B9AC8-BF97-421B-A8E0-CC3AA486064A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.Ontology", "SchemaNode.Ontology\SchemaNode.Ontology.csproj", "{FC1B9AC8-BF97-421B-A8E0-CC3AA486064A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
