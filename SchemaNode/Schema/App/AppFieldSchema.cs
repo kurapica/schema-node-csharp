@@ -15,8 +15,10 @@ namespace SchemaNode.Schema;
 /// The application field schema
 /// </summary>
 [SchemaApp]
-public class AppFieldSchema
+public sealed class AppFieldSchema
 {
+    #region Info
+
     /// <summary>
     /// the application name
     /// </summary>
@@ -30,7 +32,7 @@ public class AppFieldSchema
     [Index]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
-    
+
     /// <summary>
     /// The seqno
     /// </summary>
@@ -51,7 +53,11 @@ public class AppFieldSchema
     /// The field description
     /// </summary>
     public LocaleString? Desc { get; set; }
-    
+
+    #endregion
+
+    #region Push Rule
+
     /// <summary>
     /// The calculate function
     /// </summary>
@@ -62,6 +68,10 @@ public class AppFieldSchema
     /// The input field
     /// </summary>
     public string? Arg { get; set; }
+
+    #endregion
+
+    #region Auth
 
     /// <summary>
     /// The authentication policy
@@ -77,7 +87,11 @@ public class AppFieldSchema
     /// The column access policy
     /// </summary>
     public ColPolicyItem[]? ColAuths { get; set; }
-    
+
+    #endregion
+
+    #region Storage
+
     /// <summary>
     /// The field storage topology, which defines how the field data is stored in the database.
     /// </summary>
@@ -93,6 +107,10 @@ public class AppFieldSchema
     /// </summary>
     public string? AttrTableName { get; set; }
 
+    #endregion
+
+    #region View For other field
+
     /// <summary>
     /// The source app when the field is a view field
     /// </summary>
@@ -103,9 +121,14 @@ public class AppFieldSchema
     /// </summary>
     public string? SourceField { get; set; }
 
+    #endregion
+
+    #region Flags
+
     /// <summary>
     /// The field flags
     /// </summary>
+    [JsonIgnore]
     public AppFieldFlags Flags { get; set; } = AppFieldFlags.None;
 
     /// <summary>
@@ -149,16 +172,6 @@ public class AppFieldSchema
     }
 
     /// <summary>
-    /// Enable the template download for the field
-    /// </summary>
-    [NotMapped]
-    public bool? Template
-    {
-        get => Flags.Has(AppFieldFlags.Template);
-        init => Flags = Flags.Turn(AppFieldFlags.Template, value);
-    }
-
-    /// <summary>
     /// Enable the all clear option for the field
     /// </summary>
     [NotMapped]
@@ -167,12 +180,16 @@ public class AppFieldSchema
         get => Flags.Has(AppFieldFlags.AllowClear);
         init => Flags = Flags.Turn(AppFieldFlags.AllowClear, value);
     }
-    
+
     /// <summary>
     /// The dynamic table is maintained by system, means the schema don't create or update the table
     /// </summary>
     [NotMapped]
     public bool? SystemMaintain { get; set; }
+
+    #endregion
+
+    #region The data combine rules
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -183,11 +200,19 @@ public class AppFieldSchema
     /// The combine rule for struct or struct-array type
     /// </summary>
     public DataCombine[]? Combines { get; set; }
-    
+
+    #endregion
+
+    #region Filter
+
     /// <summary>
     /// The field filters
     /// </summary>
     public FieldFilter[]? Filters { get; set; }
+
+    #endregion
+
+    #region Status
 
     /// <summary>
     /// The additional data
@@ -200,28 +225,31 @@ public class AppFieldSchema
     /// </summary>
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
-    
-    #region Inner Type
-
-    [Flags]
-    public enum AppFieldFlags
-    {
-        None = 0,
-        Frontend = 1 << 0,
-        Disable = 1 << 1,
-        Readonly = 1 << 2,
-        IncrUpdate = 1 << 3,
-        AllowClear = 1 << 4,
-        Template = 1 << 5,
-    }
 
     #endregion
+
+}
+
+#region Supporting Types
+
+/// <summary>
+/// The app field flags for storage
+/// </summary>
+[Flags]
+public enum AppFieldFlags
+{
+    None = 0,
+    Frontend = 1 << 0,
+    Disable = 1 << 1,
+    Readonly = 1 << 2,
+    IncrUpdate = 1 << 3,
+    AllowClear = 1 << 4,
 }
 
 /// <summary>
 /// The row policy item
 /// </summary>
-public class RowPolicyItem
+public sealed class RowPolicyItem
 {
     /// <summary>
     /// The policy evaluatorm, if true will use the filter
@@ -253,7 +281,7 @@ public class RowPolicyItem
 /// <summary>
 /// The column policy item
 /// </summary>
-public class ColPolicyItem
+public sealed class ColPolicyItem
 {
     /// <summary>
     /// The struct field name
@@ -276,7 +304,7 @@ public class ColPolicyItem
 /// <summary>
 /// The field filter
 /// </summary>
-public class FieldFilter
+public sealed class FieldFilter
 {
     /// <summary>
     /// The filter mode
@@ -289,8 +317,10 @@ public class FieldFilter
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Filter { get; set; } = string.Empty;
     
-    /// <summary>
+    /// <summary>h
     /// The field filter resolve type, which defines how to resolve the filter when no match found
     /// </summary>
     public FieldFilterResolve? Resolve { get; set; }
 }
+
+#endregion

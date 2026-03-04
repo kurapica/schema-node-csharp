@@ -22,19 +22,17 @@ public class WaitAppEventWorkflow : EventWorkflow,
         {
             return context.SubscribeTopicEvent<AppEvent>(Event!, topic, _ =>
             {
-                SetPayload(context, new WaitAppEventWorkflowPayload
-                {
-                    App = Application.Name,
-                });
+                SetPayload(context, new WaitAppEventWorkflowPayload{
+                    App = Application.Name
+                }, new Access { App = Application.Name });
             });
         }
         else
         {
             return context.SubscribeTopicEventOnce<AppEvent>(Event!, topic, _ =>
             {
-                SetPayload(context, new WaitAppEventWorkflowPayload
-                {
-                    App = Application.Name,
+                SetPayload(context, new WaitAppEventWorkflowPayload{ 
+                    App = Application.Name 
                 });
             });
         }

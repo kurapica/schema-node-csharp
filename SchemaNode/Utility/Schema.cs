@@ -592,7 +592,7 @@ public static class Schema
                 {
                     // Join
                     StructTypeNode result = new(node);
-                    foreach (StructFieldConfig field in node.Fields)
+                    foreach (StructFieldSchema field in node.Fields)
                     {
                         switch (joinMethodMap.GetValueOrDefault(field.Name, DataCombineType.Assign))
                         {
@@ -1044,7 +1044,7 @@ public static class Schema
         // Struct: each field Display uses its own Key (e.g. "system.rangedate.start")
         if (schema.Struct != null)
         {
-            foreach (StructFieldConfig field in schema.Struct.Fields)
+            foreach (StructFieldSchema field in schema.Struct.Fields)
                 SystemLocale.Translate(field.Display);
         }
 
@@ -1115,7 +1115,7 @@ public static class Schema
             Display = name,
             Struct = new StructSchema
             {
-                Fields = fields.Select(f => new StructFieldConfig
+                Fields = fields.Select(f => new StructFieldSchema
                 {
                     Name = f.name,
                     Type = f.type,

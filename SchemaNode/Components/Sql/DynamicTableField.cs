@@ -65,7 +65,7 @@ public class DynamicTableField
     /// <summary>
     /// The struct field relation for struct type
     /// </summary>
-    public StructFieldRelation? StructRelation { get; init; }
+    public StructRelationSchema? StructRelation { get; init; }
     
     /// <summary>
     /// The relation type, either RelationType or StructRelation

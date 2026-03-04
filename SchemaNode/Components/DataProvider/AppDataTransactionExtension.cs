@@ -913,7 +913,7 @@ public static class AppDataTransactionExtension
                     Dictionary<string, DataCombineType> joinMethodMap = new();
 
                     // Default join
-                    foreach (StructFieldConfig f in @struct.Fields)
+                    foreach (StructFieldSchema f in @struct.Fields)
                     {
                         if (f.SchemeType is ScalarType s)
                             joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type
@@ -933,7 +933,7 @@ public static class AppDataTransactionExtension
                     else
                     {
                         StructTypeNode final = new StructTypeNode(@struct);
-                        foreach (StructFieldConfig nodeField in @struct.Fields)
+                        foreach (StructFieldSchema nodeField in @struct.Fields)
                         {
                             AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
                             AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
@@ -983,7 +983,7 @@ public static class AppDataTransactionExtension
                     // Gets the value fields
                     List<string> valueFields = new();
                     Dictionary<string, AnySchemaType> primaryNodes = new();
-                    foreach (StructFieldConfig fieldType in structNode.Fields)
+                    foreach (StructFieldSchema fieldType in structNode.Fields)
                     {
                         if (!array.Primary.Contains(fieldType.Name))
                         {

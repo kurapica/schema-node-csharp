@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
 using SchemaNode.Context;
@@ -14,7 +12,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory event schema representation
 /// </summary>
-public class EventType: AnySchemaType
+public sealed class EventType: AnySchemaType
 {
     #region Data
     

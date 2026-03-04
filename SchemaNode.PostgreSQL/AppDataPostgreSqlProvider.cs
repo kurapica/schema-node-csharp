@@ -1008,7 +1008,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     SchemaContext context = serviceProvider.GetService<SchemaContext>()!;
                     foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.HasTypeRelation))
                     {
-                        StructFieldConfig[] fields = dynamic.RelationType != null
+                        StructFieldSchema[] fields = dynamic.RelationType != null
                             ? await GetStructFieldConfigs(schema.AppFieldType, pack, dynamic.RelationType)
                             : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
                         if (fields.Length == 0) continue;
@@ -1173,7 +1173,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// <summary>
     /// Gets the struct field config for dynamic type from the relation
     /// </summary>
-    async Task<StructFieldConfig[]> GetStructFieldConfigs(AppFieldType appField, StructTypeNode node, AppRelationSchema relation)
+    async Task<StructFieldSchema[]> GetStructFieldConfigs(AppFieldType appField, StructTypeNode node, AppRelationSchema relation)
     {
         SchemaContext context = serviceProvider.GetService<SchemaContext>() ?? throw new Exception("The Schema context missing");
         if (relation.FuncNode == null) throw new Exception("The function node missing");
@@ -1220,7 +1220,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             ? $"{relation.FuncNode.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
             : null;
 
-        StructFieldConfig[]? fields = null;
+        StructFieldSchema[]? fields = null;
         if (!string.IsNullOrEmpty(uniqueKey) && _attrFields.TryGetValue(uniqueKey, out fields))
             return fields;
 
@@ -1229,7 +1229,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             JsonNode? result = await relation.FuncNode.CallAsync<JsonNode>(context, args, null, target);
             if (result is JsonArray arr)
             {
-                return arr.FromJson<StructFieldConfig[]>() ?? [];
+                return arr.FromJson<StructFieldSchema[]>() ?? [];
             }
             else if (result is JsonValue)
             {
@@ -1239,7 +1239,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     type = arrType.ElementSchemaType;
                 if (type is StructType structType)
                 {
-                    fields = structType.Fields.Select(f => new StructFieldConfig
+                    fields = structType.Fields.Select(f => new StructFieldSchema
                     {
                         Name = f.Name,
                         Type = f.Type
@@ -1264,7 +1264,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// <summary>
     /// Gets the struct field config for dynamic type from the relation, the relation is defined in the dynamic table field
     /// </summary>
-    async Task<StructFieldConfig[]> GetStructFieldConfigs(StructTypeNode node, StructFieldRelation relation)
+    async Task<StructFieldSchema[]> GetStructFieldConfigs(StructTypeNode node, StructRelationSchema relation)
     {
         SchemaContext context = serviceProvider.GetService<SchemaContext>() ?? throw new Exception("The Schema context missing");
         if (relation.FuncNode == null) throw new Exception("The function node missing");
@@ -1289,7 +1289,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             ? $"{relation.FuncNode.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
             : null;
 
-        StructFieldConfig[]? fields = null;
+        StructFieldSchema[]? fields = null;
         if (!string.IsNullOrEmpty(uniqueKey) && _attrFieldsFromStruct.TryGetValue(uniqueKey, out fields))
             return fields;
 
@@ -1299,7 +1299,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             switch (result)
             {
                 case JsonArray arr:
-                    return arr.FromJson<StructFieldConfig[]>() ?? [];
+                    return arr.FromJson<StructFieldSchema[]>() ?? [];
                 case JsonValue:
                 {
                     string typeName = result.ToJsonString().Trim('"');
@@ -1308,7 +1308,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         type = arrType.ElementSchemaType;
                     if (type is StructType structType)
                     {
-                        fields = structType.Fields.Select(f => new StructFieldConfig
+                        fields = structType.Fields.Select(f => new StructFieldSchema
                         {
                             Name = f.Name,
                             Type = f.Type
@@ -1336,7 +1336,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// <summary>
     /// Save the attribute-based field value to the attribute table
     /// </summary>
-    async Task SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldConfig[] fields, JsonObject? value, string prev, List<(string k, AnySchemaNode v)> primaries)
+    async Task SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema[] fields, JsonObject? value, string prev, List<(string k, AnySchemaNode v)> primaries)
     {
         string[] scopeKeys = scopeItems.Keys.ToArray();
         string tableRef = sqlProvider.QuoteTable(attrTable);
@@ -1347,7 +1347,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         // Conflict target = all primary key columns of the EAV table
         string conflictCols = string.Join(", ", scopeKeys.Select(sqlProvider.QuoteField).Concat(primaries.Select(p => sqlProvider.QuoteField(p.k))).Concat([_refAttrField]));
 
-        foreach (StructFieldConfig field in fields.Where(f => f.DisplayOnly != true))
+        foreach (StructFieldSchema field in fields.Where(f => f.DisplayOnly != true))
         {
             AnySchemaType? type = await context.GetSchemaTypeAsync(field.Type);
             if (type == null)
@@ -1447,13 +1447,13 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         }
     }
 
-    async Task DeleteAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldConfig field, string prev, List<(string k, AnySchemaNode v)> primaries)
+    async Task DeleteAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, AnySchemaNode v)> primaries)
     {
         string attrField = $"{prev}_{field.Name}";
         AnySchemaType? type = await context.GetSchemaTypeAsync(attrField);
         if (type is StructType @struct)
         {
-            foreach (StructFieldConfig f in @struct.Fields.Where(f => f.DisplayOnly != true))
+            foreach (StructFieldSchema f in @struct.Fields.Where(f => f.DisplayOnly != true))
             {
                 await DeleteAttributeBasedFieldAsync(context, attrTable, scopeItems, f, attrField, primaries);
             }
@@ -1486,7 +1486,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 foreach ((string fld, AnySchemaNode? v) in schema.GetFieldValues(pack, true))
                     primaries.Add((fld, v!));
 
-                foreach (StructFieldConfig field in fields)
+                foreach (StructFieldSchema field in fields)
                 {
                     await DeleteAttributeBasedFieldAsync(context, schema.AppFieldType.AttributeTableName, scopeItems, field, dynamic.Name.ToLower(), primaries);
                 }
@@ -1577,8 +1577,8 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     private readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<AppDataPostgreSqlProvider>>);
 
     private readonly Dictionary<string, AnySchemaNode?> _relationDataCache = [];
-    private readonly Dictionary<string, StructFieldConfig[]> _attrFields = [];
-    private readonly Dictionary<string, StructFieldConfig[]> _attrFieldsFromStruct = [];
+    private readonly Dictionary<string, StructFieldSchema[]> _attrFields = [];
+    private readonly Dictionary<string, StructFieldSchema[]> _attrFieldsFromStruct = [];
 
     #endregion
 }

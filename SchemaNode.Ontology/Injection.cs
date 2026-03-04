@@ -3,10 +3,10 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
 using OpenAI;
-using SchemaNode.AI.Services;
+using SchemaNode.Ontology.Services;
 using SchemaNode.Components;
 
-namespace SchemaNode.AI;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// Dependency-injection extensions for <c>SchemaNode.AI</c>.
@@ -79,18 +79,18 @@ public static class SchemaNodeAIInjection
                 if (opts.Endpoint is { Length: > 0 } customEp)
                 {
                     // OpenAI-compatible server at a custom URL (e.g. LM Studio, LocalAI).
-                    builder.AddOpenAITextEmbeddingGeneration(
+                    builder.AddOpenAIEmbeddingGenerator(
                         opts.ModelId,
                         BuildOpenAIClient(opts.ApiKey ?? "", new Uri(customEp)));
                 }
                 else
                 {
-                    builder.AddOpenAITextEmbeddingGeneration(opts.ModelId, opts.ApiKey ?? "");
+                    builder.AddOpenAIEmbeddingGenerator(opts.ModelId, opts.ApiKey ?? "");
                 }
                 break;
 
             case EmbeddingProvider.AzureOpenAI:
-                builder.AddAzureOpenAITextEmbeddingGeneration(
+                builder.AddAzureOpenAIEmbeddingGenerator(
                     deploymentName: opts.DeploymentName ?? opts.ModelId,
                     endpoint:       opts.Endpoint ?? "",
                     apiKey:         opts.ApiKey   ?? "");
@@ -103,7 +103,7 @@ public static class SchemaNodeAIInjection
                     : "http://localhost:11434";
                 if (!baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
                     baseUrl += "/v1";
-                builder.AddOpenAITextEmbeddingGeneration(
+                builder.AddOpenAIEmbeddingGenerator(
                     opts.ModelId,
                     BuildOpenAIClient("ollama", new Uri(baseUrl)));  // Ollama ignores the key
                 break;

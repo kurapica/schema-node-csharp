@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The schema of the recognizer type
 /// </summary>
-public class RecognizerSchema
+public sealed class RecognizerSchema
 {
     /// <summary>
     /// The recognizer name

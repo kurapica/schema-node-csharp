@@ -1,5 +1,5 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
-namespace SchemaNode.AI.Ontology;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// The semantic kind of the ownership / scoping relationship derived from an App's <c>ScopePolicy</c>.
@@ -147,7 +147,7 @@ public class OntologyEntityClass
 }
 
 /// <summary>
-/// A column/field inside an <see cref="OntologyEntityClass"/>, derived from <see cref="Schema.StructFieldConfig"/>.
+/// A column/field inside an <see cref="OntologyEntityClass"/>, derived from <see cref="Schema.StructFieldSchema"/>.
 /// </summary>
 public class OntologyEntityProperty
 {
@@ -186,6 +186,13 @@ public class OntologyEntityProperty
     /// semantic name (e.g. <c>"event"</c> for field <c>"eventId"</c>).
     /// </summary>
     public string? SemanticName { get; init; }
+
+    /// <summary>
+    /// When <see cref="IsForeignKey"/> is <see langword="true"/>, holds the resolved range IRI
+    /// of the inferred semantic <c>owl:ObjectProperty</c> (e.g. <c>"app:SomeEntity"</c> or
+    /// <c>"owl:Thing"</c> as fallback). Populated by a post-pass after all entity classes are built.
+    /// </summary>
+    public string? SemanticRangeIri { get; set; }
 }
 
 /// <summary>
@@ -447,4 +454,7 @@ public class OntologyGraph
 
     /// <summary>IRI prefix for enum classes (<c>{BaseUri}enum/</c>).</summary>
     public string EnumPrefix => $"{BaseUri}enum/";
+
+    /// <summary>IRI prefix for ontology-level annotation properties (<c>{BaseUri}ont/</c>).</summary>
+    public string OntPrefix => $"{BaseUri}ont/";
 }

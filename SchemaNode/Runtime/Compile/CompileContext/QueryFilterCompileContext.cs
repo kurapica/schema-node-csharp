@@ -82,7 +82,7 @@ public class QueryFilterCompileContext : CompileContext
                         var relation = _queryType.Relations?.FirstOrDefault(r => r.Type == RelationType.Default && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
                         if (relation?.FuncNode == null) throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
 
-                        if (GetAppFieldDataFuncs.Contains(relation.Func, StringComparer.OrdinalIgnoreCase))
+                        if (DynamicTableSchema.IsReferenceFunc(relation.Func))
                         {
                             // From third app field, leave it to data source to handle
                             args[i] = new QueryFieldAccessExpression(fExp.FieldName, fExp.SchemaType);
@@ -95,7 +95,7 @@ public class QueryFilterCompileContext : CompileContext
                                 FuncCallArg a = relation.Args[j];
                                 if (!string.IsNullOrWhiteSpace(a.Name))
                                 {
-                                    StructFieldConfig? fld = _queryType.GetField(a.Name);
+                                    StructFieldSchema? fld = _queryType.GetField(a.Name);
                                     if (fld == null)
                                         throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
                                     replaceArgs[j] = new FieldAccessExp(fExp.Owner, fld.Name, fld.SchemeType!);

@@ -15,5 +15,5 @@ public class DynamicTableJoin
     /// <summary>
     /// The join data field
     /// </summary>
-    public Dictionary<string, AppSchemaDataFilter> Matches { get; set; } = null;
+    public Dictionary<string, AppSchemaDataFilter> Matches { get; set; } = null!;
 }

@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public class ArrayType: AnySchemaType
+public sealed class ArrayType: AnySchemaType
 {
     #region Data
     
@@ -48,7 +48,7 @@ public class ArrayType: AnySchemaType
     /// <summary>
     /// The relation between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; private set; }
+    public StructRelationSchema[]? Relations { get; private set; }
     
     /// <summary>
     /// The additional data
@@ -110,7 +110,7 @@ public class ArrayType: AnySchemaType
         // Relation
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 AnySchemaType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (node is not FunctionType funcNode)
@@ -133,7 +133,7 @@ public class ArrayType: AnySchemaType
 
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 relation.FuncNode?.RemoveRef(this);
                 relation.FuncNode = null;
@@ -198,7 +198,7 @@ public class ArrayType: AnySchemaType
         {
             if (obj.ContainsKey(p))
             {
-                StructFieldConfig? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
+                StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
                 if (fld == null) return null;
                 string part = fld.SchemeType is ScalarType { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
                 key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
@@ -222,7 +222,7 @@ public class ArrayType: AnySchemaType
         string? key = null;
         foreach (string p in Primary)
         {
-            StructFieldConfig? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
+            StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
             if (fld == null) return null;
             string part = fld.SchemeType is ScalarType { IsDate: true } ? $"{obj.GetField(p)!.ToValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
             key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
@@ -237,7 +237,7 @@ public class ArrayType: AnySchemaType
         
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 if (relation.FuncNode != null)
                     yield return relation.FuncNode;

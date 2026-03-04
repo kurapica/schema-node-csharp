@@ -1,4 +1,4 @@
-namespace SchemaNode.AI.Services;
+namespace SchemaNode.Ontology.Services;
 
 /// <summary>
 /// Selects the embedding back-end wired into the Semantic Kernel.

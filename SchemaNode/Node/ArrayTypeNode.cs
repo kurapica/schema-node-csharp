@@ -157,7 +157,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     internal ArrayTypeNode FilterByPrimaryKeys(string[] primaryKeys)
     {
         if (ElementType is not StructType @struct || primaryKeys.Any(k => @struct.GetField(k) == null)) return this;
-        StructFieldConfig[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
+        StructFieldSchema[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
         return new ArrayTypeNode(@struct)
         {
             _elements = _elements.Where(e =>

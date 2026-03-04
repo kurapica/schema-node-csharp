@@ -19,7 +19,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public class StructType: AnySchemaType
+public sealed class StructType: AnySchemaType
 {
     #region Data
     
@@ -31,12 +31,12 @@ public class StructType: AnySchemaType
     /// <summary>
     /// The struct fields
     /// </summary>
-    public StructFieldConfig[] Fields { get; set; } = [];
+    public StructFieldSchema[] Fields { get; set; } = [];
     
     /// <summary>
     /// The relations between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The additional data
@@ -92,7 +92,7 @@ public class StructType: AnySchemaType
         }
         
         // Load Fields
-        foreach (StructFieldConfig field in Fields)
+        foreach (StructFieldSchema field in Fields)
         {
             AnySchemaType? schemaType = await context.GetSchemaTypeAsync(field.Type, preload: preload);
             if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
@@ -110,7 +110,7 @@ public class StructType: AnySchemaType
         // Load Relation
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 AnySchemaType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
                 if (funcNode is not FunctionType node)
@@ -131,7 +131,7 @@ public class StructType: AnySchemaType
     {
         BaseNode?.RemoveRef(this);
         BaseNode = null;
-        foreach (StructFieldConfig config in Fields)
+        foreach (StructFieldSchema config in Fields)
         {
             config.SchemeType?.RemoveRef(this);
             config.SchemeType = null;
@@ -139,7 +139,7 @@ public class StructType: AnySchemaType
 
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 relation.FuncNode?.RemoveRef(this);
                 relation.FuncNode = null;
@@ -169,7 +169,7 @@ public class StructType: AnySchemaType
         StructTypeNode result = new(this);
         JsonObject? error = null;
         string? additionalField = null;
-        foreach (StructFieldConfig field in Fields)
+        foreach (StructFieldSchema field in Fields)
         {
             if (field.DisplayOnly ?? false) continue;
             if (field.SchemeType is null) continue;
@@ -193,7 +193,7 @@ public class StructType: AnySchemaType
             }
             else if (field.Require ?? false)
             {
-                StructFieldRelation? r = Relations?.FirstOrDefault(r => 
+                StructRelationSchema? r = Relations?.FirstOrDefault(r => 
                     r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
                     r.Type is RelationType.InitOnly or RelationType.Assign or RelationType.Default);
 
@@ -259,7 +259,7 @@ public class StructType: AnySchemaType
                @struct.Fields.Any(v => Fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
                && @struct.Fields.All(v =>
                {
-                   StructFieldConfig? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
+                   StructFieldSchema? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
                    return match?.SchemeType == null ? !(v.Require ?? false) : v.SchemeType != null && match.SchemeType.CanBeUseAs(v.SchemeType);
                });
     }
@@ -267,14 +267,14 @@ public class StructType: AnySchemaType
     public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (BaseNode != null) yield return BaseNode;
-        foreach (StructFieldConfig field in Fields)
+        foreach (StructFieldSchema field in Fields)
         {
             if (field.SchemeType != null)
                 yield return field.SchemeType;
         }
         if (Relations != null)
         {
-            foreach (StructFieldRelation relation in Relations)
+            foreach (StructRelationSchema relation in Relations)
             {
                 if (relation.FuncNode != null)
                     yield return relation.FuncNode;
@@ -290,7 +290,7 @@ public class StructType: AnySchemaType
     /// <summary>
     /// Gets the field by name
     /// </summary>
-    public StructFieldConfig? GetField(string fieldName) 
+    public StructFieldSchema? GetField(string fieldName) 
         => Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
 
     #endregion
@@ -313,7 +313,7 @@ public class StructType: AnySchemaType
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         bool hasNestArray = false;
 
-        List<StructFieldConfig> fieldConfigs = [];
+        List<StructFieldSchema> fieldConfigs = [];
         foreach (PropertyInfo p in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>
                      p.GetMethod?.IsPrivate != true &&
                      p.GetCustomAttribute<NotMappedAttribute>() == null &&
@@ -345,7 +345,7 @@ public class StructType: AnySchemaType
                     continue;
             }
             
-            StructFieldConfig config = new ()
+            StructFieldSchema config = new ()
             {
                 Name = fieldName,
                 Type = fieldType,
@@ -434,7 +434,7 @@ public class StructType: AnySchemaType
         if (Utility.SystemLocale.HasLocales)
         {
             Utility.SystemLocale.Translate(structSchema.Display, structSchema.Name);
-            foreach (StructFieldConfig field in structSchema.Struct!.Fields)
+            foreach (StructFieldSchema field in structSchema.Struct!.Fields)
                 Utility.SystemLocale.Translate(field.Display);
         }
 
@@ -508,18 +508,18 @@ public class StructType: AnySchemaType
             Name = $"{Name}<{string.Join(',', types)}>",
             Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
             Base = Name,
-            Fields = new StructFieldConfig[Fields.Length],
+            Fields = new StructFieldSchema[Fields.Length],
             Namespace = Namespace,
             Relations = Relations
         };
 
         for (int i = 0; i < Fields.Length; i++)
         {
-            StructFieldConfig f = Fields[i];
+            StructFieldSchema f = Fields[i];
             
             if (f.SchemeType is GenericType)
             {
-                StructFieldConfig copy = f.ToJsonNode()!.FromJson<StructFieldConfig>()!;
+                StructFieldSchema copy = f.ToJsonNode()!.FromJson<StructFieldSchema>()!;
                 int index = Array.IndexOf(generics, f.Type);
                 copy.Type = types[index];
                 AnySchemaType? schemaType = await context.GetSchemaTypeAsync(copy.Type);

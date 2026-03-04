@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 
 namespace SchemaNode.Components;
 
@@ -24,39 +22,41 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
-            List<JsonNode> origins = [];
-            
+            List<AnySchemaNode> origins = [];
+
             if (filter == null)
             {
                 origins = list;
             }
             else
             {
-                foreach (JsonNode t in list)
+                foreach (StructTypeNode t in list.Cast<StructTypeNode>())
                 {
-                    if (t is JsonObject record && Match(filter, record))
+                    if (filter.Test(t).ToValue<bool>())
                         origins.Add(t);
                 }
             }
 
             int total = origins.Count;
 
-            
-            if (skip > 0) origins = origins.Skip(skip).ToList();
-            if (take > 0) origins = origins.Take(take).ToList();
+            if (take > 0)
+            {
+                if (skip > 0) origins = origins.Skip(skip).ToList();
+                origins = origins.Take(take).ToList();
+            }
             if (orderBy != null)
             {
                 foreach (AppSchemaDataOrder t in orderBy)
                 {
                     origins.Sort((a, b) =>
                     {
-                        string aKey = ((JsonObject)a)[t.Field]!.GetValue<string>();
-                        string bKey = ((JsonObject)b)[t.Field]!.GetValue<string>();
+                        string aKey = (a is StructTypeNode sa ? sa.GetField(t.Field)?.ToString() : null) ?? string.Empty;
+                        string bKey = (b is StructTypeNode sb ? sb.GetField(t.Field)?.ToString() : null) ?? string.Empty;
                         int result = String.Compare(aKey, bKey, StringComparison.Ordinal);
                         return t.Desc ? -1 * result : result;
                     });
@@ -67,17 +67,17 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
             {
                 AppSchemaDataResult.Count => (SchemaContext.SystemInt.CreateNode(total), total),
                 AppSchemaDataResult.Exist => (SchemaContext.SystemBool.CreateNode(total > 0), total),
-                AppSchemaDataResult.First => (origins.Count > 0 ? schema.SchemaType.CreateNode(origins[0]) : null, total),
-                AppSchemaDataResult.Last => (origins.Count > 0 ? schema.SchemaType.CreateNode(origins[^1]) : null, total),
+                AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
+                AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
                 AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!, 
-                    origins.Select(o => ((JsonObject)o)[dataField!]).Where(x => x != null).Select(x => x!.DeepClone()).ToArray()), total),
+                    origins.Select(o => o is StructTypeNode sn ? sn.GetField(dataField!) : null).Where(x => x != null && !x.IsEmpty).Select(x => x!).ToArray()), total),
                 _ => (new ArrayTypeNode(schema.SchemaType, origins), total)
             };
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
-            return (schema.SchemaType.CreateNode(origin), origin == null ? 0 : 1);
+            AnySchemaNode? origin = list.FirstOrDefault();
+            return (origin, origin == null ? 0 : 1);
         }
     }
 
@@ -85,20 +85,20 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
             Dictionary<string, int> dict = [];
             for(int i = 0; i < list.Count; i++)
-                dict[schema.GetPrimaryKey((JsonObject)list[i])!] = i;
+                if (list[i] is StructTypeNode sni && schema.GetPrimaryKey(sni) is { } k) dict[k] = i;
             
             switch (data)
             {
                 case ArrayTypeNode arrayTypeNode:
                 {
-                    List<JsonNode> origins = [];
+                    List<AnySchemaNode> origins = [];
                     List<AnySchemaNode> updates = [];
                     foreach (AnySchemaNode item in arrayTypeNode)
                     {
@@ -107,14 +107,14 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                         if (dict.TryGetValue(key, out int index))
                         {
                             if (onlyAdd) continue; // no update
-                            JsonNode origin = list[index];
-                            list[index] = item.ToJson()!;
+                            AnySchemaNode origin = list[index];
+                            list[index] = item;
                             origins.Add(origin);
                             updates.Add(item);
                         }
                         else if (canAdd)
                         {
-                            list.Add(item.ToJson()!);
+                            list.Add(item);
                             updates.Add(item);
                         }
                         else
@@ -131,13 +131,13 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                     if (dict.TryGetValue(key, out int index))
                     {
                         if (onlyAdd) return (false, null, null); // no update
-                        JsonNode origin = list[index];
-                        list[index] = structTypeNode.ToJson()!;
+                        AnySchemaNode origin = list[index];
+                        list[index] = structTypeNode;
                         return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), new ArrayTypeNode(schema.SchemaType, origin));
                     }
                     else if (canAdd)
                     {
-                        list.Add(structTypeNode.ToJson()!);
+                        list.Add(structTypeNode);
                         return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), null);
                     }
                     else
@@ -151,10 +151,10 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
+            AnySchemaNode? origin = list.FirstOrDefault();
             list.Clear();
-            if (data != null) list.Add(data.ToJson()!);
-            return (true, data, schema.SchemaType.CreateNode(origin));
+            if (data != null) list.Add(data);
+            return (true, data, origin);
         }
     }
 
@@ -165,8 +165,8 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        if (table.TryRemove(compositeKey, out List<JsonNode>? list))
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        if (table.TryRemove(compositeKey, out List<AnySchemaNode>? list))
         {
             return (true, new ArrayTypeNode(schema.SchemaType, list));
         }
@@ -178,17 +178,17 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
-        List<JsonNode> list = table.GetOrAdd(compositeKey, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
-            List<JsonNode> origins = [];
-            List<JsonNode> remains = [];
+            List<AnySchemaNode> origins = [];
+            List<AnySchemaNode> remains = [];
 
-            foreach (JsonNode t in list)
+            foreach (StructTypeNode t in list.Cast<StructTypeNode>())
             {
-                if (t is JsonObject record && Match(filter, record))
+                if (filter == null || filter.Test(t).ToValue<bool>())
                     origins.Add(t);
                 else
                     remains.Add(t);
@@ -199,9 +199,9 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
+            AnySchemaNode? origin = list.FirstOrDefault();
             list.Clear();
-            return (true, schema.SchemaType.CreateNode(origin));
+            return (true, origin);
         }
     }
     
@@ -228,7 +228,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
 
     #region Utility
 
-    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<JsonNode>>> _dynamicTables = [];
+    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<AnySchemaNode>>> _dynamicTables = [];
 
     /// <summary>
     /// Prepare the composite key from scope and target fields
@@ -248,171 +248,6 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         // If no scope and no target, use a default key
         return keyParts.Count > 0 ? string.Join("|", keyParts) : "_default";
     }
-
-    private bool Match(AppSchemaDataFilter filter, JsonObject record)
-    {
-        switch (filter)
-        {
-            case AppSchemaDataFilterValue v:
-                // Filter value should not appear alone as partial evaluation result, but if it does, check its truthiness? 
-                // In binary ops it's used as operand. 
-                // If it appears here, it might be a constant true/false filter.
-                return v.Value switch
-                {
-                    bool boolVal => boolVal,
-                    AnySchemaNode n => !n.IsEmpty,
-                    _ => true
-                };
-
-            case AppSchemaDataFilterField f:
-                // Check if field exists and is "true" (not null/empty/false)
-                var fieldVal = record[f.Field];
-                if (fieldVal == null) return false;
-                if (fieldVal is JsonValue jv && jv.TryGetValue(out bool boolVal2)) return boolVal2;
-                return true;
-
-            case AppSchemaDataFilterUnary u:
-                return MatchUnary(u, record);
-
-            case AppSchemaDataFilterBinary binaryVal:
-                return MatchBinary(binaryVal, record);
-                
-            default:
-                return false;
-        }
-    }
-
-    private bool MatchUnary(AppSchemaDataFilterUnary unary, JsonObject record)
-    {
-        // For unary, we typically check operands. But wait, IsNull/IsEmpty applies to a field usually represented by Operand.
-        // If operand is a field, we get its value. If it's a value, we check it directly.
         
-        JsonNode? val = GetValue(unary.Operand, record);
-        
-        switch (unary.Type)
-        {
-            case LogicType.Not:
-                return !Match(unary.Operand, record);
-            case LogicType.IsNull:
-                return val == null;
-            case LogicType.NotNull:
-                return val != null;
-            case LogicType.IsEmpty:
-                return val == null || val.ToString() == string.Empty; // Simplified empty check
-            case LogicType.NotEmpty:
-                return val != null && val.ToString() != string.Empty;
-            default:
-                return false;
-        }
-    }
-
-    private bool MatchBinary(AppSchemaDataFilterBinary binary, JsonObject record)
-    {
-        if (binary.Type == LogicType.AndAlso)
-        {
-            if (binary.Left is AppSchemaDataFilterValue { Value: bool leftBool })
-                return leftBool && Match(binary.Right, record);
-            if (binary.Right is AppSchemaDataFilterValue { Value: bool rightBool })
-                return Match(binary.Left, record) && rightBool;
-                
-            return Match(binary.Left, record) && Match(binary.Right, record);
-        }
-
-        if (binary.Type == LogicType.OrElse)
-        {
-            if (binary.Left is AppSchemaDataFilterValue { Value: bool leftBool })
-                return leftBool || Match(binary.Right, record);
-            if (binary.Right is AppSchemaDataFilterValue { Value: bool rightBool })
-                return Match(binary.Left, record) || rightBool;
-
-            return Match(binary.Left, record) || Match(binary.Right, record);
-        }
-
-        JsonNode? left = GetValue(binary.Left, record);
-        
-        // optimize for contains
-        if (binary.Type == LogicType.Contains)
-        {
-             // Left should be the list (value), Right is the field (or value)
-             // But wait, standard is: Collection.Contains(Item). 
-             // In Filter: Left is Collection, Right is Item.
-             // Usually Left is AppSchemaDataFilterValue (the list of ids), Right is AppSchemaDataFilterField (the record's id).
-             
-             if (binary.Left is AppSchemaDataFilterValue leftVal && leftVal.Value is ArrayTypeNode)
-             {
-                 // If left was Value, GetValue returns it. If left is field, it returns record data.
-                 // Actually GetValue(binary.Left, record) already resolved Left.
-                 
-                 // If binary.Left is the collection value:
-                 // GetValue will return the collection as JsonNode (or AnySchemaNode wrapped). 
-                 // But GetValue implementation below returns JsonNode.
-                 
-                 // Let's rely on binary members.
-                 
-                 // Check if it is "List Contains Field" pattern
-                 IEnumerable<JsonNode?>? list = null;
-                 if (left is JsonArray arr) list = arr;
-                 else if (binary.Left is AppSchemaDataFilterValue v && v.Value is ArrayTypeNode atn) 
-                     list = atn.Select(x => x.ToJson());
-                 
-                 if (list != null)
-                 {
-                     string? itemVal = GetValue(binary.Right, record)?.ToString();
-                     return list.Any(x => x?.ToString() == itemVal);
-                 }
-             }
-        }
-        
-        // Resolve right value for other ops
-        JsonNode? right = GetValue(binary.Right, record);
-        
-        string? lStr = left?.ToString();
-        string? rStr = right?.ToString();
-
-        switch (binary.Type)
-        {
-            case LogicType.Equal:
-                return lStr == rStr;
-            case LogicType.NotEqual:
-                return lStr != rStr;
-            case LogicType.GreaterThan:
-                return string.CompareOrdinal(lStr, rStr) > 0; // Simplified string compare
-            case LogicType.GreaterEqual:
-                return string.CompareOrdinal(lStr, rStr) >= 0;
-            case LogicType.LessThan:
-                return string.CompareOrdinal(lStr, rStr) < 0;
-            case LogicType.LessEqual:
-                return string.CompareOrdinal(lStr, rStr) <= 0;
-            case LogicType.Contains: // String contains
-                return lStr != null && rStr != null && lStr.Contains(rStr);
-            case LogicType.NotContains:
-                return lStr != null && rStr != null && !lStr.Contains(rStr);
-            case LogicType.StartsWith:
-                return lStr != null && rStr != null && lStr.StartsWith(rStr);
-            case LogicType.EndsWith:
-                return lStr != null && rStr != null && lStr.EndsWith(rStr);
-            case LogicType.Match: // Text match
-                return lStr != null && rStr != null && lStr.Contains(rStr);
-            default:
-                return false;
-        }
-    }
-
-    private JsonNode? GetValue(AppSchemaDataFilter filter, JsonObject record)
-    {
-        return filter switch
-        {
-            AppSchemaDataFilterValue v => v.Value switch
-            {
-                AnySchemaNode n => n.ToJson(),
-                JsonValue j => JsonValue.Create(j.ToValue<string>()),
-                string s => JsonValue.Create(s),
-                _ => JsonValue.Create(v.Value)
-            },
-            AppSchemaDataFilterField f => record[f.Field],
-            _ => null // Complex expr as value? Not supported in simple evaluator
-        };
-    }
-    
     #endregion
 }

@@ -243,14 +243,14 @@ public static class SystemCollection
         if (obj is not StructTypeNode s) return null;
         
         StructType structType = (s.SchemaType as StructType)! ;
-        StructFieldConfig? fldConfig = structType.GetField(paths[0]);
+        StructFieldSchema? fldConfig = structType.GetField(paths[0]);
         AnySchemaNode? field = s.GetField(paths[0]);
         if (field == null) return null;
         if (fldConfig?.DisplayOnly != true)
             return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
         
         // Calc the display only field
-        StructFieldRelation? relation = structType.Relations?.FirstOrDefault(r =>
+        StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
             r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
             r.Type is RelationType.Default or RelationType.Assign);
         if (relation == null) return null;

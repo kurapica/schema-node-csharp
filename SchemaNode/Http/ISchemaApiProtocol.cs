@@ -266,7 +266,6 @@ public interface ISchemaApiProtocol
             Name= name,
             Request= reqMeta,
             Response= resMeta,
-            Plugins = Injection.Plugins.ToArray()
         };
     }
 
@@ -312,8 +311,4 @@ internal class SchemaApiProtocolMeta
     public string? Name { get; init; }
     public SchemaApiProtocolRequestMeta? Request { get; init; } 
     public SchemaApiProtocolResponseMeta? Response { get; init; }
-    /// <summary>
-    /// The plugins used in this server
-    /// </summary>
-    public string[]? Plugins { get; init; }
 }

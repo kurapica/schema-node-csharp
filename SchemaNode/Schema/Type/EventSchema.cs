@@ -9,7 +9,7 @@ namespace SchemaNode.Schema;
 /// The event schema
 /// </summary>
 [SchemaApp]
-public class EventSchema
+public sealed class EventSchema
 {
     /// <summary>
     /// The event name

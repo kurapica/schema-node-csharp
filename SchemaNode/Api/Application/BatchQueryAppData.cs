@@ -231,7 +231,7 @@ public static class BatchQueryExtension
                         if (@struct != null)
                         {
                             List<string>? ignoreFields = null;
-                            foreach (StructFieldConfig f in @struct.Fields)
+                            foreach (StructFieldSchema f in @struct.Fields)
                             {
                                 // Authorize with order
                                 bool authorized = true;
@@ -293,7 +293,7 @@ public static class BatchQueryExtension
                     ScopePolicy = node.ScopePolicy,
                     HasFields = node.Fields is { Count: > 0 },
                     Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
-                    Relations = node.Relations?.Select(r => new StructFieldRelation
+                    Relations = node.Relations?.Select(r => new StructRelationSchema
                     {
                         Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                         Type = r.Type,
@@ -398,7 +398,7 @@ public static class BatchQueryExtension
             case StructType @struct:
                 if (value is StructTypeNode obj)
                 {
-                    foreach (StructFieldConfig f in @struct.Fields)
+                    foreach (StructFieldSchema f in @struct.Fields)
                     {
                         AnySchemaNode? v = obj.GetField(f.Name);
                         if (v is { IsEmpty: false })

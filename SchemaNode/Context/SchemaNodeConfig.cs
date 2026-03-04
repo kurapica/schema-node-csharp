@@ -10,12 +10,12 @@ public class SchemaNodeConfig
     /// <summary>
     /// The max take count for increment field
     /// </summary>
-    public int IncrFieldMaxTakeCount { get; set; } = 20;
+    public int IncrFieldMaxTakeCount { get; set; } = 50;
     
     /// <summary>
     /// The default take count for increment field
     /// </summary>
-    public int IncrFieldDefaultTakeCount { get; set; } = 5;
+    public int IncrFieldDefaultTakeCount { get; set; } = 20;
     
     /// <summary>
     /// The max concurrent threads for quartz scheduler

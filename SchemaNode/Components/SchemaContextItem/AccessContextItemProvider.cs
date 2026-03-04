@@ -96,6 +96,16 @@ public sealed class AccessScope(SchemaContext context) : IDisposable
 /// </summary>
 public static class AccessContextItemProviderExtensions
 {
+    public static void SetAccess(this SchemaContext context, Access access)
+    {
+        // Clear the policy evaluation cache
+        context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+        
+        // Gets the shared access
+        var sharedAccess = context.GetRequiredService<Access>();
+        sharedAccess.SetAccess(access.App, access.Target, access.Locale);
+    }
+
     /// <summary>
     /// Set the access information
     /// </summary>

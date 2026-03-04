@@ -148,13 +148,6 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                 switch (funcCallExp.Function.Name)
                 {
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}":
-                        // parameter fetch should not be used in data push
-                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
-
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false } appExp &&
@@ -228,13 +221,6 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                         break;
                     }
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}":
-                        // parameter fetch should not be used in data push
-                        throw new FunctionVisitException(SchemaNodeStatus.ApplicationPushDataWrongFunc);
-
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyonekey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabytwokey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabythreekey)}":
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyfourkey)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false }  appExp &&
@@ -349,14 +335,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             FuncCallExp funcCallExp => funcCallExp.Function.Name switch
             {
                 $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyonekey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabytwokey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabythreekey)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdatabyfourkey)}" => false, // allow parameters
+                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}" => false, // allow parameters
                 _ => funcCallExp.Args.Any(e => FromThirdField(e, isCond))
             },
             UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner, isCond),

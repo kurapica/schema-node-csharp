@@ -1,4 +1,4 @@
-namespace SchemaNode.AI.Services;
+namespace SchemaNode.Ontology.Services;
 
 /// <summary>
 /// Well-known category values that partition the ontology vector store.

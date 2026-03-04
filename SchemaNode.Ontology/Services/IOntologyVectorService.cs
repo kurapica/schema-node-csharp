@@ -1,6 +1,4 @@
-using SchemaNode.AI.Ontology;
-
-namespace SchemaNode.AI.Services;
+namespace SchemaNode.Ontology.Services;
 
 /// <summary>
 /// Abstracts embedding generation and vector storage for SSP ontology atoms.

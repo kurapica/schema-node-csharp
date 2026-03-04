@@ -80,7 +80,7 @@ public class AppSchemaData
     /// <summary>
     /// The application field relations
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     public static implicit operator AppSchema(AppSchemaData data)
     {

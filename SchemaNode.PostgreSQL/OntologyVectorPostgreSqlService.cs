@@ -1,15 +1,16 @@
+using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 using Npgsql;
 using Pgvector;
-using SchemaNode.AI.Ontology;
-using SchemaNode.AI.Services;
+using SchemaNode.Ontology;
+using SchemaNode.Ontology.Services;
 
 namespace SchemaNode.PostgreSQL;
 
 /// <summary>
 /// PostgreSQL + pgvector implementation of <see cref="IOntologyVectorService"/>.
 /// <para>
-/// Each <see cref="SemanticAtom"/> is embedded via <see cref="ITextEmbeddingGenerationService"/> and stored
+/// Each <see cref="SemanticAtom"/> is embedded via <see cref="IEmbeddingGenerator"/> and stored
 /// in a dedicated table with a <c>vector(N)</c> column.  Vector dimensions are controlled
 /// by <see cref="OntologyVectorOptions.Dimensions"/> — change this value to match your
 /// embedding model (e.g. 1536 for <c>text-embedding-3-small</c>).
@@ -25,7 +26,7 @@ namespace SchemaNode.PostgreSQL;
 /// </summary>
 public class OntologyVectorPostgreSqlService(
     NpgsqlDataSource dataSource,
-    ITextEmbeddingGenerationService embeddingService,
+    IEmbeddingGenerator<string, Embedding<float>> embeddingService,
     OntologyVectorOptions options) : IOntologyVectorService
 {
     private readonly string _table = options.TableName;
@@ -78,9 +79,8 @@ public class OntologyVectorPostgreSqlService(
     public async Task IndexAsync(
         SemanticAtom atom, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default)
     {
-        IList<ReadOnlyMemory<float>> embeddings =
-            await embeddingService.GenerateEmbeddingsAsync([atom.Content], cancellationToken: cancellationToken);
-        var vector = new Vector(embeddings[0].ToArray());
+        ReadOnlyMemory<float> embeddings = await embeddingService.GenerateVectorAsync(atom.Content, cancellationToken: cancellationToken);
+        var vector = new Vector(embeddings);
 
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();
@@ -111,9 +111,8 @@ public class OntologyVectorPostgreSqlService(
     public async Task<IReadOnlyList<OntologyVectorMatch>> SearchAsync(
         string queryText, int topK = 5, OntologyVectorCategory? category = null, string? locale = null, CancellationToken cancellationToken = default)
     {
-        IList<ReadOnlyMemory<float>> queryEmbeddings =
-            await embeddingService.GenerateEmbeddingsAsync([queryText], cancellationToken: cancellationToken);
-        var queryVector = new Vector(queryEmbeddings[0].ToArray());
+        ReadOnlyMemory<float> queryEmbeddings = await embeddingService.GenerateVectorAsync(queryText, cancellationToken: cancellationToken);
+        var queryVector = new Vector(queryEmbeddings);
 
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();

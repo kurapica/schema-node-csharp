@@ -1,4 +1,4 @@
-namespace SchemaNode.AI.Ontology;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// Semantic kind of a <see cref="SemanticAtom"/> — classifies the granularity

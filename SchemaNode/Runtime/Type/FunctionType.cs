@@ -22,7 +22,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public class FunctionType : AnySchemaType
+public sealed class FunctionType : AnySchemaType
 {
     #region Data
 
@@ -1195,11 +1195,10 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     #endregion
 }
 
-
 /// <summary>
 /// The data dict func info
 /// </summary>
-public class SchemaFuncInfo
+public sealed class SchemaFuncInfo
 {
     /// <summary>
     /// The method name

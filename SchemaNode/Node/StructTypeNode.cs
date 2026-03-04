@@ -110,7 +110,7 @@ public class StructTypeNode : AnySchemaNode
             }
             else if(value is JsonObject obj)
             {
-                StructFieldConfig[] fields = (SchemaType as StructType)!.Fields;
+                StructFieldSchema[] fields = (SchemaType as StructType)!.Fields;
                 Dictionary<string, AnySchemaNode> fieldMap = [];
                 JsonTypeNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)

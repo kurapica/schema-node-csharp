@@ -14,7 +14,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory scalar schema representation
 /// </summary>
-public class ScalarType: AnySchemaType
+public sealed class ScalarType: AnySchemaType
 {
     #region Data
      

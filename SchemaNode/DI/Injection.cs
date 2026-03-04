@@ -249,7 +249,7 @@ public static class Injection
 
                 // use the last part as field name
                 string field = schemaType.SplitTypeName().Last().ToLower();
-                contextSchema.Struct!.Fields = contextSchema.Struct!.Fields.Append(new StructFieldConfig
+                contextSchema.Struct!.Fields = contextSchema.Struct!.Fields.Append(new StructFieldSchema
                 {
                     Name = field,
                     Type = schemaType,
@@ -468,7 +468,6 @@ public static class Injection
     
     internal static ConcurrentBag<FunctionType>? ReCompileFuncTypes = [];
     internal static ConcurrentBag<AppWorkflowType>? WorkflowTypes = [];
-    internal static ConcurrentBag<string> Plugins = [];
     
     #endregion
 
@@ -502,11 +501,7 @@ public static class Injection
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();
 
         foreach ((SchemaApiType apiType, string url)  in GetSchemaApis())
-        {
-            // Plugin check
-            if (apiType.Api.GetCustomAttribute<PluginAttribute>() is { } pluginAttr)
-                Plugins.Add(pluginAttr.Identity);
-            
+        {            
             if (apiType.Api.Assembly == schemaAssembly)
             {
                 // no storage no edit
@@ -555,7 +550,7 @@ public static class Injection
                 using var reader = new StreamReader(stream);
                 var html = await reader.ReadToEndAsync();
 
-                // 在 <head> 中插入 meta 标签
+                // add <head> meta tag
                 html = html.Replace("</head>", string.Join("", [
                     "<meta name=\"schema-embedded\" content=\"true\">",
                     $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",

@@ -13,7 +13,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory workflow schema representation
 /// </summary>
-public class WorkflowType: AnySchemaType
+public sealed class WorkflowType: AnySchemaType
 {
     #region Data
 

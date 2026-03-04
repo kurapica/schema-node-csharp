@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.AI.Services;
+using SchemaNode.Ontology.Services;
 using SchemaNode.Components;
 using SchemaNode.Http;
 
-namespace SchemaNode.AI.Api;
+namespace SchemaNode.Ontology.Api;
 
 /// <summary>
 /// Performs a semantic similarity search over the indexed ontology vector store.

@@ -3,10 +3,10 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using Microsoft.OpenApi;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
 
@@ -32,55 +32,39 @@ public static class SystemData
     #region Get single Application Data
 
     /// <summary>
-    /// Gets the application data if single value
+    /// Gets the app data with full primary keys
     /// </summary>
     [Schema]
     public static async Task<T?> getappdata<T>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target;
-            if (string.IsNullOrEmpty(target)) return default;
-        }
-
-        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
-        AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || !fieldType.Single) return default;
-
-        using var stack = context.StackAccess(appType!.Name, target);
-        var (value, _) = await context.GetAppFieldDataAsync(fieldType, AppSchemaDataResult.List);
-        return value != null ? value.ToValue<T>() : default;
-    }
-    
-    static async Task<AnySchemaNode?> getappdatainner(
-        SchemaContext context,
-        string app,
-        string field,
-        string target,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         params object?[] args)
     {
         // get the app field type
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType is not { EnableDynamicTable: true } || 
-            fieldType.SchemaType is not ArrayType { Primary: { Length: > 0 }} arrType ||
-            arrType.Primary.Length != args.Length) return null;
-        
-        using AccessScope stack = context.StackAccess(app, target);
+        if (fieldType is not { EnableDynamicTable: true }) return default;
+
+        ArrayType? arrType = fieldType.SchemaType as ArrayType;
+        string[] keys = arrType?.Primary ?? [];
+
+        // full primary key match
+        if (keys.Length != args.Length) return default;
+
+        // Check the app access is match, only allow access in the same app or system level app
+        Access? access = context.GetSchemaContextItem<Access>();
+        if ((access == null || !app.Equals(access.App)) && appType!.ScopeType != Enum.AppScopeType.SystemLevel)
+            return default;
 
         // get the key type
-        string[] keys = arrType.Primary;
-        List<AnySchemaNode>[] keyValues = new List<AnySchemaNode>[keys.Length];
         AppSchemaDataFilter? filter = null;
+        List<AnySchemaNode>[] keyValues = new List<AnySchemaNode>[keys.Length];
         for (int i = 0; i < keys.Length; i++)
         {
-            AnySchemaType? keyType = (arrType.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemeType;
+            AnySchemaType? keyType = (arrType!.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemeType;
             AnySchemaNode? valueNode = keyType?.CreateNode(args[i]);
-            if (valueNode == null || valueNode.IsEmpty) return null;
+            if (valueNode == null || valueNode.IsEmpty) return default;
 
             if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
                 fieldType.Filters != null &&
@@ -88,10 +72,10 @@ public static class SystemData
                     f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
                     f.Resolve == Enum.FieldFilterResolve.CascadeParent))
             {
-                EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(),
+                EnumValueAccess[] enumAccess = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(),
                     noSubList: true, withSubList: false);
-                if (access.Length == 0) return null;
-                keyValues[i] = access.Select(a => keyType.CreateNode(a.Value)!).ToList();
+                if (enumAccess.Length == 0) return default;
+                keyValues[i] = enumAccess.Select(a => keyType.CreateNode(a.Value)!).ToList();
             }
             else
             {
@@ -112,132 +96,32 @@ public static class SystemData
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
 
-        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, AppSchemaDataResult.List, filter);
-        if (value is not ArrayTypeNode { Count: > 0 } result) return null;
-
-        // find the match item
-        StructTypeNode[] items = result.Cast<StructTypeNode>().ToArray();
-        for (int i = 0; i < keyValues.Length; i++)
+        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Length == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
+        AnySchemaNode? result = value;
+        if (keys.Length > 0)
         {
-            if (keyValues[i].Count == 1) continue;
+            if (value is not ArrayTypeNode { Count: > 0 } arr) return default;
 
-            // match the last
-            for (int j = keyValues[i].Count - 1; j >= 0; j--)
+            // find the match item
+            StructTypeNode[] items = arr.Cast<StructTypeNode>().ToArray();
+            for (int i = 0; i < keyValues.Length; i++)
             {
-                AnySchemaNode key = keyValues[i][j];
-                if (!items.Any(n => key.Equals(n.GetField(keys[i])!))) continue;
-                items = items.Where(n => key.Equals(n.GetField(keys[i])!)).ToArray();
-                break;
-            }
-        }
+                if (keyValues[i].Count == 1) continue;
 
-        return items.Length > 0 ? items[0] : null;
+                // match the last
+                for (int j = keyValues[i].Count - 1; j >= 0; j--)
+                {
+                    AnySchemaNode key = keyValues[i][j];
+                    if (!items.Any(n => key.Equals(n.GetField(keys[i])!))) continue;
+                    items = items.Where(n => key.Equals(n.GetField(keys[i])!)).ToArray();
+                    break;
+                }
+            }
+            result = items.Length > 0 ? items[0] : null;
+        }
+        return result != null && !result.IsEmpty ? result.ToValue<T>() : default;
     }
     
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappdatabyonekey<T, T1>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        T1 key,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target;
-            if (string.IsNullOrEmpty(target)) return default;
-        }
-
-        AnySchemaNode? value = await getappdatainner(context, app, field, target, key);
-        return value switch
-        {
-            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
-            { IsEmpty: false } => value.ToValue<T>(),
-            _ => default
-        };
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappdatabytwokey<T, T1, T2>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        T1 key1, T2 key2,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target;
-            if (string.IsNullOrEmpty(target)) return default;
-        }
-
-        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2);
-        return value switch
-        {
-            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
-            { IsEmpty: false } => value.ToValue<T>(),
-            _ => default
-        };
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappdatabythreekey<T, T1, T2, T3>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        T1 key1, T2 key2, T3 key3,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target;
-            if (string.IsNullOrEmpty(target)) return default;
-        }
-
-        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2, key3);
-        return value switch
-        {
-            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
-            { IsEmpty: false } => value.ToValue<T>(),
-            _ => default
-        };
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappdatabyfourkey<T, T1, T2, T3, T4>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        T1 key1, T2 key2, T3 key3, T4 key4,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        if (string.IsNullOrEmpty(target))
-        {
-            target = context.GetSchemaContextItem<Access>()?.Target;
-            if (string.IsNullOrEmpty(target)) return default;
-        }
-
-        AnySchemaNode? value = await getappdatainner(context, app, field, target, key1, key2, key3, key4);
-        return value switch
-        {
-            ArrayTypeNode { Count: > 0 } arrayNode => arrayNode.First().ToValue<T>(),
-            { IsEmpty: false } => value.ToValue<T>(),
-            _ => default
-        };
-    }
-
     #endregion
 
     #region Get Application Data For field
@@ -249,96 +133,27 @@ public static class SystemData
     public static async Task<T?> getappfdata<T>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         string dataField,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+        params object?[] args)
     {
-        AnySchemaNode? result = await getappdata<AnySchemaNode>(context, app, field, target);
+        AnySchemaNode? result = await getappdata<AnySchemaNode>(context, app, field, args);
         AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
         return f != null ? f.ToValue<T>() : default;
     }
     
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappfdatabyonekey<T, T1>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        string dataField,
-        T1 key,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        AnySchemaNode? result = await getappdatabyonekey<AnySchemaNode, T1>(context, app, field, key, target);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : default;
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappfdatabytwokey<T, T1, T2>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        string dataField,
-        T1 key1, T2 key2,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        AnySchemaNode? result = await getappdatabytwokey<AnySchemaNode, T1, T2>(context, app, field, key1, key2, target);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : default;
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappfdatabythreekey<T, T1, T2, T3>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        string dataField,
-        T1 key1, T2 key2, T3 key3,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        AnySchemaNode? result = await getappdatabythreekey<AnySchemaNode, T1, T2, T3>(context, app, field, key1, key2, key3, target);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : default;
-    }
-
-    /// <summary>
-    /// Gets the application data by one key
-    /// </summary>
-    [Schema]
-    public static async Task<T?> getappfdatabyfourkey<T, T1, T2, T3, T4>(
-        SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        string dataField,
-        T1 key1, T2 key2, T3 key3, T4 key4,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
-    {
-        AnySchemaNode? result = await getappdatabyfourkey<AnySchemaNode, T1, T2, T3, T4>(context, app, field, key1, key2, key3, key4, target);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : default;
-    }
-
     #endregion
 
     #region Data Source
 
     /// <summary>
-    /// Generate a data source for the app field, waiting for query
+    /// Generate a data source for the app field, waiting for query, the codes won't be execution unless use it in wrong way
     /// </summary>
     [Schema]
     public static async Task<ArrayTypeNode> getdatasource(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
-        string field,
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string? target)
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field)
     {
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -347,7 +162,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType?.SchemaType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
         if (fieldType.SchemaType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
-        return new ArrayTypeNode(fieldType.SchemaType!);
+        return new ArrayTypeNode(fieldType.SchemaType);
     }
 
     #endregion
@@ -359,22 +174,26 @@ public static class SystemData
     /// </summary>
     [Schema]
     [SideEffect]
+    [WorkflowOnly]
     public static async Task<JsonNode?> incrappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         [Schema(NS_GENERIC_TYPE)] JsonNode data,
-        string target,
         bool raiseEvent = false
     )
     {
-        if (string.IsNullOrEmpty(target)) return null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        if (appType == null) return null;
 
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
+        Access? access = context.GetSchemaContextItem<Access>();
+        string? target = access?.Target;
 
-        AppFieldType? fieldType = appType?.GetField(field);
+        // Check the app access is match, only allow access in the same app or system level app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
+
+        AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null 
             || fieldType.SchemaType is EnumType 
             || fieldType.SchemaType is ScalarType { IsNumber: false } 
@@ -480,22 +299,26 @@ public static class SystemData
     /// <returns></returns>
     [Schema]
     [SideEffect]
+    [WorkflowOnly]
     public static async Task<bool> saveappdata(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         [Schema(NS_GENERIC_TYPE)] JsonNode data,
         bool onlyAdd,
-        string target,
         bool raiseEvent = false,
         params string[] overrides
     )
     {
-        if (string.IsNullOrEmpty(target)) return false;
-        
-        AppType? appType = !string.IsNullOrEmpty(app)
-            ? await context.GetAppTypeAsync(app)
-            : null;
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app): null;
+        if (appType == null) return false;
+
+        Access? access = context.GetSchemaContextItem<Access>();
+        string? target = access?.Target;
+
+        // Check the app access is match, only allow access in the same app or system level app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
 
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType == null) return false;
@@ -503,7 +326,7 @@ public static class SystemData
         (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
         if (error != null || dataNode == null || dataNode.IsEmpty) return false;
         
-        using var access = context.StackAccess(app, target);
+        using var stack = context.StackAccess(app, target);
 
         await context.BeginTransactionAsync();
         await context.SaveFieldDataAsync(fieldType, dataNode, onlyAdd: onlyAdd, overrides: overrides);

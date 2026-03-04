@@ -12,7 +12,7 @@ namespace SchemaNode.Schema;
 /// The enum type schema
 /// </summary>
 [SchemaApp]
-public class EnumSchema
+public sealed class EnumSchema
 {
     /// <summary>
     /// The enum name
@@ -48,7 +48,7 @@ public class EnumSchema
 /// The enum value info
 /// </summary>
 [SchemaApp]
-public class EnumValueInfo
+public sealed class EnumValueInfo
 {
     /// <summary>
     /// The enum name
@@ -213,7 +213,7 @@ public class EnumValueInfo
 /// <summary>
 /// The enum value access info
 /// </summary>
-public class EnumValueAccess
+public sealed class EnumValueAccess
 {
     /// <summary>
     /// The cascade name

@@ -4,7 +4,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.AI.Ontology;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// Extension methods on <see cref="SchemaContext"/> that build an <see cref="OntologyGraph"/>
@@ -46,6 +46,7 @@ public static class SchemaContextOntologyExtension
             await BuildAppClassAsync(context, graph, root, null, includeSubApps,
                 visitedApps, visitedStructs, visitedEnums, visitedCtx, cancellationToken);
 
+        ResolveFkRanges(graph);
         return graph;
     }
 
@@ -94,6 +95,7 @@ public static class SchemaContextOntologyExtension
             await CollectSchemaTypesAsync(context, graph, type,
                 visitedStructs, visitedEnums, visitedScalars, visitedFuncs, cancellationToken);
 
+        ResolveFkRanges(graph);
         return graph;
     }
 
@@ -533,7 +535,7 @@ public static class SchemaContextOntologyExtension
             BaseClassIri = baseClassIri,
         };
 
-        foreach (StructFieldConfig field in structType.Fields)
+        foreach (StructFieldSchema field in structType.Fields)
         {
             AnySchemaType? fieldType = field.SchemeType;
             bool isMulti = false;
@@ -573,10 +575,10 @@ public static class SchemaContextOntologyExtension
                     break;
             }
 
-            // Detect foreign-key pattern: scalar xsd:string/integer field ending in "Id"
+            // Detect foreign-key pattern: scalar xsd:string/integer field ending in "Id" (case-sensitive)
             bool isFk = kind == OntologyPropertyKind.Data
                 && (rangeIri == "xsd:string" || rangeIri == "xsd:integer")
-                && field.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase)
+                && field.Name.EndsWith("Id", StringComparison.Ordinal)
                 && field.Name.Length > 2;
             string? semanticName = isFk
                 ? field.Name[..^2]   // strip trailing "Id"
@@ -673,7 +675,29 @@ public static class SchemaContextOntologyExtension
         _                                                                    => "xsd:string",
     };
 
-    /// <summary>Returns a Turtle-safe local-name segment (dots and spaces â†?underscores).</summary>
+    /// <summary>
+    /// Post-pass: resolves <see cref="OntologyEntityProperty.SemanticRangeIri"/> for every FK property.
+    /// Tries to match the semantic name against known entity class names in the graph;
+    /// falls back to <c>owl:Thing</c> when no match is found.
+    /// </summary>
+    private static void ResolveFkRanges(OntologyGraph graph)
+    {
+        foreach (OntologyEntityClass entity in graph.EntityClasses)
+        {
+            foreach (OntologyEntityProperty prop in entity.Properties)
+            {
+                if (!prop.IsForeignKey || prop.SemanticName == null) continue;
+
+                OntologyEntityClass? target = graph.EntityClasses.FirstOrDefault(e =>
+                    e.Name.Equals(prop.SemanticName, StringComparison.OrdinalIgnoreCase)
+                    || e.Name.EndsWith('_' + prop.SemanticName, StringComparison.OrdinalIgnoreCase));
+
+                prop.SemanticRangeIri = target != null ? $"app:{target.Name}" : "owl:Thing";
+            }
+        }
+    }
+
+    /// <summary>Returns a Turtle-safe local-name segment (dots and spaces ¡ú underscores).</summary>
     private static string Seg(string name) => name.Replace('.', '_').Replace(' ', '_');
 
     #endregion

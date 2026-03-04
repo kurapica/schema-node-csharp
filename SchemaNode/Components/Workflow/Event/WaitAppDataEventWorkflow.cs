@@ -28,7 +28,7 @@ public class WaitAppDataEventWorkflow : EventWorkflow,
                 {
                     App = Application.Name,
                     Target = t.Length > 1 ? t[1] : null,
-                });
+                }, new Access { App = Application.Name, Target = t.Length > 1 ? t[1] : null });
             });
         }
         else

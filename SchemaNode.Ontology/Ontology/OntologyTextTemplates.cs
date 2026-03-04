@@ -2,7 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace SchemaNode.AI.Ontology;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// Built-in text templates for rendering an <see cref="OntologyGraph"/> to four formats:
@@ -70,9 +70,21 @@ public static class OntologyTextTemplates
         sb.AppendLine($"@prefix app:    <{graph.AppPrefix}> .");
         sb.AppendLine($"@prefix prop:   <{graph.PropPrefix}> .");
         sb.AppendLine($"@prefix en:     <{graph.EnumPrefix}> .");
+        sb.AppendLine($"@prefix ont:    <{graph.OntPrefix}> .");
         sb.AppendLine();
         sb.AppendLine($"<{graph.BaseUri}> a owl:Ontology ;");
         sb.AppendLine($"    rdfs:label \"{Esc(graph.AppName)} Ontology\" .");
+        sb.AppendLine();
+
+        // Fix 3: declare all ont: annotation properties so the ont: vocabulary is self-contained
+        sb.AppendLine("ont:multiValued    a owl:AnnotationProperty .");
+        sb.AppendLine("ont:isDataTable    a owl:AnnotationProperty .");
+        sb.AppendLine("ont:valueOrigin    a owl:AnnotationProperty .");
+        sb.AppendLine("ont:returnType     a owl:AnnotationProperty .");
+        sb.AppendLine("ont:isPure         a owl:AnnotationProperty .");
+        sb.AppendLine("ont:isConverter    a owl:AnnotationProperty .");
+        sb.AppendLine("ont:isWorkflowOnly a owl:AnnotationProperty .");
+        sb.AppendLine("ont:hasSideEffect  a owl:AnnotationProperty .");
         sb.AppendLine();
 
         // =================================================================
@@ -108,8 +120,8 @@ public static class OntologyTextTemplates
         {
             foreach (OntologyEnumClass ec in graph.EnumClasses)
             {
-                // ConceptScheme declaration
-                sb.Append($"en:{ec.Name} a skos:ConceptScheme");
+                // ConceptScheme declaration — also typed owl:Class so it is valid as rdfs:range
+                sb.Append($"en:{ec.Name} a skos:ConceptScheme , owl:Class");
                 AppendTurtleLabels(sb, ec.Labels);
                 sb.AppendLine(" .");
                 sb.AppendLine();
@@ -126,7 +138,7 @@ public static class OntologyTextTemplates
                     {
                         foreach (OntologyLabel lbl in v.Labels)
                             sb.Append(lbl.Language != null
-                                ? $" ;\n    skos:prefLabel \"{Esc(lbl.Value)}\"@{lbl.Language}"
+                                ? $" ;\n    skos:prefLabel \"{Esc(lbl.Value)}\"@{NormalizeLangTag(lbl.Language)}"
                                 : $" ;\n    skos:prefLabel \"{Esc(lbl.Value)}\"");
                     }
                     else
@@ -173,11 +185,9 @@ public static class OntologyTextTemplates
                 AppendTurtleLabels(sb, p.Labels);
                 if (!string.IsNullOrEmpty(p.Comment))
                     sb.Append($" ;\n    rdfs:comment \"{Esc(p.Comment)}\"");
-                // Principle 7: cardinality constraints
-                if (p.IsRequired)
-                    sb.Append(" ;\n    owl:minCardinality \"1\"^^xsd:nonNegativeInteger");
+                // Principle 7: multiValued annotation (cardinality axiom is emitted as owl:Restriction below)
                 if (p.IsMultiValued)
-                    sb.Append(" ;\n    owl:maxCardinality \"unbounded\"^^xsd:string");
+                    sb.Append(" ;\n    ont:multiValued \"true\"^^xsd:boolean");
                 // Principle 5: FK annotation
                 if (p.IsForeignKey)
                     sb.Append($" ;\n    rdfs:seeAlso prop:{ec.Name}.{p.SemanticName}");
@@ -189,10 +199,24 @@ public static class OntologyTextTemplates
                 {
                     sb.Append($"prop:{ec.Name}.{p.SemanticName} a owl:ObjectProperty");
                     sb.Append($" ;\n    rdfs:domain app:{ec.Name}");
+                    // Fix 2: emit rdfs:range resolved by the post-pass (owl:Thing when unresolved)
+                    if (!string.IsNullOrEmpty(p.SemanticRangeIri))
+                        sb.Append($" ;\n    rdfs:range {p.SemanticRangeIri}");
                     sb.Append($" ;\n    rdfs:comment \"[semantic relation inferred from FK: {p.Name}]\"");
                     sb.AppendLine(" .");
                     sb.AppendLine();
                 }
+            }
+
+            // Fix 4: owl:minCardinality belongs inside an owl:Restriction subclass axiom, not on a property
+            foreach (OntologyEntityProperty req in ec.Properties.Where(p => p.IsRequired))
+            {
+                sb.AppendLine($"app:{ec.Name} rdfs:subClassOf [");
+                sb.AppendLine($"    a owl:Restriction ;");
+                sb.AppendLine($"    owl:onProperty prop:{ec.Name}.{req.Name} ;");
+                sb.AppendLine($"    owl:minCardinality \"1\"^^xsd:nonNegativeInteger");
+                sb.AppendLine($"] .");
+                sb.AppendLine();
             }
         }
 
@@ -235,11 +259,11 @@ public static class OntologyTextTemplates
         {
             sb.Append($"prop:{ft.Name} a owl:AnnotationProperty");
             AppendTurtleLabels(sb, ft.Labels);
-            sb.Append($" ;\n    schema:returnType \"{Esc(ft.ReturnTypeStr)}\"");
-            if (ft.IsPure)        sb.Append(" ;\n    schema:isPure \"true\"^^xsd:boolean");
-            if (ft.IsConverter)   sb.Append(" ;\n    schema:isConverter \"true\"^^xsd:boolean");
-            if (ft.IsWorkflowOnly) sb.Append(" ;\n    schema:workflowOnly \"true\"^^xsd:boolean");
-            if (ft.HasSideEffect)  sb.Append(" ;\n    schema:hasSideEffect \"true\"^^xsd:boolean");
+            sb.Append($" ;\n    ont:returnType \"{Esc(ft.ReturnTypeStr)}\"");
+            if (ft.IsPure)        sb.Append(" ;\n    ont:isPure \"true\"^^xsd:boolean");
+            if (ft.IsConverter)   sb.Append(" ;\n    ont:isConverter \"true\"^^xsd:boolean");
+            if (ft.IsWorkflowOnly) sb.Append(" ;\n    ont:isWorkflowOnly \"true\"^^xsd:boolean");
+            if (ft.HasSideEffect)  sb.Append(" ;\n    ont:hasSideEffect \"true\"^^xsd:boolean");
             sb.AppendLine(" .");
             foreach (OntologyFunctionArg a in ft.Args)
             {
@@ -275,9 +299,9 @@ public static class OntologyTextTemplates
                 sb.Append($" ;\n    rdfs:range {t.RangeIri}");
                 if (!string.IsNullOrEmpty(t.Comment))
                     sb.Append($" ;\n    rdfs:comment \"{Esc(t.Comment)}\"");
-                sb.Append(" ;\n    schema:isDataTable \"true\"^^xsd:boolean");
-                if (t.IsMultiValued) sb.Append(" ;\n    schema:multiValued \"true\"^^xsd:boolean");
-                if (t.IsComputed)   sb.Append(" ;\n    schema:valueOrigin \"computed\"");
+                sb.Append(" ;\n    ont:isDataTable \"true\"^^xsd:boolean");
+                if (t.IsMultiValued) sb.Append(" ;\n    ont:multiValued \"true\"^^xsd:boolean");
+                if (t.IsComputed)   sb.Append(" ;\n    ont:valueOrigin \"computed\"");
                 sb.AppendLine(" .");
                 sb.AppendLine();
             }
@@ -294,31 +318,43 @@ public static class OntologyTextTemplates
                 if (!string.IsNullOrEmpty(sr.ContextItem))
                     sb.AppendLine($"# scope:{kindComment} derived from '{sr.ContextItem}'");
 
-                // Forward property
-                sb.Append($"{sr.ForwardProperty} a owl:ObjectProperty");
-                if (sr.IsFunctional) sb.Append(" , owl:FunctionalProperty");
-                sb.Append($" ;\n    rdfs:domain <{sr.DomainIri}>");
-                sb.Append($" ;\n    rdfs:range {sr.RangeIri}");
-                sb.Append($" ;\n    owl:inverseOf {sr.InverseProperty}");
-                if (!string.IsNullOrEmpty(sr.SubPropertyOf))
-                    sb.Append($" ;\n    rdfs:subPropertyOf {sr.SubPropertyOf}");
-                if (sr.IsFunctional)
-                    sb.Append(" ;\n    owl:cardinality \"1\"^^xsd:nonNegativeInteger");
-                else
-                    sb.Append(" ;\n    owl:minCardinality \"1\"^^xsd:nonNegativeInteger");
-                sb.AppendLine(" .");
-                sb.AppendLine();
+                    // Fix 5: use prefixed IRI form for domain to be consistent with the rest of the output
+                    string domainPrefixed = sr.DomainIri.StartsWith(graph.AppPrefix, StringComparison.Ordinal)
+                        ? $"app:{sr.DomainIri[graph.AppPrefix.Length..]}"
+                        : $"<{sr.DomainIri}>";
 
-                // Inverse property
-                sb.Append($"{sr.InverseProperty} a owl:ObjectProperty");
-                if (sr.IsFunctional) sb.Append(" , owl:InverseFunctionalProperty");
-                sb.Append($" ;\n    rdfs:domain {sr.RangeIri}");
-                sb.Append($" ;\n    rdfs:range <{sr.DomainIri}>");
-                sb.Append($" ;\n    owl:inverseOf {sr.ForwardProperty}");
-                if (!string.IsNullOrEmpty(sr.SubPropertyOf))
-                    sb.Append($" ;\n    rdfs:subPropertyOf schema:hasPart");
-                sb.AppendLine(" .");
-                sb.AppendLine();
+                    // Forward property
+                    sb.Append($"{sr.ForwardProperty} a owl:ObjectProperty");
+                    if (sr.IsFunctional) sb.Append(" , owl:FunctionalProperty");
+                    sb.Append($" ;\n    rdfs:domain {domainPrefixed}");
+                    sb.Append($" ;\n    rdfs:range {sr.RangeIri}");
+                    sb.Append($" ;\n    owl:inverseOf {sr.InverseProperty}");
+                    if (!string.IsNullOrEmpty(sr.SubPropertyOf))
+                        sb.Append($" ;\n    rdfs:subPropertyOf {sr.SubPropertyOf}");
+                    sb.AppendLine(" .");
+                    sb.AppendLine();
+
+                    // Inverse property
+                    sb.Append($"{sr.InverseProperty} a owl:ObjectProperty");
+                    if (sr.IsFunctional) sb.Append(" , owl:InverseFunctionalProperty");
+                    sb.Append($" ;\n    rdfs:domain {sr.RangeIri}");
+                    sb.Append($" ;\n    rdfs:range {domainPrefixed}");
+                    sb.Append($" ;\n    owl:inverseOf {sr.ForwardProperty}");
+                    if (!string.IsNullOrEmpty(sr.SubPropertyOf))
+                        sb.Append($" ;\n    rdfs:subPropertyOf schema:hasPart");
+                    sb.AppendLine(" .");
+                    sb.AppendLine();
+
+                    // Fix 4: owl:minCardinality as a proper class restriction on the domain (not on the property)
+                    if (!sr.IsFunctional)
+                    {
+                        sb.AppendLine($"{domainPrefixed} rdfs:subClassOf [");
+                        sb.AppendLine($"    a owl:Restriction ;");
+                        sb.AppendLine($"    owl:onProperty {sr.ForwardProperty} ;");
+                        sb.AppendLine($"    owl:minCardinality \"1\"^^xsd:nonNegativeInteger");
+                        sb.AppendLine($"] .");
+                        sb.AppendLine();
+                    }
             }
         }
 
@@ -340,8 +376,24 @@ public static class OntologyTextTemplates
     {
         foreach (OntologyLabel lbl in labels)
             sb.Append(lbl.Language != null
-                ? $" ;\n    rdfs:label \"{Esc(lbl.Value)}\"@{lbl.Language}"
+                ? $" ;\n    rdfs:label \"{Esc(lbl.Value)}\"@{NormalizeLangTag(lbl.Language)}"
                 : $" ;\n    rdfs:label \"{Esc(lbl.Value)}\"");
+    }
+
+    /// <summary>
+    /// Normalises a language tag to BCP-47 format by inserting a hyphen at the
+    /// lower-to-upper-case boundary (e.g. <c>enUS</c> → <c>en-US</c>, <c>zhCN</c> → <c>zh-CN</c>).
+    /// Tags that already contain a separator are returned unchanged.
+    /// </summary>
+    private static string NormalizeLangTag(string tag)
+    {
+        if (tag.Contains('-') || tag.Contains('_')) return tag;
+        for (int i = 1; i < tag.Length; i++)
+        {
+            if (char.IsLower(tag[i - 1]) && char.IsUpper(tag[i]))
+                return tag[..i] + '-' + tag[i..];
+        }
+        return tag;
     }
 
     private static string Esc(string s) =>

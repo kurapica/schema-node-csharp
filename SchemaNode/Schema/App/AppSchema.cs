@@ -13,8 +13,10 @@ namespace SchemaNode.Schema;
  * The application schema
  */
 [SchemaApp]
-public class AppSchema
+public sealed class AppSchema
 {
+    #region Info
+
     /// <summary>
     /// The parent app name
     /// </summary>
@@ -39,12 +41,20 @@ public class AppSchema
     /// The description
     /// </summary>
     public LocaleString? Desc { get; set; }
-    
+
+    #endregion
+
+    #region Scope Policy
+
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
     /// </summary>
     public AppScopePolicy? ScopePolicy { get; set; }
-    
+
+    #endregion
+
+    #region Auth Policy
+
     /// <summary>
     /// The authentication policy type
     /// </summary>
@@ -55,7 +65,11 @@ public class AppSchema
     /// The app authentication policy type
     /// </summary>
     public PolicyItem[]? Auths { get; set; }
-    
+
+    #endregion
+
+    #region Details
+
     /// <summary>
     /// Whether it has sub-applications
     /// </summary>
@@ -89,13 +103,17 @@ public class AppSchema
     /// <summary>
     /// The application field relations
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The types related to the application
     /// </summary>
     [NotMapped]
     public NodeSchema[]? NodeSchemas { get; set; }
+
+    #endregion
+
+    #region Status
 
     /// <summary>
     /// The additional data
@@ -114,12 +132,14 @@ public class AppSchema
     /// </summary>
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
+
+    #endregion
 }
 
 /// <summary>
 /// The app target policy
 /// </summary>
-public class AppScopePolicy: IEquatable<AppScopePolicy>
+public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 {
     /// <summary>
     /// The app target policy type
@@ -145,7 +165,7 @@ public class AppScopePolicy: IEquatable<AppScopePolicy>
 /// <summary>
 /// The application scope context map, used for the context item mapping when the target policy is IsolationContext
 /// </summary>
-public class AppScopeContextMap: IEquatable<AppScopeContextMap>
+public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
 {
     /// <summary>
     /// The context item
@@ -167,3 +187,4 @@ public class AppScopeContextMap: IEquatable<AppScopeContextMap>
                    : MapKey.Equals(other.MapKey));
     }
 }
+

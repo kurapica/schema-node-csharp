@@ -1,13 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SchemaNode.AI.Ontology;
-using SchemaNode.AI.Services;
+using SchemaNode.Ontology;
+using SchemaNode.Ontology.Services;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.AI.Api;
-
+namespace SchemaNode.Ontology.Api;
 /// <summary>
 /// Bulk-initialises the ontology vector store by indexing every App and every
 /// user-defined schema-type namespace currently registered in the SchemaContext.

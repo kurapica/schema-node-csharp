@@ -296,7 +296,7 @@ public class WorkflowContext: SchemaContext
     /// The workflow node is done with payload
     /// <returns>The fork workflow context if created</returns>
     /// </summary>
-    public WorkflowContext? Done(string name, AnySchemaNode? payload = null, bool init = false)
+    public WorkflowContext? Done(string name, AnySchemaNode? payload = null, bool init = false, Access? access = null)
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
@@ -377,6 +377,7 @@ public class WorkflowContext: SchemaContext
             // Fork a new workflow context for next nodes
             WorkflowContext context = new (_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler);
             context.Initialize(WorkflowType!, workflow, this);
+            if (access != null) context.SetAccess(access); // switch the access
             context.Done(workflow.Name, payload, true);
 
             state.ForkContexts ??= new  ConcurrentDictionary<Guid, WorkflowContext>();
@@ -401,7 +402,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(Workflow workflow, AnySchemaNode? payload = null) => Done(workflow.Name, payload);
+    public void Done(Workflow workflow, AnySchemaNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
     
     /// <summary>
     /// The workflow node has error

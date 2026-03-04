@@ -1,6 +1,4 @@
-using SchemaNode.AI.Ontology;
-
-namespace SchemaNode.AI.Services;
+namespace SchemaNode.Ontology.Services;
 
 /// <summary>A single result returned from a vector similarity search over the ontology store.</summary>
 public class OntologyVectorMatch

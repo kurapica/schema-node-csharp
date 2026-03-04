@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -9,7 +10,6 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
-
 
 public abstract record AppSchemaDataFilter;
 
@@ -26,17 +26,17 @@ public enum AppSchemaDataResult
     Field,
 }
 
-public record AppSchemaDataFilterField(string Field): AppSchemaDataFilter;
+public sealed record AppSchemaDataFilterField(string Field): AppSchemaDataFilter;
 
-public record AppSchemaDataFilterUnary(LogicType Type, AppSchemaDataFilter Operand) : AppSchemaDataFilter;
+public sealed record AppSchemaDataFilterUnary(LogicType Type, AppSchemaDataFilter Operand) : AppSchemaDataFilter;
 
-public record AppSchemaDataFilterBinary(LogicType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
+public sealed record AppSchemaDataFilterBinary(LogicType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
 
-public record AppSchemaDataFilterArith(ArithmeticType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
+public sealed record AppSchemaDataFilterArith(ArithmeticType Type, AppSchemaDataFilter Left, AppSchemaDataFilter Right) : AppSchemaDataFilter;
 
-public record AppSchemaDataFilterValue(object Value) : AppSchemaDataFilter;
+public sealed record AppSchemaDataFilterValue(object Value) : AppSchemaDataFilter;
 
-public record AppSchemaDataOrder(string Field, bool Desc);
+public sealed record AppSchemaDataOrder(string Field, bool Desc);
 
 public static class AppSchemaDataFilterExtensions
 {
@@ -254,7 +254,7 @@ public static class AppSchemaDataFilterExtensions
             }
             
             // get the field
-            StructFieldConfig? field = structType.GetField(key);
+            StructFieldSchema? field = structType.GetField(key);
             
             // only support scalar or locale string type
             if (field is not { SchemeType: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
@@ -439,4 +439,202 @@ public static class AppSchemaDataFilterExtensions
         throw new NotSupportedException("The expression type not supported");
     }
 
+    /// <summary>
+    /// Check if the struct node match the filter
+    /// </summary>
+    public static AnySchemaNode Test(this AppSchemaDataFilter filter, StructTypeNode structNode, AnySchemaType? expectType = null)
+    {
+        switch (filter)
+        {
+            case AppSchemaDataFilterField access:
+            {
+                // Check if the field is complex field
+                return structNode.GetValueByPaths(access.Field) ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
+            }
+            case AppSchemaDataFilterUnary unary:
+            {
+                AnySchemaNode result = unary.Operand.Test(structNode);
+                switch (unary.Type)
+                {
+                    case LogicType.IsNull:
+                    case LogicType.IsEmpty:
+                        return SchemaContext.SystemBool.CreateNode(result.IsEmpty)!;
+                    case LogicType.NotNull:
+                    case LogicType.NotEmpty:
+                        return SchemaContext.SystemBool.CreateNode(!result.IsEmpty)!;
+                    default:
+                        throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
+                }
+            }
+            case AppSchemaDataFilterBinary binary:
+            {
+                switch (binary.Type)
+                {
+                    // bool
+                    case LogicType.AndAlso:
+                    case LogicType.OrElse:
+                    {
+                        AnySchemaNode left = binary.Left.Test(structNode, SchemaContext.SystemBool);
+                        AnySchemaNode right = binary.Right.Test(structNode, SchemaContext.SystemBool);
+                        return binary.Type switch
+                        {
+                            LogicType.AndAlso => SchemaContext.SystemBool.CreateNode(left.ToValue<bool>() && right.ToValue<bool>())!,
+                            _ => SchemaContext.SystemBool.CreateNode(left.ToValue<bool>() || right.ToValue<bool>())!
+                        };
+                    }
+
+                    // compare
+                    case LogicType.Equal:
+                    case LogicType.NotEqual:
+                    case LogicType.GreaterThan:
+                    case LogicType.GreaterEqual:
+                    case LogicType.LessThan:
+                    case LogicType.LessEqual:
+                    {
+                        AnySchemaNode? left = null;
+                        AnySchemaNode? right = null;
+
+                        if (binary.Right is not AppSchemaDataFilterValue)
+                        {
+                            right = binary.Right.Test(structNode);
+                            left = binary.Left.Test(structNode, right.SchemaType);
+                        }
+                        else
+                        {
+                            left = binary.Left.Test(structNode, SchemaContext.SystemInt); // use int as default
+                            right = binary.Right.Test(structNode, left.SchemaType);
+                        }
+                        switch (left.SchemaType)
+                        {
+                            case ScalarType { IsInt: true }:
+                                return Compare<int>(binary.Type, left, right);
+                            case ScalarType { IsSingle: true }:
+                                return Compare<float>(binary.Type, left, right);
+                            case ScalarType { IsDouble: true }:
+                                return Compare<double>(binary.Type, left, right);
+                            case ScalarType { IsNumber: true }:
+                                return Compare<decimal>(binary.Type, left, right);
+                            case ScalarType { IsString: true } :
+                                return Compare<string>(binary.Type, left, right);
+                            case ScalarType { IsDate: true }:
+                                return Compare<DateTime>(binary.Type, left, right);
+                        }
+                        break;
+                    }
+
+                    // collection
+                    case LogicType.Contains:
+                    case LogicType.NotContains:
+                    {
+                        AnySchemaNode val = binary.Right.Test(structNode);
+                        AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
+                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || val is not ScalarTypeNode) return SchemaContext.SystemBool.CreateNode(false)!;
+                        
+                        bool exist = enums.Any(e => e.ToString() == val.ToString());
+                        return binary.Type switch
+                        {
+                            LogicType.Contains => SchemaContext.SystemBool.CreateNode(exist)!,
+                            _ => SchemaContext.SystemBool.CreateNode(!exist)!,
+                        };
+                    }
+
+                    // string
+                    case LogicType.StartsWith:
+                    case LogicType.NotStartsWith:
+                    case LogicType.EndsWith:
+                    case LogicType.NotEndsWith:
+                    case LogicType.Match:
+                    case LogicType.NotMatch:
+                    {
+                        string? left = binary.Left.Test(structNode, SchemaContext.SystemString).ToValue<string>();
+                        string? right = binary.Right.Test(structNode, SchemaContext.SystemString).ToValue<string>();
+
+                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return SchemaContext.SystemBool.CreateNode(false)!;
+                        return SchemaContext.SystemBool.CreateNode(binary.Type switch
+                        {
+                            LogicType.StartsWith => left.StartsWith(right),
+                            LogicType.NotStartsWith => !left.StartsWith(right),
+                            LogicType.EndsWith => left.EndsWith(right),
+                            LogicType.NotEndsWith => !left.EndsWith(right),
+                            LogicType.Match => left.Contains(right),
+                            LogicType.NotMatch => !left.Contains(right),
+                            _ => throw new NotSupportedException($"The logic type {binary.Type} can't be used as string compare")
+                        })!;
+                    }
+
+                    default:
+                        throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
+                }
+
+                break;
+            }
+            case AppSchemaDataFilterArith arith:
+            {
+                AnySchemaNode? left = null;
+                AnySchemaNode? right = null;
+                
+                if(arith.Right is not AppSchemaDataFilterValue)
+                {
+                    right = arith.Right.Test(structNode);
+                    left = arith.Left.Test(structNode, right.SchemaType);
+                }
+                else
+                {
+                    left = arith.Left.Test(structNode, SchemaContext.SystemInt); // use int as default
+                    right = arith.Right.Test(structNode, left.SchemaType);
+                }
+
+                switch (left.SchemaType)
+                {
+                    case ScalarType { IsInt: true }:
+                        return CalcArith<int>(arith.Type, left, right);
+                    case ScalarType { IsSingle: true }:
+                        return CalcArith<float>(arith.Type, left, right);
+                    case ScalarType { IsDouble: true }:
+                        return CalcArith<double>(arith.Type, left, right);
+                    case ScalarType { IsNumber: true }:
+                        return CalcArith<decimal>(arith.Type, left, right);
+                }
+                break;
+            }
+
+            case AppSchemaDataFilterValue value:
+            {
+                if (value.Value is AnySchemaNode n) return n;
+                if (expectType != null) return expectType.CreateNode(value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
+                return SchemaContext.SystemString.CreateNode(value.Value.ToString() ?? "")!;
+            }
+        }
+
+        throw new NotSupportedException("The expression type not supported");
+    }
+
+    static AnySchemaNode CalcArith<T>(ArithmeticType type, AnySchemaNode left, AnySchemaNode right) where T : INumber<T>
+    {
+        T leftVal = (left.IsEmpty ? default : left.ToValue<T>())!;
+        T rightVal = (right.IsEmpty ? default : right.ToValue<T>())!;
+        return left.SchemaType.CreateNode(type switch
+        {
+            ArithmeticType.Add => leftVal + rightVal,
+            ArithmeticType.Subtract => leftVal - rightVal,
+            ArithmeticType.Multiply => leftVal * rightVal,
+            _ => throw new NotSupportedException($"The arithmetic type {type} not supported")
+        })!;
+    }
+
+    static AnySchemaNode Compare<T>(LogicType type, AnySchemaNode left, AnySchemaNode right) where T : IComparable<T>
+    {
+        T leftVal = (left.IsEmpty ? default : left.ToValue<T>())!;
+        T rightVal = (right.IsEmpty ? default : right.ToValue<T>())!;
+        return SchemaContext.SystemBool.CreateNode(type switch
+        {
+            LogicType.Equal => leftVal.CompareTo(rightVal) == 0,
+            LogicType.NotEqual => leftVal.CompareTo(rightVal) != 0,
+            LogicType.GreaterThan => leftVal.CompareTo(rightVal) > 0,
+            LogicType.GreaterEqual => leftVal.CompareTo(rightVal) >= 0,
+            LogicType.LessThan => leftVal.CompareTo(rightVal) < 0,
+            LogicType.LessEqual => leftVal.CompareTo(rightVal) <= 0,
+            _ => throw new NotSupportedException($"The logic type {type} can't be used as value compare")
+        })!;
+    }
 }

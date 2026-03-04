@@ -28,7 +28,6 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
             Name = protocolMeta.Name,
             Request = protocolMeta.Request?.ToJsonNode(),
             Response = protocolMeta.Response?.ToJsonNode(),
-            Plugins = Injection.Plugins.ToArray()
         };
     }
 }
@@ -59,9 +58,4 @@ public class ProtocolResponse : SchemaApiResponse
     /// The response schema
     /// </summary>
     public JsonNode? Response { get; init; }
-    
-    /// <summary>
-    /// The plugins used in this server
-    /// </summary>
-    public string[]? Plugins { get; init; }
 }

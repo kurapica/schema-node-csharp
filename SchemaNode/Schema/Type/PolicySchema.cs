@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// The permission policy schema
 /// </summary>
 [SchemaApp]
-public class PolicySchema
+public sealed class PolicySchema
 {
     /// <summary>
     /// The policy name
@@ -32,7 +32,7 @@ public class PolicySchema
 /// <summary>
 /// The policy item schema
 /// </summary>
-public class PolicyItem
+public sealed class PolicyItem
 {
     /// <summary>
     /// The policy scope

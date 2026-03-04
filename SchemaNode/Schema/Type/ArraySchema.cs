@@ -12,7 +12,7 @@ namespace SchemaNode.Schema;
 /// The array schema
 /// </summary>
 [SchemaApp]
-public class ArraySchema
+public sealed class ArraySchema
 {
     /// <summary>
     /// The array name
@@ -53,7 +53,7 @@ public class ArraySchema
     /// <summary>
     /// The realtions between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The additional data
@@ -65,7 +65,7 @@ public class ArraySchema
 /// <summary>
 /// The data combine settings
 /// </summary>
-public class DataCombine
+public sealed class DataCombine
 {
     /// <summary>
     /// The field
@@ -79,7 +79,7 @@ public class DataCombine
     public DataCombineType Type { get; set; } = DataCombineType.Assign;
 }
 
-public class DataIndex
+public sealed class DataIndex
 {
     /// <summary>
     /// The index name

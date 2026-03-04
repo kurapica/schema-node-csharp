@@ -57,7 +57,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
         if (node.Fields is { Count: > 0 })
         {
             schema.Fields = node.Fields.Select(p => (AppFieldSchema)p).ToArray();
-            schema.Relations = node.Relations?.Select(r => new StructFieldRelation
+            schema.Relations = node.Relations?.Select(r => new StructRelationSchema
             {
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
                 Type = r.Type,

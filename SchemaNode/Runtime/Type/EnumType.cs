@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory enum schema representation
 /// </summary>
-public class EnumType: AnySchemaType
+public sealed class EnumType: AnySchemaType
 {
     // ReSharper disable once InconsistentNaming
     private const int MAX_SUBLIST_LEVEL = 3;

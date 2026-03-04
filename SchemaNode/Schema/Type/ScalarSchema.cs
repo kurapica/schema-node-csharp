@@ -10,7 +10,7 @@ namespace SchemaNode.Schema;
  * The schema of the scalar type
 */
 [SchemaApp]
-public class ScalarSchema
+public sealed class ScalarSchema
 {
     /// <summary>
     /// The scalar name

@@ -34,6 +34,8 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
         }
         
         session?.Dispose();
+
+        // normally should be forked
         if (Fork)
         {
             return context.SubscribeTopicEvent<AppEvent>(Event!, topic, @event =>
@@ -46,7 +48,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
                     Target = t.Length > 1 ? t[1] : null,
                     Data = @event.Payload,
                     Origin = @event.Payload?.Origin
-                });
+                }, new Access { App = Application.Name, Target = t.Length > 1 ? t[1] : null });
             });
         }
         else

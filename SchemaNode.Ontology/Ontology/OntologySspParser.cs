@@ -1,4 +1,4 @@
-namespace SchemaNode.AI.Ontology;
+namespace SchemaNode.Ontology;
 
 /// <summary>
 /// Parses SSP-v1 text into <see cref="SemanticAtom"/> instances and generates granular

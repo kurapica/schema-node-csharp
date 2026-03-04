@@ -1,15 +1,13 @@
 ﻿using SchemaNode.Enum;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using SchemaNode.Context;
-using SchemaNode.Node;
 
 namespace SchemaNode.Runtime;
-
 
 /// <summary>
 /// The app relation schema
 /// </summary>
-public class AppRelationSchema
+public sealed class AppRelationSchema
 {
     /// <summary>
     /// The application field
@@ -52,4 +50,25 @@ public class AppRelationSchema
     /// The relation status
     /// </summary>
     public SchemaNodeStatus Status { get; set; } = SchemaNodeStatus.Ready;
+}
+
+/// <summary>
+/// The app argument
+/// </summary>
+public sealed class AppArgSchema
+{
+    /// <summary>
+    /// The application field
+    /// </summary>
+    public string? AppField { get; init; }
+
+    /// <summary>
+    /// The data field
+    /// </summary>
+    public string? DataField { get; init; }
+
+    /// <summary>
+    /// The json value
+    /// </summary>
+    public JsonNode? Value { get; init; }
 }

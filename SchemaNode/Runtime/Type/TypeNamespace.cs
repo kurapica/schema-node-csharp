@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The namespace node
 /// </summary>
-public class TypeNamespace: AnySchemaType
+public sealed class TypeNamespace: AnySchemaType
 {
     #region Data
 

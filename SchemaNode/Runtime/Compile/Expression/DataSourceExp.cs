@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The data source
 /// </summary>
-public record DataSource(string App, string Field, SchemaExp? Target, AnySchemaType SchemaType);
+public record DataSource(string App, string Field, AnySchemaType SchemaType);
 
 /// <summary>
 /// The data source expression
@@ -45,7 +45,7 @@ public class DataSourceExpVisitor : IExpVisitor
         // App & Field must be provided
         if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(field))
             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-            
+
         // App & Field must be valid
         AppType? appType = await context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
@@ -53,7 +53,7 @@ public class DataSourceExpVisitor : IExpVisitor
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
             schemaType = await context.GetSchemaTypeAsync(appField.Type);
         return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
-            ? new DataSourceExp(new DataSource(app, field, callExp.Args.ElementAtOrDefault(2), schemaType))
+            ? new DataSourceExp(new DataSource(app, field, schemaType))
             : null; // call directly
     }
 
@@ -122,9 +122,6 @@ public class DataSourceExpVisitor : IExpVisitor
         
         string app = dataSource.Source.App;
         string field = dataSource.Source.Field;
-        Expression? target = dataSource.Source.Target != null
-            ? await context.CompileSchemaExpAsync(dataSource.Source.Target)
-            : null;
 
         SchemaExp? curr = exp;
         while (curr != null)
@@ -163,7 +160,7 @@ public class DataSourceExpVisitor : IExpVisitor
             context.GetContext(),
             Expression.Constant(app),
             Expression.Constant(field),
-            target ?? Expression.Constant(null, typeof(string)),
+            Expression.Constant(null, typeof(string)),
             Expression.Constant(resultType),
             filter ?? Expression.Constant(null, typeof(AppSchemaDataFilter)),
             skip != null ? context.ConvertExp(typeof(int), skip) : Expression.Constant(0, typeof(int)),

@@ -148,8 +148,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "name", Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "age",  Type = NS_SYSTEM_INT }
+                        new StructFieldSchema { Name = "name", Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "age",  Type = NS_SYSTEM_INT }
                     ]
                 }
             });
@@ -178,8 +178,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "x", Type = NS_SYSTEM_INT },
-                        new StructFieldConfig { Name = "y", Type = NS_SYSTEM_INT }
+                        new StructFieldSchema { Name = "x", Type = NS_SYSTEM_INT },
+                        new StructFieldSchema { Name = "y", Type = NS_SYSTEM_INT }
                     ]
                 }
             });
@@ -211,7 +211,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "id", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -222,7 +222,7 @@ namespace SchemaNode.UnitTest
                 Struct = new StructSchema
                 {
                     Base   = "test.base",
-                    Fields = [new StructFieldConfig { Name = "extra", Type = NS_SYSTEM_INT }]
+                    Fields = [new StructFieldSchema { Name = "extra", Type = NS_SYSTEM_INT }]
                 }
             });
 
@@ -252,8 +252,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "code",  Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "value", Type = NS_SYSTEM_INT }
+                        new StructFieldSchema { Name = "code",  Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "value", Type = NS_SYSTEM_INT }
                     ]
                 }
             });
@@ -291,7 +291,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "tag", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "tag", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -672,9 +672,9 @@ namespace SchemaNode.UnitTest
                         {
                             Fields =
                             [
-                                new StructFieldConfig { Name = "type", Type = "test.enum" },
-                                new StructFieldConfig { Name = "name", Type = NS_SYSTEM_STRING },
-                                new StructFieldConfig { Name = "age",  Type = NS_SYSTEM_INT, LowLimit = "0" }
+                                new StructFieldSchema { Name = "type", Type = "test.enum" },
+                                new StructFieldSchema { Name = "name", Type = NS_SYSTEM_STRING },
+                                new StructFieldSchema { Name = "age",  Type = NS_SYSTEM_INT, LowLimit = "0" }
                             ]
                         }
                     },
@@ -724,7 +724,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "key", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "key", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -780,8 +780,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "sku",   Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "price", Type = NS_SYSTEM_INT }
+                        new StructFieldSchema { Name = "sku",   Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "price", Type = NS_SYSTEM_INT }
                     ]
                 }
             });
@@ -847,8 +847,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "id",    Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "title", Type = NS_SYSTEM_STRING }
+                        new StructFieldSchema { Name = "id",    Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "title", Type = NS_SYSTEM_STRING }
                     ]
                 }
             });
@@ -909,7 +909,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "nid", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "nid", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -959,8 +959,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "seq",     Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "message", Type = NS_SYSTEM_STRING }
+                        new StructFieldSchema { Name = "seq",     Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "message", Type = NS_SYSTEM_STRING }
                     ]
                 }
             });
@@ -1019,8 +1019,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "k", Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "v", Type = NS_SYSTEM_STRING }
+                        new StructFieldSchema { Name = "k", Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "v", Type = NS_SYSTEM_STRING }
                     ]
                 }
             });
@@ -1140,7 +1140,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "x", Type = NS_SYSTEM_INT }]
+                    Fields = [new StructFieldSchema { Name = "x", Type = NS_SYSTEM_INT }]
                 }
             });
 
@@ -1209,8 +1209,8 @@ namespace SchemaNode.UnitTest
                 {
                     Fields =
                     [
-                        new StructFieldConfig { Name = "a", Type = NS_SYSTEM_STRING },
-                        new StructFieldConfig { Name = "b", Type = NS_SYSTEM_INT }
+                        new StructFieldSchema { Name = "a", Type = NS_SYSTEM_STRING },
+                        new StructFieldSchema { Name = "b", Type = NS_SYSTEM_INT }
                     ]
                 }
             });
@@ -1486,7 +1486,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "id", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -1541,7 +1541,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "key", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "key", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -1602,7 +1602,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "id", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -1666,7 +1666,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "id", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "id", Type = NS_SYSTEM_STRING }]
                 }
             });
 
@@ -1753,7 +1753,7 @@ namespace SchemaNode.UnitTest
                 Type   = SchemaType.Struct,
                 Struct = new StructSchema
                 {
-                    Fields = [new StructFieldConfig { Name = "name", Type = NS_SYSTEM_STRING }]
+                    Fields = [new StructFieldSchema { Name = "name", Type = NS_SYSTEM_STRING }]
                 }
             });
 

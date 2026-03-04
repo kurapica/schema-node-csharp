@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public class AppType
+public sealed class AppType
 {
     #region Properties
 
@@ -285,7 +285,7 @@ public class AppType
                     {
                         foreach(ColPolicyItem colPolicy in field.ColAuths)
                         {
-                            StructFieldConfig? structField = structType.GetField(colPolicy.Name);
+                            StructFieldSchema? structField = structType.GetField(colPolicy.Name);
                             if (structField == null)
                             {
                                 field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
@@ -572,7 +572,7 @@ public class AppType
                 
                 foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    StructFieldConfig? field = mapType is StructType st ? st.GetField(path) : null;
+                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
                     mapType = field?.SchemeType;
                     last = field?.Name ?? string.Empty;
                 }
@@ -607,7 +607,7 @@ public class AppType
                 
                 foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    StructFieldConfig? field = mapType is StructType st ? st.GetField(path) : null;
+                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
                     mapType = field?.SchemeType;
                     last = field?.Name ?? string.Empty;
                 }

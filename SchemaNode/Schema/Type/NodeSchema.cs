@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// The schema is used to describe the data node
 /// </summary>
 [SchemaApp]
-public class  NodeSchema
+public sealed class NodeSchema
 {
     /// <summary>
     /// The parent schema name
@@ -249,7 +249,7 @@ public class  NodeSchema
 /// The locale translate
 /// </summary>
 [Schema(NS_SYSTEM_LOCALE_TRAN)]
-public class LocaleTran
+public sealed class LocaleTran
 {
     /// <summary>
     /// default constructor
@@ -291,7 +291,7 @@ public class LocaleTran
 /// The locale string
 /// </summary>
 [Schema(NS_SYSTEM_LOCALE_STRING)]
-public class LocaleString : ICloneable
+public sealed class LocaleString : ICloneable
 {
     /// <summary>
     /// default constructor
@@ -383,7 +383,7 @@ public class LocaleString : ICloneable
 /// The dict entry
 /// </summary>
 [Schema(NS_SYSTEM_ENTRY)]
-public class Entry
+public sealed class Entry
 {
     /// <summary>
     /// The entry value
@@ -408,4 +408,4 @@ public class Entry
 /// </summary>
 /// <param name="To">The compatible type</param>
 /// <param name="Convert">The convert function</param>
-public record CompatibleSchema(string To, string Convert);
+public sealed record CompatibleSchema(string To, string Convert);

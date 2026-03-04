@@ -1,12 +1,11 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
-using SchemaNode.AI.Ontology;
 using SchemaNode.Components;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.AI.Api;
+namespace SchemaNode.Ontology.Api;
 
 /// <summary>
 /// Returns the ontology (semantic layer) of an App schema or schema-type namespace in one of
@@ -29,6 +28,10 @@ public class LoadAppSchemaOntologyApi : SchemaApi<LoadAppSchemaOntologyRequest, 
         string baseUri = string.IsNullOrWhiteSpace(request.BaseUri)
             ? "https://schema.local/"
             : request.BaseUri;
+
+        // Fix 1: reject relative IRIs — fall back to the default absolute base
+        if (!Uri.TryCreate(baseUri, UriKind.Absolute, out _))
+            baseUri = "https://schema.local/";
 
         string format = string.IsNullOrWhiteSpace(request.Format)
             ? OntologyTextTemplates.FormatTurtle

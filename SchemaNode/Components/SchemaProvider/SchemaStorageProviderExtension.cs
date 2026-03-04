@@ -51,12 +51,13 @@ public static class SchemaStorageProviderExtension
             if (parentNode is TypeNamespace ns)
                 ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
         }
+        NodeSchema[]? subSchemas = schema.Type == SchemaType.Namespace ? schema.Schemas : null;
         await context.GetSchemaTypeAsync(schema.Name, reload: true); // force reload
         
         // check sub schemas
-        if (schema is { Type: SchemaType.Namespace, Schemas.Length: > 0 })
+        if (subSchemas is { Length: > 0 })
         {
-            foreach (var subSchema in schema.Schemas)
+            foreach (var subSchema in subSchemas)
             {
                 await context.SaveSchemaAsync(subSchema);
             }

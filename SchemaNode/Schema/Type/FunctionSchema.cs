@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 /// The schema of function
 /// </summary>
 [SchemaApp]
-public class FunctionSchema
+public sealed class FunctionSchema
 {
     /// <summary>
     /// The function name
@@ -141,7 +141,7 @@ public class FunctionSchema
 /**
  * The function argument information
  */
-public class FuncArg
+public sealed class FuncArg
 {
     /// <summary>
     /// The argument name
@@ -186,7 +186,7 @@ public class FuncArg
 /// <summary>
 /// The function expressions
 /// </summary>
-public class FuncExp {
+public sealed class FuncExp {
     /// <summary>
     /// The expression name
     /// </summary>
@@ -226,7 +226,7 @@ public class FuncExp {
 /// <summary>
 /// The function call argument
 /// </summary>
-public class FuncCallArg {
+public sealed class FuncCallArg {
     /// <summary>
     /// The argument name or expression name
     /// </summary>

@@ -144,7 +144,7 @@ public class CollectionExpVisitor : IExpVisitor
                     string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                     foreach (string path in paths)
                     {
-                        StructFieldConfig field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                        StructFieldSchema field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                         type = field.SchemeType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
                     
@@ -240,7 +240,7 @@ public class CollectionExpVisitor : IExpVisitor
                         string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                         foreach (string path in paths)
                         {
-                            StructFieldConfig field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                            StructFieldSchema field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                             type = field.SchemeType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                         }
                     

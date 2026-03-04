@@ -6,7 +6,6 @@ using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Nodes;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -16,7 +15,7 @@ namespace SchemaNode.Schema;
 /// The struct schema.
 /// </summary>
 [SchemaApp]
-public class StructSchema
+public sealed class StructSchema
 {
     /// <summary>
     /// The struct name
@@ -36,12 +35,12 @@ public class StructSchema
     /// <summary>
     /// The struct fields
     /// </summary>
-    public StructFieldConfig[] Fields { get; set; } = [];
+    public StructFieldSchema[] Fields { get; set; } = [];
     
     /// <summary>
     /// The relations between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The additional data
@@ -53,7 +52,7 @@ public class StructSchema
 /// <summary>
 /// The struct field config
 /// </summary>
-public class StructFieldConfig
+public class StructFieldSchema
 {
     /// <summary>
     /// The field name
@@ -392,7 +391,7 @@ public class StructFieldConfig
 /// <summary>
 /// The relation between fields
 /// </summary>
-public class StructFieldRelation
+public class StructRelationSchema
 {
     /// <summary>
     /// The target field, can use . for deep fields

@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// The workflow schema
 /// </summary>
 [SchemaApp]
-public class WorkflowSchema
+public sealed class WorkflowSchema
 {
     /// <summary>
     /// The workflow name

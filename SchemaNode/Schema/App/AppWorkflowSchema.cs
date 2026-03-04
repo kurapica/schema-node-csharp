@@ -14,7 +14,7 @@ namespace SchemaNode.Schema;
 /// The application workflow
 /// </summary>
 [SchemaApp]
-public class AppWorkflowSchema
+public sealed class AppWorkflowSchema
 {
     /// <summary>
     /// the application name
@@ -70,7 +70,7 @@ public class AppWorkflowSchema
 /// <summary>
 /// The application workflow node
 /// </summary>
-public class AppWorkflowNodeSchema
+public sealed class AppWorkflowNodeSchema
 {
     /// <summary>
     /// The node name

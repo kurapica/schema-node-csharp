@@ -14,7 +14,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application workflow schema representation
 /// </summary>
-public class AppWorkflowType: IDisposable
+public sealed class AppWorkflowType: IDisposable
 {
     #region Properties
 

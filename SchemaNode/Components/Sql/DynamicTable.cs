@@ -1,12 +1,13 @@
-﻿using SchemaNode.Context;
+﻿using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
-using Microsoft.Extensions.DependencyInjection;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -365,6 +366,8 @@ public class DynamicTableSchema
 
     #region Utility
 
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
     {
@@ -376,8 +379,8 @@ public class DynamicTableSchema
                 // batch process for join functions
                 if (type.Relations != null)
                 {
-                    foreach (StructFieldRelation relation in (type.Relations.Where(r =>
-                                 r.Type == RelationType.Default && GetAppFieldDataFuncs.Contains(r.Func) &&
+                    foreach (StructRelationSchema relation in (type.Relations.Where(r =>
+                                 r.Type == RelationType.Default && IsReferenceFunc(r.Func) &&
                                  type.GetField(r.Field) != null && (type.GetField(r.Field)?.DisplayOnly ?? false))))
                     {
                         // app
@@ -404,7 +407,7 @@ public class DynamicTableSchema
                         // data field
                         string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
-                        StructFieldConfig? dataFieldType = structType.GetField(dataField);
+                        StructFieldSchema? dataFieldType = structType.GetField(dataField);
                         if (dataFieldType == null) continue; // data field not exist
 
                         // target
@@ -552,7 +555,7 @@ public class DynamicTableSchema
                         if (relation == null) continue;
                         
                         // handled by array node
-                        if (joinHandled && GetAppFieldDataFuncs.Contains(relation.Func)) continue; 
+                        if (joinHandled && IsReferenceFunc(relation.Func)) continue; 
 
                         // call function to get value
                         JsonArray args = [];
