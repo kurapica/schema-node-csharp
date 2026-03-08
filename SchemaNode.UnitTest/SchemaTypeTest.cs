@@ -420,13 +420,13 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// Call system.logic.andalso for logical AND
+        /// Call system.logic.and for logical AND
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_AndAlso()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.andalso");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.and");
             Assert.IsNotNull(func);
 
             Assert.IsTrue(await func.CallAsync<bool>(ctx,  [true,  true]));
@@ -435,13 +435,13 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// Call system.logic.orelse for logical OR
+        /// Call system.logic.or for logical OR
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_OrElse()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.orelse");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.or");
             Assert.IsNotNull(func);
 
             Assert.IsTrue(await func.CallAsync<bool>(ctx,  [true,  false]));
@@ -1338,14 +1338,14 @@ namespace SchemaNode.UnitTest
         }
 
         /// <summary>
-        /// system.logic.equal / notequal: equality and inequality comparison
+        /// system.logic.eq / neq: equality and inequality comparison
         /// </summary>
         [TestMethod]
         public async Task SystemLogic_Equal_NotEqual()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var eqF  = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.equal");
-            var neqF = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.notequal");
+            var eqF  = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.eq");
+            var neqF = await ctx.GetSchemaTypeAsync<FunctionType>("system.logic.neq");
             Assert.IsNotNull(eqF);
             Assert.IsNotNull(neqF);
 

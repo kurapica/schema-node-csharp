@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using Microsoft.AspNetCore.Http;
+using SchemaNode.Components;
 using SchemaNode.Converter;
 using SchemaNode.Enum;
 
@@ -88,13 +89,15 @@ public static class Extension
 
     #region Json Options
 
-    private static readonly ConcurrentDictionary<DateFormatMode, JsonSerializerOptions> IndentJsonOptions = new();
-    private static readonly ConcurrentDictionary<DateFormatMode, JsonSerializerOptions> NoIndentJsonOptions = new();
-    
-    internal static JsonSerializerOptions GetJsonOptions(bool indent, DateFormatMode? dateFormat = null)
+    private static readonly ConcurrentDictionary<(DateFormatMode, string), JsonSerializerOptions> IndentJsonOptions = new();
+    private static readonly ConcurrentDictionary<(DateFormatMode, string), JsonSerializerOptions> NoIndentJsonOptions = new();
+
+    internal static JsonSerializerOptions GetJsonOptions(bool indent, DateFormatMode? dateFormat = null, TimeZoneInfo? timeZone = null)
     {
+        var dfm = dateFormat ?? DateFormatMode.Iso8601;
+        var tz = timeZone ?? AccessContextItemProviderExtensions.DefaultTimeZone;
         var dict = indent ? IndentJsonOptions : NoIndentJsonOptions;
-        return dict.GetOrAdd(dateFormat ?? DateFormatMode.Iso8601, dfm =>
+        return dict.GetOrAdd((dfm, tz.Id), _ =>
         {
             var options = new JsonSerializerOptions
             {
@@ -104,9 +107,9 @@ public static class Extension
                     new UniversalFlexibleEnumConverter(),
                     new ForceStringConverter(),
                     new FlexibleLongConverter(),
-                    new JsonDateTimeConverter(dateFormat ?? DateFormatMode.Iso8601),
-                    new JsonDateTimeOffsetConverter(dateFormat ?? DateFormatMode.Iso8601),
-                    new JsonNodeDateFormatConverter(dateFormat ?? DateFormatMode.Iso8601),
+                    new JsonDateTimeConverter(dfm, tz),
+                    new JsonDateTimeOffsetConverter(dfm, tz),
+                    new JsonNodeDateFormatConverter(dfm, tz),
                 },
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -126,20 +129,20 @@ public static class Extension
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
     /// <param name="mode">The datetime format</param>
-    public static string ToJson<T>(this T value, bool indent = false, DateFormatMode? mode = null)
+    public static string ToJson<T>(this T value, bool indent = false, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
     {
         if (value is JsonNode json) return json.ToString();
-        
+
         // Generate the JSON string.
-        return JsonSerializer.Serialize(value, GetJsonOptions(indent, mode));
+        return JsonSerializer.Serialize(value, GetJsonOptions(indent, mode, timeZone));
     }
 
     /// <summary>
     /// To http result
     /// </summary>
-    public static IResult ToResult<T>(this T value, bool indent = false, DateFormatMode? mode = null)
+    public static IResult ToResult<T>(this T value, bool indent = false, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
     {
-        return Results.Json(value, GetJsonOptions(indent, mode));
+        return Results.Json(value, GetJsonOptions(indent, mode, timeZone));
     }
 
     /// <summary>

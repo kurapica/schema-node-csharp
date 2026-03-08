@@ -127,6 +127,8 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         {
             foreach (var o in node)
             {
+                if (o is null) continue;
+                if (o is AnySchemaNode { IsEmpty: true }) continue;
                 _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
             }
         }
@@ -134,6 +136,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         {
             foreach (var o in node)
             {
+                if (o is null) continue;
                 _rawElements.Add(o);
             }
         }
@@ -141,6 +144,8 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 
     public void Add(object node)
     {
+        if (node is null) return;
+        if (node is AnySchemaNode { IsEmpty: true }) return;
         if (ElementType != null)
         {
             _elements.Add(ElementType.CreateNode(node) ?? throw new NotSupportedException());

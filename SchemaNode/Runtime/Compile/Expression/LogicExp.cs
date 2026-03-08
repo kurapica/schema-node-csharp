@@ -242,22 +242,22 @@ public class LogicExpVisitor : IExpVisitor
                     await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.contains)}") ),
                 
                 LogicType.StartsWith => new BinaryLogicExp(LogicType.NotStartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notstartswith)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notstartswith)}") ),
                 
                 LogicType.NotStartsWith => new BinaryLogicExp(LogicType.StartsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.startswith)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.startswith)}") ),
                 
                 LogicType.EndsWith => new BinaryLogicExp(LogicType.NotEndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notendswith)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notendswith)}") ),
                 
                 LogicType.NotEndsWith => new BinaryLogicExp(LogicType.EndsWith, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.endswith)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.endswith)}") ),
                 
                 LogicType.Match => new BinaryLogicExp(LogicType.NotMatch, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.notmatch)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.notcontains)}") ),
                 
                 LogicType.NotMatch => new BinaryLogicExp(LogicType.Match, binaryLogicExp.Left, binaryLogicExp.Right, exp.SchemaType,
-                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.{nameof(SystemStr.match)}") ),
+                    await context.GetSchemaTypeAsync<FunctionType>($"system.str.logic.{nameof(SystemStr.Logic.contains)}") ),
                 
                 _ => null
             },

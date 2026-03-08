@@ -5,7 +5,7 @@ using SchemaNode.Enum;
 
 namespace SchemaNode.Converter;
 
-public class JsonNodeDateFormatConverter(DateFormatMode mode) : JsonConverter<JsonNode>
+public class JsonNodeDateFormatConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<JsonNode>
 {
     public override JsonNode? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => JsonNode.Parse(ref reader);
@@ -59,13 +59,13 @@ public class JsonNodeDateFormatConverter(DateFormatMode mode) : JsonConverter<Js
         {
             if (val.TryGetValue<DateTimeOffset>(out var dto))
             {
-                DateFormatModeSerializer.Write(writer, dto, mode);
+                DateFormatModeSerializer.Write(writer, dto, mode, tz);
                 return true;
             }
 
             if (val.TryGetValue<DateTime>(out var dt))
             {
-                DateFormatModeSerializer.Write(writer, dt, mode);
+                DateFormatModeSerializer.Write(writer, dt, mode, tz);
                 return true;
             }
         }

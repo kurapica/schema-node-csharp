@@ -84,7 +84,7 @@ public class OntologyVectorOptions
 
     /// <summary>
     /// Number of dimensions for the embedding vectors.
-    /// <b>Must match the model's actual output dimension</b> — this value is used to
+    /// <b>Must contains the model's actual output dimension</b> — this value is used to
     /// define the <c>vector(N)</c> column type when the table is first created.
     /// <list type="bullet">
     ///   <item><c>1536</c> — OpenAI <c>text-embedding-3-small</c> / <c>ada-002</c></item>

@@ -6,7 +6,7 @@ namespace SchemaNode.Enum;
 public enum FieldFilterResolve
 {
     /// <summary>
-    /// Query cascade parent node if no match
+    /// Query cascade parent node if no contains
     /// </summary>
     CascadeParent = 1,
 }

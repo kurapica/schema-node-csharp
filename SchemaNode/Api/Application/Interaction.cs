@@ -48,7 +48,7 @@ public static class InteractionExtensions
         if (!innerCall)
             await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
         
-        // Find the match node
+        // Find the contains node
         Workflow node = (string.IsNullOrEmpty(request.Node) 
             ? workflowType.RootWorkflowContext.EntryWorkflow
             : workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node))

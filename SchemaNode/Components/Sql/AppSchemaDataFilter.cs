@@ -169,7 +169,7 @@ public static class AppSchemaDataFilterExtensions
                 if (leftTransformed is AppSchemaDataFilterValue leftOp)
                 {
                     if (leftOp.Value is null || (leftOp.Value is AnySchemaNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
-                        ? SystemCollection.arrlen(leftOp.Value) == 0
+                        ? SystemCollection.length(leftOp.Value) == 0
                         : string.IsNullOrWhiteSpace(leftOp.Value.ToString())))
                     {
                         result = new AppSchemaDataFilterValue(false);
@@ -180,7 +180,7 @@ public static class AppSchemaDataFilterExtensions
                 {
                     if (rightOp.Value is null || 
                         (rightOp.Value is AnySchemaNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
-                            ? SystemCollection.arrlen(rightOp.Value) == 0
+                            ? SystemCollection.length(rightOp.Value) == 0
                             : string.IsNullOrWhiteSpace(rightOp.Value.ToString())))
                     {
                         result = new AppSchemaDataFilterValue(false);
@@ -419,7 +419,7 @@ public static class AppSchemaDataFilterExtensions
                         return sqlProvider.LikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
                             (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The match right value must be string"))!);
+                                ?? throw new NotSupportedException("The contains right value must be string"))!);
                     case LogicType.NotMatch:
                         return sqlProvider.NotLikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
@@ -440,7 +440,7 @@ public static class AppSchemaDataFilterExtensions
     }
 
     /// <summary>
-    /// Check if the struct node match the filter
+    /// Check if the struct node contains the filter
     /// </summary>
     public static AnySchemaNode Test(this AppSchemaDataFilter filter, StructTypeNode structNode, AnySchemaType? expectType = null)
     {

@@ -25,9 +25,9 @@ public class DefaultSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse
     {
-        return Results.Json(response, GetJsonOptions(false, mode));
+        return Results.Json(response, GetJsonOptions(false, mode, timeZone));
     }
     
     /// <inheritdoc />

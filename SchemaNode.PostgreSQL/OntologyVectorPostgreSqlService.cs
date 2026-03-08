@@ -12,7 +12,7 @@ namespace SchemaNode.PostgreSQL;
 /// <para>
 /// Each <see cref="SemanticAtom"/> is embedded via <see cref="IEmbeddingGenerator"/> and stored
 /// in a dedicated table with a <c>vector(N)</c> column.  Vector dimensions are controlled
-/// by <see cref="OntologyVectorOptions.Dimensions"/> — change this value to match your
+/// by <see cref="OntologyVectorOptions.Dimensions"/> — change this value to contains your
 /// embedding model (e.g. 1536 for <c>text-embedding-3-small</c>).
 /// </para>
 /// <para>

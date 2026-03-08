@@ -496,7 +496,7 @@ public sealed class StructType: AnySchemaType
     public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
     {
         string[] generics = Fields.Where(f => f.SchemeType is GenericType).Select(f => f.Type).Distinct().ToArray();
-        if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not match
+        if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not contains
 
         _genericTypes ??= new ConcurrentDictionary<string, StructType>();
         string key = string.Join('|', types);

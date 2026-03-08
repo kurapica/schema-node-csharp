@@ -404,7 +404,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Match types
-            AnySchemaType funcRetType = exp.SchemaType; // func return type may not match exp return type, require exp type check
+            AnySchemaType funcRetType = exp.SchemaType; // func return type may not contains exp return type, require exp type check
             bool isColExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
 
             // Check call type for return value, can't do it in visitor since we need generic type info
@@ -1219,7 +1219,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         // Case B: instance method
-        // Normal: instance method => call with target as instance, args match parmCount
+        // Normal: instance method => call with target as instance, args contains parmCount
         if (!method.IsStatic)
         {
             if (parmCount == args.Length)

@@ -12,7 +12,6 @@ using System.Reflection;
 using Microsoft.AspNetCore.Http;
 using Quartz;
 using SchemaNode.Components.Context;
-using SchemaNode.Function;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
@@ -20,7 +19,6 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Schema;
 using static SchemaNode.Utility.App;
 using static SchemaNode.Utility.Constant;
-// ReSharper disable MemberCanBePrivate.Global
 
 namespace SchemaNode;
 
@@ -45,20 +43,32 @@ public static class Injection
     public static IServiceCollection AddSchemaNode<T>(this IServiceCollection services, Action<SchemaNodeConfig>? config = null, params Assembly[] assemblies)
         where T : class, ISchemaApiProtocol
     {
+        #region Config
+
         if (config != null)
         {
             config.Invoke(SchemaContext.Config);
-            SystemDate.SetTimeZone(SchemaContext.Config.TimeZone);
+            if (!string.IsNullOrWhiteSpace(SchemaContext.Config.TimeZone))
+                AccessContextItemProviderExtensions.SetDefaultTimeZone(SchemaContext.Config.TimeZone);
         }
-        
-        // default logger
+
+        #endregion
+
+        #region logger
+
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
         services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
-        
-        // critical region
+
+        #endregion
+
+        #region critical region
+
         services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
 
-        // Quartz scheduler
+        #endregion
+        
+        #region Quartz scheduler
+        
         services.AddQuartz(q =>
         {
             q.UseInMemoryStore();
@@ -73,23 +83,36 @@ public static class Injection
         {
             opt.WaitForJobsToComplete = true;
         });
-        
-        // The schema context
+
+        #endregion
+
+        #region Context
+
         services.AddScoped<SchemaContext>();
         services.AddTransient<WorkflowContext>();
 
-        // Expression visitor
+        #endregion
+
+        #region Expression
+
         services.AddSingleton<IExpVisitor, IntrinsicExpVisitor>();
         services.AddSingleton<IExpVisitor, ArithmeticExpVisitor>();
         services.AddSingleton<IExpVisitor, LogicExpVisitor>();
         services.AddSingleton<IExpVisitor, CollectionExpVisitor>();
         services.AddSingleton<IExpVisitor, DataSourceExpVisitor>();
 
-        // api protocol
+        #endregion
+
+        #region Api Protocol
+
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
         services.TryAddTransient<ISchemaApiProtocol, T>();
         services.TryAddTransient<T>();
-        
+
+        #endregion
+
+        #region Register Schemas
+
         // Register schema assemblies
         foreach (Assembly assembly in assemblies) RegisterAssemblys.Add(assembly);
         Assembly? entryAssembly = Assembly.GetEntryAssembly();
@@ -221,7 +244,11 @@ public static class Injection
                 }
             }
         }
-        
+
+        #endregion
+
+        #region Default services
+
         // event dispatcher
         services.TryAddSingleton<IEventDispatcher<Event>, DefaultEventDispatcher>();
 
@@ -230,7 +257,11 @@ public static class Injection
         
         // workflow persistence
         services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
-        
+
+        #endregion
+
+        #region Context Item Providers
+
         // Register system.context
         NodeSchema contextSchema = NewSystemStruct(NS_SYSTEM_CONTEXT, []);
         services.AddScoped<Access>();
@@ -263,12 +294,18 @@ public static class Injection
         
         // Add the system.context
         SaveSystemNodeSchema(contextSchema);
-        
+
+        #endregion
+
+        #region Init system schema types
+
         // Init the Schema Context
         using IServiceScope scope = services.BuildServiceProvider().CreateScope();
         SchemaContext context = scope.ServiceProvider.GetRequiredService<SchemaContext>();
         context.InitSystemContextAsync().GetAwaiter().GetResult();
-        
+
+        #endregion
+
         return services;
     }
     

@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 
 namespace SchemaNode.Converter;
 
@@ -38,10 +37,10 @@ internal static class DateFormatModeSerializer
             _ => throw new NotSupportedException($"Unsupported {nameof(DateFormatMode)} '{mode}'.")
         };
 
-    public static void Write(Utf8JsonWriter writer, DateTime value, DateFormatMode mode)
-        => Write(writer, ToUtcOffset(value), mode);
+    public static void Write(Utf8JsonWriter writer, DateTime value, DateFormatMode mode, TimeZoneInfo tz)
+        => Write(writer, ToUtcOffset(value), mode, tz);
 
-    public static void Write(Utf8JsonWriter writer, DateTimeOffset value, DateFormatMode mode)
+    public static void Write(Utf8JsonWriter writer, DateTimeOffset value, DateFormatMode mode, TimeZoneInfo tz)
     {
         var utc = value.ToUniversalTime();
         switch (mode)
@@ -50,10 +49,10 @@ internal static class DateFormatModeSerializer
                 writer.WriteStringValue(value.ToString(IsoFormat, Culture));
                 break;
             case DateFormatMode.DateOnly:
-                writer.WriteStringValue(utc.DateTime.FromUtc().ToString(DateOnlyFormat, Culture));
+                writer.WriteStringValue(TimeZoneInfo.ConvertTimeFromUtc(utc.DateTime, tz).ToString(DateOnlyFormat, Culture));
                 break;
             case DateFormatMode.DateTime:
-                writer.WriteStringValue(utc.DateTime.FromUtc().ToString(DateTimeFormat, Culture));
+                writer.WriteStringValue(TimeZoneInfo.ConvertTimeFromUtc(utc.DateTime, tz).ToString(DateTimeFormat, Culture));
                 break;
             case DateFormatMode.Compact:
                 writer.WriteStringValue(utc.ToString(utc.TimeOfDay == TimeSpan.Zero ? CompactDateFormat : CompactDateTimeFormat, Culture));
@@ -135,22 +134,22 @@ internal static class DateFormatModeSerializer
 
 #region DateTime Converter
 
-internal class JsonDateTimeConverter(DateFormatMode mode) : JsonConverter<DateTime>
+internal class JsonDateTimeConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTime>
 {
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => DateFormatModeSerializer.ReadDateTime(ref reader, mode);
 
     public override void Write(Utf8JsonWriter writer, DateTime value, JsonSerializerOptions options)
-        => DateFormatModeSerializer.Write(writer, value, mode);
+        => DateFormatModeSerializer.Write(writer, value, mode, tz);
 }
 
-internal class JsonDateTimeOffsetConverter(DateFormatMode mode) : JsonConverter<DateTimeOffset>
+internal class JsonDateTimeOffsetConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTimeOffset>
 {
     public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => DateFormatModeSerializer.ReadDateTimeOffset(ref reader, mode);
 
     public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
-        => DateFormatModeSerializer.Write(writer, value, mode);
+        => DateFormatModeSerializer.Write(writer, value, mode, tz);
 }
 
 #endregion

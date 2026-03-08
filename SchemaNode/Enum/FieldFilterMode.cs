@@ -6,22 +6,22 @@ namespace SchemaNode.Enum;
 public enum FieldFilterMode
 {
     /// <summary>
-    /// Exactly match
+    /// Exactly contains
     /// </summary>
     Exactly = 1,
     
     /// <summary>
-    /// Prefix match
+    /// Prefix contains
     /// </summary>
     Prefix = 2,
     
     /// <summary>
-    /// Suffix match
+    /// Suffix contains
     /// </summary>
     Suffix = 3,
     
     /// <summary>
-    /// Like / contains match
+    /// Like / contains contains
     /// </summary>
     Contains = 4,
     

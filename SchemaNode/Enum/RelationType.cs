@@ -89,9 +89,4 @@ public enum RelationType
     /// Union validation
     /// </summary>
     Validation,
-    
-    /// <summary>
-    /// App field reference
-    /// </summary>
-    Reference,
 }

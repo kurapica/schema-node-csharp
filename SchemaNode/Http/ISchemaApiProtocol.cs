@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
-using System.Globalization;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
@@ -8,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
 using Microsoft.OpenApi;
+using SchemaNode.Components;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -39,7 +40,7 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Generate the result based on the response
     /// </summary>
-    IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null) where TResponse : SchemaApiResponse;
+    IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse;
 
     /// <summary>
     /// Generate error response based on exception
@@ -162,7 +163,9 @@ public interface ISchemaApiProtocol
 
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
+        response!.TimeZone = request.TimeZone;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
+        var timeZone = provider.GetRequiredService<SchemaContext>().GetTimeZone();
         
         // Stream
         if (response.Output?.Stream != null)
@@ -187,7 +190,7 @@ public interface ISchemaApiProtocol
                 fileDownloadName: response.Output.Name
             );
         }
-        return GenerateResult(response, dateFormat);
+        return GenerateResult(response, dateFormat, timeZone);
     }
     
     /// <summary>
@@ -221,7 +224,8 @@ public interface ISchemaApiProtocol
         var schemaGenerator = provider.GetRequiredService<ISchemaGenerator>();
         var schemaRepository = new SchemaRepository();
 
-        // 这里我们没有 API 描述，所以传空集合即可
+        // No need to generate the real schema here, we just want to analyze the structure of the wrapped schema,
+        // so we can use a placeholder schema as the inner schema and check if it's referenced in the properties of the wrapped schema.
         var context = new DocumentFilterContext(Array.Empty<Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription>(),
             schemaGenerator, schemaRepository);
         OpenApiSchema innerSchema = new(); // placeholder
@@ -289,7 +293,7 @@ public interface ISchemaApiProtocol
         else
         {
             string? example = schema.Example?.ToString();
-            return JsonValue.Create($"{schema.Type}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
+            return JsonValue.Create($"{schema.Type.ToString()?.ToLower()}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
         }
     }
 }

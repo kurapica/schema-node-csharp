@@ -23,7 +23,7 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [Schema]
-    public static long arrlen([Schema(NS_SYSTEM_ARRAY)] object array)
+    public static long length([Schema(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is string str) return str.Length;
         if (array is JsonArray jsonArray) return jsonArray.Count;
@@ -33,26 +33,6 @@ public static class SystemCollection
         return 0;
     }
     
-    [Schema]
-    public static JsonObject newstruct() => new  JsonObject();
-
-    /// <summary>
-    /// Create a new array
-    /// </summary>
-    [Schema]
-    public static List<T> newarray<T>() => new List<T>();
-
-    /// <summary>
-    /// Push to the list
-    /// </summary>
-    [Schema]
-    public static List<T> push<T>(IEnumerable<T> arr, T value)
-    {
-        List<T> res = new (arr);
-        res.Add(value);
-        return res;
-    }
-
     /// <summary>
     /// Whether the list contains the item
     /// </summary>
@@ -78,81 +58,13 @@ public static class SystemCollection
     }
 
     /// <summary>
-    /// Calc the average
-    /// </summary>
-    [Schema]
-    public static T average<T>(ArrayTypeNode array) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        int count = 0;
-        foreach (var item in array)
-        {
-            count++;
-            sum += item.ToValue<T>() ?? T.Zero;
-        }
-        return count == 0 ? T.Zero : sum / T.CreateChecked(count);
-    }
-
-    /// <summary>
-    /// Calc the sum
-    /// </summary>
-    [Schema]
-    public static T sum<T>(ArrayTypeNode array) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        foreach (var item in array)
-        {
-            sum += item.ToValue<T>() ?? T.Zero;
-        }
-        return sum;
-    }
-
-    /// <summary>
-    /// Delete a field from the json object
-    /// </summary>
-    [Schema]
-    public static StructTypeNode delfield(StructTypeNode obj, string field)
-    {
-        obj[field] = null;
-        return obj;
-    }
-
-    /// <summary>
-    /// Whether the object has the field
-    /// </summary>
-    [Schema]
-    public static bool containskey(StructTypeNode obj, string field)
-    {
-        return obj[field] != null;
-    }
-
-    /// <summary>
-    /// Whether the object not has the field
-    /// </summary>
-    [Schema]
-    public static bool notcontainskey(StructTypeNode obj, string field)
-    {
-        return obj[field] == null;
-    }
-
-    /// <summary>
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static async Task<T?> getfield<T>(SchemaContext context, StructTypeNode obj, string field)
+    public static async Task<T?> getfield<T>(SchemaContext context, StructTypeNode obj, string field, T? @default)
     {
         AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
-        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : default;
-    }
-
-    /// <summary>
-    /// Gets the field value from the object
-    /// </summary>
-    [Schema]
-    public static async Task<T> getfielddefault<T>(SchemaContext context, StructTypeNode obj, string field, T defaultValue)
-    {
-        AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
-        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T))! : defaultValue;
+        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : (@default ?? default);
     }
 
     /// <summary>
@@ -178,16 +90,6 @@ public static class SystemCollection
         return resultType;
     }
     
-    /// <summary>
-    /// Sets the field and return a new json object
-    /// </summary>
-    [Schema]
-    public static StructTypeNode setfield(StructTypeNode obj, string field, object? value)
-    {
-        obj[field] = value;
-        return obj;
-    }
-
     /// <summary>
     /// order by the given field
     /// </summary>

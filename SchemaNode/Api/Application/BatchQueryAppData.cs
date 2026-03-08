@@ -7,9 +7,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -102,7 +100,7 @@ public static class BatchQueryExtension
                     
                     // limit incr field take count
                     int take = q?.Take ?? query.Take ?? 0;
-                    if (field.IncrUpdate == true && (string.IsNullOrWhiteSpace(q?.FilterFunc) || q?.FilterAll != true))
+                    if (field.IncrUpdate == true)
                     {
                         take = take <= 0 
                             ? SchemaContext.Config.IncrFieldDefaultTakeCount 
@@ -121,20 +119,11 @@ public static class BatchQueryExtension
                     
                     if (allowRead)
                     {
-                        if (!string.IsNullOrWhiteSpace(q?.FilterFunc))
-                        {
-                            // filter func not valid, deny read
-                            if (await context.GetSchemaTypeAsync(q.FilterFunc) is not FunctionType filterFunc) continue;
-                            
-                            // Call filter func with policy filter compile context
-                            filter = await filterFunc.CallAsync<AppSchemaDataFilter, RefFilterCompileContext>(context, q.FilterArgsArray?.Select(object? (p) => p).ToArray() ?? []);
-                        }
-
                         // row access check
                         if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
                             bool authorized = true;
-                            foreach (RowPolicyItem policy in field.RowAuths)
+                            foreach (RowPolicy policy in field.RowAuths)
                             {
                                 try
                                 {
@@ -208,8 +197,6 @@ public static class BatchQueryExtension
                         Take = take,
                         Descend = q?.Descend ?? query.Descend ?? false,
                         Total = total,
-                        FilterFunc = q?.FilterFunc,
-                        FilterArgs = q?.FilterArgsArray?.DeepClone() as JsonArray,
                         AllowRead = allowRead,
                         AllowCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true),
                         AllowUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true),
@@ -555,26 +542,6 @@ public class AppDataFieldQuery
     /// Use descent order
     /// </summary>
     public bool? Descend { get; set; }
-    
-    /// <summary>
-    /// The filter function
-    /// </summary>
-    public string? FilterFunc { get; set; }
-
-    /// <summary>
-    /// The filter function args
-    /// </summary>
-    public JsonElement? FilterArgs { get; set; }
-    
-    /// <summary>
-    /// Filter all data without paging, only used when the field is incr update, and take is not set or less than 0, to avoid performance issue
-    /// </summary>
-    public bool? FilterAll { get; set; }
-    
-    [JsonIgnore]
-    public JsonArray? FilterArgsArray => FilterArgs is { ValueKind: JsonValueKind.Array }
-        ? JsonNode.Parse(FilterArgs.Value.GetRawText()) as JsonArray
-        : null;
 }
 
 public class AppDataResult
@@ -669,16 +636,6 @@ public class AppDataFieldInfo
     /// Disable columns access
     /// </summary>
     public string[]? BlackColumns { get; set;  }
-
-    /// <summary>
-    /// The filter func
-    /// </summary>
-    public string? FilterFunc { get; set; }
-
-    /// <summary>
-    ///  The filter args
-    /// </summary>
-    public JsonArray? FilterArgs { get; set; }
 }
 
 /// <summary>

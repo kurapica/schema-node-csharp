@@ -3,9 +3,9 @@ namespace SchemaNode.Context;
 public class SchemaNodeConfig
 {
     /// <summary>
-    /// The time zone
+    /// The default time zone
     /// </summary>
-    public string TimeZone { get; set; } = "China Standard Time";
+    public string? TimeZone { get; set; }
 
     /// <summary>
     /// The max take count for increment field

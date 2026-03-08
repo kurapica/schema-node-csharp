@@ -6,7 +6,6 @@ using SchemaNode.Runtime;
 using System.Text.Json.Nodes;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using Microsoft.OpenApi;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
 
@@ -24,7 +23,7 @@ public static class SystemData
     /// Gets the context item
     /// </summary>
     [Schema]
-    public static AnySchemaNode? getcontextitem(SchemaContext context, string item) 
+    public static AnySchemaNode? getcontext(SchemaContext context, string item) 
         => context.GetSchemaContextItem(item);
 
     #endregion
@@ -35,7 +34,7 @@ public static class SystemData
     /// Gets the app data with full primary keys
     /// </summary>
     [Schema]
-    public static async Task<T?> getappdata<T>(
+    public static async Task<T?> get<T>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -49,10 +48,10 @@ public static class SystemData
         ArrayType? arrType = fieldType.SchemaType as ArrayType;
         string[] keys = arrType?.Primary ?? [];
 
-        // full primary key match
+        // full primary key contains
         if (keys.Length != args.Length) return default;
 
-        // Check the app access is match, only allow access in the same app or system level app
+        // Check the app access is contains, only allow access in the same app or system level app
         Access? access = context.GetSchemaContextItem<Access>();
         if ((access == null || !app.Equals(access.App)) && appType!.ScopeType != Enum.AppScopeType.SystemLevel)
             return default;
@@ -102,13 +101,13 @@ public static class SystemData
         {
             if (value is not ArrayTypeNode { Count: > 0 } arr) return default;
 
-            // find the match item
+            // find the contains item
             StructTypeNode[] items = arr.Cast<StructTypeNode>().ToArray();
             for (int i = 0; i < keyValues.Length; i++)
             {
                 if (keyValues[i].Count == 1) continue;
 
-                // match the last
+                // contains the last
                 for (int j = keyValues[i].Count - 1; j >= 0; j--)
                 {
                     AnySchemaNode key = keyValues[i][j];
@@ -130,14 +129,14 @@ public static class SystemData
     /// Gets the application data for field if single value
     /// </summary>
     [Schema]
-    public static async Task<T?> getappfdata<T>(
+    public static async Task<T?> getfield<T>(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
         string dataField,
         params object?[] args)
     {
-        AnySchemaNode? result = await getappdata<AnySchemaNode>(context, app, field, args);
+        AnySchemaNode? result = await get<AnySchemaNode>(context, app, field, args);
         AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
         return f != null ? f.ToValue<T>() : default;
     }
@@ -175,7 +174,7 @@ public static class SystemData
     [Schema]
     [SideEffect]
     [WorkflowOnly]
-    public static async Task<JsonNode?> incrappdata(
+    public static async Task<JsonNode?> incr(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -189,7 +188,7 @@ public static class SystemData
         Access? access = context.GetSchemaContextItem<Access>();
         string? target = access?.Target;
 
-        // Check the app access is match, only allow access in the same app or system level app
+        // Check the app access is contains, only allow access in the same app or system level app
         if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
         if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
 
@@ -300,7 +299,7 @@ public static class SystemData
     [Schema]
     [SideEffect]
     [WorkflowOnly]
-    public static async Task<bool> saveappdata(
+    public static async Task<bool> save(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
@@ -316,7 +315,7 @@ public static class SystemData
         Access? access = context.GetSchemaContextItem<Access>();
         string? target = access?.Target;
 
-        // Check the app access is match, only allow access in the same app or system level app
+        // Check the app access is contains, only allow access in the same app or system level app
         if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
         if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
 

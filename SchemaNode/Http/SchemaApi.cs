@@ -23,7 +23,7 @@ public abstract class SchemaApi<TRequest, TResponse>
         Logger = logger;
         _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(Services.GetRequiredService<ICriticalRegionProvider>);
         SchemaContext = Services.GetRequiredService<SchemaContext>();
-        if (!string.IsNullOrEmpty(request.Locale)) SchemaContext.SetLocale(request.Locale);
+        request.TimeZone = SchemaContext.SetLocaleZone(request.Locale, request.TimeZone); // prepare the locale and time zone for the request
         return await ExecuteAsync(request, request.Context.RequestAborted);
     }
     
@@ -106,6 +106,11 @@ public abstract class SchemaApiRequest
     /// The date format mode
     /// </summary>
     public DateFormatMode? DateFormat { get; set; }
+
+    /// <summary>
+    /// The time zone, e.g. "Pacific Standard Time", "UTC", "Asia/Shanghai"
+    /// </summary>
+    public string? TimeZone { get; set; }
 }
 
 /// <summary>
@@ -123,6 +128,11 @@ public abstract class SchemaApiResponse
     /// The execution time in milliseconds
     /// </summary>
     public long? ExecuteTime { get; set; }
+
+    /// <summary>
+    /// The time zone to handle the request
+    /// </summary>
+    public string? TimeZone { get; set; }
 }
 
 /// <summary>

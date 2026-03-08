@@ -60,7 +60,7 @@ public class QueryOntologyVectorsResponse : SchemaApiResponse
     public List<OntologyVectorMatchDto> Matches { get; set; } = [];
 }
 
-/// <summary>A single match item returned by <see cref="QueryOntologyVectorsApi"/>.</summary>
+/// <summary>A single contains item returned by <see cref="QueryOntologyVectorsApi"/>.</summary>
 public class OntologyVectorMatchDto
 {
     /// <summary>Schema key of the matching SSP block (e.g. <c>"Order"</c>).</summary>

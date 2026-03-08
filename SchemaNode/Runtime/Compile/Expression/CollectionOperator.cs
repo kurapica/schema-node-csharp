@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Node;
 using SchemaNode.Utility;
+using System.Collections;
 using System.Linq.Expressions;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -152,7 +153,7 @@ public class CollectionExpVisitor : IExpVisitor
                 }
             
                 // source.length
-                case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.arrlen)}":
+                case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.length)}":
                     return new CountCollectionResult(sourceExp, SchemaContext.SystemInt);
             
                 // source.OrderBy(field, desc)
@@ -231,7 +232,6 @@ public class CollectionExpVisitor : IExpVisitor
                 {
                     // getField(source, field), cover the case to FieldsDataSourceExpression
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
-                    case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
                     {
                         string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || source.SchemaType is not ArrayType { ElementSchemaType: StructType structType })
@@ -248,8 +248,8 @@ public class CollectionExpVisitor : IExpVisitor
                     }
 
                     // assign
-                    case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.assign)}":
-                    case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
+                    case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}":
+                    case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@default)}":
                     {
                         if (iterArg is FieldAccessExp fieldExp)
                             return new FieldsCollectionResult(source, fieldExp.FieldName, context.GetArrayType(fieldExp.SchemaType) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
@@ -341,16 +341,7 @@ public class CollectionExpVisitor : IExpVisitor
                     ],
                     exp.SchemaType));
             
-            // source.map(s => s.a.b.c)
-            case FieldsCollectionResult fieldsResult:
-                return await context.CompileSchemaExpAsync(new FuncCallExp(
-                    (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}"))!,
-                    [
-                        fieldsResult.Root,
-                        new ConstantExp(SchemaContext.SystemString.CreateNode(fieldsResult.Field)!),
-                    ],
-                    exp.SchemaType));
-        }
+            }
         
         // Others will be compiled here
         Expression sourceExp = await context.CompileSchemaExpAsync((exp as CollectionOperator)?.Root ?? (exp as CollectionResult)?.Root
@@ -713,6 +704,57 @@ public class CollectionExpVisitor : IExpVisitor
                 );
             }
 
+            case FieldsCollectionResult fieldsExp:
+            {
+                // Create a synthetic item placeholder for the current element
+                AnySchemaType elementType = (fieldsExp.Root.SchemaType as ArrayType)!.ElementSchemaType!;
+                CollectionItemExp syntheticItem = new CollectionItemExp(fieldsExp.Root, elementType);
+
+                // Map the synthetic item to the actual iterator
+                context.SetCompiledExpression(syntheticItem, iterator);
+
+                // Compile getfield(item, fieldName) for each element
+                AnySchemaType fieldType = (fieldsExp.SchemaType as ArrayType)!.ElementSchemaType!;
+                Expression callMethod = await context.CompileSchemaExpAsync(new FieldAccessExp(syntheticItem, fieldsExp.Field, fieldType));
+
+                // Generate result expression
+                ParameterExpression resultExp = Expression.Variable(expReturnType.IsArrayType() ? expReturnType : typeof(ArrayTypeNode));
+
+                return Expression.Block(
+                    [arrExp, resultExp, start, stop],
+                    Expression.Assign(arrExp, sourceExp),
+                    Expression.Assign(resultExp, resultExp.Type == typeof(ArrayTypeNode)
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.SchemaType),
+                            Expression.Constant(null))
+                        : Expression.New(resultExp.Type)),
+                    Expression.Assign(start, Expression.Constant(0, typeof(int))),
+                    Expression.Assign(stop, arrayLen),
+                    Expression.Loop(
+                        Expression.IfThenElse(
+                            Expression.LessThan(start, stop),
+                            resultExp.Type.IsArrayType()
+                                ? callMethod.Type.IsArrayType()
+                                    ? Expression.Call(
+                                        typeof(CollectionExpVisitor).GetMethod(nameof(AddRangeIfNotEmpty))!,
+                                        Expression.Convert(resultExp, typeof(IList)),
+                                        Expression.Convert(callMethod, typeof(IEnumerable)))
+                                    : Expression.Call(
+                                        typeof(CollectionExpVisitor).GetMethod(nameof(AddIfNotEmpty))!,
+                                        Expression.Convert(resultExp, typeof(IList)),
+                                        Expression.Convert(callMethod, typeof(object)))
+                                : callMethod.Type == typeof(ArrayTypeNode)
+                                    ? Expression.Call(resultExp,
+                                        typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, callMethod)
+                                    : Expression.Call(resultExp,
+                                        typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.Add))!, callMethod),
+                            Expression.Break(forLabel, stop)
+                        ),
+                        forLabel
+                    ),
+                    resultExp
+                );
+            }
+
             case MapCollectionResult mapExp:
             {
                 // Compile loop
@@ -737,10 +779,14 @@ public class CollectionExpVisitor : IExpVisitor
                             Expression.LessThan(start, stop),
                             resultExp.Type.IsArrayType()
                                 ? callMethod.Type.IsArrayType()
-                                    ? Expression.Call(resultExp, resultExp.Type.GetMethod("AddRange", [
-                                        typeof(IEnumerable<>).MakeGenericType(expReturnType)
-                                    ])!, callMethod)
-                                    : Expression.Call(resultExp, resultExp.Type.GetMethod("Add")!, callMethod)
+                                    ? Expression.Call(
+                                        typeof(CollectionExpVisitor).GetMethod(nameof(AddRangeIfNotEmpty))!,
+                                        Expression.Convert(resultExp, typeof(IList)),
+                                        Expression.Convert(callMethod, typeof(IEnumerable)))
+                                    : Expression.Call(
+                                        typeof(CollectionExpVisitor).GetMethod(nameof(AddIfNotEmpty))!,
+                                        Expression.Convert(resultExp, typeof(IList)),
+                                        Expression.Convert(callMethod, typeof(object)))
                                 : callMethod.Type == typeof(ArrayTypeNode)
                                     ? Expression.Call(resultExp,
                                         typeof(ArrayTypeNode).GetMethod(nameof(ArrayTypeNode.AddRange))!, callMethod)
@@ -756,5 +802,29 @@ public class CollectionExpVisitor : IExpVisitor
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Adds an item to the list, skipping null or empty values.
+    /// </summary>
+    public static void AddIfNotEmpty(IList result, object? item)
+    {
+        if (item == null) return;
+        if (item is AnySchemaNode { IsEmpty: true }) return;
+        result.Add(item);
+    }
+
+    /// <summary>
+    /// Adds items from a sequence to the list, skipping null or empty values.
+    /// </summary>
+    public static void AddRangeIfNotEmpty(IList result, IEnumerable? items)
+    {
+        if (items == null) return;
+        foreach (var item in items)
+        {
+            if (item == null) continue;
+            if (item is AnySchemaNode { IsEmpty: true }) continue;
+            result.Add(item);
+        }
     }
 }

@@ -41,7 +41,7 @@ public enum ExpressionType
     Count,
     
     /// <summary>
-    /// All elements must match the function
+    /// All elements must contains the function
     /// </summary>
     All,
     

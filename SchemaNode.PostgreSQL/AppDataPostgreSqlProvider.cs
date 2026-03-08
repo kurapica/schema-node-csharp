@@ -987,14 +987,17 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         sb.Append($"{(preCond ? "," : "")}{sqlProvider.QuoteField(fld)}={sqlProvider.Literal(v)}");
                         preCond = true;
                     }
+                    if (preCond)
+                    {
 
-                    sb.Append(" ");
-                    sb.Append(where);
+                        sb.Append(" ");
+                        sb.Append(where);
 
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = sb.ToString();
-                    Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                        DbCommand command = GetDbCommand();
+                        command.CommandText = sb.ToString();
+                        Logger.LogInformation(command.CommandText);
+                        await command.ExecuteNonQueryAsync();
+                    }
 
                     updatedPacks.Add(pack);
                     if (originPack != null)
@@ -1529,7 +1532,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// </summary>
     static string DataType(DynamicTableField field) => field.Type switch
     {
-        DynamicTableFieldType.Bool      => "SMALLINT",  // Use SMALLINT (0/1) to match MySQL TINYINT; base library reads bool fields as byte/short
+        DynamicTableFieldType.Bool      => "SMALLINT",  // Use SMALLINT (0/1) to contains MySQL TINYINT; base library reads bool fields as byte/short
         DynamicTableFieldType.Smallint  => "SMALLINT",
         DynamicTableFieldType.USmallint => "INTEGER",        // no UNSIGNED in PostgreSQL
         DynamicTableFieldType.Mediumint => "INTEGER",
@@ -1558,7 +1561,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     };
 
     /// <summary>
-    /// Normalises the type string returned by <c>information_schema.columns</c> to match
+    /// Normalises the type string returned by <c>information_schema.columns</c> to contains
     /// what <see cref="DataType"/> produces so the two can be compared.
     /// </summary>
     private static string NormalizePgType(string dataType, int? maxLength) =>

@@ -85,7 +85,7 @@ public static class PushDataExtenstion
                 if (appField is {  SchemaType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                 {
                     bool authorized = true;
-                    foreach (RowPolicyItem policy in appField.RowAuths)
+                    foreach (RowPolicy policy in appField.RowAuths)
                     {
                         try
                         {

@@ -41,7 +41,7 @@ public record VariableExp(string Name, SchemaExp Value) : SchemaExp(Value.Schema
 /// <summary>
 /// Represents an argument expression with a specified name, index, and associated scheme type.
 /// </summary>
-/// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or equal to 0.</param>
+/// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or eq to 0.</param>
 /// <param name="SchemaType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
 public record ArgumentExp(string Name, int Index, bool Nullable, AnySchemaType SchemaType) : SchemaExp(SchemaType);
 

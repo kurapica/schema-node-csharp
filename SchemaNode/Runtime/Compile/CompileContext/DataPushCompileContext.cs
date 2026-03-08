@@ -147,7 +147,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             case FuncCallExp funcCallExp:
                 switch (funcCallExp.Function.Name)
                 {
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}":
+                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getfield)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false } appExp &&
@@ -220,7 +220,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                         // Other app could be system parameters, leave it to the user
                         break;
                     }
-                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}":
+                    case $"{NS_SYSTEM_DATA}.{nameof(SystemData.get)}":
                     {
                         if (funcCallExp.ExpType == ExpressionType.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false }  appExp &&
@@ -334,8 +334,8 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             CollectionRootExp iterExp => FromThirdField(iterExp.Collection),
             FuncCallExp funcCallExp => funcCallExp.Function.Name switch
             {
-                $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}"
-                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappdata)}" => false, // allow parameters
+                $"{NS_SYSTEM_DATA}.{nameof(SystemData.getfield)}"
+                    or $"{NS_SYSTEM_DATA}.{nameof(SystemData.get)}" => false, // allow parameters
                 _ => funcCallExp.Args.Any(e => FromThirdField(e, isCond))
             },
             UnaryLogicExp unaryLogicExp => FromThirdField(unaryLogicExp.Inner, isCond),

@@ -677,8 +677,8 @@ public static class SchemaContextOntologyExtension
 
     /// <summary>
     /// Post-pass: resolves <see cref="OntologyEntityProperty.SemanticRangeIri"/> for every FK property.
-    /// Tries to match the semantic name against known entity class names in the graph;
-    /// falls back to <c>owl:Thing</c> when no match is found.
+    /// Tries to contains the semantic name against known entity class names in the graph;
+    /// falls back to <c>owl:Thing</c> when no contains is found.
     /// </summary>
     private static void ResolveFkRanges(OntologyGraph graph)
     {

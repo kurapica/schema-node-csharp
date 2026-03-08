@@ -99,7 +99,7 @@ public class RecognizerPart
     public int? Max { get; set; }
 
     /// <summary>
-    /// Use greedy match when repeating
+    /// Use greedy contains when repeating
     /// </summary>
     public bool? Greedy { get; set; }
     

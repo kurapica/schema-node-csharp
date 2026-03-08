@@ -366,7 +366,7 @@ public class DynamicTableSchema
 
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
@@ -402,7 +402,7 @@ public class DynamicTableSchema
                                 ? arr.ElementSchemaType
                                 : appField.SchemaType) as StructType;
                         if (structType == null || structType.Fields.Length == 0) continue;
-                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not match
+                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
 
                         // data field
                         string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();

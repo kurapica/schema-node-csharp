@@ -157,14 +157,14 @@ internal static class OntologySspParser
         if (!string.IsNullOrEmpty(locale))
         {
             string normalized = locale.Replace("-", "");
-            // Exact match (e.g. "zhCN")
+            // Exact contains (e.g. "zhCN")
             foreach (OntologyLabel lbl in labels)
             {
                 if (lbl.Language != null
                  && lbl.Language.Replace("-", "").Equals(normalized, StringComparison.OrdinalIgnoreCase))
                     return lbl.Value;
             }
-            // Language-prefix match (e.g. "zh" matches "zhCN")
+            // Language-prefix contains (e.g. "zh" matches "zhCN")
             if (normalized.Length >= 2)
             {
                 string prefix = normalized[..2];

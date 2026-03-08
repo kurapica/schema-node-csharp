@@ -1,6 +1,5 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -100,25 +99,25 @@ public class IntrinsicExpVisitor : IExpVisitor
         switch (callExp.Function.Name)
         {
             // Assign expression
-            case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.assign)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}":
                 return callExp.Args.ElementAtOrDefault(0) 
                        ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-            case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@default)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@default)}":
                 return new DefaultExp(callExp.Args[0],
                     (callExp.Args.ElementAtOrDefault(1) as ConstantExp
                         ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs))
                     .Value);
-            case $"{NS_SYSTEM_CONV}.{nameof(SystemConv.@null)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@null)}":
                 return new NullExp(callExp.SchemaType);
             
             // Break expressions
-            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.ifret)}":
                 return new BreakExp(BreakExpType.IfRet, callExp.Args[0], callExp.Args[1]);
-            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.ifnot)}":
                 return new BreakExp(BreakExpType.IfNot, callExp.Args[0], callExp.Args[1]);
-            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.ifnull)}":
                 return new BreakExp(BreakExpType.IfNull, callExp.Args[0], callExp.Args[1]);
-            case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}":
+            case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.ifempty)}":
                 return new BreakExp(BreakExpType.IfEmpty, callExp.Args[0], callExp.Args[1]);
             
             // Conditional expression
@@ -131,31 +130,26 @@ public class IntrinsicExpVisitor : IExpVisitor
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 return new ConditionalExp(callExp.Args[0], callExp.Args[1], callExp.Args[2], exp.SchemaType);
             }
-            
-            // a[b]
+
+            // a[b] ?? defaultValue
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
             {
-                if (callExp.Args.Length != 2 || 
+                if (callExp.Args.Length < 2 || 
                     (callExp.Args[1] as ConstantExp)?.Value.ToValue<string>() is not { } fieldName || 
                     string.IsNullOrEmpty(fieldName))
                     throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
 
-                return new FieldAccessExp(callExp.Args[0], fieldName, callExp.SchemaType);
-            }
-            
-            // a[b] ?? defaultValue
-            case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}":
-            {
-                if (callExp.Args.Length != 3 || 
-                    (callExp.Args[1] as ConstantExp)?.Value.ToValue<string>() is not { } fieldName || 
-                    string.IsNullOrEmpty(fieldName) || 
-                    callExp.Args[2] is not ConstantExp defaultValueExp || 
-                    defaultValueExp.Value.IsEmpty || 
-                    !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                if (callExp.Args.Length == 3)
+                {
+                    if (callExp.Args[2] is not ConstantExp defaultValueExp || 
+                        defaultValueExp.Value.IsEmpty || 
+                        !defaultValueExp.SchemaType.CanBeUseAs(exp.SchemaType))
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                    return new FieldAccessExp(callExp.Args[0], fieldName, callExp.SchemaType, defaultValueExp);
+                }
 
-                return new FieldAccessExp(callExp.Args[0], fieldName, callExp.SchemaType, defaultValueExp);
-            }
+                return new FieldAccessExp(callExp.Args[0], fieldName, callExp.SchemaType);
+            }         
         }
         return null;
     }
@@ -233,7 +227,7 @@ public class IntrinsicExpVisitor : IExpVisitor
             {
                 return fldAccess.Default != null
                     ? await context.CompileSchemaExpAsync(new FuncCallExp(
-                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}"))!,
+                        (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
                         [fldAccess.Owner, new ConstantExp(SchemaContext.SystemString.CreateNode(fldAccess.FieldName)!), fldAccess.Default],
                         fldAccess.SchemaType
                     ), expectedType)

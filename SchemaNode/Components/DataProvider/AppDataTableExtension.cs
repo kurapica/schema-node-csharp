@@ -71,7 +71,7 @@ public static class AppDataTableExtension
     }
 
     /// <summary>
-    /// Assert the app field type match the value type
+    /// Assert the app field type contains the value type
     /// </summary>
     internal static void AssertType<T>(this SchemaContext context, AppFieldType field)
     {
@@ -79,6 +79,6 @@ public static class AppDataTableExtension
         if (type is ArrayType arr) type = arr.ElementSchemaType;
         Type? ctype = type?.ToCSharpType();
         if (ctype == null || !ctype.IsAssignableFrom(typeof(T)))
-            throw new ArgumentException("The app field type don't match the value type");
+            throw new ArgumentException("The app field type don't contains the value type");
     }
 }

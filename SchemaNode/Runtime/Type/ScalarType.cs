@@ -294,7 +294,7 @@ public sealed class ScalarType: AnySchemaType
                 }
                 else if (DateTime.TryParse(strVal, out DateTime dateTime))
                 {
-                    year = SystemDate.getyear(dateTime);
+                    year = SystemCalendar.getyear(context, dateTime);
                 }
                 else
                 {

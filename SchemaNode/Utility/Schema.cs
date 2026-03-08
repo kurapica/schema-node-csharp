@@ -750,8 +750,8 @@ public static class Schema
                         {
                             DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                             DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (SystemDate.notequal(ad, bd))
-                                return SystemDate.lessthan(ad,bd) ? -1 : 1;
+                            if (!ad.Equals(bd))
+                                return ad.CompareTo(bd);
                             break;
                         }
                     case ScalarType { IsNumber: true }:

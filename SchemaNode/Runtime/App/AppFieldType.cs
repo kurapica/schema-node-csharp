@@ -69,12 +69,17 @@ public sealed class AppFieldType
     /// <summary>
     /// Row filter policy
     /// </summary>
-    public RowPolicyItem[]? RowAuths { get; private init; }
+    public RowPolicy[]? RowAuths { get; private init; }
 
     /// <summary>
     /// The column access policy
     /// </summary>
-    public ColPolicyItem[]? ColAuths { get; private init; }
+    public ColPolicy[]? ColAuths { get; private init; }
+
+    /// <summary>
+    /// The foreign key settings
+    /// </summary>
+    public Foreign[]? Foreigns { get; private init; }
 
     /// <summary>
     /// The field storage topology, which defines how the field data is stored in the database.
@@ -247,7 +252,7 @@ public sealed class AppFieldType
     /// </summary>
     public IEnumerable<string> GetColPolicies(string fieldName)
     {
-        ColPolicyItem? item = ColAuths?.FirstOrDefault(i => i.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+        ColPolicy? item = ColAuths?.FirstOrDefault(i => i.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
         if (item == null || item.Evaluators.Length == 0) yield break;
         foreach (var evaluator in item.Evaluators)
             yield return evaluator;
@@ -278,6 +283,7 @@ public sealed class AppFieldType
             Auths = entity.Auths,
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,
+            Foreigns = entity.Foreigns,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -313,6 +319,7 @@ public sealed class AppFieldType
             Auths = entity.Auths,
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,
+            Foreigns = entity.Foreigns,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -489,7 +496,7 @@ public sealed class AppFieldType
                             string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
                             StructType? structType = (appField.SchemaType is ArrayType arr ? arr.ElementSchemaType : appField.SchemaType) as StructType;
                             if (structType == null || structType.Fields.Length == 0 || primary.Length == 0) continue;
-                            if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not match
+                            if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
 
                             // data field
                             string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();

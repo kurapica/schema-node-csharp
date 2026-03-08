@@ -1181,7 +1181,7 @@ public static class OntologyTextTemplates
     /// <summary>
     /// Returns the best label for <paramref name="locale"/>.
     /// When <paramref name="locale"/> is specified the matching translation is preferred;
-    /// falls back to the default label (Language == <see langword="null"/>) when no exact match is found.
+    /// falls back to the default label (Language == <see langword="null"/>) when no exact contains is found.
     /// Locale normalisation mirrors <c>AccessContextItemProviderExtensions.GetLocaleStringKey</c>:
     /// hyphens are stripped before comparison (e.g. <c>"zh-CN"</c> == <c>"zhCN"</c>).
     /// </summary>

@@ -247,7 +247,7 @@ public sealed class AppType
                 // valid the row policy
                 if (field.RowAuths != null)
                 {
-                    foreach(RowPolicyItem row in field.RowAuths)
+                    foreach(RowPolicy row in field.RowAuths)
                     {
                         // valid evaluator
                         if (!string.IsNullOrEmpty(row.Evaluator))
@@ -283,7 +283,7 @@ public sealed class AppType
                 {
                     if (field.ColAuths != null)
                     {
-                        foreach(ColPolicyItem colPolicy in field.ColAuths)
+                        foreach(ColPolicy colPolicy in field.ColAuths)
                         {
                             StructFieldSchema? structField = structType.GetField(colPolicy.Name);
                             if (structField == null)
@@ -333,6 +333,24 @@ public sealed class AppType
                                     break;
                                 }
                             }
+                        }
+                    }
+                }
+
+                // valid the foreign key reference
+                if (field.Foreigns is { Length: > 0})
+                {
+                    foreach (Foreign foreign in field.Foreigns)
+                    {
+                        if (string.IsNullOrWhiteSpace(foreign.Field) ||
+                            string.IsNullOrWhiteSpace(foreign.App) ||
+                            await context.GetAppTypeAsync(foreign.App) is not AppType refApp ||
+                            refApp.ScopeType == AppScopeType.SystemLevel ||
+                            structType == null || 
+                            structType.GetField(foreign.Field) == null)
+                        {
+                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                            break;
                         }
                     }
                 }

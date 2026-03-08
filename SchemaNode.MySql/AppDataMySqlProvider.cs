@@ -1032,16 +1032,18 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         sb.Append($"{(preCond ? "," : "")}{sqlProvider.QuoteField(fld)}={sqlProvider.Literal(v)}");
                         preCond = true;
                     }
+                    if (preCond)
+                    {
+                        // Footer
+                        sb.Append(" ");
+                        sb.Append(where);
 
-                    // Footer
-                    sb.Append(" ");
-                    sb.Append(where);
-
-                    // Execute
-                    DbCommand command = GetDbCommand();
-                    command.CommandText = sb.ToString();
-                    Logger.LogInformation(command.CommandText);
-                    await command.ExecuteNonQueryAsync();
+                        // Execute
+                        DbCommand command = GetDbCommand();
+                        command.CommandText = sb.ToString();
+                        Logger.LogInformation(command.CommandText);
+                        await command.ExecuteNonQueryAsync();
+                    }
 
                     updatedPacks.Add(pack);
                     if (originPack != null)

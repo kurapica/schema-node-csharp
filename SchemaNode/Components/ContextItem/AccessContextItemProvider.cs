@@ -1,8 +1,10 @@
 using System.Text.RegularExpressions;
 using SchemaNode.Context;
+using SchemaNode.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using TimeZoneConverter;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -36,18 +38,22 @@ public class Access
     /// The locale information
     /// </summary>
     public string? Locale { get; set; }
-    
+
+    /// <summary>
+    /// The time zone information
+    /// </summary>
+    public TimeZoneInfo? TimeZone { get; set; }
+
     /// <summary>
     /// Sets the access information, and will clear the stack and reset to the new state
     /// </summary>
     /// <param name="app"></param>
     /// <param name="target"></param>
     /// <param name="locale"></param>
-    internal void SetAccess(string? app = null, string? target = null, string? locale = null)
+    internal void SetAccess(string? app = null, string? target = null)
     {
         App = app;
         Target = target;
-        Locale = locale;
         _stack.Clear();
     }
 
@@ -103,20 +109,20 @@ public static class AccessContextItemProviderExtensions
         
         // Gets the shared access
         var sharedAccess = context.GetRequiredService<Access>();
-        sharedAccess.SetAccess(access.App, access.Target, access.Locale);
+        sharedAccess.SetAccess(access.App, access.Target);
     }
 
     /// <summary>
     /// Set the access information
     /// </summary>
-    public static void SetAccess(this SchemaContext context, string? app = null, string? target = null, string? locale = null)
+    public static void SetAccess(this SchemaContext context, string? app = null, string? target = null)
     {
         // Clear the policy evaluation cache
         context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
         
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
-        access.SetAccess(app, target, locale);
+        access.SetAccess(app, target);
     }
     
     /// <summary>
@@ -136,17 +142,34 @@ public static class AccessContextItemProviderExtensions
             
         return new AccessScope(context);
     }
-    
-    /// <summary>
-    /// Set the locale information
-    /// </summary>
-    public static void SetLocale(this SchemaContext context, string? locale)
+
+    public static string SetLocaleZone(this SchemaContext context, string? locale, string? timeZone)
     {
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
         access.Locale = locale;
+
+        if (!string.IsNullOrWhiteSpace(timeZone) && TZConvert.TryGetTimeZoneInfo(timeZone, out var tz))
+        {
+            access.TimeZone = tz;
+        }
+        else
+        {
+            access.TimeZone = DefaultTimeZone;
+        }
+        return access.TimeZone.Id;
     }
-    
+
+    /// <summary>
+    /// Gets the timezone
+    /// </summary>
+    public static TimeZoneInfo GetTimeZone(this SchemaContext context)
+    {
+        // Gets the shared access
+        var access = context.GetRequiredService<Access>();
+        return access.TimeZone ?? TimeZoneInfo.Local;
+    }
+
     /// <summary>
     /// Gets the locale information
     /// </summary>
@@ -195,7 +218,7 @@ public static class AccessContextItemProviderExtensions
         string? localeKey = !string.IsNullOrWhiteSpace(locale) ? locale : context.GetLocale();
         if (string.IsNullOrWhiteSpace(localeKey)) return localeStr.Key;
         
-        // Try match the locale
+        // Try contains the locale
         localeKey = localeKey.Replace("-", ""); // for simply only replace zh-CN to zhCN
         foreach (LocaleTran item in localeStr.Trans)
         {
@@ -204,4 +227,10 @@ public static class AccessContextItemProviderExtensions
         }
         return localeStr.Key;
     }
+
+    /// <summary>
+    /// Sets the time zone
+    /// </summary>
+    internal static void SetDefaultTimeZone(string zone) => DefaultTimeZone = TZConvert.GetTimeZoneInfo(zone);
+    internal static TimeZoneInfo DefaultTimeZone = TimeZoneInfo.Local;
 }

@@ -28,7 +28,7 @@ public static class EntityExtension
         AppSchemaDataFilter? filter = null;
         if (primaries is { Count: > 0 })
         {
-            if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+            if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not contains");
            
             for (int i = 0; i < keys.Length; i++)
             {
@@ -152,7 +152,7 @@ public static class EntityExtension
             return await context.SaveFieldDataAsync(appFieldType, null);
 
         if (keys.Length != primaries.Count)
-            throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
+            throw new ArgumentException($"The type {typeof(T).FullName} primary key count not contains");
         
         AppSchemaDataFilter? filter = null;
         for (int i = 0; i < keys.Length; i++)

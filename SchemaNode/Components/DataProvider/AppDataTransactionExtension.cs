@@ -420,7 +420,7 @@ public static class AppDataTransactionExtension
                                 break;
                             }
                             
-                            // Use key match, complex case
+                            // Use key contains, complex case
                             default:
                             {
                                 // Try Combine keys first
@@ -626,7 +626,7 @@ public static class AppDataTransactionExtension
                                     filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, kFilter) : kFilter;
                                 }
                             }
-                            // Use key match
+                            // Use key contains
                             else
                             {
                                 foreach (var item in loadingMap.Values)
@@ -1121,8 +1121,8 @@ public static class AppDataTransactionExtension
                                     {
                                         DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                                         DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                        if (!SystemDate.notequal(ad, bd))
-                                            return SystemDate.lessthan(ad, bd) ? -1 : 1;
+                                        if (!bd.Equals(ad))
+                                            return ad.CompareTo(bd);
                                         break;
                                     }
                                 case ScalarType { IsNumber: true }:

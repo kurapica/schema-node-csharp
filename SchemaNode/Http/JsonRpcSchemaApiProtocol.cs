@@ -66,14 +66,14 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse
     {
         return new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }.ToResult(false, mode);
+        }.ToResult(false, mode, timeZone);
     }
 
     public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
