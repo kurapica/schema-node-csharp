@@ -235,6 +235,33 @@ public sealed class NodeSchema
         return this;
     }
 
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(NodeSchema? other)
+    {
+        if (other == null || other.Type != Type) return;
+
+        Display = Display != null ? Display.Concat(other.Display) : other.Display;
+        Auth = string.IsNullOrWhiteSpace(other.Auth) ? Auth : other.Auth;
+
+        switch (Type)
+        {
+            case SchemaType.Scalar:
+                Scalar?.CombineCustomSchema(other.Scalar);
+                break;
+            case SchemaType.Enum:
+                Enum?.CombineCustomSchema(other.Enum);
+                break;
+            case SchemaType.Array:
+                Array?.CombineCustomSchema(other.Array);
+                break;
+            case SchemaType.Struct:
+                Struct?.CombineCustomSchema(other.Struct);
+                break;
+        }
+    }
+
     #endregion
 
     #region Utility
@@ -377,6 +404,32 @@ public sealed class LocaleString : ICloneable
     /// </summary>
     /// <returns></returns>
     public override string ToString() => Key;
+
+    public LocaleString Concat(LocaleString? other)
+    {
+        if (other == null) return this;
+        Key = string.IsNullOrWhiteSpace(other.Key) ? Key : other.Key;
+
+        // Combine trans
+        if (Trans == null || Trans.Length == 0)
+            Trans = other.Trans;
+        else if (other.Trans is { Length: > 0 })
+        {
+            foreach (LocaleTran tran in Trans)
+            {
+                var inOther = other.Trans.FirstOrDefault(t => t.Lang.Equals(tran.Lang, StringComparison.OrdinalIgnoreCase));
+                if (inOther != null)
+                {
+                    tran.Tran = string.IsNullOrWhiteSpace(inOther.Tran) ? tran.Tran : inOther.Tran;
+                }
+            }
+            var otherOnly = other.Trans.Where(t => !Trans.Any(a => a.Lang.Equals(t.Lang, StringComparison.OrdinalIgnoreCase))).ToArray();
+            if (otherOnly is { Length: > 0 })
+                Trans = Trans.Concat(otherOnly).ToArray();
+        }
+
+        return this;
+    }
 }
 
 /// <summary>

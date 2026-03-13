@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using Pgvector.Npgsql;
-using SchemaNode.Ontology.Services;
+using SchemaNode.Vector.Services;
 
 namespace SchemaNode.PostgreSQL;
 

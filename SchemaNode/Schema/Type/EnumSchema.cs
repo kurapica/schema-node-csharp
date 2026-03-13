@@ -5,6 +5,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Net.Security;
 
 namespace SchemaNode.Schema;
 
@@ -42,6 +43,13 @@ public sealed class EnumSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(EnumSchema? other)
+    {
+    }
 }
 
 /// <summary>
@@ -111,40 +119,25 @@ public sealed class EnumValueInfo
     /// </summary>
     [JsonIgnore]
     [NotMapped]
-    public bool IsFullyLoaded { get; set; }
+    internal bool IsFullyLoaded { get; set; }
 
     /// <summary>
-    /// Refresh status
+    /// The parent of the enum value
     /// </summary>
-    public bool CheckFullyLoadedStatus(int level = 999)
-    {
-        if (IsFullyLoaded || level == 0) return true;
-        
-        // If loaded from static resources
-        if (SubList is not null && SubList.Length > 0) HasSubList = true;
+    [JsonIgnore]
+    [NotMapped]
+    internal EnumValueInfo? Parent { get; set; }
 
-        if (HasSubList ?? false)
-        {
-            if (SubList is not null && SubList.Length > 0 && 
-                SubList.All(x => x.CheckFullyLoadedStatus(level - 1)))
-            {
-                IsFullyLoaded = SubList.All(x => x.IsFullyLoaded);
-                return true;
-            }
-        }
-        else
-        {
-            IsFullyLoaded = true;
-        }
-
-        return IsFullyLoaded;
-    }
+    /// <summary>
+    /// The cascade level
+    /// </summary>
+    internal int Level { get; set;  }
 
     /// <summary>
     /// Combine the access list
     /// </summary>
     /// <param name="accesses"></param>
-    public void CombineAccessList(EnumValueAccess[] accesses)
+    internal void CombineAccessList(EnumValueAccess[] accesses)
     {
         if (accesses.Length == 0) return;
         EnumValueAccess current = accesses[0];
@@ -172,29 +165,11 @@ public sealed class EnumValueInfo
     }
     
     /// <summary>
-    /// Gets the already existed sub enum node
-    /// </summary>
-    public EnumValueInfo[]? GetEnumAccesses(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(Value)) return [this];
-        if (Value.Equals(value, StringComparison.OrdinalIgnoreCase)) return [this];
-        if (SubList is not null && SubList.Length > 0)
-        {
-            foreach (EnumValueInfo info in SubList)
-            {
-                EnumValueInfo[]? subInfo = info.GetEnumAccesses(value);
-                if (subInfo?.Length > 0) return subInfo.Prepend(this).ToArray();
-            }
-        }
-        return null;
-    }
-
-    /// <summary>
     /// Clones the enum value with limit level
     /// </summary>
     /// <param name="limitLevel"></param>
     /// <returns></returns>
-    public EnumValueInfo Clone(int limitLevel = 0)
+    internal EnumValueInfo Clone(int limitLevel = 0)
     {
         return new EnumValueInfo
         {

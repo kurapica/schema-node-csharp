@@ -32,13 +32,23 @@ public static class AppDataTableExtension
             schema = field.GenDynamicTableSchema();
             if (field.SystemMaintain != true)
             {
-                await dataProvider.EnsureDynamicTableAsync(schema);
-                if (schema.Joins is { Length: > 0 })
+                // Makes sure the source field is prepared
+                if (field.IsForeignView)
                 {
-                    foreach (DynamicTableJoin join in schema.Joins)
+                    AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
+                    await context.PrepareFieldDataAsync(foreignField);
+                }
+                else
+                {
+                    // Prepare the dynamic table and join fields
+                    await dataProvider.EnsureDynamicTableAsync(schema);
+                    if (schema.Joins is { Length: > 0 })
                     {
-                        AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
-                        await context.PrepareFieldDataAsync(joinField);
+                        foreach (DynamicTableJoin join in schema.Joins)
+                        {
+                            AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
+                            await context.PrepareFieldDataAsync(joinField);
+                        }
                     }
                 }
             }

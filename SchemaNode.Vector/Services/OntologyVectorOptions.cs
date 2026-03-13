@@ -1,4 +1,4 @@
-namespace SchemaNode.Ontology.Services;
+namespace SchemaNode.Vector.Services;
 
 /// <summary>
 /// Selects the embedding back-end wired into the Semantic Kernel.
@@ -35,7 +35,7 @@ public enum EmbeddingProvider
 public class OntologyVectorOptions
 {
     /// <summary>Default section name in <c>appsettings.json</c>.</summary>
-    public const string SectionName = "SchemaNodeAI";
+    public const string SectionName = "SchemaOntology";
 
     // ── Embedding provider ─────────────────────────────────────────────────
 

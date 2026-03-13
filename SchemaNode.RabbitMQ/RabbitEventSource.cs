@@ -6,6 +6,7 @@ using SchemaNode.Context;
 using SchemaNode.Utility;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 namespace SchemaNode.RabbitMQ;
 
@@ -106,8 +107,7 @@ public sealed class RabbitEventSource : IEventSource
             object? payload = null;
             if (map.Item2 != null)
             {
-                payload = Encoding.UTF8.GetString(body)
-                    .FromJson(map.Item2);
+                payload = FromJson(Encoding.UTF8.GetString(body), map.Item2);
             }
 
             context.RaiseEvent(evt, payload);
@@ -129,5 +129,20 @@ public sealed class RabbitEventSource : IEventSource
         {
             // Ignore
         }
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to a .NET value.
+    /// </summary>
+    internal static object? FromJson(string value, Type type)
+    {
+        if (type == typeof(string))
+            return value;
+        if (type == typeof(DateTimeOffset))
+            return DateTimeOffset.Parse(value);
+        if (type == typeof(DateTime))
+            return DateTime.Parse(value);
+
+        return JsonSerializer.Deserialize(value, type);
     }
 }

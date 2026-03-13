@@ -198,12 +198,17 @@ public sealed class AppFieldSchema
 
     #endregion
 
-    #region Foreign App Key
+    #region Foreign & View Settings
 
     /// <summary>
     /// The foreign settings
     /// </summary>
     public Foreign[]? Foreigns { get; set; }
+
+    /// <summary>
+    /// The field is a view to source app field
+    /// </summary>
+    public FieldView? View { get; set; }
 
     #endregion
 
@@ -223,6 +228,28 @@ public sealed class AppFieldSchema
 
     #endregion
 
+    #region Method
+
+    /// <summary>
+    /// Combine the custom schema
+    /// </summary>
+    internal void CombineCustomSchema(AppFieldSchema? otherSchema)
+    {
+        if (otherSchema == null) return;
+        Display = Display != null ? Display.Concat(otherSchema.Display) : otherSchema.Display;
+        Desc = Desc != null ? Desc.Concat(otherSchema.Desc) : otherSchema.Desc;
+        Auths = Auths ?? otherSchema.Auths;
+        RowAuths = RowAuths ?? otherSchema.RowAuths;
+        ColAuths = ColAuths ?? otherSchema.ColAuths;
+        Flags |= otherSchema.Flags;
+        Combine = Combine ?? otherSchema.Combine;
+        Combines = Combines ?? otherSchema.Combines;
+        Filters = Filters ?? otherSchema.Filters;
+        Foreigns = Foreigns ?? otherSchema.Foreigns;
+        View = View ?? otherSchema.View;
+    }
+
+    #endregion
 }
 
 #region Supporting Types
@@ -333,6 +360,29 @@ public sealed class Foreign
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_APP)]
     public string App { get; set; } = string.Empty;
+}
+
+public sealed class FieldView
+{
+    /// <summary>
+    /// The source application
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_APP)]
+    public string App { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The source field
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)]
+    public string Field { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The target map field
+    /// </summary>
+    public string Map { get; set; } = string.Empty;
+
+    [NotMapped]
+    public AppType? AppType { get; set; }
 }
 
 #endregion

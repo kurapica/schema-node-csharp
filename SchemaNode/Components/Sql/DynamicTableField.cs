@@ -31,7 +31,12 @@ public class DynamicTableField
     /// The scope field, used for data partition
     /// </summary>
     public bool Scope { get; init; }
-    
+
+    /// <summary>
+    /// The target field, used for data partition
+    /// </summary>
+    public bool Target { get; init; }
+
     /// <summary>
     /// Whether the field is primary
     /// </summary>

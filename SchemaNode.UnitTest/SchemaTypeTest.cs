@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using SchemaNode.Api.Schema.Application;
 using SchemaNode.Components;
 using SchemaNode.Context;
@@ -94,7 +93,7 @@ namespace SchemaNode.UnitTest
             Assert.IsNotNull(enumType);
             Assert.AreEqual(SchemaType.Enum, enumType.Type);
             Assert.AreEqual(EnumValueType.Int, enumType.ValueType);
-            Assert.AreEqual(3, enumType.Root.SubList?.Length ?? 0);
+            Assert.AreEqual(3, (await enumType.LoadEnumSubListAsync(ctx, ""))?.Length ?? 0);
         }
 
         /// <summary>
@@ -369,7 +368,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemMath_Percent()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.percent");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.numeric.percent");
             Assert.IsNotNull(func);
 
             // 50 / 200 * 100 = 25.00%
@@ -384,7 +383,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_Concat()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.concat");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.convert.concat");
             Assert.IsNotNull(func);
 
             var result = await func.CallAsync<string>(ctx, ["Hello, ", "World!"]);
@@ -398,7 +397,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_Len()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.len");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.state.len");
             Assert.IsNotNull(func);
 
             var result = await func.CallAsync<long>(ctx, ["SchemaNode"]);
@@ -412,7 +411,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_Trim()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.trim");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.convert.trim");
             Assert.IsNotNull(func);
 
             var result = await func.CallAsync<string>(ctx, ["  hello  "]);
@@ -1267,8 +1266,8 @@ namespace SchemaNode.UnitTest
         public async Task SystemMath_Max_Min()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var maxF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.max");
-            var minF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.min");
+            var maxF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.numeric.max");
+            var minF = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.numeric.min");
             Assert.IsNotNull(maxF);
             Assert.IsNotNull(minF);
 
@@ -1283,7 +1282,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemMath_Abs()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.abs");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.math.numeric.abs");
             Assert.IsNotNull(func);
 
             Assert.AreEqual(7L, await func.CallAsync<long>(ctx, [-7L]));
@@ -1297,7 +1296,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_Replace()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.replace");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.convert.replace");
             Assert.IsNotNull(func);
 
             var result = await func.CallAsync<string>(ctx, ["hello world", "world", "SchemaNode"]);
@@ -1311,7 +1310,7 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_Substr()
         {
             var ctx  = ServiceProvider.GetRequiredService<SchemaContext>();
-            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.substr");
+            var func = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.convert.substr");
             Assert.IsNotNull(func);
 
             // "HelloWorld".Substring(5, 10-5) = "World"
@@ -1326,8 +1325,8 @@ namespace SchemaNode.UnitTest
         public async Task SystemStr_StartsWith_EndsWith()
         {
             var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
-            var swF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.startswith");
-            var ewF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.endswith");
+            var swF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.logic.startswith");
+            var ewF = await ctx.GetSchemaTypeAsync<FunctionType>("system.str.logic.endswith");
             Assert.IsNotNull(swF);
             Assert.IsNotNull(ewF);
 
@@ -1966,13 +1965,13 @@ namespace SchemaNode.UnitTest
             Assert.AreEqual(2, enumType.Cascade?.Length,    "Cascade should have 2 labels");
             Assert.AreEqual("Country", (string)enumType.Cascade![0]);
             Assert.AreEqual("City",    (string)enumType.Cascade![1]);
-            Assert.AreEqual(2, enumType.Root.SubList?.Length ?? 0, "Root should have 2 top-level values");
-            Assert.IsTrue(enumType.Root.SubList!.Any(v => v.Value == "CN"));
-            Assert.IsTrue(enumType.Root.SubList!.Any(v => v.Value == "US"));
+            Assert.AreEqual(2, (await enumType.LoadEnumSubListAsync(ctx, ""))?.Length ?? 0, "Root should have 2 top-level values");
+            Assert.IsTrue((await enumType.LoadEnumSubListAsync(ctx, ""))!.Any(v => v.Value == "CN"));
+            Assert.IsTrue((await enumType.LoadEnumSubListAsync(ctx, ""))!.Any(v => v.Value == "US"));
         }
 
         /// <summary>
-        /// SaveEnumSubListAsync stores child values under a parent; LoadEnumSubListAsync retrieves them and HasSubList is set
+        /// ResetEnumSubListAsync stores child values under a parent; LoadEnumSubListAsync retrieves them and HasSubList is set
         /// </summary>
         [TestMethod]
         public async Task CascadeEnum_SaveSubList_LoadChildren()
@@ -2010,7 +2009,7 @@ namespace SchemaNode.UnitTest
             Assert.IsTrue(cities.Any(c => c.Value == "BJ"));
             Assert.IsTrue(cities.Any(c => c.Value == "SH"));
 
-            var cnNode = enumType.Root.SubList?.FirstOrDefault(v => v.Value == "CN");
+            var cnNode = (await enumType.LoadEnumSubListAsync(ctx, ""))?.FirstOrDefault(v => v.Value == "CN");
             Assert.IsNotNull(cnNode);
             Assert.IsTrue(cnNode.HasSubList ?? false, "CN should have HasSubList = true after saving children");
         }
@@ -2130,14 +2129,14 @@ namespace SchemaNode.UnitTest
             ], false);
 
             // BJ path: virtual-root ("") → CN → BJ
-            var bjAccesses = enumType.Root.GetEnumAccesses("BJ");
+            var bjAccesses = await enumType.LoadEnumValueAccessAsync(ctx, "BJ");
             Assert.IsNotNull(bjAccesses);
             Assert.AreEqual(3, bjAccesses.Length, "Path should be: root → CN → BJ");
             Assert.AreEqual("CN", bjAccesses[1].Value);
             Assert.AreEqual("BJ", bjAccesses[2].Value);
 
             // CN path: virtual-root → CN (length 2)
-            var cnAccesses = enumType.Root.GetEnumAccesses("CN");
+            var cnAccesses = await enumType.LoadEnumValueAccessAsync(ctx, "CN");
             Assert.IsNotNull(cnAccesses);
             Assert.AreEqual(2, cnAccesses.Length);
             Assert.AreEqual("CN", cnAccesses[1].Value);
@@ -2224,7 +2223,7 @@ namespace SchemaNode.UnitTest
             // Save empty list — should clear all children
             await ctx.SaveEnumSubListAsync("test.region", "CN", [], false);
 
-            var cnNode = enumType.Root.SubList?.FirstOrDefault(v => v.Value == "CN");
+            var cnNode = (await enumType.LoadEnumSubListAsync(ctx, ""))?.FirstOrDefault(v => v.Value == "CN");
             Assert.IsNotNull(cnNode);
             Assert.IsFalse(cnNode.HasSubList ?? false, "CN should have HasSubList = false after clearing");
 

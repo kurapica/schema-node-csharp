@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using SchemaNode.Components;
 using SchemaNode.Converter;
 using SchemaNode.Enum;
+using SchemaNode.Context;
 
 namespace SchemaNode.Utility;
 
@@ -63,18 +64,14 @@ public static class Extension
     /// </summary>
     internal static string[] SplitTypeName(this string name)
     {
-        List<string> paths = name.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries).Where(f => !string.IsNullOrEmpty(f)).ToList();
-        while (paths.Count > 1 && paths.Last().EndsWith(">") && !paths.Last().Contains("<"))
+        List<string> paths = [..name.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
+        while (paths.Count > 1 && paths[^1].EndsWith(">") && !paths[^1].Contains("<"))
         {
-            string last = paths.Last();
+            string last = paths[^1];
             paths.RemoveAt(paths.Count - 1);
-
-            string secondLast = paths.Last();
-            paths.RemoveAt(paths.Count - 1);
-
-            paths.Add(secondLast + "." + last);
+            paths[^1] += "." + last;
         }
-        return paths.ToArray();
+        return [..paths];
     }
 
     /// <summary>
@@ -138,25 +135,17 @@ public static class Extension
     }
 
     /// <summary>
-    /// To http result
-    /// </summary>
-    public static IResult ToResult<T>(this T value, bool indent = false, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
-    {
-        return Results.Json(value, GetJsonOptions(indent, mode, timeZone));
-    }
-
-    /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="mode">The date format</param>
-    public static T? FromJson<T>(this string value, DateFormatMode? mode = null) => (T?)value.FromJson(typeof(T), mode);
+    public static T? FromJson<T>(this string value, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) => (T?)value.FromJson(typeof(T), mode, timeZone);
 
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
-    public static object? FromJson(this string value, Type type, DateFormatMode? mode = null)
+    internal static object? FromJson(this string value, Type type, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
     {
         if (type == typeof(string))
             return value;
@@ -164,16 +153,16 @@ public static class Extension
             return DateTimeOffset.Parse(value);
         if (type == typeof(DateTime))
             return DateTime.Parse(value);
-
-        return JsonSerializer.Deserialize(value, type, GetJsonOptions(false, mode));
+            
+        return JsonSerializer.Deserialize(value, type, GetJsonOptions(false, mode, timeZone));
     }
 
     /// <summary>
     /// Convert the JsonNode to the given type
     /// </summary>
-    public static T? FromJson<T>(this JsonNode value) => (T?)value.FromJson(typeof(T));
+    public static T? FromJson<T>(this JsonNode value, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) => (T?)value.FromJson(typeof(T), mode, timeZone);
 
-    public static object? FromJson(this JsonNode value, Type type, DateFormatMode? mode = null)
+    internal static object? FromJson(this JsonNode value, Type type, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
     {
         if (type == typeof(JsonObject))
         {
@@ -191,10 +180,10 @@ public static class Extension
         {
             return value;
         }
-        return value.Deserialize(type, GetJsonOptions(false, mode));
+        return value.Deserialize(type, GetJsonOptions(false, mode, timeZone));
     }
-    
-    public static JsonNode? ToJsonNode<T>(this T? value, bool noError = false, DateFormatMode? mode = null)
+
+    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false, DateFormatMode? mode = null)
     {
         try
         {
@@ -214,6 +203,7 @@ public static class Extension
     {
         return (T?)(TryConvert(typeof(T), node) ?? default);
     }
+
     static readonly string[] DateFormats =
     {
         "yyyy-MM-dd",
@@ -229,6 +219,7 @@ public static class Extension
          "yyyyMMdd",
          "yyyyMMddHHmmss"
     };
+
     /// <summary>
     /// Try parse the json value to value and type
     /// </summary>
@@ -239,6 +230,8 @@ public static class Extension
             case JsonValueKind.String:
                 if (val.TryGetValue(out string? s))
                 { 
+                    s = s.Trim();
+
                     if (DateTimeOffset.TryParseExact(
                           s,
                           DateFormats,
@@ -249,15 +242,6 @@ public static class Extension
                         return (dto, typeof(DateTimeOffset));
                     }
 
-                    if (DateTime.TryParseExact(
-                            s,
-                            DateFormats,
-                            CultureInfo.InvariantCulture,
-                            DateTimeStyles.None,
-                            out var dt))
-                    {
-                        return (dt, typeof(DateTime));
-                    }
                     return (s, typeof(string));
                 }
                 return (null, typeof(string));
@@ -289,7 +273,7 @@ public static class Extension
     /// <summary>
     /// Whether the json node is empty
     /// </summary>
-    public static bool IsEmpty(this JsonNode? node)
+    internal static bool IsEmpty(this JsonNode? node)
     {
         if (node == null) return true;
         return node switch
@@ -350,6 +334,33 @@ public static class Extension
         }
         value = null;
         return false;
+    }
+
+    /// <summary>
+    /// To http result
+    /// </summary>
+    public static string ToJson<T>(this SchemaContext context, T value, bool indent = false)
+    {
+        Access? acess = context.GetSchemaContextItem<Access>();
+        return value.ToJson(indent, acess?.DateFormatMode, acess?.TimeZone);
+    }
+
+    /// <summary>
+    /// To http result
+    /// </summary>
+    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false)
+    {
+        Access? acess = context.GetSchemaContextItem<Access>();
+        return Results.Json(value, GetJsonOptions(indent, acess?.DateFormatMode, acess?.TimeZone));
+    }
+
+    /// <summary>
+    /// Parse the JSON string to .NET value with context, which will use the date format in Access if exists.
+    /// </summary>
+    public static T? FromJson<T>(this SchemaContext context, string value)
+    {
+        Access? acess = context.GetSchemaContextItem<Access>();
+        return value.FromJson<T>(acess?.DateFormatMode);
     }
 
     #endregion
@@ -587,8 +598,9 @@ public static class Extension
                     return Convert.ToDecimal(value);
                 case TypeCode.DateTime:
                 {
+                    string? str = value.ToString();
                     if (DateTimeOffset.TryParseExact(
-                            value.ToString(),
+                            str,
                             DateFormats,
                             CultureInfo.InvariantCulture,
                             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
@@ -598,7 +610,7 @@ public static class Extension
                     }
 
                     if (DateTime.TryParseExact(
-                            value.ToString(),
+                            str,
                             DateFormats,
                             CultureInfo.InvariantCulture,
                             DateTimeStyles.None,
@@ -630,7 +642,8 @@ public static class Extension
             }
             else
             {
-                return JsonSerializer.Deserialize(JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode))!.ToJsonString(), type, GetJsonOptions(false, mode));
+                var options = GetJsonOptions(false, mode);
+                return JsonSerializer.SerializeToNode(value, options)!.Deserialize(type, options);
             }
         }
         catch(Exception ex)
@@ -726,31 +739,16 @@ public static class Extension
         XmlDocument? doc = LoadXml(xmlPath);
         if (doc == null) return null;
 
-        XmlNode? members = doc.SelectSingleNode("/doc/members");
-        if (members == null) return null;
+        XmlNode? memberNode = doc.SelectSingleNode($"/doc/members/member[@name='{memberName}']");
+        if (memberNode == null) return null;
 
-        foreach (XmlElement node in members)
+        if (!string.IsNullOrEmpty(subPath))
         {
-            string? name = node.Attributes?[0]?.Value;
-            if (name == memberName)
-            {
-                switch (string.IsNullOrEmpty(subPath))
-                {
-                    case false:
-                    {
-                        XmlNode? subNode = node.SelectSingleNode(subPath!);
-                        if (subNode != null)
-                            return CleanupSummary(subNode.InnerText);
-                        else
-                            return null;
-                    }
-                    default:
-                        return CleanupSummary(node.InnerText);
-                }
-            }
+            XmlNode? subNode = memberNode.SelectSingleNode(subPath!);
+            return subNode != null ? CleanupSummary(subNode.InnerText) : null;
         }
 
-        return null;
+        return CleanupSummary(memberNode.InnerText);
     }
 
     /// <summary>
@@ -761,14 +759,12 @@ public static class Extension
         if (!File.Exists(xmlPath))
             return null;
 
-        if (!XmlFiles.TryGetValue(xmlPath, out XmlDocument? doc))
+        return XmlFiles.GetOrAdd(xmlPath, static path =>
         {
-            doc = new XmlDocument();
-            doc.Load(xmlPath);
-            XmlFiles[xmlPath] = doc;
-        }
-
-        return doc;
+            var doc = new XmlDocument();
+            doc.Load(path);
+            return doc;
+        });
     }
 
     /// <summary>

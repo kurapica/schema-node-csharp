@@ -4,7 +4,7 @@ namespace SchemaNode.Attribute;
 
 // Sets the target policy for shema
 [AttributeUsage(AttributeTargets.Assembly)]
-public class SchemaAppScopeAttribute(AppScopeType type, string? contextItem, string? mapKey): System.Attribute
+public class SchemaAppScopeAttribute(AppScopeType type, string? contextItem = null, string? mapKey = null): System.Attribute
 {
     /// <summary>
     /// The app target policy type

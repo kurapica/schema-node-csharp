@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Utility;
 
@@ -28,6 +29,7 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
             Name = protocolMeta.Name,
             Request = protocolMeta.Request?.ToJsonNode(),
             Response = protocolMeta.Response?.ToJsonNode(),
+            SchemaFormat = protocolMeta.SchemaFormat
         };
     }
 }
@@ -58,4 +60,9 @@ public class ProtocolResponse : SchemaApiResponse
     /// The response schema
     /// </summary>
     public JsonNode? Response { get; init; }
+
+    /// <summary>
+    /// The supported schema formats for download
+    /// </summary>
+    public string[]? SchemaFormat { get; init; }
 }

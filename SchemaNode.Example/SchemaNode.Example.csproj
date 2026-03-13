@@ -33,6 +33,7 @@
     <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
     <ProjectReference Include="..\SchemaNode.Ontology\SchemaNode.Ontology.csproj" />
     <ProjectReference Include="..\SchemaNode.PostgreSQL\SchemaNode.PostgreSQL.csproj" />
+    <ProjectReference Include="..\SchemaNode.Vector\SchemaNode.Vector.csproj" />
     <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
   </ItemGroup>
 </Project>

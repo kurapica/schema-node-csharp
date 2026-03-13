@@ -1,4 +1,5 @@
-﻿using SchemaNode.Context;
+﻿using Microsoft.AspNetCore.Routing;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -107,10 +108,12 @@ public static class SchemaStorageProviderExtension
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
     /// <returns>true if saved</returns>
-    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string? value, EnumValueInfo[] values, bool? append)
+    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, EnumValueInfo[] values, bool? append, bool noEvent = false)
     {
+        if (string.IsNullOrWhiteSpace(value)) return false; // for root level, please use SaveSchemaAsync to save the whole enum schema with sub list
+
         AnySchemaType? node = await context.GetSchemaTypeAsync(name);
-        if (node is not EnumType @enum) return false;
+        if (node is not EnumType @enum || @enum.Cascade == null || @enum.Cascade.Length == 0) return false;
 
         // authorize
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
@@ -119,13 +122,41 @@ public static class SchemaStorageProviderExtension
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
 
-        // save the sub list
-        @enum.SaveEnumSubListAsync(value, await provider.SaveEnumSubListAsync(@enum, value, values, append));
+        // Deep save check
+        
+        // Need check the delete case when it has sub list, only delete the leaf node
+        values = await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values);
+
+        // save to runtime
+        await provider.SaveEnumSubListAsync(@enum, value, values, append);
+
+        @enum.ResetEnumSubListAsync(value, values.Length > 0);
 
         // event
-        context.RaiseEvent<SchemaChangeEvent>(node.Name);
+        if (!noEvent)
+            context.RaiseEvent<SchemaChangeEvent>(node.Name);
         return true;
     }
+
+    static async Task<EnumValueInfo[]> SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, ISchemaStorageProvider provier, EnumType @enum, string value, EnumValueInfo[] values)
+    {
+        EnumValueInfo? root = await @enum.LoadEnumValueInfo(context, value);
+        if (root is null || root.Level == @enum.Cascade!.Length - 1) return values;
+
+        EnumValueInfo[] existSubList = await @enum.LoadEnumSubListAsync(context, root.Value) ?? [];
+        EnumValueInfo[] appends = existSubList.Where(e => e.HasSubList == true || values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
+        values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
+
+        // Save
+        await provier.SaveEnumSubListAsync(@enum, root.Value, values, append: null);
+
+        // Save sub list for the nodes with sub list recursively
+        foreach (var node in values.Where(v => v.SubList is { Length: > 0 }))
+            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provier, @enum, node.Value, node.SubList!);
+
+        return values;
+    }
+
 
     /// <summary>
     /// Save the app schema
@@ -185,6 +216,13 @@ public static class SchemaStorageProviderExtension
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
 
+        // Save node schemas first (field types may depend on them)
+        if (app.NodeSchemas is { Length: > 0 })
+        {
+            foreach (var nodeSchema in app.NodeSchemas)
+                await context.SaveSchemaAsync(nodeSchema);
+        }
+
         // save the schema
         if (!await provider.SaveAppSchemaAsync(app)) return false;
 
@@ -198,6 +236,20 @@ public static class SchemaStorageProviderExtension
             }
         }
         await context.GetAppTypeAsync(app.Name, reload: true); // force reload
+
+        // Save fields in order if provided
+        if (app.Fields is { Length: > 0 })
+        {
+            foreach (var field in app.Fields)
+                await context.SaveAppFieldSchemaAsync(app.Name, field);
+        }
+
+        // Save workflows if provided
+        if (app.Workflows is { Length: > 0 })
+        {
+            foreach (var workflow in app.Workflows)
+                await context.SaveAppWorkflowSchemaAsync(app.Name, workflow);
+        }
 
         // event
         context.RaiseEvent<AppSchemaChangeEvent>(app.Name);

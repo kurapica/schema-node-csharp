@@ -18,7 +18,7 @@ namespace SchemaNode.Ontology;
 ///   </item>
 /// </list>
 /// </summary>
-internal static class OntologySspParser
+public static class OntologySspParser
 {
     // ── Block atoms (SSP text → one atom per schema block) ────────────────────
 
@@ -26,7 +26,7 @@ internal static class OntologySspParser
     /// Splits <paramref name="ssp"/> on <c>---</c> separators and emits one
     /// <see cref="SemanticKind.Block"/> atom per block that contains a <c>Schema:</c> header.
     /// </summary>
-    internal static IEnumerable<SemanticAtom> ParseBlocks(string ssp)
+    public static IEnumerable<SemanticAtom> ParseBlocks(string ssp)
     {
         string[] segments = ssp.Split(["\n---\n", "\r\n---\r\n"], StringSplitOptions.None);
         foreach (string segment in segments)
@@ -70,7 +70,7 @@ internal static class OntologySspParser
     /// Language tag to select (e.g. <c>"enUS"</c>, <c>"zhCN"</c>).
     /// Pass <see langword="null"/> for the default label.
     /// </param>
-    internal static IEnumerable<SemanticAtom> ParseAtoms(OntologyGraph graph, string? locale = null)
+    public static IEnumerable<SemanticAtom> ParseAtoms(OntologyGraph graph, string? locale = null)
     {
         // §1 Vocabulary / Enum — one atom per value
         foreach (OntologyEnumClass ec in graph.EnumClasses)

@@ -1,8 +1,9 @@
+using SchemaNode.Attribute;
+using SchemaNode.Enum;
+using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -60,6 +61,18 @@ public sealed class ArraySchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(ArraySchema? other)
+    {
+        Single = other?.Single ?? Single;
+        Combines = other?.Combines ?? Combines;
+        Relations = other?.Relations ?? Relations;
+    }
+
 }
 
 /// <summary>

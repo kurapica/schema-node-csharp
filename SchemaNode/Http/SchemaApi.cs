@@ -23,7 +23,6 @@ public abstract class SchemaApi<TRequest, TResponse>
         Logger = logger;
         _criticalRegionProvider = new Lazy<ICriticalRegionProvider>(Services.GetRequiredService<ICriticalRegionProvider>);
         SchemaContext = Services.GetRequiredService<SchemaContext>();
-        request.TimeZone = SchemaContext.SetLocaleZone(request.Locale, request.TimeZone); // prepare the locale and time zone for the request
         return await ExecuteAsync(request, request.Context.RequestAborted);
     }
     

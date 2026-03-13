@@ -353,7 +353,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
         {
             if (string.IsNullOrEmpty(value)) return values; // should be done in save schema
             
-            EnumValueInfo? last = enumType.Root.GetEnumAccesses(value)?.Last()
+            EnumValueInfo? last = enumType.LoadCachedEnumValueAccessAsync(value)?.Last()
                 ?? await context.GetEntityAsync<EnumValueInfo>(Target, enumType.Name, value);
 
             // not existed

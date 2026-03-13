@@ -84,4 +84,21 @@ public sealed class ScalarSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(ScalarSchema? other)
+    {
+        if (other == null) return;
+        Unit = Unit != null ? Unit.Concat(other.Unit) : other.Unit;
+        Error = Error != null ? Error.Concat(other.Error) : other.Error;
+        LowLimit = other.LowLimit ?? LowLimit;
+        UpLimit = other.UpLimit ?? UpLimit;
+        Regex = string.IsNullOrWhiteSpace(other.Regex) ? Regex : other.Regex;
+        WhiteList = string.IsNullOrWhiteSpace(other.WhiteList) ? WhiteList : other.WhiteList;
+        AsSuggest = other.AsSuggest ?? AsSuggest;
+        PreValid = string.IsNullOrWhiteSpace(other.PreValid) ? PreValid : other.PreValid;
+        PostValid = string.IsNullOrWhiteSpace(other.PostValid) ? PostValid : other.PostValid;
+    }
 }

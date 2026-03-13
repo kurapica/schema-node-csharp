@@ -64,9 +64,6 @@ public static class SystemCalendar
     [Schema]
     public static long getquarter(SchemaContext context, DateTimeOffset dt) => (ToLocal(dt, context.GetTimeZone()).Month - 1) / 3 + 1;
 
-    /// <summary>
-    /// Gets the first time of the year
-    /// </summary>
     [Schema]
     public static DateTimeOffset getfirstofyear(SchemaContext context, DateTimeOffset date)
     {
@@ -75,9 +72,6 @@ public static class SystemCalendar
         return LocalToUtc(local.Year, 1, 1, 0, 0, 0, tz);
     }
 
-    /// <summary>
-    /// Gets the first time of the month
-    /// </summary>
     [Schema]
     public static DateTimeOffset getfirstofmonth(SchemaContext context, DateTimeOffset date)
     {
@@ -86,9 +80,6 @@ public static class SystemCalendar
         return LocalToUtc(local.Year, local.Month, 1, 0, 0, 0, tz);
     }
 
-    /// <summary>
-    /// Gets the first time of the day
-    /// </summary>
     [Schema]
     public static DateTimeOffset getfirstofday(SchemaContext context, DateTimeOffset date)
     {
@@ -118,9 +109,6 @@ public static class SystemCalendar
         return LocalToUtc(monday.Year, monday.Month, monday.Day, 0, 0, 0, tz);
     }
 
-    /// <summary>
-    /// Gets the last time of the year
-    /// </summary>
     [Schema]
     public static DateTimeOffset getlastofyear(SchemaContext context, DateTimeOffset date)
     {
@@ -129,9 +117,6 @@ public static class SystemCalendar
         return LocalToUtc(local.Year + 1, 1, 1, 0, 0, 0, tz).AddSeconds(-1);
     }
 
-    /// <summary>
-    /// Gets the last time of the month
-    /// </summary>
     [Schema]
     public static DateTimeOffset getlastofmonth(SchemaContext context, DateTimeOffset date)
     {
@@ -140,9 +125,6 @@ public static class SystemCalendar
         return LocalToUtc(local.Year, local.Month, 1, 0, 0, 0, tz).AddSeconds(-1);
     }
 
-    /// <summary>
-    /// Gets the last time of the day
-    /// </summary>
     [Schema]
     public static DateTimeOffset getlastofday(SchemaContext context, DateTimeOffset date)
     {
@@ -171,9 +153,6 @@ public static class SystemCalendar
 
     #region Span
 
-    /// <summary>
-    /// system.calendar.getyears
-    /// </summary>
     [Schema]
     public static long getyears(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
@@ -181,9 +160,6 @@ public static class SystemCalendar
         return ToLocal(stop, tz).Year - ToLocal(start, tz).Year + 1;
     }
 
-    /// <summary>
-    /// system.calendar.getmonths
-    /// </summary>
     [Schema]
     public static long getmonths(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
@@ -193,9 +169,6 @@ public static class SystemCalendar
         return (e.Month - s.Month + 1) + 12 * (e.Year - s.Year);
     }
 
-    /// <summary>
-    /// system.calendar.getdays
-    /// </summary>
     [Schema]
     public static long getdays(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
@@ -234,9 +207,6 @@ public static class SystemCalendar
         return (long)(e - s).TotalSeconds;
     }
 
-    /// <summary>
-    /// Gets the days of a month
-    /// </summary>
     [Schema]
     public static long getmonthdays(SchemaContext context, DateTimeOffset date)
     {
@@ -249,9 +219,6 @@ public static class SystemCalendar
 
     #region Modify
 
-    /// <summary>
-    /// system.calendar.addseconds
-    /// </summary>
     [Schema]
     public static DateTimeOffset addseconds(SchemaContext context, DateTimeOffset dt, int seconds)
     {
@@ -260,9 +227,6 @@ public static class SystemCalendar
         return LocalToUtc(local, tz);
     }
 
-    /// <summary>
-    /// system.calendar.addminutes
-    /// </summary>
     [Schema]
     public static DateTimeOffset addminutes(SchemaContext context, DateTimeOffset dt, int min)
     {
@@ -271,9 +235,6 @@ public static class SystemCalendar
         return LocalToUtc(local, tz);
     }
 
-    /// <summary>
-    /// system.calendar.addhours
-    /// </summary>
     [Schema]
     public static DateTimeOffset addhours(SchemaContext context, DateTimeOffset dt, int hours)
     {
@@ -282,9 +243,6 @@ public static class SystemCalendar
         return LocalToUtc(local, tz);
     }
 
-    /// <summary>
-    /// system.calendar.adddays
-    /// </summary>
     [Schema]
     public static DateTimeOffset adddays(SchemaContext context, DateTimeOffset dt, int days)
     {
@@ -293,9 +251,6 @@ public static class SystemCalendar
         return LocalToUtc(local, tz);
     }
 
-    /// <summary>
-    /// system.calendar.addmonths
-    /// </summary>
     [Schema]
     public static DateTimeOffset addmonths(SchemaContext context, DateTimeOffset dt, int months)
     {
@@ -304,9 +259,6 @@ public static class SystemCalendar
         return LocalToUtc(local, tz);
     }
 
-    /// <summary>
-    /// system.calendar.addyears
-    /// </summary>
     [Schema]
     public static DateTimeOffset addyears(SchemaContext context, DateTimeOffset dt, int year)
     {
@@ -319,9 +271,6 @@ public static class SystemCalendar
     
     #region Compare
     
-    /// <summary>
-    /// system.calendar.eq
-    /// </summary>
     [Schema]
     public static bool eq(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -331,9 +280,6 @@ public static class SystemCalendar
         return l.Year == r.Year && l.DayOfYear == r.DayOfYear;
     }
 
-    /// <summary>
-    /// system.calendar.ge
-    /// </summary>
     [Schema]
     public static bool ge(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -343,9 +289,6 @@ public static class SystemCalendar
         return l.Year > r.Year || l.Year == r.Year && l.DayOfYear >= r.DayOfYear;
     }
 
-    /// <summary>
-    /// system.calendar.gt
-    /// </summary>
     [Schema]
     public static bool gt(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -355,9 +298,6 @@ public static class SystemCalendar
         return l.Year > r.Year || l.Year == r.Year && l.DayOfYear > r.DayOfYear;
     }
 
-    /// <summary>
-    /// system.calendar.le
-    /// </summary>
     [Schema]
     public static bool le(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -367,9 +307,6 @@ public static class SystemCalendar
         return l.Year < r.Year || l.Year == r.Year && l.DayOfYear <= r.DayOfYear;
     }
 
-    /// <summary>
-    /// system.calendar.lt
-    /// </summary>
     [Schema]
     public static bool lt(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -379,9 +316,6 @@ public static class SystemCalendar
         return l.Year < r.Year || l.Year == r.Year && l.DayOfYear < r.DayOfYear;
     }
 
-    /// <summary>
-    /// system.calendar.neq
-    /// </summary>
     [Schema]
     public static bool neq(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
@@ -411,9 +345,6 @@ public static class SystemCalendar
         return getdays(context, start, end);
     }
 
-    /// <summary>
-    /// system.calendar.between
-    /// </summary>
     [Schema]
     public static bool between(SchemaContext context, DateTimeOffset date, DateTimeOffset min, DateTimeOffset max)
     {

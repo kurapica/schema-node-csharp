@@ -215,6 +215,11 @@ public static class Injection
                         services.AddTransient(type);
                     }
                 }
+                else if (type.IsAssignableTo(typeof(ISchemaFormatProvider)))
+                {
+                    // Schema Format provider
+                    ISchemaFormatProvider.AddSchemaFormatProvider(type);
+                }
                 else
                 {
                     // schema type

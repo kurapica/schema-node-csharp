@@ -331,7 +331,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             if (schema.Fields.Last().Name.Equals(DYNAMIC_TABLE_VALUE_FIELD))
             {
                 DbCommand command = GetDbCommand();
-                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName}{wherePrefix}{TrueCond}{querySuffix}";
+                command.CommandText = $"SELECT {sqlProvider.QuoteField(DYNAMIC_TABLE_VALUE_FIELD)} FROM {tableName} t0{wherePrefix}{TrueCond}{querySuffix}";
                 Logger.LogDebug(command.CommandText);
                 DbDataReader reader = await command.ExecuteReaderAsync();
                 try
@@ -349,15 +349,105 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             }
             else
             {
+                // Struct value
+                Dictionary<string, string> prefixes = new(StringComparer.OrdinalIgnoreCase)
+                {
+                    [MainTable] = "t0"
+                };
+
+                // Join
+                Dictionary<string, string>? fieldJoins = null;
+                Dictionary<string, string>? fieldMaps = null;
+                if (!forUpdate && schema.Joins is { Length: > 0 })
+                {
+                    Dictionary<string, AppFieldType> joinFields = new(StringComparer.OrdinalIgnoreCase);
+                    fieldJoins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var join in schema.Joins)
+                    {
+                        AppFieldType joinField = schema.AppFieldType.Application.GetField(join.Field)
+                                                 ?? throw new InvalidOperationException($"Join field {join.Field} not found in application {schema.AppFieldType.Application.Name}");
+                        joinFields[join.Field] = joinField;
+                        prefixes[join.Field] = $"t{prefixes.Count}";
+                    }
+
+                    // field map
+                    fieldMaps = new Dictionary<string, string>();
+                    foreach (DynamicTableField joinField in schema.JoinFields)
+                    {
+                        if (!joinFields.ContainsKey(joinField.JoinAppField!))
+                            throw new InvalidOperationException($"Join field {joinField.JoinAppField} not found in application {schema.AppFieldType.Application.Name}");
+                        fieldMaps[joinField.Name] = $"{prefixes[joinField.JoinAppField!]}.{sqlProvider.QuoteField(joinField.JoinDataField!)}";
+                    }
+
+                    // join condition
+                    foreach (var join in schema.Joins)
+                    {
+                        AppFieldType joinField = schema.AppFieldType.Application.GetField(join.Field)!;
+                        StringBuilder joinWhere = new(JoinWhere(schema, prefixes[MainTable], prefixes[join.Field]));
+                        foreach (var (key, appSchemaDataFilter) in join.Matches)
+                        {
+                            switch (appSchemaDataFilter)
+                            {
+                                case AppSchemaDataFilterField filterField:
+                                    if (fieldMaps.TryGetValue(filterField.Field, out string? map))
+                                        joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {map} AND ");
+                                    else
+                                        joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {prefixes[MainTable]}.{sqlProvider.QuoteField(filterField.Field)} AND ");
+                                    break;
+                                case AppSchemaDataFilterValue valueFilter:
+                                    joinWhere.Append($"{prefixes[join.Field]}.{sqlProvider.QuoteField(key)} = {sqlProvider.Literal(valueFilter.Value)} AND ");
+                                    break;
+                                default:
+                                    throw new InvalidOperationException($"Unsupported filter type {appSchemaDataFilter.GetType().FullName} in join condition");
+                            }
+                        }
+                        joinWhere.Append(TrueCond);
+                        fieldJoins[join.Field] = $" LEFT JOIN {sqlProvider.QuoteTable(joinField.DynamicTableName)} {prefixes[join.Field]} ON {joinWhere} ";
+                    }
+                }
+
+                // Build SELECT
                 StringBuilder sb = new();
                 sb.Append("SELECT ");
-                sb.Append(string.Join(',', schema.NonScopeFields.Select(f => sqlProvider.QuoteField(f.Name))));
+                bool first = false;
+                foreach (var field in forUpdate ? schema.NonScopeFields : schema.QueryFields)
+                {
+                    if (first) sb.Append(", ");
+                    first = true;
+
+                    if (field.IsJoinField)
+                    {
+                        sb.Append(prefixes[field.JoinAppField!]);
+                        sb.Append('.');
+                        sb.Append(sqlProvider.QuoteField(field.JoinDataField!));
+                        sb.Append(" AS ");
+                        sb.Append(sqlProvider.QuoteField(field.Name));
+                    }
+                    else
+                    {
+                        sb.Append(prefixes[MainTable]);
+                        sb.Append('.');
+                        sb.Append(sqlProvider.QuoteField(field.Name));
+                    }
+                }
+
                 sb.Append(" FROM ");
                 sb.Append(tableName);
+                sb.Append(' ');
+                sb.Append(prefixes[MainTable]);
+
+                if (fieldJoins is { Count: > 0 })
+                {
+                    foreach (string join in fieldJoins.Values)
+                        sb.Append(join);
+                }
+
                 sb.Append(wherePrefix);
                 sb.Append(TrueCond);
                 sb.Append(querySuffix);
 
+                // Get data
                 DbCommand command = GetDbCommand();
                 command.CommandText = sb.ToString();
                 Logger.LogDebug(command.CommandText);
@@ -367,7 +457,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     if (reader.HasRows)
                     {
                         await reader.ReadAsync();
-                        value = schema.GetFieldPack(reader);
+                        value = schema.GetFieldPack(reader, queryOnly: !forUpdate);
                     }
                 }
                 finally
@@ -599,7 +689,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                     {
                         AnySchemaNode? pack = type == AppSchemaDataResult.Field
                             ? schema.GetFieldPack(reader, dataField ?? "", !forUpdate)
-                            : schema.GetFieldPack(reader, 0, !forUpdate);
+                            : schema.GetFieldPack(reader, queryOnly: !forUpdate);
                         if (pack != null)
                         {
                             value ??= new ArrayTypeNode(pack.SchemaType);
@@ -1377,7 +1467,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 continue;
             }
 
-            AnySchemaNode? node = r != null && !r.IsEmpty() ? type.CreateNode(r) : null;
+            AnySchemaNode? node = r != null ? type.CreateNode(r) : null;
             if (node is { IsEmpty: false })
             {
                 AnySchemaNode? intNode = null;

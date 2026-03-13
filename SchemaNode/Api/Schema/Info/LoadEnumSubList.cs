@@ -27,7 +27,7 @@ public class LoadEnumSubListApi : SchemaApi<LoadEnumSubListRequest, LoadEnumSubL
 
         return new LoadEnumSubListResponse
         {
-            Values = await @enum.LoadEnumSubListAsync(SchemaContext, request.Value, request.FullList)
+            Values = await @enum.LoadEnumSubListAsync(SchemaContext, request.Value, request.FullList ?? false)
         };
     }
 }

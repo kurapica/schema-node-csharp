@@ -3,8 +3,9 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using System.Text.Json.Nodes;
 using SchemaNode.Schema;
+using System.Text.Json.Nodes;
+using static SchemaNode.Function.SystemStr;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
@@ -332,6 +333,53 @@ public static class SystemData
         await context.CommitTransactionAsync(!raiseEvent);
         return true;
     }
-    
+
+    /// <summary>
+    /// Delete the data
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="app"></param>
+    /// <param name="field"></param>
+    /// <param name="data"></param>
+    /// <param name="raiseEvent"></param>
+    /// <returns></returns>
+    [Schema]
+    [SideEffect]
+    [WorkflowOnly]
+    public static async Task<bool> delete(
+        SchemaContext context,
+        [Schema(NS_SYSTEM_SCHEMA_APP)] string app,
+        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field,
+        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        bool raiseEvent = false
+    )
+    {
+        AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
+        if (appType == null) return false;
+
+        Access? access = context.GetSchemaContextItem<Access>();
+        string? target = access?.Target;
+
+        // Check the app access is contains, only allow access in the same app or system level app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
+
+        AppFieldType? fieldType = appType?.GetField(field);
+        if (fieldType == null) return false;
+
+        (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
+        if (error != null || dataNode == null || dataNode.IsEmpty) return false;
+
+        using var stack = context.StackAccess(app, target);
+
+        await context.BeginTransactionAsync();
+        if (fieldType.SchemaType is ArrayType { Primary: {  Length: > 0 }})
+            await context.DeleteFieldListDataAsync(fieldType, dataNode);
+        else
+            await context.SaveFieldDataAsync(fieldType, null);
+        await context.CommitTransactionAsync(!raiseEvent);
+        return true;
+    }
+
     #endregion
 }

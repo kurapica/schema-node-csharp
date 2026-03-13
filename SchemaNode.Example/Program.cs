@@ -3,7 +3,6 @@ using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode;
 using SchemaNode.Ontology;
-using SchemaNode.Ontology.Services;
 using SchemaNode.Components;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
@@ -13,39 +12,7 @@ using SchemaNode.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Kafka
-//builder.Services.AddSingleton<IConsumer<string, byte[]>>(sp =>
-//{
-//   var config = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
-
-//    var consumerConfig = new ConsumerConfig
-//    {
-//        BootstrapServers = config.BootstrapServers,
-//        GroupId = config.GroupId,
-//        AutoOffsetReset = AutoOffsetReset.Earliest,
-//        EnableAutoCommit = false
-//    };
-
-//    return new ConsumerBuilder<string, byte[]>(consumerConfig)
-//        .SetErrorHandler((_, e) =>
-//        {
-//            var logger = sp.GetRequiredService<ILogger<KafkaEventSource>>();
-//            logger.LogError("Kafka error: {Error}", e.Reason);
-//        })
-//        .Build();
-//});
-
 builder.Services
-    // AI — must be registered before AddSchemaNode so that the SchemaNode.AI
-    // assembly is included in the SchemaApi discovery scan.
-    // Provider is selected via appsettings.json "SchemaNodeAI:Provider".
-    .AddSchemaNodeAI(opts => builder.Configuration.GetSection(OntologyVectorOptions.SectionName).Bind(opts))
-
-    // Mysql
-    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-    // PostgreSQL with pgvector support (also registers OntologyVectorPostgreSqlService)
-    .AddNpgsqlDataSourceWithVector(builder.Configuration.GetConnectionString("PostgreSql")!)
-
     // Cors
     .AddCors(options =>
     {
@@ -68,15 +35,29 @@ builder.Services
         });
     })
 
-    // schema context items
+    // Ontology — registers ontology format providers (turtle / markdown / jsonld / ssp) for LoadAppSchema API
+    .AddSchemaOntology()
+    // Vector — registers embedding + vector store APIs; provider is selected via appsettings.json "SchemaOntology:Provider".
+    // Still working on, not production-ready
+    //.AddSchemaVector(opts => builder.Configuration.GetSection(OntologyVectorOptions.SectionName).Bind(opts))
+
+    // schema context items for test
     .AddScoped<UserInfo>()
     .AddScoped<UserInfoProvider>()
 
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
+
+    // Mysql
+    // .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
     //.AddAppSchemaDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+
+    // PostgreSQL
+    .AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
     .AddAppSchemaDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
+
+    // For test only
     //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp

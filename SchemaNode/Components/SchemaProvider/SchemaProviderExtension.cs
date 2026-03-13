@@ -20,7 +20,7 @@ public static class SchemaProviderExtension
     public static async Task<NodeSchema?> LoadSchemaAsync(this SchemaContext context, string schemaName, bool onlySystem = false)
     {
         NodeSchema? schema = GetSystemNodeSchema(schemaName);
-        if (onlySystem || schema != null && schema.Type != SchemaType.Namespace) return schema;
+        if (onlySystem) return schema;
 
         foreach (ISchemaProvider provider in context.GetServices<ISchemaProvider>())
         {
@@ -57,7 +57,11 @@ public static class SchemaProviderExtension
                     
                     schema = loadSchema;
                 }
-                if (schema.Type != SchemaType.Namespace) return schema;
+                // Combine custom schemas
+                else
+                {
+                    schema.CombineCustomSchema(loadSchema);
+                }
             }
             catch
             {
@@ -77,7 +81,7 @@ public static class SchemaProviderExtension
     public static async Task<AppSchema?> LoadAppSchemaAsync(this SchemaContext context, string schemaName, bool onlySystem = false)
     {
         AppSchema? schema = GetSystemApp(schemaName);
-        if (onlySystem || schema?.Fields is { Length: > 0 }) return schema;
+        if (onlySystem) return schema;
 
         foreach (ISchemaProvider provider in context.GetServices<ISchemaProvider>())
         {
@@ -88,32 +92,9 @@ public static class SchemaProviderExtension
 
                 // check && combine
                 if (schema == null)
-                {
                     schema = loadSchema;
-                }
-                else if (schema.Fields == null || schema.Fields.Length == 0)
-                {
-                    // combine
-                    loadSchema.Apps ??= [];
-                    schema.Apps = schema.Apps == null || schema.Apps?.Length == 0
-                        ? loadSchema.Apps
-                        : schema.Apps!.Concat(loadSchema.Apps.Where(s => !schema.Apps!.Any(v => s.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))).ToArray()).ToArray();
-                    
-                    // display
-                    if (schema.Display == null || string.IsNullOrEmpty(schema.Display.Key))
-                        schema.Display = loadSchema.Display;
-                    
-                    // desc
-                    if (schema.Desc == null || string.IsNullOrEmpty(schema.Desc.Key))
-                        schema.Desc = loadSchema.Desc;
-                    
-                    // auth
-                    if (string.IsNullOrEmpty(schema.Auth)) schema.Auth = loadSchema.Auth;
-                    
-                    // auths
-                    if (schema.Auths == null || schema.Auths.Length == 0)
-                        schema.Auths = loadSchema.Auths;
-                }
+                else
+                    schema.CombineCustomSchema(loadSchema);
             }
             catch
             {

@@ -28,7 +28,7 @@ public static class AppDataTransactionExtension
     public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return false;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
         // Not allow the direct data update
@@ -54,7 +54,7 @@ public static class AppDataTransactionExtension
     public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, bool innerCall = false)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return false;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
@@ -85,7 +85,7 @@ public static class AppDataTransactionExtension
     public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode nodes)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return false;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
@@ -114,7 +114,7 @@ public static class AppDataTransactionExtension
     public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AppSchemaDataFilter filter)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return false;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare

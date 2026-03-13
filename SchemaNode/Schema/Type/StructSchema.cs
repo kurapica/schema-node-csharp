@@ -47,6 +47,20 @@ public sealed class StructSchema
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(StructSchema? other)
+    {
+        if (other == null) return;
+        Relations = other.Relations ?? Relations;
+
+        foreach(StructFieldSchema field in Fields)
+        {
+            field.CombineCustomSchema(other.Fields.FirstOrDefault(f => f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
 }
 
 /// <summary>
@@ -386,6 +400,31 @@ public class StructFieldSchema
     }
 
     #endregion
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(StructFieldSchema? other)
+    {
+        if (other == null) return;
+        Display = Display != null ? Display.Concat(other.Display) : other.Display;
+        Desc = Desc != null ? Desc.Concat(other.Desc) : other.Desc;
+        Error = Error != null ? Error.Concat(other.Error) : other.Error;
+        Unit = Unit != null ? Unit.Concat(other.Unit) : other.Unit;
+        Default = string.IsNullOrWhiteSpace(other.Default) ? Default : other.Default;
+        Flags |= other.Flags;
+
+        // scalar
+        Root = string.IsNullOrWhiteSpace(other.Root) ? Root : other.Root;
+        Entries  = other.Entries ?? Entries;
+        WhiteList = other.WhiteList ?? WhiteList;
+        BlackList = other.BlackList ?? BlackList;
+        LowLimit = string.IsNullOrWhiteSpace(other.LowLimit) ? LowLimit : other.LowLimit;
+        UpLimit = string.IsNullOrWhiteSpace(other.UpLimit) ? UpLimit : other.UpLimit;
+
+        // eunm
+        Cascade = other.Cascade ?? Cascade;
+    }
 }
 
 /// <summary>

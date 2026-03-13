@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
-using SchemaNode.Enum;
+using SchemaNode.Context;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using static SchemaNode.Utility.Extension;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Http.JsonRpc;
@@ -55,9 +54,9 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest
+    public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
     {
-        JsonRpcRequestMessage<TRequest> requestMessage = requestBody.FromJson<JsonRpcRequestMessage<TRequest>>(mode) 
+        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJson<JsonRpcRequestMessage<TRequest>>(requestBody) 
                 ?? throw new Exception("Failed to parse the request body.");
         if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
             throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
@@ -66,20 +65,20 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse
     {
-        return new JsonRpcResponseMessage<TResponse>
+        return context.ToJsonResult(new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }.ToResult(false, mode, timeZone);
+        });
     }
 
-    public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
+    public IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null)
     {
-        return new JsonRpcResponseMessage<SchemaApiResponse>
+        return context.ToJsonResult(new JsonRpcResponseMessage<SchemaApiResponse>
         {
             Jsonrpc = "2.0",
             Error = new JsonRpcResponseError
@@ -95,7 +94,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
                 Data = data,
             },
             Id = _requestId,
-        }.ToResult();
+        });
     }
 
     #endregion

@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
@@ -61,7 +60,7 @@ public class SchemaTools
         if (node is not EnumType @enum) 
             throw new InvalidOperationException($"Enum schema type '{name}' not found.");
 
-        return await @enum.LoadEnumSubListAsync(context, value, fullList);
+        return await @enum.LoadEnumSubListAsync(context, value, fullList ?? false);
     }
     
     [McpServerTool, Description(
@@ -140,8 +139,7 @@ public class SchemaTools
     public static async Task<bool> SaveEnumSubList(SchemaContext context,
         [Description("Schema type name of the hierarchical enumeration to modify.")] string name,
         [Description( 
-            "Parent enum value whose child list is being modified. " +
-            "If null, the operation applies to the top-level enum nodes.")] string? value,
+            "Parent enum value whose child list is being modified. ")] string value,
         [Description(
             "List of child enum nodes to save. " +
             "Each item must conform to schema type: system.schema.enumvalueinfo.")] EnumValueInfo[] subList,

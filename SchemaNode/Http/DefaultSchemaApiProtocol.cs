@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
-using SchemaNode.Enum;
+using SchemaNode.Context;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Http;
 
@@ -19,19 +18,19 @@ public class DefaultSchemaApiProtocol: ISchemaApiProtocol
     public IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema) => innerSchema;
     
     /// <inheritdoc />
-    public TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest
+    public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
     {
-        return requestBody.FromJson<TRequest>(mode) ?? throw new Exception();
+        return context.FromJson<TRequest>(requestBody) ?? throw new InvalidOperationException("Failed to parse request body.");
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse
     {
-        return Results.Json(response, GetJsonOptions(false, mode, timeZone));
+        return context.ToJsonResult(response);
     }
     
     /// <inheritdoc />
-    public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null, IReadOnlyDictionary<string, object>? data = null)
+    public IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null, IReadOnlyDictionary<string, object>? data = null)
     {
         return Results.InternalServerError(message);
     }

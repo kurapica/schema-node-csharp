@@ -1,3 +1,4 @@
+using Quartz.Impl.Triggers;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -82,6 +83,11 @@ public sealed class AppFieldType
     public Foreign[]? Foreigns { get; private init; }
 
     /// <summary>
+    /// The field view settings
+    /// </summary>
+    public FieldView? View { get; private init; }
+
+    /// <summary>
     /// The field storage topology, which defines how the field data is stored in the database.
     /// </summary>
     public FieldStorageTopology? Topology { get; set; }
@@ -159,6 +165,11 @@ public sealed class AppFieldType
     /// Enable dynamic table
     /// </summary>
     public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false);
+
+    /// <summary>
+    /// Whether the field is a view for foreign view, only readable
+    /// </summary>
+    public bool IsForeignView => !string.IsNullOrWhiteSpace(View?.App);
 
     /// <summary>
     /// Has observers
@@ -284,6 +295,7 @@ public sealed class AppFieldType
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,
             Foreigns = entity.Foreigns,
+            View = entity.View,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -320,6 +332,7 @@ public sealed class AppFieldType
             RowAuths = entity.RowAuths,
             ColAuths = entity.ColAuths,
             Foreigns = entity.Foreigns,
+            View = entity.View,
             IncrUpdate = entity.IncrUpdate,
             Frontend = entity.Frontend,
             Disable = entity.Disable,
@@ -337,20 +350,26 @@ public sealed class AppFieldType
     #region Dynamic table
 
     // Gets the data field dynamic table name
-    public string DynamicTableName => !string.IsNullOrWhiteSpace(TableName)
-        ? TableName 
-        : $"{DYNAMIC_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
+    public string DynamicTableName => 
+        IsForeignView 
+        ? View!.AppType?.GetField(View.Field)?.DynamicTableName ?? throw new Exception($"Foreign view app {View.App} or field {View.Field} not exist")
+        : !string.IsNullOrWhiteSpace(TableName)
+            ? TableName 
+            : $"{DYNAMIC_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
     
     /// <summary>
     /// Gets the attribute table name for the field, which is used to store the attribute data of the field, only for dynamic type
     /// </summary>
-    public string AttributeTableName => Topology == FieldStorageTopology.AttributeBased
-        ? (!string.IsNullOrWhiteSpace(AttrTableName) 
-            ? AttrTableName 
-            : !string.IsNullOrWhiteSpace(TableName) 
-                ? $"{EAV_TABLE_PREFIX}_{TableName}" 
-                : $"{EAV_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}")
-        : string.Empty;
+    public string AttributeTableName => 
+        IsForeignView
+        ? View!.AppType?.GetField(View.Field)?.AttributeTableName ?? throw new Exception($"Foreign view app {View.App} or field {View.Field} not exist")
+        : Topology == FieldStorageTopology.AttributeBased
+            ? (!string.IsNullOrWhiteSpace(AttrTableName) 
+                ? AttrTableName 
+                : !string.IsNullOrWhiteSpace(TableName) 
+                    ? $"{EAV_TABLE_PREFIX}_{TableName}" 
+                    : $"{EAV_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}")
+            : string.Empty;
 
     // Generate the dynamic table schema
     public DynamicTableSchema GenDynamicTableSchema()
@@ -372,23 +391,30 @@ public sealed class AppFieldType
             };
         }
 
+        // The target app type, cover the field view
+        bool isView = IsForeignView;
+        AppType targetApp = !isView ? Application: (View?.AppType ?? throw new Exception($"Foreign view app {View?.App} not exist"));
+
         // context item isolation scope
-        foreach ((string item, AnySchemaType type) in Application.GetScopeContextItems())
+        foreach ((string item, AnySchemaType type, bool isTarget) in targetApp.GetScopeContextItems())
         {
             DataTypeInfo info = GetDataTypeInfo(type, new StructFieldSchema
             {
                 UpLimit = type is ScalarType { IsString: true } ? ENTITY_PRIMARY_KEY_MAX_LEN.ToString() : null
             });
+
+            // Add scope-target field
             fields.Add(new DynamicTableField
             {
                 Name = item,
                 Type = info.Type,
                 MaxLength = info.MaxLength,
                 SchemaType = type,
-                Scope = true
+                Scope = true,
+                Target = isTarget
             });
         }
-        
+
         // value fields
         switch (node.Type)
         {
@@ -409,9 +435,95 @@ public sealed class AppFieldType
             case SchemaNode.Enum.SchemaType.Struct:
             {
                 StructType structNode = (StructType)node;
-                foreach (var sField in structNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                foreach (var sField in structNode.Fields)
                 {
-                    if (sField.SchemeType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
+                    // Check if join the other field for display only
+                    if (sField.DisplayOnly ?? false)
+                    {
+                        StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r =>
+                            r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) &&
+                            r.Type == RelationType.Default && DynamicTableSchema.IsReferenceFunc(r.Func));
+                        if (relation == null) continue;
+
+                        // app
+                        string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(app) || !targetApp.Name.Equals(app, StringComparison.OrdinalIgnoreCase)) continue; // the same app
+
+                        // app field
+                        string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(field)) continue; // no app field
+                        AppFieldType? appField = targetApp.GetField(field);
+                        if (appField == null) continue; // app field not exist
+
+                        // primary & struct
+                        string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
+                        StructType? structType = (appField.SchemaType is ArrayType arr ? arr.ElementSchemaType : appField.SchemaType) as StructType;
+                        if (structType == null || structType.Fields.Length == 0) continue;
+                        if (primary.Length + 3 != relation.Args.Length) continue; // primary fields not contains
+
+                        // data field
+                        string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
+                        StructFieldSchema? dataFieldType = structType.GetField(dataField);
+                        if (dataFieldType == null) continue; // data field not exist
+
+                        // Check joins
+                        if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            // collect keys
+                            Dictionary<string, AppSchemaDataFilter> keyMap = new();
+
+                            // build primary key
+                            for (int i = 3; i < relation.Args.Length - 1; i++)
+                            {
+                                keyMap[primary[i - 3]] = !string.IsNullOrEmpty(relation.Args[i].Name)
+                                    ? new AppSchemaDataFilterField(relation.Args[i].Name!)
+                                    : new AppSchemaDataFilterValue(relation.Args[i].Value?.ToValue<string>() ?? string.Empty);
+                            }
+
+                            joins ??= [];
+                            joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
+                        }
+
+                        if (dataFieldType.SchemeType is StructType @struct)
+                        {
+                            // As complex fields
+                            foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            {
+                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                fields.Add(new DynamicTableField
+                                {
+                                    Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
+                                    Complex = new DataFieldComplexInfo
+                                    {
+                                        Main = sField.Name,
+                                        Field = ifield.Name
+                                    },
+                                    Type = info.Type,
+                                    MaxLength = info.MaxLength,
+                                    SchemaType = ifield.SchemeType!,
+                                    JoinAppField = field,
+                                    JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
+                                });
+                            }
+                        }
+                        else
+                        {
+                            // As normal field
+                            DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemeType!, dataFieldType);
+                            fields.Add(new DynamicTableField
+                            {
+                                Name = sField.Name,
+                                Type = info.Type,
+                                MaxLength = info.MaxLength,
+                                SchemaType = dataFieldType.SchemeType!,
+                                JoinAppField = field,
+                                JoinDataField = dataField
+                            });
+                        }
+                    }
+
+                    else if (sField.SchemeType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
                     {
                         // As complex fields
                         StructType subStructNode = (StructType)sField.SchemeType;
@@ -495,8 +607,8 @@ public sealed class AppFieldType
                             // primary & struct
                             string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
                             StructType? structType = (appField.SchemaType is ArrayType arr ? arr.ElementSchemaType : appField.SchemaType) as StructType;
-                            if (structType == null || structType.Fields.Length == 0 || primary.Length == 0) continue;
-                            if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
+                            if (structType == null || structType.Fields.Length == 0) continue;
+                            if (primary.Length + 3 != relation.Args.Length) continue; // primary fields not contains
 
                             // data field
                             string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
@@ -504,11 +616,7 @@ public sealed class AppFieldType
                             StructFieldSchema? dataFieldType = structType.GetField(dataField);
                             if (dataFieldType == null) continue; // data field not exist
 
-                            // target
-                            var targetArg = relation.Args.Last();
-                            string? target = targetArg.Value?.ToValue<string>();
-                            if (!string.IsNullOrWhiteSpace(target)) continue; // should be the same target
-
+                            // Check joins
                             if (joins == null || joins.All(j => !j.Field.Equals(field, StringComparison.OrdinalIgnoreCase)))
                             {
                                 // collect keys
@@ -631,6 +739,27 @@ public sealed class AppFieldType
             default:
                 throw new ArgumentOutOfRangeException();
         }
+
+        // Add the foreign key field if not added for query
+        if (isView)
+        {
+            AppFieldType sourceField = View?.AppType?.GetField(View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
+            Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
+            if (!fields.Any(f => f.Name.Equals(foreign.Field, StringComparison.OrdinalIgnoreCase)))
+            {
+                StructType eleType = (sourceField.SchemaType is ArrayType arr ? arr.ElementSchemaType : sourceField.SchemaType) as StructType ?? throw new Exception($"The {Name} field can't be used as view");
+                StructFieldSchema fieldInfo = eleType.GetField(foreign.Field) ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
+                DataTypeInfo info = GetDataTypeInfo(fieldInfo.SchemeType!, fieldInfo);
+                fields.Add(new DynamicTableField
+                {
+                    Name = fieldInfo.Name,
+                    Type = info.Type,
+                    MaxLength = info.MaxLength,
+                    SchemaType = fieldInfo.SchemeType!
+                });
+            }
+        }
+
         return new DynamicTableSchema
         {
             AppFieldType = this,

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
@@ -35,17 +36,17 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Read request from body
     /// </summary>
-    TRequest ReadRequest<TRequest>(string requestBody, DateFormatMode? mode = null) where TRequest : SchemaApiRequest;
+    TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest;
 
     /// <summary>
     /// Generate the result based on the response
     /// </summary>
-    IResult GenerateResult<TResponse>(TResponse response, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) where TResponse : SchemaApiResponse;
+    IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse;
 
     /// <summary>
     /// Generate error response based on exception
     /// </summary>
-    IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
+    IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null);
     
     /// <summary>
@@ -58,6 +59,7 @@ public interface ISchemaApiProtocol
     {
         var provider = ctx.RequestServices;
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
+        var context = provider.GetRequiredService<SchemaContext>();
 
         // Parse request.
         logger.LogDebug("{name} API is being executed ...", typeof(TApi).Name);
@@ -65,7 +67,6 @@ public interface ISchemaApiProtocol
         
         string requestBody = "";
         IFormFileCollection? files = null;
-        DateFormatMode? dateFormat = null;
         try
         {
             if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("application/json", StringComparison.OrdinalIgnoreCase))
@@ -101,24 +102,22 @@ public interface ISchemaApiProtocol
         }
         catch
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.ParseFailed, "Failed to read the request data.");
+            return GenerateErrorResponse(context, SchemaApiErrorCode.ParseFailed, "Failed to read the request data.");
         }
         
         
         TRequest request;
         try
         {
-            request = ReadRequest<TRequest>(requestBody);
+            request = ReadRequest<TRequest>(context, requestBody);
+            context.SetRequestInfo(request.Locale, request.TimeZone, request.DateFormat); // Set the request info
 
             if (request.DateFormat != null && request.DateFormat != DateFormatMode.Iso8601)
-            {
-                dateFormat = request.DateFormat;
-                request = ReadRequest<TRequest>(requestBody, dateFormat);
-            }
+                request = ReadRequest<TRequest>(context, requestBody); // re-read the request with the correct date format
         }
         catch (Exception ex)
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.ParseFailed,  ex.Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.ParseFailed,  ex.Message);
         }
 
         // Validate request.
@@ -127,12 +126,12 @@ public interface ISchemaApiProtocol
             List<ValidationResult> results = new();
             if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
             {
-                return GenerateErrorResponse(SchemaApiErrorCode.InvalidParams, "The request parameters are invalid.", GetValidationErrors(results));
+                return GenerateErrorResponse(context, SchemaApiErrorCode.InvalidParams, "The request parameters are invalid.", GetValidationErrors(results));
             }
         }
         catch (Exception ex)
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
         }
 
         Stopwatch watch = Stopwatch.StartNew();
@@ -154,7 +153,7 @@ public interface ISchemaApiProtocol
         catch (Exception ex)
         {
             logger.LogError(ex, "{name} API execution failed.", typeof(TApi).Name);
-            return GenerateErrorResponse(SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
         }
         finally
         {
@@ -163,7 +162,7 @@ public interface ISchemaApiProtocol
 
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
-        response!.TimeZone = request.TimeZone;
+        response!.TimeZone = context.GetTimeZone()?.Id;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         var timeZone = provider.GetRequiredService<SchemaContext>().GetTimeZone();
         
@@ -190,9 +189,9 @@ public interface ISchemaApiProtocol
                 fileDownloadName: response.Output.Name
             );
         }
-        return GenerateResult(response, dateFormat, timeZone);
+        return GenerateResult(context, response);
     }
-    
+
     /// <summary>
     /// Get validation errors
     /// </summary>
@@ -270,6 +269,7 @@ public interface ISchemaApiProtocol
             Name= name,
             Request= reqMeta,
             Response= resMeta,
+            SchemaFormat = ISchemaFormatProvider.GetSupportedFormats().ToArray(),
         };
     }
 
@@ -315,4 +315,5 @@ internal class SchemaApiProtocolMeta
     public string? Name { get; init; }
     public SchemaApiProtocolRequestMeta? Request { get; init; } 
     public SchemaApiProtocolResponseMeta? Response { get; init; }
+    public string[]? SchemaFormat { get; init; }
 }

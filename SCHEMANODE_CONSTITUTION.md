@@ -134,7 +134,7 @@ class FunctionSchema {
 - `system.logic`: 逻辑运算
 - `system.date`: 日期时间处理
 - `system.data`: 数据访问
-- `system.conv`: 类型转换
+- `system.intrinsic`: 基本处理
 - `system.collection`: 集合操作
 
 ### 4.5 表达式系统 (FuncExp)

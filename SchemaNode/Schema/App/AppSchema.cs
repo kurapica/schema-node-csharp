@@ -134,6 +134,43 @@ public sealed class AppSchema
     public SchemaNodeStatus? Status { get; set; }
 
     #endregion
+
+    #region Methd
+
+    /// <summary>
+    /// Combine custom app schema
+    /// </summary>
+    internal void CombineCustomSchema(AppSchema? otherSchema)
+    {
+        if (otherSchema == null) return;
+        Display = Display != null ? Display.Concat(otherSchema.Display) : otherSchema.Display;
+        Desc = Desc != null ? Desc.Concat(otherSchema.Desc) : otherSchema.Desc;
+        Auth = string.IsNullOrWhiteSpace(Auth) ? otherSchema.Auth : Auth;
+        Auths = Auths ?? otherSchema.Auths;
+
+        // Check fields
+        if (HasApps != true)
+        {
+            if (Fields == null || Fields.Length == 0)
+                Fields = otherSchema.Fields;
+            else if(otherSchema.Fields is { Length: > 0 })
+            {
+                foreach(var field in Fields)
+                {
+                    field.CombineCustomSchema(otherSchema.Fields.FirstOrDefault(f => f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)));
+                }
+                var addFields = otherSchema.Fields.Where(f => !Fields.Any(d => d.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToArray();
+                if (addFields.Length > 0)
+                    Fields = Fields.Concat(addFields).ToArray();
+            }
+        }
+
+        // For simple
+        Workflows = otherSchema.Workflows ?? Workflows;
+        Relations = otherSchema.Relations ?? Relations;
+    }
+
+    #endregion
 }
 
 /// <summary>

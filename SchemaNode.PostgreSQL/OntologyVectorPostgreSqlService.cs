@@ -3,7 +3,8 @@ using Microsoft.SemanticKernel.Embeddings;
 using Npgsql;
 using Pgvector;
 using SchemaNode.Ontology;
-using SchemaNode.Ontology.Services;
+using SchemaNode.Vector.Services;
+using PgVector = Pgvector.Vector;
 
 namespace SchemaNode.PostgreSQL;
 
@@ -80,7 +81,7 @@ public class OntologyVectorPostgreSqlService(
         SemanticAtom atom, OntologyVectorCategory category, string locale, CancellationToken cancellationToken = default)
     {
         ReadOnlyMemory<float> embeddings = await embeddingService.GenerateVectorAsync(atom.Content, cancellationToken: cancellationToken);
-        var vector = new Vector(embeddings);
+        var vector = new PgVector(embeddings);
 
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();
@@ -112,7 +113,7 @@ public class OntologyVectorPostgreSqlService(
         string queryText, int topK = 5, OntologyVectorCategory? category = null, string? locale = null, CancellationToken cancellationToken = default)
     {
         ReadOnlyMemory<float> queryEmbeddings = await embeddingService.GenerateVectorAsync(queryText, cancellationToken: cancellationToken);
-        var queryVector = new Vector(queryEmbeddings);
+        var queryVector = new PgVector(queryEmbeddings);
 
         await using NpgsqlConnection conn = await dataSource.OpenConnectionAsync(cancellationToken);
         await using NpgsqlCommand cmd = conn.CreateCommand();

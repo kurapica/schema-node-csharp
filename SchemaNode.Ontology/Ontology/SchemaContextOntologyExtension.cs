@@ -146,11 +146,11 @@ public static class SchemaContextOntologyExtension
                 break;
 
             case StructType st:
-                BuildEntityClass(graph, st, visitedStructs, visitedEnums);
+                BuildEntityClass(context, graph, st, visitedStructs, visitedEnums);
                 break;
 
             case EnumType et:
-                BuildEnumClass(graph, et, visitedEnums);
+                BuildEnumClass(context, graph, et, visitedEnums);
                 break;
 
             case ScalarType sc:
@@ -276,7 +276,7 @@ public static class SchemaContextOntologyExtension
             ParentIri = parentClassIri,
         };
 
-        // ── Fields: each field = one DB table ────────────────────────────────
+        //Fields: each field = one DB table
         if (app.Fields is { Count: > 0 })
         {
             foreach (AppFieldType field in app.Fields)
@@ -301,11 +301,11 @@ public static class SchemaContextOntologyExtension
                     case StructType st:
                         rangeIri = $"app:{Seg(st.Name)}";
                         kind     = OntologyPropertyKind.Object;
-                        BuildEntityClass(graph, st, visitedStructs, visitedEnums);
+                        BuildEntityClass(context, graph, st, visitedStructs, visitedEnums);
                         break;
 
                     case EnumType et:
-                        rangeIri = BuildEnumClass(graph, et, visitedEnums);
+                        rangeIri = BuildEnumClass(context, graph, et, visitedEnums);
                         kind     = OntologyPropertyKind.Data;
                         break;
 
@@ -333,7 +333,7 @@ public static class SchemaContextOntologyExtension
             }
         }
 
-        // ── Relation annotations ──────────────────────────────────────────────
+        // Relation annotations
         if (app.Relations is { Count: > 0 })
         {
             foreach (AppRelationSchema rel in app.Relations)
@@ -509,6 +509,7 @@ public static class SchemaContextOntologyExtension
     /// Uses <c>SchemeType</c> �?already resolved during <c>StructType.LoadAsync</c>.
     /// </summary>
     private static void BuildEntityClass(
+        SchemaContext context,
         OntologyGraph graph,
         StructType structType,
         HashSet<string> visitedStructs,
@@ -524,7 +525,7 @@ public static class SchemaContextOntologyExtension
         if (structType.BaseNode != null)
         {
             baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseNode.Name)}";
-            BuildEntityClass(graph, structType.BaseNode, visitedStructs, visitedEnums);
+            BuildEntityClass(context, graph, structType.BaseNode, visitedStructs, visitedEnums);
         }
 
         var entity = new OntologyEntityClass
@@ -559,14 +560,14 @@ public static class SchemaContextOntologyExtension
 
                 case EnumType et:
                     // SKOS Concepts are OWL individuals �� owl:ObjectProperty
-                    rangeIri = BuildEnumClass(graph, et, visitedEnums);
+                    rangeIri = BuildEnumClass(context, graph, et, visitedEnums);
                     kind     = OntologyPropertyKind.Object;
                     break;
 
                 case StructType nested:
                     rangeIri = $"app:{Seg(nested.Name)}";
                     kind     = OntologyPropertyKind.Object;
-                    BuildEntityClass(graph, nested, visitedStructs, visitedEnums);
+                    BuildEntityClass(context, graph, nested, visitedStructs, visitedEnums);
                     break;
 
                 default:
@@ -607,6 +608,7 @@ public static class SchemaContextOntologyExtension
     #region Enum class builder
 
     private static string BuildEnumClass(
+        SchemaContext context,
         OntologyGraph graph,
         EnumType enumType,
         HashSet<string> visitedEnums)
@@ -621,7 +623,7 @@ public static class SchemaContextOntologyExtension
                 Name   = seg,
                 Iri    = iri,
                 Labels = ToLabels(enumType.Display),
-                Values = enumType.Root.SubList?
+                Values = enumType.LoadEnumSubListAsync(context, "").GetAwaiter().GetResult()
                     .Where(v => !string.IsNullOrEmpty(v.Value))
                     .Select(v => new OntologyEnumValue
                     {

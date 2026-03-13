@@ -40,6 +40,9 @@ internal static class App
             Desc = app.Desc,
             HasApps = app.Apps is { Length: > 0 },
             HasFields = app.Fields is { Length: > 0 },
+            ScopePolicy = app.ScopePolicy,
+            Auth = app.Auth,
+            Auths = app.Auths,
             Apps = app.Apps?.Select(a => new AppSchema
             {
                 Name = a.Name,
@@ -47,9 +50,11 @@ internal static class App
                 Desc = a.Desc,
                 HasApps = a.Apps is { Length: > 0 },
                 HasFields = a.Fields is { Length: > 0 },
+                ScopePolicy = a.ScopePolicy
             }).ToArray(),
             Fields = app.Fields,
-            Relations = app.Relations
+            Relations = app.Relations,
+            Workflows = app.Workflows,
         };
     }
 

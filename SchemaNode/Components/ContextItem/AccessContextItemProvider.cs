@@ -1,9 +1,13 @@
-using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Antiforgery;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 using TimeZoneConverter;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -33,16 +37,24 @@ public class Access
     /// The access target
     /// </summary>
     public string? Target { get; set; }
-    
+
     /// <summary>
     /// The locale information
     /// </summary>
-    public string? Locale { get; set; }
+    [NotMapped]
+    public string Locale { get; set; } = "enUS";
 
     /// <summary>
     /// The time zone information
     /// </summary>
-    public TimeZoneInfo? TimeZone { get; set; }
+    [NotMapped]
+    public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Local;
+
+    /// <summary>
+    /// The date time format information
+    /// </summary>
+    [NotMapped]
+    public DateFormatMode DateFormatMode { get; set; } = DateFormatMode.Iso8601;
 
     /// <summary>
     /// Sets the access information, and will clear the stack and reset to the new state
@@ -143,11 +155,16 @@ public static class AccessContextItemProviderExtensions
         return new AccessScope(context);
     }
 
-    public static string SetLocaleZone(this SchemaContext context, string? locale, string? timeZone)
+    /// <summary>
+    /// Sets the request info
+    /// </summary>
+
+    public static string SetRequestInfo(this SchemaContext context, string? locale, string? timeZone, DateFormatMode? dateFormatMode)
     {
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
-        access.Locale = locale;
+        access.Locale = locale ?? "enUS";
+        access.DateFormatMode = dateFormatMode ?? DateFormatMode.Iso8601;
 
         if (!string.IsNullOrWhiteSpace(timeZone) && TZConvert.TryGetTimeZoneInfo(timeZone, out var tz))
         {
@@ -178,6 +195,18 @@ public static class AccessContextItemProviderExtensions
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
         return access.Locale;
+    }
+
+    /// <summary>
+    /// Gets the date time format information
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    public static DateFormatMode GetDateFormatMode(this SchemaContext context)
+    {
+        // Gets the shared access
+        var access = context.GetRequiredService<Access>();
+        return access.DateFormatMode;
     }
 
     /// <summary>

@@ -24,6 +24,23 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
 
+        // Download file for the given format
+        if (!string.IsNullOrWhiteSpace(request.Format))
+        {
+            ISchemaFormatProvider? provider = ISchemaFormatProvider.GetSchemaFormatProvider(request.Format);
+            if (provider != null)
+            {
+                SchemaApiFile? output = await provider.GenerateAppSchemaOutput(SchemaContext, node, request.Format, cancellationToken);
+                if (output != null)
+                {
+                    return new LoadAppSchemaResponse
+                    {
+                        Output = output
+                    };
+                }
+            }
+        }
+
         // Generate schema
         AppSchema schema = new()
         {
@@ -75,7 +92,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
 
         return new LoadAppSchemaResponse
         {
-            Schema = schema
+            Schema = schema,
         };
     }
 }
@@ -94,6 +111,11 @@ public class LoadAppSchemaRequest : SchemaApiRequest
     /// Whether include the schema types
     /// </summary>
     public bool IncludeTypes { get; set; }
+
+    /// <summary>
+    /// The app schema format for download
+    /// </summary>
+    public string? Format { get; set; }
 }
 
 /// <summary>

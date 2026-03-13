@@ -2,9 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Ontology;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Ontology.Services;
+namespace SchemaNode.Vector.Services;
 
 /// <summary>
 /// An <see cref="IEventSource"/> that keeps the ontology vector store in sync with
