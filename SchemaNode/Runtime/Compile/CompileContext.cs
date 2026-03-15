@@ -1010,9 +1010,21 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
 
         // Direct call
-        return funcCallExp.ExpType == ExpressionType.Call 
-            ? GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement) 
-            : Expression.Empty();
+        if (funcCallExp.ExpType == ExpressionType.Call)
+        {
+            // Reconcile arg types with actual callMethod parameter types.
+            // For unconstrained generic T, 'T?' compiles to 'T' in IL, so
+            // Nullable<T> args must be unwrapped to T before calling.
+            ParameterInfo[] methodParamInfos = callMethod.GetParameters();
+            for (int j = 0; j < callArgs.Length && j < methodParamInfos.Length; j++)
+            {
+                Type methodParamType = methodParamInfos[j].ParameterType;
+                if (callArgs[j].Type != methodParamType)
+                    callArgs[j] = ConvertExp(methodParamType, callArgs[j]);
+            }
+            return GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement);
+        }
+        return Expression.Empty();
     }
 
     /// <summary>

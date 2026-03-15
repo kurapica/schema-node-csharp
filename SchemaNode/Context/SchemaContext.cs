@@ -18,12 +18,7 @@ namespace SchemaNode.Context;
 /// </summary>
 public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 {
-    #region Static Settings
-
-    /// <summary>
-    /// The max take count for increment field query
-    /// </summary>
-    internal static readonly SchemaNodeConfig Config = new ();
+    #region Static Types
 
     /// <summary>
     /// The system boolean type

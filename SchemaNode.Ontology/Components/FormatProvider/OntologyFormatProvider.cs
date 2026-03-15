@@ -18,7 +18,7 @@ public class OntologyFormatProvider : ISchemaFormatProvider
         SchemaContext context, AppType app, string format, CancellationToken cancellationToken)
     {
         OntologyGraph graph = await context.BuildAppOntologyAsync(
-            app.Name, cancellationToken: cancellationToken);
+            app.Name, OntologyOptions.Current.BaseUri, cancellationToken: cancellationToken);
 
         string content = OntologyTextTemplates.Render(graph, format, context.GetLocale());
 

@@ -1,3 +1,5 @@
+using SchemaNode.Components;
+
 namespace SchemaNode.Context;
 
 public class SchemaNodeConfig
@@ -21,4 +23,16 @@ public class SchemaNodeConfig
     /// The max concurrent threads for quartz scheduler
     /// </summary>
     public int MaxQuartzConcurrentThreads { get; set; } = 10;
+
+    /// <summary>Gets the currently active options instance.</summary>
+    internal static SchemaNodeConfig Current { get; private set; } = new();
+
+    /// <summary>Stores <paramref name="options"/> as the active instance.</summary>
+    internal static void Apply(SchemaNodeConfig options)
+    {
+        Current = options;
+
+        if (!string.IsNullOrWhiteSpace(options.TimeZone))
+            AccessContextItemProviderExtensions.SetDefaultTimeZone(options.TimeZone);
+    }
 }

@@ -17,9 +17,16 @@ public static class SchemaNodeOntologyInjection
     /// </para>
     /// </summary>
     /// <param name="services">The service collection.</param>
+    /// <param name="configure">Optional delegate to configure <see cref="OntologyOptions"/>.</param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
-    public static IServiceCollection AddSchemaOntology(this IServiceCollection services)
+    public static IServiceCollection AddSchemaOntology(
+        this IServiceCollection services,
+        Action<OntologyOptions>? configure = null)
     {
+        var options = new OntologyOptions();
+        configure?.Invoke(options);
+        OntologyOptions.Apply(options);
+
         services.AddSchemaAssemblies(Assembly.GetExecutingAssembly());
         return services;
     }

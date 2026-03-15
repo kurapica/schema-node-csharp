@@ -1530,7 +1530,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                 DbCommand command = GetDbCommand();
                 // PostgreSQL: ON CONFLICT ... DO UPDATE SET using EXCLUDED pseudo-table
                 command.CommandText = $"INSERT INTO {tableRef} ({columnList}) VALUES ({fixedValues}{sep} {litAttr}, {litInt}, {litStr}, {litDat}, {litDbl}, {litTxt}, {litJson}) ON CONFLICT ({conflictCols}) DO UPDATE SET {_refAttrIntField} = EXCLUDED.{_refAttrIntField}, {_refAttrStrField} = EXCLUDED.{_refAttrStrField}, {_refAttrDatField} = EXCLUDED.{_refAttrDatField}, {_refAttrDblField} = EXCLUDED.{_refAttrDblField}, {_refAttrTxtField} = EXCLUDED.{_refAttrTxtField}, {_refAttrJsonField} = EXCLUDED.{_refAttrJsonField};";
-                Logger.LogInformation(command.CommandText);
+                Logger.LogDebug(command.CommandText);
                 await command.ExecuteNonQueryAsync();
             }
             else

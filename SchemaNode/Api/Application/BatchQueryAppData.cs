@@ -103,8 +103,8 @@ public static class BatchQueryExtension
                     if (field.IncrUpdate == true)
                     {
                         take = take <= 0 
-                            ? SchemaContext.Config.IncrFieldDefaultTakeCount 
-                            : Math.Min(take, SchemaContext.Config.IncrFieldMaxTakeCount);
+                            ? SchemaNodeConfig.Current.IncrFieldDefaultTakeCount 
+                            : Math.Min(take, SchemaNodeConfig.Current.IncrFieldMaxTakeCount);
                     }
                     else
                     {

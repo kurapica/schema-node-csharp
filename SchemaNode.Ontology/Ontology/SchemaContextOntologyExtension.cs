@@ -12,7 +12,7 @@ namespace SchemaNode.Ontology;
 /// </summary>
 public static class SchemaContextOntologyExtension
 {
-    private const string DefaultBaseUri = "https://schema.local/";
+    internal const string DefaultBaseUri = "https://schema.local/";
 
     /// <summary>
     /// Builds an <see cref="OntologyGraph"/> for <paramref name="appName"/>.

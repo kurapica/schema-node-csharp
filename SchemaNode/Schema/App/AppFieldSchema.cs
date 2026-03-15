@@ -61,12 +61,13 @@ public sealed class AppFieldSchema
     /// <summary>
     /// The calculate function
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
     public string? Func { get; set; }
-    
+
     /// <summary>
     /// The input field
     /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)]
     public string? Arg { get; set; }
 
     #endregion

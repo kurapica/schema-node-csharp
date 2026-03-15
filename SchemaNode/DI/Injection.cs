@@ -45,12 +45,9 @@ public static class Injection
     {
         #region Config
 
-        if (config != null)
-        {
-            config.Invoke(SchemaContext.Config);
-            if (!string.IsNullOrWhiteSpace(SchemaContext.Config.TimeZone))
-                AccessContextItemProviderExtensions.SetDefaultTimeZone(SchemaContext.Config.TimeZone);
-        }
+        var options = new SchemaNodeConfig();
+        config?.Invoke(options);
+        SchemaNodeConfig.Apply(options);
 
         #endregion
 
@@ -75,7 +72,7 @@ public static class Injection
              
             q.UseDefaultThreadPool(tp =>
             {
-                tp.MaxConcurrency = SchemaContext.Config.MaxQuartzConcurrentThreads;
+                tp.MaxConcurrency = options.MaxQuartzConcurrentThreads;
             });
         });
 
