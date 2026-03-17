@@ -69,6 +69,11 @@ public sealed class EventType: AnySchemaType
         SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
+
+        // Keep in the same namespace if the struct is marked with SchemaAttribute, otherwise use the parent namespace
+        if (typeAttr?.Name != null)
+            ns = string.Join('.', typeAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
+
         NodeSchema eventSchema = new NodeSchema
         {
             Name = typeName,
@@ -76,7 +81,7 @@ public sealed class EventType: AnySchemaType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Event = new EventSchema
             {
-                Payload = payloadType?.GetSchemaType(true) ?? (type.IsAssignableTo(typeof(IEventPayload)) ? "T" :  ""),
+                Payload = payloadType?.GetSchemaType(true, ns) ?? (type.IsAssignableTo(typeof(IEventPayload)) ? "T" :  ""),
             }
         };
 

@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,6 +12,7 @@ namespace SchemaNode.Schema;
 /// The array schema
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.schema")]
 public sealed class ArraySchema
 {
     /// <summary>
@@ -27,7 +27,7 @@ public sealed class ArraySchema
     /// The element type of the array.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE)]
     public string? Element { get; set; }
 
     /// <summary>
@@ -78,6 +78,7 @@ public sealed class ArraySchema
 /// <summary>
 /// The data combine settings
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.{nameof(DataCombine)}")]
 public sealed class DataCombine
 {
     /// <summary>
@@ -92,6 +93,7 @@ public sealed class DataCombine
     public DataCombineType Type { get; set; } = DataCombineType.Assign;
 }
 
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.{nameof(DataIndex)}")]
 public sealed class DataIndex
 {
     /// <summary>

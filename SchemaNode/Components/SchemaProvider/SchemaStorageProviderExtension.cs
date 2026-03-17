@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Routing;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -108,7 +107,7 @@ public static class SchemaStorageProviderExtension
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
     /// <returns>true if saved</returns>
-    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, EnumValueInfo[] values, bool? append, bool noEvent = false)
+    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, EnumValueInfo[] values, bool append = false, bool noEvent = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return false; // for root level, please use SaveSchemaAsync to save the whole enum schema with sub list
 
@@ -121,16 +120,12 @@ public static class SchemaStorageProviderExtension
         // gets storage provider
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
-
-        // Deep save check
-        
+                
         // Need check the delete case when it has sub list, only delete the leaf node
-        values = await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values);
+        values = await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
 
-        // save to runtime
-        await provider.SaveEnumSubListAsync(@enum, value, values, append);
-
-        @enum.ResetEnumSubListAsync(value, values.Length > 0);
+        // Reload to avoid strange errors
+        await context.GetSchemaTypeAsync(@enum.Name, reload: true);
 
         // event
         if (!noEvent)
@@ -138,22 +133,24 @@ public static class SchemaStorageProviderExtension
         return true;
     }
 
-    static async Task<EnumValueInfo[]> SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, ISchemaStorageProvider provier, EnumType @enum, string value, EnumValueInfo[] values)
+    static async Task<EnumValueInfo[]> SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, ISchemaStorageProvider provier, EnumType @enum, string value, EnumValueInfo[] values, bool append = false)
     {
         EnumValueInfo? root = await @enum.LoadEnumValueInfo(context, value);
-        if (root is null || root.Level == @enum.Cascade!.Length - 1) return values;
+        if (root is null || root.Level == @enum.Cascade!.Length) return values;
 
-        EnumValueInfo[] existSubList = await @enum.LoadEnumSubListAsync(context, root.Value) ?? [];
-        EnumValueInfo[] appends = existSubList.Where(e => e.HasSubList == true || values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
-        values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
+        if (!append)
+        {
+            EnumValueInfo[] existSubList = await @enum.LoadEnumSubListAsync(context, root.Value) ?? [];
+            EnumValueInfo[] appends = existSubList.Where(e => e.HasSubList == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
+            values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
+        }
 
         // Save
-        await provier.SaveEnumSubListAsync(@enum, root.Value, values, append: null);
+        await provier.SaveEnumSubListAsync(@enum, root.Value, values.Select(v => v.Clone()).ToArray(), append);
 
         // Save sub list for the nodes with sub list recursively
         foreach (var node in values.Where(v => v.SubList is { Length: > 0 }))
-            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provier, @enum, node.Value, node.SubList!);
-
+            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provier, @enum, node.Value, node.SubList!, append);
         return values;
     }
 

@@ -13,6 +13,7 @@ namespace SchemaNode.Schema;
 /// The schema is used to describe the data node
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF}.{nameof(NodeSchema)}")]
 public sealed class NodeSchema
 {
     /// <summary>
@@ -43,7 +44,7 @@ public sealed class NodeSchema
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_POLICY)]
     public string? Auth { get; set; }
 
     /// <summary>

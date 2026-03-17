@@ -819,11 +819,16 @@ public sealed class FunctionType : AnySchemaType
 
         // Generate func schema
         var name = (funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name}").ToLowerInvariant();
+
+        // Keep in the same namespace
+        if (funcAttr?.Name != null)
+            ns = string.Join('.', funcAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
+
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
             Type = SchemaType.Func,
-            Display = funcAttr.Display?? method.GetSummaryFromXmlDoc() ?? name,
+            Display = funcAttr?.Display ?? method.GetSummaryFromXmlDoc() ?? name,
             Func = new FunctionSchema
             {
                 Return = string.Empty,

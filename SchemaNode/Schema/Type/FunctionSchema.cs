@@ -16,6 +16,7 @@ namespace SchemaNode.Schema;
 /// The schema of function
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.schema")]
 public sealed class FunctionSchema
 {
     /// <summary>
@@ -51,7 +52,7 @@ public sealed class FunctionSchema
     /// <summary>
     /// The function flags
     /// </summary>
-    public FuncTraits Flags { get; set; } = FuncTraits.None;
+    public Traits Flags { get; set; } = Traits.None;
     
     /// <summary>
     /// As type converter
@@ -59,8 +60,8 @@ public sealed class FunctionSchema
     [NotMapped]
     public bool? Converter
     {
-        get => Flags.Has(FuncTraits.Converter);
-        init => Flags = Flags.Turn(FuncTraits.Converter, value);
+        get => Flags.Has(Traits.Converter);
+        init => Flags = Flags.Turn(Traits.Converter, value);
     }
 
     /// <summary>
@@ -69,8 +70,8 @@ public sealed class FunctionSchema
     [NotMapped]
     public bool? Server 
     {
-        get => Flags.Has(FuncTraits.Server);
-        init => Flags = Flags.Turn(FuncTraits.Server, value);
+        get => Flags.Has(Traits.Server);
+        init => Flags = Flags.Turn(Traits.Server, value);
     }
 
     /// <summary>
@@ -79,8 +80,8 @@ public sealed class FunctionSchema
     [NotMapped]
     public bool? Nocache 
     {
-        get => Flags.Has(FuncTraits.NoCache);
-        init => Flags = Flags.Turn(FuncTraits.NoCache, value);
+        get => Flags.Has(Traits.NoCache);
+        init => Flags = Flags.Turn(Traits.NoCache, value);
     }
     
     /// <summary>
@@ -89,8 +90,8 @@ public sealed class FunctionSchema
     [NotMapped]
     public bool? SideEffect 
     {
-        get => Flags.Has(FuncTraits.SideEffect);
-        init => Flags = Flags.Turn(FuncTraits.SideEffect, value);
+        get => Flags.Has(Traits.SideEffect);
+        init => Flags = Flags.Turn(Traits.SideEffect, value);
     }
     
     /// <summary>
@@ -99,15 +100,15 @@ public sealed class FunctionSchema
     [NotMapped]
     public bool? WorkflowOnly
     {
-        get => Flags.Has(FuncTraits.WorkflowOnly);
-        init => Flags = Flags.Turn(FuncTraits.WorkflowOnly, value);
+        get => Flags.Has(Traits.WorkflowOnly);
+        init => Flags = Flags.Turn(Traits.WorkflowOnly, value);
     }
     
     /// <summary>
     /// The function traits
     /// </summary>
     [Flags]
-    public enum FuncTraits
+    public enum Traits
     {
         None = 0,
 
@@ -141,6 +142,7 @@ public sealed class FunctionSchema
 /**
  * The function argument information
  */
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.arg")]
 public sealed class FuncArg
 {
     /// <summary>
@@ -186,6 +188,7 @@ public sealed class FuncArg
 /// <summary>
 /// The function expressions
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.exp")]
 public sealed class FuncExp {
     /// <summary>
     /// The expression name
@@ -197,7 +200,7 @@ public sealed class FuncExp {
     /// The call function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -222,10 +225,11 @@ public sealed class FuncExp {
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
 }
-  
+
 /// <summary>
 /// The function call argument
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.callarg")]
 public sealed class FuncCallArg {
     /// <summary>
     /// The argument name or expression name

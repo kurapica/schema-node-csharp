@@ -12,6 +12,8 @@ namespace SchemaNode.UnitTest
         [TestInitialize]
         public void Setup()
         {
+            InMemoryAppDataProvider.Reset();
+
             var services = new ServiceCollection();
 
             services

@@ -1,10 +1,12 @@
 using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The value type of the enum.
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ENUM}.valuetype")]
 public enum EnumValueType
 {
     /// <summary>

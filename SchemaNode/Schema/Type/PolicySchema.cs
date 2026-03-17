@@ -13,6 +13,7 @@ namespace SchemaNode.Schema;
 /// The permission policy schema
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.schema")]
 public sealed class PolicySchema
 {
     /// <summary>
@@ -32,6 +33,7 @@ public sealed class PolicySchema
 /// <summary>
 /// The policy item schema
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.item")]
 public sealed class PolicyItem
 {
     /// <summary>
@@ -42,7 +44,7 @@ public sealed class PolicyItem
     /// <summary>
     /// The policy evaluator
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_EVALUATOR)]
     public required string Evaluator { get; set; }
 
     /// <summary>

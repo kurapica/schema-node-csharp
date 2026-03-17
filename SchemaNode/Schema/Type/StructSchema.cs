@@ -15,6 +15,7 @@ namespace SchemaNode.Schema;
 /// The struct schema.
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.schema")]
 public sealed class StructSchema
 {
     /// <summary>
@@ -29,7 +30,7 @@ public sealed class StructSchema
     /// The base struct type to be inherited from.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_STRUCT_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_STRUCT)]
     public string? Base { get; set; }
     
     /// <summary>
@@ -66,6 +67,7 @@ public sealed class StructSchema
 /// <summary>
 /// The struct field config
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.field")]
 public class StructFieldSchema
 {
     /// <summary>
@@ -78,7 +80,7 @@ public class StructFieldSchema
     /// The type name of the node.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_VALUE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -384,6 +386,7 @@ public class StructFieldSchema
     #region Inner Type
 
     [Flags]
+    [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.fieldflags")]
     public enum StructFieldFlags
     {
         None = 0,
@@ -430,6 +433,7 @@ public class StructFieldSchema
 /// <summary>
 /// The relation between fields
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.relation")]
 public class StructRelationSchema
 {
     /// <summary>
@@ -442,7 +446,7 @@ public class StructRelationSchema
     /// The relation function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

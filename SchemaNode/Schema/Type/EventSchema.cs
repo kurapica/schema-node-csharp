@@ -9,6 +9,7 @@ namespace SchemaNode.Schema;
 /// The event schema
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_EVENT}.schema")]
 public sealed class EventSchema
 {
     /// <summary>

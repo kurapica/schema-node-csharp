@@ -12,6 +12,7 @@ namespace SchemaNode.Components.Context;
 /// The workflow context snapshot.
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.snapshot")]
 public class WorkflowContextSnapshot
 {
     /// <summary>
@@ -65,7 +66,7 @@ public class WorkflowContextSnapshot
     /// <summary>
     /// The workflow node snapshots
     /// </summary>
-    public WorkflowSnapshot[] Nodes { get; set; } = [];
+    public WorkflowNodeSnapshot[] Nodes { get; set; } = [];
     
     /// <summary>
     /// The fork context snapshots
@@ -74,8 +75,8 @@ public class WorkflowContextSnapshot
     public WorkflowContextSnapshot[]? Forks { get; set; }
 }
 
-[Schema]
-public class WorkflowSnapshot
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.nodesnapshot")]
+public class WorkflowNodeSnapshot
 {
     /// <summary>
     /// The node name

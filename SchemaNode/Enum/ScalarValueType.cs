@@ -1,9 +1,13 @@
+using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The scalar value type
 /// </summary>
 [Flags]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_SCALAR}.valuetype")]
 public enum ScalarValueType
 {
     None = 0,

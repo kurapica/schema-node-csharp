@@ -14,6 +14,7 @@ namespace SchemaNode.Schema;
 /// The application workflow
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.schema")]
 public sealed class AppWorkflowSchema
 {
     /// <summary>
@@ -70,6 +71,7 @@ public sealed class AppWorkflowSchema
 /// <summary>
 /// The application workflow node
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.node")]
 public sealed class AppWorkflowNodeSchema
 {
     /// <summary>

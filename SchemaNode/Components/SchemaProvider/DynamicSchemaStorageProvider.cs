@@ -79,6 +79,8 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             foreach (EnumValueInfo enumValueInfo in schema.Enum.Values)
                             {
+                                enumValueInfo.IsFullyLoaded = false;
+                                enumValueInfo.SubList = null; // sub list will be loaded on demand, set to null to indicate not loaded
                                 enumValueInfo.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema.Name && e.Root == enumValueInfo.Value, take: 1)).total != 0;
                             }
                         }
@@ -151,6 +153,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             val.Root = null;
                             val.SubList = null;
+                            val.IsFullyLoaded = false;
                         }
                         await context.SaveEntityAsync(Target, schema.Enum);
                     }
@@ -283,6 +286,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             // load enum values
             List<EnumValueInfo> enumValues = await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == value);
             enumValues.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
+            enumValues = enumValues.Select(v => v.Clone()).ToList();
 
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
@@ -353,7 +357,8 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
         {
             if (string.IsNullOrEmpty(value)) return values; // should be done in save schema
             
-            EnumValueInfo? last = enumType.LoadCachedEnumValueAccessAsync(value)?.Last()
+            EnumValueInfo[] cached = enumType.LoadCachedEnumValueAccessAsync(value);
+            EnumValueInfo? last = (cached.Length > 0 ? cached.Last() : null)
                 ?? await context.GetEntityAsync<EnumValueInfo>(Target, enumType.Name, value);
 
             // not existed

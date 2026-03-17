@@ -12,7 +12,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
     IWorkflowSession<IDisposable>
 {
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field = "", 
+        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field = "", 
         string? target = null)
     {
         await Task.Yield();

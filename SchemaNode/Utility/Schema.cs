@@ -239,23 +239,17 @@ public static class Schema
                 else if (type.IsAssignableTo(typeof(Event)))
                 {
                     // system event
-                    schemas = EventType.GenerateSystemEvent(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
+                    schemas = EventType.GenerateSystemEvent(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else if (type.IsAssignableTo(typeof(Workflow)))
                 {
                     // system workflow
-                    schemas = WorkflowType.GenerateSystemWorkflow(type, ((type.DeclaringType?.IsClass ?? false) 
-                        ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                        : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
+                    schemas = WorkflowType.GenerateSystemWorkflow(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else
                 {
                     if (shouldConv) 
-                        schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name : null) 
-                            ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
+                        schemas = StructType.GenerateSystemStruct(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
             }
             else if (type.IsValueType)
@@ -263,17 +257,13 @@ public static class Schema
                 if (type.IsEnum)
                 {
                     if (shouldConv) 
-                        schemas = EnumType.GenerateSystemEnum(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
+                        schemas = EnumType.GenerateSystemEnum(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
                 else if (!type.IsPrimitiveLike())
                 {
                     // struct
                     if (shouldConv) 
-                        schemas = StructType.GenerateSystemStruct(type, ((type.DeclaringType?.IsClass ?? false) 
-                            ? type.DeclaringType.GetCustomAttribute<SchemaAttribute>()?.Name 
-                            : null) ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name ?? defaultNs);
+                        schemas = StructType.GenerateSystemStruct(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
             }
 
@@ -1175,6 +1165,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
             NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
             NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}-?[A-Z]{2}$", upLimit:8),
+            NewSystemScalar(NS_SYSTEM_IDENTIFIER, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
             
             #endregion
 
@@ -1199,29 +1190,49 @@ public static class Schema
 
             // place holder types
             NewSystemSchema(NS_SYSTEM_SCHEMA).With([
-                // scalar
-                NewSystemScalar(NS_SYSTEM_SCHEMA_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ANY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_SCALAR_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ENUM_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_STRUCT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_FUNC_TYPE,NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_EVENT_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_WORKFLOW_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_POLICY_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_VALUE_TYPE, NS_SYSTEM_SCHEMA_NAMESPACE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE, NS_SYSTEM_SCHEMA_FUNC_TYPE),
-                
-                NewSystemScalar(NS_SYSTEM_SCHEMA_VAR_NAME, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
-                
-                NewSystemScalar(NS_SYSTEM_SCHEMA_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_FIELD, NS_SYSTEM_SCHEMA_VAR_NAME),
-                NewSystemScalar(NS_SYSTEM_SCHEMA_APP_TARGET, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                // type
+                NewSystemSchema(NS_SYSTEM_SCHEMA_TYPE).With([
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_ANY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_SCALAR, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_ENUM, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_STRUCT, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_ARRAY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_FUNC,NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_EVENT, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_WORKFLOW, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_POLICY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+
+                    // constraint
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_TYPE_RULE).With([
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_VALID, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_WHITELIST, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_PREDICATE, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_EVALUATOR, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                    ]),
+                ]),
+
+                NewSystemSchema(NS_SYSTEM_SCHEMA_DOMAIN).With([
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_DOMAIN_APP, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_DOMAIN_FIELD, NS_SYSTEM_IDENTIFIER),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_DOMAIN_TARGET, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
+                ]),
+
+                NewSystemSchema(NS_SYSTEM_SCHEMA_DEF).With([
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_SCALAR),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_ENUM),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_STRUCT),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_ARRAY),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_FUNC),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_POLICY),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_EVENT),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_WORKFLOW),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_FIELD),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW)
+                ])
             ]),
             #endregion
 

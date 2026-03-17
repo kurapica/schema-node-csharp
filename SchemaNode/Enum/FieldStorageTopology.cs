@@ -1,8 +1,12 @@
-﻿namespace SchemaNode.Enum;
+﻿using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
+namespace SchemaNode.Enum;
 
 /// <summary>
 /// The field storage topology, which defines how the field data is stored in the database.
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.topology")]
 public enum FieldStorageTopology
 {
     /// <summary>

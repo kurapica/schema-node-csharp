@@ -13,6 +13,7 @@ namespace SchemaNode.Schema;
  * The application schema
  */
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.schema")]
 public sealed class AppSchema
 {
     #region Info
@@ -58,7 +59,7 @@ public sealed class AppSchema
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_POLICY)]
     public string? Auth { get; set; }
 
     /// <summary>
@@ -176,6 +177,7 @@ public sealed class AppSchema
 /// <summary>
 /// The app target policy
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopePolicy")]
 public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 {
     /// <summary>
@@ -202,6 +204,7 @@ public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 /// <summary>
 /// The application scope context map, used for the context item mapping when the target policy is IsolationContext
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopeContextMap")]
 public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
 {
     /// <summary>

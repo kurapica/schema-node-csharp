@@ -25,7 +25,7 @@ public sealed class RecognizerSchema
     /// The state schema type after recognition
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_VALUE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
     public string State { get; set; } = string.Empty;
     
     /// <summary>
@@ -69,7 +69,7 @@ public class RecognizerPart
     /// <summary>
     /// The function name for validation or conversion
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
     public string? Func { get; set; }
 
     /// <summary>
@@ -80,7 +80,7 @@ public class RecognizerPart
     /// <summary>
     /// The explicit return type when needed
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_VALUE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
     public string? Return { get; set; }
 
     /// <summary>

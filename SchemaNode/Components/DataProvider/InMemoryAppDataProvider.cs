@@ -231,6 +231,11 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     static ConcurrentDictionary<string, ConcurrentDictionary<string, List<AnySchemaNode>>> _dynamicTables = [];
 
     /// <summary>
+    /// Clears all in-memory data; call between unit tests to ensure isolation.
+    /// </summary>
+    public static void Reset() => _dynamicTables.Clear();
+
+    /// <summary>
     /// Prepare the composite key from scope and target fields
     /// </summary>
     private string PrepareKey(DynamicTableSchema schema)

@@ -147,7 +147,7 @@ public class SchemaTools
             "If true, new items are appended to the existing sub-list. " +
             "If false or null, the existing sub-list under the target node will be replaced.")]bool? append)
     {
-        return await context.SaveEnumSubListAsync(name, value, subList, append);
+        return await context.SaveEnumSubListAsync(name, value, subList, append ?? false);
     }
     
     [McpServerTool,  Description(

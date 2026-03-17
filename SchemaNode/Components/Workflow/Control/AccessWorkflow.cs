@@ -12,8 +12,8 @@ namespace SchemaNode.Components;
 public class AccessWorkflow : Workflow
 {
     public Task ProcessAsync(WorkflowContext context,
-        [Schema(NS_SYSTEM_SCHEMA_APP)] string app, 
-        [Schema(NS_SYSTEM_SCHEMA_APP_TARGET)] string target)
+        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app, 
+        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_TARGET)] string target)
     {
         context.Done(this, access: new Access { App = app, Target = target });
         return Task.CompletedTask;

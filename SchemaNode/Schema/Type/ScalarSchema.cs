@@ -10,6 +10,7 @@ namespace SchemaNode.Schema;
  * The schema of the scalar type
 */
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_SCALAR}.schema")]
 public sealed class ScalarSchema
 {
     /// <summary>
@@ -24,7 +25,7 @@ public sealed class ScalarSchema
     /// The base type of the scalar
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_SCALAR_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_SCALAR)]
     public string? Base { get; set; }
 
     /// <summary>
@@ -57,7 +58,7 @@ public sealed class ScalarSchema
     /// The white list function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_WHITELIST)]
     public string? WhiteList { get; set; }
     
     /// <summary>
@@ -69,14 +70,14 @@ public sealed class ScalarSchema
     /// The function to validate the scalar value in frontend
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_VALID)]
     public string? PreValid  { get; set; }
 
     /// <summary>
     /// The eval function to convert the scalar value
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_VALID)]
     public string? PostValid  { get; set; }// 用来存放额外的字段
     
     /// <summary>

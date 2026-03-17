@@ -220,6 +220,22 @@ public static class Extension
          "yyyyMMddHHmmss"
     };
 
+    internal static bool TryParseDateTimeOffset(string str, out DateTimeOffset? dateTime)
+    {
+        if (DateTimeOffset.TryParseExact(
+              str,
+              DateFormats,
+              CultureInfo.InvariantCulture,
+              DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+              out var dto))
+        {
+            dateTime = dto;
+            return true;
+        }
+        dateTime = null;
+        return false;
+    }
+
     /// <summary>
     /// Try parse the json value to value and type
     /// </summary>
@@ -232,12 +248,7 @@ public static class Extension
                 { 
                     s = s.Trim();
 
-                    if (DateTimeOffset.TryParseExact(
-                          s,
-                          DateFormats,
-                          CultureInfo.InvariantCulture,
-                          DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                          out var dto))
+                    if (TryParseDateTimeOffset(s, out var dto))
                     {
                         return (dto, typeof(DateTimeOffset));
                     }

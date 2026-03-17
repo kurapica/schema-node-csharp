@@ -1,8 +1,12 @@
-﻿namespace SchemaNode.Enum;
+﻿using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
+namespace SchemaNode.Enum;
 
 /// <summary>
 /// The application target policy type
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.scope")]
 public enum AppScopeType
 {
     /// <summary>

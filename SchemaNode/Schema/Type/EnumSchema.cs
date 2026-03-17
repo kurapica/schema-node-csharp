@@ -5,7 +5,6 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Net.Security;
 
 namespace SchemaNode.Schema;
 
@@ -13,6 +12,7 @@ namespace SchemaNode.Schema;
 /// The enum type schema
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ENUM}.schema")]
 public sealed class EnumSchema
 {
     /// <summary>
@@ -56,6 +56,7 @@ public sealed class EnumSchema
 /// The enum value info
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ENUM}.value")]
 public sealed class EnumValueInfo
 {
     /// <summary>

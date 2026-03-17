@@ -972,10 +972,10 @@ NS_SYSTEM_STRING            = "system.string"
 NS_SYSTEM_LIST              = "system.list"
 NS_SYSTEM_CONTEXT           = "system.context"
 NS_SYSTEM_DATA              = "system.data"
-NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype"
-NS_SYSTEM_SCHEMA_FUNC_TYPE  = "system.schema.functype"
-NS_SYSTEM_SCHEMA_APP        = "system.schema.app"
-NS_SYSTEM_SCHEMA_POLICY_TYPE= "system.schema.policytype"
+NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.type.rule.value"
+NS_SYSTEM_SCHEMA_FUNC_TYPE  = "system.schema.type.func"
+NS_SYSTEM_SCHEMA_APP        = "system.schema.domain.app"
+NS_SYSTEM_SCHEMA_POLICY_TYPE= "system.schema.type.policy"
 
 // 表名和字段
 ENTITY_PRIMARY_KEY_MAX_LEN  = 128

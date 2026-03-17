@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Runtime;
 
@@ -292,9 +293,9 @@ public sealed class ScalarType: AnySchemaType
                 {
                     // pass
                 }
-                else if (DateTime.TryParse(strVal, out DateTime dateTime))
+                else if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
                 {
-                    year = SystemCalendar.getyear(context, dateTime);
+                    year = SystemCalendar.getyear(context, dateTime!.Value);
                 }
                 else
                 {
@@ -304,7 +305,6 @@ public sealed class ScalarType: AnySchemaType
                 if (LowLimit > year || UpLimit < year)
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = year;
-                return (result, null);
             }
                
             else if (IsInt)
@@ -312,7 +312,6 @@ public sealed class ScalarType: AnySchemaType
                 if (!long.TryParse(strVal, out long lval) || (LowLimit > lval || UpLimit < lval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = lval;
-                return (result, null);
             }
                
             else if (IsSingle)
@@ -320,7 +319,6 @@ public sealed class ScalarType: AnySchemaType
                 if (!float.TryParse(strVal, out float fval) || (LowLimit > (decimal?)fval || UpLimit < (decimal?)fval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = fval;
-                return (result, null);
             }
                
             else if (IsDouble)
@@ -328,7 +326,6 @@ public sealed class ScalarType: AnySchemaType
                 if (!double.TryParse(strVal, out double dval) || (LowLimit > (decimal?)dval || UpLimit < (decimal?)dval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = dval;
-                return (result, null);
             }
                
             else if (IsNumber)
@@ -336,7 +333,6 @@ public sealed class ScalarType: AnySchemaType
                 if (!decimal.TryParse(strVal, out decimal mval) || (LowLimit > mval || UpLimit < mval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = mval;
-                return (result, null);
             }
                
             else if (IsBool)
@@ -344,7 +340,6 @@ public sealed class ScalarType: AnySchemaType
                 if (TryParseBoolValue(strVal, out bool bval))
                 {
                     result.Value = bval;
-                    return (result, null);
                 }
                 else
                 {
@@ -357,21 +352,24 @@ public sealed class ScalarType: AnySchemaType
                 if (LowLimit > strVal.Length || UpLimit < strVal.Length)
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = strVal;
-                return (result, null);
             }
                
             else if (IsDate)
             {
-                if (DateTime.TryParse(strVal, out DateTime date))
+                if (TryParseDateTimeOffset(strVal, out DateTimeOffset? date))
                 {
-                    result.Value = date;
-                    return (result, null);
+                    result.Value = date!.Value;
                 }
                 else
                 {
                     return (null, TYPE_VALUE_NOT_VALID);
                 }
             }
+
+            if (PostValidNode != null && !await PostValidNode.CallAsync<bool>(context, [result]))
+                return (null, TYPE_VALUE_NOT_VALID);
+
+            return (result, null);
         }
         catch (Exception ex)
         {

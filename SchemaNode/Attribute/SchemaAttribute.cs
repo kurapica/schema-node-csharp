@@ -25,7 +25,7 @@ public class SchemaAttribute: System.Attribute
     /// <param name="display">The display</param>
     public SchemaAttribute(string? name = null, string? display = null)
     {
-        Name = name;
+        Name = name?.ToLower();
         Display = display != null ? new LocaleString(display) : null;
     }
     

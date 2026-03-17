@@ -79,7 +79,7 @@ public sealed class EnumType: AnySchemaType
             SubList = @enum?.Values
         };
         Additional = @enum?.Additional;
-        UpdateLoadState(Root);
+        UpdateLoadState(Root, reset: true);
         UpdateMaxFlags();
         
         // Status
@@ -181,6 +181,7 @@ public sealed class EnumType: AnySchemaType
         if (string.IsNullOrWhiteSpace(value)) return Root.SubList ?? [];
 
         EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        if (accesses.Length == 0) return [];
         EnumValueInfo access = accesses.Last();
         if (!(access.HasSubList ?? false)) return [];
          
@@ -240,27 +241,6 @@ public sealed class EnumType: AnySchemaType
         }
         
         return result;
-    }
-
-    /// <summary>
-    /// Reset enum value sub list for lazy loading
-    /// </summary>
-    internal void ResetEnumSubListAsync(string? value, bool hasSubList)
-    {
-        // check existed
-        EnumValueInfo? access = string.IsNullOrWhiteSpace(value) ? Root : valueMaps.TryGetValue(value, out var node) ? node : null;
-        if (access == null) return; // lazy loading
-
-        // reset
-        access.SubList = null;
-        access.HasSubList = hasSubList;
-        access.IsFullyLoaded = false;
-
-        while(access.Parent != null)
-        {
-            access = access.Parent;
-            access.IsFullyLoaded = false;
-        }
     }
 
     /// <inheritdoc />
@@ -406,9 +386,10 @@ public sealed class EnumType: AnySchemaType
     /// <summary>
     /// Refresh status
     /// </summary>
-    bool UpdateLoadState(EnumValueInfo node, int level = 999, EnumValueInfo? parent = null)
+    bool UpdateLoadState(EnumValueInfo node, int level = 999, EnumValueInfo? parent = null, bool reset = false)
     {
-        if (node.IsFullyLoaded || level == 0) return true;
+        if (node.IsFullyLoaded && !reset || level == 0) return true;
+        node.IsFullyLoaded = false;
         valueMaps[node.Value] = node;
 
         // update ref
@@ -423,9 +404,10 @@ public sealed class EnumType: AnySchemaType
 
         if (node.HasSubList ?? false)
         {
-            if (node.SubList is not null && node.SubList.Length > 0 &&
-                node.SubList.All(x => UpdateLoadState(x, level - 1, node)))
+            if (node.SubList is not null && node.SubList.Length > 0)
             {
+                foreach (var item in node.SubList)
+                    UpdateLoadState(item, level - 1, node, reset);
                 node.IsFullyLoaded = node.SubList.All(x => x.IsFullyLoaded);
                 return true;
             }

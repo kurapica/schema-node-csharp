@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Quartz.Impl.Triggers;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -243,8 +244,37 @@ public sealed class StructType: AnySchemaType
             if (jsonNode != null) 
                 jsonNode.Value = additionalData;
         }
+
+        // Union validation
+        if (error == null && Relations != null)
+        {
+            foreach(var r in Relations.Where(r => r.Type == RelationType.Validation))
+            {
+                var valid = r.FuncNode ?? await context.GetSchemaTypeAsync<FunctionType>(r.Func);
+                if (valid == null) continue;
+                var args = new object?[r.Args.Length];
+                string? first = null;
+                for(int j = 0; j < r.Args.Length; j++)
+                {
+                    var arg = r.Args[j];
+                    if (!string.IsNullOrWhiteSpace(arg.Name))
+                    {
+                        args[j] = result.GetValueByPaths(arg.Name);
+                        first ??= arg.Name.Split('.').FirstOrDefault();
+                    }
+                    else
+                    {
+                        args[j] = await context.GetSchemaNodeAsync(arg.SchemeType, arg.Value);
+                    }
+                }
+                if (!string.IsNullOrWhiteSpace(first) && !await valid.CallAsync<bool>(context, args))
+                {
+                    error ??= [];
+                    error[first] = TYPE_VALUE_NOT_VALID;
+                }
+            }
+        }
         
-        // @TODO: Union validation
         return (result, error);
     }
 
@@ -312,6 +342,10 @@ public sealed class StructType: AnySchemaType
         SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
         bool hasNestArray = false;
+
+        // Keep in the same namespace if the struct is marked with SchemaAttribute, otherwise use the parent namespace
+        if (typeAttr?.Name != null)
+            ns = string.Join('.', typeAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
 
         List<StructFieldSchema> fieldConfigs = [];
         foreach (PropertyInfo p in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>

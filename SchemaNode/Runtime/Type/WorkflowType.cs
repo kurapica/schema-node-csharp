@@ -120,18 +120,22 @@ public sealed class WorkflowType: AnySchemaType
                             : WorkflowMode.Workflow,
             }
         };
-        
+
+        // Keep in the same namespace
+        if (typeAttr?.Name != null)
+            ns = string.Join('.', typeAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
+
         // State
         Type? stateType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowState<>))?.GetGenericArguments()[0];
-        workflowSchema.Workflow.State = stateType?.GetSchemaType(true);
+        workflowSchema.Workflow.State = stateType?.GetSchemaType(true, ns);
         
         // Session
         Type? sessionType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>))?.GetGenericArguments()[0];
-        workflowSchema.Workflow.Session = sessionType?.GetSchemaType(true);
+        workflowSchema.Workflow.Session = sessionType?.GetSchemaType(true, ns);
         
         // Payload
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowPayload<>))?.GetGenericArguments()[0];
-        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true) ?? (type.GetInterfaces().Any(i => i == typeof(IWorkflowPayload)) ? "T" : "");
+        workflowSchema.Workflow.Payload = payloadType?.GetSchemaType(true, ns) ?? (type.GetInterfaces().Any(i => i == typeof(IWorkflowPayload)) ? "T" : "");
         
         // Args
         MethodInfo processMethod = type.GetMethod(Workflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance)
@@ -165,7 +169,7 @@ public sealed class WorkflowType: AnySchemaType
             {
                 ParameterInfo param = parameters[i];
                 
-                Utility.Schema.SchemaParamTypeInfo? info = param.ParameterType.GetSchemaTypeInfo(true);
+                Utility.Schema.SchemaParamTypeInfo? info = param.ParameterType.GetSchemaTypeInfo(true, defaultNs: ns);
                 if (info == null)
                     throw new Exception($"Unsupported parameter type {param.ParameterType.FullName} in ProcessAsync method of workflow type {type.FullName}");
 

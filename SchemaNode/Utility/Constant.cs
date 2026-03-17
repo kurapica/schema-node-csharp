@@ -1,7 +1,5 @@
 // ReSharper disable InconsistentNaming
 
-using SchemaNode.Function;
-
 namespace SchemaNode.Utility;
 
 /// <summary>
@@ -43,7 +41,8 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_FULL_DATE = "system.rangefulldate";
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
-    
+    public const string NS_SYSTEM_IDENTIFIER = "system.identifier";
+
     // array
     public const string NS_SYSTEM_STRINGS = "system.strings";
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
@@ -59,28 +58,46 @@ public static class Constant
     
     // system.schema
     public const string NS_SYSTEM_SCHEMA = "system.schema";
-    public const string NS_SYSTEM_SCHEMA_ANY_TYPE = "system.schema.anytype";
-    public const string NS_SYSTEM_SCHEMA_NAMESPACE = "system.schema.namespace";
-    public const string NS_SYSTEM_SCHEMA_SCALAR_TYPE = "system.schema.scalartype";
-    public const string NS_SYSTEM_SCHEMA_ENUM_TYPE = "system.schema.enumtype";
-    public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
-    public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
-    public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
-    public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
-    public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
-    public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
-    public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
-    public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
-    public const string NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE = "system.schema.evaluatorfunc";
-    public const string NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE = "system.schema.predicatefunc";
-    public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
-    public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
-    public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
+
+    public const string NS_SYSTEM_SCHEMA_TYPE = $"{NS_SYSTEM_SCHEMA}.type";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ANY = $"{NS_SYSTEM_SCHEMA_TYPE}.any";
+    public const string NS_SYSTEM_SCHEMA_TYPE_NAMESPACE = $"{NS_SYSTEM_SCHEMA_TYPE}.namespace";
+    public const string NS_SYSTEM_SCHEMA_TYPE_SCALAR = $"{NS_SYSTEM_SCHEMA_TYPE}.scalar";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ENUM = $"{NS_SYSTEM_SCHEMA_TYPE}.enum";
+    public const string NS_SYSTEM_SCHEMA_TYPE_STRUCT = $"{NS_SYSTEM_SCHEMA_TYPE}.struct";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ARRAY = $"{NS_SYSTEM_SCHEMA_TYPE}.array";
+    public const string NS_SYSTEM_SCHEMA_TYPE_FUNC = $"{NS_SYSTEM_SCHEMA_TYPE}.func";
+    public const string NS_SYSTEM_SCHEMA_TYPE_EVENT = $"{NS_SYSTEM_SCHEMA_TYPE}.event";
+    public const string NS_SYSTEM_SCHEMA_TYPE_WORKFLOW = $"{NS_SYSTEM_SCHEMA_TYPE}.workflow";
+    public const string NS_SYSTEM_SCHEMA_TYPE_POLICY = $"{NS_SYSTEM_SCHEMA_TYPE}.policy";
+
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE = $"{NS_SYSTEM_SCHEMA_TYPE}.rule";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.arrayelement";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.value";
+
+    public const string NS_SYSTEM_SCHEMA_RULE_VALID = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.valid";
+    public const string NS_SYSTEM_SCHEMA_RULE_WHITELIST = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.whitelist";
+    public const string NS_SYSTEM_SCHEMA_RULE_EVALUATOR = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.evaluator";
+    public const string NS_SYSTEM_SCHEMA_RULE_PREDICATE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.predicate";
     
-    public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
-    public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
-    public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
-    public const string NS_SYSTEM_SCHEMA_APP_TARGET = "system.schema.apptarget";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN = $"{NS_SYSTEM_SCHEMA}.domain";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_APP = $"{NS_SYSTEM_SCHEMA_DOMAIN}.app";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_FIELD = $"{NS_SYSTEM_SCHEMA_DOMAIN}.field";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DOMAIN}.workflow";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_TARGET = $"{NS_SYSTEM_SCHEMA_DOMAIN}.target";
+
+    public const string NS_SYSTEM_SCHEMA_DEF = $"{NS_SYSTEM_SCHEMA}.def";
+    public const string NS_SYSTEM_SCHEMA_DEF_SCALAR = $"{NS_SYSTEM_SCHEMA_DEF}.scalar";
+    public const string NS_SYSTEM_SCHEMA_DEF_ENUM = $"{NS_SYSTEM_SCHEMA_DEF}.enum";
+    public const string NS_SYSTEM_SCHEMA_DEF_STRUCT = $"{NS_SYSTEM_SCHEMA_DEF}.struct";
+    public const string NS_SYSTEM_SCHEMA_DEF_ARRAY = $"{NS_SYSTEM_SCHEMA_DEF}.array";
+    public const string NS_SYSTEM_SCHEMA_DEF_FUNC = $"{NS_SYSTEM_SCHEMA_DEF}.func";
+    public const string NS_SYSTEM_SCHEMA_DEF_POLICY = $"{NS_SYSTEM_SCHEMA_DEF}.policy";
+    public const string NS_SYSTEM_SCHEMA_DEF_EVENT = $"{NS_SYSTEM_SCHEMA_DEF}.event";
+    public const string NS_SYSTEM_SCHEMA_DEF_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF}.workflow";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP = $"{NS_SYSTEM_SCHEMA_DEF}.app";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP_FIELD = $"{NS_SYSTEM_SCHEMA_DEF_APP}.field";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF_APP}.workflow";
 
     // function namespace
     public const string NS_SYSTEM_INTRINSIC = "system.intrinsic";

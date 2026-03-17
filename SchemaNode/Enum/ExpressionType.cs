@@ -1,8 +1,12 @@
+using SchemaNode.Attribute;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The expression call type
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.exptype")]
 public enum ExpressionType
 {
     /// <summary>

@@ -89,7 +89,7 @@ public class WorkflowContext: SchemaContext
             RootId = _root?.Id ?? Guid.Empty,
             Id = Id,
             Status = IsWorkflowTerminatable(_workflow) ? WorkflowStatus.Done : WorkflowStatus.Running,
-            Nodes = _states.Select(kv => new WorkflowSnapshot
+            Nodes = _states.Select(kv => new WorkflowNodeSnapshot
             {
                 Name = kv.Key,
                 Status = kv.Value.Status,

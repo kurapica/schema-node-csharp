@@ -15,6 +15,7 @@ namespace SchemaNode.Schema;
 /// The application field schema
 /// </summary>
 [SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.schema")]
 public sealed class AppFieldSchema
 {
     #region Info
@@ -61,13 +62,13 @@ public sealed class AppFieldSchema
     /// <summary>
     /// The calculate function
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
     public string? Func { get; set; }
 
     /// <summary>
     /// The input field
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)]
+    [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)]
     public string? Arg { get; set; }
 
     #endregion
@@ -259,6 +260,7 @@ public sealed class AppFieldSchema
 /// The app field flags for storage
 /// </summary>
 [Flags]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.flags")]
 public enum AppFieldFlags
 {
     None = 0,
@@ -272,18 +274,19 @@ public enum AppFieldFlags
 /// <summary>
 /// The row policy item
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.row")]
 public sealed class RowPolicy
 {
     /// <summary>
     /// The policy evaluatorm, if true will use the filter
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_EVALUATOR)]
     public required string Evaluator { get; set; }
 
     /// <summary>
     /// The row filter function
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_RULE_PREDICATE)]
     public string? Filter { get; set; }
 
     /// <summary>
@@ -304,6 +307,7 @@ public sealed class RowPolicy
 /// <summary>
 /// The column policy item
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.col")]
 public sealed class ColPolicy
 {
     /// <summary>
@@ -327,6 +331,7 @@ public sealed class ColPolicy
 /// <summary>
 /// The field filter
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.filter")]
 public sealed class FieldFilter
 {
     /// <summary>
@@ -349,6 +354,7 @@ public sealed class FieldFilter
 /// <summary>
 /// The foreign settings
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.foreign")]
 public sealed class Foreign
 {
     /// <summary>
@@ -359,22 +365,23 @@ public sealed class Foreign
     /// <summary>
     /// The foreign app name
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_APP)]
+    [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)]
     public string App { get; set; } = string.Empty;
 }
 
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.view")]
 public sealed class FieldView
 {
     /// <summary>
     /// The source application
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_APP)]
+    [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
     /// The source field
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)]
+    [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
