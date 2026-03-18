@@ -51,11 +51,16 @@ public sealed class StructType: AnySchemaType
     
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Struct;
-    
+
+    /// <summary>
+    /// Is value type
+    /// </summary>
+    public override bool IsValueType => true;
+
     #endregion
-    
+
     #region Ref
-    
+
     /// <summary>
     /// The base struct node
     /// </summary>

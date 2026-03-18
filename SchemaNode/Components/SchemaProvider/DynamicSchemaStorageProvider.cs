@@ -188,6 +188,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         await context.SaveEntityAsync(Target, schema.Policy);
                     }
                     break;
+                case SchemaType.Recognizer:
+                    if (schema.Recognizer != null)
+                    {
+                        schema.Recognizer.Name = schema.Name;
+                        await context.SaveEntityAsync(Target, schema.Recognizer);
+                    }
+                    break;
             }
             
             await context.CommitTransactionAsync();
@@ -259,6 +266,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     {
                         nodeSchema.Policy.Name = nodeSchema.Name;
                         await context.DeleteEntityAsync(Target, nodeSchema.Policy);
+                    }
+                    break;
+                case SchemaType.Recognizer:
+                    if (nodeSchema.Recognizer != null)
+                    {
+                        nodeSchema.Recognizer.Name = nodeSchema.Name;
+                        await context.DeleteEntityAsync(Target, nodeSchema.Recognizer);
                     }
                     break;
             }

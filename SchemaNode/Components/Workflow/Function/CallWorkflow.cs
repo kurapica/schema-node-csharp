@@ -9,7 +9,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[Schema($"{NS_SYSTEM_WORKFLOW}.func.call")]
+[Schema($"{NS_SYSTEM_WORKFLOW_FUNC}.call")]
 public class CallWorkflow: FunctionWorkflow, 
     IWorkflowState<CallWorkflowState>,
     IWorkflowPayload

@@ -1161,6 +1161,7 @@ public static class Schema
             NewSystemScalar(NS_SYSTEM_FULL_DATE, baseType:NS_SYSTEM_DATE, enableError:true),
             NewSystemScalar(NS_SYSTEM_INT, baseType:NS_SYSTEM_NUMBER, enableError:true, regex:@"^(\\-|\\+)?\\d+$"),
             NewSystemScalar(NS_SYSTEM_STRING),
+            NewSystemScalar(NS_SYSTEM_CHAR, NS_SYSTEM_STRING, lowLimit: 1, upLimit:1),
             NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, regex:@"^\\d{4}$"),
             NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
             NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
@@ -1241,7 +1242,12 @@ public static class Schema
             NewSystemSchema(NS_SYSTEM_WORKFLOW).With([
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_ID, NS_SYSTEM_STRING, upLimit:128),
                 NewSystemScalar(NS_SYSTEM_WORKFLOW_CRON, NS_SYSTEM_STRING, upLimit:128),
-                NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32)
+                NewSystemScalar(NS_SYSTEM_WORKFLOW_NODE, NS_SYSTEM_STRING, upLimit:32),
+
+                NewSystemSchema(NS_SYSTEM_WORKFLOW_CONTROL),
+                NewSystemSchema(NS_SYSTEM_WORKFLOW_EVENT),
+                NewSystemSchema(NS_SYSTEM_WORKFLOW_FUNC),
+                NewSystemSchema(NS_SYSTEM_WORKFLOW_INTERACTION),
             ]),
 
             #endregion

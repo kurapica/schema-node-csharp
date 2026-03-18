@@ -47,7 +47,7 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Is value type
     /// </summary>
-    public virtual bool IsValueType => Type != SchemaType.Namespace && Type != SchemaType.Func;
+    public virtual bool IsValueType => false;
 
     /// <summary>
     /// The load state

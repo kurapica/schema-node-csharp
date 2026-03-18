@@ -55,4 +55,9 @@ public enum SchemaType
     /// The function node
     /// </summary>
     Func,
+
+    /// <summary>
+    /// Represents a component that performs recognition tasks, such as pattern recognition.
+    /// </summary>
+    Recognizer,
 }

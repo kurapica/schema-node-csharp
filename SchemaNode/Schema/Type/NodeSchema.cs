@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Http;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -94,7 +95,13 @@ public sealed class NodeSchema
     /// </summary>
     [NotMapped]
     public PolicySchema? Policy  { get; set; }
-    
+
+    /// <summary>
+    /// The recognizer schema
+    /// </summary>
+    [NotMapped]
+    public RecognizerSchema? Recognizer { get; set; }
+
     /// <summary>
     /// The load state
     /// </summary>
@@ -233,6 +240,13 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Policy) return this;
         Policy = policySchema;
+        return this;
+    }
+
+    internal NodeSchema With(RecognizerSchema recognizerSchema)
+    {
+        if (Type != SchemaType.Recognizer) return this;
+        Recognizer = recognizerSchema;
         return this;
     }
 

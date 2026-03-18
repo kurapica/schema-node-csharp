@@ -19,7 +19,7 @@ public abstract class InteractionWorkflow: Workflow
 /// <summary>
 /// The application interaction workflow payload
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.interaction.payload")]
+[Schema($"{NS_SYSTEM_WORKFLOW_INTERACTION}.payload")]
 public class InteractionPayload
 {
     /// <summary>

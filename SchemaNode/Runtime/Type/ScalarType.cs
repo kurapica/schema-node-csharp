@@ -83,6 +83,11 @@ public sealed class ScalarType: AnySchemaType
     public override SchemaType Type => SchemaType.Scalar;
 
     /// <summary>
+    /// Is value type
+    /// </summary>
+    public override bool IsValueType => true;
+
+    /// <summary>
     /// The scalar value type
     /// </summary>
     public ScalarValueType ValueType { get; private set; } = ScalarValueType.None;

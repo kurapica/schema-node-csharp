@@ -61,11 +61,16 @@ public sealed class ArrayType: AnySchemaType
     
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Array;
-    
+
+    /// <summary>
+    /// Is value type
+    /// </summary>
+    public override bool IsValueType => true;
+
     #endregion
-    
+
     #region Ref
-    
+
     /// <summary>
     /// The element type node
     /// </summary>

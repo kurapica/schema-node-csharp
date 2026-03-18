@@ -45,7 +45,12 @@ public sealed class EnumType: AnySchemaType
 
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Enum;
-    
+
+    /// <summary>
+    /// Is value type
+    /// </summary>
+    public override bool IsValueType => true;
+
     /// <summary>
     /// The max flags value
     /// </summary>

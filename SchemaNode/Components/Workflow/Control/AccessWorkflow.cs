@@ -8,7 +8,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// Sets the access information for the workflow, which can be used by the subsequent workflow to determine the access control.
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.access")]
+[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.access")]
 public class AccessWorkflow : Workflow
 {
     public Task ProcessAsync(WorkflowContext context,

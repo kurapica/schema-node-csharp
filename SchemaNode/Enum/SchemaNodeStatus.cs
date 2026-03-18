@@ -263,4 +263,9 @@ public enum SchemaNodeStatus
     /// The data source compile error
     /// </summary>
     DataSourceComipleError,
+
+    /// <summary>
+    /// The recognizer has wrong result type
+    /// </summary>
+    RecognizerWrongResult,
 }

@@ -9,7 +9,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// Raise an interaction workflow
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.interaction")]
+[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.interaction")]
 public class RaiseInteractionWorkflow: Workflow
 {
     /// <summary>

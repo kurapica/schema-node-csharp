@@ -34,4 +34,9 @@ public enum RecognizeType
     /// Group nested steps under Steps
     /// </summary>
     Group,
+
+    /// <summary>
+    /// Call other recognizer
+    /// </summary>
+    Recognize,
 }

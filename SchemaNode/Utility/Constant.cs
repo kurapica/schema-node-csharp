@@ -34,6 +34,7 @@ public static class Constant
     public const string NS_SYSTEM_FULL_DATE = "system.fulldate";
     public const string NS_SYSTEM_INT = "system.int";
     public const string NS_SYSTEM_STRING = "system.string";
+    public const string NS_SYSTEM_CHAR = "system.char";
     public const string NS_SYSTEM_YEAR = "system.year";
     public const string NS_SYSTEM_YEARMONTH = "system.yearmonth";
     public const string NS_SYSTEM_GUID = "system.guid";
@@ -95,6 +96,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_DEF_POLICY = $"{NS_SYSTEM_SCHEMA_DEF}.policy";
     public const string NS_SYSTEM_SCHEMA_DEF_EVENT = $"{NS_SYSTEM_SCHEMA_DEF}.event";
     public const string NS_SYSTEM_SCHEMA_DEF_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF}.workflow";
+    public const string NS_SYSTEM_SCHEMA_DEF_RECOGNIZER = $"{NS_SYSTEM_SCHEMA_DEF}.recognizer";
     public const string NS_SYSTEM_SCHEMA_DEF_APP = $"{NS_SYSTEM_SCHEMA_DEF}.app";
     public const string NS_SYSTEM_SCHEMA_DEF_APP_FIELD = $"{NS_SYSTEM_SCHEMA_DEF_APP}.field";
     public const string NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF_APP}.workflow";
@@ -112,6 +114,10 @@ public static class Constant
     public const string NS_SYSTEM_WORKFLOW_ID = "system.workflow.id";
     public const string NS_SYSTEM_WORKFLOW_CRON = "system.workflow.cron";
     public const string NS_SYSTEM_WORKFLOW_NODE = "system.workflow.node";
+    public const string NS_SYSTEM_WORKFLOW_CONTROL = "system.workflow.control";
+    public const string NS_SYSTEM_WORKFLOW_EVENT = "system.workflow.event";
+    public const string NS_SYSTEM_WORKFLOW_FUNC = "system.workflow.func";
+    public const string NS_SYSTEM_WORKFLOW_INTERACTION = "system.workflow.interaction";
     
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";

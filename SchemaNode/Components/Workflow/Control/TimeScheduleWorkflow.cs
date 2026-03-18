@@ -6,7 +6,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.scheduler")]
+[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
 public class TimeScheduleWorkflow: Workflow,
     IWorkflowSession<JobKey>
 {

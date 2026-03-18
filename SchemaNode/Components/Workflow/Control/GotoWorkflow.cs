@@ -1,12 +1,11 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Components;
 
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.goto")]
+[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
 public class GotoWorkflow: Workflow
 {
     public async Task ProcessAsync(WorkflowContext context, bool flag, 

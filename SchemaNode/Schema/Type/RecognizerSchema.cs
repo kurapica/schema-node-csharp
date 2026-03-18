@@ -11,6 +11,8 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The schema of the recognizer type
 /// </summary>
+[SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.schema")]
 public sealed class RecognizerSchema
 {
     /// <summary>
@@ -24,10 +26,9 @@ public sealed class RecognizerSchema
     /// <summary>
     /// The state schema type after recognition
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
-    public string State { get; set; } = string.Empty;
-    
+    public string Result { get; set; } = string.Empty;
+        
     /// <summary>
     /// The parts of recognizer
     /// </summary>
@@ -43,6 +44,7 @@ public sealed class RecognizerSchema
 /// <summary>
 /// The step of recognizer
 /// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.part")]
 public class RecognizerPart
 {
     /// <summary>
@@ -62,7 +64,12 @@ public class RecognizerPart
     public string? Text { get; set; }
 
     /// <summary>
-    /// The character set definition for matching
+    /// The character set definition for matching in Charset mode
+    /// </summary>
+    public RecognizerCharSet[]? Sets { get; set; }
+
+    /// <summary>
+    /// The single character for matching in Any mode
     /// </summary>
     public string? Set { get; set; }
 
@@ -122,4 +129,20 @@ public class RecognizerPart
     /// The next steps after this step (used as branches)
     /// </summary>
     public  RecognizerPart[]? Nexts { get; set;  }
+}
+
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.charset")]
+public class RecognizerCharSet
+{
+    /// <summary>
+    /// The start char
+    /// </summary>
+    [Schema(NS_SYSTEM_CHAR)]
+    public string Start { get; set; } = null!;
+
+    /// <summary>
+    /// The end char
+    /// </summary>
+    [Schema(NS_SYSTEM_CHAR)]
+    public string End { get; set; } = null!;
 }

@@ -13,8 +13,13 @@ public sealed class JsonType: AnySchemaType
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Json;
 
+    /// <summary>
+    /// Is value type
+    /// </summary>
+    public override bool IsValueType => true;
+
     #endregion
-    
+
     #region Methods
 
     public override Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
