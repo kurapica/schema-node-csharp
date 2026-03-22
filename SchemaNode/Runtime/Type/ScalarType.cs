@@ -43,12 +43,7 @@ public sealed class ScalarType: AnySchemaType
     /// The default error message
     /// </summary>
     public LocaleString? Error { get; private set; }
-     
-    /// <summary>
-    /// The regex of the scalar value
-    /// </summary>
-    public string? Regex { get; private set; }
-     
+
     /// <summary>
     /// The white list function
     /// </summary>
@@ -68,7 +63,12 @@ public sealed class ScalarType: AnySchemaType
     /// The function to validate the scalar value in backend
     /// </summary>
     public string? PostValid { get; private set; }
-     
+
+    /// <summary>
+    /// Cross-platform pattern validation for string scalar types
+    /// </summary>
+    public Pattern[]? Pattern { get; private set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
@@ -116,7 +116,12 @@ public sealed class ScalarType: AnySchemaType
     /// The type is bool
     /// </summary>
     public bool IsBool => (ValueType & ScalarValueType.Boolean) > 0;
-     
+
+    /// <summary>
+    /// The type is char
+    /// </summary>
+    public bool IsChar => (ValueType & ScalarValueType.Char) > 0;
+
     /// <summary>
     /// The type is string
     /// </summary>
@@ -181,11 +186,11 @@ public sealed class ScalarType: AnySchemaType
         LowLimit = scalar?.LowLimit;
         UpLimit = scalar?.UpLimit;
         Error = scalar?.Error;
-        Regex = scalar?.Regex;
         WhiteList = scalar?.WhiteList;
         AsSuggest = scalar?.AsSuggest;
         PreValid = scalar?.PreValid;
         PostValid = scalar?.PostValid;
+        Pattern = scalar?.Pattern;;
         Additional = scalar?.Additional;
 
         // Status
@@ -255,6 +260,7 @@ public sealed class ScalarType: AnySchemaType
         // Value Type
         ValueType = schema.Name.ToLowerInvariant() switch
         {
+            NS_SYSTEM_CHAR => ScalarValueType.Char | ScalarValueType.String,
             NS_SYSTEM_BOOL => ScalarValueType.Boolean,
             NS_SYSTEM_DATE => ScalarValueType.Date,
             NS_SYSTEM_NUMBER => ScalarValueType.Number,
@@ -355,6 +361,8 @@ public sealed class ScalarType: AnySchemaType
             else if (IsString)
             {
                 if (LowLimit > strVal.Length || UpLimit < strVal.Length)
+                    return (null, TYPE_VALUE_NOT_VALID);
+                if (Pattern is { Length: > 0 } && !Schema.Pattern.IsMatch(strVal, Pattern))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = strVal;
             }
@@ -467,11 +475,11 @@ public sealed class ScalarType: AnySchemaType
             LowLimit = schema.LowLimit,
             UpLimit = schema.UpLimit,
             Error = schema.Error,
-            Regex = schema.Regex,
             WhiteList = schema.WhiteList,
             AsSuggest = schema.AsSuggest,
             PreValid = schema.PreValid,
             PostValid = schema.PostValid,
+            Pattern = schema.Pattern,
             Additional = schema.Additional,
         });
     }

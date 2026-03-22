@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
-    <ProjectReference Include="..\SchemaNode.Vector\SchemaNode.Vector.csproj" />
+    <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
   </ItemGroup>
 
 </Project>

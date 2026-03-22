@@ -328,6 +328,9 @@ public abstract class AnySchemaType: IDisposable
             SchemaType.Event => new EventType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Policy => new PolicyType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Recognizer => new RecognizerType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Constraint => new ConstraintType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Presentation => new PresentationType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -349,6 +352,9 @@ public abstract class AnySchemaType: IDisposable
             SchemaType.Event => (schema as EventType),
             SchemaType.Workflow => (schema as WorkflowType),
             SchemaType.Policy => (schema as PolicyType),
+            SchemaType.Recognizer => (schema as RecognizerType),
+            SchemaType.Constraint => (schema as ConstraintType),
+            SchemaType.Presentation => (schema as PresentationType),
             _ => (schema as TypeNamespace)
         };
     }

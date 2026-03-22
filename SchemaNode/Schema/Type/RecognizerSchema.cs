@@ -1,15 +1,17 @@
 ﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using System.ComponentModel.DataAnnotations;
 using SchemaNode.Enum;
+using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
-/// The schema of the recognizer type
+/// The schema of the recognizer type.
+/// A recognizer declares a string representation (format) for a known SourceType,
+/// and supports both parsing (string → type) and emitting (type → string).
+/// The format is defined as structured Parts (not a DSL string), suitable for frontend configuration.
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.schema")]
@@ -24,125 +26,157 @@ public sealed class RecognizerSchema
     public string? Name { get; set; }
 
     /// <summary>
-    /// The state schema type after recognition
+    /// The source type this recognizer describes (required).
+    /// Must be a known value type: Scalar, Enum, Struct, or Array.
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
-    public string Result { get; set; } = string.Empty;
-        
-    /// <summary>
-    /// The parts of recognizer
-    /// </summary>
-    public RecognizerPart[] Parts { get; set; } = [];
+    [Required]
+    public string SourceType { get; set; } = string.Empty;
 
     /// <summary>
-    /// The additional data
+    /// The structured format parts that define the string representation.
+    /// Each part is a Literal, Field, or ArrayRepeat with type-specific configuration
+    /// including character validation rules and validation functions.
     /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public RecognizerPart[] Parts { get; set; } = [];
 }
 
 /// <summary>
-/// The step of recognizer
+/// A single part of the recognizer format template, designed for frontend configuration.
+/// Each part carries its own type-specific properties and optional validation rules.
 /// </summary>
+[SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.part")]
-public class RecognizerPart
+public sealed class RecognizerPart
 {
     /// <summary>
-    /// The step name, only required when binding to state or referenced by other steps
+    /// The part type: Literal, Field, or ArrayRepeat
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Name { get; set; }
-    
-    /// <summary>
-    /// The recognize type
-    /// </summary>
-    public RecognizeType Type { get; set;  }
+    public FormatPartType Type { get; set; }
 
     /// <summary>
-    /// The literal text for matching
+    /// Literal: the text to match/emit
     /// </summary>
     public string? Text { get; set; }
 
     /// <summary>
-    /// The character set definition for matching in Charset mode
+    /// Field: the struct field name this part binds to
     /// </summary>
-    public RecognizerCharSet[]? Sets { get; set; }
+    public string? Field { get; set; }
 
     /// <summary>
-    /// The single character for matching in Any mode
+    /// ArrayRepeat: the delimiter between array elements
     /// </summary>
-    public string? Set { get; set; }
+    public string? Delimiter { get; set; }
 
     /// <summary>
-    /// The function name for validation or conversion
+    /// A special recognizer for the given part
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
-    public string? Func { get; set; }
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER)]
+    public string? Recognizer { get; set; }
 
     /// <summary>
-    /// The function call arguments
+    /// The format descriptor for scalar/enum formatting and parsing.
+    /// For scalar types, provides C-style format options (digits, padding, trimming, date layout, etc.).
+    /// For enum types, provides inline mapping via Entry[] and/or function-based conversion.
     /// </summary>
-    public FuncCallArg[]? Args { get; set; }
-
-    /// <summary>
-    /// The explicit return type when needed
-    /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE)]
-    public string? Return { get; set; }
-
-    /// <summary>
-    /// The constant result for classification branches
-    /// </summary>
-    public JsonNode? Value { get; set; }
-
-    /// <summary>
-    /// The min repeat times for this step (0 means optional)
-    /// </summary>
-    public int? Min { get; set; }
-
-    /// <summary>
-    /// The max repeat times for this step
-    /// </summary>
-    public int? Max { get; set; }
-
-    /// <summary>
-    /// Use greedy contains when repeating
-    /// </summary>
-    public bool? Greedy { get; set; }
-    
-    /// <summary>
-    /// The step can be skipped when matching failed, only for optional step (Min=0)
-    /// </summary>
-    public bool? Skippable { get; set; }
-
-    /// <summary>
-    /// The reverse generation template for this step
-    /// </summary>
-    public string? Emit { get; set; }
-
-    /// <summary>
-    /// The nested parts for grouping or repeating
-    /// </summary>
-    public RecognizerPart[]? Parts { get; set; }
-    
-    /// <summary>
-    /// The next steps after this step (used as branches)
-    /// </summary>
-    public  RecognizerPart[]? Nexts { get; set;  }
+    public FormatDescriptor? Format { get; set; }
 }
 
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.charset")]
-public class RecognizerCharSet
+/// <summary>
+/// Describes how a scalar or enum value is formatted (emitted) and parsed (recognized).
+/// For scalar source types, provides C-format-style options (number precision, padding, casing, datetime layout).
+/// For enum source types, provides a two-level mapping:
+///   Level 1 (inline): an Entry[] mapping from enum values to display strings (supports localization).
+///   Level 2 (function): FormatFunc / ParseFunc for arbitrary conversion logic.
+/// </summary>
+[SchemaApp]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.format")]
+public sealed class FormatDescriptor
 {
-    /// <summary>
-    /// The start char
-    /// </summary>
-    [Schema(NS_SYSTEM_CHAR)]
-    public string Start { get; set; } = null!;
+    // ── Number ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// The end char
+    /// Minimum number of digits (zero-padded on the left if shorter).
+    /// Applies to integer or numeric scalar types.
+    /// Example: MinDigits = 3, value 7 → "007"
     /// </summary>
-    [Schema(NS_SYSTEM_CHAR)]
-    public string End { get; set; } = null!;
+    public int? MinDigits { get; set; }
+
+    /// <summary>
+    /// Maximum number of digits (truncated from the left if longer).
+    /// Applies to integer or numeric scalar types.
+    /// </summary>
+    public int? MaxDigits { get; set; }
+
+    /// <summary>
+    /// Number of decimal places for floating-point scalar types.
+    /// Example: Precision = 2, value 3.1 → "3.10"
+    /// </summary>
+    public int? Precision { get; set; }
+
+    // ── Padding ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The padding character. Used together with MinDigits or a fixed-width layout.
+    /// Default pad char is '0' for numbers when MinDigits is set.
+    /// </summary>
+    public char? PadChar { get; set; }
+
+    /// <summary>
+    /// Whether to pad on the left (true) or the right (false).
+    /// Default is true (left-padding).
+    /// </summary>
+    public bool? PadLeft { get; set; }
+
+    // ── String ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether to trim leading and trailing whitespace from the string value.
+    /// </summary>
+    public bool? Trim { get; set; }
+
+    /// <summary>
+    /// Whether to convert the string value to upper case.
+    /// </summary>
+    public bool? ToUpper { get; set; }
+
+    /// <summary>
+    /// Whether to convert the string value to lower case.
+    /// </summary>
+    public bool? ToLower { get; set; }
+
+    // ── DateTime ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Date/time layout string (e.g., "yyyy-MM-dd", "HH:mm:ss").
+    /// Applied when the scalar base type is a date or datetime.
+    /// </summary>
+    public string? Layout { get; set; }
+
+    // ── Enum mapping (Level 1: inline) ──────────────────────────────────
+
+    /// <summary>
+    /// Inline enum-to-display mapping. Each Entry.Value matches an enum value,
+    /// and Entry.Label provides the display string with optional localization.
+    /// When emitting, the enum value is replaced by the matching Entry's label key.
+    /// When parsing, the display string is mapped back to the enum value.
+    /// </summary>
+    public Entry[]? Mapping { get; set; }
+
+    // ── Enum mapping (Level 2: function-based) ──────────────────────────
+
+    /// <summary>
+    /// The fully qualified name of a function that converts a typed value to its string representation.
+    /// Signature: (value) → string
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
+    public string? FormatFunc { get; set; }
+
+    /// <summary>
+    /// The fully qualified name of a function that converts a string representation back to a typed value.
+    /// Signature: (string) → value
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
+    public string? ParseFunc { get; set; }
 }

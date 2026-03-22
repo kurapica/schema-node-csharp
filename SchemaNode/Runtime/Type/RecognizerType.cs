@@ -1,31 +1,31 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Schema;
+using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 
 namespace SchemaNode.Runtime;
 
 /// <summary>
-/// The in-memory recognizer schema representation
+/// The in-memory recognizer schema representation.
+/// Type-first design: each recognizer declares a SourceType and structured Parts.
+/// Supports parsing (string → type) and emitting (type → string).
 /// </summary>
 public sealed class RecognizerType : AnySchemaType
 {
     #region Data
 
     /// <summary>
-    /// The state schema type after recognition
+    /// The source type this recognizer describes
     /// </summary>
-    public string? Result { get; set; } = string.Empty;
+    public string SourceType { get; private set; } = string.Empty;
 
     /// <summary>
-    /// The parts of recognizer
-    /// </summary>
-    public RecognizerPart[] Parts { get; set; } = [];
-
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    /// The structured format parts
+    /// </summary> 
+    public RecognizerPart[] Parts { get; private set; } = [];
 
     #endregion
 
@@ -36,12 +36,37 @@ public sealed class RecognizerType : AnySchemaType
 
     #endregion
 
-    #region Ref
+    #region Field
 
     /// <summary>
-    /// The result type
+    /// The resolved source type
     /// </summary>
-    public AnySchemaType? ResultType { get; private set; }
+    private AnySchemaType? SourceSchemaType;
+
+    /// <summary>
+    /// Resolved recognizers for fields that require sub-recognizers
+    /// </summary>
+    private ConcurrentDictionary<string, RecognizerType> FieldRecognizers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Resolved recognizer for array element (if SourceType is an array)
+    /// </summary>
+    private RecognizerType? ElementRecognizer;
+
+    /// <summary>
+    /// Resolved format function for FormatDescriptor.FormatFunc
+    /// </summary>
+    private FunctionType? FormatFunc;
+
+    /// <summary>
+    /// Resolved parse function for FormatDescriptor.ParseFunc
+    /// </summary>
+    private FunctionType? ParseFunc;
+
+    /// <summary>
+    /// The compiled flat IR operation array for parse and format
+    /// </summary>
+    private IRecognizerOp[] Ops = [];
 
     #endregion
 
@@ -53,9 +78,8 @@ public sealed class RecognizerType : AnySchemaType
         RecognizerSchema? recognizer = schema.Recognizer;
 
         // Data
-        Result = recognizer?.Result;
+        SourceType = recognizer?.SourceType ?? string.Empty;
         Parts = recognizer?.Parts ?? [];
-        Additional = recognizer?.Additional;
 
         if (recognizer == null)
         {
@@ -63,22 +87,106 @@ public sealed class RecognizerType : AnySchemaType
             return;
         }
 
-        ResultType = !string.IsNullOrWhiteSpace(Result) ? await context.GetSchemaTypeAsync(Result) : null;
-        if (ResultType == null || !ResultType.IsValueType)
+        // Resolve SourceType
+        SourceSchemaType = !string.IsNullOrWhiteSpace(SourceType) ? await context.GetSchemaTypeAsync(SourceType) : null;
+        if (SourceSchemaType?.IsValueType != true)
         {
-            Status = SchemaNodeStatus.RecognizerWrongResult;
+            Status = SchemaNodeStatus.RecognizerWrongSourceType;
             return;
         }
 
-        // Parts
+        // Resolve per-part references for struct fields
         foreach (var part in Parts)
         {
+            AnySchemaType? partType = null;
+            switch (part.Type)
+            {
+                case FormatPartType.Literal:
+                    continue;
+                case FormatPartType.Self:
+                    if (SourceSchemaType is ScalarType or EnumType)
+                        partType = SourceSchemaType;
+                    break;
+                case FormatPartType.Field:
+                    var field = string.IsNullOrWhiteSpace(part.Field) ? null : (SourceSchemaType as StructType)?.GetField(part.Field);
+                    partType = field?.SchemeType;
+                    break;
+                case FormatPartType.Elements:
+                    partType = (SourceSchemaType as ArrayType)?.ElementSchemaType;
+                    break;
+            }
 
+            if (partType == null)
+            {
+                Status = SchemaNodeStatus.RecognizerWrongSourceType;
+                return;
+            }
+
+            // If the part type is not a scalar or enum, we need a sub-recognizer
+            if (partType is not (ScalarType or EnumType))
+            {
+                var fieldRecognizer = await FindRecognizerForTypeAsync(context, part.Recognizer);
+                if (fieldRecognizer?.SourceSchemaType == null || !fieldRecognizer.SourceSchemaType.CanBeUseAs(partType))
+                {
+                    Status = SchemaNodeStatus.RecognizerWrongSourceType;
+                    return;
+                }
+
+                if (part.Type == FormatPartType.Field)
+                {
+                    FieldRecognizers[part.Field!] = fieldRecognizer;
+                    fieldRecognizer.AddRef(this);
+                }
+                else if (part.Type == FormatPartType.Elements)
+                {
+                    ElementRecognizer = fieldRecognizer;
+                    ElementRecognizer?.AddRef(this);
+                }
+            }
+
+            // Resolve FormatDescriptor function references
+            if (part.Format == null) continue;
+            if (!string.IsNullOrWhiteSpace(part.Format.FormatFunc))
+            {
+                var fNode = await context.GetSchemaTypeAsync(part.Format.FormatFunc);
+                if (fNode is FunctionType fft)
+                {
+                    FormatFunc = fft;
+                    fft.AddRef(this);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(part.Format.ParseFunc))
+            {
+                var pNode = await context.GetSchemaTypeAsync(part.Format.ParseFunc);
+                if (pNode is FunctionType pft)
+                {
+                    ParseFunc = pft;
+                    pft.AddRef(this);
+                }
+            }
         }
 
-
         // Add ref
-        ResultType.AddRef(this);
+        SourceSchemaType.AddRef(this);
+
+        // Compile the flat IR operation array
+        CompileOps();
+    }
+
+    /// <summary>
+    /// Find a recognizer by its fully qualified name
+    /// </summary>
+    internal static async Task<RecognizerType?> FindRecognizerForTypeAsync(SchemaContext context, string? recognizerName = null)
+    {
+        if (string.IsNullOrWhiteSpace(recognizerName))
+            return null;
+
+        var result = await context.GetSchemaTypeAsync(recognizerName);
+        if (result is RecognizerType rt && rt.Status == SchemaNodeStatus.Ready)
+            return rt;
+
+        return null;
     }
 
     /// <inheritdoc />
@@ -88,9 +196,166 @@ public sealed class RecognizerType : AnySchemaType
     }
 
     /// <inheritdoc />
+    public override IEnumerable<AnySchemaType> GetDependNodes()
+    {
+        if (SourceSchemaType != null) yield return SourceSchemaType;
+        foreach (var fr in FieldRecognizers.Values) yield return fr;
+        if (ElementRecognizer != null) yield return ElementRecognizer;
+        if (FormatFunc != null) yield return FormatFunc;
+        if (ParseFunc != null) yield return ParseFunc;
+    }
+
+    /// <inheritdoc />
     public override void Release()
     {
-        ResultType?.RemoveRef(this);
+        SourceSchemaType?.RemoveRef(this);
+        foreach (var fr in FieldRecognizers.Values) fr.RemoveRef(this);
+        ElementRecognizer?.RemoveRef(this);
+        FormatFunc?.RemoveRef(this);
+        ParseFunc?.RemoveRef(this);
+        Ops = [];
+    }
+
+    /// <summary>
+    /// Compile Parts into a flat IR operation array for both parse and format.
+    /// Called once at the end of LoadAsync so that RecognizeAsync / EmitAsync
+    /// simply iterate the pre-built array with no branching or look-ahead.
+    /// </summary>
+    private void CompileOps()
+    {
+        // Scalar source type
+        if (SourceSchemaType is ScalarType scalar)
+        {
+            var fmt = Parts.FirstOrDefault()?.Format;
+            Ops = [new RecognizerScalarOp(scalar, fmt)];
+            return;
+        }
+
+        // Enum source type
+        if (SourceSchemaType is EnumType sourceEnumType)
+        {
+            var fmt = Parts.FirstOrDefault()?.Format;
+            if (fmt?.Mapping is { Length: > 0 })
+                Ops = [new RecognizerEnumMappingOp(fmt.Mapping, sourceEnumType)];
+            else
+                Ops = [new RecognizerEnumLookupOp(sourceEnumType)];
+            return;
+        }
+
+        // Array source type
+        if (SourceSchemaType is ArrayType sourceArrayType)
+        {
+            var arrayPart = Parts.FirstOrDefault(s => s.Type == FormatPartType.Elements);
+            string delimiter = arrayPart?.Delimiter ?? ",";
+            var elemScalar = sourceArrayType.ElementSchemaType as ScalarType;
+            Ops = [new RecognizerArrayOp(delimiter, ElementRecognizer, elemScalar, sourceArrayType)];
+            return;
+        }
+
+        // Struct source type: flatten each part into an op with pre-computed boundaries
+        if (SourceSchemaType is StructType sourceStructType)
+        {
+            var ops = new List<IRecognizerOp>();
+
+            for (int i = 0; i < Parts.Length; i++)
+            {
+                var part = Parts[i];
+
+                switch (part.Type)
+                {
+                    case FormatPartType.Literal:
+                        if (part.Text != null)
+                            ops.Add(new RecognizerLiteralOp(part.Text));
+                        break;
+
+                    case FormatPartType.Field:
+                        if (string.IsNullOrWhiteSpace(part.Field)) break;
+
+                        string? boundary = null;
+
+                        // Pre-compute the boundary from the next literal part
+                        for (int j = i + 1; j < Parts.Length; j++)
+                        {
+                            if (Parts[j].Type == FormatPartType.Literal)
+                            {
+                                boundary = Parts[j].Text;
+                                break;
+                            }
+                        }
+
+                        FieldRecognizers.TryGetValue(part.Field, out var subRec);
+                        var fieldSchema = sourceStructType.Fields.FirstOrDefault(
+                            f => f.Name.Equals(part.Field, StringComparison.OrdinalIgnoreCase));
+
+                        ops.Add(new RecognizerFieldOp(
+                            part.Field,
+                            boundary,
+                            subRec,
+                            fieldSchema));
+                        break;
+                }
+            }
+
+            ops.Add(new RecognizerStructEndOp(sourceStructType));
+            Ops = [.. ops];
+            return;
+        }
+
+        Ops = [];
+    }
+
+    #endregion
+
+    #region Recognize
+
+    /// <summary>
+    /// Parse the input string into a structured value based on the compiled IR ops.
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="input">The input string to parse</param>
+    /// <returns>The recognition result</returns>
+    public Task<RecognizeOutput> RecognizeAsync(SchemaContext context, string input)
+    {
+        if (Status != SchemaNodeStatus.Ready || Ops.Length == 0)
+            return Task.FromResult(RecognizeOutput.Fail(0));
+
+        var state = new RecognizerParseState();
+        int pos = 0;
+
+        foreach (var op in Ops)
+        {
+            pos = op.Parse(context, input, pos, state);
+            if (pos < 0)
+                return Task.FromResult(RecognizeOutput.Fail(0));
+        }
+
+        return Task.FromResult(new RecognizeOutput { Success = true, Position = pos, Value = state.Value });
+    }
+
+    #endregion
+
+    #region Emit
+
+    /// <summary>
+    /// Generate a string from a structured value using the compiled IR ops.
+    /// </summary>
+    /// <param name="context">The schema context</param>
+    /// <param name="value">The structured value</param>
+    /// <returns>The generated string, or null if emission fails</returns>
+    public Task<string?> EmitAsync(SchemaContext context, AnySchemaNode value)
+    {
+        if (Status != SchemaNodeStatus.Ready || Ops.Length == 0)
+            return Task.FromResult<string?>(null);
+
+        var sb = new StringBuilder();
+
+        foreach (var op in Ops)
+        {
+            if (!op.Format(context, value, sb))
+                return Task.FromResult<string?>(null);
+        }
+
+        return Task.FromResult<string?>(sb.ToString());
     }
 
     #endregion
@@ -104,10 +369,35 @@ public sealed class RecognizerType : AnySchemaType
     {
         return schema?.ToSchema().With(new RecognizerSchema
         {
-            Result = schema.Result ?? string.Empty,
-            Parts = schema.Parts ?? [],
-            Additional = schema.Additional
+            SourceType = schema.SourceType,
+            Parts = schema.Parts,
         });
     }
     #endregion
+}
+
+/// <summary>
+/// The output of a recognition operation
+/// </summary>
+public class RecognizeOutput
+{
+    /// <summary>
+    /// Whether the recognition succeeded
+    /// </summary>
+    public bool Success { get; init; }
+
+    /// <summary>
+    /// The position in the input after recognition
+    /// </summary>
+    public int Position { get; init; }
+
+    /// <summary>
+    /// The structured result value
+    /// </summary>
+    public AnySchemaNode? Value { get; init; }
+
+    /// <summary>
+    /// Create a failed result
+    /// </summary>
+    public static RecognizeOutput Fail(int position) => new() { Success = false, Position = position };
 }

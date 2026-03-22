@@ -265,7 +265,27 @@ public enum SchemaNodeStatus
     DataSourceComipleError,
 
     /// <summary>
-    /// The recognizer has wrong result type
+    /// The recognizer has wrong source type
     /// </summary>
-    RecognizerWrongResult,
+    RecognizerWrongSourceType,
+
+    /// <summary>
+    /// The recognizer has wrong parts configuration
+    /// </summary>
+    RecognizerWrongParts,
+
+    /// <summary>
+    /// The recognizer has wrong validation function
+    /// </summary>
+    RecognizerWrongValidation,
+
+    /// <summary>
+    /// The constraint has wrong value type
+    /// </summary>
+    ConstraintHasWrongValueType,
+
+    /// <summary>
+    /// The presentation has wrong value type
+    /// </summary>
+    PresentationHasWrongValueType,
 }

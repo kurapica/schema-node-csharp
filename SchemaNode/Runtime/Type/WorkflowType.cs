@@ -51,13 +51,7 @@ public sealed class WorkflowType: AnySchemaType
     /// The workflow arguments fetch from workflow context
     /// </summary>
     public FuncArg[]? Args { get; set; } = [];
-
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
+        
     #endregion
     
     #region Status
@@ -80,7 +74,6 @@ public sealed class WorkflowType: AnySchemaType
         State = workflow?.State;
         Session = workflow?.Session;
         Args = workflow?.Args;
-        Additional = workflow?.Additional;
 
         if (workflow == null) Status = SchemaNodeStatus.NoDefinition;
 
@@ -210,7 +203,6 @@ public sealed class WorkflowType: AnySchemaType
             State = schema.State,
             Session = schema.Session,
             Args = schema.Args,
-            Additional = schema.Additional
         });
     }
      

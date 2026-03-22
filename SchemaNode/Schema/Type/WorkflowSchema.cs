@@ -46,10 +46,4 @@ public sealed class WorkflowSchema
     /// The workflow arguments fetch from workflow context
     /// </summary>
     public FuncArg[]? Args { get; set; } = [];
-    
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
 }

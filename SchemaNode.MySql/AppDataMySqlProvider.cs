@@ -1701,7 +1701,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         DynamicTableFieldType.Blob => "BLOB",
         DynamicTableFieldType.MediumBlob => "MEDIUMBLOB",
         DynamicTableFieldType.LongBlob => "LONGBLOB",
-        DynamicTableFieldType.Char => "CHAR",
+        DynamicTableFieldType.Char => "CHAR(1)",
         DynamicTableFieldType.VarChar => field.MaxLength.HasValue
             ? $"VARCHAR({field.MaxLength.Value})"
             : "VARCHAR(255)", // default length

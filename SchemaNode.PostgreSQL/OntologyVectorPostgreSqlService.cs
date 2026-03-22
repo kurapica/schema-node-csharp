@@ -2,8 +2,8 @@ using Microsoft.Extensions.AI;
 using Microsoft.SemanticKernel.Embeddings;
 using Npgsql;
 using Pgvector;
-using SchemaNode.Ontology;
-using SchemaNode.Vector.Services;
+using SchemaNode.AI;
+using SchemaNode.AI.Vector;
 using PgVector = Pgvector.Vector;
 
 namespace SchemaNode.PostgreSQL;

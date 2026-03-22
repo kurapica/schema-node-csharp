@@ -44,7 +44,7 @@ public sealed class PolicyItem
     /// <summary>
     /// The policy evaluator
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_RULE_EVALUATOR)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR)]
     public required string Evaluator { get; set; }
 
     /// <summary>

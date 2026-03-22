@@ -102,8 +102,11 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     case SchemaType.Policy:
                         schema.Policy = await context.GetEntityAsync<PolicySchema>(Target, name);
                         break;
+                    case SchemaType.Recognizer:
+                        schema.Recognizer = await context.GetEntityAsync<RecognizerSchema>(Target, name);
+                        break;
                 }
-                
+
                 result.Add(schema);
             }
 

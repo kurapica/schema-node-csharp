@@ -280,13 +280,13 @@ public sealed class RowPolicy
     /// <summary>
     /// The policy evaluatorm, if true will use the filter
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_RULE_EVALUATOR)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR)]
     public required string Evaluator { get; set; }
 
     /// <summary>
     /// The row filter function
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_RULE_PREDICATE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE)]
     public string? Filter { get; set; }
 
     /// <summary>

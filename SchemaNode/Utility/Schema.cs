@@ -9,6 +9,8 @@ using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using SchemaNode.Components;
+using SchemaNode.Components.Property.Constraint;
+using SchemaNode.Components.Property.Presentation;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -186,6 +188,8 @@ public static class Schema
                     typeName = NS_SYSTEM_DATE;
                     break;
                 case TypeCode.Char:
+                    typeName = NS_SYSTEM_CHAR;
+                    break;
                 case TypeCode.String:
                     return isArray ? NS_SYSTEM_STRINGS : NS_SYSTEM_STRING;
             }
@@ -245,6 +249,16 @@ public static class Schema
                 {
                     // system workflow
                     schemas = WorkflowType.GenerateSystemWorkflow(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
+                }
+                else if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Constraint<>)))
+                {
+                    // system constraint
+                    schemas = ConstraintType.GenerateSystemConstraint(type, NS_SYSTEM_CONSTRAINT);
+                }
+                else if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Presentation<>)))
+                {
+                    // system presentation
+                    schemas = PresentationType.GenerateSystemPresentation(type, NS_SYSTEM_PRESENTATION);
                 }
                 else
                 {
@@ -489,6 +503,10 @@ public static class Schema
                 {
                     cSharpType = typeof(decimal);
                 }
+                else if (scalar.IsChar)
+                {
+                    cSharpType = typeof(char);
+                }    
                 else if (scalar.IsString)
                 {
                     cSharpType = typeof(string);
@@ -1076,7 +1094,7 @@ public static class Schema
         };
     }
     
-    internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, string? regex = null, decimal? upLimit = null, decimal? lowLimit = null)
+    internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, Pattern[]? pattern = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
         return new NodeSchema
         {
@@ -1088,7 +1106,7 @@ public static class Schema
             {
                 Base = baseType,
                 Error = enableError ? $"{name}.error" : null,
-                Regex = regex,
+                Pattern = pattern,
                 UpLimit = upLimit,
                 LowLimit = lowLimit,
             },
@@ -1151,22 +1169,95 @@ public static class Schema
             #endregion
 
             #region scalar
-            
+
             NewSystemScalar(NS_SYSTEM_BOOL, enableError: true),
             NewSystemScalar(NS_SYSTEM_DATE, enableError: true),
-            NewSystemScalar(NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+(\\.\\d+)?(e\\-\\d+)?$"),
-            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, regex:@"^(\\-|\\+)?\\d+\\.?\\d+$"),
-            NewSystemScalar(NS_SYSTEM_FLOAT, baseType:NS_SYSTEM_DOUBLE,  enableError:true, regex:@"^\\d+(\\.\\d+)?$"),
-            NewSystemScalar(NS_SYSTEM_PERCENT, baseType:NS_SYSTEM_FLOAT, enableError:true, regex:@"^\\d+(\\.\\d+)?$", upLimit:100, lowLimit:0),
+            // ^[+-]?\d+(\.\d+)?(e-?\d+)?$
+            NewSystemScalar(NS_SYSTEM_NUMBER, enableError: true, pattern:
+            [
+                new() { Type = PatternType.CharSet, Chars = "+-", Min = 0, Max = 1 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                new() { Type = PatternType.Group, Min = 0, Max = 1, Parts =
+                [
+                    new() { Type = PatternType.Literal, Text = "." },
+                    new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                ]},
+                new() { Type = PatternType.Group, Min = 0, Max = 1, Parts =
+                [
+                    new() { Type = PatternType.Literal, Text = "e" },
+                    new() { Type = PatternType.Literal, Text = "-", Min = 0 },
+                    new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                ]},
+            ]),
+            // ^[+-]?\d+\.?\d+$
+            NewSystemScalar(NS_SYSTEM_DOUBLE, baseType:NS_SYSTEM_NUMBER, enableError: true, pattern:
+            [
+                new() { Type = PatternType.CharSet, Chars = "+-", Min = 0, Max = 1 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                new() { Type = PatternType.Literal, Text = ".", Min = 0 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+            ]),
+            // ^\d+(\.\d+)?$
+            NewSystemScalar(NS_SYSTEM_FLOAT, baseType:NS_SYSTEM_DOUBLE, enableError:true, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                new() { Type = PatternType.Group, Min = 0, Max = 1, Parts =
+                [
+                    new() { Type = PatternType.Literal, Text = "." },
+                    new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                ]},
+            ]),
+            // ^\d+(\.\d+)?$
+            NewSystemScalar(NS_SYSTEM_PERCENT, baseType:NS_SYSTEM_FLOAT, enableError:true, upLimit:100, lowLimit:0, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                new() { Type = PatternType.Group, Min = 0, Max = 1, Parts =
+                [
+                    new() { Type = PatternType.Literal, Text = "." },
+                    new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+                ]},
+            ]),
             NewSystemScalar(NS_SYSTEM_FULL_DATE, baseType:NS_SYSTEM_DATE, enableError:true),
-            NewSystemScalar(NS_SYSTEM_INT, baseType:NS_SYSTEM_NUMBER, enableError:true, regex:@"^(\\-|\\+)?\\d+$"),
+            // ^[+-]?\d+$
+            NewSystemScalar(NS_SYSTEM_INT, baseType:NS_SYSTEM_NUMBER, enableError:true, pattern:
+            [
+                new() { Type = PatternType.CharSet, Chars = "+-", Min = 0, Max = 1 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 1, Max = 0 },
+            ]),
             NewSystemScalar(NS_SYSTEM_STRING),
             NewSystemScalar(NS_SYSTEM_CHAR, NS_SYSTEM_STRING, lowLimit: 1, upLimit:1),
-            NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, regex:@"^\\d{4}$"),
+            // ^\d{4}$
+            NewSystemScalar(NS_SYSTEM_YEAR, baseType:NS_SYSTEM_INT, enableError:true, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Digit, Min = 4, Max = 4 },
+            ]),
             NewSystemScalar(NS_SYSTEM_YEARMONTH, baseType:NS_SYSTEM_DATE),
-            NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, regex:@"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$", upLimit:36),
-            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, regex:@"^[a-z]{2}-?[A-Z]{2}$", upLimit:8),
-            NewSystemScalar(NS_SYSTEM_IDENTIFIER, NS_SYSTEM_STRING, regex:"^[a-zA-Z]\\w*$", upLimit:32),
+            // ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ (case-insensitive)
+            NewSystemScalar(NS_SYSTEM_GUID, baseType:NS_SYSTEM_STRING, enableError:true, upLimit:36, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Hex, CaseIgnore = true, Min = 8, Max = 8 },
+                new() { Type = PatternType.Literal, Text = "-" },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Hex, CaseIgnore = true, Min = 4, Max = 4 },
+                new() { Type = PatternType.Literal, Text = "-" },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Hex, CaseIgnore = true, Min = 4, Max = 4 },
+                new() { Type = PatternType.Literal, Text = "-" },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Hex, CaseIgnore = true, Min = 4, Max = 4 },
+                new() { Type = PatternType.Literal, Text = "-" },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Hex, CaseIgnore = true, Min = 12, Max = 12 },
+            ]),
+            // ^[a-z]{2}-?[A-Z]{2}$ (case-insensitive via CaseIgnore on Group)
+            NewSystemScalar(NS_SYSTEM_LANGUAGE, baseType:NS_SYSTEM_STRING, upLimit:8, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Lower, CaseIgnore = true, Min = 2, Max = 2 },
+                new() { Type = PatternType.Literal, Text = "-", Min = 0 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Lower, CaseIgnore = true, Min = 2, Max = 2 },
+            ]),
+            // ^[a-zA-Z]\w*$
+            NewSystemScalar(NS_SYSTEM_IDENTIFIER, NS_SYSTEM_STRING, upLimit:32, pattern:
+            [
+                new() { Type = PatternType.CharSet, Ranges = CharRange.Alpha, Min = 1, Max = 1 },
+                new() { Type = PatternType.CharSet, Ranges = CharRange.AlphaDigit, Chars = "_", Min = 0, Max = 0 },
+            ]),
             
             #endregion
 
@@ -1203,15 +1294,18 @@ public static class Schema
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_EVENT, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_WORKFLOW, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_POLICY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_CONSTRAINT, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_PRESENTATION, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
 
                     // constraint
                     NewSystemSchema(NS_SYSTEM_SCHEMA_TYPE_RULE).With([
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
-                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_VALID, NS_SYSTEM_SCHEMA_TYPE_FUNC),
-                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_WHITELIST, NS_SYSTEM_SCHEMA_TYPE_FUNC),
-                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_PREDICATE, NS_SYSTEM_SCHEMA_TYPE_FUNC),
-                        NewSystemScalar(NS_SYSTEM_SCHEMA_RULE_EVALUATOR, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_VALID, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_WHITELIST, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR, NS_SYSTEM_SCHEMA_TYPE_FUNC),
                     ]),
                 ]),
 
@@ -1230,6 +1324,9 @@ public static class Schema
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_POLICY),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_EVENT),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_WORKFLOW),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_RECOGNIZER),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_CONSTRAINT),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_PRESENTATION),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_FIELD),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW)
@@ -1249,6 +1346,18 @@ public static class Schema
                 NewSystemSchema(NS_SYSTEM_WORKFLOW_FUNC),
                 NewSystemSchema(NS_SYSTEM_WORKFLOW_INTERACTION),
             ]),
+
+            #endregion
+
+            #region System.Constraint
+
+            NewSystemSchema(NS_SYSTEM_CONSTRAINT),
+
+            #endregion
+
+            #region System.Presentation
+
+            NewSystemSchema(NS_SYSTEM_PRESENTATION),
 
             #endregion
         ])

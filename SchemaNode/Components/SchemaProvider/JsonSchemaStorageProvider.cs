@@ -60,6 +60,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                             "array" => SchemaType.Array,
                             "func" => SchemaType.Func,
                             "policy" => SchemaType.Policy,
+                            "recognizer" => SchemaType.Recognizer,
                             _ => null
                         };
                         if (type == null) continue;
@@ -126,6 +127,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                 SchemaType.Array => "array",
                 SchemaType.Func => "func",
                 SchemaType.Policy => "policy",
+                SchemaType.Recognizer => "recognizer",
                 _ => throw new ArgumentOutOfRangeException()
             };
             await WriteSchemaFile(Path.Combine(folder, $"{paths.Last()}.{type}.json"), schema);
@@ -658,6 +660,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
                     "array" => SchemaType.Array,
                     "func" => SchemaType.Func,
                     "policy" => SchemaType.Policy,
+                    "recognizer" => SchemaType.Recognizer,
                     _ => null
                 };
                 if (schemaType is null) return null;

@@ -2,7 +2,7 @@
 using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode;
-using SchemaNode.Ontology;
+using SchemaNode.AI;
 using SchemaNode.Components;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;

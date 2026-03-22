@@ -72,14 +72,18 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_TYPE_WORKFLOW = $"{NS_SYSTEM_SCHEMA_TYPE}.workflow";
     public const string NS_SYSTEM_SCHEMA_TYPE_POLICY = $"{NS_SYSTEM_SCHEMA_TYPE}.policy";
 
+    public const string NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER = $"{NS_SYSTEM_SCHEMA_TYPE}.recognizer";
+    public const string NS_SYSTEM_SCHEMA_TYPE_CONSTRAINT = $"{NS_SYSTEM_SCHEMA_TYPE}.constraint";
+    public const string NS_SYSTEM_SCHEMA_TYPE_PRESENTATION = $"{NS_SYSTEM_SCHEMA_TYPE}.presentation";
+
     public const string NS_SYSTEM_SCHEMA_TYPE_RULE = $"{NS_SYSTEM_SCHEMA_TYPE}.rule";
     public const string NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.arrayelement";
     public const string NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.value";
 
-    public const string NS_SYSTEM_SCHEMA_RULE_VALID = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.valid";
-    public const string NS_SYSTEM_SCHEMA_RULE_WHITELIST = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.whitelist";
-    public const string NS_SYSTEM_SCHEMA_RULE_EVALUATOR = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.evaluator";
-    public const string NS_SYSTEM_SCHEMA_RULE_PREDICATE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.predicate";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_VALID = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.valid";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_WHITELIST = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.whitelist";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.evaluator";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.predicate";
     
     public const string NS_SYSTEM_SCHEMA_DOMAIN = $"{NS_SYSTEM_SCHEMA}.domain";
     public const string NS_SYSTEM_SCHEMA_DOMAIN_APP = $"{NS_SYSTEM_SCHEMA_DOMAIN}.app";
@@ -97,6 +101,8 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_DEF_EVENT = $"{NS_SYSTEM_SCHEMA_DEF}.event";
     public const string NS_SYSTEM_SCHEMA_DEF_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF}.workflow";
     public const string NS_SYSTEM_SCHEMA_DEF_RECOGNIZER = $"{NS_SYSTEM_SCHEMA_DEF}.recognizer";
+    public const string NS_SYSTEM_SCHEMA_DEF_CONSTRAINT = $"{NS_SYSTEM_SCHEMA_DEF}.constraint";
+    public const string NS_SYSTEM_SCHEMA_DEF_PRESENTATION = $"{NS_SYSTEM_SCHEMA_DEF}.presentation";
     public const string NS_SYSTEM_SCHEMA_DEF_APP = $"{NS_SYSTEM_SCHEMA_DEF}.app";
     public const string NS_SYSTEM_SCHEMA_DEF_APP_FIELD = $"{NS_SYSTEM_SCHEMA_DEF_APP}.field";
     public const string NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF_APP}.workflow";
@@ -119,6 +125,12 @@ public static class Constant
     public const string NS_SYSTEM_WORKFLOW_FUNC = "system.workflow.func";
     public const string NS_SYSTEM_WORKFLOW_INTERACTION = "system.workflow.interaction";
     
+    // constraint namespace
+    public const string NS_SYSTEM_CONSTRAINT = "system.constraint";
+
+    // presentation namespace
+    public const string NS_SYSTEM_PRESENTATION = "system.presentation";
+
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";
     

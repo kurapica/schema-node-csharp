@@ -60,4 +60,14 @@ public enum SchemaType
     /// Represents a component that performs recognition tasks, such as pattern recognition.
     /// </summary>
     Recognizer,
+
+    /// <summary>
+    /// The constraint property
+    /// </summary>
+    Constraint,
+
+    /// <summary>
+    /// The presentation property
+    /// </summary>
+    Presentation,
 }

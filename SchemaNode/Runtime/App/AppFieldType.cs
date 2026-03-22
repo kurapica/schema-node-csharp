@@ -849,6 +849,14 @@ public sealed class AppFieldType
                     Type = DynamicTableFieldType.Bool
                 };
             }
+            else if (scalar.IsChar)
+            {
+                info = new DataTypeInfo
+                {
+                    Type = DynamicTableFieldType.Char,
+                    MaxLength = null
+                };
+            }
             else if (scalar.IsString)
             {
                 decimal? upLimit = !string.IsNullOrEmpty(field?.UpLimit) && decimal.TryParse(field.UpLimit, out decimal u) ? u : scalar.UpLimit;

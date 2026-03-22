@@ -4,7 +4,6 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.AspNetCore.Http;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -101,6 +100,18 @@ public sealed class NodeSchema
     /// </summary>
     [NotMapped]
     public RecognizerSchema? Recognizer { get; set; }
+
+    /// <summary>
+    /// The constraint schema if type is constraint
+    /// </summary>
+    [NotMapped]
+    public ConstraintSchema? Constraint { get; set; }
+
+    /// <summary>
+    /// The presentation schema if type is presentation
+    /// </summary>
+    [NotMapped]
+    public PresentationSchema? Presentation { get; set; }
 
     /// <summary>
     /// The load state
@@ -247,6 +258,20 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Recognizer) return this;
         Recognizer = recognizerSchema;
+        return this;
+    }
+
+    internal NodeSchema With(ConstraintSchema constraintSchema)
+    {
+        if (Type != SchemaType.Constraint) return this;
+        Constraint = constraintSchema;
+        return this;
+    }
+
+    internal NodeSchema With(PresentationSchema presentationSchema)
+    {
+        if (Type != SchemaType.Presentation) return this;
+        Presentation = presentationSchema;
         return this;
     }
 
