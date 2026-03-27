@@ -54,7 +54,12 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
     /// The system context type
     /// </summary>
     public static StructType SystemContext { get; private set; } = null!;
-    
+
+    /// <summary>
+    /// The system presentation namespace
+    /// </summary>
+    public static TypeNamespace SystemProperty { get; private set; } = null!;
+
     #endregion
 
     #region Init System Types
@@ -86,12 +91,15 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
         SystemGuid = (await GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_GUID))!;
         SystemList = (await GetSchemaTypeAsync<ArrayType>(NS_SYSTEM_LIST))!;
         SystemContext = (await GetSchemaTypeAsync<StructType>(NS_SYSTEM_CONTEXT))!;
-        
+        SystemProperty = (await GetSchemaTypeAsync<TypeNamespace>(NS_SYSTEM_PROPERTY))!;
+
         LogInformation("[Runtime] System Schemas are registered.");
     }
 
     internal void ResetTypeNamespace(TypeNamespace? root = null)
     {
+        if (root == SystemProperty) return; // Skip system property namespace
+
         root ??= RootNamespace;
         root.Loaded = false;
         foreach (TypeNamespace? ns in root.SchemaNodes.Values.Where(n => n is TypeNamespace).Cast<TypeNamespace>())
@@ -223,13 +231,13 @@ public class SchemaContext(IServiceProvider serviceProvider): IDisposable
 
             // Load the node
             subNode.Display = nodeSchema.Display;
-            subNode.Release();
+            subNode.ReleaseType();
             subNode.Auth = !string.IsNullOrWhiteSpace(nodeSchema.Auth)
                 ? await GetSchemaTypeAsync<PolicyType>(nodeSchema.Auth)
                 : null;
             subNode.Status = SchemaNodeStatus.Ready;
 
-            await subNode.LoadAsync(this, nodeSchema, preload);
+            await subNode.LoadTypeAsync(this, nodeSchema, preload);
 
             Logger.LogDebug("[Runtime]Schema Type {schemaName} working", schemaName);
         }

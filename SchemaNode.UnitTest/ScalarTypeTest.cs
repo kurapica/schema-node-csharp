@@ -1,7 +1,9 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Api.Schema.Application;
 using SchemaNode.Components;
+using SchemaNode.Components.Property.Constraint;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
@@ -69,6 +71,22 @@ public class ScalarTypeTest : TestBase
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         // Define a custom scalar: 3 uppercase letters followed by 3 digits (e.g., "ABC123")
+        Pattern[] patterns =
+        [
+            new Pattern
+            {
+                Type = PatternType.CharSet,
+                Ranges = [new CharRange { Start = 'A', End = 'Z' }],
+                Min = 3, Max = 3
+            },
+            new Pattern
+            {
+                Type = PatternType.CharSet,
+                Ranges = [new CharRange { Start = '0', End = '9' }],
+                Min = 3, Max = 3
+            },
+        ];
+
         await ctx.SaveSchemaAsync(new NodeSchema
         {
             Name = "test.productcode",
@@ -76,21 +94,10 @@ public class ScalarTypeTest : TestBase
             Scalar = new ScalarSchema
             {
                 Base = NS_SYSTEM_STRING,
-                Pattern =
-                [
-                    new Pattern
-                    {
-                        Type = PatternType.CharSet,
-                        Ranges = [new CharRange { Start = 'A', End = 'Z' }],
-                        Min = 3, Max = 3
-                    },
-                    new Pattern
-                    {
-                        Type = PatternType.CharSet,
-                        Ranges = [new CharRange { Start = '0', End = '9' }],
-                        Min = 3, Max = 3
-                    },
-                ]
+                Additional = new Dictionary<string, JsonElement>
+                {
+                    ["pattern"] = JsonSerializer.SerializeToElement(patterns, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                }
             }
         });
 

@@ -177,8 +177,8 @@ public static class SchemaContextOntologyExtension
             Iri      = $"{graph.AppPrefix}{seg}",
             Labels   = ToLabels(scalar.Display),
             BaseType = ScalarToXsd(scalar.Name),
-            LowLimit = scalar.LowLimit,
-            UpLimit  = scalar.UpLimit,
+            LowLimit = scalar.GetLowlimit<decimal>(),
+            UpLimit  = scalar.GetUplimit<decimal>(),
             Unit     = scalar.Unit?.Key,
             Pattern  = scalar.Pattern,
         });
@@ -345,7 +345,7 @@ public static class SchemaContextOntologyExtension
                 cls.Relations.Add(new OntologyRelation
                 {
                     Field        = fieldRef,
-                    RelationType = rel.Type.ToString(),
+                    Property     = rel.Property,
                     Function     = rel.Func,
                     Args         = rel.Args.Select(a =>
                         !string.IsNullOrEmpty(a.DataField)
@@ -522,11 +522,11 @@ public static class SchemaContextOntologyExtension
 
         // Handle inheritance
         string? baseClassIri = null;
-        if (structType.BaseNode != null)
+        /*if (structType.BaseNode != null)
         {
             baseClassIri = $"{graph.AppPrefix}{Seg(structType.BaseNode.Name)}";
             BuildEntityClass(context, graph, structType.BaseNode, visitedStructs, visitedEnums);
-        }
+        }*/
 
         var entity = new OntologyEntityClass
         {

@@ -74,7 +74,9 @@ public sealed record RecognizerFieldOp(
     string Field,
     string? Boundary,
     RecognizerType? SubRecognizer,
-    StructFieldSchema? FieldSchema) : IRecognizerOp
+    StructFieldSchema? FieldSchema,
+    FunctionType? FormatFunc = null,
+    FunctionType? ParseFunc = null) : IRecognizerOp
 {
     public int Parse(SchemaContext context, string input, int pos, RecognizerParseState state)
     {
@@ -91,6 +93,13 @@ public sealed record RecognizerFieldOp(
         {
             fieldValue = input[pos..];
             pos = input.Length;
+        }
+
+        if (ParseFunc != null)
+        {
+            var task = ParseFunc.CallAsync<AnySchemaNode>(context, [fieldValue]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { state.Fields[Field] = result; return pos; }
         }
 
         if (SubRecognizer != null)
@@ -113,6 +122,13 @@ public sealed record RecognizerFieldOp(
         if (value is not StructTypeNode obj) return false;
         var fieldNode = obj.GetField(Field);
         if (fieldNode == null) return false;
+
+        if (FormatFunc != null)
+        {
+            var task = FormatFunc.CallAsync<string>(context, [fieldNode]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { sb.Append(result); return true; }
+        }
 
         if (SubRecognizer != null)
         {
@@ -166,10 +182,17 @@ public sealed record RecognizerStructEndOp(StructType StructType) : IRecognizerO
 /// <summary>
 /// Parse / format a scalar value with optional FormatDescriptor transformations
 /// </summary>
-public sealed record RecognizerScalarOp(ScalarType Scalar, FormatDescriptor? FormatDesc) : IRecognizerOp
+public sealed record RecognizerScalarOp(ScalarType Scalar, FormatDescriptor? FormatDesc, FunctionType? FormatFunc = null, FunctionType? ParseFunc = null) : IRecognizerOp
 {
     public int Parse(SchemaContext context, string input, int pos, RecognizerParseState state)
     {
+        if (ParseFunc != null)
+        {
+            var task = ParseFunc.CallAsync<AnySchemaNode>(context, [input]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { state.Value = result; return input.Length; }
+        }
+
         string parsed = input;
 
         if (FormatDesc != null)
@@ -227,6 +250,13 @@ public sealed record RecognizerScalarOp(ScalarType Scalar, FormatDescriptor? For
 
     public bool Format(SchemaContext context, AnySchemaNode value, StringBuilder sb)
     {
+        if (FormatFunc != null)
+        {
+            var task = FormatFunc.CallAsync<string>(context, [value]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { sb.Append(result); return true; }
+        }
+
         if (FormatDesc == null)
         {
             sb.Append(value.ToString());
@@ -315,10 +345,14 @@ public sealed class RecognizerEnumMappingOp : IRecognizerOp
     private readonly Dictionary<string, string> _displayToValue;
     private readonly Dictionary<string, string> _valueToDisplay;
     private readonly EnumType _enumType;
+    private readonly FunctionType? _formatFunc;
+    private readonly FunctionType? _parseFunc;
 
-    public RecognizerEnumMappingOp(Entry[] mapping, EnumType enumType)
+    public RecognizerEnumMappingOp(Entry[] mapping, EnumType enumType, FunctionType? formatFunc = null, FunctionType? parseFunc = null)
     {
         _enumType = enumType;
+        _formatFunc = formatFunc;
+        _parseFunc = parseFunc;
         _displayToValue = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _valueToDisplay = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -342,6 +376,13 @@ public sealed class RecognizerEnumMappingOp : IRecognizerOp
 
     public int Parse(SchemaContext context, string input, int pos, RecognizerParseState state)
     {
+        if (_parseFunc != null)
+        {
+            var task = _parseFunc.CallAsync<AnySchemaNode>(context, [input]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { state.Value = result; return input.Length; }
+        }
+
         if (_displayToValue.TryGetValue(input, out var enumValue))
         {
             state.Value = new EnumTypeNode(_enumType, enumValue);
@@ -352,6 +393,13 @@ public sealed class RecognizerEnumMappingOp : IRecognizerOp
 
     public bool Format(SchemaContext context, AnySchemaNode value, StringBuilder sb)
     {
+        if (_formatFunc != null)
+        {
+            var task = _formatFunc.CallAsync<string>(context, [value]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { sb.Append(result); return true; }
+        }
+
         string enumVal = value.ToString();
         sb.Append(_valueToDisplay.TryGetValue(enumVal, out var display) ? display : enumVal);
         return true;
@@ -361,12 +409,19 @@ public sealed class RecognizerEnumMappingOp : IRecognizerOp
 /// <summary>
 /// Parse / format an enum value by looking up enum value/name from the EnumType
 /// </summary>
-public sealed record RecognizerEnumLookupOp(EnumType EnumType) : IRecognizerOp
+public sealed record RecognizerEnumLookupOp(EnumType EnumType, FunctionType? FormatFunc = null, FunctionType? ParseFunc = null) : IRecognizerOp
 {
     public int Parse(SchemaContext context, string input, int pos, RecognizerParseState state)
     {
-        var task = EnumType.LoadEnumSubListAsync(context, "");
-        var values = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+        if (ParseFunc != null)
+        {
+            var task = ParseFunc.CallAsync<AnySchemaNode>(context, [input]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { state.Value = result; return input.Length; }
+        }
+
+        var loadTask = EnumType.LoadEnumSubListAsync(context, "");
+        var values = loadTask.IsCompletedSuccessfully ? loadTask.Result : loadTask.GetAwaiter().GetResult();
         if (values == null) return -1;
 
         foreach (var ev in values)
@@ -384,6 +439,13 @@ public sealed record RecognizerEnumLookupOp(EnumType EnumType) : IRecognizerOp
 
     public bool Format(SchemaContext context, AnySchemaNode value, StringBuilder sb)
     {
+        if (FormatFunc != null)
+        {
+            var task = FormatFunc.CallAsync<string>(context, [value]);
+            var result = task.IsCompletedSuccessfully ? task.Result : task.GetAwaiter().GetResult();
+            if (result != null) { sb.Append(result); return true; }
+        }
+
         sb.Append(value.ToString());
         return true;
     }

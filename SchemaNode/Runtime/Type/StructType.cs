@@ -1,18 +1,16 @@
+using SchemaNode.Attribute;
+using SchemaNode.Components.Property;
+using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Node;
+using SchemaNode.Schema;
+using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
-using Quartz.Impl.Triggers;
-using SchemaNode.Attribute;
-using SchemaNode.Context;
-using SchemaNode.Enum;
-using SchemaNode.Node;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -25,11 +23,6 @@ public sealed class StructType: AnySchemaType
     #region Data
     
     /// <summary>
-    /// The base struct type to be inherited from.
-    /// </summary>
-    public string? Base { get; set; }
-
-    /// <summary>
     /// The struct fields
     /// </summary>
     public StructFieldSchema[] Fields { get; set; } = [];
@@ -38,17 +31,21 @@ public sealed class StructType: AnySchemaType
     /// The relations between the fields
     /// </summary>
     public StructRelationSchema[]? Relations { get; set; }
-    
+
     /// <summary>
-    /// The additional data
+    /// The union validations
     /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
+    public StructUnionValidation[]? UnionValids { get; set; }
+
+    /// <summary>
+    /// The atomic flag indicates whether the struct is atomic, which means that the struct should be treated as a whole when performing operations such as updates, delete or render.
+    /// </summary>
+    public bool? Atomic { get; set; }
+
     #endregion
-    
+
     #region State
-    
+
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Struct;
 
@@ -58,16 +55,7 @@ public sealed class StructType: AnySchemaType
     public override bool IsValueType => true;
 
     #endregion
-
-    #region Ref
-
-    /// <summary>
-    /// The base struct node
-    /// </summary>
-    public StructType? BaseNode { get; set; }
-    
-    #endregion
-    
+        
     #region Methods
 
     /// <inheritdoc />
@@ -76,41 +64,21 @@ public sealed class StructType: AnySchemaType
         StructSchema? @struct = schema.Struct;
         
         // Data
-        Base = @struct?.Base;
         Fields = @struct?.Fields ?? [];
         Relations = @struct?.Relations ?? [];
-        Additional = @struct?.Additional;
+        Atomic = @struct?.Atomic ?? false;
         
         // Status
         if (@struct == null) Status = SchemaNodeStatus.NoDefinition;
-        
-        // Ref
-        if (!string.IsNullOrWhiteSpace(Base))
-        {
-            AnySchemaType? baseNode = await context.GetSchemaTypeAsync(Base, preload: preload);
-            if (baseNode is not StructType node)
-                Status = SchemaNodeStatus.StructWrongBase;
-            else
-            {
-                BaseNode = node;
-                node.AddRef(this);
-            }
-        }
-        
+               
         // Load Fields
         foreach (StructFieldSchema field in Fields)
         {
-            AnySchemaType? schemaType = await context.GetSchemaTypeAsync(field.Type, preload: preload);
-            if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(field.Type, REGEX_GENERIC_TYPE))
+            await field.LoadFieldSchema(context, this, preload);
+            if (field.Status.HasValue && field.Status != SchemaNodeStatus.Ready)
             {
-                field.Status = SchemaNodeStatus.StructMemberWrongType;
-                Status = SchemaNodeStatus.StructMemberWrongType;
-                continue;
+                Status = field.Status.Value;
             }
-
-            field.Status = null;
-            field.SchemeType = schemaType;
-            schemaType.AddRef(this);
         }
         
         // Load Relation
@@ -130,17 +98,32 @@ public sealed class StructType: AnySchemaType
                 node.AddRef(this);
             }
         }
+
+        // Load Union Validation
+        if (UnionValids is { Length: > 0 })
+        {
+            foreach (StructUnionValidation valid in UnionValids)
+            {
+                AnySchemaType? funcNode = await context.GetSchemaTypeAsync(valid.Func, preload: preload);
+                if (funcNode is not FunctionType node)
+                {
+                    valid.Status = SchemaNodeStatus.StructHasWrongValid;
+                    Status = SchemaNodeStatus.StructHasWrongValid;
+                    continue;
+                }
+                valid.Status = null;
+                valid.FuncNode = node;
+                node.AddRef(this);
+            }
+        }
     }
 
     /// <inheritdoc />
     public override void Release()
     {
-        BaseNode?.RemoveRef(this);
-        BaseNode = null;
         foreach (StructFieldSchema config in Fields)
         {
-            config.SchemeType?.RemoveRef(this);
-            config.SchemeType = null;
+            config.UnloadFieldSchema(this);
         }
 
         if (Relations != null)
@@ -151,12 +134,22 @@ public sealed class StructType: AnySchemaType
                 relation.FuncNode = null;
             }
         }
+
+        if (UnionValids != null)
+        {
+            foreach (StructUnionValidation valid in UnionValids)
+            {
+                valid.FuncNode?.RemoveRef(this);
+                valid.FuncNode = null;
+            }
+        }
         
         // Gets relative struct types
         List<AnySchemaType> relTypes = [this];
         
         if (UsedBy is { Count: > 0 })
             relTypes.AddRange(UsedBy.Keys.Where(p => p.Type == SchemaType.Struct));
+
         foreach (AnySchemaType node in relTypes.ToList().Where(node => node.UsedBy is { Count: > 0 }))
             relTypes.AddRange(node.UsedBy!.Keys.Where(p => p.Type == SchemaType.Array));
 
@@ -201,7 +194,7 @@ public sealed class StructType: AnySchemaType
             {
                 StructRelationSchema? r = Relations?.FirstOrDefault(r => 
                     r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
-                    r.Type is RelationType.InitOnly or RelationType.Assign or RelationType.Default);
+                    r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
 
                 // Complete by relation
                 if (r != null)
@@ -251,9 +244,9 @@ public sealed class StructType: AnySchemaType
         }
 
         // Union validation
-        if (error == null && Relations != null)
+        if (error == null && UnionValids is { Length: > 0 })
         {
-            foreach(var r in Relations.Where(r => r.Type == RelationType.Validation))
+            foreach(var r in UnionValids)
             {
                 var valid = r.FuncNode ?? await context.GetSchemaTypeAsync<FunctionType>(r.Func);
                 if (valid == null) continue;
@@ -279,7 +272,17 @@ public sealed class StructType: AnySchemaType
                 }
             }
         }
-        
+
+        // Constraint validation
+        if (error == null && Constraints is { Length: > 0 })
+        {
+            foreach (IConstraintProperty constraint in Constraints)
+            {
+                if (await constraint.ValidateStructAsync(context, result) == false)
+                    return (null, TYPE_VALUE_NOT_VALID);
+            }
+        }
+
         return (result, error);
     }
 
@@ -288,10 +291,7 @@ public sealed class StructType: AnySchemaType
     {
         if (Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT) || base.CanBeUseAs(other, exactly)) return true;
         if (other is not StructType @struct) return false;
-        StructType? baseNode = BaseNode;
-        while (baseNode != null && baseNode != @struct) baseNode = baseNode.BaseNode;
-        return baseNode == @struct || 
-               @struct.Fields.Any(v => Fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
+        return @struct.Fields.Any(v => Fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
                && @struct.Fields.All(v =>
                {
                    StructFieldSchema? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
@@ -301,7 +301,6 @@ public sealed class StructType: AnySchemaType
 
     public override IEnumerable<AnySchemaType> GetDependNodes()
     {
-        if (BaseNode != null) yield return BaseNode;
         foreach (StructFieldSchema field in Fields)
         {
             if (field.SchemeType != null)
@@ -346,7 +345,7 @@ public sealed class StructType: AnySchemaType
         Dictionary<string, string[]> indexes = [];
         SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
         string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
-        bool hasNestArray = false;
+        bool hasNestType = false;
 
         // Keep in the same namespace if the struct is marked with SchemaAttribute, otherwise use the parent namespace
         if (typeAttr?.Name != null)
@@ -357,7 +356,7 @@ public sealed class StructType: AnySchemaType
                      p.GetMethod?.IsPrivate != true &&
                      p.GetCustomAttribute<NotMappedAttribute>() == null &&
                      p is { CanRead: true, CanWrite: true })
-                     .OrderBy(p => p.MetadataToken))
+                     .OrderBy(p => p.MetadataToken)) // with define order
         {
 
             SchemaAttribute? fieldAttr = p.GetCustomAttribute<SchemaAttribute>();
@@ -370,9 +369,9 @@ public sealed class StructType: AnySchemaType
                 var info = p.PropertyType.GetSchemaTypeInfo();
                 if (info?.BaseType == type)
                 {
+                    hasNestType = true;
                     if (info.AnyArray)
                     {
-                        hasNestArray = true;
                         fieldType = $"{typeName}s";
                     }
                     else
@@ -388,25 +387,44 @@ public sealed class StructType: AnySchemaType
             {
                 Name = fieldName,
                 Type = fieldType,
-                Require = p.GetCustomAttribute<RequiredAttribute>() != null,
                 Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
             };
+
+            if (p.GetCustomAttribute<RequiredAttribute>() != null)
+            {
+                config.Additional ??= [];
+                config.Additional["require"] = JsonSerializer.SerializeToElement(true);
+            }
 
             // limit check
             if (config.Type == NS_SYSTEM_STRING)
             {
                 StringLengthAttribute? strLenAttr = p.GetCustomAttribute<StringLengthAttribute>();
                 MaxLengthAttribute? maxLengthAttribute = p.GetCustomAttribute<MaxLengthAttribute>();
-                config.UpLimit = (strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length)?.ToString();
-                config.LowLimit = (strLenAttr?.MinimumLength ?? 0).ToString();
+
+                long? upLimit = strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length;
+                long? lowLimit = strLenAttr?.MinimumLength;
+
+                if (upLimit.HasValue)
+                {
+                    config.Additional ??= [];
+                    config.Additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit.Value);
+                }
+
+                if (lowLimit.HasValue)
+                {
+                    config.Additional ??= [];
+                    config.Additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit.Value);
+                }
             }
             else
             {
                 RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
                 if (rangeAttr != null)
                 {
-                    config.LowLimit = rangeAttr.Minimum.ToLiteral();
-                    config.UpLimit = rangeAttr.Maximum.ToLiteral();
+                    config.Additional ??= [];
+                    config.Additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Maximum);
+                    config.Additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Minimum);
                 }
             }
 
@@ -465,19 +483,20 @@ public sealed class StructType: AnySchemaType
             Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
             Struct = new StructSchema
             {
-                Fields = fieldConfigs.ToArray()
+                Fields = fieldConfigs.ToArray(),
+                Atomic = hasNestType ? true : null
             }
         };
         CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
 
-        if (Utility.SystemLocale.HasLocales)
+        if (SystemLocale.HasLocales)
         {
-            Utility.SystemLocale.Translate(structSchema.Display, structSchema.Name);
+            SystemLocale.Translate(structSchema.Display, structSchema.Name);
             foreach (StructFieldSchema field in structSchema.Struct!.Fields)
-                Utility.SystemLocale.Translate(field.Display);
+                SystemLocale.Translate(field.Display);
         }
 
-        if (primarys.Length == 0 && !hasNestArray) return [structSchema];
+        if (primarys.Length == 0 && !hasNestType) return [structSchema];
         CSharpTypePrimaryProperties[structSchema.Name.ToLower()] = primarys.Select(p => fieldMaps.First(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray();
 
         NodeSchema arraySchema = new NodeSchema
@@ -489,7 +508,7 @@ public sealed class StructType: AnySchemaType
             {
                 Element = structSchema.Name,
                 Primary = primarys,
-                Single = hasNestArray ? true : null,
+                Atomic = hasNestType ? true : null,
                 Indexes = indexes.Select(kv => new DataIndex
                 {
                     Name = kv.Key,
@@ -518,10 +537,9 @@ public sealed class StructType: AnySchemaType
     {
         return schema?.ToSchema().With(new StructSchema
         {
-            Base = schema.Base,
-            Relations = schema.Relations,
             Fields = schema.Fields,
-            Additional = schema.Additional,
+            Relations = schema.Relations,
+            Atomic = schema.Atomic
         });
     }
     
@@ -546,10 +564,10 @@ public sealed class StructType: AnySchemaType
         {
             Name = $"{Name}<{string.Join(',', types)}>",
             Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
-            Base = Name,
             Fields = new StructFieldSchema[Fields.Length],
             Namespace = Namespace,
-            Relations = Relations
+            Relations = Relations,
+            Atomic = Atomic,
         };
 
         for (int i = 0; i < Fields.Length; i++)

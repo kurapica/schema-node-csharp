@@ -1,9 +1,10 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -14,7 +15,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.schema")]
-public sealed class PolicySchema
+public sealed class PolicySchema: IAdditionalProperty
 {
     /// <summary>
     /// The policy name
@@ -28,6 +29,12 @@ public sealed class PolicySchema
     /// The policy items
     /// </summary>
     public PolicyItem[] Items { get; set; } = [];
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }
 
 /// <summary>

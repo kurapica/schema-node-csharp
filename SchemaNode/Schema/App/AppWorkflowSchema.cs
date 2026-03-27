@@ -15,7 +15,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.schema")]
-public sealed class AppWorkflowSchema
+public sealed class AppWorkflowSchema: IAdditionalProperty
 {
     /// <summary>
     /// the application name
@@ -45,12 +45,7 @@ public sealed class AppWorkflowSchema
     /// The workflow display name
     /// </summary>
     public LocaleString? Display { get; set; }
-    
-    /// <summary>
-    /// The workflow description
-    /// </summary>
-    public LocaleString? Desc { get; set; }
-    
+        
     /// <summary>
     /// Active the workflow
     /// </summary>
@@ -72,7 +67,7 @@ public sealed class AppWorkflowSchema
 /// The application workflow node
 /// </summary>
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.node")]
-public sealed class AppWorkflowNodeSchema
+public sealed class AppWorkflowNodeSchema: IAdditionalProperty
 {
     /// <summary>
     /// The node name

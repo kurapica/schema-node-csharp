@@ -1,6 +1,8 @@
-﻿using SchemaNode.Enum;
+﻿using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -20,9 +22,10 @@ public sealed class AppRelationSchema
     public string DataField { get; init; } = string.Empty;
 
     /// <summary>
-    ///  The relation type
+    /// The property of the realtion, so the function can modify it dynamically
     /// </summary>
-    public RelationType Type { get; init; } = RelationType.Default;
+    [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
+    public required string Property { get; set; }
 
     /// <summary>
     /// The function name

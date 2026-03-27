@@ -1,13 +1,11 @@
-using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
-using System.Text.Json;
-using System.Text.Json.Nodes;
+using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -23,12 +21,6 @@ public sealed class ArrayType: AnySchemaType
     /// The element type of the array.
     /// </summary>
     public string? Element { get; private set; }
-
-    /// <summary>
-    /// Whether the array should be treated as a whole value,
-    /// no element schema nodes would be created
-    /// </summary>
-    public bool? Single { get; private set; }
 
     /// <summary>
     /// The primary fields of the array if the element is a struct.
@@ -49,16 +41,16 @@ public sealed class ArrayType: AnySchemaType
     /// The relation between the fields
     /// </summary>
     public StructRelationSchema[]? Relations { get; private set; }
-    
+
     /// <summary>
-    /// The additional data
+    /// The atomic flag indicates whether the array is atomic, which means that the array should be treated as a whole when performing operations such as updates, delete or render.
     /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; private set; }
-    
+    public bool? Atomic { get; private set; }
+
     #endregion
-    
+
     #region Status
-    
+
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Array;
 
@@ -87,12 +79,11 @@ public sealed class ArrayType: AnySchemaType
         
         // Data
         Element = array?.Element;
-        Single = array?.Single;
         Primary = array?.Primary;
         Combines = array?.Combines;
         Relations = array?.Relations;
         Indexes = array?.Indexes;
-        Additional = array?.Additional;
+        Atomic = array?.Atomic;
         
         // Status
         if (array == null) Status = SchemaNodeStatus.NoDefinition;
@@ -176,7 +167,16 @@ public sealed class ArrayType: AnySchemaType
             result.AddRange(array);
         }
 
-        // @TODO Union Validation
+        // Constraint validation
+        if (Constraints is { Length: > 0 })
+        {
+            foreach (IConstraintProperty constraint in Constraints)
+            {
+                if (await constraint.ValidateArrayAsync(context, (ArrayTypeNode)result) == false)
+                    return (null, TYPE_VALUE_NOT_VALID);
+            }
+        }
+
         return (result, error);
     }
 
@@ -262,12 +262,11 @@ public sealed class ArrayType: AnySchemaType
         return schema?.ToSchema().With(new ArraySchema
         {
             Element = schema.Element,
-            Single = schema.Single,
             Primary = schema.Primary,
             Indexes = schema.Indexes,
             Combines = schema.Combines,
             Relations = schema.Relations,
-            Additional = schema.Additional,
+            Atomic = schema.Atomic,
         });
     }
     
@@ -294,11 +293,12 @@ public sealed class ArrayType: AnySchemaType
                 Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
                 Namespace = Namespace,
                 Element = elementType,
-                Single = Single,
                 ElementSchemaType = eleType,
+                Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,
-                SchemaProvider = SchemaProvider
+                SchemaProvider = SchemaProvider,
+                Additional = Additional
             };
             eleType.AddRef(arrayType);
             return arrayType;
@@ -323,11 +323,12 @@ public sealed class ArrayType: AnySchemaType
                 Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
                 Namespace = Namespace,
                 Element = elementType.Name,
-                Single = Single,
                 ElementSchemaType = elementType,
+                Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,
-                SchemaProvider = SchemaProvider
+                SchemaProvider = SchemaProvider,
+                Additional = Additional
             };
             elementType.AddRef(arrayType);
             return arrayType;

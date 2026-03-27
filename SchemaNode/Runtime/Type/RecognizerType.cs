@@ -4,7 +4,6 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
 using System.Text;
-using System.Text.Json;
 
 namespace SchemaNode.Runtime;
 
@@ -54,14 +53,14 @@ public sealed class RecognizerType : AnySchemaType
     private RecognizerType? ElementRecognizer;
 
     /// <summary>
-    /// Resolved format function for FormatDescriptor.FormatFunc
+    /// Resolved format functions per part index
     /// </summary>
-    private FunctionType? FormatFunc;
+    private Dictionary<int, FunctionType> PartFormatFuncs { get; set; } = [];
 
     /// <summary>
-    /// Resolved parse function for FormatDescriptor.ParseFunc
+    /// Resolved parse functions per part index
     /// </summary>
-    private FunctionType? ParseFunc;
+    private Dictionary<int, FunctionType> PartParseFuncs { get; set; } = [];
 
     /// <summary>
     /// The compiled flat IR operation array for parse and format
@@ -96,8 +95,9 @@ public sealed class RecognizerType : AnySchemaType
         }
 
         // Resolve per-part references for struct fields
-        foreach (var part in Parts)
+        for (int pi = 0; pi < Parts.Length; pi++)
         {
+            var part = Parts[pi];
             AnySchemaType? partType = null;
             switch (part.Type)
             {
@@ -144,14 +144,14 @@ public sealed class RecognizerType : AnySchemaType
                 }
             }
 
-            // Resolve FormatDescriptor function references
+            // Resolve per-part FormatDescriptor function references
             if (part.Format == null) continue;
             if (!string.IsNullOrWhiteSpace(part.Format.FormatFunc))
             {
                 var fNode = await context.GetSchemaTypeAsync(part.Format.FormatFunc);
                 if (fNode is FunctionType fft)
                 {
-                    FormatFunc = fft;
+                    PartFormatFuncs[pi] = fft;
                     fft.AddRef(this);
                 }
             }
@@ -161,7 +161,7 @@ public sealed class RecognizerType : AnySchemaType
                 var pNode = await context.GetSchemaTypeAsync(part.Format.ParseFunc);
                 if (pNode is FunctionType pft)
                 {
-                    ParseFunc = pft;
+                    PartParseFuncs[pi] = pft;
                     pft.AddRef(this);
                 }
             }
@@ -201,8 +201,8 @@ public sealed class RecognizerType : AnySchemaType
         if (SourceSchemaType != null) yield return SourceSchemaType;
         foreach (var fr in FieldRecognizers.Values) yield return fr;
         if (ElementRecognizer != null) yield return ElementRecognizer;
-        if (FormatFunc != null) yield return FormatFunc;
-        if (ParseFunc != null) yield return ParseFunc;
+        foreach (var ff in PartFormatFuncs.Values) yield return ff;
+        foreach (var pf in PartParseFuncs.Values) yield return pf;
     }
 
     /// <inheritdoc />
@@ -211,8 +211,8 @@ public sealed class RecognizerType : AnySchemaType
         SourceSchemaType?.RemoveRef(this);
         foreach (var fr in FieldRecognizers.Values) fr.RemoveRef(this);
         ElementRecognizer?.RemoveRef(this);
-        FormatFunc?.RemoveRef(this);
-        ParseFunc?.RemoveRef(this);
+        foreach (var ff in PartFormatFuncs.Values) ff.RemoveRef(this);
+        foreach (var pf in PartParseFuncs.Values) pf.RemoveRef(this);
         Ops = [];
     }
 
@@ -227,7 +227,9 @@ public sealed class RecognizerType : AnySchemaType
         if (SourceSchemaType is ScalarType scalar)
         {
             var fmt = Parts.FirstOrDefault()?.Format;
-            Ops = [new RecognizerScalarOp(scalar, fmt)];
+            PartFormatFuncs.TryGetValue(0, out var scalarFmtFunc);
+            PartParseFuncs.TryGetValue(0, out var scalarParseFunc);
+            Ops = [new RecognizerScalarOp(scalar, fmt, scalarFmtFunc, scalarParseFunc)];
             return;
         }
 
@@ -235,10 +237,12 @@ public sealed class RecognizerType : AnySchemaType
         if (SourceSchemaType is EnumType sourceEnumType)
         {
             var fmt = Parts.FirstOrDefault()?.Format;
+            PartFormatFuncs.TryGetValue(0, out var enumFmtFunc);
+            PartParseFuncs.TryGetValue(0, out var enumParseFunc);
             if (fmt?.Mapping is { Length: > 0 })
-                Ops = [new RecognizerEnumMappingOp(fmt.Mapping, sourceEnumType)];
+                Ops = [new RecognizerEnumMappingOp(fmt.Mapping, sourceEnumType, enumFmtFunc, enumParseFunc)];
             else
-                Ops = [new RecognizerEnumLookupOp(sourceEnumType)];
+                Ops = [new RecognizerEnumLookupOp(sourceEnumType, enumFmtFunc, enumParseFunc)];
             return;
         }
 
@@ -287,11 +291,16 @@ public sealed class RecognizerType : AnySchemaType
                         var fieldSchema = sourceStructType.Fields.FirstOrDefault(
                             f => f.Name.Equals(part.Field, StringComparison.OrdinalIgnoreCase));
 
+                        PartFormatFuncs.TryGetValue(i, out var fieldFmtFunc);
+                        PartParseFuncs.TryGetValue(i, out var fieldParseFunc);
+
                         ops.Add(new RecognizerFieldOp(
                             part.Field,
                             boundary,
                             subRec,
-                            fieldSchema));
+                            fieldSchema,
+                            fieldFmtFunc,
+                            fieldParseFunc));
                         break;
                 }
             }

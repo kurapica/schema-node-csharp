@@ -276,14 +276,13 @@ public static class BatchQueryExtension
                 {
                     Name = node.Name,
                     Display = node.Display,
-                    Desc = node.Desc,
                     ScopePolicy = node.ScopePolicy,
                     HasFields = node.Fields is { Count: > 0 },
                     Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
                     Relations = node.Relations?.Select(r => new StructRelationSchema
                     {
                         Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                        Type = r.Type,
+                        Property = r.Property,
                         Func = r.Func,
                         Args = r.Args.Select(a => new FuncCallArg
                         {
@@ -292,6 +291,7 @@ public static class BatchQueryExtension
                         }).ToArray()
                     }).ToArray(),
                     Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
+                    Additional = node.Additional,
                 } : null
             };
             

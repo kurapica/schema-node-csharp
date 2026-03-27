@@ -1,12 +1,13 @@
+using SchemaNode.Components.Property;
+using SchemaNode.Components.Property.Constraint;
+using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Extension;
 
@@ -23,58 +24,7 @@ public sealed class ScalarType: AnySchemaType
     /// The base type of the scalar
     /// </summary>
     public string? Base { get; private set; }
-     
-    /// <summary>
-    /// The default unit of the scalar value
-    /// </summary>
-    public LocaleString? Unit { get; private set; }
-     
-    /// <summary>
-    /// The default low limit of the scalar value
-    /// </summary>
-    public decimal? LowLimit { get; private set; }
-     
-    /// <summary>
-    /// The default up limit of the scalar value
-    /// </summary>
-    public decimal? UpLimit { get; private set; }
-     
-    /// <summary>
-    /// The default error message
-    /// </summary>
-    public LocaleString? Error { get; private set; }
 
-    /// <summary>
-    /// The white list function
-    /// </summary>
-    public string? WhiteList { get; set; }
-    
-    /// <summary>
-    /// As suggest
-    /// </summary>
-    public bool? AsSuggest { get; set; }
-     
-    /// <summary>
-    /// The function to validate the scalar value in frontend
-    /// </summary>
-    public string? PreValid { get; private set; }
-     
-    /// <summary>
-    /// The function to validate the scalar value in backend
-    /// </summary>
-    public string? PostValid { get; private set; }
-
-    /// <summary>
-    /// Cross-platform pattern validation for string scalar types
-    /// </summary>
-    public Pattern[]? Pattern { get; private set; }
-
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-     
     #endregion
      
     #region Status
@@ -146,31 +96,40 @@ public sealed class ScalarType: AnySchemaType
     /// The type is full date
     /// </summary>
     public bool IsFullDate => (ValueType & ScalarValueType.FullDate) > 0;
-     
+
     #endregion
-     
+
+    #region Property
+
+    /// <summary>
+    /// The default unit of the scalar value
+    /// </summary>
+    public LocaleString? Unit => Properties?.FirstOrDefault(p => p is UnitProperty) is UnitProperty unit ? unit.Value : null;
+
+    /// <summary>
+    /// The up limit
+    /// </summary>
+    public object? UpLimit { get; private set; }
+
+    /// <summary>
+    /// The low limit
+    /// </summary>
+    public object? LowLimit { get; private set; }
+
+    /// <summary>
+    /// The pattern
+    /// </summary>
+    public Pattern[]? Pattern { get; private set; }
+
+    #endregion
+
     #region Ref
-     
+
     /// <summary>
     /// The base node
     /// </summary>
     public ScalarType? BaseNode { get; private set; }
      
-    /// <summary>
-    /// The post validation function node
-    /// </summary>
-    public FunctionType? PostValidNode { get; private set; }
-
-    /// <summary>
-    /// The pre validation function node
-    /// </summary>
-    public FunctionType? PreValidNode { get; private set; }
-
-    /// <summary>
-    /// The whitelist function node
-    /// </summary>
-    public FunctionType? WhiteListNode { get; private set; }
-
     #endregion
 
     #region Method
@@ -182,21 +141,11 @@ public sealed class ScalarType: AnySchemaType
 
         // Data
         Base = scalar?.Base;
-        Unit = scalar?.Unit;
-        LowLimit = scalar?.LowLimit;
-        UpLimit = scalar?.UpLimit;
-        Error = scalar?.Error;
-        WhiteList = scalar?.WhiteList;
-        AsSuggest = scalar?.AsSuggest;
-        PreValid = scalar?.PreValid;
-        PostValid = scalar?.PostValid;
-        Pattern = scalar?.Pattern;;
-        Additional = scalar?.Additional;
 
         // Status
         if (scalar == null) Status = SchemaNodeStatus.NoDefinition;
 
-        // Relationship
+        // Base
         if (!string.IsNullOrWhiteSpace(Base))
         {
             AnySchemaType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
@@ -209,51 +158,6 @@ public sealed class ScalarType: AnySchemaType
             {
                 BaseNode = null;
                 Status = SchemaNodeStatus.ScalarHasWrongBase;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(PostValid))
-        {
-            AnySchemaType? node = await context.GetSchemaTypeAsync(PostValid, preload: preload);
-            if (node != null && node is FunctionType fnode)
-            {
-                PostValidNode = fnode;
-                fnode.AddRef(this);
-            }
-            else
-            {
-                PostValidNode = null;
-                Status = SchemaNodeStatus.ScalarHasWrongPostValid;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(PreValid))
-        {
-            AnySchemaType? node = await context.GetSchemaTypeAsync(PreValid, preload: preload);
-            if (node != null && node is FunctionType fnode)
-            {
-                PreValidNode = fnode;
-                fnode.AddRef(this);
-            }
-            else
-            {
-                PreValidNode = null;
-                Status = SchemaNodeStatus.ScalarHasWrongPreValid;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(WhiteList))
-        {
-            AnySchemaType? node = await context.GetSchemaTypeAsync(WhiteList, preload: preload);
-            if (node != null && node is FunctionType fnode)
-            {
-                WhiteListNode = fnode;
-                fnode.AddRef(this);
-            }
-            else
-            {
-                WhiteListNode = null;
-                Status = SchemaNodeStatus.ScalarHasWrongWhiteList;
             }
         }
 
@@ -275,14 +179,42 @@ public sealed class ScalarType: AnySchemaType
             NS_SYSTEM_GUID => ScalarValueType.Guid | ScalarValueType.String,
             _ => BaseNode?.ValueType ?? ScalarValueType.None
         };
+
+        // Properties
+        UpLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_UPLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
+        LowLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_LOWLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
+        Pattern = Constraints?.FirstOrDefault(p => p is PatternProperty) is PatternProperty pattern ? pattern.Value : null;
+    }
+
+    /// <summary>
+    /// Gets the up limit
+    /// </summary>
+    public T? GetUplimit<T>() where T : struct
+    {
+        if (UpLimit == null) return null;
+        object? uplimit = Utility.Extension.TryConvert(typeof(T), UpLimit);
+        if (uplimit == null) return null;
+        return (T)uplimit;
+    }
+
+    /// <summary>
+    /// Gets the low limit
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public T? GetLowlimit<T>()
+    {
+        if (LowLimit == null) return default;
+        object? lowlimit = Utility.Extension.TryConvert(typeof(T), LowLimit);
+        if (lowlimit == null) return default;
+        return (T)lowlimit;
     }
 
     /// <inheritdoc />
     public override void Release()
-     {
-          BaseNode?.RemoveRef(this);
-          PostValidNode?.RemoveRef(this);
-     }
+    {
+        BaseNode?.RemoveRef(this);
+    }
 
     /// <inheritdoc />
     public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
@@ -304,7 +236,7 @@ public sealed class ScalarType: AnySchemaType
                 {
                     // pass
                 }
-                else if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
+                if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
                 {
                     year = SystemCalendar.getyear(context, dateTime!.Value);
                 }
@@ -313,35 +245,33 @@ public sealed class ScalarType: AnySchemaType
                     return (null, TYPE_VALUE_NOT_VALID);
                 }
 
-                if (LowLimit > year || UpLimit < year)
-                    return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = year;
             }
                
             else if (IsInt)
             {
-                if (!long.TryParse(strVal, out long lval) || (LowLimit > lval || UpLimit < lval))
+                if (!long.TryParse(strVal, out long lval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = lval;
             }
                
             else if (IsSingle)
             {
-                if (!float.TryParse(strVal, out float fval) || (LowLimit > (decimal?)fval || UpLimit < (decimal?)fval))
+                if (!float.TryParse(strVal, out float fval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = fval;
             }
                
             else if (IsDouble)
             {
-                if (!double.TryParse(strVal, out double dval) || (LowLimit > (decimal?)dval || UpLimit < (decimal?)dval))
+                if (!double.TryParse(strVal, out double dval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = dval;
             }
                
             else if (IsNumber)
             {
-                if (!decimal.TryParse(strVal, out decimal mval) || (LowLimit > mval || UpLimit < mval))
+                if (!decimal.TryParse(strVal, out decimal mval))
                     return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = mval;
             }
@@ -360,10 +290,6 @@ public sealed class ScalarType: AnySchemaType
                
             else if (IsString)
             {
-                if (LowLimit > strVal.Length || UpLimit < strVal.Length)
-                    return (null, TYPE_VALUE_NOT_VALID);
-                if (Pattern is { Length: > 0 } && !Schema.Pattern.IsMatch(strVal, Pattern))
-                    return (null, TYPE_VALUE_NOT_VALID);
                 result.Value = strVal;
             }
                
@@ -379,8 +305,15 @@ public sealed class ScalarType: AnySchemaType
                 }
             }
 
-            if (PostValidNode != null && !await PostValidNode.CallAsync<bool>(context, [result]))
-                return (null, TYPE_VALUE_NOT_VALID);
+            // Constraint validation
+            if (Constraints is { Length: > 0 })
+            {
+                foreach (IConstraintProperty constraint in Constraints)
+                {
+                    if (await constraint.ValidateScalarAsync(context, (ScalarTypeNode)result) == false)
+                        return (null, TYPE_VALUE_NOT_VALID);
+                }
+            }
 
             return (result, null);
         }
@@ -415,21 +348,12 @@ public sealed class ScalarType: AnySchemaType
 
     /// <inheritdoc />
     public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
-                                         || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= 128;
+                                         || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= ENTITY_PRIMARY_KEY_MAX_LEN;
 
     public override IEnumerable<AnySchemaType> GetDependNodes()
     {
         if (BaseNode != null)
             yield return BaseNode;
-
-        if (PostValidNode != null)
-            yield return PostValidNode;
-
-        if (PreValidNode != null)
-            yield return PreValidNode;
-
-        if (WhiteListNode != null)
-            yield return WhiteListNode;
     }
 
     /// <summary>
@@ -470,17 +394,7 @@ public sealed class ScalarType: AnySchemaType
     {
         return schema?.ToSchema().With(new ScalarSchema
         {
-            Base = schema.Base,
-            Unit = schema.Unit,
-            LowLimit = schema.LowLimit,
-            UpLimit = schema.UpLimit,
-            Error = schema.Error,
-            WhiteList = schema.WhiteList,
-            AsSuggest = schema.AsSuggest,
-            PreValid = schema.PreValid,
-            PostValid = schema.PostValid,
-            Pattern = schema.Pattern,
-            Additional = schema.Additional,
+            Base = schema.Base
         });
     }
      

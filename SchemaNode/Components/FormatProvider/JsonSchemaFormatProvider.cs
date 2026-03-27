@@ -17,7 +17,6 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
         {
             Name = app.Name,
             Display = app.Display,
-            Desc = app.Desc,
             ScopePolicy = app.ScopePolicy,
             Auth = app.Auth?.Name,
             Auths = app.Auths,
@@ -25,6 +24,7 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
             HasApps = app.Apps is { Length: > 0 },
             HasFields = app.Fields is { Count: > 0 },
             Workflows = app.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
+            Additional = app.Additional,
             Apps = app.Apps?.Select(a =>
             {
                 AppType? childNode = app.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
@@ -32,11 +32,11 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
                 {
                     Name = a.Name,
                     Display = a.Display,
-                    Desc = a.Desc,
                     ScopePolicy = a.ScopePolicy,
                     Auth = a.Auth,
                     Auths = a.Auths,
-                    Status = app.Status,
+                    Status = a.Status,
+                    Additional = a.Additional,
                     HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is { Length: > 0 },
                     HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0 },
                 };
@@ -49,7 +49,7 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
             schema.Relations = app.Relations?.Select(r => new StructRelationSchema
             {
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                Type = r.Type,
+                Property = r.Property,
                 Func = r.Func,
                 Args = r.Args.Select(a => new FuncCallArg
                 {

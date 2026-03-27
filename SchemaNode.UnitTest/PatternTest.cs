@@ -1,5 +1,5 @@
+using SchemaNode.Components.Property.Constraint;
 using SchemaNode.Enum;
-using SchemaNode.Schema;
 
 namespace SchemaNode.UnitTest;
 

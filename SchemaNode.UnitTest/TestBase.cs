@@ -7,7 +7,7 @@ namespace SchemaNode.UnitTest
     [TestClass]
     public class TestBase
     {
-        protected ServiceProvider ServiceProvider { get; private set; }
+        protected ServiceProvider ServiceProvider { get; private set; } = null!;
 
         [TestInitialize]
         public void Setup()

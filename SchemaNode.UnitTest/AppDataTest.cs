@@ -5,7 +5,6 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -60,7 +59,7 @@ public class AppDataTest : TestBase
                         [
                             new StructFieldSchema { Name = "type", Type = "test.enum" },
                             new StructFieldSchema { Name = "name", Type = NS_SYSTEM_STRING },
-                            new StructFieldSchema { Name = "age",  Type = NS_SYSTEM_INT, LowLimit = "0" }
+                            new StructFieldSchema { Name = "age",  Type = NS_SYSTEM_INT }
                         ]
                     }
                 },

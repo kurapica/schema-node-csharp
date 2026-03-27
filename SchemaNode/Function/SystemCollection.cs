@@ -8,6 +8,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -154,7 +155,7 @@ public static class SystemCollection
         // Calc the display only field
         StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
             r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
-            r.Type is RelationType.Default or RelationType.Assign);
+            r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
         if (relation == null) return null;
         
         JsonArray args = [];

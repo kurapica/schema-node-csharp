@@ -1,10 +1,13 @@
-using System.Collections.Concurrent;
-using System.Text.Json.Nodes;
+using SchemaNode.Components;
+using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Schema;
-using static SchemaNode.Utility.Constant;
 using SchemaNode.Node;
+using SchemaNode.Schema;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -73,10 +76,75 @@ public abstract class AnySchemaType: IDisposable
     /// The type is loaded
     /// </summary>
     internal bool Loaded { get; set; }
-    
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    protected Dictionary<string, JsonElement>? Additional { get; set; }
+
+    /// <summary>
+    /// The properties
+    /// </summary>
+    protected IProperty[]? Properties { get; private set; }
+
+    /// <summary>
+    /// The constraint properties from Additional
+    /// </summary>
+    protected IConstraintProperty[]? Constraints { get; private set; }
+
+    /// <summary>
+    /// The ref types from the properties in Additional
+    /// </summary>
+    protected List<AnySchemaType>? RefTypes { get; private set; }
+
+
     #endregion
 
     #region Methods
+
+    /// <summary>
+    /// Load the type with the schema, including properties, constraints and ref types
+    /// </summary>
+    public async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    {
+        Additional = null;
+        Properties = null;
+        Constraints = null;
+        RefTypes = null;
+
+        if (schema.Additional != null)
+        {
+            Additional = schema.Additional;
+            Properties = Additional != null ? PropertyType.GetProperties<IProperty>(context, schema.Type, Additional)?.ToArray() : null;
+
+            if (Properties is { Length: > 0 })
+            {
+                Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
+                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty).Cast<ITypeRefProperty>())
+                {
+                    string? name = typeRef.GetValue<string>();
+                    AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;
+                    if (node != null)
+                    {
+                        RefTypes ??= [];
+                        RefTypes.Add(node);
+                        node.AddRef(this);
+                    }
+                    else
+                    {
+                        Status = SchemaNodeStatus.WrongRefType;
+                        context.LogWarning($"Failed to load ref type '{name}' for property '{typeRef.Name}' in schema '{Name}'");
+                    }
+                }
+            }
+        }
+        Loaded = true;
+        await LoadAsync(context, schema, preload);
+    }
 
     /// <summary>
     /// Load the schema data
@@ -86,6 +154,18 @@ public abstract class AnySchemaType: IDisposable
     /// <param name="preload">Whether during preload</param>
     public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false) { 
         return Task.CompletedTask; 
+    }
+
+    public void ReleaseType()
+    {
+        if (RefTypes != null)
+        {
+            foreach (var node in RefTypes)
+            {
+                node.RemoveRef(this);
+            }
+        }
+        Release();
     }
     
     /// <summary>
@@ -221,7 +301,7 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Release ref
     /// </summary>
-    public void Dispose() => Release();
+    public void Dispose() => ReleaseType();
 
     /// <summary>
     /// Gets the depends schema nodes
@@ -302,6 +382,14 @@ public abstract class AnySchemaType: IDisposable
             await n.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
         }
 
+        if (RefTypes != null)
+        {
+            foreach (var refType in RefTypes)
+            {
+                await refType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            }
+        }
+
         return root;
     }
 
@@ -329,8 +417,7 @@ public abstract class AnySchemaType: IDisposable
             SchemaType.Workflow => new WorkflowType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Policy => new PolicyType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             SchemaType.Recognizer => new RecognizerType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
-            SchemaType.Constraint => new ConstraintType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
-            SchemaType.Presentation => new PresentationType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
+            SchemaType.Property => new PropertyType{ Name = schema.Name, Display = schema.Display, LoadState = schema.LoadState ?? SchemaLoadState.Server, SchemaProvider = schema.SchemaProvider  },
             _ => throw new ArgumentOutOfRangeException()
         };
     }
@@ -353,8 +440,7 @@ public abstract class AnySchemaType: IDisposable
             SchemaType.Workflow => (schema as WorkflowType),
             SchemaType.Policy => (schema as PolicyType),
             SchemaType.Recognizer => (schema as RecognizerType),
-            SchemaType.Constraint => (schema as ConstraintType),
-            SchemaType.Presentation => (schema as PresentationType),
+            SchemaType.Property => (schema as PropertyType),
             _ => (schema as TypeNamespace)
         };
     }
@@ -370,7 +456,8 @@ public abstract class AnySchemaType: IDisposable
             Status = Status == SchemaNodeStatus.Ready ? null : Status,
             Auth = Auth?.Name,
             Used = IsUsed,
-            Compatibles = _compatibles?.Select(p => new CompatibleSchema(p.Key.Name, p.Value.Name)).ToArray()
+            Additional = Additional,
+            Compatibles = _compatibles?.Select(p => new CompatibleSchema(p.Key.Name, p.Value.Name)).ToArray(),
         };
     }
     

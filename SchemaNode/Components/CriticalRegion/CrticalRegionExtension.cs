@@ -2,7 +2,7 @@
 
 namespace SchemaNode.Components;
 
-public static class CryticalRegionExtension
+public static class CrticalRegionExtension
 {
     /// <summary>
     /// Lock by key

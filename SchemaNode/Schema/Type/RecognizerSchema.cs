@@ -15,7 +15,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.schema")]
-public sealed class RecognizerSchema
+public sealed class RecognizerSchema: IAdditionalProperty
 {
     /// <summary>
     /// The recognizer name
@@ -39,6 +39,13 @@ public sealed class RecognizerSchema
     /// including character validation rules and validation functions.
     /// </summary>
     public RecognizerPart[] Parts { get; set; } = [];
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+
 }
 
 /// <summary>

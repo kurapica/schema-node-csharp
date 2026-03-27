@@ -196,7 +196,6 @@ public class SchemaTools
         {
             Name = node.Name,
             Display = node.Display,
-            Desc = node.Desc,
             ScopePolicy = node.ScopePolicy,
             Auth = node.Auth?.Name,
             Auths = node.Auths,
@@ -204,16 +203,17 @@ public class SchemaTools
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
+            Additional = node.Additional,
             Apps = node.Apps?.Select(a => {
                 AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
                 return new AppSchema
                 {
                     Name = a.Name,
                     Display = a.Display,
-                    Desc = a.Desc,
                     Auth = a.Auth,
                     Auths = a.Auths,
                     Status = node.Status,
+                    Additional = a.Additional,
                     HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
                     HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
                 };
@@ -226,7 +226,7 @@ public class SchemaTools
             schema.Relations = node.Relations?.Select(r => new StructRelationSchema
             {
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                Type = r.Type,
+                Property = r.Property,
                 Func = r.Func,
                 Args = r.Args.Select(a => new FuncCallArg
                 {

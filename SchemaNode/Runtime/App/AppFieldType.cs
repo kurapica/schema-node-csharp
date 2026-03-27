@@ -1,8 +1,7 @@
-using Quartz.Impl.Triggers;
 using SchemaNode.Components;
+using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -50,7 +49,7 @@ public sealed class AppFieldType
     /// <summary>
     /// The description of the field.
     /// </summary>
-    public LocaleString? Desc { get; private init; }
+    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
 
     /// <summary>
     /// The push function
@@ -146,7 +145,12 @@ public sealed class AppFieldType
     /// The field filters
     /// </summary>
     public FieldFilter[]? Filters { get; private init; }
-    
+
+    /// <summary>
+    /// The properties
+    /// </summary>
+    public IProperty[]? Properties { get; internal set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
@@ -284,7 +288,6 @@ public sealed class AppFieldType
             Type = entity.Type,
             Seqno = entity.Seqno,
             Display = entity.Display,
-            Desc = entity.Desc,
             Topology = entity.Topology,
             TableName = entity.TableName,
             AttrTableName = entity.AttrTableName,
@@ -320,7 +323,6 @@ public sealed class AppFieldType
             Type = entity.Type,
             Seqno = entity.Seqno,
             Display = entity.Display,
-            Desc = entity.Desc,
             Status = entity.Status,
             Topology = entity.Topology,
             TableName = entity.TableName,
@@ -398,10 +400,7 @@ public sealed class AppFieldType
         // context item isolation scope
         foreach ((string item, AnySchemaType type, bool isTarget) in targetApp.GetScopeContextItems())
         {
-            DataTypeInfo info = GetDataTypeInfo(type, new StructFieldSchema
-            {
-                UpLimit = type is ScalarType { IsString: true } ? ENTITY_PRIMARY_KEY_MAX_LEN.ToString() : null
-            });
+            DataTypeInfo info = GetDataTypeInfo(type, null, type is ScalarType { IsString: true } ? ENTITY_PRIMARY_KEY_MAX_LEN : null);
 
             // Add scope-target field
             fields.Add(new DynamicTableField
@@ -442,7 +441,8 @@ public sealed class AppFieldType
                     {
                         StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r =>
                             r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) &&
-                            r.Type == RelationType.Default && DynamicTableSchema.IsReferenceFunc(r.Func));
+                            r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                            DynamicTableSchema.IsReferenceFunc(r.Func));
                         if (relation == null) continue;
 
                         // app
@@ -591,7 +591,8 @@ public sealed class AppFieldType
                         {
                             StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r => 
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) && 
-                                r.Type == RelationType.Default && DynamicTableSchema.IsReferenceFunc(r.Func));
+                                r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                                DynamicTableSchema.IsReferenceFunc(r.Func));
                             if (relation == null) continue;
 
                             // app
@@ -696,9 +697,11 @@ public sealed class AppFieldType
                         // Check if the field is a dynamic JSON field with attribute-based topology, which need to be stored in separated attribute table
                         else if (sField.SchemeType is JsonType && enableAttrTable)
                         {
-                            AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
+                            AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r =>
+                                r.Property.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
                                 r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
-                            StructRelationSchema? fieldRelation = structNode.Relations?.FirstOrDefault(r => r.Type == RelationType.Type &&
+                            StructRelationSchema? fieldRelation = structNode.Relations?.FirstOrDefault(r => 
+                                r.Property.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
 
                             DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
@@ -773,7 +776,7 @@ public sealed class AppFieldType
     }
 
     // Get scalar type mapping info
-    static DataTypeInfo GetDataTypeInfo(AnySchemaType node, StructFieldSchema? field = null)
+    static DataTypeInfo GetDataTypeInfo(AnySchemaType node, StructFieldSchema? field = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
         if (node is ScalarType scalar)
         {
@@ -781,8 +784,8 @@ public sealed class AppFieldType
             DataTypeInfo info = JsonDataType;
             if (scalar.IsNumber)
             {
-                decimal? upLimit = !string.IsNullOrEmpty(field?.UpLimit) && decimal.TryParse(field.UpLimit, out decimal u) ? u : scalar.UpLimit;
-                decimal? lowLimit = !string.IsNullOrEmpty(field?.LowLimit) && decimal.TryParse(field.LowLimit, out decimal l) ? l : scalar.LowLimit;
+                upLimit ??= field?.GetUplimit<decimal>() ?? scalar.GetUplimit<decimal>();
+                lowLimit ??= field?.GetLowlimit<decimal>() ?? scalar.GetLowlimit<decimal>();
 
                 // Check Number value
                 if (scalar.IsInt)
@@ -859,7 +862,7 @@ public sealed class AppFieldType
             }
             else if (scalar.IsString)
             {
-                decimal? upLimit = !string.IsNullOrEmpty(field?.UpLimit) && decimal.TryParse(field.UpLimit, out decimal u) ? u : scalar.UpLimit;
+                upLimit ??= field?.GetUplimit<decimal>() ?? scalar.GetUplimit<decimal>();
                 info = new DataTypeInfo
                 {
                     Type = upLimit.HasValue ? upLimit.Value switch

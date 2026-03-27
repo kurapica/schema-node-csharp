@@ -20,6 +20,11 @@ public enum SchemaNodeStatus
     NoDefinition,
 
     /// <summary>
+    /// Wrong ref type
+    /// </summary>
+    WrongRefType,
+
+    /// <summary>
     /// No base scalar
     /// </summary>
     ScalarHasWrongBase,

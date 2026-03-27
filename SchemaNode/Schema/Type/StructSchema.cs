@@ -1,11 +1,18 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Components;
+using SchemaNode.Components.Property;
+using SchemaNode.Components.Property.Constraint;
+using SchemaNode.Components.Property.Presentation;
+using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
-using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using static SchemaNode.Utility.Constant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -16,7 +23,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.schema")]
-public sealed class StructSchema
+public sealed class StructSchema: IAdditionalProperty
 {
     /// <summary>
     /// The struct name
@@ -25,14 +32,7 @@ public sealed class StructSchema
     [JsonIgnore]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string? Name { get; set; }
-    
-    /// <summary>
-    /// The base struct type to be inherited from.
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_STRUCT)]
-    public string? Base { get; set; }
-    
+        
     /// <summary>
     /// The struct fields
     /// </summary>
@@ -42,7 +42,17 @@ public sealed class StructSchema
     /// The relations between the fields
     /// </summary>
     public StructRelationSchema[]? Relations { get; set; }
-    
+
+    /// <summary>
+    /// The union validations
+    /// </summary>
+    public StructUnionValidation[]? UnionValids { get; set; }
+
+    /// <summary>
+    /// The atomic flag indicates whether the array is atomic, which means that the array should be treated as a whole when performing operations such as updates, delete or render.
+    /// </summary>
+    public bool? Atomic { get; set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
@@ -56,6 +66,7 @@ public sealed class StructSchema
     {
         if (other == null) return;
         Relations = other.Relations ?? Relations;
+        this.CombineAdditionalProperty(other);
 
         foreach(StructFieldSchema field in Fields)
         {
@@ -68,7 +79,7 @@ public sealed class StructSchema
 /// The struct field config
 /// </summary>
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.field")]
-public class StructFieldSchema
+public class StructFieldSchema: IAdditionalProperty
 {
     /// <summary>
     /// The field name
@@ -89,289 +100,95 @@ public class StructFieldSchema
     public LocaleString? Display { get; set; }
 
     /// <summary>
-    /// The description of the node.
-    /// </summary>
-    public LocaleString? Desc { get; set; }
-    
-    /// <summary>
-    /// The error message if validation failed.
-    /// </summary>
-    public LocaleString? Error { get; set; }
-
-    /// <summary>
-    /// The struct field flags
-    /// </summary>
-    public StructFieldFlags Flags { get; set; } = StructFieldFlags.None;
-
-    /// <summary>
-    /// The node data is required.
-    /// </summary>
-    [NotMapped]
-    public bool? Require
-    {
-        get => (Flags & StructFieldFlags.Require) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.Require;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.Require;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The node data is immutable, un-changeable if init-ed.
-    /// </summary>
-    [NotMapped]
-    public bool? Immutable
-    {
-        get => (Flags & StructFieldFlags.Immutable) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.Immutable;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.Immutable;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The node data is readonly.
-    /// </summary>
-    [NotMapped]
-    public bool? Readonly
-    {
-        get => (Flags & StructFieldFlags.Readonly) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.Readonly;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.Readonly;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The node should be invisible.
-    /// </summary>
-    [NotMapped]
-    public bool? Invisible
-    {
-        get => (Flags & StructFieldFlags.Invisible) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.Invisible;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.Invisible;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The node should be display only, won't be submitted.
-    /// </summary>
-    [NotMapped]
-    public bool? DisplayOnly
-    {
-        get => (Flags & StructFieldFlags.DisplayOnly) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.DisplayOnly;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.DisplayOnly;
-            }
-        }
-    }
-    
-    /// <summary>
-    /// Upack/pack additional data for the json node.
-    /// </summary>
-    [NotMapped]
-    public bool? Unpack
-    {
-        get => (Flags & StructFieldFlags.Unpack) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.Unpack;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.Unpack;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The unit of the node data like 'm/s', '%', '°C'.
-    /// </summary>
-    public LocaleString? Unit { get; set; }
-
-    /// <summary>
-    /// The default value of the node.
-    /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Default { get; set; }
-    
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
-    /// <summary>
     /// The schema node status
     /// </summary>
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
 
-    #region Scalar
+    #region Additional
 
     /// <summary>
-    /// The root value, for special scalar type values
+    /// The additional data
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Root { get; set; }
-    
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+
     /// <summary>
-    /// The scalar entries
+    /// The properties
     /// </summary>
-    public Entry[]? Entries { get; set; }
-    
+    [NotMapped]
+    [JsonIgnore]
+    internal IProperty[]? Properties { get; set; }
+
     /// <summary>
-    /// The white list
+    /// The constraint properties from Additional
     /// </summary>
-    public string[]? WhiteList { get; set; }
-    
+    [NotMapped]
+    [JsonIgnore]
+    internal IConstraintProperty[]? Constraints { get; set; }
+
     /// <summary>
-    /// The black list
+    /// The ref types from the properties in Additional
     /// </summary>
-    public string[]? BlackList { get; set; }
+    [NotMapped]
+    [JsonIgnore]
+    internal List<AnySchemaType>? RefTypes { get; set; }
+
+    #endregion
+
+    #region Properties
+
+    /// <summary>
+    /// The description of the node.
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
+
+    /// <summary>
+    /// The node data is required.
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public bool? Require { get; private set; }
+
+    /// <summary>
+    /// The node should be display only, won't be submitted.
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public bool? DisplayOnly { get; private set; }
+
+    /// <summary>
+    /// Unpack/pack additional data for the json node.
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public bool? Unpack { get; private set; }
+
+    /// <summary>
+    /// The default value of the node.
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public AnySchemaNode? Default { get; private set; }
 
     /// <summary>
     /// The low limit of the scalar value.
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? LowLimit { get; set; }
+    [NotMapped]
+    [JsonIgnore]
+    public object? LowLimit { get; private set; }
 
     /// <summary>
     /// The up limit of the scalar value.
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? UpLimit { get; set; }
-
-    /// <summary>
-    /// The enum white list only used for suggest.
-    /// </summary>
     [NotMapped]
-    public bool? AsSuggest
-    {
-        get => (Flags & StructFieldFlags.AsSuggest) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.AsSuggest;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.AsSuggest;
-            }
-        }
-    }
-
-    /// <summary>
-    /// When calculating the up limit, use the original value.
-    /// </summary>
-    [NotMapped]
-    public bool? UseOriginForUpLimit
-    {
-        get => (Flags & StructFieldFlags.UseOriginForUpLimit) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.UseOriginForUpLimit;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.UseOriginForUpLimit;
-            }
-        }
-    }
-    
-    #endregion
-    
-    #region Enum
-    
-    /// <summary>
-    /// The enum cascade limit.
-    /// </summary>
-    public int? Cascade { get; set; }
-
-    /// <summary>
-    /// Allow use enum value in any level.
-    /// </summary>
-    [NotMapped]
-    public bool? AnyLevel
-    {
-        get => (Flags & StructFieldFlags.AnyLevel) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.AnyLevel;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.AnyLevel;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Don't allow flags enum value combination.
-    /// </summary>
-    [NotMapped]
-    public bool? SingleFlag
-    {
-        get => (Flags & StructFieldFlags.SingleFlag) != 0 ? true : null;
-        set
-        {
-            if (value == true)
-            {
-                Flags |= StructFieldFlags.SingleFlag;
-            }
-            else
-            {
-                Flags &= ~StructFieldFlags.SingleFlag;
-            }
-        }
-    }
+    [JsonIgnore]
+    public object? UpLimit { get; private set; }
 
     #endregion
-        
+                
     #region Ref
     
     /// <summary>
@@ -383,26 +200,82 @@ public class StructFieldSchema
 
     #endregion
 
-    #region Inner Type
+    #region Methods
 
-    [Flags]
-    [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.fieldflags")]
-    public enum StructFieldFlags
+    internal async Task LoadFieldSchema(SchemaContext context, StructType @struct, bool preload = false)
     {
-        None = 0,
-        Require = 1 << 0,
-        Immutable = 1 << 1,
-        Readonly = 1 << 2,
-        Invisible = 1 << 3,
-        DisplayOnly = 1 << 4,
-        AsSuggest = 1 << 5,
-        UseOriginForUpLimit = 1 << 6,
-        AnyLevel = 1 << 7,
-        SingleFlag = 1 << 8,
-        Unpack = 1 << 9,
+        Status = null;
+        AnySchemaType? schemaType = await context.GetSchemaTypeAsync(Type, preload: preload);
+        if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(Type, REGEX_GENERIC_TYPE))
+        {
+            Status = SchemaNodeStatus.StructMemberWrongType;
+            return;
+        }
+
+        SchemeType = schemaType;
+        schemaType.AddRef(@struct);
+
+        Properties = null;
+        Constraints = null;
+        RefTypes = null;
+
+        if (Additional != null)
+        {
+            Properties = PropertyType.GetProperties<IProperty>(context, SchemaType.StructField, Additional, SchemeType)?.ToArray();
+
+            if (Properties is { Length: > 0 })
+            {
+                Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
+                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty).Cast<ITypeRefProperty>())
+                {
+                    string? name = typeRef.GetValue<string>();
+                    AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;
+                    if (node != null)
+                    {
+                        RefTypes ??= [];
+                        RefTypes.Add(node);
+                        node.AddRef(@struct);
+                    }
+                    else
+                    {
+                        Status = SchemaNodeStatus.WrongRefType;
+                        context.LogWarning($"Failed to load ref type '{name}' for property '{typeRef.Name}' in schema '{Name}'");
+                    }
+                }
+            }
+        }
+
+        // Cache
+        Require = Properties?.FirstOrDefault(p => p is RequireProperty) is RequireProperty r ? r.Value : null;
+        DisplayOnly = Properties?.FirstOrDefault(p => p is DisplayOnlyProperty) is DisplayOnlyProperty d ? d.Value : null;
+        Unpack = Properties?.FirstOrDefault(p => p is UnpackProperty) is UnpackProperty u ? u.Value : null;
+        Default = Properties?.FirstOrDefault(p => p is DefaultProperty) is DefaultProperty def ? def.Value : null;
+        UpLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_UPLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
+        LowLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_LOWLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
     }
 
-    #endregion
+    internal void UnloadFieldSchema(StructType @struct)
+    {
+        if (SchemeType != null) SchemeType.RemoveRef(@struct);
+        if (RefTypes != null)
+        {
+            foreach (AnySchemaType type in RefTypes)
+            {
+                type.RemoveRef(@struct);
+            }
+        }
+        Properties = null;
+        Constraints = null;
+        RefTypes = null;
+        Status = null;
+
+        Require = null;
+        DisplayOnly = null;
+        Unpack = null;
+        Default = null;
+        UpLimit = null;
+        LowLimit = null;
+    }
 
     /// <summary>
     /// Used to combine custom schema to system schema
@@ -411,23 +284,34 @@ public class StructFieldSchema
     {
         if (other == null) return;
         Display = Display != null ? Display.Concat(other.Display) : other.Display;
-        Desc = Desc != null ? Desc.Concat(other.Desc) : other.Desc;
-        Error = Error != null ? Error.Concat(other.Error) : other.Error;
-        Unit = Unit != null ? Unit.Concat(other.Unit) : other.Unit;
-        Default = string.IsNullOrWhiteSpace(other.Default) ? Default : other.Default;
-        Flags |= other.Flags;
-
-        // scalar
-        Root = string.IsNullOrWhiteSpace(other.Root) ? Root : other.Root;
-        Entries  = other.Entries ?? Entries;
-        WhiteList = other.WhiteList ?? WhiteList;
-        BlackList = other.BlackList ?? BlackList;
-        LowLimit = string.IsNullOrWhiteSpace(other.LowLimit) ? LowLimit : other.LowLimit;
-        UpLimit = string.IsNullOrWhiteSpace(other.UpLimit) ? UpLimit : other.UpLimit;
-
-        // eunm
-        Cascade = other.Cascade ?? Cascade;
+        this.CombineAdditionalProperty(other);
     }
+
+    /// <summary>
+    /// Gets the up limit
+    /// </summary>
+    public T? GetUplimit<T>() where T : struct
+    {
+        if (UpLimit == null) return null;
+        object? uplimit = Utility.Extension.TryConvert(typeof(T), UpLimit);
+        if (uplimit == null) return null;
+        return (T)uplimit;
+    }
+
+    /// <summary>
+    /// Gets the low limit
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public T? GetLowlimit<T>()
+    {
+        if (LowLimit == null) return default;
+        object? lowlimit = Utility.Extension.TryConvert(typeof(T), LowLimit);
+        if (lowlimit == null) return default;
+        return (T)lowlimit;
+    }
+
+    #endregion
 }
 
 /// <summary>
@@ -440,14 +324,20 @@ public class StructRelationSchema
     /// The target field, can use . for deep fields
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string Field { get; set; } = string.Empty;
+    public required string Field { get; set; }
+
+    /// <summary>
+    /// The property of the realtion, so the function can modify it dynamically
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
+    public required string Property { get; set; }
 
     /// <summary>
     /// The relation function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
-    public string Func { get; set; } = string.Empty;
+    public required string Func { get; set; } = string.Empty;
 
     /// <summary>
     /// The func arguments
@@ -455,10 +345,32 @@ public class StructRelationSchema
     public FuncCallArg[] Args { get; set; } = [];
 
     /// <summary>
-    /// The relationType type
+    /// The schema node status
     /// </summary>
-    public RelationType Type { get; set; } = RelationType.Default;
-    
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
+
+    /// <summary>
+    /// The function node ref
+    /// </summary>
+    [JsonIgnore]
+    [NotMapped]
+    public FunctionType? FuncNode { get; set; }
+}
+
+public class StructUnionValidation
+{
+    /// <summary>
+    /// The union valiation func
+    /// </summary>
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_UNIONVALID)]
+    public string Func { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The func arguments
+    /// </summary>
+    public FuncCallArg[] Args { get; set; } = [];
+
     /// <summary>
     /// The schema node status
     /// </summary>

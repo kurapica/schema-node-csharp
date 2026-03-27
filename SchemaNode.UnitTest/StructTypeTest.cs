@@ -1,6 +1,4 @@
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Api.Schema.Application;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -80,40 +78,5 @@ public class StructTypeTest : TestBase
 
         Assert.AreEqual(10L, node.GetField("x")?.ToValue<long>());
         Assert.AreEqual(20L, node.GetField("y")?.ToValue<long>());
-    }
-
-    /// <summary>
-    /// StructType supports inheritance: the child type's BaseNode references the parent type
-    /// </summary>
-    [TestMethod]
-    public async Task StructType_Inheritance()
-    {
-        var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
-
-        await ctx.SaveSchemaAsync(new NodeSchema
-        {
-            Name   = "test.base",
-            Type   = SchemaType.Struct,
-            Struct = new StructSchema
-            {
-                Fields = [new StructFieldSchema { Name = "id", Type = NS_SYSTEM_STRING }]
-            }
-        });
-
-        await ctx.SaveSchemaAsync(new NodeSchema
-        {
-            Name   = "test.child",
-            Type   = SchemaType.Struct,
-            Struct = new StructSchema
-            {
-                Base   = "test.base",
-                Fields = [new StructFieldSchema { Name = "extra", Type = NS_SYSTEM_INT }]
-            }
-        });
-
-        var childType = await ctx.GetSchemaTypeAsync<StructType>("test.child");
-        Assert.IsNotNull(childType);
-        Assert.IsNotNull(childType.BaseNode, "BaseNode should be set");
-        Assert.AreEqual("test.base", childType.Base);
     }
 }

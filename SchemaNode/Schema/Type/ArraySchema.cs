@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.schema")]
-public sealed class ArraySchema
+public sealed class ArraySchema: IAdditionalProperty
 {
     /// <summary>
     /// The array name
@@ -29,12 +29,6 @@ public sealed class ArraySchema
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE)]
     public string? Element { get; set; }
-
-    /// <summary>
-    /// Whether the array should be treated as a whole value,
-    /// no element schema nodes would be created
-    /// </summary>
-    public bool? Single { get; set; }
 
     /// <summary>
     /// The primary fields of the array if the element is a struct.
@@ -55,7 +49,12 @@ public sealed class ArraySchema
     /// The realtions between the fields
     /// </summary>
     public StructRelationSchema[]? Relations { get; set; }
-    
+
+    /// <summary>
+    /// The atomic flag indicates whether the array is atomic, which means that the array should be treated as a whole when performing operations such as updates, delete or render.
+    /// </summary>
+    public bool? Atomic { get; set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
@@ -68,9 +67,9 @@ public sealed class ArraySchema
     /// </summary>
     internal void CombineCustomSchema(ArraySchema? other)
     {
-        Single = other?.Single ?? Single;
         Combines = other?.Combines ?? Combines;
         Relations = other?.Relations ?? Relations;
+        this.CombineAdditionalProperty(other);
     }
 
 }

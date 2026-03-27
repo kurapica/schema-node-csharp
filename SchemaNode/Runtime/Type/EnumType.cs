@@ -1,15 +1,15 @@
-using System.Collections.Concurrent;
-using System.Reflection;
-using System.Runtime.Serialization;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
+using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -34,11 +34,6 @@ public sealed class EnumType: AnySchemaType
     /// </summary>
     public LocaleString[]? Cascade { get; internal set; }
     
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; internal set; }
-
     #endregion
     
     #region Status
@@ -83,7 +78,6 @@ public sealed class EnumType: AnySchemaType
         {
             SubList = @enum?.Values
         };
-        Additional = @enum?.Additional;
         UpdateLoadState(Root, reset: true);
         UpdateMaxFlags();
         
@@ -289,19 +283,27 @@ public sealed class EnumType: AnySchemaType
         }
         
         EnumValueInfo[] access = await LoadEnumValueAccessAsync(context, value.ToString());
-        if (access.Length > 0)
-        {
-            result.Value = ValueType switch
-            {
-                EnumValueType.String => val.ToString(),
-                _ => val.ToValue<long>()
-            };
-            return (result, null);
-        }
-        else
-        {
+        if (access.Length == 0)
             return (null, TYPE_VALUE_NOT_VALID);
+
+        result.Value = ValueType switch
+        {
+            EnumValueType.String => val.ToString(),
+            _ => val.ToValue<long>()
+        };
+
+        // Constraint validation
+        if (Constraints is { Length: > 0 })
+        {
+            foreach (IConstraintProperty constraint in Constraints)
+            {
+                if (await constraint.ValidateEnumAsync(context, (EnumTypeNode)result) == false)
+                    return (null, TYPE_VALUE_NOT_VALID);
+            }
         }
+
+        return (result, null);
+
     }
 
     /// <inheritdoc />
@@ -332,7 +334,6 @@ public sealed class EnumType: AnySchemaType
             Type = ValueType,
             Cascade = Cascade,
             Values = Root.SubList?.Select(a => a.Clone(limitLevel)).ToArray() ?? [],
-            Additional = Additional,
         });
     }
 

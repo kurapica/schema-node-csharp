@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
+using SchemaNode.Components.Context;
+using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
@@ -7,7 +9,6 @@ using SchemaNode.Utility;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Components.Context;
 
 namespace SchemaNode.Runtime;
 
@@ -41,7 +42,7 @@ public sealed class AppWorkflowType: IDisposable
     /// <summary>
     /// The workflow description
     /// </summary>
-    public LocaleString? Desc { get; private set; }
+    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
 
     /// <summary>
     /// The authentication policy, normally row policy
@@ -57,7 +58,12 @@ public sealed class AppWorkflowType: IDisposable
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; internal set; } = [];
-    
+
+    /// <summary>
+    /// The properties
+    /// </summary>
+    public IProperty[]? Properties { get; internal set; }
+
     /// <summary>
     /// The additional data
     /// </summary>
@@ -283,7 +289,6 @@ public sealed class AppWorkflowType: IDisposable
             Name = schema.Name,
             Seqno = schema.Seqno,
             Display = schema.Display,
-            Desc = schema.Desc,
             Auths = schema.Auths,
             Active = schema.Active,
             Nodes = schema.Nodes.ToArray(),
@@ -298,7 +303,6 @@ public sealed class AppWorkflowType: IDisposable
             App = type.App,
             Name = type.Name,
             Display = type.Display,
-            Desc = type.Desc,
             Auths = type.Auths,
             Seqno = type.Seqno,
             Active = type.Activated,

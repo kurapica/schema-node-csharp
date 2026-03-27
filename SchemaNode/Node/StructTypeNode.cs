@@ -55,6 +55,19 @@ public class StructTypeNode : AnySchemaNode
         return Fields[index];
     }
 
+    /// <summary>
+    /// Gets the field schema
+    /// </summary>
+    public StructFieldSchema? GetFieldSchema(AnySchemaNode? node)
+    {
+        if (node == null) return null;
+        var type = SchemaType as StructType;
+        if (type == null) return null;
+        var index = Array.FindIndex(Fields, f => f == node);
+        if (index < 0 || index >= type.Fields.Length) return null;
+        return type.Fields[index];
+    }
+
     public void SetField(string fieldName, object? value)
     {
         var field = GetField(fieldName);

@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -40,6 +41,26 @@ public sealed class NodeSchema
     /// The schema display
     /// </summary>
     public LocaleString? Display { get; set; }
+
+    [NotMapped]
+    [JsonIgnore]
+    public Dictionary<string, JsonElement>? Additional
+    {
+        get => Type switch { 
+            SchemaType.Scalar => Scalar?.Additional,
+            SchemaType.Enum => Enum?.Additional,
+            SchemaType.Struct => Struct?.Additional,
+            SchemaType.Array => Array?.Additional,
+            SchemaType.Func => Func?.Additional,
+            SchemaType.Event => Event?.Additional,
+            SchemaType.Workflow => Workflow?.Additional,
+            SchemaType.Policy => Policy?.Additional,
+            SchemaType.Recognizer => Recognizer?.Additional,
+            SchemaType.Property => Property?.Additional,
+            _ => null
+        };
+        set => _additional = value;
+    }
 
     /// <summary>
     /// The authentication policy type
@@ -102,16 +123,10 @@ public sealed class NodeSchema
     public RecognizerSchema? Recognizer { get; set; }
 
     /// <summary>
-    /// The constraint schema if type is constraint
+    /// The property schema
     /// </summary>
     [NotMapped]
-    public ConstraintSchema? Constraint { get; set; }
-
-    /// <summary>
-    /// The presentation schema if type is presentation
-    /// </summary>
-    [NotMapped]
-    public PresentationSchema? Presentation { get; set; }
+    public PropertySchema? Property { get; set; }
 
     /// <summary>
     /// The load state
@@ -202,6 +217,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Scalar) return this;
         Scalar = scalar;
+        Scalar.Additional = _additional;
         return this;
     }
 
@@ -209,6 +225,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Enum) return this;
         Enum = enumSchema;
+        Enum.Additional = _additional;
         return this;
     }
 
@@ -216,6 +233,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Struct) return this;
         Struct = structSchema;
+        Struct.Additional = _additional;
         return this;
     }
 
@@ -223,6 +241,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Array) return this;
         Array = arraySchema;
+        Array.Additional = _additional;
         return this;
     }
 
@@ -230,6 +249,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Func) return this;
         Func = functionSchema;
+        Func.Additional = _additional;
         return this;
     }
 
@@ -237,6 +257,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Event) return this;
         Event = eventSchema;
+        Event.Additional = _additional;
         return this;
     }
 
@@ -244,6 +265,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Workflow) return this;
         Workflow = workflowSchema;
+        Workflow.Additional = _additional;
         return this;
     }
 
@@ -251,6 +273,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Policy) return this;
         Policy = policySchema;
+        Policy.Additional = _additional;
         return this;
     }
 
@@ -258,20 +281,15 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Recognizer) return this;
         Recognizer = recognizerSchema;
+        Recognizer.Additional = _additional;
         return this;
     }
 
-    internal NodeSchema With(ConstraintSchema constraintSchema)
+    internal NodeSchema With(PropertySchema propSchema)
     {
-        if (Type != SchemaType.Constraint) return this;
-        Constraint = constraintSchema;
-        return this;
-    }
-
-    internal NodeSchema With(PresentationSchema presentationSchema)
-    {
-        if (Type != SchemaType.Presentation) return this;
-        Presentation = presentationSchema;
+        if (Type != SchemaType.Property) return this;
+        Property = propSchema;
+        Property.Additional = _additional;
         return this;
     }
 
@@ -308,6 +326,7 @@ public sealed class NodeSchema
 
     private SchemaLoadState? _schemaLoadState;
     private Type? _schemaProvider;
+    private Dictionary<string, JsonElement>? _additional;
 
     #endregion
 }

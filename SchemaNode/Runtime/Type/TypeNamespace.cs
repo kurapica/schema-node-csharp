@@ -48,6 +48,10 @@ public sealed class TypeNamespace: AnySchemaType
 
         if (!preload || schema.Schemas == null || schema.Schemas.Length == 0) return;
 
+        // property
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Property))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
+
         // policy
         foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Policy))
             await context.GetSchemaTypeAsync(s.Name, preload: true);
@@ -86,14 +90,6 @@ public sealed class TypeNamespace: AnySchemaType
         
         // workflow
         foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Workflow))
-            await context.GetSchemaTypeAsync(s.Name, preload: true);
-
-        // constraint
-        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Constraint))
-            await context.GetSchemaTypeAsync(s.Name, preload: true);
-
-        // presentation
-        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Presentation))
             await context.GetSchemaTypeAsync(s.Name, preload: true);
 
         // namespace

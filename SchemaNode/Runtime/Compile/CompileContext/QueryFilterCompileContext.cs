@@ -79,7 +79,7 @@ public class QueryFilterCompileContext : CompileContext
                     // Check field source
                     if (field.DisplayOnly == true)
                     {
-                        var relation = _queryType.Relations?.FirstOrDefault(r => r.Type == RelationType.Default && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
+                        var relation = _queryType.Relations?.FirstOrDefault(r => r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
                         if (relation?.FuncNode == null) throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
 
                         if (DynamicTableSchema.IsReferenceFunc(relation.Func))

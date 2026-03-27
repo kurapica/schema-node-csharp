@@ -1,12 +1,13 @@
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
-using System.ComponentModel.DataAnnotations;
-using static SchemaNode.Utility.Constant;
-using System.ComponentModel.DataAnnotations.Schema;
 using SchemaNode.Utility;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Constant;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -17,7 +18,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.schema")]
-public sealed class FunctionSchema
+public sealed class FunctionSchema: IAdditionalProperty
 {
     /// <summary>
     /// The function name
@@ -48,7 +49,13 @@ public sealed class FunctionSchema
     /// T1, T2(for multi generic type)
     /// </summary>
     public string[]? Generic { get; set; }
-    
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+
     /// <summary>
     /// The function flags
     /// </summary>

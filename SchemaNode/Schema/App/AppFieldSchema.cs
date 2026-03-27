@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.schema")]
-public sealed class AppFieldSchema
+public sealed class AppFieldSchema: IAdditionalProperty
 {
     #region Info
 
@@ -50,11 +50,6 @@ public sealed class AppFieldSchema
     /// </summary>
     public LocaleString? Display { get; set; }
     
-    /// <summary>
-    /// The field description
-    /// </summary>
-    public LocaleString? Desc { get; set; }
-
     #endregion
 
     #region Push Rule
@@ -239,7 +234,6 @@ public sealed class AppFieldSchema
     {
         if (otherSchema == null) return;
         Display = Display != null ? Display.Concat(otherSchema.Display) : otherSchema.Display;
-        Desc = Desc != null ? Desc.Concat(otherSchema.Desc) : otherSchema.Desc;
         Auths = Auths ?? otherSchema.Auths;
         RowAuths = RowAuths ?? otherSchema.RowAuths;
         ColAuths = ColAuths ?? otherSchema.ColAuths;
@@ -249,6 +243,8 @@ public sealed class AppFieldSchema
         Filters = Filters ?? otherSchema.Filters;
         Foreigns = Foreigns ?? otherSchema.Foreigns;
         View = View ?? otherSchema.View;
+
+        this.CombineAdditionalProperty(otherSchema);
     }
 
     #endregion

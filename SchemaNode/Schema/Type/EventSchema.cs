@@ -1,6 +1,7 @@
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -10,7 +11,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_EVENT}.schema")]
-public sealed class EventSchema
+public sealed class EventSchema: IAdditionalProperty
 {
     /// <summary>
     /// The event name
@@ -24,4 +25,10 @@ public sealed class EventSchema
     /// The event value type
     /// </summary>
     public string? Payload { get; set; }
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
 }

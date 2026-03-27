@@ -323,8 +323,10 @@ public class DynamicTableSchema
                 if (type.Relations != null)
                 {
                     foreach (StructRelationSchema relation in (type.Relations.Where(r =>
-                                 r.Type == RelationType.Default && IsReferenceFunc(r.Func) &&
-                                 type.GetField(r.Field) != null && (type.GetField(r.Field)?.DisplayOnly ?? false))))
+                                 r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                                 IsReferenceFunc(r.Func) &&
+                                 type.GetField(r.Field) != null && 
+                                 (type.GetField(r.Field)?.DisplayOnly ?? false))))
                     {
                         // app
                         string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
@@ -494,7 +496,9 @@ public class DynamicTableSchema
                         if (!fld.IsEmpty) continue; // already set value
                 
                         // default for display only
-                        var relation = type.Relations?.FirstOrDefault(f => f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && f.Type == RelationType.Default);
+                        var relation = type.Relations?.FirstOrDefault(f =>
+                            f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && 
+                            f.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
                         if (relation == null) continue;
                         
                         // handled by array node
@@ -525,11 +529,9 @@ public class DynamicTableSchema
                             break;
                         // Fill empty field with default value
                         default:
-                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && !string.IsNullOrWhiteSpace(field.Default))
+                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && field.Default is { IsEmpty: false })
                             {
-                                (AnySchemaNode? val, JsonNode? err) = await fld.SchemaType.ValidateValueAsync(context, field.Default);
-                                if (err == null || err.IsEmpty())
-                                    fld.Value = val;
+                                fld.Value = field.Default;
                             }
                             break;
                     }

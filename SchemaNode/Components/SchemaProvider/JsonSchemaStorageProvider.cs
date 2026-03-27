@@ -423,7 +423,6 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
         {
             Name = app.Name,
             Display = app.Display,
-            Desc = app.Desc,
             Relations = app.Relations,
             Additional = app.Additional
         });

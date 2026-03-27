@@ -1,6 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
 using SchemaNode.Context;
@@ -26,17 +24,7 @@ public sealed class WorkflowType: AnySchemaType
     /// The workflow payload type
     /// </summary>
     public string? Payload { get; set; }
-    
-    /// <summary>
-    /// The function name if type is Function
-    /// </summary>
-    public string? Func { get; set; }
-    
-    /// <summary>
-    /// The event name if type is Event
-    /// </summary>
-    public string? Event { get; set; }
-    
+        
     /// <summary>
     /// The state schema type for constructor
     /// </summary>
@@ -181,8 +169,8 @@ public sealed class WorkflowType: AnySchemaType
             }
         }
 
-        if (Utility.SystemLocale.HasLocales)
-            Utility.SystemLocale.Translate(workflowSchema.Display, workflowSchema.Name);
+        if (SystemLocale.HasLocales)
+            SystemLocale.Translate(workflowSchema.Display, workflowSchema.Name);
 
         return [ workflowSchema ];
     }

@@ -1,8 +1,8 @@
+using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -12,7 +12,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_WORKFLOW}.schema")]
-public sealed class WorkflowSchema
+public sealed class WorkflowSchema: IAdditionalProperty
 {
     /// <summary>
     /// The workflow name
@@ -46,4 +46,11 @@ public sealed class WorkflowSchema
     /// The workflow arguments fetch from workflow context
     /// </summary>
     public FuncArg[]? Args { get; set; } = [];
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+
 }

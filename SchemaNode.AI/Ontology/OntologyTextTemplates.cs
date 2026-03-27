@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using SchemaNode.Components.Property.Constraint;
 using SchemaNode.Enum;
 using SchemaNode.Schema;
 
@@ -366,7 +367,7 @@ public static class OntologyTextTemplates
             foreach (OntologyRelation r in cls.Relations)
             {
                 string args = string.Join(", ", r.Args.Select(a => $"\"{Esc(a)}\""));
-                sb.AppendLine($"# {cls.Name}.{r.Field}: {r.RelationType} via {r.Function}({args})");
+                sb.AppendLine($"# {cls.Name}.{r.Field}: {r.Property} via {r.Function}({args})");
             }
             sb.AppendLine();
         }
@@ -603,7 +604,7 @@ public static class OntologyTextTemplates
                 sb.AppendLine("| Field | Relation | Function | Arguments |");
                 sb.AppendLine("|-------|----------|----------|-----------|");
                 foreach (OntologyRelation r in cls.Relations)
-                    sb.AppendLine($"| `{r.Field}` | {r.RelationType} | `{r.Function}` | {string.Join(", ", r.Args.Select(a => $"`{a}`"))} |");
+                    sb.AppendLine($"| `{r.Field}` | {r.Property} | `{r.Function}` | {string.Join(", ", r.Args.Select(a => $"`{a}`"))} |");
                 sb.AppendLine();
             }
 
@@ -1132,7 +1133,7 @@ public static class OntologyTextTemplates
                     string args = r.Args.Length > 0
                         ? $"({string.Join(", ", r.Args)})"
                         : "()";
-                    sb.AppendLine($"  {cls.Name}.{r.Field} {r.RelationType} via {r.Function}{args}");
+                    sb.AppendLine($"  {cls.Name}.{r.Field} {r.Property} via {r.Function}{args}");
                 }
             }
 

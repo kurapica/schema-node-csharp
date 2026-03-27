@@ -37,7 +37,6 @@ internal static class App
         {
             Name = app.Name,
             Display = app.Display,
-            Desc = app.Desc,
             HasApps = app.Apps is { Length: > 0 },
             HasFields = app.Fields is { Length: > 0 },
             ScopePolicy = app.ScopePolicy,
@@ -47,14 +46,15 @@ internal static class App
             {
                 Name = a.Name,
                 Display = a.Display,
-                Desc = a.Desc,
                 HasApps = a.Apps is { Length: > 0 },
                 HasFields = a.Fields is { Length: > 0 },
-                ScopePolicy = a.ScopePolicy
+                ScopePolicy = a.ScopePolicy,
+                Additional = a.Additional,
             }).ToArray(),
             Fields = app.Fields,
             Relations = app.Relations,
             Workflows = app.Workflows,
+            Additional = app.Additional
         };
     }
 

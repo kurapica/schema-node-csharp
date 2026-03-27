@@ -497,11 +497,16 @@ public static class Extension
             if (value is AnySchemaNode node) return node.ToTypeValue(type);
 
             // json type
-            if (value is JsonArray or JsonObject)
+            if (value is JsonElement)
+            {
+                return ((JsonElement)value).Deserialize(type, GetJsonOptions(false, mode));
+            }
+            else if (value is JsonArray or JsonObject)
             {
                 return (value as JsonNode)!.FromJson(type);
             }
-            else if (type == typeof(JsonArray))
+            
+            if (type == typeof(JsonArray))
             {
                 var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
                 return result is JsonArray ? result : null;

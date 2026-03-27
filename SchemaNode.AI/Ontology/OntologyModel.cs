@@ -234,8 +234,8 @@ public class OntologyRelation
     /// <summary>Subject field path (e.g. <c>"appField"</c> or <c>"appField.dataField"</c>).</summary>
     public required string Field { get; init; }
 
-    /// <summary><see cref="Enum.RelationType"/> label.</summary>
-    public required string RelationType { get; init; }
+    /// <summary>The property that the realtion applied.</summary>
+    public required string Property { get; init; }
 
     /// <summary>Function name that computes the relation.</summary>
     public required string Function { get; init; }
@@ -340,7 +340,7 @@ public class OntologyScalarClass
     public string? Unit { get; init; }
 
     /// <summary>Cross-platform pattern validation, or <see langword="null"/>.</summary>
-    public Schema.Pattern[]? Pattern { get; init; }
+    public Components.Property.Constraint.Pattern[]? Pattern { get; init; }
 }
 
 /// <summary>

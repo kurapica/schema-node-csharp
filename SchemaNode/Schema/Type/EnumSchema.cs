@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_ENUM}.schema")]
-public sealed class EnumSchema
+public sealed class EnumSchema: IAdditionalProperty
 {
     /// <summary>
     /// The enum name
@@ -49,6 +49,7 @@ public sealed class EnumSchema
     /// </summary>
     internal void CombineCustomSchema(EnumSchema? other)
     {
+        this.CombineAdditionalProperty(other);
     }
 }
 

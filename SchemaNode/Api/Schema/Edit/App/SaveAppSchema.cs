@@ -1,8 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Schema;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SchemaNode.Api.Schema.Edit;
 
@@ -81,17 +83,23 @@ public class AppSchemaData
     /// The application field relations
     /// </summary>
     public StructRelationSchema[]? Relations { get; set; }
-    
+
+    /// <summary>
+    /// The additional data
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Additional { get; set; }
+
     public static implicit operator AppSchema(AppSchemaData data)
     {
         return new AppSchema
         {
             Name = data.Name,
             Display = data.Display,
-            Desc = data.Desc,
             Auth = data.Auth,
             Auths = data.Auths,
             Relations = data.Relations,
+            Additional = data.Additional,
         };
     }
 }

@@ -1,17 +1,16 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Reflection;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Components;
-using SchemaNode.Components.Property.Constraint;
-using SchemaNode.Components.Property.Presentation;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Components.Property.Constraint;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Utility;
@@ -250,15 +249,10 @@ public static class Schema
                     // system workflow
                     schemas = WorkflowType.GenerateSystemWorkflow(type, defaultNs ?? type.Assembly.GetCustomAttribute<SchemaAttribute>()?.Name);
                 }
-                else if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Constraint<>)))
+                else if (type.IsAssignableTo(typeof(IProperty)))
                 {
-                    // system constraint
-                    schemas = ConstraintType.GenerateSystemConstraint(type, NS_SYSTEM_CONSTRAINT);
-                }
-                else if (type.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Presentation<>)))
-                {
-                    // system presentation
-                    schemas = PresentationType.GenerateSystemPresentation(type, NS_SYSTEM_PRESENTATION);
+                    // system property
+                    schemas = PropertyType.GenerateSystemProperty(type, NS_SYSTEM_PROPERTY);
                 }
                 else
                 {
@@ -1042,13 +1036,6 @@ public static class Schema
         if (schema.Display != null && !string.IsNullOrEmpty(schema.Name))
             SystemLocale.Translate(schema.Display, schema.Name);
 
-        // Scalar: error message and unit use their own Key for lookup
-        if (schema.Scalar != null)
-        {
-            SystemLocale.Translate(schema.Scalar.Error);
-            SystemLocale.Translate(schema.Scalar.Unit);
-        }
-
         // Struct: each field Display uses its own Key (e.g. "system.rangedate.start")
         if (schema.Struct != null)
         {
@@ -1096,6 +1083,12 @@ public static class Schema
     
     internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, Pattern[]? pattern = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
+        Dictionary<string, JsonElement>? additional = null;
+        if (lowLimit != null) { additional ??= []; additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit); }
+        if (upLimit != null) { additional ??= []; additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit); }
+        if (pattern != null) { additional ??= []; additional["pattern"] = JsonSerializer.SerializeToElement(pattern, Extension.GetJsonOptions(false)); }
+        if (enableError) { additional ??= []; additional["error"] = JsonSerializer.SerializeToElement($"{name}.error"); }
+
         return new NodeSchema
         {
             Name = name,
@@ -1105,10 +1098,7 @@ public static class Schema
             Scalar = new ScalarSchema
             {
                 Base = baseType,
-                Error = enableError ? $"{name}.error" : null,
-                Pattern = pattern,
-                UpLimit = upLimit,
-                LowLimit = lowLimit,
+                Additional = additional,
             },
         };
     }
@@ -1123,12 +1113,22 @@ public static class Schema
             Display = name,
             Struct = new StructSchema
             {
-                Fields = fields.Select(f => new StructFieldSchema
+                Fields = fields.Select(f =>
                 {
-                    Name = f.name,
-                    Type = f.type,
-                    Require = f.require ?? false,
-                    Display = $"{name}.{f.name}",
+                    var field = new StructFieldSchema
+                    {
+                        Name = f.name,
+                        Type = f.type,
+                        Display = $"{name}.{f.name}",
+                    };
+                    if (f.require == true)
+                    {
+                        field.Additional = new Dictionary<string, JsonElement>
+                        {
+                            ["require"] = JsonSerializer.SerializeToElement(true)
+                        };
+                    }
+                    return field;
                 }).ToArray()
             },
         };
@@ -1282,6 +1282,8 @@ public static class Schema
 
             // place holder types
             NewSystemSchema(NS_SYSTEM_SCHEMA).With([
+                NewSystemScalar(NS_SYSTEM_SCHEMA_PROPERTY, upLimit: ENTITY_PRIMARY_KEY_MAX_LEN),
+
                 // type
                 NewSystemSchema(NS_SYSTEM_SCHEMA_TYPE).With([
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_NAMESPACE, NS_SYSTEM_STRING, upLimit:ENTITY_PRIMARY_KEY_MAX_LEN),
@@ -1295,14 +1297,14 @@ public static class Schema
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_WORKFLOW, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_POLICY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                     NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
-                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_CONSTRAINT, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
-                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_PRESENTATION, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
+                    NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_PROPERTY, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
 
                     // constraint
                     NewSystemSchema(NS_SYSTEM_SCHEMA_TYPE_RULE).With([
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE, NS_SYSTEM_SCHEMA_TYPE_NAMESPACE),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_VALID, NS_SYSTEM_SCHEMA_TYPE_FUNC),
+                        NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_UNIONVALID,  NS_SYSTEM_SCHEMA_TYPE_FUNC),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_WHITELIST, NS_SYSTEM_SCHEMA_TYPE_FUNC),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE, NS_SYSTEM_SCHEMA_TYPE_FUNC),
                         NewSystemScalar(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR, NS_SYSTEM_SCHEMA_TYPE_FUNC),
@@ -1325,8 +1327,7 @@ public static class Schema
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_EVENT),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_WORKFLOW),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_RECOGNIZER),
-                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_CONSTRAINT),
-                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_PRESENTATION),
+                    NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_PROPERTY),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_FIELD),
                     NewSystemSchema(NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW)
@@ -1349,15 +1350,9 @@ public static class Schema
 
             #endregion
 
-            #region System.Constraint
+            #region System.Property
 
-            NewSystemSchema(NS_SYSTEM_CONSTRAINT),
-
-            #endregion
-
-            #region System.Presentation
-
-            NewSystemSchema(NS_SYSTEM_PRESENTATION),
+            NewSystemSchema(NS_SYSTEM_PROPERTY),
 
             #endregion
         ])
