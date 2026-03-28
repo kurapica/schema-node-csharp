@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Server;
@@ -10,7 +10,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
-namespace SchemaNode.McpHost.Tools;
+namespace SchemaNode.AI.Mcp;
 
 [McpServerToolType]
 public class SchemaTools

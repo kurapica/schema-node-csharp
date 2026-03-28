@@ -6,7 +6,6 @@ using SchemaNode.AI;
 using SchemaNode.Components;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
-using SchemaNode.McpHost;
 using SchemaNode.MySql;
 using SchemaNode.PostgreSQL;
 
@@ -61,7 +60,7 @@ builder.Services
     //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp
-    .AddSchemaMcpHost();
+    .AddSchemaMcp();
 
 // App
 var app = builder.Build();
@@ -71,7 +70,7 @@ app.UseMiddleware<UserInfoMiddleware>();
 app
     .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true)
     .PreLoadSchemaNodes()
-    .MapSchemaMcpHost();
+    .MapSchemaMcp();
 
 // Swagger
 if (app.Environment.IsDevelopment())

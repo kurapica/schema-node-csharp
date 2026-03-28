@@ -13,8 +13,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.Kafka", "SchemaN
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.RabbitMQ", "SchemaNode.RabbitMQ\SchemaNode.RabbitMQ.csproj", "{79F9F918-79B3-4433-9D99-9561BC1F03A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.McpHost", "SchemaNode.McpHost\SchemaNode.McpHost.csproj", "{744917E0-AA18-4B2B-9467-540AA8162EB9}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.UnitTest", "SchemaNode.UnitTest\SchemaNode.UnitTest.csproj", "{5FCE9972-8604-4234-A8A4-F610D1D1150F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.PostgreSQL", "SchemaNode.PostgreSQL\SchemaNode.PostgreSQL.csproj", "{98CE8F3B-D7C8-ECCA-DB5D-C2BF029A2256}"
@@ -91,18 +89,6 @@ Global
 		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Release|x64.Build.0 = Release|Any CPU
 		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Release|x86.ActiveCfg = Release|Any CPU
 		{79F9F918-79B3-4433-9D99-9561BC1F03A1}.Release|x86.Build.0 = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|x64.Build.0 = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Debug|x86.Build.0 = Debug|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|Any CPU.Build.0 = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|x64.ActiveCfg = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|x64.Build.0 = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|x86.ActiveCfg = Release|Any CPU
-		{744917E0-AA18-4B2B-9467-540AA8162EB9}.Release|x86.Build.0 = Release|Any CPU
 		{5FCE9972-8604-4234-A8A4-F610D1D1150F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5FCE9972-8604-4234-A8A4-F610D1D1150F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5FCE9972-8604-4234-A8A4-F610D1D1150F}.Debug|x64.ActiveCfg = Debug|Any CPU
