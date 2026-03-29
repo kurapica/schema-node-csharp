@@ -45,7 +45,6 @@ public sealed class RecognizerSchema: IAdditionalProperty
     /// </summary>
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Additional { get; set; }
-
 }
 
 /// <summary>
@@ -57,7 +56,7 @@ public sealed class RecognizerSchema: IAdditionalProperty
 public sealed class RecognizerPart
 {
     /// <summary>
-    /// The part type: Literal, Field, or ArrayRepeat
+    /// The part type
     /// </summary>
     public FormatPartType Type { get; set; }
 

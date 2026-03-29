@@ -214,7 +214,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
-                            return new FieldAccessExp(thirdFieldInfo.Arg, dataField.Name, dataField.SchemeType!);
+                            return new FieldAccessExp(thirdFieldInfo.Arg, dataField.Name, dataField.SchemaType!);
                         }
 
                         // Other app could be system parameters, leave it to the user

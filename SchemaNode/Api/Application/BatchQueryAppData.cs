@@ -282,7 +282,7 @@ public static class BatchQueryExtension
                     Relations = node.Relations?.Select(r => new StructRelationSchema
                     {
                         Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                        Property = r.Property,
+                        Prop = r.Prop,
                         Func = r.Func,
                         Args = r.Args.Select(a => new FuncCallArg
                         {
@@ -389,7 +389,7 @@ public static class BatchQueryExtension
                     {
                         AnySchemaNode? v = obj.GetField(f.Name);
                         if (v is { IsEmpty: false })
-                            await ScanEnumAccess(context, root, f.SchemeType!, enumsKeys, v);
+                            await ScanEnumAccess(context, root, f.SchemaType!, enumsKeys, v);
                     }
                 }
                 break;

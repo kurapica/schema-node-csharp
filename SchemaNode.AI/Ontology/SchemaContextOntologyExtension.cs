@@ -16,7 +16,7 @@ public static class SchemaContextOntologyExtension
 
     /// <summary>
     /// Builds an <see cref="OntologyGraph"/> for <paramref name="appName"/>.
-    /// All schema type references (<c>SchemaType</c>, <c>ElementSchemaType</c>, <c>SchemeType</c>)
+    /// All schema type references (<c>SchemaType</c>, <c>ElementSchemaType</c>, <c>SchemaType</c>)
     /// are already resolved when the App is loaded, so no extra async resolution is needed.
     /// </summary>
     /// <param name="context">Active schema context.</param>
@@ -345,7 +345,7 @@ public static class SchemaContextOntologyExtension
                 cls.Relations.Add(new OntologyRelation
                 {
                     Field        = fieldRef,
-                    Property     = rel.Property,
+                    Property     = rel.Prop,
                     Function     = rel.Func,
                     Args         = rel.Args.Select(a =>
                         !string.IsNullOrEmpty(a.DataField)
@@ -459,7 +459,7 @@ public static class SchemaContextOntologyExtension
                     EnsureContextEntity(graph, visitedCtx, entityName,
                         $"Context isolation entity derived from scope item '{map.ContextItem}'.");
 
-                    // Property local name: prefer MapKey (strip leading "_"), else camelCase of baseName
+                    // Prop local name: prefer MapKey (strip leading "_"), else camelCase of baseName
                     string propLocal = !string.IsNullOrWhiteSpace(map.MapKey)
                         ? map.MapKey.TrimStart('_')
                         : baseName.Length > 0
@@ -506,7 +506,7 @@ public static class SchemaContextOntologyExtension
     /// <summary>
     /// Recursively builds an <see cref="OntologyEntityClass"/> for <paramref name="structType"/>
     /// and any nested struct / base struct it references.
-    /// Uses <c>SchemeType</c> — already resolved during <c>StructType.LoadAsync</c>.
+    /// Uses <c>SchemaType</c> — already resolved during <c>StructType.LoadAsync</c>.
     /// </summary>
     private static void BuildEntityClass(
         SchemaContext context,
@@ -538,7 +538,7 @@ public static class SchemaContextOntologyExtension
 
         foreach (StructFieldSchema field in structType.Fields)
         {
-            AnySchemaType? fieldType = field.SchemeType;
+            AnySchemaType? fieldType = field.SchemaType;
             bool isMulti = false;
 
             // Unwrap array element

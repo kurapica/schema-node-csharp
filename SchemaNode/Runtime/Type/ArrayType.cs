@@ -205,7 +205,7 @@ public sealed class ArrayType: AnySchemaType
             {
                 StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
                 if (fld == null) return null;
-                string part = fld.SchemeType is ScalarType { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
+                string part = fld.SchemaType is ScalarType { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
                 key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
             }
             else
@@ -229,7 +229,9 @@ public sealed class ArrayType: AnySchemaType
         {
             StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
             if (fld == null) return null;
-            string part = fld.SchemeType is ScalarType { IsDate: true } ? $"{obj.GetField(p)!.ToValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
+            AnySchemaNode? fieldNode = obj.GetField(p);
+            if (fieldNode == null) return null;
+            string part = fld.SchemaType is ScalarType { IsDate: true } ? $"{fieldNode.ToValue<DateTime>():yyyyMMdd}" : $"{fieldNode}";
             key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
         }
         return key;

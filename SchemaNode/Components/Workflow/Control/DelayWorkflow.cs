@@ -12,7 +12,8 @@ public class DelayWorkflow: Workflow
     {
         Task.Run(async () =>
         {
-            await Task.Delay(TimeSpan.FromMilliseconds(duration));
+            if (duration > 0)
+                await Task.Delay(TimeSpan.FromMilliseconds(duration));
             context.Done(this);
         });
         return Task.CompletedTask;

@@ -77,8 +77,8 @@ public static class SystemCollection
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
-        if (f.SchemeType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        AnySchemaType arrayNode = SchemaContext.GetArraySchemaType(f.SchemeType)
+        if (f.SchemaType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
+        AnySchemaType arrayNode = SchemaContext.GetArraySchemaType(f.SchemaType)
                                   ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);
@@ -155,7 +155,7 @@ public static class SystemCollection
         // Calc the display only field
         StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
             r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
-            r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
+            r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
         if (relation == null) return null;
         
         JsonArray args = [];

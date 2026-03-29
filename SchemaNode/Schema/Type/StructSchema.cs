@@ -196,7 +196,7 @@ public class StructFieldSchema: IAdditionalProperty
     /// </summary>
     [JsonIgnore]
     [NotMapped]
-    public AnySchemaType? SchemeType { get; set; }
+    public AnySchemaType? SchemaType { get; set; }
 
     #endregion
 
@@ -206,13 +206,13 @@ public class StructFieldSchema: IAdditionalProperty
     {
         Status = null;
         AnySchemaType? schemaType = await context.GetSchemaTypeAsync(Type, preload: preload);
-        if (schemaType == null || schemaType.Type is SchemaType.Namespace or SchemaType.Func && !Regex.IsMatch(Type, REGEX_GENERIC_TYPE))
+        if (schemaType == null || schemaType.Type is Enum.SchemaType.Namespace or Enum.SchemaType.Func && !Regex.IsMatch(Type, REGEX_GENERIC_TYPE))
         {
             Status = SchemaNodeStatus.StructMemberWrongType;
             return;
         }
 
-        SchemeType = schemaType;
+        SchemaType = schemaType;
         schemaType.AddRef(@struct);
 
         Properties = null;
@@ -221,7 +221,7 @@ public class StructFieldSchema: IAdditionalProperty
 
         if (Additional != null)
         {
-            Properties = PropertyType.GetProperties<IProperty>(context, SchemaType.StructField, Additional, SchemeType)?.ToArray();
+            Properties = PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.StructField, Additional, SchemaType)?.ToArray();
 
             if (Properties is { Length: > 0 })
             {
@@ -256,7 +256,7 @@ public class StructFieldSchema: IAdditionalProperty
 
     internal void UnloadFieldSchema(StructType @struct)
     {
-        if (SchemeType != null) SchemeType.RemoveRef(@struct);
+        if (SchemaType != null) SchemaType.RemoveRef(@struct);
         if (RefTypes != null)
         {
             foreach (AnySchemaType type in RefTypes)
@@ -330,7 +330,7 @@ public class StructRelationSchema
     /// The property of the realtion, so the function can modify it dynamically
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
-    public required string Property { get; set; }
+    public required string Prop { get; set; }
 
     /// <summary>
     /// The relation function

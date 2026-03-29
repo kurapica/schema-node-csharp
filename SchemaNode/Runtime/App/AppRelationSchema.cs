@@ -25,7 +25,7 @@ public sealed class AppRelationSchema
     /// The property of the realtion, so the function can modify it dynamically
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
-    public required string Property { get; set; }
+    public required string Prop { get; set; }
 
     /// <summary>
     /// The function name

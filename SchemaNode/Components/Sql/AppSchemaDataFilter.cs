@@ -257,14 +257,14 @@ public static class AppSchemaDataFilterExtensions
             StructFieldSchema? field = structType.GetField(key);
             
             // only support scalar or locale string type
-            if (field is not { SchemeType: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemeType?.Name)) continue;
+            if (field is not { SchemaType: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemaType?.Name)) continue;
 
-            AnySchemaType valueType = field.SchemeType is StructType ? SchemaContext.SystemString : field.SchemeType;
+            AnySchemaType valueType = field.SchemaType is StructType ? SchemaContext.SystemString : field.SchemaType;
             
             var filterExp = value switch
             {
                 JsonArray arr => new AppSchemaDataFilterBinary(LogicType.Contains,
-                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemeType, arr)),
+                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemaType, arr)),
                         new AppSchemaDataFilterField(key)),
                 JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
                         {

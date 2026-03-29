@@ -69,7 +69,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                 AppSchemaDataResult.Exist => (SchemaContext.SystemBool.CreateNode(total > 0), total),
                 AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
                 AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
-                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!, 
+                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!, 
                     origins.Select(o => o is StructTypeNode sn ? sn.GetField(dataField!) : null).Where(x => x != null && !x.IsEmpty).Select(x => x!).ToArray()), total),
                 _ => (new ArrayTypeNode(schema.SchemaType, origins), total)
             };

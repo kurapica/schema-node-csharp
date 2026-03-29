@@ -256,7 +256,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
             {
                 if (type is not StructType @struct) return null;
                 type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
-                    ?.SchemeType;
+                    ?.SchemaType;
             }
 
             if (type == null) return null;

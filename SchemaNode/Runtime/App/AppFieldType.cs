@@ -441,7 +441,7 @@ public sealed class AppFieldType
                     {
                         StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r =>
                             r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) &&
-                            r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                            r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
                             DynamicTableSchema.IsReferenceFunc(r.Func));
                         if (relation == null) continue;
 
@@ -485,12 +485,12 @@ public sealed class AppFieldType
                             joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
                         }
 
-                        if (dataFieldType.SchemeType is StructType @struct)
+                        if (dataFieldType.SchemaType is StructType @struct)
                         {
                             // As complex fields
                             foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
-                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -501,7 +501,7 @@ public sealed class AppFieldType
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = ifield.SchemeType!,
+                                    SchemaType = ifield.SchemaType!,
                                     JoinAppField = field,
                                     JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
                                 });
@@ -510,26 +510,26 @@ public sealed class AppFieldType
                         else
                         {
                             // As normal field
-                            DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemeType!, dataFieldType);
+                            DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemaType!, dataFieldType);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = dataFieldType.SchemeType!,
+                                SchemaType = dataFieldType.SchemaType!,
                                 JoinAppField = field,
                                 JoinDataField = dataField
                             });
                         }
                     }
 
-                    else if (sField.SchemeType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
+                    else if (sField.SchemaType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
                     {
                         // As complex fields
-                        StructType subStructNode = (StructType)sField.SchemeType;
+                        StructType subStructNode = (StructType)sField.SchemaType;
                         foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
                         {
-                            DataTypeInfo info = GetDataTypeInfo(iField.SchemeType!, iField);
+                            DataTypeInfo info = GetDataTypeInfo(iField.SchemaType!, iField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
@@ -540,19 +540,19 @@ public sealed class AppFieldType
                                 },
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = iField.SchemeType!
+                                SchemaType = iField.SchemaType!
                             });
                         }
                     }
                     else
                     {
-                        DataTypeInfo info = GetDataTypeInfo(sField.SchemeType!, sField);
+                        DataTypeInfo info = GetDataTypeInfo(sField.SchemaType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             MaxLength = info.MaxLength,
-                            SchemaType = sField.SchemeType!
+                            SchemaType = sField.SchemaType!
                         });
                     }
                 }
@@ -572,14 +572,14 @@ public sealed class AppFieldType
                     foreach (string n in arrayNode.Primary)
                     {
                         var sField = structNode.Fields.First(p => p.Name == n);
-                        DataTypeInfo info = GetDataTypeInfo(sField.SchemeType!, sField);
+                        DataTypeInfo info = GetDataTypeInfo(sField.SchemaType!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             Primary = true,
                             MaxLength = info.MaxLength,
-                            SchemaType = sField.SchemeType!
+                            SchemaType = sField.SchemaType!
                         });
                     }
                     
@@ -591,7 +591,7 @@ public sealed class AppFieldType
                         {
                             StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r => 
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) && 
-                                r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                                r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
                                 DynamicTableSchema.IsReferenceFunc(r.Func));
                             if (relation == null) continue;
 
@@ -635,12 +635,12 @@ public sealed class AppFieldType
                                 joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
                             }
 
-                            if (dataFieldType.SchemeType is StructType @struct)
+                            if (dataFieldType.SchemaType is StructType @struct)
                             {
                                 // As complex fields
                                 foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
                                 {
-                                    DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                    DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
                                     fields.Add(new DynamicTableField
                                     {
                                         Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -651,7 +651,7 @@ public sealed class AppFieldType
                                         },
                                         Type = info.Type,
                                         MaxLength = info.MaxLength,
-                                        SchemaType = ifield.SchemeType!,
+                                        SchemaType = ifield.SchemaType!,
                                         JoinAppField = field,
                                         JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
                                     });
@@ -660,13 +660,13 @@ public sealed class AppFieldType
                             else
                             {
                                 // As normal field
-                                DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemeType!, dataFieldType);
+                                DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemaType!, dataFieldType);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = sField.Name,
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = dataFieldType.SchemeType!,
+                                    SchemaType = dataFieldType.SchemaType!,
                                     JoinAppField = field,
                                     JoinDataField = dataField
                                 });
@@ -674,12 +674,12 @@ public sealed class AppFieldType
                         }
 
                         // Check if the s-field use a struct type
-                        else  if (sField.SchemeType!.Type == SchemaNode.Enum.SchemaType.Struct)
+                        else  if (sField.SchemaType!.Type == SchemaNode.Enum.SchemaType.Struct)
                         {
                             // As complex fields
-                            foreach (var ifield in ((StructType)sField.SchemeType).Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            foreach (var ifield in ((StructType)sField.SchemaType).Fields.Where(p => !(p.DisplayOnly ?? false)))
                             {
-                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemeType!, ifield);
+                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -690,40 +690,40 @@ public sealed class AppFieldType
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    SchemaType = ifield.SchemeType!
+                                    SchemaType = ifield.SchemaType!
                                 });
                             }
                         }
                         // Check if the field is a dynamic JSON field with attribute-based topology, which need to be stored in separated attribute table
-                        else if (sField.SchemeType is JsonType && enableAttrTable)
+                        else if (sField.SchemaType is JsonType && enableAttrTable)
                         {
                             AppRelationSchema? typeRelation = Application.Relations?.FirstOrDefault(r =>
-                                r.Property.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
+                                r.Prop.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
                                 r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
                             StructRelationSchema? fieldRelation = structNode.Relations?.FirstOrDefault(r => 
-                                r.Property.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
+                                r.Prop.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
                                 r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
 
-                            DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.SchemaType, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = sField.SchemeType!,
+                                SchemaType = sField.SchemaType!,
                                 RelationType = typeRelation,
                                 StructRelation = fieldRelation
                             });
                         }
                         else
                         {
-                            DataTypeInfo info = GetDataTypeInfo(sField.SchemeType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.SchemaType, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                SchemaType = sField.SchemeType!
+                                SchemaType = sField.SchemaType!
                             });
                         }
                     }
@@ -752,13 +752,13 @@ public sealed class AppFieldType
             {
                 StructType eleType = (sourceField.SchemaType is ArrayType arr ? arr.ElementSchemaType : sourceField.SchemaType) as StructType ?? throw new Exception($"The {Name} field can't be used as view");
                 StructFieldSchema fieldInfo = eleType.GetField(foreign.Field) ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
-                DataTypeInfo info = GetDataTypeInfo(fieldInfo.SchemeType!, fieldInfo);
+                DataTypeInfo info = GetDataTypeInfo(fieldInfo.SchemaType!, fieldInfo);
                 fields.Add(new DynamicTableField
                 {
                     Name = fieldInfo.Name,
                     Type = info.Type,
                     MaxLength = info.MaxLength,
-                    SchemaType = fieldInfo.SchemeType!
+                    SchemaType = fieldInfo.SchemaType!
                 });
             }
         }

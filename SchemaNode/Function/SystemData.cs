@@ -39,7 +39,7 @@ public static class SystemData
         }
 
         /// <summary>
-        /// Check the vlaue is descendant of any root value
+        /// Check the value is descendant of any root value
         /// </summary>
         [Schema]
         public static async Task<bool> isdescendantany(SchemaContext context, [Schema(NS_SYSTEM_SCHEMA_TYPE_ENUM)] string @enum, string value, string[] roots)
@@ -118,6 +118,68 @@ public static class SystemData
         }
     }
 
+    [Schema($"{NS_SYSTEM_DATA}.recognizer")]
+    public static class RecognizerOper
+    {
+        /// <summary>
+        /// Validate whether a string matches the recognizer format
+        /// </summary>
+        [Schema]
+        public static async Task<bool> validate(SchemaContext context, [Schema(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER)] string recognizer, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return false;
+
+            RecognizerType? recognizerType = await context.GetSchemaTypeAsync<RecognizerType>(recognizer);
+            if (recognizerType == null) return false;
+
+            RecognizeOutput result = await recognizerType.RecognizeAsync(context, value);
+            return result.Success;
+        }
+
+        /// <summary>
+        /// Parse a string into a structured value using the recognizer (string → type)
+        /// </summary>
+        [Schema]
+        public static async Task<T?> parse<T>(SchemaContext context, [Schema(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER)] string recognizer, string value)
+        {
+            if (string.IsNullOrEmpty(value)) return default;
+
+            RecognizerType? recognizerType = await context.GetSchemaTypeAsync<RecognizerType>(recognizer);
+            if (recognizerType == null) return default;
+
+            RecognizeOutput result = await recognizerType.RecognizeAsync(context, value);
+            if (!result.Success || result.Value == null) return default;
+
+            return result.Value.ToValue<T>();
+        }
+
+        /// <summary>
+        /// Convert a structured value to a string using the recognizer (type → string)
+        /// </summary>
+        [Schema]
+        public static async Task<string?> emit<T>(SchemaContext context, [Schema(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER)] string recognizer, T value)
+        {
+            if (value == null) return null;
+
+            RecognizerType? recognizerType = await context.GetSchemaTypeAsync<RecognizerType>(recognizer);
+            if (recognizerType == null) return null;
+
+            AnySchemaNode? node = value as AnySchemaNode;
+            if (node == null)
+            {
+                // Try to create a node from the source type
+                AnySchemaType? sourceType = !string.IsNullOrWhiteSpace(recognizerType.SourceType)
+                    ? await context.GetSchemaTypeAsync(recognizerType.SourceType)
+                    : null;
+                if (sourceType == null) return null;
+                node = sourceType.CreateNode(value);
+                if (node == null || node.IsEmpty) return null;
+            }
+
+            return await recognizerType.EmitAsync(context, node);
+        }
+    }
+
     #region Context Item
 
     /// <summary>
@@ -162,7 +224,7 @@ public static class SystemData
         List<AnySchemaNode>[] keyValues = new List<AnySchemaNode>[keys.Length];
         for (int i = 0; i < keys.Length; i++)
         {
-            AnySchemaType? keyType = (arrType!.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemeType;
+            AnySchemaType? keyType = (arrType!.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemaType;
             AnySchemaNode? valueNode = keyType?.CreateNode(args[i]);
             if (valueNode == null || valueNode.IsEmpty) return default;
 
@@ -212,8 +274,8 @@ public static class SystemData
                 for (int j = keyValues[i].Count - 1; j >= 0; j--)
                 {
                     AnySchemaNode key = keyValues[i][j];
-                    if (!items.Any(n => key.Equals(n.GetField(keys[i])!))) continue;
-                    items = items.Where(n => key.Equals(n.GetField(keys[i])!)).ToArray();
+                    if (!items.Any(n => n.GetField(keys[i]) is { } f && key.Equals(f))) continue;
+                    items = items.Where(n => n.GetField(keys[i]) is { } f && key.Equals(f)).ToArray();
                     break;
                 }
             }
@@ -235,11 +297,11 @@ public static class SystemData
         [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
         string dataField,
-        params object?[] args)
+        params object?[] args) where T : struct
     {
         AnySchemaNode? result = await get<AnySchemaNode>(context, app, field, args);
         AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : default;
+        return f != null ? f.ToValue<T>() : null;
     }
     
     #endregion
@@ -297,7 +359,7 @@ public static class SystemData
         if (fieldType == null 
             || fieldType.SchemaType is EnumType 
             || fieldType.SchemaType is ScalarType { IsNumber: false } 
-            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.SchemeType is ScalarType {  IsNumber: true })
+            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.SchemaType is ScalarType {  IsNumber: true })
             || fieldType.SchemaType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
             ) return null;
 
@@ -332,7 +394,7 @@ public static class SystemData
                         {
                             decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                             decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                            originStruct.SetField(fld.Name, fld.SchemeType?.CreateNode(orgVal + dataVal));
+                            originStruct.SetField(fld.Name, fld.SchemaType?.CreateNode(orgVal + dataVal));
                         }
                     }
                     break;
@@ -367,7 +429,7 @@ public static class SystemData
                                 {
                                     decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
                                     decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                                    oitem.SetField(fld.Name, fld.SchemeType?.CreateNode(orgVal + dataVal));
+                                    oitem.SetField(fld.Name, fld.SchemaType?.CreateNode(orgVal + dataVal));
                                 }
                             }
                         }

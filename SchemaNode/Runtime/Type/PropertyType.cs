@@ -138,6 +138,8 @@ public sealed class PropertyType : AnySchemaType
         string name= type.Name;
         if (name.EndsWith("Property", StringComparison.OrdinalIgnoreCase))
             name = name[..^"Property".Length];
+        if (name.EndsWith("Prop", StringComparison.OrdinalIgnoreCase))
+            name = name[..^"Prop".Length];
         name = name.ToCamelCase();
 
         // Register the property type
@@ -152,9 +154,9 @@ public sealed class PropertyType : AnySchemaType
                 Property = !string.IsNullOrWhiteSpace(attr?.Name) ? attr.Name : name,
                 // system.array means use the target node type's array
                 ValueType = valueType == typeof(ArrayTypeNode) ? NS_SYSTEM_ARRAY : valueType.IsAssignableTo(typeof(AnySchemaNode)) ? null : attr?.SchemaType ?? valueType.GetSchemaType(true, ns),
-                // case [nameof(RequireProperty)] is used in Depends or OptionDepends, we trim the "Property" suffix if it exists
-                Depends = attr?.Depends?.Select(p => p.EndsWith("Property", StringComparison.OrdinalIgnoreCase) ? p[..^"Property".Length] : p).ToArray(),
-                OptionDepends = attr?.OptionDepends?.Select(p => p.EndsWith("Property", StringComparison.OrdinalIgnoreCase) ? p[..^"Property".Length] : p).ToArray(),
+                // case [nameof(RequireProperty)] is used in Depends or OptionDepends, we trim the "Prop" suffix if it exists
+                Depends = attr?.Depends?.Select(p => p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length] : p).ToArray(),
+                OptionDepends = attr?.OptionDepends?.Select(p => p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length] : p).ToArray(),
                 ForSchemas = attr?.ForSchemas ?? [],
                 ForValues = attr?.ForValues,
                 IncludeArray = attr?.IncludeArray,
@@ -198,7 +200,7 @@ public sealed class PropertyType : AnySchemaType
             if (valueType != null && (entry.ForValues == null || (!entry.ForValues.Any(v => MatchSchemaValueType(valueType, v, entry.IncludeArray)))))
                 continue;
 
-            // Property name must exist in additional (case-insensitive)
+            // Prop name must exist in additional (case-insensitive)
             if (!additional.TryGetValue(entry.Property, out JsonElement element))
                 continue;
 

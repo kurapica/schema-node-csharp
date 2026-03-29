@@ -81,7 +81,7 @@ public static class AppDataProviderExtension
         {
             // 1. Collect keys and prepare IN lists
             HashSet<string> keys = [];
-            Dictionary<string, ArrayTypeNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayTypeNode(structType.GetField(k)!.SchemeType!));
+            Dictionary<string, ArrayTypeNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayTypeNode(structType.GetField(k)!.SchemaType!));
 
             foreach (StructTypeNode node in queryNodes)
             {

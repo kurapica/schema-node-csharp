@@ -147,8 +147,8 @@ public sealed record RecognizerFieldOp(
 
     private static AnySchemaNode? ConvertFieldValue(StructFieldSchema? field, string rawValue)
     {
-        if (field?.SchemeType == null) return null;
-        return field.SchemeType.CreateNode(rawValue);
+        if (field?.SchemaType == null) return null;
+        return field.SchemaType.CreateNode(rawValue);
     }
 }
 

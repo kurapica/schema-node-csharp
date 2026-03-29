@@ -915,7 +915,7 @@ public static class AppDataTransactionExtension
                     // Default join
                     foreach (StructFieldSchema f in @struct.Fields)
                     {
-                        if (f.SchemeType is ScalarType s)
+                        if (f.SchemaType is ScalarType s)
                             joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type
                                 ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
                     }
@@ -951,10 +951,10 @@ public static class AppDataTransactionExtension
                                         final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
                                         break;
                                     }
-                                case DataCombineType.Sum when nodeField.SchemeType is ScalarType { IsNumber: true }:
-                                case DataCombineType.Count when nodeField.SchemeType is ScalarType { IsNumber: true }:
+                                case DataCombineType.Sum when nodeField.SchemaType is ScalarType { IsNumber: true }:
+                                case DataCombineType.Count when nodeField.SchemaType is ScalarType { IsNumber: true }:
                                     {
-                                        final[nodeField.Name] = nodeField.SchemeType.CreateNode(
+                                        final[nodeField.Name] = nodeField.SchemaType.CreateNode(
                                             (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
                                             (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
@@ -989,13 +989,13 @@ public static class AppDataTransactionExtension
                         {
                             valueFields.Add(fieldType.Name);
 
-                            if (fieldType.SchemeType is ScalarType s)
+                            if (fieldType.SchemaType is ScalarType s)
                             {
                                 joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
                             }
                         }
                         else
-                            primaryNodes.Add(fieldType.Name, fieldType.SchemeType!);
+                            primaryNodes.Add(fieldType.Name, fieldType.SchemaType!);
                     }
 
                     // Based on array join methods

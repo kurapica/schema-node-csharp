@@ -53,8 +53,8 @@ public static class Extension
     {
         return input switch
         {
-            DateTime dt => dt.ToString("yyyy-MM-dd hh:mm:ss.fff"),
-            DateTimeOffset dto => dto.ToString("yyyy-MM-dd hh:mm:ss.fff"),
+            DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.fff"),
             _ => input.ToString()
         };
     }
@@ -515,6 +515,10 @@ public static class Extension
             {
                 var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
                 return result is JsonObject ? result : null;
+            }
+            else if (type == typeof(JsonNode))
+            {
+                return JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
             }
 
             // none json type

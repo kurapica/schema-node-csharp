@@ -171,11 +171,11 @@ public sealed class StructType: AnySchemaType
         foreach (StructFieldSchema field in Fields)
         {
             if (field.DisplayOnly ?? false) continue;
-            if (field.SchemeType is null) continue;
+            if (field.SchemaType is null) continue;
 
             if (jObject.ContainsKey(field.Name) && !jObject[field.Name].IsEmpty())
             {
-                (AnySchemaNode? v, JsonNode? e) = await field.SchemeType.ValidateValueAsync(context, jObject[field.Name]!);
+                (AnySchemaNode? v, JsonNode? e) = await field.SchemaType.ValidateValueAsync(context, jObject[field.Name]!);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -194,7 +194,7 @@ public sealed class StructType: AnySchemaType
             {
                 StructRelationSchema? r = Relations?.FirstOrDefault(r => 
                     r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
-                    r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
+                    r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
 
                 // Complete by relation
                 if (r != null)
@@ -295,7 +295,7 @@ public sealed class StructType: AnySchemaType
                && @struct.Fields.All(v =>
                {
                    StructFieldSchema? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
-                   return match?.SchemeType == null ? !(v.Require ?? false) : v.SchemeType != null && match.SchemeType.CanBeUseAs(v.SchemeType);
+                   return match?.SchemaType == null ? !(v.Require ?? false) : v.SchemaType != null && match.SchemaType.CanBeUseAs(v.SchemaType);
                });
     }
 
@@ -303,8 +303,8 @@ public sealed class StructType: AnySchemaType
     {
         foreach (StructFieldSchema field in Fields)
         {
-            if (field.SchemeType != null)
-                yield return field.SchemeType;
+            if (field.SchemaType != null)
+                yield return field.SchemaType;
         }
         if (Relations != null)
         {
@@ -552,7 +552,7 @@ public sealed class StructType: AnySchemaType
     /// </summary>
     public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
     {
-        string[] generics = Fields.Where(f => f.SchemeType is GenericType).Select(f => f.Type).Distinct().ToArray();
+        string[] generics = Fields.Where(f => f.SchemaType is GenericType).Select(f => f.Type).Distinct().ToArray();
         if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not contains
 
         _genericTypes ??= new ConcurrentDictionary<string, StructType>();
@@ -574,7 +574,7 @@ public sealed class StructType: AnySchemaType
         {
             StructFieldSchema f = Fields[i];
             
-            if (f.SchemeType is GenericType)
+            if (f.SchemaType is GenericType)
             {
                 StructFieldSchema copy = f.ToJsonNode()!.FromJson<StructFieldSchema>()!;
                 int index = Array.IndexOf(generics, f.Type);
@@ -584,7 +584,7 @@ public sealed class StructType: AnySchemaType
                 {
                     return null;
                 }
-                copy.SchemeType = schemaType;
+                copy.SchemaType = schemaType;
                 schemaType.AddRef(newStruct);
                 newStruct.Fields[i] = copy;
             }

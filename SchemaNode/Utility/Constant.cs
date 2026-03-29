@@ -18,7 +18,12 @@ public static class Constant
     public const string NS_GENERIC_TYPE_4 = "T4";
     public const string REGEX_GENERIC_TYPE = @"^T\d*$";
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
-    
+
+    // Represents the special node used as function arguments for validation or relation
+    public const string ARRAY_ITSELF = "$array";
+    public const string ARRAY_ELEMENT = "$ele";
+    public const string NODE_SELF = "$self";
+
     public const string NS_SYSTEM = "system";
     public const string NS_SYSTEM_OBJECT = "system.object"; // any value
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array

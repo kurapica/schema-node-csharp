@@ -70,7 +70,12 @@ public static class SystemStr
         public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
 
         [Schema]
-        public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
+        public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop)
+        {
+            int start = Math.Clamp(startIndex, 0, str.Length);
+            int end = Math.Clamp(stop ?? str.Length, start, str.Length);
+            return str.Substring(start, end - start);
+        }
 
         [Schema]
         public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");

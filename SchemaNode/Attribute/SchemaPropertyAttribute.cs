@@ -6,27 +6,27 @@ namespace SchemaNode.Attribute;
 public class SchemaPropertyAttribute(SchemaType[] forSchemas, ValueSchemaType[]? forValues = null, bool includeArray = false, string? name = null, string ? display = null, string[]? depends = null, string[]? optionDepends = null, string? schemaType = null) : System.Attribute
 {
     /// <summary>
-    /// The contraint name
+    /// The Property name
     /// </summary>
     public string? Name { get; } = name;
 
     /// <summary>
-    /// The constraint display name
+    /// The Property display name
     /// </summary>
     public string? Display { get; } = display;
 
     /// <summary>
-    /// The required constraint names that this constraint depends on
+    /// The required Property names that this Property depends on
     /// </summary>
     public string[]? Depends { get; } = depends;
 
     /// <summary>
-    /// The optional constraint names that this constraint depends on
+    /// The optional Property names that this Property depends on
     /// </summary>
     public string[]? OptionDepends { get; } = optionDepends;
 
     /// <summary>
-    /// The schema types that this constraint applies to
+    /// The schema types that this Property applies to
     /// </summary>
     public SchemaType[] ForSchemas { get; } = forSchemas;
 

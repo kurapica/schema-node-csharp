@@ -19,12 +19,12 @@ public class StructTypeNode : AnySchemaNode
         for(int i = 0; i < Fields.Length; i++)
         {
             var field = type.Fields[i];
-            if (field.SchemeType == null)
+            if (field.SchemaType == null)
             {
                 throw new SerializationException($"The field {field.Name} type is not defined.");
             }
 
-            Fields[i] = field.SchemeType!.CreateNode() ?? throw new NotSupportedException();
+            Fields[i] = field.SchemaType!.CreateNode() ?? throw new NotSupportedException();
         }
         Value = value;
     }

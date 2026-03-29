@@ -109,7 +109,7 @@ public sealed class RecognizerType : AnySchemaType
                     break;
                 case FormatPartType.Field:
                     var field = string.IsNullOrWhiteSpace(part.Field) ? null : (SourceSchemaType as StructType)?.GetField(part.Field);
-                    partType = field?.SchemeType;
+                    partType = field?.SchemaType;
                     break;
                 case FormatPartType.Elements:
                     partType = (SourceSchemaType as ArrayType)?.ElementSchemaType;

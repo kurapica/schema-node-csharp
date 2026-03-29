@@ -79,7 +79,7 @@ public class QueryFilterCompileContext : CompileContext
                     // Check field source
                     if (field.DisplayOnly == true)
                     {
-                        var relation = _queryType.Relations?.FirstOrDefault(r => r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
+                        var relation = _queryType.Relations?.FirstOrDefault(r => r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
                         if (relation?.FuncNode == null) throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
 
                         if (DynamicTableSchema.IsReferenceFunc(relation.Func))
@@ -98,7 +98,7 @@ public class QueryFilterCompileContext : CompileContext
                                     StructFieldSchema? fld = _queryType.GetField(a.Name);
                                     if (fld == null)
                                         throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
-                                    replaceArgs[j] = new FieldAccessExp(fExp.Owner, fld.Name, fld.SchemeType!);
+                                    replaceArgs[j] = new FieldAccessExp(fExp.Owner, fld.Name, fld.SchemaType!);
                                 }
                                 else
                                 {
@@ -108,7 +108,7 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                             }
 
-                            var replaceExp = new FuncCallExp(relation.FuncNode!, replaceArgs, field.SchemeType!);
+                            var replaceExp = new FuncCallExp(relation.FuncNode!, replaceArgs, field.SchemaType!);
                             args[i] = await VisitSchemaExpAsync(replaceExp);
                         }
                     }

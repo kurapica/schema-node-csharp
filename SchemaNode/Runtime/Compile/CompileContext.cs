@@ -190,7 +190,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (GetExpression(f.Name, out SchemaExp? fieldExp))
                     {
-                        if (!fieldExp!.SchemaType.CanBeUseAs(f.SchemeType!))
+                        if (!fieldExp!.SchemaType.CanBeUseAs(f.SchemaType!))
                         {
                             Function.Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
@@ -312,7 +312,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase)) is { } field)
                 {
-                    type = field.SchemeType;
+                    type = field.SchemaType;
                 }
                 else
                 {

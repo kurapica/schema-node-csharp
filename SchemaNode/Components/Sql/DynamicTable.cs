@@ -239,7 +239,7 @@ public class DynamicTableSchema
                 AnySchemaNode? main = result.GetField(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
+                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
                     result.SetField(field.Complex.Main, main);
                 }
                 (main as StructTypeNode)![field.Complex.Field] = val;
@@ -264,7 +264,7 @@ public class DynamicTableSchema
             }
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                complexResult ??= new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
+                complexResult ??= new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
                 AnySchemaNode? val = field.FromReader(reader, offset);
                 if (val != null)
                     complexResult.SetField(field.Complex.Field, val);
@@ -323,7 +323,7 @@ public class DynamicTableSchema
                 if (type.Relations != null)
                 {
                     foreach (StructRelationSchema relation in (type.Relations.Where(r =>
-                                 r.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                                 r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
                                  IsReferenceFunc(r.Func) &&
                                  type.GetField(r.Field) != null && 
                                  (type.GetField(r.Field)?.DisplayOnly ?? false))))
@@ -498,7 +498,7 @@ public class DynamicTableSchema
                         // default for display only
                         var relation = type.Relations?.FirstOrDefault(f =>
                             f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && 
-                            f.Property.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
+                            f.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
                         if (relation == null) continue;
                         
                         // handled by array node
@@ -519,7 +519,7 @@ public class DynamicTableSchema
                             // ignore errors
                         }
                     }
-                    else switch (field.SchemeType)
+                    else switch (field.SchemaType)
                     {
                         case StructType @struct:
                             await GenerateDisplayOnlyFields(context, @struct, fld);

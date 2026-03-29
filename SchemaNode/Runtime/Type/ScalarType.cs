@@ -236,7 +236,7 @@ public sealed class ScalarType: AnySchemaType
                 {
                     // pass
                 }
-                if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
+                else if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
                 {
                     year = SystemCalendar.getyear(context, dateTime!.Value);
                 }
@@ -338,7 +338,7 @@ public sealed class ScalarType: AnySchemaType
                         : (scalar.ValueType & ValueType) > 0)),
             EnumType @enum => @enum.ValueType switch
             {
-                EnumValueType.String => IsSingle,
+                EnumValueType.String => IsString,
                 EnumValueType.Int => IsInt,
                 EnumValueType.Flags => IsInt,
                 _ => false

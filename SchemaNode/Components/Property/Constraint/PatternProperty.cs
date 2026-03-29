@@ -20,23 +20,6 @@ public class PatternProperty : SchemaProperty<Pattern[]>, IConstraintProperty
 
         return null;
     }
-
-    public bool? ValidateArray(SchemaContext context, ArrayTypeNode node, StructTypeNode? parent = null)
-    {
-        if (node.IsEmpty || Value is not { Length: > 0 }) return null;
-        if (node.ElementType is not ScalarType scalar) return null;
-        if (scalar.IsString)
-        {
-            foreach (var item in node)
-            {
-                if (item.IsEmpty) continue;
-                if (!Pattern.IsMatch(item.Value!.ToString()!, Value))
-                    return false;
-            }
-            return true;
-        }
-        return true;
-    }
 }
 
 

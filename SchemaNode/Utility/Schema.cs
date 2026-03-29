@@ -583,7 +583,7 @@ public static class Schema
                     // count field
                     foreach ((string field, DataCombineType method) in joinMethodMap)
                     {
-                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { SchemeType: ScalarType { IsNumber: true } })
+                        if (method == DataCombineType.Count && node.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { SchemaType: ScalarType { IsNumber: true } })
                         {
                             @struct[field] = 1;
                         }
@@ -611,10 +611,10 @@ public static class Schema
                                     break;
                                 }
                             case DataCombineType.Sum:
-                                result[field.Name] = field.SchemeType is ScalarType { IsNumber: true } ? array.Sum(p => p is StructTypeNode obj && obj[field.Name] is ScalarTypeNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
+                                result[field.Name] = field.SchemaType is ScalarType { IsNumber: true } ? array.Sum(p => p is StructTypeNode obj && obj[field.Name] is ScalarTypeNode val && !val.IsEmpty ? val.ToValue<decimal>() : 0) : null;
                                 break;
                             case DataCombineType.Count:
-                                result[field.Name] = field.SchemeType is ScalarType { IsNumber: true } ? array.Count : null;
+                                result[field.Name] = field.SchemaType is ScalarType { IsNumber: true } ? array.Count : null;
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
@@ -737,7 +737,7 @@ public static class Schema
     internal static ArrayTypeNode? GroupJoin(ArrayType node, AnySchemaNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (node.ElementSchemaType is not StructType structNode || node.Primary == null) return null;
-        Dictionary<string, AnySchemaType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemeType);
+        Dictionary<string, AnySchemaType?> primaryNodes = structNode.Fields.Where(fieldType => node.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemaType);
 
         // Result
         Dictionary<string, StructTypeNode> resultMap = GroupJoinObjectMap(node, value, joinMethodMap);

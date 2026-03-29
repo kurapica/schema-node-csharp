@@ -49,7 +49,7 @@ public class JsonSchemaFormatProvider : ISchemaFormatProvider
             schema.Relations = app.Relations?.Select(r => new StructRelationSchema
             {
                 Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                Property = r.Property,
+                Prop = r.Prop,
                 Func = r.Func,
                 Args = r.Args.Select(a => new FuncCallArg
                 {

@@ -174,7 +174,7 @@ public static class AppDataQueryExtension
             AppSchemaDataResult.Exist => SchemaContext.SystemBool.CreateNode(false),
             AppSchemaDataResult.First => null,
             AppSchemaDataResult.Last => null,
-            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemeType!),
+            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!),
             _ => new ArrayTypeNode(appField.SchemaType!)
         };
         
