@@ -18,7 +18,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.schema")]
-public sealed class FunctionSchema: IAdditionalProperty
+public sealed class FunctionSchema: ISchemaExtensions
 {
     /// <summary>
     /// The function name
@@ -51,10 +51,10 @@ public sealed class FunctionSchema: IAdditionalProperty
     public string[]? Generic { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// The function flags

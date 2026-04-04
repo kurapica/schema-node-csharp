@@ -1,8 +1,9 @@
+using Azure.AI.OpenAI;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
+using OpenAI;
 using System.ClientModel;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.SemanticKernel;
-using OpenAI;
 using SchemaNode.AI.Vector;
 using SchemaNode.Components;
 
@@ -15,8 +16,8 @@ public static class SchemaNodeVectorInjection
 {
     /// <summary>
     /// Registers the <c>SchemaNode.AI</c> assembly for API discovery, configures
-    /// <see cref="OntologyVectorOptions"/>, and sets up the Semantic Kernel with the
-    /// appropriate embedding connector based on <see cref="OntologyVectorOptions.Provider"/>.
+    /// <see cref="OntologyVectorOptions"/>, and sets up the embedding generator with the
+    /// appropriate connector based on <see cref="OntologyVectorOptions.Provider"/>.
     /// <para>
     /// <b>Must be called before <c>AddSchemaNode</c></b> so that the vector APIs
     /// are included in the assembly scan.
@@ -30,15 +31,15 @@ public static class SchemaNodeVectorInjection
     /// opts => configuration.GetSection(OntologyVectorOptions.SectionName).Bind(opts)
     /// </code>
     /// </param>
-    /// <param name="configureKernel">
-    /// Optional delegate for any extra Semantic Kernel builder configuration applied
-    /// <em>after</em> the provider connector is registered.
+    /// <param name="configureServices">
+    /// Optional delegate for any extra service configuration applied
+    /// <em>after</em> the embedding generator is registered.
     /// </param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
     public static IServiceCollection AddSchemaVector(
         this IServiceCollection services,
         Action<OntologyVectorOptions>? configure = null,
-        Action<IKernelBuilder>? configureKernel = null)
+        Action<IServiceCollection>? configureServices = null)
     {
         // Register this assembly so that SchemaApi subclasses defined here are
         // discovered by UseSchemaApis() during request-mapping.
@@ -49,21 +50,20 @@ public static class SchemaNodeVectorInjection
         configure?.Invoke(opts);
         services.AddSingleton(opts);
 
-        // Set up the Semantic Kernel and auto-wire the embedding connector from opts.
-        IKernelBuilder kernelBuilder = services.AddKernel();
-        AddEmbeddingConnector(kernelBuilder, opts);
+        // Register the embedding generator directly from the configured provider.
+        services.AddSingleton(CreateEmbeddingGenerator(opts));
 
         // Register the event source that keeps the vector store in sync with schema changes.
         services.AddSingleton<IEventSource, OntologyVectorEventSource>();
 
-        // Allow the caller to add further configuration (additional services, plugins, etc.).
-        configureKernel?.Invoke(kernelBuilder);
+        // Allow the caller to add further configuration (additional services, etc.).
+        configureServices?.Invoke(services);
 
         return services;
     }
 
     /// <summary>
-    /// Registers the embedding generation connector on <paramref name="builder"/> based on
+    /// Creates an <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/> based on
     /// <see cref="OntologyVectorOptions.Provider"/>.
     /// <list type="bullet">
     ///   <item><see cref="EmbeddingProvider.OpenAI"/> — standard or custom-endpoint OpenAI-compatible server.</item>
@@ -71,7 +71,7 @@ public static class SchemaNodeVectorInjection
     ///   <item><see cref="EmbeddingProvider.Ollama"/> — local Ollama via its OpenAI-compatible <c>/v1</c> API.</item>
     /// </list>
     /// </summary>
-    private static void AddEmbeddingConnector(IKernelBuilder builder, OntologyVectorOptions opts)
+    private static IEmbeddingGenerator<string, Embedding<float>> CreateEmbeddingGenerator(OntologyVectorOptions opts)
     {
         switch (opts.Provider)
         {
@@ -79,22 +79,26 @@ public static class SchemaNodeVectorInjection
                 if (opts.Endpoint is { Length: > 0 } customEp)
                 {
                     // OpenAI-compatible server at a custom URL (e.g. LM Studio, LocalAI).
-                    builder.AddOpenAIEmbeddingGenerator(
-                        opts.ModelId,
-                        BuildOpenAIClient(opts.ApiKey ?? "", new Uri(customEp)));
+                    return new OpenAIEmbeddingGeneratorAdapter(
+                        BuildOpenAIClient(opts.ApiKey ?? "", new Uri(customEp))
+                            .GetEmbeddingClient(opts.ModelId),
+                        opts.ModelId);
                 }
                 else
                 {
-                    builder.AddOpenAIEmbeddingGenerator(opts.ModelId, opts.ApiKey ?? "");
+                    return new OpenAIEmbeddingGeneratorAdapter(
+                        new OpenAIClient(new ApiKeyCredential(opts.ApiKey ?? ""))
+                            .GetEmbeddingClient(opts.ModelId),
+                        opts.ModelId);
                 }
-                break;
 
             case EmbeddingProvider.AzureOpenAI:
-                builder.AddAzureOpenAIEmbeddingGenerator(
-                    deploymentName: opts.DeploymentName ?? opts.ModelId,
-                    endpoint:       opts.Endpoint ?? "",
-                    apiKey:         opts.ApiKey   ?? "");
-                break;
+                return new OpenAIEmbeddingGeneratorAdapter(
+                    new AzureOpenAIClient(
+                            new Uri(opts.Endpoint ?? ""),
+                            new ApiKeyCredential(opts.ApiKey ?? ""))
+                        .GetEmbeddingClient(opts.DeploymentName ?? opts.ModelId),
+                    opts.DeploymentName ?? opts.ModelId);
 
             case EmbeddingProvider.Ollama:
                 // Ollama exposes an OpenAI-compatible /v1 endpoint.
@@ -103,10 +107,13 @@ public static class SchemaNodeVectorInjection
                     : "http://localhost:11434";
                 if (!baseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
                     baseUrl += "/v1";
-                builder.AddOpenAIEmbeddingGenerator(
-                    opts.ModelId,
-                    BuildOpenAIClient("ollama", new Uri(baseUrl)));  // Ollama ignores the key
-                break;
+                return new OpenAIEmbeddingGeneratorAdapter(
+                    BuildOpenAIClient("ollama", new Uri(baseUrl))  // Ollama ignores the key
+                        .GetEmbeddingClient(opts.ModelId),
+                    opts.ModelId);
+
+            default:
+                throw new InvalidOperationException($"Unsupported embedding provider: {opts.Provider}");
         }
     }
 
@@ -119,5 +126,38 @@ public static class SchemaNodeVectorInjection
     {
         var options = new OpenAIClientOptions { Endpoint = endpoint };
         return new OpenAIClient(new ApiKeyCredential(apiKey), options);
+    }
+
+    // ── Adapter ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Adapts <see cref="EmbeddingClient"/> to <see cref="IEmbeddingGenerator{TInput,TEmbedding}"/>
+    /// without a dependency on Microsoft.SemanticKernel or Microsoft.Extensions.AI.OpenAI
+    /// extension methods.
+    /// </summary>
+    private sealed class OpenAIEmbeddingGeneratorAdapter(OpenAI.Embeddings.EmbeddingClient client, string modelId)
+        : IEmbeddingGenerator<string, Embedding<float>>
+    {
+        /// <inheritdoc />
+        public async Task<GeneratedEmbeddings<Embedding<float>>> GenerateAsync(
+            IEnumerable<string> values,
+            EmbeddingGenerationOptions? options = null,
+            CancellationToken cancellationToken = default)
+        {
+            var result = new GeneratedEmbeddings<Embedding<float>>();
+            foreach (string value in values)
+            {
+                var response = await client.GenerateEmbeddingAsync(value, cancellationToken: cancellationToken);
+                result.Add(new Embedding<float>(response.Value.ToFloats()) { ModelId = modelId });
+            }
+            return result;
+        }
+
+        /// <inheritdoc />
+        public object? GetService(Type serviceType, object? serviceKey = null) =>
+            serviceType.IsInstanceOfType(this) ? this : null;
+
+        /// <inheritdoc />
+        public void Dispose() { }
     }
 }

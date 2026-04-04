@@ -1,9 +1,10 @@
 using Microsoft.AspNetCore.Http.Features;
 using SchemaNode.Components;
-using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -73,10 +74,10 @@ public sealed class AppType
     public IProperty[]? Properties { get; private set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; internal set; }
+    public Dictionary<string, JsonElement>? Extensions { get; internal set; }
     
     /// <summary>
     /// The root application
@@ -94,7 +95,9 @@ public sealed class AppType
         ? SchemaNodeStatus.ApplicationInvalidField
         : Auths != null && Auths.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
             ? SchemaNodeStatus.ApplicationDataAuthWrongFunc
-            : SchemaNodeStatus.Ready;
+            : Relations != null && Relations.Any(r => r.Status != SchemaNodeStatus.Ready)
+                ? SchemaNodeStatus.ApplicationRelationWrongFunc
+                : SchemaNodeStatus.Ready;
 
     /// <summary>
     /// The application is used
@@ -145,8 +148,8 @@ public sealed class AppType
             : null;
         Auths = schema.Auths;
         Apps = schema.Apps;
-        Additional = schema.Additional;
-        Properties = Additional != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.App, Additional)?.ToArray() : null;
+        Extensions = schema.Extensions;
+        Properties = Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.App, Extensions)?.ToArray() : null;
 
         // Load the application fields
         Fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
@@ -163,7 +166,7 @@ public sealed class AppType
                 field.App = Name;
                 field.Application = this;
                 field.Status = null;
-                field.Properties = field.Additional != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppField, field.Additional)?.ToArray() : null;
+                field.Properties = field.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppField, field.Extensions)?.ToArray() : null;
 
                 // valid the type
                 AnySchemaType? node = await context.GetSchemaTypeAsync(field.Type);
@@ -517,7 +520,7 @@ public sealed class AppType
             AppWorkflowType wft = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
                 ? old : w;
             wft.Application = this;
-            wft.Properties = wft.Additional != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppWorkflow, wft.Additional)?.ToArray() : null;
+            wft.Properties = wft.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppWorkflow, wft.Extensions)?.ToArray() : null;
             return wft;
         }).ToList();
         foreach(var wf in Workflows ?? [])
@@ -561,6 +564,7 @@ public sealed class AppType
             if (r.FieldNode != null)
                 r.FuncNode?.RemoveRef(r.FieldNode);
         });
+        Workflows?.ForEach(w => w.Release());
     }
 
     /// <summary>

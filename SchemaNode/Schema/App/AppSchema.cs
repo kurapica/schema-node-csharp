@@ -14,7 +14,7 @@ namespace SchemaNode.Schema;
  */
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.schema")]
-public sealed class AppSchema: IAdditionalProperty
+public sealed class AppSchema: ISchemaExtensions
 {
     #region Info
 
@@ -37,12 +37,12 @@ public sealed class AppSchema: IAdditionalProperty
     /// The display name
     /// </summary>
     public LocaleString? Display { get; set; }
-    
+
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     #endregion
 
@@ -143,7 +143,7 @@ public sealed class AppSchema: IAdditionalProperty
         Auth = string.IsNullOrWhiteSpace(Auth) ? otherSchema.Auth : Auth;
         Auths = Auths ?? otherSchema.Auths;
 
-        this.CombineAdditionalProperty(otherSchema);
+        this.CombineExtensions(otherSchema);
 
         // Check fields
         if (HasApps != true)

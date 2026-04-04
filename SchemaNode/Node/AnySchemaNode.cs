@@ -31,6 +31,21 @@ public abstract class AnySchemaNode
     public AnySchemaNode? Origin { get; internal set; }
 
     /// <summary>
+    /// Violated Constraints
+    /// </summary>
+    public string[]? ViolatedConstraints { get; internal set; }
+
+    /// <summary>
+    /// Whether the node is valid, which means no violated constraints
+    /// </summary>
+    public virtual bool IsValid => ViolatedConstraints == null || ViolatedConstraints.Length == 0;
+
+    /// <summary>
+    /// Gets the node error
+    /// </summary>
+    public virtual JsonNode? ToError => IsValid ? null : ViolatedConstraints.ToJsonNode();
+
+    /// <summary>
     /// indicate whether the node is empty
     /// </summary>
     public virtual bool IsEmpty => _value == null;

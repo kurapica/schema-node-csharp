@@ -1,8 +1,8 @@
 using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -94,7 +94,7 @@ public sealed class PropertyType : AnySchemaType
         if (string.IsNullOrWhiteSpace(Property) || propSchema == null) Status = SchemaNodeStatus.NoDefinition;
 
         ValueSchemaType = !string.IsNullOrWhiteSpace(ValueType) ? await context.GetSchemaTypeAsync(ValueType) : null;
-        if (!string.IsNullOrWhiteSpace(ValueType) && ValueSchemaType == null) Status = SchemaNodeStatus.ConstraintHasWrongValueType;
+        if (!string.IsNullOrWhiteSpace(ValueType) && ValueSchemaType == null) Status = SchemaNodeStatus.PropertyHasWrongValueType;
     }
 
     /// <inheritdoc />
@@ -120,8 +120,8 @@ public sealed class PropertyType : AnySchemaType
         // Get the value type T from SchemaProperty<T>
         Type valueType = superClass.GetGenericArguments()[0];
 
-        // Gets the additonal property kinds
-        Dictionary<string, JsonElement> additional = [];
+        // Gets the extensions property kinds
+        Dictionary<string, JsonElement> extensions = [];
         Type iProp = typeof(IProperty);
 
         foreach (Type interfaceType in type.GetInterfaces())
@@ -129,7 +129,8 @@ public sealed class PropertyType : AnySchemaType
             // marker
             if (interfaceType != iProp && interfaceType.IsAssignableTo(iProp) && interfaceType.GetCustomAttribute<SchemaPropertyKindAttribute>() is { } kind && !string.IsNullOrWhiteSpace(kind.Kind))
             {
-                additional[kind.Kind] = JsonSerializer.SerializeToElement(true);
+                // 1 means mutually exclusive, true means normal
+                extensions[kind.Kind] = kind.MutuallyExclusive ? JsonSerializer.SerializeToElement(1) : JsonSerializer.SerializeToElement(true);
             }
         }
 
@@ -154,13 +155,13 @@ public sealed class PropertyType : AnySchemaType
                 Property = !string.IsNullOrWhiteSpace(attr?.Name) ? attr.Name : name,
                 // system.array means use the target node type's array
                 ValueType = valueType == typeof(ArrayTypeNode) ? NS_SYSTEM_ARRAY : valueType.IsAssignableTo(typeof(AnySchemaNode)) ? null : attr?.SchemaType ?? valueType.GetSchemaType(true, ns),
-                // case [nameof(RequireProperty)] is used in Depends or OptionDepends, we trim the "Prop" suffix if it exists
-                Depends = attr?.Depends?.Select(p => p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length] : p).ToArray(),
-                OptionDepends = attr?.OptionDepends?.Select(p => p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length] : p).ToArray(),
+                // case [nameof(PrecisionProperty)] is used in Depends/OptionDepends, normalize to property name (strip "Property"/"Prop" suffix + camelCase)
+                Depends = attr?.Depends?.Select(static p => p.EndsWith("Property", StringComparison.OrdinalIgnoreCase) ? p[..^"Property".Length].ToCamelCase() : p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length].ToCamelCase() : p).ToArray(),
+                OptionDepends = attr?.OptionDepends?.Select(static p => p.EndsWith("Property", StringComparison.OrdinalIgnoreCase) ? p[..^"Property".Length].ToCamelCase() : p.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? p[..^"Prop".Length].ToCamelCase() : p).ToArray(),
                 ForSchemas = attr?.ForSchemas ?? [],
                 ForValues = attr?.ForValues,
                 IncludeArray = attr?.IncludeArray,
-                Additional = additional.Count > 0 ? additional : null,
+                Extensions = extensions.Count > 0 ? extensions : null,
             }
         };
 
@@ -173,49 +174,52 @@ public sealed class PropertyType : AnySchemaType
     }
 
     /// <summary>
-    /// Build propSchema instances whose property name appears in <paramref name="additional"/>,
+    /// Build propSchema instances whose property name appears in <paramref name="extensions"/>,
     /// filtered by <paramref name="schemaType"/>, with values deserialized from the matching
     /// <see cref="JsonElement"/>. The returned list is topologically sorted by
     /// <see cref="SchemaPropertyAttribute.Depends"/> (dependencies first).
+    /// Properties referenced by <paramref name="relationProps"/> but absent from <paramref name="extensions"/>
+    /// are created with empty values so they can receive override values from relations at runtime.
     /// </summary>
-    public static IEnumerable<T> GetProperties<T>(SchemaContext context, SchemaType schemaType, Dictionary<string, JsonElement> additional, AnySchemaType? valueType = null) where T: IProperty
+    public static IEnumerable<T> GetProperties<T>(SchemaContext context, SchemaType schemaType, Dictionary<string, JsonElement> extensions, AnySchemaType? valueType = null, IReadOnlyList<string>? relationProps = null, bool fullConstraintList = false) where T: IProperty
     {
         if (SchemaContext.SystemProperty == null) return [];
 
-        // 1. Collect matching properties
+        // 1. Collect matching properties from extensions
         List<(string name, PropertyType entry, T instance)> matched = [];
 
         foreach (PropertyType entry in SchemaContext.SystemProperty.SchemaNodes.Values.Cast<PropertyType>())
         {
-            if (!propertyMap.TryGetValue(entry.Name, out Type? impl))
-                continue;
+            if (!propertyMap.TryGetValue(entry.Name, out Type? impl)) continue;
+            if (!typeof(T).IsAssignableFrom(impl)) continue;
+            if (!entry.ForSchemas.Contains(schemaType)) continue;
+            if (valueType != null && entry.ForValues != null && !entry.ForValues.Any(v => MatchSchemaValueType(valueType, v, entry.IncludeArray))) continue;
 
-            if (!typeof(T).IsAssignableFrom(impl))
-                continue;
-
-            // Filter by ForSchemas (null means all schema types)
-            if (!entry.ForSchemas.Contains(schemaType))
-                continue;
-
-            if (valueType != null && (entry.ForValues == null || (!entry.ForValues.Any(v => MatchSchemaValueType(valueType, v, entry.IncludeArray)))))
-                continue;
-
-            // Prop name must exist in additional (case-insensitive)
-            if (!additional.TryGetValue(entry.Property, out JsonElement element))
-                continue;
+            // Prop name must exist in extensions (case-insensitive)
+            bool hasData = extensions.TryGetValue(entry.Property, out JsonElement element);
+            bool allowEmpty = fullConstraintList && (typeof(IConstraintProperty).IsAssignableFrom(impl)) || relationProps != null && relationProps.Contains(entry.Property, StringComparer.OrdinalIgnoreCase);
+            if (!hasData && !allowEmpty) continue;
 
             // Create instance and deserialize value
-            if (Activator.CreateInstance(impl) is not T instance)
-                continue;
+            if (Activator.CreateInstance(impl) is not T instance) continue;
 
             // Get T from Constraint<T> and set Value
             instance.Name = entry.Property;
-            instance.SetValue(context, element, valueType);
-
-            if (instance.HasValue)
+            instance.ForArrayOnly = entry.ForValues != null && entry.ForValues.All(v => v == Enum.ValueSchemaType.Array);
+            if (hasData)
             {
+                instance.SetValue(context, element, valueType);
+
+                if (instance.HasValue)
+                {
+                    matched.Add((entry.Property, entry, instance));
+                    extensions[entry.Property] = instance.GetValue(); // write back
+                }
+            }
+            else if(allowEmpty)
+            {
+                // Create instance with empty value for relation reference
                 matched.Add((entry.Property, entry, instance));
-                additional[entry.Property] = instance.GetValue(); // write back
             }
         }
 
@@ -251,7 +255,7 @@ public sealed class PropertyType : AnySchemaType
                     if (indexMap.TryGetValue(dep, out int depIdx))
                         Visit(depIdx);
                     else
-                        throw new InvalidOperationException($"Constraint '{matched[i].name}' depends on '{dep}', which is not found in the additional properties.");
+                        throw new InvalidOperationException($"Constraint '{matched[i].name}' depends on '{dep}', which is not found in the extensions properties.");
                 }
             }
 

@@ -15,7 +15,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.schema")]
-public sealed class PolicySchema: IAdditionalProperty
+public sealed class PolicySchema: ISchemaExtensions
 {
     /// <summary>
     /// The policy name
@@ -31,10 +31,10 @@ public sealed class PolicySchema: IAdditionalProperty
     public PolicyItem[] Items { get; set; } = [];
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>

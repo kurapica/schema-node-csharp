@@ -203,7 +203,7 @@ public class SchemaTools
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
-            Additional = node.Additional,
+            Extensions = node.Extensions,
             Apps = node.Apps?.Select(a => {
                 AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
                 return new AppSchema
@@ -213,7 +213,7 @@ public class SchemaTools
                     Auth = a.Auth,
                     Auths = a.Auths,
                     Status = node.Status,
-                    Additional = a.Additional,
+                    Extensions = a.Extensions,
                     HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
                     HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
                 };

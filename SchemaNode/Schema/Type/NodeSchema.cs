@@ -44,22 +44,22 @@ public sealed class NodeSchema
 
     [NotMapped]
     [JsonIgnore]
-    public Dictionary<string, JsonElement>? Additional
+    public Dictionary<string, JsonElement>? Extensions
     {
         get => Type switch { 
-            SchemaType.Scalar => Scalar?.Additional,
-            SchemaType.Enum => Enum?.Additional,
-            SchemaType.Struct => Struct?.Additional,
-            SchemaType.Array => Array?.Additional,
-            SchemaType.Func => Func?.Additional,
-            SchemaType.Event => Event?.Additional,
-            SchemaType.Workflow => Workflow?.Additional,
-            SchemaType.Policy => Policy?.Additional,
-            SchemaType.Recognizer => Recognizer?.Additional,
-            SchemaType.Property => Property?.Additional,
+            SchemaType.Scalar => Scalar?.Extensions,
+            SchemaType.Enum => Enum?.Extensions,
+            SchemaType.Struct => Struct?.Extensions,
+            SchemaType.Array => Array?.Extensions,
+            SchemaType.Func => Func?.Extensions,
+            SchemaType.Event => Event?.Extensions,
+            SchemaType.Workflow => Workflow?.Extensions,
+            SchemaType.Policy => Policy?.Extensions,
+            SchemaType.Recognizer => Recognizer?.Extensions,
+            SchemaType.Property => Property?.Extensions,
             _ => null
         };
-        set => _additional = value;
+        set => _extensions = value;
     }
 
     /// <summary>
@@ -217,7 +217,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Scalar) return this;
         Scalar = scalar;
-        Scalar.Additional = _additional;
+        Scalar.Extensions = _extensions;
         return this;
     }
 
@@ -225,7 +225,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Enum) return this;
         Enum = enumSchema;
-        Enum.Additional = _additional;
+        Enum.Extensions = _extensions;
         return this;
     }
 
@@ -233,7 +233,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Struct) return this;
         Struct = structSchema;
-        Struct.Additional = _additional;
+        Struct.Extensions = _extensions;
         return this;
     }
 
@@ -241,7 +241,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Array) return this;
         Array = arraySchema;
-        Array.Additional = _additional;
+        Array.Extensions = _extensions;
         return this;
     }
 
@@ -249,7 +249,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Func) return this;
         Func = functionSchema;
-        Func.Additional = _additional;
+        Func.Extensions = _extensions;
         return this;
     }
 
@@ -257,7 +257,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Event) return this;
         Event = eventSchema;
-        Event.Additional = _additional;
+        Event.Extensions = _extensions;
         return this;
     }
 
@@ -265,7 +265,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Workflow) return this;
         Workflow = workflowSchema;
-        Workflow.Additional = _additional;
+        Workflow.Extensions = _extensions;
         return this;
     }
 
@@ -273,7 +273,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Policy) return this;
         Policy = policySchema;
-        Policy.Additional = _additional;
+        Policy.Extensions = _extensions;
         return this;
     }
 
@@ -281,7 +281,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Recognizer) return this;
         Recognizer = recognizerSchema;
-        Recognizer.Additional = _additional;
+        Recognizer.Extensions = _extensions;
         return this;
     }
 
@@ -289,7 +289,7 @@ public sealed class NodeSchema
     {
         if (Type != SchemaType.Property) return this;
         Property = propSchema;
-        Property.Additional = _additional;
+        Property.Extensions = _extensions;
         return this;
     }
 
@@ -326,7 +326,7 @@ public sealed class NodeSchema
 
     private SchemaLoadState? _schemaLoadState;
     private Type? _schemaProvider;
-    private Dictionary<string, JsonElement>? _additional;
+    private Dictionary<string, JsonElement>? _extensions;
 
     #endregion
 }

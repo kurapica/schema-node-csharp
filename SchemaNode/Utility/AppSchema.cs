@@ -49,12 +49,12 @@ internal static class App
                 HasApps = a.Apps is { Length: > 0 },
                 HasFields = a.Fields is { Length: > 0 },
                 ScopePolicy = a.ScopePolicy,
-                Additional = a.Additional,
+                Extensions = a.Extensions,
             }).ToArray(),
             Fields = app.Fields,
             Relations = app.Relations,
             Workflows = app.Workflows,
-            Additional = app.Additional
+            Extensions = app.Extensions
         };
     }
 

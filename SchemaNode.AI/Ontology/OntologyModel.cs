@@ -1,4 +1,6 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+using SchemaNode.Property.Constraint;
+
 namespace SchemaNode.AI;
 
 /// <summary>
@@ -340,7 +342,7 @@ public class OntologyScalarClass
     public string? Unit { get; init; }
 
     /// <summary>Cross-platform pattern validation, or <see langword="null"/>.</summary>
-    public Components.Property.Constraint.Pattern[]? Pattern { get; init; }
+    public Pattern[]? Pattern { get; init; }
 }
 
 /// <summary>

@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_ENUM}.schema")]
-public sealed class EnumSchema: IAdditionalProperty
+public sealed class EnumSchema: ISchemaExtensions
 {
     /// <summary>
     /// The enum name
@@ -37,19 +37,19 @@ public sealed class EnumSchema: IAdditionalProperty
     /// The enum values
     /// </summary>
     public EnumValueInfo[] Values { get; set; } = [];
-    
+
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// Used to combine custom schema to system schema
     /// </summary>
     internal void CombineCustomSchema(EnumSchema? other)
     {
-        this.CombineAdditionalProperty(other);
+        this.CombineExtensions(other);
     }
 }
 
@@ -97,12 +97,12 @@ public sealed class EnumValueInfo
     /// Whether the enum value is disabled
     /// </summary>
     public bool? Disable  { get; set; }
-    
+
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
     
     /// <summary>
     /// Whether the enum value has sub enum values
@@ -182,7 +182,7 @@ public sealed class EnumValueInfo
             SubList = (HasSubList ?? false) && SubList is { Length: > 0 } && limitLevel > 0 
                 ? SubList.Select(e => e.Clone(limitLevel - 1)).ToArray()
                 : null,
-            Additional = Additional,
+            Extensions = Extensions,
         };
     }
 }

@@ -1,14 +1,16 @@
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
 using SchemaNode.Components.Context;
-using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using static SchemaNode.Function.SystemStr;
 
 namespace SchemaNode.Runtime;
 
@@ -65,10 +67,10 @@ public sealed class AppWorkflowType: IDisposable
     public IProperty[]? Properties { get; internal set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; internal set; }
+    public Dictionary<string, JsonElement>? Extensions { get; internal set; }
     
     #endregion
     
@@ -106,9 +108,30 @@ public sealed class AppWorkflowType: IDisposable
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
+        // Resolve payload types for all nodes
+        foreach (var node in Nodes)
+        {
+            if (!string.IsNullOrWhiteSpace(node.Payload))
+            {
+                node.PayloadSchemaType = await context.GetSchemaTypeAsync(node.Payload);
+                node.PayloadSchemaType?.AddRef(this);
+            }
+        }
+
         // Init the entry workflow context
         if (Nodes.Length <= 1 || !Active) return;
         await ActiveAsync(context);
+    }
+
+    /// <summary>
+    /// Release usages
+    /// </summary>
+    public void Release()
+    {
+        foreach (var node in Nodes)
+        {
+            node.PayloadSchemaType?.RemoveRef(this);
+        }
     }
 
     /// <summary>
@@ -153,8 +176,8 @@ public sealed class AppWorkflowType: IDisposable
             wNode.PayloadSave = node.PayloadSave ?? false;
 
             // payload type
-            if (!string.IsNullOrWhiteSpace(node.Payload))
-                wNode.PayloadType = await context.GetSchemaTypeAsync(node.Payload);
+            if (node.PayloadSchemaType != null)
+                wNode.PayloadType = node.PayloadSchemaType;
 
             // state
             if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
@@ -292,7 +315,7 @@ public sealed class AppWorkflowType: IDisposable
             Auths = schema.Auths,
             Active = schema.Active,
             Nodes = schema.Nodes.ToArray(),
-            Additional = schema.Additional,
+            Extensions = schema.Extensions,
         };
     }
 
@@ -307,7 +330,7 @@ public sealed class AppWorkflowType: IDisposable
             Seqno = type.Seqno,
             Active = type.Activated,
             Nodes = type.Nodes.ToArray(),
-            Additional = type.Additional
+            Extensions = type.Extensions
         };
     }
     

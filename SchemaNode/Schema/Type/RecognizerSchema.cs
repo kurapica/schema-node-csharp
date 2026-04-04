@@ -1,9 +1,14 @@
-﻿using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Property;
+using SchemaNode.Property.Convert;
+using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
-using static SchemaNode.Utility.Constant;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
@@ -15,10 +20,10 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.schema")]
-public sealed class RecognizerSchema: IAdditionalProperty
+public sealed class RecognizerSchema: ISchemaExtensions
 {
     /// <summary>
-    /// The recognizer name
+    /// The recognizer typeName
     /// </summary>
     [Index]
     [JsonIgnore]
@@ -38,27 +43,38 @@ public sealed class RecognizerSchema: IAdditionalProperty
     /// Each part is a Literal, Field, or ArrayRepeat with type-specific configuration
     /// including character validation rules and validation functions.
     /// </summary>
-    public RecognizerPart[] Parts { get; set; } = [];
+    public RecognizerPartSchema[] Parts { get; set; } = [];
 
     /// <summary>
-    /// The additional data
+    /// The relations between parts
+    /// </summary>
+    public RecognizerRelationSchema[]? Relations { get; set; }
+
+    /// <summary>
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>
 /// A single part of the recognizer format template, designed for frontend configuration.
 /// Each part carries its own type-specific properties and optional validation rules.
+/// Convert properties (IConvertProperty) are stored in the Extensions dictionary,
+/// supporting extensible bidirectional conversion (parse and emit), similar to how
+/// StructFieldSchema uses properties for constraint and presentation features.
+/// Execution is strictly phased: Prefix → Suffix are structural; Content converters are the rest.
+/// Emit order: Content converters → Prefix → Suffix.
+/// Parse order (reverse): Prefix → Suffix → Content converters (reversed).
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.part")]
-public sealed class RecognizerPart
+public sealed class RecognizerPartSchema : ISchemaExtensions
 {
     /// <summary>
     /// The part type
     /// </summary>
-    public FormatPartType Type { get; set; }
+    public RecognizerPartType Type { get; set; }
 
     /// <summary>
     /// Literal: the text to match/emit
@@ -66,123 +82,236 @@ public sealed class RecognizerPart
     public string? Text { get; set; }
 
     /// <summary>
-    /// Field: the struct field name this part binds to
+    /// Field: the struct field typeName this part binds to
     /// </summary>
     public string? Field { get; set; }
 
     /// <summary>
-    /// ArrayRepeat: the delimiter between array elements
+    /// Field names this part depends on and must be parsed before this part (used for ordering in prefix-mode parsing).
     /// </summary>
-    public string? Delimiter { get; set; }
+    public string[]? Depends { get; set; }
 
     /// <summary>
-    /// A special recognizer for the given part
+    /// The extensions
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER)]
-    public string? Recognizer { get; set; }
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    #region Runtime
 
     /// <summary>
-    /// The format descriptor for scalar/enum formatting and parsing.
-    /// For scalar types, provides C-style format options (digits, padding, trimming, date layout, etc.).
-    /// For enum types, provides inline mapping via Entry[] and/or function-based conversion.
+    /// The properties loaded from Extensions
     /// </summary>
-    public FormatDescriptor? Format { get; set; }
+    [NotMapped]
+    [JsonIgnore]
+    internal IProperty[]? Properties { get; set; }
+
+    /// <summary>
+    /// The convert properties from Extensions
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal IConvertProperty[]? ConvertProperties { get; set; }
+
+    /// <summary>
+    /// The prefix property
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal IPrefixProperty? PrefixProperty { get; private set;  }  
+
+    /// <summary>
+    /// The prefix property loaded from Extensions, used for recognizer parts that require a prefix for validation (e.g. Field, Elements)
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal string? Prefix { get; private set; }
+
+    /// <summary>
+    /// The suffix property
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal ISuffixProperty? SuffixProperty { get; private set; }
+
+    /// <summary>
+    /// The suffix property loaded from Extensions, used for recognizer parts that require a suffix for validation (e.g. Field, Elements)
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal string? Suffix { get; private set; }
+
+    /// <summary>
+    /// The recognizer property
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal RecognizerProperty? RecognizerProperty { get; set; }
+
+    /// <summary>
+    /// The reference properties from Extensions, used for recognizer parts that reference other types (e.g. Field with a struct type)
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    internal AnySchemaType[]? RefTypes { get; set; }
+
+    /// <summary>
+    /// The schema node status
+    /// </summary>
+    public SchemaNodeStatus? Status { get; internal set; } = SchemaNodeStatus.Ready;
+
+    #endregion
+
+    #region Method
+
+    internal async Task LoadRecognizerPart(SchemaContext context, RecognizerType type, AnySchemaType partType, string? name = null)
+    {
+        UnloadRecognizerPart(type);
+
+        // Collect property names referenced by relations for this part
+        var relationProps = !string.IsNullOrWhiteSpace(name)
+            ? type.Relations?.Where(r => r.Part.Equals(name, StringComparison.OrdinalIgnoreCase)).Select(r => r.Prop)
+            : null;
+
+        if (Extensions is { Count: > 0 } || relationProps?.Any() == true)
+        {
+            Properties = PropertyType.GetProperties<IProperty>(context, SchemaType.RecognizerPart, Extensions ?? new(), partType, relationProps)?.ToArray();
+            if (Properties is { Length: > 0 })
+            {
+                // Structural: prefix and suffix are separated from content converters
+                PrefixProperty = Properties.FirstOrDefault(p => p is IPrefixProperty) as IPrefixProperty;
+                SuffixProperty = Properties.FirstOrDefault(p => p is ISuffixProperty) as ISuffixProperty;
+                Prefix = PrefixProperty?.Prefix(name, type);
+                Suffix = SuffixProperty?.Suffix(name, type);
+
+                // RecognizerProperty is also structural in that it links to the recognizer
+                RecognizerProperty = Properties.FirstOrDefault(p => p is RecognizerProperty) as RecognizerProperty;
+
+                // Content converters exclude structural prefix/suffix properties
+                ConvertProperties = Properties
+                    .Where(p => p is IConvertProperty and not (IPrefixProperty or ISuffixProperty or Property.Convert.RecognizerProperty))
+                    .Cast<IConvertProperty>()
+                    .ToArray();
+
+                // Wire up PadChar/PadLeft to MinDigits for cooperative behavior
+                var minDigits = ConvertProperties.FirstOrDefault(p => p is MinDigitsProperty) as MinDigitsProperty;
+                var padChar = ConvertProperties.FirstOrDefault(p => p is PadCharProperty) as PadCharProperty;
+                var padLeft = ConvertProperties.FirstOrDefault(p => p is PadLeftProperty) as PadLeftProperty;
+                bool padLeftVal = padLeft?.Value ?? true;
+                if (minDigits != null)
+                {
+                    if (padChar?.Value is { Length: > 0 } pc) minDigits.PadChar = pc[0];
+                    minDigits.PadLeft = padLeftVal;
+                }
+                if (padChar != null) padChar.PadLeft = padLeftVal;
+
+                // Resolve type references from convert properties
+                List<AnySchemaType>? refTypes = null;
+                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty).Cast<ITypeRefProperty>())
+                {
+                    string? typeName = typeRef.GetValue<string>();
+                    if (string.IsNullOrWhiteSpace(typeName)) continue;
+                    var node = await context.GetSchemaTypeAsync(typeName);
+                    if (node == null)
+                    {
+                        Status = SchemaNodeStatus.RecognizerWrongFuncRef;
+                        type.Status = SchemaNodeStatus.RecognizerWrongFuncRef;
+                    }
+                    else
+                    {
+                        refTypes ??= [];
+                        refTypes.Add(node);
+                    }
+                }
+
+                RefTypes = refTypes?.ToArray();
+                refTypes?.ForEach(r => r.AddRef(type));
+            }
+        }
+
+        // Load RecognizerProperty from the Recognizer field (type-checked here)
+        bool requireRecognizer = partType is StructType || partType is ArrayType arrType && arrType.ElementSchemaType is StructType;
+        if (requireRecognizer || RecognizerProperty != null)
+        {
+            if (RecognizerProperty?.Recognizer?.SourceSchemaType == null ||
+                !(RecognizerProperty.Recognizer.SourceSchemaType.CanBeUseAs(partType) ||
+                  (partType is ArrayType arrayType && arrayType.ElementSchemaType != null && 
+                  RecognizerProperty.Recognizer.SourceSchemaType.CanBeUseAs(arrayType.ElementSchemaType)) ||
+                  (RecognizerProperty.TargetsArray && 
+                   RecognizerProperty.Recognizer.SourceSchemaType is ArrayType recArrType && 
+                   recArrType.ElementSchemaType != null && 
+                   recArrType.ElementSchemaType.CanBeUseAs(partType))))
+            {
+                Status = SchemaNodeStatus.RecognizerPartWrongSubRecognizer;
+                type.Status = SchemaNodeStatus.RecognizerPartWrongSubRecognizer;
+                return;
+            }
+        }
+    }
+
+    internal void UnloadRecognizerPart(RecognizerType type)
+    {
+        if (RefTypes is { Length: > 0 })
+        {
+            foreach (var refType in RefTypes)
+                refType.RemoveRef(type);
+        }
+
+        Properties = null;
+        ConvertProperties = null;
+        Prefix = null;
+        Suffix = null;
+        PrefixProperty = null;
+        SuffixProperty = null;
+        RecognizerProperty = null;
+        RefTypes = null;
+    }
+
+    #endregion
 }
 
 /// <summary>
-/// Describes how a scalar or enum value is formatted (emitted) and parsed (recognized).
-/// For scalar source types, provides C-format-style options (number precision, padding, casing, datetime layout).
-/// For enum source types, provides a two-level mapping:
-///   Level 1 (inline): an Entry[] mapping from enum values to display strings (supports localization).
-///   Level 2 (function): FormatFunc / ParseFunc for arbitrary conversion logic.
+/// Defines a dynamic recognizer selection for a given Part.
+/// Based on already-parsed field values (via Func/Args), the appropriate RecognizerType
+/// is resolved at parse/emit time instead of being statically bound.
 /// </summary>
 [SchemaApp]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.format")]
-public sealed class FormatDescriptor
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_RECOGNIZER}.relation")]
+public class RecognizerRelationSchema
 {
-    // ── Number ──────────────────────────────────────────────────────────
-
     /// <summary>
-    /// Minimum number of digits (zero-padded on the left if shorter).
-    /// Applies to integer or numeric scalar types.
-    /// Example: MinDigits = 3, value 7 → "007"
+    /// The field name of the Part whose recognizer is dynamically determined.
     /// </summary>
-    public int? MinDigits { get; set; }
+    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    public required string Part { get; set; }
 
     /// <summary>
-    /// Maximum number of digits (truncated from the left if longer).
-    /// Applies to integer or numeric scalar types.
+    /// The property of the relation, so the function can modify it dynamically
     /// </summary>
-    public int? MaxDigits { get; set; }
+    [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
+    public required string Prop { get; set; }
 
     /// <summary>
-    /// Number of decimal places for floating-point scalar types.
-    /// Example: Precision = 2, value 3.1 → "3.10"
-    /// </summary>
-    public int? Precision { get; set; }
-
-    // ── Padding ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// The padding character. Used together with MinDigits or a fixed-width layout.
-    /// Default pad char is '0' for numbers when MinDigits is set.
-    /// </summary>
-    public char? PadChar { get; set; }
-
-    /// <summary>
-    /// Whether to pad on the left (true) or the right (false).
-    /// Default is true (left-padding).
-    /// </summary>
-    public bool? PadLeft { get; set; }
-
-    // ── String ──────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Whether to trim leading and trailing whitespace from the string value.
-    /// </summary>
-    public bool? Trim { get; set; }
-
-    /// <summary>
-    /// Whether to convert the string value to upper case.
-    /// </summary>
-    public bool? ToUpper { get; set; }
-
-    /// <summary>
-    /// Whether to convert the string value to lower case.
-    /// </summary>
-    public bool? ToLower { get; set; }
-
-    // ── DateTime ────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Date/time layout string (e.g., "yyyy-MM-dd", "HH:mm:ss").
-    /// Applied when the scalar base type is a date or datetime.
-    /// </summary>
-    public string? Layout { get; set; }
-
-    // ── Enum mapping (Level 1: inline) ──────────────────────────────────
-
-    /// <summary>
-    /// Inline enum-to-display mapping. Each Entry.Value matches an enum value,
-    /// and Entry.Label provides the display string with optional localization.
-    /// When emitting, the enum value is replaced by the matching Entry's label key.
-    /// When parsing, the display string is mapped back to the enum value.
-    /// </summary>
-    public Entry[]? Mapping { get; set; }
-
-    // ── Enum mapping (Level 2: function-based) ──────────────────────────
-
-    /// <summary>
-    /// The fully qualified name of a function that converts a typed value to its string representation.
-    /// Signature: (value) → string
+    /// Function that returns a RecognizerType name given the current parsed data.
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
-    public string? FormatFunc { get; set; }
+    public required string Func { get; set; }
 
     /// <summary>
-    /// The fully qualified name of a function that converts a string representation back to a typed value.
-    /// Signature: (string) → value
+    /// Arguments passed to the function. Name references a parsed field; Value is a constant.
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
-    public string? ParseFunc { get; set; }
+    public FuncCallArg[] Args { get; set; } = [];
+
+    /// <summary>
+    /// Runtime: resolved function type
+    /// </summary>
+    [JsonIgnore]
+    [NotMapped]
+    public FunctionType? FuncNode { get; set; }
+
+    /// <summary>
+    /// Runtime: status of this relation
+    /// </summary>
+    [NotMapped]
+    public SchemaNodeStatus? Status { get; set; }
 }

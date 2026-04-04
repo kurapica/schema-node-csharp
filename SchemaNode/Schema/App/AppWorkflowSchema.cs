@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -15,7 +16,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.schema")]
-public sealed class AppWorkflowSchema: IAdditionalProperty
+public sealed class AppWorkflowSchema: ISchemaExtensions
 {
     /// <summary>
     /// the application name
@@ -55,19 +56,19 @@ public sealed class AppWorkflowSchema: IAdditionalProperty
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
-    
+
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>
 /// The application workflow node
 /// </summary>
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.node")]
-public sealed class AppWorkflowNodeSchema: IAdditionalProperty
+public sealed class AppWorkflowNodeSchema: ISchemaExtensions
 {
     /// <summary>
     /// The node name
@@ -148,11 +149,18 @@ public sealed class AppWorkflowNodeSchema: IAdditionalProperty
     public bool? PayloadSave { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    /// <summary>
+    /// The resolved payload schema type
+    /// </summary>
+    [JsonIgnore]
+    [NotMapped]
+    public AnySchemaType? PayloadSchemaType { get; set; }
+
     /// <summary>
     /// The schema node status
     /// </summary>

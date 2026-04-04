@@ -5,16 +5,24 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.UnitTest;
 
 /// <summary>
-/// Tests for RecognizerType and FormatDescriptor: parsing, emitting, pattern-based parsing, and formatting
+/// Tests for RecognizerType: parsing, emitting, pattern-based parsing, and convert property pipeline
 /// </summary>
 [TestClass]
 public class RecognizerTypeTest : TestBase
 {
+    static readonly JsonSerializerOptions CamelCase = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     // ─────────────────────────────────────────────────────────────────────
     // RecognizerType: type-first format-driven parsing and emitting
     // ─────────────────────────────────────────────────────────────────────
@@ -52,9 +60,9 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.kvresult",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "key" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "value" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "key" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "value" },
                 ]
             }
         });
@@ -140,11 +148,11 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.sku",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "color" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "size" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "material" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "color" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "size" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "material" },
                 ]
             }
         });
@@ -194,11 +202,11 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.sku",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "color" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "size" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "material" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "color" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "size" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "material" },
                 ]
             }
         });
@@ -234,7 +242,7 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "nonexistent.type",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "x" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "x" },
                 ]
             }
         });
@@ -275,9 +283,9 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.person",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "name" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = ":" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "age" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "name" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = ":" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "age" },
                 ]
             }
         });
@@ -310,7 +318,7 @@ public class RecognizerTypeTest : TestBase
                 SourceType = NS_SYSTEM_INTS,
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Elements, Delimiter = "," },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Elements, Extensions = new() { ["commaSuffix"] = JsonSerializer.SerializeToElement(true) } },
                 ]
             }
         });
@@ -344,7 +352,7 @@ public class RecognizerTypeTest : TestBase
                 SourceType = NS_SYSTEM_INTS,
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Elements, Delimiter = "," },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Elements, Extensions = new() { ["commaSuffix"] = JsonSerializer.SerializeToElement(true) } },
                 ]
             }
         });
@@ -480,7 +488,7 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.taglist",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Elements, Delimiter = ";" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Elements, Extensions = new() { ["semicolonSuffix"] = JsonSerializer.SerializeToElement(true) } },
                 ]
             }
         });
@@ -495,9 +503,9 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.order",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "id" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "|" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "items", Recognizer = "test.taglistrecognizer" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "id" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "|" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "items", Extensions = new() { ["recognizer"] = System.Text.Json.JsonSerializer.SerializeToElement("test.taglistrecognizer") } },
                 ]
             }
         });
@@ -550,11 +558,11 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.coord",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "(" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "x" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "," },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "y" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = ")" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "(" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "x" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "," },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "y" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = ")" },
                 ]
             }
         });
@@ -602,9 +610,9 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.point",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "x" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "," },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "y" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "x" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "," },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "y" },
                 ],
             }
         });
@@ -619,11 +627,11 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.point",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "(" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "x" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = ", " },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "y" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = ")" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "(" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "x" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = ", " },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "y" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = ")" },
                 ],
             }
         });
@@ -649,32 +657,21 @@ public class RecognizerTypeTest : TestBase
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // FormatDescriptor: scalar formatting & enum inline mapping
+    // Convert property pipeline: scalar formatting & enum inline mapping
     // ─────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Scalar emit with MinDigits: integer zero-padded to minimum width
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_MinDigits_Emit()
+    public async Task ConvertPipeline_Scalar_MinDigits_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtint",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtint", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_INT,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MinDigits = 5 }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["minDigits"] = J(5) } }]
             }
         });
 
@@ -685,38 +682,22 @@ public class RecognizerTypeTest : TestBase
         var intType = await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        // 42 → "00042"
-        var emitted = await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!);
-        Assert.AreEqual("00042", emitted);
-
-        // Already 5+ digits → no change
-        var emitted2 = await recognizer.EmitAsync(ctx, intType.CreateNode(123456L)!);
-        Assert.AreEqual("123456", emitted2);
+        Assert.AreEqual("00042",  await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!));
+        Assert.AreEqual("123456", await recognizer.EmitAsync(ctx, intType.CreateNode(123456L)!));
     }
 
-    /// <summary>
-    /// Scalar emit with MaxDigits: truncates integer from the left
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_MaxDigits_Emit()
+    public async Task ConvertPipeline_Scalar_MaxDigits_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtmaxint",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtmaxint", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_INT,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MaxDigits = 3 }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["maxDigits"] = J(3) } }]
             }
         });
 
@@ -725,38 +706,22 @@ public class RecognizerTypeTest : TestBase
         var intType = await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        // 123456 → last 3 digits "456"
-        var emitted = await recognizer.EmitAsync(ctx, intType.CreateNode(123456L)!);
-        Assert.AreEqual("456", emitted);
-
-        // 42 → no truncation "42"
-        var emitted2 = await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!);
-        Assert.AreEqual("42", emitted2);
+        Assert.AreEqual("456", await recognizer.EmitAsync(ctx, intType.CreateNode(123456L)!));
+        Assert.AreEqual("42",  await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!));
     }
 
-    /// <summary>
-    /// Scalar emit with Precision: decimal places for floating-point
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_Precision_Emit()
+    public async Task ConvertPipeline_Scalar_Precision_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtdec",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtdec", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_DOUBLE,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { Precision = 2 }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["precision"] = J(2) } }]
             }
         });
 
@@ -765,38 +730,22 @@ public class RecognizerTypeTest : TestBase
         var doubleType = await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_DOUBLE);
         Assert.IsNotNull(doubleType);
 
-        // 3.1 → "3.10"
-        var emitted = await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.1m)!);
-        Assert.AreEqual("3.10", emitted);
-
-        // 3.14159 → "3.14"
-        var emitted2 = await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.14159m)!);
-        Assert.AreEqual("3.14", emitted2);
+        Assert.AreEqual("3.10", await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.1m)!));
+        Assert.AreEqual("3.14", await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.14159m)!));
     }
 
-    /// <summary>
-    /// Scalar emit with custom PadChar: pad with spaces instead of zeros
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_PadChar_Emit()
+    public async Task ConvertPipeline_Scalar_PadChar_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtpadint",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtpadint", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_INT,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MinDigits = 5, PadChar = ' ' }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["minDigits"] = J(5), ["padChar"] = J(" ") } }]
             }
         });
 
@@ -805,35 +754,22 @@ public class RecognizerTypeTest : TestBase
         var intType = await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        // 42 → "   42" (space-padded on the left)
-        var emitted = await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!);
-        Assert.AreEqual("   42", emitted);
+        Assert.AreEqual("   42", await recognizer.EmitAsync(ctx, intType.CreateNode(42L)!));
     }
 
-    /// <summary>
-    /// Scalar emit with string transformations: Trim, ToUpper, ToLower
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_StringTransform_Emit()
+    public async Task ConvertPipeline_Scalar_StringTransform_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         // ToUpper
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtupper",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtupper", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_STRING,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { ToUpper = true }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["toUpper"] = J(true) } }]
             }
         });
 
@@ -846,19 +782,11 @@ public class RecognizerTypeTest : TestBase
         // ToLower
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtlower",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtlower", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_STRING,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { ToLower = true }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["toLower"] = J(true) } }]
             }
         });
 
@@ -869,19 +797,11 @@ public class RecognizerTypeTest : TestBase
         // Trim
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmttrim",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmttrim", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_STRING,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { Trim = true }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["trim"] = J(true) } }]
             }
         });
 
@@ -890,99 +810,64 @@ public class RecognizerTypeTest : TestBase
         Assert.AreEqual("hello", await trim.EmitAsync(ctx, strType.CreateNode("  hello  ")!));
     }
 
-    /// <summary>
-    /// Scalar parse with FormatDescriptor: strip padding during parse
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_Parse_StripPadding()
+    public async Task ConvertPipeline_Scalar_Parse_StripPadding()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtparsepad",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtparsepad", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_INT,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MinDigits = 5, PadChar = '0' }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["minDigits"] = J(5), ["padChar"] = J("0") } }]
             }
         });
 
         var recognizer = await ctx.GetSchemaTypeAsync<RecognizerType>("test.fmtparsepad");
         Assert.IsNotNull(recognizer);
 
-        // "00042" → 42
         var result = await recognizer.RecognizeAsync(ctx, "00042");
         Assert.IsTrue(result.Success);
         Assert.AreEqual(42L, result.Value?.ToValue<long>());
     }
 
-    /// <summary>
-    /// Scalar parse with string transformations applied during recognize
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_Parse_StringTransform()
+    public async Task ConvertPipeline_Scalar_Parse_StringTransform()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtparseupper",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtparseupper", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_STRING,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { Trim = true, ToUpper = true }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["trim"] = J(true), ["toUpper"] = J(true) } }]
             }
         });
 
         var recognizer = await ctx.GetSchemaTypeAsync<RecognizerType>("test.fmtparseupper");
         Assert.IsNotNull(recognizer);
 
-        // "  hello  " → trimmed then uppercased → "HELLO"
         var result = await recognizer.RecognizeAsync(ctx, "  hello  ");
         Assert.IsTrue(result.Success);
         Assert.AreEqual("HELLO", result.Value?.ToString());
     }
 
-    /// <summary>
-    /// Scalar emit with combined MinDigits and Precision
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_MinDigitsAndPrecision_Emit()
+    public async Task ConvertPipeline_Scalar_MinDigitsAndPrecision_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtcombined",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtcombined", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_DOUBLE,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MinDigits = 3, Precision = 2 }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["minDigits"] = J(3), ["precision"] = J(2) } }]
             }
         });
 
@@ -992,57 +877,35 @@ public class RecognizerTypeTest : TestBase
         Assert.IsNotNull(doubleType);
 
         // 3.1 → precision first "3.10", then pad integer part → "003.10"
-        var emitted = await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.1m)!);
-        Assert.AreEqual("003.10", emitted);
+        Assert.AreEqual("003.10", await recognizer.EmitAsync(ctx, doubleType.CreateNode(3.1m)!));
     }
 
-    /// <summary>
-    /// Enum emit with inline mapping: enum value → display string
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Enum_InlineMapping_Emit()
+    public async Task ConvertPipeline_Enum_InlineMapping_Emit()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtcolor",
-            Type = SchemaType.Enum,
+            Name = "test.fmtcolor", Type = SchemaType.Enum,
             Enum = new EnumSchema
             {
                 Type = EnumValueType.String,
-                Values =
-                [
-                    new EnumValueInfo { Value = "R", Name = "Red" },
-                    new EnumValueInfo { Value = "G", Name = "Green" },
-                    new EnumValueInfo { Value = "B", Name = "Blue" }
-                ]
+                Values = [new EnumValueInfo { Value = "R", Name = "Red" }, new EnumValueInfo { Value = "G", Name = "Green" }, new EnumValueInfo { Value = "B", Name = "Blue" }]
             }
         });
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtcolorrecognizer",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtcolorrecognizer", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = "test.fmtcolor",
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor
-                        {
-                            Mapping =
-                            [
-                                new Entry { Value = "R", Label = "Red" },
-                                new Entry { Value = "G", Label = "Green" },
-                                new Entry { Value = "B", Label = "Blue" },
-                            ]
-                        }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema
+                {
+                    Type = RecognizerPartType.Self,
+                    Extensions = new() { ["mapping"] = JMapping([new Entry { Value = "R", Label = "Red" }, new Entry { Value = "G", Label = "Green" }, new Entry { Value = "B", Label = "Blue" }]) }
+                }]
             }
         });
 
@@ -1052,228 +915,133 @@ public class RecognizerTypeTest : TestBase
         var enumType = await ctx.GetSchemaTypeAsync<EnumType>("test.fmtcolor");
         Assert.IsNotNull(enumType);
 
-        // Emit: "R" → "Red"
-        var emitted = await recognizer.EmitAsync(ctx, enumType.CreateNode("R")!);
-        Assert.AreEqual("Red", emitted);
-
-        // Emit: "G" → "Green"
-        var emitted2 = await recognizer.EmitAsync(ctx, enumType.CreateNode("G")!);
-        Assert.AreEqual("Green", emitted2);
+        Assert.AreEqual("Red",   await recognizer.EmitAsync(ctx, enumType.CreateNode("R")!));
+        Assert.AreEqual("Green", await recognizer.EmitAsync(ctx, enumType.CreateNode("G")!));
     }
 
-    /// <summary>
-    /// Enum parse with inline mapping: display string → enum value
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Enum_InlineMapping_Parse()
+    public async Task ConvertPipeline_Enum_InlineMapping_Parse()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtstatus",
-            Type = SchemaType.Enum,
+            Name = "test.fmtstatus", Type = SchemaType.Enum,
             Enum = new EnumSchema
             {
                 Type = EnumValueType.Int,
-                Values =
-                [
-                    new EnumValueInfo { Value = "1", Name = "Active" },
-                    new EnumValueInfo { Value = "2", Name = "Inactive" },
-                    new EnumValueInfo { Value = "3", Name = "Pending" }
-                ]
+                Values = [new EnumValueInfo { Value = "1", Name = "Active" }, new EnumValueInfo { Value = "2", Name = "Inactive" }, new EnumValueInfo { Value = "3", Name = "Pending" }]
             }
         });
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtstatusrecognizer",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtstatusrecognizer", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = "test.fmtstatus",
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor
-                        {
-                            Mapping =
-                            [
-                                new Entry { Value = "1", Label = "Active" },
-                                new Entry { Value = "2", Label = "Inactive" },
-                                new Entry { Value = "3", Label = "Pending" },
-                            ]
-                        }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema
+                {
+                    Type = RecognizerPartType.Self,
+                    Extensions = new() { ["mapping"] = JMapping([new Entry { Value = "1", Label = "Active" }, new Entry { Value = "2", Label = "Inactive" }, new Entry { Value = "3", Label = "Pending" }]) }
+                }]
             }
         });
 
         var recognizer = await ctx.GetSchemaTypeAsync<RecognizerType>("test.fmtstatusrecognizer");
         Assert.IsNotNull(recognizer);
 
-        // Parse: "Active" → "1"
         var result1 = await recognizer.RecognizeAsync(ctx, "Active");
         Assert.IsTrue(result1.Success);
         Assert.AreEqual("1", result1.Value?.ToString());
 
-        // Parse: "Pending" → "3"
         var result2 = await recognizer.RecognizeAsync(ctx, "Pending");
         Assert.IsTrue(result2.Success);
         Assert.AreEqual("3", result2.Value?.ToString());
 
-        // Parse: unknown mapping → fail
         var fail = await recognizer.RecognizeAsync(ctx, "Unknown");
         Assert.IsFalse(fail.Success);
     }
 
-    /// <summary>
-    /// Enum inline mapping with localized labels: parse via translation
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Enum_InlineMapping_Localized()
+    public async Task ConvertPipeline_Enum_InlineMapping_Localized()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtpriority",
-            Type = SchemaType.Enum,
+            Name = "test.fmtpriority", Type = SchemaType.Enum,
             Enum = new EnumSchema
             {
                 Type = EnumValueType.String,
-                Values =
-                [
-                    new EnumValueInfo { Value = "H", Name = "High" },
-                    new EnumValueInfo { Value = "M", Name = "Medium" },
-                    new EnumValueInfo { Value = "L", Name = "Low" }
-                ]
+                Values = [new EnumValueInfo { Value = "H", Name = "High" }, new EnumValueInfo { Value = "M", Name = "Medium" }, new EnumValueInfo { Value = "L", Name = "Low" }]
             }
         });
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtpriorityrecognizer",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtpriorityrecognizer", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = "test.fmtpriority",
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor
-                        {
-                            Mapping =
-                            [
-                                new Entry
-                                {
-                                    Value = "H",
-                                    Label = new LocaleString("High", [
-                                        new LocaleTran("zh", "高"),
-                                        new LocaleTran("ja", "高い")
-                                    ])
-                                },
-                                new Entry
-                                {
-                                    Value = "M",
-                                    Label = new LocaleString("Medium", [
-                                        new LocaleTran("zh", "中"),
-                                        new LocaleTran("ja", "中くらい")
-                                    ])
-                                },
-                                new Entry
-                                {
-                                    Value = "L",
-                                    Label = new LocaleString("Low", [
-                                        new LocaleTran("zh", "低"),
-                                        new LocaleTran("ja", "低い")
-                                    ])
-                                },
-                            ]
-                        }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema
+                {
+                    Type = RecognizerPartType.Self,
+                    Extensions = new() { ["mapping"] = JMapping([
+                        new Entry { Value = "H", Label = new LocaleString("High", [new LocaleTran("zh", "高"), new LocaleTran("ja", "高い")]) },
+                        new Entry { Value = "M", Label = new LocaleString("Medium", [new LocaleTran("zh", "中"), new LocaleTran("ja", "中くらい")]) },
+                        new Entry { Value = "L", Label = new LocaleString("Low", [new LocaleTran("zh", "低"), new LocaleTran("ja", "低い")]) },
+                    ]) }
+                }]
             }
         });
 
         var recognizer = await ctx.GetSchemaTypeAsync<RecognizerType>("test.fmtpriorityrecognizer");
         Assert.IsNotNull(recognizer);
 
-        // Parse by default key: "High" → "H"
         var r1 = await recognizer.RecognizeAsync(ctx, "High");
         Assert.IsTrue(r1.Success);
         Assert.AreEqual("H", r1.Value?.ToString());
 
-        // Parse by zh translation: "高" → "H"
         var r2 = await recognizer.RecognizeAsync(ctx, "高");
         Assert.IsTrue(r2.Success);
         Assert.AreEqual("H", r2.Value?.ToString());
 
-        // Parse by ja translation: "低い" → "L"
         var r3 = await recognizer.RecognizeAsync(ctx, "低い");
         Assert.IsTrue(r3.Success);
         Assert.AreEqual("L", r3.Value?.ToString());
 
-        // Emit: "M" → "Medium" (default key)
         var priorityType = await ctx.GetSchemaTypeAsync<EnumType>("test.fmtpriority");
         Assert.IsNotNull(priorityType);
-        var emitted = await recognizer.EmitAsync(ctx, priorityType.CreateNode("M")!);
-        Assert.AreEqual("Medium", emitted);
+        Assert.AreEqual("Medium", await recognizer.EmitAsync(ctx, priorityType.CreateNode("M")!));
     }
 
-    /// <summary>
-    /// Enum emit/parse roundtrip with inline mapping
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Enum_InlineMapping_Roundtrip()
+    public async Task ConvertPipeline_Enum_InlineMapping_Roundtrip()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtsize",
-            Type = SchemaType.Enum,
+            Name = "test.fmtsize", Type = SchemaType.Enum,
             Enum = new EnumSchema
             {
                 Type = EnumValueType.String,
-                Values =
-                [
-                    new EnumValueInfo { Value = "S",  Name = "Small" },
-                    new EnumValueInfo { Value = "M",  Name = "Medium" },
-                    new EnumValueInfo { Value = "L",  Name = "Large" },
-                    new EnumValueInfo { Value = "XL", Name = "Extra Large" }
-                ]
+                Values = [new EnumValueInfo { Value = "S", Name = "Small" }, new EnumValueInfo { Value = "M", Name = "Medium" }, new EnumValueInfo { Value = "L", Name = "Large" }, new EnumValueInfo { Value = "XL", Name = "Extra Large" }]
             }
         });
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtsizerecognizer",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtsizerecognizer", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = "test.fmtsize",
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor
-                        {
-                            Mapping =
-                            [
-                                new Entry { Value = "S",  Label = "Small" },
-                                new Entry { Value = "M",  Label = "Medium" },
-                                new Entry { Value = "L",  Label = "Large" },
-                                new Entry { Value = "XL", Label = "Extra Large" },
-                            ]
-                        }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema
+                {
+                    Type = RecognizerPartType.Self,
+                    Extensions = new() { ["mapping"] = JMapping([new Entry { Value = "S", Label = "Small" }, new Entry { Value = "M", Label = "Medium" }, new Entry { Value = "L", Label = "Large" }, new Entry { Value = "XL", Label = "Extra Large" }]) }
+                }]
             }
         });
 
@@ -1282,7 +1050,6 @@ public class RecognizerTypeTest : TestBase
         var sizeType = await ctx.GetSchemaTypeAsync<EnumType>("test.fmtsize");
         Assert.IsNotNull(sizeType);
 
-        // Emit then parse roundtrip
         var emitted = await recognizer.EmitAsync(ctx, sizeType.CreateNode("XL")!);
         Assert.AreEqual("Extra Large", emitted);
 
@@ -1291,29 +1058,18 @@ public class RecognizerTypeTest : TestBase
         Assert.AreEqual("XL", parsed.Value?.ToString());
     }
 
-    /// <summary>
-    /// Scalar negative number with MinDigits: sign is preserved outside padding
-    /// </summary>
     [TestMethod]
-    public async Task FormatDescriptor_Scalar_NegativeNumber_MinDigits()
+    public async Task ConvertPipeline_Scalar_NegativeNumber_MinDigits()
     {
         var ctx = ServiceProvider.GetRequiredService<SchemaContext>();
 
         await ctx.SaveSchemaAsync(new NodeSchema
         {
-            Name = "test.fmtnegint",
-            Type = SchemaType.Recognizer,
+            Name = "test.fmtnegint", Type = SchemaType.Recognizer,
             Recognizer = new RecognizerSchema
             {
                 SourceType = NS_SYSTEM_INT,
-                Parts =
-                [
-                    new RecognizerPart
-                    {
-                        Type = FormatPartType.Self,
-                        Format = new FormatDescriptor { MinDigits = 4 }
-                    }
-                ]
+                Parts = [new RecognizerPartSchema { Type = RecognizerPartType.Self, Extensions = new() { ["minDigits"] = J(4) } }]
             }
         });
 
@@ -1322,18 +1078,13 @@ public class RecognizerTypeTest : TestBase
         var intType = await ctx.GetSchemaTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        // -7 → "-0007"
-        var emitted = await recognizer.EmitAsync(ctx, intType.CreateNode(-7L)!);
-        Assert.AreEqual("-0007", emitted);
+        Assert.AreEqual("-0007", await recognizer.EmitAsync(ctx, intType.CreateNode(-7L)!));
     }
 
     // ─────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Helper: set up the basic KV recognizer for multiple tests
-    /// </summary>
     private static async Task SetupKVRecognizerAsync(SchemaContext ctx)
     {
         await ctx.SaveSchemaAsync(new NodeSchema
@@ -1359,11 +1110,17 @@ public class RecognizerTypeTest : TestBase
                 SourceType = "test.kvresult",
                 Parts =
                 [
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "key" },
-                    new RecognizerPart { Type = FormatPartType.Literal, Text = "-" },
-                    new RecognizerPart { Type = FormatPartType.Field, Field = "value" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "key" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Literal, Text = "-" },
+                    new RecognizerPartSchema { Type = RecognizerPartType.Field, Field = "value" },
                 ]
             }
         });
     }
+
+    /// <summary>Shorthand: serialize a value to JsonElement</summary>
+    static JsonElement J<T>(T value) => JsonSerializer.SerializeToElement(value);
+
+    /// <summary>Shorthand: serialize Entry[] mapping to JsonElement with camelCase</summary>
+    static JsonElement JMapping(Entry[] entries) => JsonSerializer.SerializeToElement(entries, CamelCase);
 }

@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// The propety schema
 /// </summary>
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_PROPERTY}.schema")]
-public sealed class PropertySchema: IAdditionalProperty
+public sealed class PropertySchema: ISchemaExtensions
 {
     /// <summary>
     /// The property namespace
@@ -57,8 +57,8 @@ public sealed class PropertySchema: IAdditionalProperty
     public bool? IncludeArray { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }

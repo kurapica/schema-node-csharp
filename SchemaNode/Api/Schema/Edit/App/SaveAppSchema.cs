@@ -85,10 +85,10 @@ public class AppSchemaData
     public StructRelationSchema[]? Relations { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     public static implicit operator AppSchema(AppSchemaData data)
     {
@@ -99,7 +99,7 @@ public class AppSchemaData
             Auth = data.Auth,
             Auths = data.Auths,
             Relations = data.Relations,
-            Additional = data.Additional,
+            Extensions = data.Extensions,
         };
     }
 }

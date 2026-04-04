@@ -100,9 +100,24 @@ public enum SchemaNodeStatus
     StructMemberWrongValidFunc,
 
     /// <summary>
+    /// The struct relationship has wrong target field
+    /// </summary>
+    StructRelationshipWrongField,
+
+    /// <summary>
+    /// The struct relationship has wrong property
+    /// </summary>
+    StructRelationshipWrongProp,
+
+    /// <summary>
     /// The struct relationship has wrong valdiation function
     /// </summary>
     StructRelationshipWrongFunc,
+
+    /// <summary>
+    /// The struct relationship has wrong arguments, like circle reference
+    /// </summary>
+    StructRelationshipWrongArguments,
 
     /// <summary>
     /// The funciton has wrong return type
@@ -280,6 +295,21 @@ public enum SchemaNodeStatus
     RecognizerWrongParts,
 
     /// <summary>
+    /// The recognizer part has wrong sub recognizer configuration
+    /// </summary>
+    RecognizerPartWrongSubRecognizer,
+
+    /// <summary>
+    /// The recognizer has wrong function reference
+    /// </summary>
+    RecognizerWrongFuncRef,
+
+    /// <summary>
+    /// The recognizer relation has wrong function reference
+    /// </summary>
+    RecognizerWrongRelation,
+
+    /// <summary>
     /// The recognizer has wrong validation function
     /// </summary>
     RecognizerWrongValidation,
@@ -287,10 +317,5 @@ public enum SchemaNodeStatus
     /// <summary>
     /// The constraint has wrong value type
     /// </summary>
-    ConstraintHasWrongValueType,
-
-    /// <summary>
-    /// The presentation has wrong value type
-    /// </summary>
-    PresentationHasWrongValueType,
+    PropertyHasWrongValueType,
 }

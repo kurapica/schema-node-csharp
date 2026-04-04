@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 */
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_SCALAR}.schema")]
-public sealed class ScalarSchema: IAdditionalProperty
+public sealed class ScalarSchema: ISchemaExtensions
 {
     /// <summary>
     /// The scalar name
@@ -29,16 +29,16 @@ public sealed class ScalarSchema: IAdditionalProperty
     public string? Base { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// Used to combine custom schema to system schema
     /// </summary>
     internal void CombineCustomSchema(ScalarSchema? other)
     {
-        this.CombineAdditionalProperty(other);
+        this.CombineExtensions(other);
     }
 }

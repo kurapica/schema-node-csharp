@@ -1,4 +1,5 @@
 ﻿using SchemaNode.Enum;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Attribute;
 
@@ -8,7 +9,9 @@ public class SchemaPropertyAttribute(SchemaType[] forSchemas, ValueSchemaType[]?
     /// <summary>
     /// The Property name
     /// </summary>
-    public string? Name { get; } = name;
+    public string? Name { get; } = name != null 
+            ? (name.EndsWith("Property", StringComparison.OrdinalIgnoreCase) ? name[..^"Property".Length] : name.EndsWith("Prop", StringComparison.OrdinalIgnoreCase) ? name[..^"Prop".Length] : name).ToCamelCase()
+            : null;
 
     /// <summary>
     /// The Property display name

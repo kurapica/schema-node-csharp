@@ -1,7 +1,7 @@
-using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -138,7 +138,7 @@ public sealed class ArrayType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<AnySchemaNode?> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         if (value is not JsonArray array)
             return (null, TYPE_VALUE_NOT_VALID);
@@ -148,9 +148,20 @@ public sealed class ArrayType: AnySchemaType
         JsonObject? error = null;
         if (ElementSchemaType != null)
         {
+            IConstraintProperty[] eleConstraints = Constraints?.Where(c => c.ForArrayOnly == false).ToArray() ?? [];
+            if (constraints != null)
+            {
+                for(int i = 0; i < eleConstraints.Length; i++)
+                {
+                    if (constraints.FirstOrDefault(c => c.GetType() == eleConstraints[i].GetType()) is IConstraintProperty cst && cst.HasValue)
+                        eleConstraints[i] = cst;
+                }
+            }
+            eleConstraints = eleConstraints.Where(c => c.HasValue).ToArray();
+
             for (int i = 0; i < array.Count; i++)
             {
-                (AnySchemaNode? v, JsonNode? e) = await ElementSchemaType.ValidateValueAsync(context, array[i]!);
+                (AnySchemaNode? v, JsonNode? e) = await ElementSchemaType.ValidateValueAsync(context, array[i]!, eleConstraints);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -170,9 +181,14 @@ public sealed class ArrayType: AnySchemaType
         // Constraint validation
         if (Constraints is { Length: > 0 })
         {
-            foreach (IConstraintProperty constraint in Constraints)
+            foreach (IConstraintProperty constraint in Constraints.Where(p => p.ForArrayOnly))
             {
-                if (await constraint.ValidateArrayAsync(context, (ArrayTypeNode)result) == false)
+                if (constraints != null && constraints.FirstOrDefault(c => c.GetType() == constraint.GetType()) is IConstraintProperty cst && cst.HasValue)
+                {
+                    if (await cst.ValidateArrayAsync(context, (ArrayTypeNode)result) == false)
+                        return (null, TYPE_VALUE_NOT_VALID);
+                }
+                else if (await constraint.ValidateArrayAsync(context, (ArrayTypeNode)result) == false)
                     return (null, TYPE_VALUE_NOT_VALID);
             }
         }
@@ -300,7 +316,7 @@ public sealed class ArrayType: AnySchemaType
                 Loaded = true,
                 LoadState = LoadState,
                 SchemaProvider = SchemaProvider,
-                Additional = Additional
+                Extensions = Extensions
             };
             eleType.AddRef(arrayType);
             return arrayType;
@@ -330,7 +346,7 @@ public sealed class ArrayType: AnySchemaType
                 Loaded = true,
                 LoadState = LoadState,
                 SchemaProvider = SchemaProvider,
-                Additional = Additional
+                Extensions = Extensions
             };
             elementType.AddRef(arrayType);
             return arrayType;

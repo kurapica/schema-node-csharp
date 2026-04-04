@@ -1,11 +1,10 @@
 using SchemaNode.Attribute;
-using SchemaNode.Components;
-using SchemaNode.Components.Property;
-using SchemaNode.Components.Property.Constraint;
-using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -23,7 +22,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.schema")]
-public sealed class StructSchema: IAdditionalProperty
+public sealed class StructSchema: ISchemaExtensions
 {
     /// <summary>
     /// The struct name
@@ -54,10 +53,10 @@ public sealed class StructSchema: IAdditionalProperty
     public bool? Atomic { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// Used to combine custom schema to system schema
@@ -66,7 +65,7 @@ public sealed class StructSchema: IAdditionalProperty
     {
         if (other == null) return;
         Relations = other.Relations ?? Relations;
-        this.CombineAdditionalProperty(other);
+        this.CombineExtensions(other);
 
         foreach(StructFieldSchema field in Fields)
         {
@@ -79,7 +78,7 @@ public sealed class StructSchema: IAdditionalProperty
 /// The struct field config
 /// </summary>
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.field")]
-public class StructFieldSchema: IAdditionalProperty
+public class StructFieldSchema: ISchemaExtensions
 {
     /// <summary>
     /// The field name
@@ -105,13 +104,13 @@ public class StructFieldSchema: IAdditionalProperty
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
 
-    #region Additional
+    #region Extensions
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// The properties
@@ -121,14 +120,14 @@ public class StructFieldSchema: IAdditionalProperty
     internal IProperty[]? Properties { get; set; }
 
     /// <summary>
-    /// The constraint properties from Additional
+    /// The constraint properties from Extensions
     /// </summary>
     [NotMapped]
     [JsonIgnore]
     internal IConstraintProperty[]? Constraints { get; set; }
 
     /// <summary>
-    /// The ref types from the properties in Additional
+    /// The ref types from the properties in Extensions
     /// </summary>
     [NotMapped]
     [JsonIgnore]
@@ -219,14 +218,19 @@ public class StructFieldSchema: IAdditionalProperty
         Constraints = null;
         RefTypes = null;
 
-        if (Additional != null)
+        // Collect property names referenced by relations for this field
+        var relationProps = @struct.Relations?
+            .Where(r => r.Field.Equals(Name, StringComparison.OrdinalIgnoreCase))
+            .Select(r => r.Prop).ToArray();
+
+        if (Extensions != null || relationProps?.Any() == true)
         {
-            Properties = PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.StructField, Additional, SchemaType)?.ToArray();
+            Properties = PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.StructField, Extensions ?? new(), SchemaType, relationProps)?.ToArray();
 
             if (Properties is { Length: > 0 })
             {
                 Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
-                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty).Cast<ITypeRefProperty>())
+                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty && p.HasValue).Cast<ITypeRefProperty>())
                 {
                     string? name = typeRef.GetValue<string>();
                     AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;
@@ -284,7 +288,7 @@ public class StructFieldSchema: IAdditionalProperty
     {
         if (other == null) return;
         Display = Display != null ? Display.Concat(other.Display) : other.Display;
-        this.CombineAdditionalProperty(other);
+        this.CombineExtensions(other);
     }
 
     /// <summary>
@@ -317,7 +321,7 @@ public class StructFieldSchema: IAdditionalProperty
 /// <summary>
 /// The relation between fields
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.relation")]
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.relation.schema")]
 public class StructRelationSchema
 {
     /// <summary>
@@ -327,10 +331,15 @@ public class StructRelationSchema
     public required string Field { get; set; }
 
     /// <summary>
-    /// The property of the realtion, so the function can modify it dynamically
+    /// The property of the relation, so the function can modify it dynamically
     /// </summary>
     [Schema(NS_SYSTEM_SCHEMA_PROPERTY)]
     public required string Prop { get; set; }
+
+    /// <summary>
+    /// The relation stage
+    /// </summary>
+    public RelationStage Stage { get; set; } = RelationStage.Load | RelationStage.Input;
 
     /// <summary>
     /// The relation function
@@ -358,6 +367,7 @@ public class StructRelationSchema
     public FunctionType? FuncNode { get; set; }
 }
 
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_STRUCT}.unionvalid")]
 public class StructUnionValidation
 {
     /// <summary>

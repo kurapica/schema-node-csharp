@@ -1,4 +1,3 @@
-#pragma warning disable SKEXP0001
 using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode;

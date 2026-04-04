@@ -1,9 +1,9 @@
 using SchemaNode.Attribute;
 using SchemaNode.Components;
-using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -59,7 +59,7 @@ public sealed class EnumType: AnySchemaType
     /// <summary>
     /// The enum value cache
     /// </summary>
-    ConcurrentDictionary<string, EnumValueInfo> valueMaps = [];
+    ConcurrentDictionary<string, EnumValueInfo> valueMaps = new(StringComparer.OrdinalIgnoreCase);
 
     #endregion
     
@@ -243,7 +243,7 @@ public sealed class EnumType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         if (value is not JsonValue val || val.IsEmpty())
             return (null, TYPE_VALUE_NOT_VALID);
@@ -297,13 +297,17 @@ public sealed class EnumType: AnySchemaType
         {
             foreach (IConstraintProperty constraint in Constraints)
             {
-                if (await constraint.ValidateEnumAsync(context, (EnumTypeNode)result) == false)
+                if (constraints != null && constraints.FirstOrDefault(c => c.GetType() == constraint.GetType()) is IConstraintProperty cst && cst.HasValue)
+                {
+                    if (await cst.ValidateEnumAsync(context, (EnumTypeNode)result) == false)
+                        return (null, TYPE_VALUE_NOT_VALID);
+                }
+                else if (await constraint.ValidateEnumAsync(context, (EnumTypeNode)result) == false)
                     return (null, TYPE_VALUE_NOT_VALID);
             }
         }
 
         return (result, null);
-
     }
 
     /// <inheritdoc />

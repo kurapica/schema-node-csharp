@@ -1,8 +1,9 @@
-using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
+using System.Text.Json.Nodes;
 
 namespace SchemaNode.Runtime;
 
@@ -22,7 +23,7 @@ public sealed class JsonType: AnySchemaType
 
     #region Methods
 
-    public override Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         return Task.FromResult<(AnySchemaNode? value, JsonNode? error)>((new JsonTypeNode(this, value), null));
     }

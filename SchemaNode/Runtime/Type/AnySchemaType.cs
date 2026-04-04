@@ -1,8 +1,7 @@
-using SchemaNode.Components;
-using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
 using System.Text.Json;
@@ -70,7 +69,7 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Whether the node is used
     /// </summary>
-    public virtual bool IsUsed => UsedBy is { IsEmpty: false } || UsedByApp is { IsEmpty: false };
+    public virtual bool IsUsed => UsedBy is { IsEmpty: false } || UsedByApp is { IsEmpty: false } || UsedByWorkflow is { IsEmpty: false };
     
     /// <summary>
     /// The type is loaded
@@ -82,9 +81,9 @@ public abstract class AnySchemaType: IDisposable
     #region Properties
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
-    protected Dictionary<string, JsonElement>? Additional { get; set; }
+    protected Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// The properties
@@ -92,12 +91,12 @@ public abstract class AnySchemaType: IDisposable
     protected IProperty[]? Properties { get; private set; }
 
     /// <summary>
-    /// The constraint properties from Additional
+    /// The constraint properties from Extensions
     /// </summary>
     protected IConstraintProperty[]? Constraints { get; private set; }
 
     /// <summary>
-    /// The ref types from the properties in Additional
+    /// The ref types from the properties in Extensions
     /// </summary>
     protected List<AnySchemaType>? RefTypes { get; private set; }
 
@@ -111,20 +110,20 @@ public abstract class AnySchemaType: IDisposable
     /// </summary>
     public async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, bool preload = false)
     {
-        Additional = null;
+        Extensions = null;
         Properties = null;
         Constraints = null;
         RefTypes = null;
 
-        if (schema.Additional != null)
+        if (schema.Extensions != null)
         {
-            Additional = schema.Additional;
-            Properties = Additional != null ? PropertyType.GetProperties<IProperty>(context, schema.Type, Additional)?.ToArray() : null;
+            Extensions = schema.Extensions;
+            Properties = Extensions != null ? PropertyType.GetProperties<IProperty>(context, schema.Type, Extensions, fullConstraintList: IsValueType)?.ToArray() : null;
 
             if (Properties is { Length: > 0 })
             {
                 Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
-                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty).Cast<ITypeRefProperty>())
+                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty && p.HasValue).Cast<ITypeRefProperty>())
                 {
                     string? name = typeRef.GetValue<string>();
                     AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;
@@ -245,7 +244,26 @@ public abstract class AnySchemaType: IDisposable
             _compatibles.TryRemove(func.ReturnNode!, out _);
         }
         UsedBy?.TryRemove(node, out _);
-    } 
+    }
+
+    /// <summary>
+    /// Add ref for an application workflow
+    /// </summary>
+    /// <param name="type"></param>
+
+    public void AddRef(AppWorkflowType type)
+    {
+        // system types are not tracked
+        if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System) return;
+        UsedByWorkflow ??= new ConcurrentDictionary<AppWorkflowType, bool>();
+        UsedByWorkflow.TryAdd(type, true);
+    }
+
+    /// <summary>
+    /// Remove ref for an application workflow
+    /// </summary>
+    /// <param name="type"></param>
+    public void RemoveRef(AppWorkflowType type) => UsedByWorkflow?.TryRemove(type, out _);
 
     /// <summary>
     /// Remove ref for an application field
@@ -266,10 +284,10 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Validate the value with the schema
     /// </summary>
-    public virtual async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public virtual async Task<AnySchemaNode?> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         await Task.Yield();
-        return (null, TYPE_NAMESPACE_NOT_DATA_TYPE);
+        return null;
     }
 
     /// <summary>
@@ -356,6 +374,8 @@ public abstract class AnySchemaType: IDisposable
         {
             schema.UsedBy = UsedBy?.Keys.Select(p => p.Name).ToArray();
             schema.UsedByApp = UsedByApp?.Keys.Select(p => p.App).Distinct().ToArray();
+            if (UsedByWorkflow is { IsEmpty: false })
+                schema.UsedByApp = UsedByWorkflow.Keys.Select(p => p.App).Concat(schema.UsedByApp ?? []).Distinct().ToArray();
         }
 
         if (parent.Schemas == null || !parent.Schemas.Any(s => s.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)))
@@ -456,7 +476,7 @@ public abstract class AnySchemaType: IDisposable
             Status = Status == SchemaNodeStatus.Ready ? null : Status,
             Auth = Auth?.Name,
             Used = IsUsed,
-            Additional = Additional,
+            Extensions = Extensions,
             Compatibles = _compatibles?.Select(p => new CompatibleSchema(p.Key.Name, p.Value.Name)).ToArray(),
         };
     }
@@ -468,6 +488,7 @@ public abstract class AnySchemaType: IDisposable
     private ConcurrentDictionary<AnySchemaType, FunctionType>? _compatibles;
     internal ConcurrentDictionary<AnySchemaType, bool>? UsedBy;
     internal ConcurrentDictionary<AppFieldType, bool>? UsedByApp;
+    internal ConcurrentDictionary<AppWorkflowType,  bool>? UsedByWorkflow;
 
     #endregion
 }

@@ -1,8 +1,8 @@
 using SchemaNode.Attribute;
-using SchemaNode.Components.Property;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -54,6 +54,11 @@ public sealed class StructType: AnySchemaType
     /// </summary>
     public override bool IsValueType => true;
 
+    /// <summary>
+    /// The fields with validation order
+    /// </summary>
+    StructFieldSchema[] ValidateFields = [];
+
     #endregion
         
     #region Methods
@@ -80,22 +85,56 @@ public sealed class StructType: AnySchemaType
                 Status = field.Status.Value;
             }
         }
-        
+
         // Load Relation
+        Dictionary<StructFieldSchema, List<StructFieldSchema>> dependsMap = new();
         if (Relations != null)
         {
             foreach (StructRelationSchema relation in Relations)
             {
-                AnySchemaType? funcNode = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
-                if (funcNode is not FunctionType node)
+                var field = !string.IsNullOrWhiteSpace(relation.Field) ? Fields.FirstOrDefault(f => f.Name.Equals(relation.Field, StringComparison.OrdinalIgnoreCase)) : null;
+                if (field == null)
+                {
+                    relation.Status = SchemaNodeStatus.StructRelationshipWrongField;
+                    Status = SchemaNodeStatus.StructRelationshipWrongField;
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(relation.Prop))
+                {
+                    relation.Status = SchemaNodeStatus.StructRelationshipWrongProp;
+                    Status = SchemaNodeStatus.StructRelationshipWrongProp;
+                    continue;
+                }
+
+                FunctionType? funcNode = !string.IsNullOrWhiteSpace(relation.Func) ? await context.GetSchemaTypeAsync<FunctionType>(relation.Func, preload: preload) : null;
+                if (funcNode == null)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     Status = SchemaNodeStatus.StructRelationshipWrongFunc;
                     continue;
                 }
                 relation.Status = null;
-                relation.FuncNode = node;
-                node.AddRef(this);
+                relation.FuncNode = funcNode;
+                funcNode.AddRef(this);
+
+                // Check the constraint validation order based on the relation
+                if (field.Constraints != null && field.Constraints.Any(p => p.Name.Equals(relation.Prop, StringComparison.OrdinalIgnoreCase)))
+                {
+                    if (!dependsMap.ContainsKey(field))
+                        dependsMap[field] = new List<StructFieldSchema>();
+                    foreach (var arg in relation.Args.Where(a => !string.IsNullOrWhiteSpace(a.Name)).Select(a => a.Name!.Split('.', StringSplitOptions.RemoveEmptyEntries).First()))
+                    {
+                        var depField = Fields.FirstOrDefault(f => f.Name.Equals(arg, StringComparison.OrdinalIgnoreCase));
+                        if (depField == null || dependsMap[depField] != null && dependsMap[depField].Contains(field))
+                        {
+                            relation.Status = SchemaNodeStatus.StructRelationshipWrongArguments;
+                            Status = SchemaNodeStatus.StructRelationshipWrongArguments;
+                            break;
+                        }
+                        dependsMap[field].Add(depField);
+                    }
+                }
             }
         }
 
@@ -116,6 +155,29 @@ public sealed class StructType: AnySchemaType
                 node.AddRef(this);
             }
         }
+
+        List<StructFieldSchema> orderFields = [];
+
+        // Build the struct field validation order
+        void BuildOrderField(StructFieldSchema field, bool require = false)
+        {
+            if (orderFields.Contains(field)) return;
+            if (!require && field.DisplayOnly == true) return;
+
+            if (dependsMap.TryGetValue(field, out var depends))
+            {
+                foreach (StructFieldSchema dep in depends)
+                {
+                    BuildOrderField(dep, true);
+                }
+            }
+            orderFields.Add(field);
+        }
+
+        foreach (var field in Fields)
+            BuildOrderField(field);
+
+        ValidateFields = orderFields.ToArray();
     }
 
     /// <inheritdoc />
@@ -156,10 +218,13 @@ public sealed class StructType: AnySchemaType
         // Gets the relative field type
         foreach (AppFieldType field in relTypes.Where(node => node.UsedByApp is { Count: > 0 }).SelectMany(node => node.UsedByApp!.Keys))
             field.Schema = null; // Clear to reload
+
+        // Clear the validation
+        ValidateFields = [];
     }
 
     /// <inheritdoc />
-    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         if (value is not JsonObject jObject)
             return (null, TYPE_VALUE_NOT_VALID);
@@ -168,9 +233,8 @@ public sealed class StructType: AnySchemaType
         StructTypeNode result = new(this);
         JsonObject? error = null;
         string? additionalField = null;
-        foreach (StructFieldSchema field in Fields)
+        foreach (StructFieldSchema field in ValidateFields)
         {
-            if (field.DisplayOnly ?? false) continue;
             if (field.SchemaType is null) continue;
 
             if (jObject.ContainsKey(field.Name) && !jObject[field.Name].IsEmpty())
@@ -184,6 +248,38 @@ public sealed class StructType: AnySchemaType
                 else
                 {
                     result[field.Name] = v;
+
+                    // Field-level constraint validation with relation overrides
+                    if (v != null && field.Constraints is { Length: > 0 })
+                    {
+                        foreach (var constraint in field.Constraints)
+                        {
+                            // Check if there's a relation that provides an override value for this constraint property
+                            AnySchemaNode? overrideVal = null;
+                            var relation = Relations?.FirstOrDefault(r =>
+                                r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
+                                r.Prop.Equals(constraint.Name, StringComparison.OrdinalIgnoreCase));
+
+                            if (relation?.FuncNode != null)
+                                overrideVal = await ResolveRelationNodeAsync(context, relation, result);
+
+                            bool? valid = v switch
+                            {
+                                ScalarTypeNode scalar => await constraint.ValidateScalarAsync(context, scalar, result, overrideVal),
+                                EnumTypeNode enumNode => await constraint.ValidateEnumAsync(context, enumNode, result, overrideVal),
+                                StructTypeNode structNode => await constraint.ValidateStructAsync(context, structNode, result, overrideVal),
+                                ArrayTypeNode arrayNode => await constraint.ValidateArrayAsync(context, arrayNode, result, overrideVal),
+                                _ => null
+                            };
+
+                            if (valid == false)
+                            {
+                                error ??= new JsonObject();
+                                error[field.Name] = TYPE_VALUE_NOT_VALID;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
             else if (field.Unpack ?? false)
@@ -327,6 +423,27 @@ public sealed class StructType: AnySchemaType
     public StructFieldSchema? GetField(string fieldName) 
         => Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Resolve a relation function call to get an override value as AnySchemaNode, using already validated struct fields as arguments.
+    /// </summary>
+    private static async Task<AnySchemaNode?> ResolveRelationNodeAsync(
+        SchemaContext context, StructRelationSchema relation, StructTypeNode result)
+    {
+        if (relation.FuncNode == null) return null;
+
+        var args = new object?[relation.Args.Length];
+        for (int k = 0; k < relation.Args.Length; k++)
+        {
+            FuncCallArg arg = relation.Args[k];
+            if (!string.IsNullOrEmpty(arg.Name))
+                args[k] = result.GetValueByPaths(arg.Name.Split('.', StringSplitOptions.RemoveEmptyEntries));
+            else
+                args[k] = (object?)arg.SchemeType?.CreateNode(arg.Value) ?? arg.Value!;
+        }
+
+        return await relation.FuncNode.CallAsync<AnySchemaNode>(context, args);
+    }
+
     #endregion
 
     #region Static Feature
@@ -392,8 +509,8 @@ public sealed class StructType: AnySchemaType
 
             if (p.GetCustomAttribute<RequiredAttribute>() != null)
             {
-                config.Additional ??= [];
-                config.Additional["require"] = JsonSerializer.SerializeToElement(true);
+                config.Extensions ??= [];
+                config.Extensions["require"] = JsonSerializer.SerializeToElement(true);
             }
 
             // limit check
@@ -407,14 +524,14 @@ public sealed class StructType: AnySchemaType
 
                 if (upLimit.HasValue)
                 {
-                    config.Additional ??= [];
-                    config.Additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit.Value);
+                    config.Extensions ??= [];
+                    config.Extensions[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit.Value);
                 }
 
                 if (lowLimit.HasValue)
                 {
-                    config.Additional ??= [];
-                    config.Additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit.Value);
+                    config.Extensions ??= [];
+                    config.Extensions[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit.Value);
                 }
             }
             else
@@ -422,9 +539,9 @@ public sealed class StructType: AnySchemaType
                 RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
                 if (rangeAttr != null)
                 {
-                    config.Additional ??= [];
-                    config.Additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Maximum);
-                    config.Additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Minimum);
+                    config.Extensions ??= [];
+                    config.Extensions[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Maximum);
+                    config.Extensions[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Minimum);
                 }
             }
 

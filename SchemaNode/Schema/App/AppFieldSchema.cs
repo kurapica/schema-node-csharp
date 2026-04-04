@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.schema")]
-public sealed class AppFieldSchema: IAdditionalProperty
+public sealed class AppFieldSchema: ISchemaExtensions
 {
     #region Info
 
@@ -212,10 +212,10 @@ public sealed class AppFieldSchema: IAdditionalProperty
     #region Status
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
     /// <summary>
     /// The schema node status
@@ -244,7 +244,7 @@ public sealed class AppFieldSchema: IAdditionalProperty
         Foreigns = Foreigns ?? otherSchema.Foreigns;
         View = View ?? otherSchema.View;
 
-        this.CombineAdditionalProperty(otherSchema);
+        this.CombineExtensions(otherSchema);
     }
 
     #endregion

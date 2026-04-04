@@ -1,10 +1,10 @@
-using SchemaNode.Components.Property;
-using SchemaNode.Components.Property.Constraint;
-using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
@@ -217,7 +217,7 @@ public sealed class ScalarType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value)
+    public override async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         await Task.Yield();
         if (value is not JsonValue val || val.IsEmpty())
@@ -310,7 +310,12 @@ public sealed class ScalarType: AnySchemaType
             {
                 foreach (IConstraintProperty constraint in Constraints)
                 {
-                    if (await constraint.ValidateScalarAsync(context, (ScalarTypeNode)result) == false)
+                    if (constraints != null && constraints.FirstOrDefault(c => c.GetType() == constraint.GetType()) is IConstraintProperty cst && cst.HasValue)
+                    {
+                        if (await cst.ValidateScalarAsync(context, (ScalarTypeNode)result) == false)
+                            return (null, TYPE_VALUE_NOT_VALID);
+                    }
+                    else if (await constraint.ValidateScalarAsync(context, (ScalarTypeNode)result) == false)
                         return (null, TYPE_VALUE_NOT_VALID);
                 }
             }

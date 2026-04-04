@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_EVENT}.schema")]
-public sealed class EventSchema: IAdditionalProperty
+public sealed class EventSchema: ISchemaExtensions
 {
     /// <summary>
     /// The event name
@@ -27,8 +27,8 @@ public sealed class EventSchema: IAdditionalProperty
     public string? Payload { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }

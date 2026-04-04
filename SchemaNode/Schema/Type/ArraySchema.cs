@@ -13,7 +13,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [SchemaApp]
 [Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.schema")]
-public sealed class ArraySchema: IAdditionalProperty
+public sealed class ArraySchema: ISchemaExtensions
 {
     /// <summary>
     /// The array name
@@ -56,10 +56,10 @@ public sealed class ArraySchema: IAdditionalProperty
     public bool? Atomic { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 
 
     /// <summary>
@@ -69,7 +69,7 @@ public sealed class ArraySchema: IAdditionalProperty
     {
         Combines = other?.Combines ?? Combines;
         Relations = other?.Relations ?? Relations;
-        this.CombineAdditionalProperty(other);
+        this.CombineExtensions(other);
     }
 
 }

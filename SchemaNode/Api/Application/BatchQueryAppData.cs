@@ -291,7 +291,7 @@ public static class BatchQueryExtension
                         }).ToArray()
                     }).ToArray(),
                     Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
-                    Additional = node.Additional,
+                    Extensions = node.Extensions,
                 } : null
             };
             

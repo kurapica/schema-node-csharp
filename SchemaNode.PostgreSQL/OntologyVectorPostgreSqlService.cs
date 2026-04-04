@@ -1,5 +1,4 @@
 using Microsoft.Extensions.AI;
-using Microsoft.SemanticKernel.Embeddings;
 using Npgsql;
 using Pgvector;
 using SchemaNode.AI;

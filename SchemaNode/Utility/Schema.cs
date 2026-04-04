@@ -10,7 +10,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Components;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Components.Property.Constraint;
+using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Utility;
@@ -1083,11 +1084,11 @@ public static class Schema
     
     internal static NodeSchema NewSystemScalar(string name, string? baseType = null, bool enableError = false, Pattern[]? pattern = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
-        Dictionary<string, JsonElement>? additional = null;
-        if (lowLimit != null) { additional ??= []; additional[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit); }
-        if (upLimit != null) { additional ??= []; additional[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit); }
-        if (pattern != null) { additional ??= []; additional["pattern"] = JsonSerializer.SerializeToElement(pattern, Extension.GetJsonOptions(false)); }
-        if (enableError) { additional ??= []; additional["error"] = JsonSerializer.SerializeToElement($"{name}.error"); }
+        Dictionary<string, JsonElement>? extensions = null;
+        if (lowLimit != null) { extensions ??= []; extensions[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit); }
+        if (upLimit != null) { extensions ??= []; extensions[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit); }
+        if (pattern != null) { extensions ??= []; extensions["pattern"] = JsonSerializer.SerializeToElement(pattern, Extension.GetJsonOptions(false)); }
+        if (enableError) { extensions ??= []; extensions["error"] = JsonSerializer.SerializeToElement($"{name}.error"); }
 
         return new NodeSchema
         {
@@ -1098,7 +1099,7 @@ public static class Schema
             Scalar = new ScalarSchema
             {
                 Base = baseType,
-                Additional = additional,
+                Extensions = extensions,
             },
         };
     }
@@ -1123,7 +1124,7 @@ public static class Schema
                     };
                     if (f.require == true)
                     {
-                        field.Additional = new Dictionary<string, JsonElement>
+                        field.Extensions = new Dictionary<string, JsonElement>
                         {
                             ["require"] = JsonSerializer.SerializeToElement(true)
                         };

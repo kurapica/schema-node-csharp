@@ -1,8 +1,9 @@
 using SchemaNode.Components;
-using SchemaNode.Components.Property.Presentation;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json;
@@ -152,9 +153,9 @@ public sealed class AppFieldType
     public IProperty[]? Properties { get; internal set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
-    public Dictionary<string, JsonElement>? Additional { get; private init; }
+    public Dictionary<string, JsonElement>? Extensions { get; private init; }
 
     #endregion
 
@@ -307,7 +308,7 @@ public sealed class AppFieldType
             Combine = entity.Combine,
             Combines = entity.Combines,
             Filters = entity.Filters,
-            Additional = entity.Additional,
+            Extensions = entity.Extensions,
         };
     }
 
@@ -343,7 +344,7 @@ public sealed class AppFieldType
             Combine = entity.Combine,
             Combines = entity.Combines,
             Filters = entity.Filters,
-            Additional = entity.Additional,
+            Extensions = entity.Extensions,
         };
     }
 

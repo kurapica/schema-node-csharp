@@ -3,10 +3,10 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Api.Schema.Application;
 using SchemaNode.Components;
-using SchemaNode.Components.Property.Constraint;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -94,7 +94,7 @@ public class ScalarTypeTest : TestBase
             Scalar = new ScalarSchema
             {
                 Base = NS_SYSTEM_STRING,
-                Additional = new Dictionary<string, JsonElement>
+                Extensions = new Dictionary<string, JsonElement>
                 {
                     ["pattern"] = JsonSerializer.SerializeToElement(patterns, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
                 }

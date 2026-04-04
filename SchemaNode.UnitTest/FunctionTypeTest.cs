@@ -269,7 +269,7 @@ public class FunctionTypeTest : TestBase
     }
 
     // ─────────────────────────────────────────────────────────────────────
-    // Additional built-in function tests
+    // Extensions built-in function tests
     // ─────────────────────────────────────────────────────────────────────
 
     /// <summary>

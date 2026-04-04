@@ -424,7 +424,7 @@ public class JsonSchemaStorageProvider: ISchemaStorageProvider
             Name = app.Name,
             Display = app.Display,
             Relations = app.Relations,
-            Additional = app.Additional
+            Extensions = app.Extensions
         });
         return true;
     }

@@ -1,8 +1,8 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.Components.Property.Constraint;
 using SchemaNode.Enum;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Schema;
 
 namespace SchemaNode.AI;

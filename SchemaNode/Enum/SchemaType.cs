@@ -67,6 +67,11 @@ public enum SchemaType
     Recognizer,
 
     /// <summary>
+    /// The recognizer part node, sub-schema of the recognizer node
+    /// </summary>
+    RecognizerPart,
+
+    /// <summary>
     /// The property for other schemas
     /// </summary>
     Property,
