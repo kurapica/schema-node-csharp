@@ -1,3 +1,4 @@
+using SchemaNode.Converter;
 using SchemaNode.Node;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -7,47 +8,17 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
-using Microsoft.AspNetCore.Http;
-using SchemaNode.Components;
-using SchemaNode.Converter;
-using SchemaNode.Enum;
-using SchemaNode.Context;
 
 namespace SchemaNode.Utility;
 
 public static class Extension
 {
-    #region Casing
+    #region String
 
     /// <summary>
     /// Returns the camel case of this string.
     /// </summary>
-    /// <param name="s">This string.</param>
-    /// <returns>The camel case of this string.</returns>
-    internal static string ToCamelCase(this string s)
-    {
-        string result = s;
-        if (result.Length > 0)
-        {
-            result = string.Concat(result[..1].ToLowerInvariant(), result.AsSpan(1));
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Returns the camel case of this string.
-    /// </summary>
-    /// <param name="s">This string.</param>
-    /// <returns>The camel case of this string.</returns>
-    internal static string ToPascalCase(this string s)
-    {
-        string result = s;
-        if (result.Length > 0)
-        {
-            result = string.Concat(result[..1].ToUpperInvariant(), result.AsSpan(1));
-        }
-        return result;
-    }
+    internal static string ToCamelCase(this string s) => s.Length > 0 ? string.Concat(s[..1].ToLowerInvariant(), s.AsSpan(1)) : s;
 
     internal static string? ToLiteral(this object input)
     {
@@ -77,48 +48,70 @@ public static class Extension
     /// <summary>
     /// Gets the base type
     /// </summary>
-    internal static string GetBaseType(this string name)
+    internal static string GetBaseType(this string name) =>name.Contains("<") ? name[..name.IndexOf('<')] : name;
+
+    /// <summary>
+    /// Remove the ending part if existed
+    /// </summary>
+    internal static string RemoveEnding(this string name, string ending)
     {
-        return name.Contains("<") ? name[..name.IndexOf('<')] : name;
+        if (name.EndsWith(ending, StringComparison.OrdinalIgnoreCase))
+            return name[..^ending.Length];
+        return name;
     }
-    
+
+    /// <summary>
+    /// Remove the start part if existed
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="start"></param>
+    /// <returns></returns>
+    internal static string RemoveStart(this string name, string start)
+    {
+        if (name.StartsWith(start, StringComparison.OrdinalIgnoreCase))
+            return name[start.Length..];
+        return name;
+    }
+
+    /// <summary>
+    /// Gets the property kind from the name
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    internal static string GetPropertyKind(this string name) => name.RemoveEnding("Property").RemoveEnding("Prop").RemoveStart("I").ToLower();
+
+    /// <summary>
+    /// Gets the schema kind from the name, which is the name without "Schema" suffix and in camel case.
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    internal static string GetSchemaKind(this string name) => name.RemoveEnding("Schema").ToLower();
+
+    /// <summary>
+    /// Gets the property name
+    /// </summary>
+    internal static string GetPropertyName(this string name) => name.RemoveEnding("Property").RemoveEnding("Prop").ToCamelCase();
+
     #endregion
+
+    #region JSON
 
     #region Json Options
 
-    private static readonly ConcurrentDictionary<(DateFormatMode, string), JsonSerializerOptions> IndentJsonOptions = new();
-    private static readonly ConcurrentDictionary<(DateFormatMode, string), JsonSerializerOptions> NoIndentJsonOptions = new();
-
-    internal static JsonSerializerOptions GetJsonOptions(bool indent, DateFormatMode? dateFormat = null, TimeZoneInfo? timeZone = null)
+    private static readonly JsonSerializerOptions DefaultJsonOptions = new()
     {
-        var dfm = dateFormat ?? DateFormatMode.Iso8601;
-        var tz = timeZone ?? AccessContextItemProviderExtensions.DefaultTimeZone;
-        var dict = indent ? IndentJsonOptions : NoIndentJsonOptions;
-        return dict.GetOrAdd((dfm, tz.Id), _ =>
+        Converters =
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = indent,
-                Converters =
-                {
-                    new UniversalFlexibleEnumConverter(),
-                    new ForceStringConverter(),
-                    new FlexibleLongConverter(),
-                    new JsonDateTimeConverter(dfm, tz),
-                    new JsonDateTimeOffsetConverter(dfm, tz),
-                    new JsonNodeDateFormatConverter(dfm, tz),
-                },
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            };
-            return options;
-        });
-    }
+            new UniversalFlexibleEnumConverter(),
+            new ForceStringConverter(),
+            new FlexibleLongConverter(),
+        },
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
 
     #endregion
-    
-    #region JSON
-    
+
     /// <summary>
     /// Serializes a .NET value to JSON string.
     /// </summary>
@@ -126,13 +119,7 @@ public static class Extension
     /// <param name="value">The value.</param>
     /// <param name="indent">use indent</param>
     /// <param name="mode">The datetime format</param>
-    public static string ToJson<T>(this T value, bool indent = false, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
-    {
-        if (value is JsonNode json) return json.ToString();
-
-        // Generate the JSON string.
-        return JsonSerializer.Serialize(value, GetJsonOptions(indent, mode, timeZone));
-    }
+    internal static string ToJson<T>(this T value) =>value is JsonNode json ? json.ToString() : JsonSerializer.Serialize(value, DefaultJsonOptions);
 
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
@@ -140,12 +127,12 @@ public static class Extension
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     /// <param name="mode">The date format</param>
-    public static T? FromJson<T>(this string value, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) => (T?)value.FromJson(typeof(T), mode, timeZone);
+    internal static T? FromJson<T>(this string value) => (T?)value.FromJson(typeof(T));
 
     /// <summary>
     /// Deserializes a JSON string to a .NET value.
     /// </summary>
-    internal static object? FromJson(this string value, Type type, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
+    internal static object? FromJson(this string value, Type type)
     {
         if (type == typeof(string))
             return value;
@@ -154,15 +141,15 @@ public static class Extension
         if (type == typeof(DateTime))
             return DateTime.Parse(value);
             
-        return JsonSerializer.Deserialize(value, type, GetJsonOptions(false, mode, timeZone));
+        return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
     }
 
     /// <summary>
     /// Convert the JsonNode to the given type
     /// </summary>
-    public static T? FromJson<T>(this JsonNode value, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null) => (T?)value.FromJson(typeof(T), mode, timeZone);
+    internal static T? FromJson<T>(this JsonNode value) => (T?)value.FromJson(typeof(T));
 
-    internal static object? FromJson(this JsonNode value, Type type, DateFormatMode? mode = null, TimeZoneInfo? timeZone = null)
+    internal static object? FromJson(this JsonNode value, Type type)
     {
         if (type == typeof(JsonObject))
         {
@@ -180,16 +167,16 @@ public static class Extension
         {
             return value;
         }
-        return value.Deserialize(type, GetJsonOptions(false, mode, timeZone));
+        return value.Deserialize(type, DefaultJsonOptions);
     }
 
-    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false, DateFormatMode? mode = null)
+    internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
         try
         {
             if (value == null) return null;
             if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
-            return JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
+            return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
         }
         catch 
         {
@@ -199,10 +186,7 @@ public static class Extension
         }
     }
 
-    internal static T? ToValue<T>(this JsonNode node)
-    {
-        return (T?)(TryConvert(typeof(T), node) ?? default);
-    }
+    internal static T? ToValue<T>(this JsonNode node) => (T?)(TryConvert(typeof(T), node) ?? default(T?));
 
     static readonly string[] DateFormats =
     {
@@ -347,33 +331,6 @@ public static class Extension
         return false;
     }
 
-    /// <summary>
-    /// To http result
-    /// </summary>
-    public static string ToJson<T>(this SchemaContext context, T value, bool indent = false)
-    {
-        Access? acess = context.GetSchemaContextItem<Access>();
-        return value.ToJson(indent, acess?.DateFormatMode, acess?.TimeZone);
-    }
-
-    /// <summary>
-    /// To http result
-    /// </summary>
-    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false)
-    {
-        Access? acess = context.GetSchemaContextItem<Access>();
-        return Results.Json(value, GetJsonOptions(indent, acess?.DateFormatMode, acess?.TimeZone));
-    }
-
-    /// <summary>
-    /// Parse the JSON string to .NET value with context, which will use the date format in Access if exists.
-    /// </summary>
-    public static T? FromJson<T>(this SchemaContext context, string value)
-    {
-        Access? acess = context.GetSchemaContextItem<Access>();
-        return value.FromJson<T>(acess?.DateFormatMode);
-    }
-
     #endregion
 
     #region Generics
@@ -456,8 +413,10 @@ public static class Extension
     /// <summary>
     /// The type is simple array type
     /// </summary>
-    internal static bool IsArrayType(this Type type) => type != typeof(string) && type != typeof(ArrayTypeNode) && 
-        ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
+    internal static bool IsArrayType(this Type type) => type != typeof(string) && 
+        type != typeof(ArrayTypeNode) && 
+        ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || 
+        type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
     
     internal static bool IsSafeConstantValue(this Type type)
     { 
@@ -480,96 +439,113 @@ public static class Extension
 
     #endregion
 
-    #region Type
+    #region Type Conversion
+
+    internal static T? TryConvertTo<T>(this object? value) => (T?)TryConvert(typeof(T), value);
 
     /// <summary>
-    /// Try to convert the value for the given type, only for enum & primitive values
+    /// Try to convert the value for the given type
     /// </summary>
-    internal static object? TryConvert(this Type type, object? value, DateFormatMode? mode = null)
+    internal static object? TryConvert(this Type type, object? value)
     {
         try
         {
-            // value check
+            // value match
             if (value == null) return null;
             type = type.GetNotNullType();
-
             if (value.GetType().IsAssignableTo(type)) return value;
-            if (value is AnySchemaNode node) return node.ToTypeValue(type);
+
+            // for schema node
+            if (value is AnySchemaNode node) return node.ToValue(type);
 
             // json type
-            if (value is JsonElement)
+            if (value is JsonElement ele)
             {
-                return ((JsonElement)value).Deserialize(type, GetJsonOptions(false, mode));
+                value = ele.ValueKind switch
+                {
+                    JsonValueKind.Null => null,
+                    JsonValueKind.String => ele.GetString(),
+                    JsonValueKind.Number => ele.TryGetInt64(out var l) ? l :
+                                            ele.TryGetDouble(out var d) ? d : ele.GetDecimal(),
+                    JsonValueKind.True => true,
+                    JsonValueKind.False => false,
+                    JsonValueKind.Array => ele.EnumerateArray().Select(e => (object?)e).ToArray(),
+                    JsonValueKind.Object => JsonNode.Parse(ele.GetRawText()),
+                    _ => null
+                };
+                if (value == null) return null;
+                if (value.GetType().IsAssignableTo(type)) return value;
             }
-            else if (value is JsonArray or JsonObject)
-            {
-                return (value as JsonNode)!.FromJson(type);
-            }
+
+            if (value is (JsonArray or JsonObject))
+                return (value as JsonNode).Deserialize(type, DefaultJsonOptions);
             
             if (type == typeof(JsonArray))
-            {
-                var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
-                return result is JsonArray ? result : null;
-            }
-            else if (type == typeof(JsonObject))
-            {
-                var result = JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
-                return result is JsonObject ? result : null;
-            }
-            else if (type == typeof(JsonNode))
-            {
-                return JsonSerializer.SerializeToNode(value, GetJsonOptions(false, mode));
-            }
+                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonArray;
+
+            if (type == typeof(JsonObject))
+                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonObject;
+
+            if (type == typeof(JsonValue))
+                return JsonValue.Create(value);
+
+            if (type == typeof(JsonNode))
+                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
 
             // none json type
             if (value is JsonValue v)
             {
-                (value, _) = v.ParseValueAndType();
+                switch (v.GetValueKind())
+                {
+                    case JsonValueKind.String:
+                        if (v.TryGetValue(out string? s))
+                        {
+                            s = s.Trim();
+
+                            if (TryParseDateTimeOffset(s, out var dto))
+                                value = dto;
+                            else
+                                value = s;
+                        }
+                        else
+                            value = null;
+                        break;
+
+                    case JsonValueKind.Number:
+                        if (v.TryGetValue(out long l))
+                            value = l;
+                        else if (v.TryGetValue(out int i))
+                            value = i;
+                        else if (v.TryGetValue(out double db))
+                            value = db;
+                        else if (v.TryGetValue(out float f))
+                            value = f;
+                        else if (v.TryGetValue(out decimal d))
+                            value = d;
+                        else
+                            value = null;
+                        break;
+                    case JsonValueKind.True:
+                        value = true;
+                        break;
+                    case JsonValueKind.False:
+                        value = false;
+                        break;
+                    default:
+                        value = null;
+                        break;
+                }
                 if (value == null) return null;
                 if (value.GetType().IsAssignableTo(type)) return value;
             }
             // for collections
             else if (value is Array arr)
             {
-                if (type.IsSZArray)
-                {
-                    Type? eleType = type.GetElementType();
-                    if (eleType == null) return null;
-                    return arr.Cast<object>().Select(o => TryConvert(eleType, o)).ToArray();
-                }
-                else if (type.IsSubclassOfGenericType(typeof(List<>)))
-                {
-                    Type eleType = type.GetGenericArguments()[0];
-                    return arr.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
-                }
-                else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))
-                {
-                    Type? eleType = type.GetElementType();
-                    if (eleType == null) return null;
-                    return arr.Cast<object>().Select(o => TryConvert(eleType, o));
-                }
-                return null;
+                return ConvertToCollection(arr.Cast<object?>(), type);
             }
-            else if(value is not string && value is IEnumerable iter)
+            else if (value is not string && value is IEnumerable iter)
             {
-                if (type.IsSZArray)
-                {
-                    Type? eleType = type.GetElementType();
-                    if (eleType == null) return null;
-                    return iter.Cast<object>().Select(o => TryConvert(eleType, o)).ToArray();
-                }
-                else if (type.IsSubclassOfGenericType(typeof(List<>)))
-                {
-                    Type eleType = type.GetGenericArguments()[0];
-                    return iter.Cast<object>().Select(o => TryConvert(eleType, o)).ToList();
-                }
-                else if (type.IsSubclassOfGenericType(typeof(IEnumerable<>)))
-                {
-                    Type? eleType = type.GetElementType();
-                    if (eleType == null) return null;
-                    return iter.Cast<object>().Select(o => TryConvert(eleType, o));
-                }
-                return null;
+                return ConvertToCollection(iter.Cast<object?>(), type);
             }
 
             // Enum convert
@@ -618,7 +594,7 @@ public static class Extension
                     return Convert.ToDecimal(value);
                 case TypeCode.DateTime:
                 {
-                    string? str = value.ToString();
+                    string? str = value?.ToString();
                     if (DateTimeOffset.TryParseExact(
                             str,
                             DateFormats,
@@ -653,17 +629,18 @@ public static class Extension
             }
             else if (type == typeof(DateTimeOffset))
             {
-                return value switch
+                if (value is string s)
                 {
-                    string s => DateTimeOffset.Parse(s),
-                    long or int => DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value)),
-                    _ => null
-                };
+                    if (TryParseDateTimeOffset(s, out var dto)) return dto;
+                    return DateTimeOffset.Parse(s);
+                }
+                if (value is long or int)
+                    return DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
+                return null;
             }
             else
             {
-                var options = GetJsonOptions(false, mode);
-                return JsonSerializer.SerializeToNode(value, options)!.Deserialize(type, options);
+                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions)?.Deserialize(type, DefaultJsonOptions);
             }
         }
         catch(Exception ex)
@@ -671,6 +648,45 @@ public static class Extension
             throw new InvalidCastException($"Cannot convert the value '{value}' to type '{type.FullName}'", ex);
         }
     }
+
+    /// <summary>
+    /// Convert a flat object sequence into the target collection type with properly typed elements.
+    /// </summary>
+    private static object? ConvertToCollection(IEnumerable<object?> source, Type targetType)
+    {
+        if (targetType.IsSZArray)
+        {
+            Type? eleType = targetType.GetElementType();
+            if (eleType == null) return null;
+            var items = source.ToArray();
+            var result = Array.CreateInstance(eleType, items.Length);
+            for (int i = 0; i < items.Length; i++)
+                result.SetValue(TryConvert(eleType, items[i]), i);
+            return result;
+        }
+        if (targetType.IsSubclassOfGenericType(typeof(List<>)))
+        {
+            Type eleType = targetType.GetGenericBaseType(typeof(List<>))!.GetGenericArguments()[0];
+            var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(eleType))!;
+            foreach (var item in source)
+                list.Add(TryConvert(eleType, item));
+            return list;
+        }
+        if (targetType.IsSubclassOfGenericType(typeof(IEnumerable<>)))
+        {
+            Type eleType = targetType.GetGenericBaseType(typeof(IEnumerable<>))!.GetGenericArguments()[0];
+            var items = source.ToArray();
+            var result = Array.CreateInstance(eleType, items.Length);
+            for (int i = 0; i < items.Length; i++)
+                result.SetValue(TryConvert(eleType, items[i]), i);
+            return result;
+        }
+        return null;
+    }
+
+    #endregion
+
+    #region XML Documentation
 
     /// <summary>
     /// Get summary contents from XML document.
@@ -747,8 +763,6 @@ public static class Extension
 
         return GetSummaryFromXmlDocInternal(type.Assembly, memberName, $"param[@name='{parameter.Name}']");
     }
-    
-    #region ---------- Shared Internal Helpers ----------
 
     /// <summary>
     /// Load XML once and query the node by name.
@@ -833,9 +847,6 @@ public static class Extension
 
     #endregion
 
-
-    #endregion
-
     #region Array
 
     internal static Array SliceArray(this Array source, int count)
@@ -864,36 +875,6 @@ public static class Extension
         while (exception.InnerException != null)
             exception = exception.InnerException;
         return exception;
-    }
-
-    #endregion
-
-    #region Flags
-
-    internal static bool? Has<TEnum>(this TEnum flag, TEnum flags)
-        where TEnum : struct, System.Enum
-    {
-        var flagValue  = Convert.ToUInt64(flag);
-        var flagsValue = Convert.ToUInt64(flags);
-
-        return (flagsValue & flagValue) != 0 ? true : null;
-    }
-
-    internal static TEnum Turn<TEnum>(
-        this TEnum flags,
-        TEnum flag,
-        bool? on)
-        where TEnum : struct, System.Enum
-    {
-        ulong flagsValue = Convert.ToUInt64(flags);
-        ulong flagValue  = Convert.ToUInt64(flag);
-
-        if (on is true)
-            flagsValue |= flagValue;
-        else
-            flagsValue &= ~flagValue;
-
-        return (TEnum)System.Enum.ToObject(typeof(TEnum), flagsValue);
     }
 
     #endregion

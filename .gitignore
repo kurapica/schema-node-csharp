@@ -34,3 +34,7 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.Workflow/obj
 /SchemaNode.Vector/bin
 /SchemaNode.Vector/obj
+/SchemaNode.App/obj
+/SchemaNode.Core/obj
+/SchemaNode.App/bin
+/SchemaNode.Core/bin
