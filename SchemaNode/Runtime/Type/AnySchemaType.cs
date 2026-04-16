@@ -99,8 +99,7 @@ public abstract class AnySchemaType: IDisposable
     /// The ref types from the properties in Extensions
     /// </summary>
     protected List<AnySchemaType>? RefTypes { get; private set; }
-
-
+    
     #endregion
 
     #region Methods

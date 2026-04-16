@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Struct;
@@ -10,7 +12,7 @@ namespace SchemaNode.Struct;
 /// <summary>
 /// The locale translate
 /// </summary>
-[Schema(NS_SYSTEM_LOCALE_TRAN)]
+[Meta<SchemaType>(NS_SYSTEM_LOCALE_TRAN)]
 public sealed class LocaleTran
 {
     /// <summary>
@@ -30,9 +32,8 @@ public sealed class LocaleTran
     /// <summary>
     /// The language
     /// </summary>
-    [Schema(NS_SYSTEM_LANGUAGE)]
-    [MaxLength(8)]
-    [Index]
+    [Meta<SchemaType>(NS_SYSTEM_LANGUAGE)]
+    [Meta<UniqueIndex>]
     public string Lang { get; set; } = string.Empty;
 
     /// <summary>

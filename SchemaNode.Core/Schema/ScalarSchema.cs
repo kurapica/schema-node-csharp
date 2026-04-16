@@ -1,18 +1,25 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Property.Schema.Node;
-using System.ComponentModel.DataAnnotations;
+using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
-[Meta<SchemaKind>(nameof(ScalarSchema))]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_SCALAR}.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_SCALAR}.schema")]
+[Meta<AsSchemaKind>(nameof(ScalarSchema), SCHEMA_KIND_ORDER_SCALAR)]
+[Meta<AsNodeSchemaKind>(nameof(ScalarSchema), SCHEMA_KIND_ORDER_SCALAR)]
 public sealed class ScalarSchema: ExtensibleSchema
 {
     /// <summary>
     /// The base type of the scalar
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Meta<SchemaKind>(nameof(ScalarSchema))]
+    [Meta<SchemaType>(typeof(Scalar.Schema.ScalarType))]
     public string? Base { get; set; }
 }
+
+/// <summary>
+/// Declare scalar property for node schema
+/// </summary>
+[Meta<ForSchema>(nameof(NodeSchema))]
+public sealed class ScalarProperty: Property<ScalarSchema>;

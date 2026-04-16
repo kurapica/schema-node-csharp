@@ -1,5 +1,7 @@
 ﻿using SchemaNode.Attribute;
 using System.ComponentModel.DataAnnotations;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Struct;
@@ -7,14 +9,14 @@ namespace SchemaNode.Struct;
 /// <summary>
 /// The dict entry
 /// </summary>
-[Schema(NS_SYSTEM_ENTRY)]
+[Meta<SchemaType>(NS_SYSTEM_ENTRY)]
 public sealed class Entry
 {
     /// <summary>
     /// The entry value
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UniqueIndex>]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>

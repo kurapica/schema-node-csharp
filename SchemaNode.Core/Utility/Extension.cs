@@ -8,10 +8,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
+using SchemaNode.Attribute;
+using SchemaNode.Property.Schema;
 
 namespace SchemaNode.Utility;
 
-public static class Extension
+internal static class Extension
 {
     #region String
 
@@ -78,7 +80,7 @@ public static class Extension
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    internal static string GetPropertyKind(this string name) => name.RemoveEnding("Property").RemoveEnding("Prop").RemoveStart("I").ToLower();
+    internal static string GetPropertyKind(this string name) => name.RemoveEnding("Property").RemoveStart("I").ToLower();
 
     /// <summary>
     /// Gets the schema kind from the name, which is the name without "Schema" suffix and in camel case.
@@ -90,8 +92,18 @@ public static class Extension
     /// <summary>
     /// Gets the property name
     /// </summary>
-    internal static string GetPropertyName(this string name) => name.RemoveEnding("Property").RemoveEnding("Prop").ToCamelCase();
+    internal static string GetPropertyName(this string name) => name.RemoveEnding("Property").ToCamelCase();
 
+    /// <summary>
+    /// Gets the schema type from the type
+    /// </summary>
+    /// <param name="type"></param>
+    /// <returns></returns>
+    internal static string? GetSchemaType(this Type type)
+    {
+        return type.GetMetaProperty<SchemaType>()?.Value;
+    }
+    
     #endregion
 
     #region JSON
@@ -117,8 +129,6 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    /// <param name="indent">use indent</param>
-    /// <param name="mode">The datetime format</param>
     internal static string ToJson<T>(this T value) =>value is JsonNode json ? json.ToString() : JsonSerializer.Serialize(value, DefaultJsonOptions);
 
     /// <summary>
@@ -126,7 +136,6 @@ public static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    /// <param name="mode">The date format</param>
     internal static T? FromJson<T>(this string value) => (T?)value.FromJson(typeof(T));
 
     /// <summary>
@@ -594,7 +603,7 @@ public static class Extension
                     return Convert.ToDecimal(value);
                 case TypeCode.DateTime:
                 {
-                    string? str = value?.ToString();
+                    string? str = value.ToString();
                     if (DateTimeOffset.TryParseExact(
                             str,
                             DateFormats,
@@ -771,9 +780,7 @@ public static class Extension
     {
         string xmlPath = asm.Location.Replace(".dll", ".xml");
         XmlDocument? doc = LoadXml(xmlPath);
-        if (doc == null) return null;
-
-        XmlNode? memberNode = doc.SelectSingleNode($"/doc/members/member[@name='{memberName}']");
+        XmlNode? memberNode = doc?.SelectSingleNode($"/doc/members/member[@name='{memberName}']");
         if (memberNode == null) return null;
 
         if (!string.IsNullOrEmpty(subPath))

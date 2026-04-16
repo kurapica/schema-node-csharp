@@ -1,4 +1,10 @@
-﻿using SchemaNode.Function;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
+using SchemaNode.Function;
+using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;
@@ -50,17 +56,21 @@ public abstract class Property<T> : IProperty
     public virtual bool HasValue => !SystemLogic.isempty(Value);
 }
 
+#region Property Owner
+
 /// <summary>
 /// The interface for property owner, which can hold multiple properties.
 /// </summary>
 public interface IPropertyOwner
 {
+    #region Abstract
+    
     /// <summary>
     /// Gets the property by type
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    IProperty? GetProperty<T>() where T : IProperty;
+    T? GetProperty<T>() where T : IProperty, new();
 
     /// <summary>
     /// Set the property with type
@@ -70,9 +80,20 @@ public interface IPropertyOwner
     void SetProperty<T>(T property) where T : IProperty;
 
     /// <summary>
+    /// Remove a property
+    /// </summary>
+    /// <param name="property"></param>
+    /// <typeparam name="T"></typeparam>
+    void RemoveProperty<T>(T property) where T: IProperty;
+    
+    #endregion
+    
+    #region Method
+    
+    /// <summary>
     /// The property with the given type and value, which will be converted to the property type
     /// </summary>
-    public void SetProperty<TK, TV>(TV? value) where TK : IProperty, new()
+    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
     {
         var property = new TK();
         property.SetValue(value);
@@ -83,13 +104,14 @@ public interface IPropertyOwner
     /// Remove the property by type
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    void RemoveProperty<T>() where T : IProperty;
-
-    /// <summary>
-    /// Gets all properties
-    /// </summary>
-    /// <returns></returns>
-    IEnumerable<IProperty> GetAllProperties();
+    public void RemoveProperty<T>() where T : IProperty, new()
+    {
+        var property = GetProperty<T>();
+        if (property != null)
+            RemoveProperty(property);
+    }
+    
+    #endregion
 }
 
 /// <summary>
@@ -104,6 +126,10 @@ public abstract class OwnerProperty<T>: Property<T>
     public IPropertyOwner? Owner { get; set; }
 }
 
+#endregion
+
+#region Readonly
+
 /// <summary>
 /// Readonly property with owner, their value is generated from other properties of the same owner
 /// </summary>
@@ -113,3 +139,66 @@ public abstract class ReadOnlyOwnerProperty<T> : OwnerProperty<T>
     // ignore the set value
     public override void SetValue<TValue>(TValue value) { }
 }
+
+#endregion
+
+#region Order Property
+
+/// <summary>
+/// The order property
+/// </summary>
+internal interface IOrderProperty : IProperty
+{
+    int Order { get; set; }
+}
+
+/// <summary>
+/// The property with order
+/// </summary>
+/// <typeparam name="T"></typeparam>
+public abstract class OrderProperty<T> : Property<T>, IOrderProperty
+{
+    /// <summary>
+    /// The property order
+    /// </summary>
+    public int Order { get; set; }
+}
+
+#endregion
+
+#region Record Property
+
+/// <summary>
+/// The record property, which will be recorded in the static dictionary when set value, and can be accessed by type and order
+/// </summary>
+public abstract class RecordProperty<T> : OrderProperty<T>
+{
+    /// <inheritdoc/>
+    public override void SetValue<TValue>(TValue value)
+    {
+        base.SetValue(value);
+        this.Record();
+    }
+}
+
+internal static class RecordPropertyExtensions
+{
+    private static readonly ConcurrentDictionary<Type, ConcurrentBag<IOrderProperty>> Records = [];
+
+    /// <summary>
+    /// Record the property
+    /// </summary>
+    /// <param name="property"></param>
+    internal static void Record<T>(this RecordProperty<T> property)
+        => Records.GetOrAdd(property.GetType(), _ => []).Add(property);
+    
+    /// <summary>
+    /// Gets the order properties from record
+    /// </summary>
+    internal static IEnumerable<IOrderProperty> GetProperties(this Type propertyType)
+        => Records.TryGetValue(propertyType, out var properties) 
+            ? properties.OrderBy(p => p.Order) 
+            : Enumerable.Empty<IOrderProperty>();
+}
+
+#endregion

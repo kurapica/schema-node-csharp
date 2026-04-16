@@ -1,5 +1,7 @@
 // ReSharper disable InconsistentNaming
 
+using SchemaNode.Function;
+
 namespace SchemaNode.Utility;
 
 /// <summary>
@@ -9,8 +11,24 @@ public static class Constant
 {
     #region Constraint
 
-    public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
+    public const int LANGUAGE_MAX_LEN = 8;
+    public const int PRIMARY_KEY_MAX_LEN = 128;
 
+    #endregion
+    
+    #region Schema Kind
+
+    public const int SCHEMA_KIND_ORDER_NODE = 0;
+    public const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
+    public const int SCHEMA_KIND_ORDER_SCALAR = 2;
+    public const int SCHEMA_KIND_ORDER_ENUM = 3;
+    public const int SCHEMA_KIND_ORDER_STRUCT = 4;
+    public const int SCHEMA_KIND_ORDER_ARRAY = 5;
+    public const int SCHEMA_KIND_ORDER_FUNC = 6;
+    public const int SCHEMA_KIND_ORDER_PROP = 7;
+    public const int SCHEMA_KIND_ORDER_RELATION = 8;
+    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 9;
+    
     #endregion
 
     #region System
@@ -65,12 +83,26 @@ public static class Constant
     // system.schema
     public const string NS_SYSTEM_SCHEMA = "system.schema";
     public const string NS_SYSTEM_SCHEMA_KIND = "system.schema.kind";
+    public const string NS_SYSTEM_SCHEMA_NODE = "system.schema.node";
+    public const string NS_SYSTEM_SCHEMA_NODE_KIND = "system.schema.node.kind";
     public const string NS_SYSTEM_SCHEMA_NS = "system.schema.namespace";
     public const string NS_SYSTEM_SCHEMA_SCALAR = "system.schema.scalar";
     public const string NS_SYSTEM_SCHEMA_ENUM = "system.schema.enum";
     public const string NS_SYSTEM_SCHEMA_STRUCT = "system.schema.struct";
+    public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = "system.schema.struct.field";
     public const string NS_SYSTEM_SCHEMA_ARRAY = "system.schema.array";
     public const string NS_SYSTEM_SCHEMA_FUNC = "system.schema.func";
+    public const string NS_SYSTEM_SCHEMA_RELATION = "system.schema.relation";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY = "system.schema.property";
+    
+    public const string NS_SYSTEM_SCHEMA_TYPE = "system.schema.type";
+
+    #endregion
+
+    #region Function
+
+    public const string NS_SYSTEM_LOGIC = "system.logic";
+    public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
 
     #endregion
 

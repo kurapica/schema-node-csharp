@@ -7,7 +7,8 @@ namespace SchemaNode.Property.Schema;
 /// </summary>
 public sealed class ForSchema : Property<string[]>
 {
-    public new void SetValue<T>(T value)
+    /// <inheritdoc/>
+    public override void SetValue<T>(T value)
     {
         base.SetValue(value);
         Value = Value?.Select(x => x.GetSchemaKind()).ToArray();

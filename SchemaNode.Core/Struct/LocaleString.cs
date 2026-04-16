@@ -1,14 +1,15 @@
 ﻿using SchemaNode.Attribute;
-using System.ComponentModel.DataAnnotations;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
 
 namespace SchemaNode.Struct;
-
 
 /// <summary>
 /// The locale string
 /// </summary>
-[Schema(NS_SYSTEM_LOCALE_STRING)]
+[Meta<SchemaType>(NS_SYSTEM_LOCALE_STRING)]
 public sealed class LocaleString : ICloneable
 {
     /// <summary>
@@ -39,10 +40,9 @@ public sealed class LocaleString : ICloneable
     /// It has no translation record
     /// {list.prefix} - global strings
     /// {@schema.path} - use schema path to translate, default display
-    /// {#appschema.path} - use app schema path to translate
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UniqueIndex>]
+    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
 
     /// <summary>

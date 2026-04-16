@@ -1,35 +1,19 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The namespace schema, used as container for other schema nodes
 /// </summary>
-[Meta<SchemaKind>(nameof(NamespaceSchema))]
+[Meta<AsSchemaKind>(nameof(NamespaceSchema), SCHEMA_KIND_ORDER_NAMESPACE)]
+[Meta<AsNodeSchemaKind>(nameof(NamespaceSchema), SCHEMA_KIND_ORDER_NAMESPACE)]
 public sealed class NamespaceSchema : ExtensibleSchema;
 
 /// <summary>
-/// The namespace for schema node
+/// The sub node schemas of the namespace schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
-public sealed class Namespace : Property<string>
-{
-    public new void SetValue<T>(T value)
-    {
-        base.SetValue(value);
-        Value = Value?.TrimEnd('.')?.ToLower() ?? throw new Exception("The namespace must be specified");
-    }
-}
-
-
-[Meta<ForSchema>(nameof(NodeSchema))]
-public sealed class FullName : Property<string>
-{
-    public new void SetValue<T>(T value)
-    {
-    }
-
-
-}
+public sealed class SchemasProperty : Property<NodeSchema[]>;
