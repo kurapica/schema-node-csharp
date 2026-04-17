@@ -1,11 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Schema;
 using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
+using ValueType = SchemaNode.Property.Schema.ValueType;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -14,7 +16,9 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<AsSchemaKind>(nameof(ArraySchema), SCHEMA_KIND_ORDER_ARRAY)]
-[Meta<AsNodeSchemaKind>(nameof(ArraySchema), SCHEMA_KIND_ORDER_ARRAY)]
+[Meta<RuntimeType>(typeof(Runtime.ArrayType))]
+[Meta<ValueType>(typeof(ArrayNode))]
+[Meta<IsArray>(true)]
 public sealed class ArraySchema: ExtensibleSchema
 {
     /// <summary>
@@ -37,7 +41,6 @@ public sealed class ArraySchema: ExtensibleSchema
     /// The data combine rule
     /// </summary>
     public DataCombine[]? Combines { get; set; }
-
 }
 
 /// <summary>
@@ -45,7 +48,6 @@ public sealed class ArraySchema: ExtensibleSchema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
 public sealed class ArrayProperty: Property<ArraySchema>;
-
 
 /// <summary>
 /// The data combine settings

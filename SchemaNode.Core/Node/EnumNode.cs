@@ -4,6 +4,6 @@ using System.Text;
 
 namespace SchemaNode.Node;
 
-public sealed class ArrayTypeNode: AnySchemaNode
+public sealed class EnumNode: AnySchemaNode
 {
 }

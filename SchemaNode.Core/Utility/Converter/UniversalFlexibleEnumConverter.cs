@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SchemaNode.Converter;
+namespace SchemaNode.Utility;
 
 internal class UniversalFlexibleEnumConverter : JsonConverterFactory
 {

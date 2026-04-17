@@ -7,7 +7,7 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The schema context
 /// </summary>
-public class SchemaContext(IServiceProvider serviceProvider, ISchemaRunTime runTime): ISchemaContext, IDisposable
+public class SchemaContext(IServiceProvider serviceProvider, ISchemaRuntime runtime): ISchemaContext, IDisposable
 {
     #region Fields
     
@@ -19,13 +19,29 @@ public class SchemaContext(IServiceProvider serviceProvider, ISchemaRunTime runT
     /// <summary>
     /// The schema runtime
     /// </summary>
-    public ISchemaRunTime RunTime { get; } = runTime;
+    public ISchemaRuntime Runtime { get; } = runtime;
 
     /// <summary>
     /// Gets the logger
     /// </summary>
     ILogger Logger => _loggerThunk.Value;
     readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
+
+    #endregion
+
+    #region Service Resolution
+
+    /// <summary>
+    /// Gets all registered services of the given type from the scoped service provider
+    /// </summary>
+    public IEnumerable<T> GetServices<T>() where T : notnull
+        => ServiceProvider.GetServices<T>();
+
+    /// <summary>
+    /// Gets a required service of the given type from the scoped service provider
+    /// </summary>
+    public T GetRequiredService<T>() where T : notnull
+        => ServiceProvider.GetRequiredService<T>();
 
     #endregion
 

@@ -262,10 +262,10 @@ public static class SystemData
         AnySchemaNode? result = value;
         if (keys.Length > 0)
         {
-            if (value is not ArrayTypeNode { Count: > 0 } arr) return default;
+            if (value is not ArrayNode { Count: > 0 } arr) return default;
 
             // find the contains item
-            StructTypeNode[] items = arr.Cast<StructTypeNode>().ToArray();
+            StructNode[] items = arr.Cast<StructNode>().ToArray();
             for (int i = 0; i < keyValues.Length; i++)
             {
                 if (keyValues[i].Count == 1) continue;
@@ -300,7 +300,7 @@ public static class SystemData
         params object?[] args) where T : struct
     {
         AnySchemaNode? result = await get<AnySchemaNode>(context, app, field, args);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
+        AnySchemaNode? f = (result as StructNode)?.GetField(dataField);
         return f != null ? f.ToValue<T>() : null;
     }
     
@@ -312,7 +312,7 @@ public static class SystemData
     /// Generate a data source for the app field, waiting for query, the codes won't be execution unless use it in wrong way
     /// </summary>
     [Schema]
-    public static async Task<ArrayTypeNode> getdatasource(
+    public static async Task<ArrayNode> getdatasource(
         SchemaContext context,
         [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
         [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field)
@@ -324,7 +324,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType?.SchemaType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
         if (fieldType.SchemaType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
-        return new ArrayTypeNode(fieldType.SchemaType);
+        return new ArrayNode(fieldType.SchemaType);
     }
 
     #endregion
@@ -375,7 +375,7 @@ public static class SystemData
         {
             case ScalarType:
                 {
-                    if (dataNode is not ScalarTypeNode) goto ROLLBACK;
+                    if (dataNode is not ScalarNode) goto ROLLBACK;
                     origin = fieldType.SchemaType.CreateNode(
                         (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
                         (dataNode is { IsEmpty: false } ? dataNode.ToValue<decimal>() : 0m)
@@ -384,7 +384,7 @@ public static class SystemData
                 }
             case StructType @struct:
                 {
-                    if (dataNode is not StructTypeNode structData || origin is not StructTypeNode originStruct) goto ROLLBACK;
+                    if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
                     foreach (var fld in @struct.Fields)
                     {
                         AnySchemaNode? orgFld = originStruct.GetField(fld.Name);
@@ -401,11 +401,11 @@ public static class SystemData
                 }
             case ArrayType arrType:
                 {
-                    if (dataNode is not ArrayTypeNode arrayData || origin is not ArrayTypeNode originArray) goto ROLLBACK;
-                    Dictionary<string, StructTypeNode> arrDict = new();
+                    if (dataNode is not ArrayNode arrayData || origin is not ArrayNode originArray) goto ROLLBACK;
+                    Dictionary<string, StructNode> arrDict = new();
                     foreach(var i in arrayData)
                     {
-                        var ditem = (StructTypeNode)i;
+                        var ditem = (StructNode)i;
                         string? pkey = arrType.GetPrimaryKey(ditem);
                         if (pkey != null)
                         {
@@ -416,9 +416,9 @@ public static class SystemData
                         ?? throw new InvalidOperationException("Array element type is not struct type.");
                     foreach (var i in originArray)
                     {
-                        var oitem = (StructTypeNode)i;
+                        var oitem = (StructNode)i;
                         string? pkey = arrType.GetPrimaryKey(oitem);
-                        if (pkey != null && arrDict.TryGetValue(pkey, out StructTypeNode? ditem))
+                        if (pkey != null && arrDict.TryGetValue(pkey, out StructNode? ditem))
                         {
                             foreach (var fld in arrStruct.Fields)
                             {
@@ -440,7 +440,7 @@ public static class SystemData
 
         await context.SaveFieldDataAsync(fieldType, origin?.ToJson());
         await context.CommitTransactionAsync(!raiseEvent);
-        return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
+        return (origin is ArrayNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
         await context.RollbackTransactionAsync();

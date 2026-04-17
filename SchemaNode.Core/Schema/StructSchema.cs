@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
@@ -9,7 +10,7 @@ using SchemaNode.Scalar;
 using SchemaNode.Scalar.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ValueType = System.ValueType;
+using ValueType = SchemaNode.Property.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
@@ -18,7 +19,8 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<AsSchemaKind>(nameof(StructSchema), SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<AsNodeSchemaKind>(nameof(StructSchema), SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<RuntimeType>(typeof(Runtime.StructType))]
+[Meta<ValueType>(typeof(StructNode))]
 public sealed class StructSchema : ExtensibleSchema
 {
     /// <summary>

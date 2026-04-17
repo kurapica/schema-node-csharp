@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Constraint;
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LowLimitStringProperty : SchemaProperty<long>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         long? effectValue = overrideValue?.ToValue<long>() ?? Value;
         if (effectValue == null || node.IsEmpty) return null;
@@ -27,9 +27,9 @@ public class LowLimitStringProperty : SchemaProperty<long>, IConstraintProperty
 
 [SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.Number],
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
-public class LowLimitNumberProperty : SchemaProperty<ScalarTypeNode>, IConstraintProperty
+public class LowLimitNumberProperty : SchemaProperty<ScalarNode>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         AnySchemaNode? effectValueNode = overrideValue ?? Value;
         if (effectValueNode == null || effectValueNode.IsEmpty || node.IsEmpty) return null;
@@ -56,7 +56,7 @@ public class LowLimitNumberProperty : SchemaProperty<ScalarTypeNode>, IConstrain
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LowLimitDateProperty : SchemaProperty<DateTimeOffset>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         DateTimeOffset? effectValueNode = overrideValue?.ToValue<DateTimeOffset>() ?? Value;
         if (effectValueNode == null || node.IsEmpty) return null;

@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SchemaNode.Converter;
+namespace SchemaNode.Utility;
 
 internal class ForceStringConverter : JsonConverter<string>
 {

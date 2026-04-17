@@ -118,7 +118,7 @@ public static class SystemStr
         public static string tolocalestr(LocaleString? locale) => locale?.Key ?? "";
 
         [Schema]
-        public static Entry toentry(StructTypeNode node, string valueField, string labelField)
+        public static Entry toentry(StructNode node, string valueField, string labelField)
         {
             AnySchemaNode? val = node.GetValueByPaths(valueField);
             AnySchemaNode? label = node.GetValueByPaths(labelField);
@@ -127,16 +127,16 @@ public static class SystemStr
                 Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
                 Label = label switch
                 {
-                    StructTypeNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
-                    ScalarTypeNode or EnumTypeNode => new LocaleString(label.ToTypeValue(typeof(string))?.ToString() ?? ""),
+                    StructNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
+                    ScalarNode or EnumNode => new LocaleString(label.ToTypeValue(typeof(string))?.ToString() ?? ""),
                     _ => new LocaleString(val?.ToTypeValue(typeof(string))?.ToString() ?? "")
                 }
             };
         }
 
         [Schema]
-        public static List<Entry> toentrys(ArrayTypeNode array, string valueField, string labelField) => array
-            .OfType<StructTypeNode>()
+        public static List<Entry> toentrys(ArrayNode array, string valueField, string labelField) => array
+            .OfType<StructNode>()
             .Select(node => toentry(node, valueField, labelField))
             .DistinctBy(p => p.Value)
             .ToList();

@@ -9,7 +9,7 @@ namespace SchemaNode.Schema;
 /// The namespace schema, used as container for other schema nodes
 /// </summary>
 [Meta<AsSchemaKind>(nameof(NamespaceSchema), SCHEMA_KIND_ORDER_NAMESPACE)]
-[Meta<AsNodeSchemaKind>(nameof(NamespaceSchema), SCHEMA_KIND_ORDER_NAMESPACE)]
+[Meta<RuntimeType>(typeof(Runtime.NamespaceType))]
 public sealed class NamespaceSchema : ExtensibleSchema;
 
 /// <summary>

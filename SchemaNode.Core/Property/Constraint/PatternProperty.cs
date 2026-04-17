@@ -10,7 +10,7 @@ namespace SchemaNode.Property.Constraint;
 [SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.String], includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class PatternProperty : SchemaProperty<Pattern[]>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         if (node.IsEmpty || Value is not { Length: > 0 }) return null;
         ScalarType scalar = (ScalarType)node.SchemaType;

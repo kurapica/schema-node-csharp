@@ -5,6 +5,9 @@ using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Property.Presentation;
+using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -18,7 +21,8 @@ public abstract class ExtensibleSchema: IPropertyOwner
     /// <summary>
     /// The error status
     /// </summary>
-    [NotMapped]
+    [Meta<SchemaType>(NS_SYSTEM_SCHEMA_ERROR)]
+    [Meta<ReadOnly>(true)]
     public string? Error { get; set; }
 
     #region Extensions

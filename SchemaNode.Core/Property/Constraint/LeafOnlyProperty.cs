@@ -13,7 +13,7 @@ namespace SchemaNode.Property.Constraint;
 [SchemaProperty([SchemaType.StructField], [ValueSchemaType.Enum], includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LeafOnlyProperty : SchemaProperty<bool>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         if ((overrideValue?.ToValue<bool>() ?? Value) != true || node.IsEmpty) return null;
         EnumValueInfo? val = (node.SchemaType as EnumType) is { } enumType ? await enumType.LoadEnumValueInfo(context, node.Value?.ToString() ?? "") : null;

@@ -12,7 +12,7 @@ namespace SchemaNode.Property.Constraint;
     includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class ValidateProperty : SchemaProperty<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
 {
-    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         if (node.Value == null || string.IsNullOrWhiteSpace(Value?.Func)) return null;
         FunctionType? validFunc = !string.IsNullOrWhiteSpace(Value?.Func) ? await context.GetSchemaTypeAsync<FunctionType>(Value.Func) : null;

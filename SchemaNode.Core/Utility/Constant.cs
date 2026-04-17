@@ -85,6 +85,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_KIND = "system.schema.kind";
     public const string NS_SYSTEM_SCHEMA_NODE = "system.schema.node";
     public const string NS_SYSTEM_SCHEMA_NODE_KIND = "system.schema.node.kind";
+    public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = "system.schema.node.valuekind";
     public const string NS_SYSTEM_SCHEMA_NS = "system.schema.namespace";
     public const string NS_SYSTEM_SCHEMA_SCALAR = "system.schema.scalar";
     public const string NS_SYSTEM_SCHEMA_ENUM = "system.schema.enum";
@@ -96,6 +97,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_PROPERTY = "system.schema.property";
     
     public const string NS_SYSTEM_SCHEMA_TYPE = "system.schema.type";
+    public const string NS_SYSTEM_SCHEMA_ERROR = "system.schema.error";
 
     #endregion
 

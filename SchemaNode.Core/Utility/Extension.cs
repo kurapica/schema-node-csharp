@@ -1,4 +1,3 @@
-using SchemaNode.Converter;
 using SchemaNode.Node;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -93,6 +92,12 @@ internal static class Extension
     /// Gets the property name
     /// </summary>
     internal static string GetPropertyName(this string name) => name.RemoveEnding("Property").ToCamelCase();
+
+    /// <summary>
+    /// Gets the property name from a property type, checking for Alias meta attribute first
+    /// </summary>
+    internal static string GetPropertyName(this Type type)
+        => type.GetMetaProperty<Alias>()?.Value ?? type.Name.GetPropertyName();
 
     /// <summary>
     /// Gets the schema type from the type
@@ -423,7 +428,7 @@ internal static class Extension
     /// The type is simple array type
     /// </summary>
     internal static bool IsArrayType(this Type type) => type != typeof(string) && 
-        type != typeof(ArrayTypeNode) && 
+        type != typeof(ArrayNode) && 
         ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || 
         type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
     

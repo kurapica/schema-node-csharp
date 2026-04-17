@@ -18,14 +18,14 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// The schema name
     /// </summary>
-    [Meta<UniqueIndex>(0)]
+    [Meta<UniqueIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
     public string Name { get; set; } = null!;
     
     /// <summary>
     /// The namespace which includes the schema
     /// </summary>
-    [Meta<UniqueIndex>(1)]
+    [Meta<UniqueIndex>(0)]
     [Meta<SchemaType>(typeof(NamespaceType))]
     public string? Namespace { get; set; }
     
@@ -34,6 +34,12 @@ public sealed class NodeSchema: ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(typeof(NodeSchemaKind))]
     public string Kind { get; set; } = null!;
+    
+    /// <summary>
+    /// The sub schemas (for namespace schemas)
+    /// </summary>
+    [NotMapped]
+    public NodeSchema[]? Schemas { get; set; }
     
     /// <summary>
     /// Used by other node schemas

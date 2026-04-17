@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace SchemaNode.Converter;
-
+namespace SchemaNode.Utility;
 
 internal class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, System.Enum
 {       

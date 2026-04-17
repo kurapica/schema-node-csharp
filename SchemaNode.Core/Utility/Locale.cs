@@ -7,7 +7,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// Provides system-level locale translations loaded from locale JSON files in the output directory.
 /// </summary>
-public static class Locale
+internal static class Locale
 {
     // locale code → (schema key → translated text)
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _locales

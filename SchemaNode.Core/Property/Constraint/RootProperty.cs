@@ -13,10 +13,10 @@ namespace SchemaNode.Property.Constraint;
 [SchemaProperty([SchemaType.StructField], [ValueSchemaType.Enum, ValueSchemaType.Namespace], optionDepends: [nameof(RequireProperty)])]
 public class RootProperty : SchemaProperty<AnySchemaNode>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         var effectiveNode = overrideValue ?? Value;
-        if (effectiveNode is not EnumTypeNode enumNode || enumNode.IsEmpty || node.IsEmpty) return null;
+        if (effectiveNode is not EnumNode enumNode || enumNode.IsEmpty || node.IsEmpty) return null;
 
         string root = enumNode.ToString();
         string nodeValue = node.ToString();

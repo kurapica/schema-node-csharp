@@ -199,6 +199,15 @@ internal static class RecordPropertyExtensions
         => Records.TryGetValue(propertyType, out var properties) 
             ? properties.OrderBy(p => p.Order) 
             : Enumerable.Empty<IOrderProperty>();
+
+    /// <summary>
+    /// Gets the recorded values for a given RecordProperty type.
+    /// Use this instead of GetProperties when the target type conflicts with Type.GetProperties().
+    /// </summary>
+    internal static IEnumerable<IOrderProperty> GetRecordedValues(Type propertyType)
+        => Records.TryGetValue(propertyType, out var properties) 
+            ? properties.OrderBy(p => p.Order) 
+            : Enumerable.Empty<IOrderProperty>();
 }
 
 #endregion

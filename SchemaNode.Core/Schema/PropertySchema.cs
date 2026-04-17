@@ -10,7 +10,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
 [Meta<AsSchemaKind>(nameof(PropertySchema), SCHEMA_KIND_ORDER_PROP)]
-[Meta<AsNodeSchemaKind>(nameof(PropertySchema), SCHEMA_KIND_ORDER_PROP)]
+[Meta<RuntimeType>(typeof(Runtime.PropertyType))]
 public class PropertySchema
 {
     /// <summary>

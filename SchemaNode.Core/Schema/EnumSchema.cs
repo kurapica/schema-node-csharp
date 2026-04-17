@@ -2,11 +2,13 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using ValueType = SchemaNode.Property.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
@@ -15,7 +17,8 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<AsSchemaKind>(nameof(EnumSchema), SCHEMA_KIND_ORDER_ENUM)]
-[Meta<AsNodeSchemaKind>(nameof(EnumSchema), SCHEMA_KIND_ORDER_ENUM)]
+[Meta<RuntimeType>(typeof(Runtime.EnumType))]
+[Meta<ValueType>(typeof(EnumNode))]
 public sealed class EnumSchema : ExtensibleSchema
 {
     /// <summary>

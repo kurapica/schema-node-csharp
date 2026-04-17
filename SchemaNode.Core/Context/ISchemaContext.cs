@@ -5,10 +5,10 @@ namespace SchemaNode.Context;
 /// <summary>
 /// Represents the schema context to access the runtime
 /// </summary>
-public interface ISchemaContext
+public interface ISchemaContext: IDisposable
 {
     /// <summary>
     /// The schema runtime
     /// </summary>
-    ISchemaRunTime RunTime { get; } 
+    ISchemaRuntime Runtime { get; } 
 }

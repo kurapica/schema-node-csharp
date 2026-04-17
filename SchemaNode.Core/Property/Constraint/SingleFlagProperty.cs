@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Constraint;
 [SchemaProperty([SchemaType.StructField], [ValueSchemaType.FlagsEnum], optionDepends: [nameof(RequireProperty)])]
 public class SingleFlagProperty : SchemaProperty<bool>, IConstraintProperty
 {
-    public bool? ValidateEnum(SchemaContext context, EnumTypeNode node, StructTypeNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         if ((overrideValue?.ToValue<bool>() ?? Value) != true || node.IsEmpty) return null;
 
