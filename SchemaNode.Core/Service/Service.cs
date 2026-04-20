@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -8,8 +7,6 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
-using ValueType = System.ValueType;
 
 // ReSharper disable AccessToDisposedClosure
 
@@ -20,14 +17,6 @@ namespace SchemaNode.Service;
 /// </summary>
 public static partial class SchemaNodeExtensions
 {
-    #region Fields
-
-    private static readonly ConcurrentQueue<Assembly> OrderAssemblies = [];
-    private static readonly ConcurrentDictionary<Assembly, bool> LoadingAssemblies = [];
-    private static readonly ConcurrentBag<Type> StageHandlers = [];
-    
-    #endregion
-
     #region Extension methods
 
     /// <summary>
@@ -35,6 +24,9 @@ public static partial class SchemaNodeExtensions
     /// </summary>
     public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
     {
+        List<Assembly> orderAssemblies = [];
+        Dictionary<Assembly, bool> loadingAssemblies = [];
+
         // Default run-time
         services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
         
@@ -42,7 +34,7 @@ public static partial class SchemaNodeExtensions
         services.TryAddScoped<ISchemaContext, SchemaContext>();
         
         // The schema runtime builder
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<IStageHandler, NodeSchemaRuntimeBuilder>());
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, NodeRuntimeStageHandler>());
         
         // Add logger
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
@@ -62,9 +54,21 @@ public static partial class SchemaNodeExtensions
         
         // Add entry last
         if (entry != null) AddAssembly(entry);
+
+        services.AddSingleton(new SchemaOptions
+        {
+            Assemblies = orderAssemblies.ToArray(),
+        });
         
         // Gets all stage handlers
         return services;
+        
+        void AddAssembly(Assembly assembly)
+        {
+            if (!loadingAssemblies.TryAdd(assembly, true)) return;
+            orderAssemblies.Add(assembly);
+        }
+
     }
     
     /// <summary>
@@ -75,93 +79,111 @@ public static partial class SchemaNodeExtensions
     /// <summary>
     /// Loading the schema runtime
     /// </summary>
-    public static async Task<IServiceProvider> LoadSchemaRuntimeAsync(this IServiceProvider provider)
+    public static async Task<IServiceProvider> InitSchemaRuntimeAsync(this IServiceProvider provider)
     {
         using IServiceScope scope = provider.CreateScope();
         ISchemaRuntime runtime = scope.ServiceProvider.GetRequiredService<ISchemaRuntime>();
         ISchemaContext context = scope.ServiceProvider.GetRequiredService<ISchemaContext>();
         ILogger logger = scope.ServiceProvider.GetRequiredService<ILogger<ISchemaRuntime>>();
-        
-        Dictionary<Type, IStageHandler> handlers = [];
-        Assembly[] assemblies = OrderAssemblies.ToArray();
+        IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
+        Assembly[] assemblies = provider.GetService<SchemaOptions>()?.Assemblies ?? [];
+        Dictionary<string, (Type schemaType, SchemaKind kind)> schemaKinds = [];
+        Dictionary<string, List<Type>> schemaProperties = new();
 
-        #region Schema Kind Loading
-
+        // Gather the schema kind & schema properties
         foreach (Assembly assembly in assemblies)
         {
-            Dictionary<string, (Type schemaType, AsSchemaKind kind)> map = [];
             foreach (Type type in assembly.GetTypes().Where(t => t is { IsClass: true, IsAbstract: false }))
             {
                 // Check if this type has [Meta<AsSchemaKind>] attribute
-                AsSchemaKind? asSchemaKind = type.GetMetaProperty<AsSchemaKind>();
-                if (asSchemaKind is not { HasValue: true }) continue;
-                map[asSchemaKind.Value!] = (type, asSchemaKind);
-            }
-
-            // Register the schema kinds
-            foreach (var item in map.Values.OrderBy(t => t.kind.Order))
-            {
-                logger.LogSchemakindRegistered(item.kind.Value!, item.schemaType.Name);
-                runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType);
+                if (type.GetMetaProperty<SchemaKind>() is { HasValue: true } asSchemaKind)
+                {
+                    if (schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind))) continue;
+                    throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
+                }
+                else if (type.IsAssignableTo(typeof(IProperty)) && type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
+                {
+                    foreach (string kind in forSchema.Value!)
+                    {
+                        if (schemaProperties.TryGetValue(kind, out List<Type>? propertyTypes))
+                            propertyTypes.Add(type);
+                        else
+                            schemaProperties.Add(kind, [type]);
+                    }
+                }
             }
         }
-
-        Dispatch("PreSchemaKindLoad",   h => h.OnPreSchemaKindLoad(context, assemblies));
-        Dispatch("SchemaKindLoading",   h => h.OnSchemaKindLoading(context, assemblies));
-        Dispatch("SchemaKindLoaded",    h => h.OnSchemaKindLoaded(context, assemblies));
-
-        #endregion 
         
-        #region Schema Properties Loading
+        // Register the schema kinds into the runtime
+        foreach (var item in schemaKinds.Values.OrderBy(t => t.kind.Order))
+        {
+            logger.LogSchemaKindRegistered(item.kind.Value!, item.schemaType.Name);
+            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out List<Type>? propertyTypes) ? propertyTypes.ToArray() : null);
+        }
         
-        // Property For Schemas
-        Dispatch("PrePropertyLoad",     h => h.OnPrePropertyLoad(context, assemblies));
-        Dispatch("PropertyLoading",     h => h.OnPropertyLoading(context, assemblies));
-        Dispatch("PropertyLoaded",      h => h.OnPropertyLoaded(context, assemblies));
-        
-        #endregion
-        
-        #region System Schema Loading
-
         // System Schema
-        Dispatch("PreSystemSchemaLoad", h => h.OnPreSystemSchemaLoad(context, assemblies));
-        Dispatch("SystemSchemaLoading", h => h.OnSystemSchemaLoading(context, assemblies));
-        Dispatch("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies));
-
-        #endregion
-        
-        #region Custom Schema Loading
+        await DispatchAsync("SystemSchemaLoading", h => h.OnSystemSchemaLoading(context, assemblies));
+        await DispatchAsync("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies));
         
         // Schema
-        await DispatchAsync("PreSchemaLoad", h => h.OnPreSchemaLoadAsync(context));
         await DispatchAsync("SchemaLoading",  h => h.OnSchemaLoadingAsync(context));
         await DispatchAsync("SchemaLoaded",   h => h.OnSchemaLoadedAsync(context));
         
-        #endregion
-        
-        #region Active Runtime
-
-        // Activate
-        await DispatchAsync("PreActivate",   h => h.OnPreActivateAsync(context));
-        await DispatchAsync("Activating",    h => h.OnActivatingAsync(context));
-        await DispatchAsync("Activated",     h => h.OnActivatedAsync(context));
-        
-        #endregion
-
         return provider;
-
-        void Dispatch(string stage, Action<IStageHandler> invoke)
-        {
-            logger.LogProcessingBuildStageStage(stage);
-            foreach (var handler in StageHandlers.Select(t => GetStageHandler(provider, context, handlers, t)))
-                if (handler != null) invoke(handler);
-        }
         
-        async Task DispatchAsync(string stage, Func<IStageHandler, Task> invoke)
+        async Task DispatchAsync(string stage, Func<IRuntimeStageHandler, Task> invoke)
         {
             logger.LogProcessingRuntimeStageStage(stage);
-            foreach (var handler in StageHandlers.Select(t => GetStageHandler(provider, context, handlers, t)))
-                if (handler != null) await invoke(handler);
+            foreach (var handler in handlers)
+                await invoke(handler);
+        }
+    }
+
+    /// <summary>
+    /// Activating the schema runtime
+    /// </summary>
+    public static async Task<IServiceProvider> ActivateSchemaRuntimeAsync(this IServiceProvider provider)
+    {
+        using IServiceScope scope = provider.CreateScope();
+        ISchemaContext context = scope.ServiceProvider.GetRequiredService<ISchemaContext>();
+        ILogger logger = scope.ServiceProvider.GetRequiredService<ILogger<ISchemaRuntime>>();
+        IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
+        
+        // Activate
+        await DispatchAsync("Activating",    h => h.OnActivatingAsync(context));
+        await DispatchAsync("Activated",    h => h.OnActivatedAsync(context));
+
+        return provider;
+        
+        async Task DispatchAsync(string stage, Func<IRuntimeStageHandler, Task> invoke)
+        {
+            logger.LogProcessingRuntimeStageStage(stage);
+            foreach (var handler in handlers)
+                await invoke(handler);
+        }
+    }
+
+    /// <summary>
+    /// Deactivate the schema runtime
+    /// </summary>
+    public static async Task<IServiceProvider> DeactivateSchemaRuntimeAsync(this IServiceProvider provider)
+    {
+        using IServiceScope scope = provider.CreateScope();
+        ISchemaContext context = scope.ServiceProvider.GetRequiredService<ISchemaContext>();
+        ILogger logger = scope.ServiceProvider.GetRequiredService<ILogger<ISchemaRuntime>>();
+        IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
+        
+        // Activate
+        await DispatchAsync("Deactivating",    h => h.OnDeactivatingAsync(context));
+        await DispatchAsync("Deactivated",    h => h.OnDeactivatedAsync(context));
+
+        return provider;
+        
+        async Task DispatchAsync(string stage, Func<IRuntimeStageHandler, Task> invoke)
+        {
+            logger.LogProcessingRuntimeStageStage(stage);
+            foreach (var handler in handlers)
+                await invoke(handler);
         }
     }
     
@@ -169,38 +191,26 @@ public static partial class SchemaNodeExtensions
 
     #region Utility
     
-    static void AddAssembly(Assembly assembly)
-    {
-        if (!LoadingAssemblies.TryAdd(assembly, true)) return;
-        OrderAssemblies.Enqueue(assembly);
+    [LoggerMessage(LogLevel.Information, "Processing build stage: {stage}")]
+    static partial void LogProcessingBuildStageStage(this ILogger logger, string stage);
 
-        // Register the stage handlers in the assembly
-        foreach (var type in assembly.GetTypes().Where(t => 
-                     typeof(IStageHandler).IsAssignableFrom(t) &&
-                     t is { IsClass: true, IsAbstract: false }))
-        {
-            StageHandlers.Add(type);
-        }
-    }
+    [LoggerMessage(LogLevel.Information, "Processing runtime stage: {stage}")]
+    static partial void LogProcessingRuntimeStageStage(this ILogger logger, string stage);
+
+    [LoggerMessage(LogLevel.Debug, "[SchemaKind] Registered kind '{kind}' -> schema={schemaType}")]
+    static partial void LogSchemaKindRegistered(this ILogger logger, string kind, string schemaType);
+    
+    #endregion
+
+    #region Inner Types
+
     /// <summary>
-    /// Gets or creates stage handler
+    /// The schema options
     /// </summary>
-    static IStageHandler? GetStageHandler(IServiceProvider provider, ISchemaContext context, Dictionary<Type, IStageHandler> map, Type type)
+    class SchemaOptions
     {
-        if (map.TryGetValue(type, out IStageHandler? handler)) return handler;
-        handler = (IStageHandler?)ActivatorUtilities.CreateInstance(provider, type);
-        if (handler != null) map.TryAdd(type, handler);
-        return handler;
+        public Assembly[]? Assemblies { get; set; }
     }
 
     #endregion
-
-    [LoggerMessage(LogLevel.Information, "Processing build stage: {Stage}")]
-    static partial void LogProcessingBuildStageStage(this ILogger logger, string Stage);
-
-    [LoggerMessage(LogLevel.Information, "Processing runtime stage: {Stage}")]
-    static partial void LogProcessingRuntimeStageStage(this ILogger logger, string Stage);
-
-    [LoggerMessage(LogLevel.Debug, "[SchemaKind] Registered kind '{Kind}' -> schema={SchemaType}")]
-    static partial void LogSchemakindRegistered(this ILogger logger, string Kind, string SchemaType);
 }

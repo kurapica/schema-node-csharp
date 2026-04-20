@@ -14,7 +14,7 @@ namespace SchemaNode.Schema;
 /// The relation schemas
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
-[Meta<AsSchemaKind>(nameof(RelationSchema), SCHEMA_KIND_ORDER_RELATION)]
+[Meta<SchemaKind>(nameof(RelationSchema), SCHEMA_KIND_ORDER_RELATION)]
 public class RelationSchema: ExtensibleSchema
 {
     /// <summary>
@@ -102,7 +102,7 @@ public class RelationCall: IRelationProcess
 /// </summary>
 [Meta<Alias>("call")]
 [Meta<ForSchema>(nameof(RelationSchema))]
-[Meta<AsRelationKind>("call", 0)]
+[Meta<Property.Schema.RelationKind>("call", 0)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
 public class RelationCallProperty : Property<RelationCall>;
 

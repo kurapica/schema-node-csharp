@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-[Meta<AsErrorCode>("struct_wrong_field", SCHEMA_KIND_ORDER_STRUCT * 100 + 1)]
+[Meta<ErrorCode>("struct_wrong_field", SCHEMA_KIND_ORDER_STRUCT * 100 + 1)]
 public sealed class StructType : AnySchemaType
 {
     #region Data

@@ -28,6 +28,15 @@ public class SchemaContext(IServiceProvider serviceProvider, ISchemaRuntime runt
     readonly Lazy<ILogger> _loggerThunk = new(serviceProvider.GetRequiredService<ILogger<SchemaContext>>);
 
     #endregion
+    
+    #region Methods
+
+    /// <summary>
+    /// Gets the schema type by name
+    /// </summary>
+    public Task<AnySchemaType?> GetSchemaTypeAsync(string name) => Task.FromResult((AnySchemaType?)null);
+    
+    #endregion
 
     #region Service Resolution
 

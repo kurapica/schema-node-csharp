@@ -2,49 +2,68 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Schema;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
-[Meta<AsErrorCode>("no_definition", 1)]
-[Meta<AsErrorCode>("wrong_ref_type", 2)]
+[Meta<ErrorCode>(ERR_NO_DEFINITION, SCHEMA_KIND_ORDER_NODE * 100 + 1)]
+[Meta<ErrorCode>(ERR_WRONG_REF_TYPE, SCHEMA_KIND_ORDER_NODE * 100 + 2)]
 public abstract class AnySchemaType : IDisposable
 {
     #region Fields
 
     /// <summary>
-    /// The schema name
+    /// The schema full name
     /// </summary>
-    public string Name => Schema.Name;
+    public string Name { get; internal set; } = null!;
 
     /// <summary>
     /// The namespace that holds the type
     /// </summary>
-    public NamespaceType? Namespace { get; private set; }
+    public NamespaceType? Namespace { get; internal set; }
+
+    /// <summary>
+    /// The schema kind
+    /// </summary>
+    public virtual string Kind => "node";
+
+    /// <summary>
+    /// The schema type is a value type
+    /// </summary>
+    public virtual bool IsValueType => false;
+
+    /// <summary>
+    /// The schema is system defined
+    /// </summary>
+    public bool IsSystem { get; internal set; }
 
     /// <summary>
     /// The node schema
     /// </summary>
-    public required NodeSchema Schema { get; init; }
+    public NodeSchema? Schema { get; private set; }
 
     /// <summary>
     /// The schema provider used to load the schema type
     /// </summary>
-    public Type? SchemaProvider { get; set; }
+    public Type? SchemaProvider { get; internal set; }
 
     /// <summary>
     /// The error code. Null means ready/no error.
     /// Values are dynamically registered via [Meta&lt;AsErrorCode&gt;] on runtime types.
     /// </summary>
-    public string? Error { get; set; }
+    public string? Error { get; internal set; }
 
     /// <summary>
     /// Whether the schema is used
     /// </summary>
-    public virtual bool IsUsed => _usedBy is { IsEmpty: false };
+    public virtual bool IsUsed => IsSystem || _usedBy is { IsEmpty: false } ||
+                                  _usedByOthers is { IsEmpty: false } && 
+                                  _usedByOthers.Values.Any(v => !v.IsEmpty);
 
     /// <summary>
     /// Whether the type is loaded
@@ -58,17 +77,12 @@ public abstract class AnySchemaType : IDisposable
     /// <summary>
     /// The properties
     /// </summary>
-    protected IProperty[]? Properties { get; private set; }
-
-    /// <summary>
-    /// The constraint properties from Extensions
-    /// </summary>
-    protected IConstraintProperty[]? Constraints { get; private set; }
+    protected IProperty[]? Properties { get; set; }
 
     /// <summary>
     /// The ref types from the properties in Extensions
     /// </summary>
-    protected List<AnySchemaType>? RefTypes { get; private set; }
+    protected List<AnySchemaType>? RefTypes { get; set; }
 
     /// <summary>
     /// Gets the property by type
@@ -81,70 +95,53 @@ public abstract class AnySchemaType : IDisposable
     #region Loading
 
     /// <summary>
+    /// Gets the type schema data
+    /// </summary>
+    public virtual ExtensibleSchema? GetTypeSchema() => null;
+
+    /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    public async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public virtual async Task LoadSchemaAsync(SchemaContext context, NodeSchema schema)
     {
+        Loaded = true;
+        Error = null;
+        
         // Clear previous state
         ReleaseType();
+        Schema = schema;
 
-        // Parse extension properties from the schema
-        if (schema.Extensions is { Count: > 0 })
+        // Loading properties
+        ExtensibleSchema? typeSchema = GetTypeSchema();
+        if (typeSchema == null) Error = ERR_NO_DEFINITION;
+        
+        Properties = typeSchema != null 
+            ? GetExtensionProperties(typeSchema, context.Runtime.GetSchemaKindProperties(Kind)).ToArray()
+            : null;
+        if (Properties != null)
         {
-            List<IProperty> props = [];
-            ISchemaRuntime runtime = context.Runtime;
-            string kind = schema.Kind?.ToLowerInvariant() ?? "";
-
-            // Get registered property types for this schema kind
-            foreach (Type propType in runtime.GetSchemaProperties(kind))
+            // Resolve type references
+            foreach (ITypeRefProperty typeRef in Properties.OfType<ITypeRefProperty>())
             {
-                if (Activator.CreateInstance(propType) is not IProperty prop) continue;
+                if (!typeRef.HasValue) continue;
+                string? name = typeRef.GetValue<string>();
+                if (string.IsNullOrWhiteSpace(name)) continue;
 
-                // Try get property name/alias
-                string propName = propType.GetPropertyName();
-                if (!schema.Extensions.TryGetValue(propName, out JsonNode? node)) continue;
-
-                prop.SetValue(node);
-                if (prop.HasValue) props.Add(prop);
-            }
-
-            if (props.Count > 0)
-            {
-                Properties = props.ToArray();
-                Constraints = props.OfType<IConstraintProperty>().ToArray();
-
-                // Resolve type references
-                foreach (ITypeRefProperty typeRef in props.OfType<ITypeRefProperty>())
+                AnySchemaType? refNode = await context.GetSchemaTypeAsync(name);
+                if (refNode != null)
                 {
-                    if (!typeRef.HasValue) continue;
-                    string? name = typeRef.GetValue<string>();
-                    if (string.IsNullOrWhiteSpace(name)) continue;
-
-                    AnySchemaType? refNode = await runtime.GetSchemaTypeAsync(context, name);
-                    if (refNode != null)
-                    {
-                        RefTypes ??= [];
-                        RefTypes.Add(refNode);
-                        refNode.AddRef(this);
-                    }
-                    else
-                    {
-                        Error = "wrong_ref_type";
-                        context.LogWarning("[Runtime] Failed to load ref type '{Name}' in schema '{SchemaName}'", name, Name);
-                    }
+                    RefTypes ??= [];
+                    RefTypes.Add(refNode);
+                    refNode.AddRef(this);
+                }
+                else
+                {
+                    Error = ERR_WRONG_REF_TYPE;
+                    context.LogWarning("[Runtime] Failed to load ref type '{Name}' in schema '{SchemaName}'", name, Name);
                 }
             }
         }
-
-        Loaded = true;
-        await LoadAsync(context, schema, preload);
     }
-
-    /// <summary>
-    /// Type-specific loading logic. Override in subclasses.
-    /// </summary>
-    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
-        => Task.CompletedTask;
 
     /// <summary>
     /// Release type-specific data for reload
@@ -160,37 +157,49 @@ public abstract class AnySchemaType : IDisposable
         }
 
         Properties = null;
-        Constraints = null;
     }
 
     #endregion
 
     #region Reference Tracking
 
+    // Used by other schema types
+    private ConcurrentDictionary<AnySchemaType, bool>? _usedBy;
+    private ConcurrentDictionary<Type, ConcurrentDictionary<object, bool>>? _usedByOthers;
+
     /// <summary>
     /// Add a reference from another type
     /// </summary>
-    public void AddRef(AnySchemaType usedBy)
+    public virtual void AddRef(AnySchemaType usedBy)
     {
+        // system types are not tracked
+        if (IsSystem) return;
         _usedBy ??= [];
-        _usedBy.Add(usedBy);
+        _usedBy.TryAdd(usedBy, true);
     }
 
     /// <summary>
     /// Remove a reference from another type
     /// </summary>
-    public void RemoveRef(AnySchemaType usedBy)
+    public virtual void RemoveRef(AnySchemaType usedBy) => _usedBy?.TryRemove(usedBy, out _);
+
+    /// <summary>
+    /// Add ref for others
+    /// </summary>
+    public void AddRef<T>(T usedBy)
     {
-        if (_usedBy == null) return;
-        // ConcurrentBag doesn't support removal, rebuild
-        var items = _usedBy.Where(x => x != usedBy).ToArray();
-        _usedBy = new ConcurrentBag<AnySchemaType>(items);
+        _usedByOthers ??= [];
+        _usedByOthers.GetOrAdd(typeof(T), _ => []).TryAdd(usedBy!, true);
     }
 
     /// <summary>
-    /// Set the namespace that holds this type
+    /// Remove ref for others
     /// </summary>
-    internal void SetNamespace(NamespaceType ns) => Namespace = ns;
+    public void RemoveRef<T>(T usedBy)
+    {
+        if (_usedByOthers != null && _usedByOthers.TryGetValue(typeof(T), out var refs))
+            refs.TryRemove(typeof(T), out _);
+    }
 
     #endregion
 
@@ -200,13 +209,121 @@ public abstract class AnySchemaType : IDisposable
     {
         ReleaseType();
         _usedBy = null;
+        _usedByOthers = null;
     }
 
     #endregion
 
     #region Utility
-
-    private ConcurrentBag<AnySchemaType>? _usedBy;
+    
+    /// <summary>
+    /// Gets the properties with given property types
+    /// </summary>
+    static IEnumerable<IProperty> GetExtensionProperties(ExtensibleSchema schema, IEnumerable<Type> propertyTypes)
+    {
+        if (schema.Extensions == null || schema.Extensions.Count == 0) yield break;
+        
+        foreach (Type propType in propertyTypes)
+        {
+            string key = propType.GetPropertyName();
+            if (!schema.Extensions.TryGetValue(key, out JsonNode? node)) continue;
+            if (Activator.CreateInstance(propType) is not IProperty prop) continue;
+            prop.SetValue(node);
+            if (prop.HasValue)
+                yield return prop;
+        }
+    }
 
     #endregion
 }
+
+
+/// <summary>
+/// The abstract schema type for data schema types, that can be used to validate or generate the data node
+/// </summary>
+public abstract class ValueSchemaType: AnySchemaType
+{
+    #region Overrides of AnySchemaType
+
+    private ConcurrentDictionary<ValueSchemaType, FunctionType>? _compatibles;
+
+    /// <inheritdoc/>
+    public override async Task LoadSchemaAsync(SchemaContext context, NodeSchema schema)
+    {
+        await base.LoadSchemaAsync(context, schema);
+        
+        // Load constraints properties
+        Constraints = Properties?.OfType<IConstraintProperty>().ToArray();
+    }
+
+    /// <inheritdoc/>
+    public override void AddRef(AnySchemaType usedBy)
+    {
+        // check compatibles, rare but important
+        if (IsValueType && usedBy is FunctionType { Args.Length: 1, Converter: true } func &&
+            func.Args[0].SchemaType == this && func.ReturnNode is ValueSchemaType valueType && !CanBeUseAs(valueType))
+        {
+            // Means this type can be converted to func.ReturnNode via func
+            _compatibles ??= [];
+            _compatibles.TryAdd(valueType, func);
+        }
+
+        base.AddRef(usedBy);
+    }
+    
+    /// <inheritdoc/>
+    public override void RemoveRef(AnySchemaType usedBy)
+    {
+        if (usedBy is ValueSchemaType valueType)
+            _compatibles?.TryRemove(valueType, out _);
+        base.RemoveRef(usedBy);
+    }
+
+    /// <inheritdoc/>
+    public override bool IsValueType => true;
+    
+    #endregion
+    
+    #region Fields
+    
+    /// <summary>
+    /// The constraint properties from Extensions
+    /// </summary>
+    protected IConstraintProperty[]? Constraints { get; set; }
+
+    /// <summary>
+    /// Create the data node by value
+    /// </summary>
+    public virtual AnySchemaNode? Create(object? value = null) => value is AnySchemaNode node ? node : null;
+
+    /// <summary>
+    /// Validate the value with the schema
+    /// </summary>
+    public virtual Task<AnySchemaNode?> ValidateValueAsync(SchemaContext context, object? value) => Task.FromResult((AnySchemaNode?) null);
+
+    /// <summary>
+    /// Whether the schema type can be used as the other
+    /// </summary>
+    public virtual bool CanBeUseAs(ValueSchemaType other, bool exactly = false)
+        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT) || Name.Equals(NS_SYSTEM_JSON) ||
+           other.Name.Equals(NS_SYSTEM_OBJECT) || other.Name.Equals(NS_SYSTEM_JSON) ||
+           !exactly && _compatibles != null && 
+           (_compatibles.ContainsKey(other) || _compatibles.Keys.Any(k => k.CanBeUseAs(other, true)));
+
+    /// <summary>
+    /// Whether the type can be used as array data index
+    /// </summary>
+    public virtual bool IsIndexable => false;
+
+    /// <summary>
+    /// Whether the value type is array
+    /// </summary>
+    public virtual bool IsArray => false;
+    
+    #endregion
+}
+
+/// <summary>
+/// Represents the schema type support template types
+/// </summary>
+public interface ITemplateSchemaType;

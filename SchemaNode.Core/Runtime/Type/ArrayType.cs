@@ -9,7 +9,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-[Meta<AsErrorCode>("array_wrong_element", SCHEMA_KIND_ORDER_ARRAY * 100 + 1)]
+[Meta<ErrorCode>("array_wrong_element", SCHEMA_KIND_ORDER_ARRAY * 100 + 1)]
 public sealed class ArrayType : AnySchemaType
 {
     #region Data

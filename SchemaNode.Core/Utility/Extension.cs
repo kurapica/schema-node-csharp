@@ -52,6 +52,18 @@ internal static class Extension
     internal static string GetBaseType(this string name) =>name.Contains("<") ? name[..name.IndexOf('<')] : name;
 
     /// <summary>
+    /// Gets the namespace
+    /// </summary>
+    internal static string GetNamespace(this string name) => string.Join('.', name.SplitTypeName().SkipLast(1));
+    
+    /// <summary>
+    /// Gets the schema name
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    internal static string GetSchemaName(this string name) => name.SplitTypeName().Last();
+    
+    /// <summary>
     /// Remove the ending part if existed
     /// </summary>
     internal static string RemoveEnding(this string name, string ending)
@@ -102,12 +114,7 @@ internal static class Extension
     /// <summary>
     /// Gets the schema type from the type
     /// </summary>
-    /// <param name="type"></param>
-    /// <returns></returns>
-    internal static string? GetSchemaType(this Type type)
-    {
-        return type.GetMetaProperty<SchemaType>()?.Value;
-    }
+    internal static string? GetSchemaType(this Type type) => type.GetMetaProperty<SchemaType>()?.Value;
     
     #endregion
 

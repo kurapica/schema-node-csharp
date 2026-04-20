@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property.Schema;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -9,8 +10,8 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-[Meta<AsErrorCode>("func_wrong_return", SCHEMA_KIND_ORDER_FUNC * 100 + 1)]
-[Meta<AsErrorCode>("func_wrong_arg", SCHEMA_KIND_ORDER_FUNC * 100 + 2)]
+[Meta<ErrorCode>("func_wrong_return", SCHEMA_KIND_ORDER_FUNC * 100 + 1)]
+[Meta<ErrorCode>("func_wrong_arg", SCHEMA_KIND_ORDER_FUNC * 100 + 2)]
 public sealed class FunctionType : AnySchemaType
 {
     #region Data
@@ -34,6 +35,16 @@ public sealed class FunctionType : AnySchemaType
     /// The generic type bases
     /// </summary>
     public string[]? Generic { get; private set; }
+
+    /// <summary>
+    /// The return type
+    /// </summary>
+    public AnySchemaType? ReturnNode  { get; private set; }
+    
+    /// <summary>
+    /// The function is a converter
+    /// </summary>
+    public bool? Converter { get; private set; }
 
     #endregion
 

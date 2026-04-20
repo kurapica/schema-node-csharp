@@ -7,6 +7,8 @@ namespace SchemaNode.Scalar;
 /// <summary>
 /// Represents the date scalar value type, without the hms
 /// </summary>
+[Meta<ClrEquivalent>(typeof(Date))]
+[Meta<ClrEquivalent>(typeof(DateOnly))]
 [Meta<SchemaType>(NS_SYSTEM_DOUBLE)]
 public class Date: IScalarType<DateTimeOffset>;
 

@@ -16,6 +16,13 @@ public static class Constant
 
     #endregion
     
+    #region Pattern
+    
+    public const string REGEX_GENERIC_TYPE = @"^T\d*$";
+    public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
+    
+    #endregion
+    
     #region Schema Kind
 
     public const int SCHEMA_KIND_ORDER_NODE = 0;
@@ -108,6 +115,13 @@ public static class Constant
 
     #endregion
 
+    #endregion
+    
+    #region Error Codes
+
+    public const string ERR_NO_DEFINITION = "no_definition";
+    public const string ERR_WRONG_REF_TYPE = "wrong_ref_type";
+    
     #endregion
 
     #region Deprecated Schema

@@ -1,6 +1,14 @@
+using SchemaNode.Utility;
+
 namespace SchemaNode.Property.Schema;
 
 /// <summary>
-/// Mark a type with the given schema kind
+/// Declare a new schema kind
 /// </summary>
-public class SchemaKind: Property<string>;
+public class SchemaKind : OrderProperty<string>
+{
+    public override void SetValue<TValue>(TValue value)
+    {
+        base.SetValue(value.TryConvertTo<string>()?.GetSchemaKind());
+    }
+}

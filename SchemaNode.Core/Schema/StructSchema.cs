@@ -2,15 +2,16 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Node;
+using SchemaNode.Generator;
 using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Scalar.Schema;
-using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ValueType = SchemaNode.Property.Schema.ValueType;
+using StructType = SchemaNode.Runtime.StructType;
+using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
@@ -18,9 +19,9 @@ namespace SchemaNode.Schema;
 /// The struct schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
-[Meta<AsSchemaKind>(nameof(StructSchema), SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<RuntimeType>(typeof(Runtime.StructType))]
-[Meta<ValueType>(typeof(StructNode))]
+[Meta<SchemaKind>("struct", SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<NodeSchemaType>(typeof(StructType))]
+[Meta<SchemaGenerator>(typeof(StructGenerator))]
 public sealed class StructSchema : ExtensibleSchema
 {
     /// <summary>
@@ -38,13 +39,14 @@ public sealed class StructSchema : ExtensibleSchema
 /// Declare struct property for node schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "struct")]
 public sealed class StructProperty: Property<StructSchema>;
 
 /// <summary>
 /// The struct field schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT_FIELD}.schema")]
-[Meta<AsSchemaKind>(nameof(StructFieldSchema), SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<SchemaKind>(nameof(StructFieldSchema), SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 public sealed class StructFieldSchema : ExtensibleSchema
 {
     /// <summary>

@@ -1,10 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
+using SchemaNode.Runtime;
 using SchemaNode.Scalar.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
@@ -15,9 +19,10 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The function schema
 /// </summary>
+[Meta<SchemaKind>("function", SCHEMA_KIND_ORDER_FUNC)]
+[Meta<NodeSchemaType>(typeof(FunctionType))]
+[Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
-[Meta<AsSchemaKind>(nameof(FunctionSchema), SCHEMA_KIND_ORDER_FUNC)]
-[Meta<RuntimeType>(typeof(Runtime.FunctionType))]
 public sealed class FunctionSchema: ExtensibleSchema
 {
     /// <summary>
@@ -47,6 +52,7 @@ public sealed class FunctionSchema: ExtensibleSchema
 /// Declare function property for node schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "function")]
 public sealed class FuncProperty: Property<FunctionSchema>;
 
 /**
@@ -93,6 +99,13 @@ public sealed class FuncArg
     /// </summary>
     [NotMapped]
     public string? Error { get; set; }
+    
+    /// <summary>
+    /// The argument schema type
+    /// </summary>
+    [NotMapped]
+    [JsonIgnore]
+    public AnySchemaType? SchemaType  { get; set; }
 }
 
 /// <summary>

@@ -1,17 +1,16 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Node;
+using SchemaNode.Generator;
 using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
-using ValueType = SchemaNode.Property.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_SCALAR}.schema")]
-[Meta<AsSchemaKind>(nameof(ScalarSchema), SCHEMA_KIND_ORDER_SCALAR)]
-[Meta<RuntimeType>(typeof(Runtime.ScalarType))]
-[Meta<ValueType>(typeof(ScalarNode))]
+[Meta<SchemaKind>("scalar", SCHEMA_KIND_ORDER_SCALAR)]
+[Meta<NodeSchemaType>(typeof(Runtime.ScalarType))]
 public sealed class ScalarSchema: ExtensibleSchema
 {
     /// <summary>
@@ -25,4 +24,5 @@ public sealed class ScalarSchema: ExtensibleSchema
 /// Declare scalar property for node schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "scalar")]
 public sealed class ScalarProperty: Property<ScalarSchema>;

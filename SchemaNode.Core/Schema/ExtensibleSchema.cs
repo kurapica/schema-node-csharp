@@ -16,7 +16,7 @@ namespace SchemaNode.Schema;
 /// It is recommended to inherit from this class for all schemas that support extension properties, 
 /// so that the extension properties can be easily added and combined.
 /// </summary>
-public abstract class ExtensibleSchema: IPropertyOwner
+public abstract class ExtensibleSchema : IPropertyOwner
 {
     /// <summary>
     /// The error status
@@ -26,7 +26,7 @@ public abstract class ExtensibleSchema: IPropertyOwner
     public string? Error { get; set; }
 
     #region Extensions
-    
+
     /// <summary>
     /// The dictionary to hold the extension properties. The key is the property name, and the value is the property value.
     /// </summary>
@@ -41,47 +41,57 @@ public abstract class ExtensibleSchema: IPropertyOwner
     public void CombineExtensions(ExtensibleSchema? other)
     {
         if (other?.Extensions is not { Count: > 0 } || !other.GetType().IsAssignableTo(GetType())) return;
-        
+
         Extensions ??= [];
         foreach (var (key, value) in other.Extensions)
             Extensions[key] = value;
     }
-    
+
     #endregion
 
     #region Implementation of IPropertyOwner
 
+    /// <inheritdoc/>
+    public IProperty? GetProperty(Type type)
+    {
+        if (Extensions == null || !Extensions.TryGetValue(type.GetPropertyName(), out JsonNode? node)) return null;
+        IProperty? prop = Activator.CreateInstance(type) as IProperty;
+        prop?.SetValue(node);
+        return prop;
+    }
+
+    /// <inheritdoc/>
+    public void SetProperty(IProperty property)
+    {
+        Extensions ??= [];
+        JsonNode? node = property.GetValue<JsonNode>();
+        if (node != null)
+            Extensions[property.GetType().GetPropertyName()] = node;
+    }
+
+    /// <inheritdoc/>
+    public void RemoveProperty(Type type) => Extensions?.Remove(type.GetPropertyName());
+
+    /// <inheritdoc/>
     public T? GetProperty<T>() where T : IProperty, new()
     {
-        if (Extensions == null) return default(T?);
-        string key = GetPropertyName<T>();
-        if (!Extensions.TryGetValue(key, out JsonNode? node)) return default(T?);
+        if (Extensions == null || !Extensions.TryGetValue(typeof(T).GetPropertyName(), out JsonNode? node)) return default(T?);
         IProperty prop = Activator.CreateInstance<T>();
         prop.SetValue(node);
         return (T?)prop;
     }
 
-    public void SetProperty<T>(T property) where T : IProperty
+    /// <inheritdoc/>
+    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
     {
         Extensions ??= [];
-        string key = GetPropertyName<T>();
-        JsonNode? node = property.GetValue<JsonNode>();
+        JsonNode? node = value.TryConvertTo<JsonNode>();
         if (node != null)
-            Extensions[key] = node;
+            Extensions[typeof(TK).GetPropertyName()] = node;
     }
-
-    public void RemoveProperty<T>(T property) where T : IProperty
-    {
-        if (Extensions == null) return;
-        string key = GetPropertyName<T>();
-        Extensions.Remove(key);
-    }
-
-    string GetPropertyName<T>() where T : IProperty
-    {
-        Type type = typeof(T);
-        return type.GetMetaProperty<Alias>()?.Value ?? type.Name.GetPropertyName();
-    }
+    
+    /// <inheritdoc/>
+    public void RemoveProperty<T>() where T : IProperty => RemoveProperty(typeof(T));
     
     #endregion
 }

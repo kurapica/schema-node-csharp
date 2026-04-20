@@ -2,13 +2,14 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
+using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
+using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ValueType = SchemaNode.Property.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
@@ -16,9 +17,9 @@ namespace SchemaNode.Schema;
 /// The enum schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
-[Meta<AsSchemaKind>(nameof(EnumSchema), SCHEMA_KIND_ORDER_ENUM)]
-[Meta<RuntimeType>(typeof(Runtime.EnumType))]
-[Meta<ValueType>(typeof(EnumNode))]
+[Meta<SchemaKind>("enum", SCHEMA_KIND_ORDER_ENUM)]
+[Meta<NodeSchemaType>(typeof(EnumType))]
+[Meta<SchemaGenerator>(typeof(EnumGenerator))]
 public sealed class EnumSchema : ExtensibleSchema
 {
     /// <summary>
@@ -41,6 +42,7 @@ public sealed class EnumSchema : ExtensibleSchema
 /// Declare enum property for node schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "enum")]
 public sealed class EnumProperty: Property<EnumSchema>;
 
 /// <summary>

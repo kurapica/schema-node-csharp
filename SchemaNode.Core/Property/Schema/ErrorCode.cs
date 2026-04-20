@@ -8,4 +8,4 @@ namespace SchemaNode.Property.Schema;
 /// Order follows schema kind order * 100 + x pattern.
 /// </summary>
 [Meta<Record>(typeof(Enum.ErrorCode))]
-public class AsErrorCode : RecordProperty<string>;
+public class ErrorCode : RecordProperty<string>;

@@ -11,5 +11,18 @@ public interface ISchemaRuntime
     /// <summary>
     /// Register the schema kind
     /// </summary>
-    void RegisterSchemaKind(string kind, Type schemaType);
+    void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null);
+    
+    /// <summary>
+    /// Gets the schema kinds
+    /// </summary>
+    /// <returns></returns>
+    IEnumerable<(string kind, Type schemaType)> GetSchemaKinds();
+    
+    /// <summary>
+    /// Gets the schema properties
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <returns></returns>
+    IEnumerable<Type> GetSchemaKindProperties(string kind);
 }

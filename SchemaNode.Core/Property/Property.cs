@@ -1,10 +1,5 @@
 ﻿using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
 using SchemaNode.Function;
-using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;
@@ -63,7 +58,20 @@ public abstract class Property<T> : IProperty
 /// </summary>
 public interface IPropertyOwner
 {
-    #region Abstract
+    /// <summary>
+    /// Gets the property by type
+    /// </summary>
+    IProperty? GetProperty(Type type);
+    
+    /// <summary>
+    /// Sets the property
+    /// </summary>
+    void SetProperty(IProperty property);
+
+    /// <summary>
+    /// Remove the property
+    /// </summary>
+    void RemoveProperty(Type type);
     
     /// <summary>
     /// Gets the property by type
@@ -75,43 +83,12 @@ public interface IPropertyOwner
     /// <summary>
     /// Set the property with type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="property"></param>
-    void SetProperty<T>(T property) where T : IProperty;
+    void SetProperty<TK, TV>(TV value) where TK : Property<TV>, new();
 
     /// <summary>
     /// Remove a property
     /// </summary>
-    /// <param name="property"></param>
-    /// <typeparam name="T"></typeparam>
-    void RemoveProperty<T>(T property) where T: IProperty;
-    
-    #endregion
-    
-    #region Method
-    
-    /// <summary>
-    /// The property with the given type and value, which will be converted to the property type
-    /// </summary>
-    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
-    {
-        var property = new TK();
-        property.SetValue(value);
-        SetProperty(property);
-    }
-
-    /// <summary>
-    /// Remove the property by type
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public void RemoveProperty<T>() where T : IProperty, new()
-    {
-        var property = GetProperty<T>();
-        if (property != null)
-            RemoveProperty(property);
-    }
-    
-    #endregion
+    void RemoveProperty<T>() where T: IProperty;
 }
 
 /// <summary>
@@ -181,7 +158,7 @@ public abstract class RecordProperty<T> : OrderProperty<T>
     }
 }
 
-internal static class RecordPropertyExtensions
+internal static class PropertyExtensions
 {
     private static readonly ConcurrentDictionary<Type, ConcurrentBag<IOrderProperty>> Records = [];
 

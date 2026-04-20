@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Generator;
+using SchemaNode.Property.Schema;
 using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -14,89 +16,54 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public class SchemaRuntime : ISchemaRuntime
 {
-    #region Schema Kind Registry
+    #region Implementation of ISchemaRuntime
 
-    /// <summary>
-    /// Register a schema kind mapping: kind string → (schema definition class, runtime type class)
-    /// </summary>
-    /// <param name="kind">The schema kind string (e.g. "scalarschema")</param>
-    /// <param name="schemaType">The schema definition class (e.g. typeof(ScalarSchema))</param>
-    /// <param name="runtimeType">The runtime type class (e.g. typeof(ScalarType))</param>
-    /// <param name="valueType">The schema value node class (e.g. typeof(ScalarNode))</param>
-    /// <param name="order">The loading order for the kind</param>
-    public void RegisterSchemaKind(string kind, Type schemaType, Type? runtimeType, Type? valueType, int order = 0)
-    {
-        kind = kind.ToLowerInvariant();
-        _schemaKinds[kind] = new SchemaKindInfo(kind, schemaType, runtimeType, valueType, order);
-    }
+    private (string kind, Type schemaType, Type[]? properties)[] _schemaKinds = [];
 
-    /// <summary>
-    /// Gets the registered runtime type for a given schema kind
-    /// </summary>
-    public Type? GetSchemaRuntimeType(string kind)
-    {
-        kind = kind.ToLowerInvariant();
-        return _schemaKinds.TryGetValue(kind, out var info) ? info.RuntimeType : null;
-    }
+    /// <inheritdoc/>
+    public void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null)
+        => _schemaKinds = _schemaKinds.Append((kind, schemaType, properties)).ToArray();
 
-    /// <summary>
-    /// Gets the registered value node type for a given schema kind
-    /// </summary>
-    public Type? GetSchemaValueType(string kind)
-    {
-        kind = kind.ToLowerInvariant();
-        return _schemaKinds.TryGetValue(kind, out var info) ? info.ValueType : null;
-    }
+    /// <inheritdoc/>
+    public IEnumerable<(string kind, Type schemaType)> GetSchemaKinds()
+        => _schemaKinds.Select(k => (k.kind, k.schemaType));
 
-    /// <summary>
-    /// Gets all registered schema kinds in order
-    /// </summary>
-    public IEnumerable<string> GetSchemaKinds()
-        => _schemaKinds.Values.OrderBy(k => k.Order).Select(k => k.Kind);
-
-    #endregion
-
-    #region Schema Property Registry
-
-    /// <summary>
-    /// Register a schema property type with its applicable schema kinds
-    /// </summary>
-    /// <param name="propertyType">The property type</param>
-    /// <param name="forSchemas">The schema kinds this property applies to</param>
-    public void RegisterSchemaProperty(Type propertyType, string[] forSchemas)
-    {
-        foreach (string schema in forSchemas)
-        {
-            string key = schema.ToLowerInvariant();
-            _schemaProperties.GetOrAdd(key, _ => []).Add(propertyType);
-        }
-    }
-
-    /// <summary>
-    /// Gets all registered property types for a given schema kind
-    /// </summary>
-    public IEnumerable<Type> GetSchemaProperties(string kind)
-    {
-        kind = kind.ToLowerInvariant();
-        return _schemaProperties.TryGetValue(kind, out var types) ? types : [];
-    }
+    /// <inheritdoc/>
+    public IEnumerable<Type> GetSchemaKindProperties(string kind)
+        => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties ?? [];
 
     #endregion
 
     #region System Schema
 
+    private readonly ConcurrentDictionary<Type, string> _typeCache = new();
+    private readonly NodeSchema _rootSchema = new()
+    {
+        Name = "",
+        Kind = nameof(NamespaceSchema).GetSchemaKind(),
+        Schemas = [],
+    };
+
+    /// <summary>
+    /// Gets system schema from C# type
+    /// </summary>
+    /// <param name="type">The C# type</param>
+    /// <returns></returns>
+    public string? GetTypeSchema(Type type) => _typeCache.GetValueOrDefault(type);
+
     /// <summary>
     /// Save a node schema as system-defined schema
     /// </summary>
-    public void SaveSystemNodeSchema(NodeSchema schema)
+    internal void SaveSystemSchema(NodeSchema schema)
     {
-        string schemaName = schema.Name.ToLowerInvariant();
-        NodeSchema root = _systemSchemaRoot;
+        string schemaName = schema.FullName.ToLowerInvariant();
+        NodeSchema root = _rootSchema;
         string fullPath = "";
 
-        foreach (string path in schemaName.SplitTypeName())
+        foreach (string part in schemaName.SplitTypeName())
         {
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
+            string ns = fullPath;
+            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{part}" : part;
 
             NodeSchema? node = root.Schemas?.FirstOrDefault(x => x.Name == fullPath);
             if (node == null)
@@ -111,7 +78,8 @@ public class SchemaRuntime : ISchemaRuntime
                     // Intermediate namespace: create it
                     node = new NodeSchema
                     {
-                        Name = fullPath,
+                        Name = part,
+                        Namespace = ns,
                         Kind = nameof(NamespaceSchema).GetSchemaKind(),
                         Schemas = [],
                     };
@@ -125,23 +93,33 @@ public class SchemaRuntime : ISchemaRuntime
                 root = node;
                 root.Schemas ??= [];
             }
-            // else: already exists at this level, skip
+            else if (node.Kind != schema.Kind || node.Type != null && schema.Type != null && node.Type != schema.Type)
+            {
+                // Conflict with existing schema
+                throw new InvalidOperationException($"System schema name conflict: {schema.FullName} with kind {schema.Kind} conflicts with existing kind {node.Kind}");
+            }
+        }
+        
+        // Cache the type to name mapping for quick lookup
+        if (schema.Type != null)
+            _typeCache.TryAdd(schema.Type, schemaName);
+        if (schema.Equivalents != null)
+        {
+            foreach (Type eq in schema.Equivalents)
+                _typeCache.TryAdd(eq, schemaName);
         }
     }
 
     /// <summary>
     /// Gets a system-defined node schema by name
     /// </summary>
-    public NodeSchema? GetSystemNodeSchema(string schemaName)
+    public NodeSchema? GetSystemSchema(string schemaName)
     {
-        schemaName = schemaName.ToLowerInvariant();
-        NodeSchema? node = _systemSchemaRoot;
-        string fullPath = "";
+        NodeSchema? node = _rootSchema;
 
-        foreach (string path in schemaName.SplitTypeName())
+        foreach (string part in schemaName.SplitTypeName())
         {
-            fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{path}" : path;
-            node = node?.Schemas?.FirstOrDefault(x => x.Name.Equals(fullPath, StringComparison.OrdinalIgnoreCase));
+            node = node.Schemas?.FirstOrDefault(x => x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
             if (node == null) return null;
         }
 
@@ -223,53 +201,6 @@ public class SchemaRuntime : ISchemaRuntime
         foreach (NamespaceType ns in root.SchemaNodes.Values.OfType<NamespaceType>())
             ResetTypeNamespace(ns);
     }
-
-    #endregion
-
-    #region Schema Providers
-
-    /// <summary>
-    /// Register a schema provider for loading non-system schemas
-    /// </summary>
-    public void RegisterSchemaProvider(ISchemaProvider provider) => _providers.Add(provider);
-
-    /// <summary>
-    /// Gets all registered schema providers
-    /// </summary>
-    public IEnumerable<ISchemaProvider> SchemaProviders => _providers;
-
-    #endregion
-
-    #region System Type Cache
-
-    /// <summary>
-    /// Initialize system type cache after system schemas are loaded
-    /// </summary>
-    public async Task InitSystemTypesAsync(SchemaContext context)
-    {
-        // Load root namespace
-        await GetSchemaTypeAsync(context, "", preload: true);
-        ResetTypeNamespace();
-
-        // Cache system basic types
-        SystemBool = await GetSchemaTypeAsync<ScalarType>(context, NS_SYSTEM_BOOL);
-        SystemInt = await GetSchemaTypeAsync<ScalarType>(context, NS_SYSTEM_INT);
-        SystemString = await GetSchemaTypeAsync<ScalarType>(context, NS_SYSTEM_STRING);
-        SystemDate = await GetSchemaTypeAsync<ScalarType>(context, NS_SYSTEM_DATE);
-        SystemGuid = await GetSchemaTypeAsync<ScalarType>(context, NS_SYSTEM_GUID);
-        SystemList = await GetSchemaTypeAsync<ArrayType>(context, NS_SYSTEM_LIST);
-        SystemProperty = await GetSchemaTypeAsync<NamespaceType>(context, NS_SYSTEM_SCHEMA_PROPERTY);
-
-        context.LogInformation("[Runtime] System types initialized");
-    }
-
-    public ScalarType? SystemBool { get; private set; }
-    public ScalarType? SystemInt { get; private set; }
-    public ScalarType? SystemString { get; private set; }
-    public ScalarType? SystemDate { get; private set; }
-    public ScalarType? SystemGuid { get; private set; }
-    public ArrayType? SystemList { get; private set; }
-    public NamespaceType? SystemProperty { get; private set; }
 
     #endregion
 
@@ -421,26 +352,6 @@ public class SchemaRuntime : ISchemaRuntime
             Kind = nameof(NamespaceSchema).GetSchemaKind(),
         }
     };
-
-    private readonly NodeSchema _systemSchemaRoot = new()
-    {
-        Name = "",
-        Kind = nameof(NamespaceSchema).GetSchemaKind(),
-        Schemas = [],
-    };
-
-    private readonly ConcurrentDictionary<string, SchemaKindInfo> _schemaKinds = new();
-    private readonly ConcurrentDictionary<string, ConcurrentBag<Type>> _schemaProperties = new();
-    private readonly List<ISchemaProvider> _providers = [];
-
-    #endregion
-
-    #region Inner Types
-    
-    /// <summary>
-    /// Represents a registered schema kind with its metadata
-    /// </summary>
-    record SchemaKindInfo(string Kind, Type SchemaType, Type? RuntimeType, Type? ValueType, int Order);
 
     #endregion
 }

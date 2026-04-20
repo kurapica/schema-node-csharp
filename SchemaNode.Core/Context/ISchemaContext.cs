@@ -11,4 +11,9 @@ public interface ISchemaContext: IDisposable
     /// The schema runtime
     /// </summary>
     ISchemaRuntime Runtime { get; } 
+    
+    /// <summary>
+    /// The services provider
+    /// </summary>
+    IServiceProvider Services { get; }
 }

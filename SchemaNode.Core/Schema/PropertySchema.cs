@@ -1,6 +1,9 @@
 using SchemaNode.Attribute;
+using SchemaNode.Generator;
 using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema;
@@ -9,8 +12,9 @@ namespace SchemaNode.Schema;
 /// The property schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
-[Meta<AsSchemaKind>(nameof(PropertySchema), SCHEMA_KIND_ORDER_PROP)]
-[Meta<RuntimeType>(typeof(Runtime.PropertyType))]
+[Meta<SchemaKind>("property", SCHEMA_KIND_ORDER_PROP)]
+[Meta<NodeSchemaType>(typeof(PropertyType))]
+[Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 public class PropertySchema
 {
     /// <summary>
@@ -58,4 +62,5 @@ public class PropertySchema
 /// </summary>
 [Meta<Alias>("property")]
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "property")]
 public sealed class PropProperty: Property<PropertySchema>;

@@ -11,7 +11,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory scalar schema representation
 /// </summary>
-[Meta<AsErrorCode>("scalar_wrong_base", SCHEMA_KIND_ORDER_SCALAR * 100 + 1)]
+[Meta<ErrorCode>("scalar_wrong_base", SCHEMA_KIND_ORDER_SCALAR * 100 + 1)]
 public sealed class ScalarType : AnySchemaType
 {
     #region Data

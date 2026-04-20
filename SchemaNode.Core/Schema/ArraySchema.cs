@@ -1,12 +1,14 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
+using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
-using ValueType = SchemaNode.Property.Schema.ValueType;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -15,9 +17,9 @@ namespace SchemaNode.Schema;
 /// The array schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
-[Meta<AsSchemaKind>(nameof(ArraySchema), SCHEMA_KIND_ORDER_ARRAY)]
-[Meta<RuntimeType>(typeof(Runtime.ArrayType))]
-[Meta<ValueType>(typeof(ArrayNode))]
+[Meta<SchemaKind>("array", SCHEMA_KIND_ORDER_ARRAY)]
+[Meta<NodeSchemaType>(typeof(ArrayType))]
+[Meta<SchemaGenerator>(typeof(ArrayGenerator))]
 [Meta<IsArray>(true)]
 public sealed class ArraySchema: ExtensibleSchema
 {
@@ -47,6 +49,7 @@ public sealed class ArraySchema: ExtensibleSchema
 /// Declare array property for node schema
 /// </summary>
 [Meta<ForSchema>(nameof(NodeSchema))]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "array")]
 public sealed class ArrayProperty: Property<ArraySchema>;
 
 /// <summary>
