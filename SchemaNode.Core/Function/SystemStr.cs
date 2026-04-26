@@ -1,58 +1,54 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
-using SchemaNode.Schema;
+using SchemaNode.Property.Schema;
+using SchemaNode.Property.Function;
+using SchemaNode.Enum;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
+// ReSharper disable UnusedMember.Global
 
 namespace SchemaNode.Function;
 
 /// <summary>
 /// System.Str apis
 /// </summary>
-[Schema("system.str")]
+[Meta<SchemaType>(NS_SYSTEM_STR)]
 public static class SystemStr
 {
     #region Logic
 
-    [Schema("system.str.logic")]
+    [Meta<SchemaType>($"{NS_SYSTEM_STR}.logic")]
     public static class Logic
     {
-        [Schema]
-        [Logic(LogicType.StartsWith, true)]
-        public static bool startswith([Default("")] string str, [Default("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-
-        [Schema]
-        [Logic(LogicType.NotStartsWith, true)]
-        public static bool notstartswith([Default("")] string str, [Default("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-
-        [Schema]
-        [Logic(LogicType.EndsWith, true)]
-        public static bool endswith([Default("")] string str, [Default("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-
-        [Schema]
-        [Logic(LogicType.NotEndsWith, true)]
-        public static bool notendswith([Default("")] string str, [Default("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-
-        [Schema]
-        [Logic(LogicType.Match, true)]
-        public static bool contains([Default("")] string str, [Default("")] string substr) => !string.IsNullOrWhiteSpace(substr) && str.Contains(substr, StringComparison.OrdinalIgnoreCase);
-
-        [Schema]
-        [Logic(LogicType.NotMatch, true)]
-        public static bool notcontains([Default("")] string str, [Default("")] string substr) => !string.IsNullOrWhiteSpace(substr) && !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+        [Meta<Property.Function.Logic>(LogicType.StartsWith)]
+        public static bool startswith([Meta<Default>("")] string str, [Meta<Default>("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        
+        [Meta<Property.Function.Logic>(LogicType.NotStartsWith)]
+        public static bool notstartswith([Meta<Default>("")] string str, [Meta<Default>("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        
+        [Meta<Property.Function.Logic>(LogicType.EndsWith)]
+        public static bool endswith([Meta<Default>("")] string str, [Meta<Default>("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+        
+        [Meta<Property.Function.Logic>(LogicType.NotEndsWith)]
+        public static bool notendswith([Meta<Default>("")] string str, [Meta<Default>("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+        
+        [Meta<Property.Function.Logic>(LogicType.Match)]
+        public static bool contains([Meta<Default>("")] string str, [Meta<Default>("")] string substr) => !string.IsNullOrWhiteSpace(substr) && str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+        
+        [Meta<Property.Function.Logic>(LogicType.NotMatch)]
+        public static bool notcontains([Meta<Default>("")] string str, [Meta<Default>("")] string substr) => !string.IsNullOrWhiteSpace(substr) && !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
     }
 
     #endregion
 
     #region State
 
-    [Schema("system.str.state")]
+    [Meta<SchemaType>($"{NS_SYSTEM_STR}.state")]
     public static class State
     {
-        [Schema]
-        public static long len([Default("")] string str) => long.CreateChecked(str.Length);
-
-        [Schema]
+        public static long len([Meta<Default>("")] string str) => long.CreateChecked(str.Length);
+        
         public static bool isempty(string? str) => string.IsNullOrWhiteSpace(str);
     }
 
@@ -60,64 +56,50 @@ public static class SystemStr
 
     #region Conversion
 
-    [Schema("system.str.convert")]
+    [Meta<SchemaType>($"{NS_SYSTEM_STR}.convert")]
     public static class Convert
     {
-        [Schema]
-        public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
-
-        [Schema]
-        public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
-
-        [Schema]
-        public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop)
+        public static string concat([Meta<Default>("")] string str1, [Meta<Default>("")] string str2) => string.Concat(str1, str2);
+        
+        public static string[] split([Meta<Default>("")] string str, [Meta<Default>("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
+        
+        public static string substr([Meta<Default>("")] string str, [Meta<Default>(0)] int startIndex, int? stop)
         {
             int start = Math.Clamp(startIndex, 0, str.Length);
             int end = Math.Clamp(stop ?? str.Length, start, str.Length);
             return str.Substring(start, end - start);
         }
-
-        [Schema]
-        public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
-
-        [Schema]
-        public static string trim([Default("")] string str) => str.Trim();
-
-        [Schema]
-        public static string tolower([Default("")] string str) => str.ToLower();
-
-        [Schema]
-        public static string toupper([Default("")] string str) => str.ToUpper();
-
-        [Schema]
-        public static string reverse([Default("")] string str) => new string(str.Reverse().ToArray());
-
-        [Schema]
-        public static string padleft([Default("")] string str, long totalWidth, char paddingChar = ' ') => str.PadLeft((int)totalWidth, paddingChar);
-
-        [Schema]
-        public static string padright([Default("")] string str, long totalWidth, char paddingChar = ' ') => str.PadRight((int)totalWidth, paddingChar);
-
-        [Schema]
-        public static string repeat([Default("")] string str, long count) => string.Concat(Enumerable.Repeat(str, (int)count));
+        
+        public static string replace([Meta<Default>("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
+        
+        public static string trim([Meta<Default>("")] string str) => str.Trim();
+        
+        public static string tolower([Meta<Default>("")] string str) => str.ToLower();
+        
+        public static string toupper([Meta<Default>("")] string str) => str.ToUpper();
+        
+        public static string reverse([Meta<Default>("")] string str) => new string(str.Reverse().ToArray());
+        
+        public static string padleft([Meta<Default>("")] string str, long totalWidth, char paddingChar = ' ') => str.PadLeft((int)totalWidth, paddingChar);
+        
+        public static string padright([Meta<Default>("")] string str, long totalWidth, char paddingChar = ' ') => str.PadRight((int)totalWidth, paddingChar);
+        
+        public static string repeat([Meta<Default>("")] string str, long count) => string.Concat(Enumerable.Repeat(str, (int)count));
     }
 
     #endregion
 
     #region Map
 
-    [Schema("system.str.map")]
+    [Meta<SchemaType>($"{NS_SYSTEM_STR}.map")]
     public static class Map
     {
-        [Schema]
-        [Converter]
+        [Meta<Converter>]
         public static LocaleString tolocale(string? str) => new LocaleString(str ?? "");
-
-        [Schema]
-        [Converter]
+        
+        [Meta<Converter>]
         public static string tolocalestr(LocaleString? locale) => locale?.Key ?? "";
-
-        [Schema]
+        
         public static Entry toentry(StructNode node, string valueField, string labelField)
         {
             AnySchemaNode? val = node.GetValueByPaths(valueField);
@@ -133,15 +115,13 @@ public static class SystemStr
                 }
             };
         }
-
-        [Schema]
+        
         public static List<Entry> toentrys(ArrayNode array, string valueField, string labelField) => array
             .OfType<StructNode>()
             .Select(node => toentry(node, valueField, labelField))
             .DistinctBy(p => p.Value)
             .ToList();
-
-        [Schema]
+        
         public static LocaleString rectifylocale(LocaleString locale, string? defaultLang = null)
         {
             if (string.IsNullOrWhiteSpace(locale.Key))
@@ -158,12 +138,11 @@ public static class SystemStr
 
     #region Util
 
-    [Schema("system.str.util")]
+    [Meta<SchemaType>($"{NS_SYSTEM_STR}.util")]
     public static class Util
     {
-        [Schema]
-        [ServerOnly]
-        [NoCache]
+        [Meta<ServerOnly>]
+        [Meta<NoCache>]
         public static string newguid() => Guid.CreateVersion7().ToString();
     }
 

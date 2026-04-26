@@ -64,11 +64,6 @@ public interface IPropertyOwner
     IProperty? GetProperty(Type type);
     
     /// <summary>
-    /// Sets the property
-    /// </summary>
-    void SetProperty(IProperty property);
-
-    /// <summary>
     /// Remove the property
     /// </summary>
     void RemoveProperty(Type type);
@@ -81,9 +76,19 @@ public interface IPropertyOwner
     T? GetProperty<T>() where T : IProperty, new();
 
     /// <summary>
-    /// Set the property with type
+    /// Sets the property and return itself
+    /// </summary>
+    void SetProperty(IProperty property);
+
+    /// <summary>
+    /// Set the property with type and return itself
     /// </summary>
     void SetProperty<TK, TV>(TV value) where TK : Property<TV>, new();
+
+    /// <summary>
+    /// Sets the property with the given property type and value
+    /// </summary>
+    void SetProperty<T>(Type type, T value);
 
     /// <summary>
     /// Remove a property
@@ -124,7 +129,7 @@ public abstract class ReadOnlyOwnerProperty<T> : OwnerProperty<T>
 /// <summary>
 /// The order property
 /// </summary>
-internal interface IOrderProperty : IProperty
+public interface IOrderProperty : IProperty
 {
     int Order { get; set; }
 }
@@ -158,7 +163,7 @@ public abstract class RecordProperty<T> : OrderProperty<T>
     }
 }
 
-internal static class PropertyExtensions
+public static class PropertyExtensions
 {
     private static readonly ConcurrentDictionary<Type, ConcurrentBag<IOrderProperty>> Records = [];
 
@@ -172,7 +177,7 @@ internal static class PropertyExtensions
     /// <summary>
     /// Gets the order properties from record
     /// </summary>
-    internal static IEnumerable<IOrderProperty> GetProperties(this Type propertyType)
+    public static IEnumerable<IOrderProperty> GetProperties(this Type propertyType)
         => Records.TryGetValue(propertyType, out var properties) 
             ? properties.OrderBy(p => p.Order) 
             : Enumerable.Empty<IOrderProperty>();
@@ -181,7 +186,7 @@ internal static class PropertyExtensions
     /// Gets the recorded values for a given RecordProperty type.
     /// Use this instead of GetProperties when the target type conflicts with Type.GetProperties().
     /// </summary>
-    internal static IEnumerable<IOrderProperty> GetRecordedValues(Type propertyType)
+    public static IEnumerable<IOrderProperty> GetRecordedValues(this Type propertyType)
         => Records.TryGetValue(propertyType, out var properties) 
             ? properties.OrderBy(p => p.Order) 
             : Enumerable.Empty<IOrderProperty>();

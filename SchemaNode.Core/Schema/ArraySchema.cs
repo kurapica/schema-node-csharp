@@ -1,13 +1,15 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Scalar.Schema;
+using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
+using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -16,18 +18,19 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The array schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
-[Meta<SchemaKind>("array", SCHEMA_KIND_ORDER_ARRAY)]
+[Meta<SchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
+[Meta<NodeSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
+[Meta<ValueSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeSchemaType>(typeof(ArrayType))]
-[Meta<SchemaGenerator>(typeof(ArrayGenerator))]
 [Meta<IsArray>(true)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 public sealed class ArraySchema: ExtensibleSchema
 {
     /// <summary>
     /// The element type of the array.
     /// </summary>
     [Meta<SchemaType>(nameof(ElementType))]
-    public string? Element { get; set; }
+    public required string Element { get; set; }
 
     /// <summary>
     /// The primary fields of the array if the element is a struct.
@@ -48,8 +51,8 @@ public sealed class ArraySchema: ExtensibleSchema
 /// <summary>
 /// Declare array property for node schema
 /// </summary>
-[Meta<ForSchema>(nameof(NodeSchema))]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "array")]
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 public sealed class ArrayProperty: Property<ArraySchema>;
 
 /// <summary>
@@ -82,4 +85,9 @@ public sealed class DataIndex
     /// The index fields
     /// </summary>
     public string[] Fields { get; set; } = [];
+    
+    /// <summary>
+    /// Whether the index is unique
+    /// </summary>
+    public bool IsUnique { get; set; }
 }

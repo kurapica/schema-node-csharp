@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -46,6 +47,26 @@ public sealed class FunctionType : AnySchemaType
     /// </summary>
     public bool? Converter { get; private set; }
 
+    /// <summary>
+    /// The function must be executed on server side
+    /// </summary>
+    public bool? Server { get; private set; }
+
+    /// <summary>
+    /// The function has side effects
+    /// </summary>
+    public bool? SideEffect { get; private set; }
+
+    /// <summary>
+    /// The function is workflow only
+    /// </summary>
+    public bool? WorkflowOnly { get; private set; }
+
+    /// <summary>
+    /// The function result should not be cached
+    /// </summary>
+    public bool? NoCache { get; private set; }
+
     #endregion
 
     #region Ref
@@ -74,6 +95,11 @@ public sealed class FunctionType : AnySchemaType
         Args = func?.Args ?? [];
         Exps = func?.Exps ?? [];
         Generic = func?.Generic;
+        Converter = func?.Converter;
+        Server = func?.Server;
+        SideEffect = func?.SideEffect;
+        WorkflowOnly = func?.WorkflowOnly;
+        NoCache = func?.NoCache;
 
         // Status
         if (func == null) Error = "no_definition";

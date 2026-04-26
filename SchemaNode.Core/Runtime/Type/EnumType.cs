@@ -38,12 +38,12 @@ public sealed class EnumType : AnySchemaType
     /// <summary>
     /// The root for all enum values
     /// </summary>
-    EnumValueInfo Root { get; set; } = new();
+    EnumValueSchema Root { get; set; } = new();
 
     /// <summary>
     /// The enum value cache
     /// </summary>
-    readonly ConcurrentDictionary<string, EnumValueInfo> _valueMaps = new(StringComparer.OrdinalIgnoreCase);
+    readonly ConcurrentDictionary<string, EnumValueSchema> _valueMaps = new(StringComparer.OrdinalIgnoreCase);
 
     #endregion
 
@@ -58,7 +58,7 @@ public sealed class EnumType : AnySchemaType
         _valueMaps.Clear();
         ValueType = @enum?.Type ?? EnumValueType.String;
         Cascade = @enum?.Cascade;
-        Root = new EnumValueInfo
+        Root = new EnumValueSchema
         {
             SubList = @enum?.Values
         };
@@ -73,7 +73,7 @@ public sealed class EnumType : AnySchemaType
     /// <summary>
     /// Gets the enum value info by value
     /// </summary>
-    public EnumValueInfo? GetEnumValueInfo(string value)
+    public EnumValueSchema? GetEnumValueInfo(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         return _valueMaps.TryGetValue(value, out var node) ? node : null;
@@ -82,13 +82,13 @@ public sealed class EnumType : AnySchemaType
     /// <summary>
     /// Gets the root values
     /// </summary>
-    public EnumValueInfo[] GetRootValues() => Root.SubList ?? [];
+    public EnumValueSchema[] GetRootValues() => Root.SubList ?? [];
 
     /// <inheritdoc />
     public override void ReleaseType()
     {
         _valueMaps.Clear();
-        Root = new EnumValueInfo();
+        Root = new EnumValueSchema();
         base.ReleaseType();
     }
 
@@ -96,7 +96,7 @@ public sealed class EnumType : AnySchemaType
 
     #region Utility
 
-    void UpdateLoadState(EnumValueInfo node, int level = 999, EnumValueInfo? parent = null, bool reset = false)
+    void UpdateLoadState(EnumValueSchema node, int level = 999, EnumValueSchema? parent = null, bool reset = false)
     {
         if (node.IsFullyLoaded && !reset || level == 0) return;
         node.IsFullyLoaded = false;
@@ -131,7 +131,7 @@ public sealed class EnumType : AnySchemaType
     {
         if (ValueType != EnumValueType.Flags || Root.SubList is not { Length: > 0 }) return;
         long max = 0;
-        foreach (EnumValueInfo info in Root.SubList)
+        foreach (EnumValueSchema info in Root.SubList)
         {
             if (long.TryParse(info.Value, out long val))
                 max = Math.Max(max, val);

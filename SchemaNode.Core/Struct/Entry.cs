@@ -1,5 +1,4 @@
 ﻿using SchemaNode.Attribute;
-using System.ComponentModel.DataAnnotations;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
@@ -16,7 +15,7 @@ public sealed class Entry
     /// The entry value
     /// </summary>
     [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
-    [Meta<UniqueIndex>]
+    [Meta<PrimaryIndex>]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>

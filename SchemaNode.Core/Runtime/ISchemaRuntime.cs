@@ -25,4 +25,12 @@ public interface ISchemaRuntime
     /// <param name="kind"></param>
     /// <returns></returns>
     IEnumerable<Type> GetSchemaKindProperties(string kind);
+    
+    /// <summary>
+    /// Gets the schema property with specific value type
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <param name="valueType"></param>
+    /// <returns></returns>
+    Type? GetSchemaKindProperty(string kind, Type valueType);
 }

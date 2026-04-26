@@ -8,4 +8,5 @@ namespace SchemaNode.Enum;
 /// Represents the node schema kinds
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_NODE_KIND)]
+[Meta<Record>(typeof(Property.Record.NodeSchemaKind))]
 public enum NodeSchemaKind;

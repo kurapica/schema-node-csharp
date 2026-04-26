@@ -16,7 +16,7 @@ public class LeafOnlyProperty : SchemaProperty<bool>, IConstraintProperty
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
     {
         if ((overrideValue?.ToValue<bool>() ?? Value) != true || node.IsEmpty) return null;
-        EnumValueInfo? val = (node.SchemaType as EnumType) is { } enumType ? await enumType.LoadEnumValueInfo(context, node.Value?.ToString() ?? "") : null;
+        EnumValueSchema? val = (node.SchemaType as EnumType) is { } enumType ? await enumType.LoadEnumValueInfo(context, node.Value?.ToString() ?? "") : null;
         return val != null && val.HasSubList != true;
     }
 }

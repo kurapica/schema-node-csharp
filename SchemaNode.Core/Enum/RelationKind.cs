@@ -8,4 +8,5 @@ namespace SchemaNode.Enum;
 /// The relation kind
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.kind")]
+[Meta<Record>(typeof(Property.Record.RelationKind))]
 public enum RelationKind;

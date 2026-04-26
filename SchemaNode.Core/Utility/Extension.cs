@@ -94,22 +94,10 @@ internal static class Extension
     internal static string GetPropertyKind(this string name) => name.RemoveEnding("Property").RemoveStart("I").ToLower();
 
     /// <summary>
-    /// Gets the schema kind from the name, which is the name without "Schema" suffix and in camel case.
-    /// </summary>
-    /// <param name="name"></param>
-    /// <returns></returns>
-    internal static string GetSchemaKind(this string name) => name.RemoveEnding("Schema").ToLower();
-
-    /// <summary>
-    /// Gets the property name
-    /// </summary>
-    internal static string GetPropertyName(this string name) => name.RemoveEnding("Property").ToCamelCase();
-
-    /// <summary>
     /// Gets the property name from a property type, checking for Alias meta attribute first
     /// </summary>
     internal static string GetPropertyName(this Type type)
-        => type.GetMetaProperty<Alias>()?.Value ?? type.Name.GetPropertyName();
+        => type.GetMetaProperty<Alias>()?.Value ?? type.Name.RemoveEnding("Property").ToCamelCase();
 
     /// <summary>
     /// Gets the schema type from the type

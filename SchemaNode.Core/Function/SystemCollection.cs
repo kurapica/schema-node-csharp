@@ -2,14 +2,14 @@ using System.Collections;
 using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Schema;
+using SchemaNode.Property.Function;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -17,14 +17,13 @@ namespace SchemaNode.Function;
 /// <summary>
 /// System.Collection Aps
 /// </summary>
-[Schema(NS_SYSTEM_COLLECTION)]
+[Meta<SchemaType>(NS_SYSTEM_COLLECTION)]
 public static class SystemCollection
 {
     /// <summary>
     /// Gets the array length
     /// </summary>
-    [Schema]
-    public static long length([Schema(NS_SYSTEM_ARRAY)] object array)
+    public static long length([Meta<SchemaType>(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is string str) return str.Length;
         if (array is JsonArray jsonArray) return jsonArray.Count;
@@ -37,8 +36,7 @@ public static class SystemCollection
     /// <summary>
     /// Whether the list contains the item
     /// </summary>
-    [Schema]
-    [Logic(LogicType.Contains, true)]
+    [Meta<Logic>(LogicType.Contains)]
     public static bool contains<T>(ArrayNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -51,8 +49,7 @@ public static class SystemCollection
     /// <summary>
     /// Whether the list not contains the item
     /// </summary>
-    [Schema]
-    [Logic(LogicType.NotContains, true)]
+    [Meta<Logic>(LogicType.NotContains)]
     public static bool notcontains<T>(ArrayNode array, T value) where T: IComparable
     {
         return !contains(array, value);
@@ -61,7 +58,6 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
-    [Schema]
     public static async Task<T?> getfield<T>(SchemaContext context, StructNode obj, string field, T? @default)
     {
         AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
@@ -71,7 +67,6 @@ public static class SystemCollection
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>
-    [Schema]
     public static async Task<ArrayNode> getfields(SchemaContext context, ArrayNode array, string field)
     {
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
@@ -94,7 +89,6 @@ public static class SystemCollection
     /// <summary>
     /// order by the given field
     /// </summary>
-    [Schema]
     public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
     {
         var list = new List<AnySchemaNode>(obj);
@@ -116,7 +110,6 @@ public static class SystemCollection
     /// <summary>
     /// Skip the given count items
     /// </summary>
-    [Schema]
     public static ArrayNode skip(ArrayNode obj, int count)
     {
         if (count <= 0) return obj;
@@ -128,7 +121,6 @@ public static class SystemCollection
     /// <summary>
     /// Take the given count items
     /// </summary>
-    [Schema]
     public static ArrayNode take(ArrayNode obj, int count)
     {
         if (count >= obj.Count) return obj;

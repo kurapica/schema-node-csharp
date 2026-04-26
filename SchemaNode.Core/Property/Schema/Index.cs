@@ -3,12 +3,17 @@ using SchemaNode.Attribute;
 namespace SchemaNode.Property.Schema;
 
 /// <summary>
-/// The index
+/// The primary index
 /// </summary>
-public class Index: OrderProperty<string>;
+[Meta<Default>("primary")]
+public class PrimaryIndex : OrderProperty<string>;
 
 /// <summary>
 /// The unique index
 /// </summary>
-[Meta<Default>("main")]
 public class UniqueIndex: OrderProperty<string>;
+
+/// <summary>
+/// The index
+/// </summary>
+public class Index: OrderProperty<string>;

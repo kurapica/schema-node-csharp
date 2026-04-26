@@ -1,9 +1,4 @@
 ﻿using SchemaNode.Attribute;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -33,7 +28,7 @@ public sealed class LocaleTran
     /// The language
     /// </summary>
     [Meta<SchemaType>(NS_SYSTEM_LANGUAGE)]
-    [Meta<UniqueIndex>]
+    [Meta<PrimaryIndex>]
     public string Lang { get; set; } = string.Empty;
 
     /// <summary>

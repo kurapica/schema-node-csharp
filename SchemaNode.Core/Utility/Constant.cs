@@ -24,6 +24,18 @@ public static class Constant
     #endregion
     
     #region Schema Kind
+    
+    public const string SCHEMA_KIND_NODE = "node";
+    public const string SCHEMA_KIND_NAMESPACE = "namespace";
+    public const string SCHEMA_KIND_SCALAR = "scalar";
+    public const string SCHEMA_KIND_ENUM = "enum";
+    public const string SCHEMA_KIND_STRUCT = "struct";
+    public const string SCHEMA_KIND_ARRAY = "array";
+    public const string SCHEMA_KIND_FUNCTION = "function";
+    public const string SCHEMA_KIND_PROPERTY = "property";
+    public const string SCHEMA_KIND_STRUCT_FIELD = "structfield";
+    public const string SCHEMA_KIND_ENUM_VALUE = "enumvalue";
+    public const string SCHEMA_KIND_RELATION = "relation";
 
     public const int SCHEMA_KIND_ORDER_NODE = 0;
     public const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
@@ -34,12 +46,15 @@ public static class Constant
     public const int SCHEMA_KIND_ORDER_FUNC = 6;
     public const int SCHEMA_KIND_ORDER_PROP = 7;
     public const int SCHEMA_KIND_ORDER_RELATION = 8;
-    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 9;
+    public const int SCHEMA_KIND_ORDER_ENUM_VALUE = 9;
+    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 10;
     
     #endregion
 
     #region System
 
+    public const string NS_GENERIC_TYPE = "T";
+    
     public const string NS_SYSTEM = "system";
 
     #region Data Types
@@ -69,11 +84,6 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
     public const string NS_SYSTEM_IDENTIFIER = "system.identifier";
 
-    // array
-    public const string NS_SYSTEM_STRINGS = "system.strings";
-    public const string NS_SYSTEM_NUMBERS = "system.numbers";
-    public const string NS_SYSTEM_INTS = "system.ints";
-
     // language x translate x entry
     public const string NS_SYSTEM_LANGUAGE = "system.language";
     public const string NS_SYSTEM_LOCALE_STRING = "system.localestring";
@@ -81,7 +91,6 @@ public static class Constant
 
     // entry for white list
     public const string NS_SYSTEM_ENTRY = "system.entry";
-    public const string NS_SYSTEM_ENTRIES = "system.entrys";
 
     #endregion
 
@@ -105,14 +114,21 @@ public static class Constant
     
     public const string NS_SYSTEM_SCHEMA_TYPE = "system.schema.type";
     public const string NS_SYSTEM_SCHEMA_ERROR = "system.schema.error";
-
+    
     #endregion
 
     #region Function
 
+    public const string NS_SYSTEM_INTRINSIC = "system.intrinsic";
+    public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
-    public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
+    public const string NS_SYSTEM_CALENDAR = "system.calendar";
+    public const string NS_SYSTEM_COLLECTION = "system.collection";
+    public const string NS_SYSTEM_DATA = "system.data";
+    public const string NS_SYSTEM_STR = "system.str";
 
+    public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
+    
     #endregion
 
     #endregion

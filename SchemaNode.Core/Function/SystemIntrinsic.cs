@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 
 // ReSharper disable InconsistentNaming
@@ -9,7 +10,7 @@ namespace SchemaNode.Function;
 /// system.intrinsic apis
 /// Language intrinsic functions
 /// </summary>
-[Schema(NS_SYSTEM_INTRINSIC)]
+[Meta<SchemaType>(NS_SYSTEM_INTRINSIC)]
 public static class SystemIntrinsic
 {
     #region Assignment
@@ -17,19 +18,16 @@ public static class SystemIntrinsic
     /// <summary>
     /// Assign value
     /// </summary>
-    [Schema]
     public static T? assign<T>(T? value) => value;
 
     /// <summary>
     /// Gets the default value if value is null
     /// </summary>
-    [Schema]
     public static T @default<T>(T? a, T d) => a ?? d;
 
     /// <summary>
     /// Return the null value of the given type
     /// </summary>
-    [Schema]
     public static T? @null<T>() => default;
 
     #endregion
@@ -40,28 +38,24 @@ public static class SystemIntrinsic
     /// system.intrinsic.ifret
     /// if contains the condition, return the value and stop the execution
     /// </summary>
-    [Schema]
     public static T? ifret<T>(bool cond, T? value) => value;
 
     /// <summary>
     /// system.intrinsic.ifnot
     /// if not contains the condition, return the value and stop the execution
     /// </summary>
-    [Schema]
     public static T? ifnot<T>(bool cond, T? value) => value;
 
     /// <summary>
     /// system.intrinsic.ifnull
     /// if the value is null, return the value and stop the execution
     /// </summary>
-    [Schema]
     public static T1? ifnull<T1, T2>(T2? val, T1? value) => value;
 
     /// <summary>
     /// system.intrinsic.ifempty
     /// if the value is empty, return the value and stop the execution
     /// </summary>
-    [Schema]
     public static T1? ifempty<T1, T2>(T2? val, T1? value) => value;
 
     #endregion

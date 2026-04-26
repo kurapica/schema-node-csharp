@@ -9,6 +9,10 @@ namespace SchemaNode.Utility;
 /// </summary>
 internal static class Locale
 {
+    // useful global string
+    public const string LIST_PREFIX = "{[LIST.PREFIX]}";
+    public const string LIST_SUFFIX = "{[LIST.SUFFIX]}";
+    
     // locale code → (schema key → translated text)
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _locales
         = new Dictionary<string, IReadOnlyDictionary<string, string>>();

@@ -7,6 +7,7 @@ using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
 using RelationKind = SchemaNode.Enum.RelationKind;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -14,7 +15,7 @@ namespace SchemaNode.Schema;
 /// The relation schemas
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
-[Meta<SchemaKind>(nameof(RelationSchema), SCHEMA_KIND_ORDER_RELATION)]
+[Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
 public class RelationSchema: ExtensibleSchema
 {
     /// <summary>
@@ -71,7 +72,7 @@ public interface IRelationProcess
 /// <summary>
 /// The relation property for data schemas
 /// </summary>
-[Meta<ForSchema>(nameof(StructSchema), nameof(ArraySchema))]
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY)]
 public class RelationsProperty: Property<RelationSchema[]>;
 
 #region Relation Call Process
@@ -91,7 +92,7 @@ public class RelationCall: IRelationProcess
     public CallArg[] Args { get; set; } = [];
 
     /// <inheritdoc/>
-    public async Task<AnySchemaNode?> ProcessAsync(SchemaContext context, IRelationOwner target)
+    public Task<AnySchemaNode?> ProcessAsync(SchemaContext context, IRelationOwner target)
     {
         throw new NotImplementedException();
     }
@@ -101,8 +102,8 @@ public class RelationCall: IRelationProcess
 /// Declare relation call field for the relation
 /// </summary>
 [Meta<Alias>("call")]
-[Meta<ForSchema>(nameof(RelationSchema))]
-[Meta<Property.Schema.RelationKind>("call", 0)]
+[Meta<ForSchema>(SCHEMA_KIND_RELATION)]
+[Meta<Property.Record.RelationKind>("call", 0)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
 public class RelationCallProperty : Property<RelationCall>;
 

@@ -1,9 +1,6 @@
-using SchemaNode.Attribute;
-
-namespace SchemaNode.Property.Schema;
+namespace SchemaNode.Property.Record;
 
 /// <summary>
 /// The record for the relation kind
 /// </summary>
-[Meta<Record>(typeof(Enum.RelationKind))]
 public class RelationKind : RecordProperty<string>;

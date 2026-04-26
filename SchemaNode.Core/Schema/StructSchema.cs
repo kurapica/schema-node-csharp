@@ -1,14 +1,13 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Scalar.Schema;
+using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using StructType = SchemaNode.Runtime.StructType;
 using ValueType = SchemaNode.Scalar.Schema.ValueType;
@@ -18,10 +17,12 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The struct schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
-[Meta<SchemaKind>("struct", SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeSchemaType>(typeof(StructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 public sealed class StructSchema : ExtensibleSchema
 {
     /// <summary>
@@ -38,15 +39,15 @@ public sealed class StructSchema : ExtensibleSchema
 /// <summary>
 /// Declare struct property for node schema
 /// </summary>
-[Meta<ForSchema>(nameof(NodeSchema))]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "struct")]
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty: Property<StructSchema>;
 
 /// <summary>
 /// The struct field schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT_FIELD}.schema")]
-[Meta<SchemaKind>(nameof(StructFieldSchema), SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 public sealed class StructFieldSchema : ExtensibleSchema
 {
     /// <summary>
@@ -79,13 +80,13 @@ public class StructUnionValidation
     /// <summary>
     /// The error message
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public string? Error { get; set; }
 
     /// <summary>
     /// The function node ref
     /// </summary>
     [JsonIgnore]
-    [NotMapped]
+    [SchemaIgnore]
     public FunctionType? FuncNode { get; set; }
 }

@@ -10,4 +10,5 @@ namespace SchemaNode.Enum;
 /// from [Meta&lt;AsErrorCode&gt;] declarations on runtime types via RecordProperty.
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_ERROR)]
+[Meta<Record>(typeof(Property.Record.ErrorCode))]
 public enum ErrorCode;

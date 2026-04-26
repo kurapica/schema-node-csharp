@@ -1,11 +1,13 @@
 using System.Collections.Concurrent;
-using SchemaNode.Attribute;
+using System.Reflection;
 using SchemaNode.Context;
-using SchemaNode.Generator;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
 using SchemaNode.Service;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -32,6 +34,18 @@ public class SchemaRuntime : ISchemaRuntime
     public IEnumerable<Type> GetSchemaKindProperties(string kind)
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties ?? [];
 
+    /// <inheritdoc/>
+    public Type? GetSchemaKindProperty(string kind, Type valueType)
+    {
+        foreach (Type propType in GetSchemaKindProperties(kind))
+        {
+            Type? valType = propType.GetGenericBaseType(typeof(Property<>));
+            if (valType != null && valType.GetGenericArguments().FirstOrDefault() == valueType)
+                return propType;
+        }
+        return null;
+    }
+
     #endregion
 
     #region System Schema
@@ -40,7 +54,7 @@ public class SchemaRuntime : ISchemaRuntime
     private readonly NodeSchema _rootSchema = new()
     {
         Name = "",
-        Kind = nameof(NamespaceSchema).GetSchemaKind(),
+        Kind = SCHEMA_KIND_NAMESPACE,
         Schemas = [],
     };
 
@@ -80,9 +94,10 @@ public class SchemaRuntime : ISchemaRuntime
                     {
                         Name = part,
                         Namespace = ns,
-                        Kind = nameof(NamespaceSchema).GetSchemaKind(),
+                        Kind = SCHEMA_KIND_NAMESPACE,
                         Schemas = [],
                     };
+                    node.SetProperty<Display, LocaleString>(node.FullName);
                     root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
                     root = node;
                     root.Schemas ??= [];
@@ -97,6 +112,11 @@ public class SchemaRuntime : ISchemaRuntime
             {
                 // Conflict with existing schema
                 throw new InvalidOperationException($"System schema name conflict: {schema.FullName} with kind {schema.Kind} conflicts with existing kind {node.Kind}");
+            }
+            // override the extension properties
+            else if (node.Kind != SCHEMA_KIND_NAMESPACE)
+            {
+                node.CombineExtensions(schema);
             }
         }
         
@@ -349,7 +369,7 @@ public class SchemaRuntime : ISchemaRuntime
         Schema = new NodeSchema
         {
             Name = "",
-            Kind = nameof(NamespaceSchema).GetSchemaKind(),
+            Kind = SCHEMA_KIND_NAMESPACE,
         }
     };
 

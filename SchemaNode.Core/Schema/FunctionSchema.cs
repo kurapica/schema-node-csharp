@@ -1,17 +1,17 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar.Schema;
+using SchemaNode.Service;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
@@ -19,7 +19,8 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The function schema
 /// </summary>
-[Meta<SchemaKind>("function", SCHEMA_KIND_ORDER_FUNC)]
+[Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
+[Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
@@ -40,19 +41,13 @@ public sealed class FunctionSchema: ExtensibleSchema
     /// The function expressions
     /// </summary>
     public FuncExp[] Exps { get; set; } = [];
-
-    /// <summary>
-    /// The basic type of generic types, provided to T(single generic type),
-    /// T1, T2(for multi generic type)
-    /// </summary>
-    public string[]? Generic { get; set; }
 }
 
 /// <summary>
 /// Declare function property for node schema
 /// </summary>
-[Meta<ForSchema>(nameof(NodeSchema))]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "function")]
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty: Property<FunctionSchema>;
 
 /**
@@ -91,19 +86,19 @@ public sealed class FuncArg
     /// <summary>
     /// The default value
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public object? Default { get; set; }
 
     /// <summary>
     /// The schema node status
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public string? Error { get; set; }
     
     /// <summary>
     /// The argument schema type
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     [JsonIgnore]
     public AnySchemaType? SchemaType  { get; set; }
 }
@@ -144,7 +139,7 @@ public sealed class FuncExp {
     /// <summary>
     /// The error message
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public string? Error { get; set; }
 }
 

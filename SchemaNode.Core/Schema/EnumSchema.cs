@@ -1,25 +1,30 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
+using SchemaNode.Service;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
 /// <summary>
 /// The enum schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
-[Meta<SchemaKind>("enum", SCHEMA_KIND_ORDER_ENUM)]
+[Meta<SchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<NodeSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
+[Meta<ValueSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeSchemaType>(typeof(EnumType))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 public sealed class EnumSchema : ExtensibleSchema
 {
     /// <summary>
@@ -35,26 +40,27 @@ public sealed class EnumSchema : ExtensibleSchema
     /// <summary>
     /// The enum values
     /// </summary>
-    public EnumValueInfo[] Values { get; set; } = [];
+    public EnumValueSchema[] Values { get; set; } = [];
 }
 
 /// <summary>
 /// Declare enum property for node schema
 /// </summary>
-[Meta<ForSchema>(nameof(NodeSchema))]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", "enum")]
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty: Property<EnumSchema>;
 
 /// <summary>
 /// The enum value info
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]
-public sealed class EnumValueInfo
+[Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]                                                            
+public sealed class EnumValueSchema: ExtensibleSchema
 {
     /// <summary>
     /// The value
     /// </summary>
-    [Meta<UniqueIndex>]
+    [Meta<PrimaryIndex>]
     [Meta<UniqueIndex>("SUB_LIST", 1)]
     [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
@@ -65,50 +71,40 @@ public sealed class EnumValueInfo
     [Meta<UniqueIndex>("SUB_LIST", 0)]
     [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
-
-    /// <summary>
-    /// The name of the enum value
-    /// </summary>
-    public LocaleString Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Whether the enum value is disabled
-    /// </summary>
-    public bool? Disable  { get; set; }
     
     #region Runtime info
     
     /// <summary>
     /// Whether the enum value has sub enum values
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public bool? HasSubList { get; set; }
     
     /// <summary>
     /// The sub enum values
     /// </summary>
-    [NotMapped]
-    public EnumValueInfo[]? SubList { get; set; }
+    [SchemaIgnore]
+    public EnumValueSchema[]? SubList { get; set; }
 
     /// <summary>
     /// Whether the enum value is fully loaded
     /// </summary>
     [JsonIgnore]
-    [NotMapped]
+    [SchemaIgnore]
     internal bool IsFullyLoaded { get; set; }
 
     /// <summary>
     /// The parent of the enum value
     /// </summary>
     [JsonIgnore]
-    [NotMapped]
-    internal EnumValueInfo? Parent { get; set; }
+    [SchemaIgnore]
+    internal EnumValueSchema? Parent { get; set; }
 
     /// <summary>
     /// The cascade level
     /// </summary>
     [JsonIgnore]
-    [NotMapped]
+    [SchemaIgnore]
     internal int Level { get; set;  }
     
     #endregion
@@ -118,18 +114,18 @@ public sealed class EnumValueInfo
     /// </summary>
     /// <param name="limitLevel"></param>
     /// <returns></returns>
-    internal EnumValueInfo Clone(int limitLevel = 0)
+    internal EnumValueSchema Clone(int limitLevel = 0)
     {
-        return new EnumValueInfo
+        var schema = new EnumValueSchema
         {
             Value = Value,
-            Name = Name,
-            Disable = Disable,
             HasSubList = HasSubList,
             SubList = (HasSubList ?? false) && SubList is { Length: > 0 } && limitLevel > 0 
                 ? SubList.Select(e => e.Clone(limitLevel - 1)).ToArray()
-                : null,
+                : null
         };
+        schema.CombineExtensions(this);
+        return schema;
     }
 }
 
@@ -151,5 +147,5 @@ public sealed class EnumValueAccess
     /// <summary>
     /// The sublist of the enum value
     /// </summary>
-    public EnumValueInfo[]? SubList { get; set; }
+    public EnumValueSchema[]? SubList { get; set; }
 }

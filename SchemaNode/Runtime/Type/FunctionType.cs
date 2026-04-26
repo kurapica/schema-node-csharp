@@ -791,7 +791,7 @@ public sealed class FunctionType : AnySchemaType
 
     #endregion
 
-    #region Register System Functions
+    #region Register System Functions 
 
     /// <summary>
     /// Register all schema function and its namespace

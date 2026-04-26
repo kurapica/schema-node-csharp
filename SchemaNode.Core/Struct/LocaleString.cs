@@ -41,7 +41,7 @@ public sealed class LocaleString : ICloneable
     /// {list.prefix} - global strings
     /// {@schema.path} - use schema path to translate, default display
     /// </summary>
-    [Meta<UniqueIndex>]
+    [Meta<PrimaryIndex>]
     [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
 

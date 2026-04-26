@@ -3,6 +3,8 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using System.Globalization;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Schema;
+using SchemaNode.Property.Function;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -10,85 +12,55 @@ namespace SchemaNode.Function;
 /// <summary>
 /// system.calendar api
 /// </summary>
-[Schema(NS_SYSTEM_CALENDAR)]
+[Meta<SchemaType>(NS_SYSTEM_CALENDAR)]
 public static class SystemCalendar
 {
     #region Now
-
-    [Schema]
-    [NoCache]
+    [Meta<NoCache>]
     public static DateTimeOffset now() => DateTimeOffset.UtcNow;
-
-    [Schema]
-    [NoCache]
+    [Meta<NoCache>]
     public static DateTimeOffset today(SchemaContext context)
     {
         var tz = context.GetTimeZone();
         var now = ToLocal(DateTimeOffset.UtcNow, tz);
         return LocalToUtc(now.Year, now.Month, now.Day, 0, 0, 0, tz);
     }
-
-    [Schema]
-    [NoCache]
+    [Meta<NoCache>]
     public static DateTimeOffset tomorrow(SchemaContext context) => adddays(context, today(context), 1);
 
     #endregion
 
     #region Locale Info
-
-    [Schema]
     public static long getsecond(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Second;
-
-    [Schema]
     public static long getminute(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Minute;
-
-    [Schema]
     public static long getday(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Day;
-
-    [Schema]
     public static long getmonth(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Month;
-
-    [Schema]
     public static long getyear(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Year;
-
-    [Schema]
     public static long getweekday(SchemaContext context, DateTimeOffset dt) => (int)ToLocal(dt, context.GetTimeZone()).DayOfWeek;
-
-    [Schema]
     public static long getweekofyear(SchemaContext context, DateTimeOffset dt) => CultureInfo.InvariantCulture.Calendar.GetWeekOfYear(
         ToLocal(dt, context.GetTimeZone()).DateTime,
         CalendarWeekRule.FirstFourDayWeek,
         DayOfWeek.Monday
     );
-
-    [Schema]
     public static long getquarter(SchemaContext context, DateTimeOffset dt) => (ToLocal(dt, context.GetTimeZone()).Month - 1) / 3 + 1;
-
-    [Schema]
     public static DateTimeOffset getfirstofyear(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(date, tz);
         return LocalToUtc(local.Year, 1, 1, 0, 0, 0, tz);
     }
-
-    [Schema]
     public static DateTimeOffset getfirstofmonth(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(date, tz);
         return LocalToUtc(local.Year, local.Month, 1, 0, 0, 0, tz);
     }
-
-    [Schema]
     public static DateTimeOffset getfirstofday(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(date, tz);
         return LocalToUtc(local.Year, local.Month, local.Day, 0, 0, 0, tz);
     }
-
-    [Schema]
     public static DateTimeOffset getfirstofquarter(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
@@ -96,8 +68,6 @@ public static class SystemCalendar
         var month = (local.Month - 1) / 3 * 3 + 1;
         return LocalToUtc(local.Year, month, 1, 0, 0, 0, tz);
     }
-
-    [Schema]
     public static DateTimeOffset getfirstofweek(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
@@ -108,32 +78,24 @@ public static class SystemCalendar
 
         return LocalToUtc(monday.Year, monday.Month, monday.Day, 0, 0, 0, tz);
     }
-
-    [Schema]
     public static DateTimeOffset getlastofyear(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(date, tz);
         return LocalToUtc(local.Year + 1, 1, 1, 0, 0, 0, tz).AddSeconds(-1);
     }
-
-    [Schema]
     public static DateTimeOffset getlastofmonth(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(date, tz).AddMonths(1);
         return LocalToUtc(local.Year, local.Month, 1, 0, 0, 0, tz).AddSeconds(-1);
     }
-
-    [Schema]
     public static DateTimeOffset getlastofday(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
         var next = ToLocal(date, tz).AddDays(1);
         return LocalToUtc(next.Year, next.Month, next.Day, 0, 0, 0, tz).AddSeconds(-1);
     }
-
-    [Schema]
     public static DateTimeOffset getlastofquarter(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
@@ -142,8 +104,6 @@ public static class SystemCalendar
         var next = LocalToUtc(local.Year, month, 1, 0, 0, 0, tz).AddMonths(3);
         return LocalToUtc(next.Year, next.Month, 1, 0, 0, 0, tz).AddSeconds(-1);
     }
-
-    [Schema]
     public static DateTimeOffset getlastofweek(SchemaContext context, DateTimeOffset date)
     {
         return adddays(context, getfirstofweek(context, date), 6);
@@ -152,15 +112,11 @@ public static class SystemCalendar
     #endregion
 
     #region Span
-
-    [Schema]
     public static long getyears(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
         return ToLocal(stop, tz).Year - ToLocal(start, tz).Year + 1;
     }
-
-    [Schema]
     public static long getmonths(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
@@ -168,8 +124,6 @@ public static class SystemCalendar
         var e = ToLocal(stop, tz);
         return (e.Month - s.Month + 1) + 12 * (e.Year - s.Year);
     }
-
-    [Schema]
     public static long getdays(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
@@ -179,8 +133,6 @@ public static class SystemCalendar
             ? Math.Ceiling((e - (s - s.TimeOfDay)).TotalDays)
             : -Math.Ceiling((s - (e - e.TimeOfDay)).TotalDays));
     }
-
-    [Schema]
     public static long gethours(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
@@ -188,8 +140,6 @@ public static class SystemCalendar
         var e = ToLocal(stop, tz);
         return (long)(e - s).TotalHours;
     }
-
-    [Schema]
     public static long getminutes(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
@@ -197,8 +147,6 @@ public static class SystemCalendar
         var e = ToLocal(stop, tz);
         return (long)(e - s).TotalMinutes;
     }
-
-    [Schema]
     public static long getseconds(SchemaContext context, DateTimeOffset start, DateTimeOffset stop)
     {
         var tz = context.GetTimeZone();
@@ -206,8 +154,6 @@ public static class SystemCalendar
         var e = ToLocal(stop, tz);
         return (long)(e - s).TotalSeconds;
     }
-
-    [Schema]
     public static long getmonthdays(SchemaContext context, DateTimeOffset date)
     {
         var tz = context.GetTimeZone();
@@ -218,48 +164,36 @@ public static class SystemCalendar
     #endregion
 
     #region Modify
-
-    [Schema]
     public static DateTimeOffset addseconds(SchemaContext context, DateTimeOffset dt, int seconds)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(dt, tz).AddSeconds(seconds);
         return LocalToUtc(local, tz);
     }
-
-    [Schema]
     public static DateTimeOffset addminutes(SchemaContext context, DateTimeOffset dt, int min)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(dt, tz).AddMinutes(min);
         return LocalToUtc(local, tz);
     }
-
-    [Schema]
     public static DateTimeOffset addhours(SchemaContext context, DateTimeOffset dt, int hours)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(dt, tz).AddHours(hours);
         return LocalToUtc(local, tz);
     }
-
-    [Schema]
     public static DateTimeOffset adddays(SchemaContext context, DateTimeOffset dt, int days)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(dt, tz).AddDays(days);
         return LocalToUtc(local, tz);
     }
-
-    [Schema]
     public static DateTimeOffset addmonths(SchemaContext context, DateTimeOffset dt, int months)
     {
         var tz = context.GetTimeZone();
         var local = ToLocal(dt, tz).AddMonths(months);
         return LocalToUtc(local, tz);
     }
-
-    [Schema]
     public static DateTimeOffset addyears(SchemaContext context, DateTimeOffset dt, int year)
     {
         var tz = context.GetTimeZone();
@@ -270,8 +204,6 @@ public static class SystemCalendar
     #endregion
     
     #region Compare
-    
-    [Schema]
     public static bool eq(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -279,8 +211,6 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year == r.Year && l.DayOfYear == r.DayOfYear;
     }
-
-    [Schema]
     public static bool ge(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -288,8 +218,6 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year > r.Year || l.Year == r.Year && l.DayOfYear >= r.DayOfYear;
     }
-
-    [Schema]
     public static bool gt(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -297,8 +225,6 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year > r.Year || l.Year == r.Year && l.DayOfYear > r.DayOfYear;
     }
-
-    [Schema]
     public static bool le(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -306,8 +232,6 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year < r.Year || l.Year == r.Year && l.DayOfYear <= r.DayOfYear;
     }
-
-    [Schema]
     public static bool lt(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -315,8 +239,6 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year < r.Year || l.Year == r.Year && l.DayOfYear < r.DayOfYear;
     }
-
-    [Schema]
     public static bool neq(SchemaContext context, DateTimeOffset left, DateTimeOffset right)
     {
         var tz = context.GetTimeZone();
@@ -324,16 +246,12 @@ public static class SystemCalendar
         var r = ToLocal(right, tz);
         return l.Year != r.Year || l.DayOfYear != r.DayOfYear;
     }
-
-    [Schema]
     public static DateTimeOffset clamp(SchemaContext context, DateTimeOffset value, DateTimeOffset min, DateTimeOffset max)
     {
         if (lt(context, value, min)) return min;
         if (gt(context, value, max)) return max;
         return value;
     }
-
-    [Schema]
     public static long overlapdays(SchemaContext context, DateTimeOffset a1, DateTimeOffset a2, DateTimeOffset b1, DateTimeOffset b2)
     {
         var start = gt(context, a1, b1) ? a1 : b1;
@@ -344,8 +262,6 @@ public static class SystemCalendar
 
         return getdays(context, start, end);
     }
-
-    [Schema]
     public static bool between(SchemaContext context, DateTimeOffset date, DateTimeOffset min, DateTimeOffset max)
     {
         var tz = context.GetTimeZone();
@@ -355,29 +271,21 @@ public static class SystemCalendar
         return (d.Year > mn.Year || d.Year == mn.Year && d.DayOfYear >= mn.DayOfYear)
                && (d.Year < mx.Year || d.Year == mx.Year && d.DayOfYear <= mx.DayOfYear);
     }
-
-    [Schema]
     public static bool isweekend(SchemaContext context, DateTimeOffset dt)
     {
         var tz = context.GetTimeZone();
         var d = ToLocal(dt, tz).DayOfWeek;
         return d == DayOfWeek.Saturday || d == DayOfWeek.Sunday;
     }
-
-    [Schema]
     public static bool isworkday(SchemaContext context, DateTimeOffset dt)
     {
         return !isweekend(context, dt);
     }
-
-    [Schema]
     public static bool issameyear(SchemaContext context, DateTimeOffset a, DateTimeOffset b)
     {
         var tz = context.GetTimeZone();
         return ToLocal(a, tz).Year == ToLocal(b, tz).Year;
     }
-
-    [Schema]
     public static bool issamemonth(SchemaContext context, DateTimeOffset a, DateTimeOffset b)
     {
         var tz = context.GetTimeZone();

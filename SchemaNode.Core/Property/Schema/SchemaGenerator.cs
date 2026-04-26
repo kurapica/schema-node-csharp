@@ -1,4 +1,4 @@
-using SchemaNode.Generator;
+using SchemaNode.Service;
 
 namespace SchemaNode.Property.Schema;
 

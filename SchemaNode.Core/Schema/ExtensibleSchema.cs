@@ -30,7 +30,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// <summary>
     /// The dictionary to hold the extension properties. The key is the property name, and the value is the property value.
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     [JsonExtensionData]
     public Dictionary<string, JsonNode>? Extensions { get; private set; }
 
@@ -61,16 +61,10 @@ public abstract class ExtensibleSchema : IPropertyOwner
     }
 
     /// <inheritdoc/>
-    public void SetProperty(IProperty property)
-    {
-        Extensions ??= [];
-        JsonNode? node = property.GetValue<JsonNode>();
-        if (node != null)
-            Extensions[property.GetType().GetPropertyName()] = node;
-    }
+    public void RemoveProperty(Type type) => Extensions?.Remove(type.GetPropertyName());
 
     /// <inheritdoc/>
-    public void RemoveProperty(Type type) => Extensions?.Remove(type.GetPropertyName());
+    public void RemoveProperty<T>() where T : IProperty => RemoveProperty(typeof(T));
 
     /// <inheritdoc/>
     public T? GetProperty<T>() where T : IProperty, new()
@@ -82,16 +76,30 @@ public abstract class ExtensibleSchema : IPropertyOwner
     }
 
     /// <inheritdoc/>
-    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
+    public void SetProperty(IProperty property)
     {
         Extensions ??= [];
-        JsonNode? node = value.TryConvertTo<JsonNode>();
+        JsonNode? node = property.GetValue<JsonNode>();
         if (node != null)
-            Extensions[typeof(TK).GetPropertyName()] = node;
+            Extensions[property.GetType().GetPropertyName()] = node;
     }
-    
+
     /// <inheritdoc/>
-    public void RemoveProperty<T>() where T : IProperty => RemoveProperty(typeof(T));
-    
+    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
+    {
+        TK prop = Activator.CreateInstance<TK>();
+        prop.SetValue(value);
+        SetProperty(prop);
+    }
+
+    /// <inheritdoc/>
+    public void SetProperty<T>(Type type, T value)
+    {
+        IProperty? prop = Activator.CreateInstance(type) as IProperty;
+        if (prop == null) return;
+        prop.SetValue(value);
+        SetProperty(prop);
+    }
+
     #endregion
 }

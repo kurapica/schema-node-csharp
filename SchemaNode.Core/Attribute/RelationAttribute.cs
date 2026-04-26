@@ -30,7 +30,7 @@ public interface IRelationAttribute
 /// The default relation using call process
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
-public class RelationAttribute<T>(string func, params object[] args): System.Attribute, IRelationAttribute where T: IProperty
+public sealed class RelationAttribute<T>(string func, params object[] args): System.Attribute, IRelationAttribute where T: IProperty
 {
     /// <inheritdoc/>
     public string Kind { get; } = "call";
