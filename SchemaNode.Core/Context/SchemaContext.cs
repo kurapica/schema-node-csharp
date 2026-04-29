@@ -170,6 +170,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     LogError("[Runtime]Schema Type {schemaName} load failed", schema.FullName);
                     return null;
                 }
+                
+                // cache
+                if (parent != result)
+                    parent.SaveNodeType(result);
 
                 // Load the schema
                 LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
