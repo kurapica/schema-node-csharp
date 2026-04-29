@@ -5,6 +5,7 @@ using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+using NodeType = SchemaNode.Property.Schema.NodeType;
 
 namespace SchemaNode.Schema;
 
@@ -13,12 +14,5 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
-[Meta<NodeSchemaType>(typeof(NamespaceType))]
+[Meta<NodeType>(typeof(NamespaceType))]
 public sealed class NamespaceSchema : ExtensibleSchema;
-
-/// <summary>
-/// The sub node schemas of the namespace schema
-/// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_NODE)]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_NAMESPACE)]
-public sealed class SchemasProperty : Property<NodeSchema[]>;

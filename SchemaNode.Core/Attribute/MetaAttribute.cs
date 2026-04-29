@@ -25,9 +25,7 @@ public sealed class MetaAttribute<TP, TV>: System.Attribute, IPropertyAttribute 
     public IProperty Property { get; set; } = new TP();
 }
 
-[AttributeUsage(
-    AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property |
-    AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
 public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute where TP : IProperty, new()
 {
     #region Constructor

@@ -12,6 +12,7 @@ using SchemaNode.Service;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeType = SchemaNode.Runtime.NodeType;
 using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
@@ -21,15 +22,15 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
-[Meta<NodeSchemaType>(typeof(FunctionType))]
+[Meta<Property.Schema.NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
+[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 public sealed class FunctionSchema: ExtensibleSchema
 {
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -53,7 +54,7 @@ public sealed class FuncProperty: Property<FunctionSchema>;
 /**
  * The function argument information
  */
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
+[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
 public sealed class FuncArg
 {
     /// <summary>
@@ -65,7 +66,7 @@ public sealed class FuncArg
     /// <summary>
     /// The argument type, T T1 T2 means the generic type
     /// </summary>
-    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -100,13 +101,13 @@ public sealed class FuncArg
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public AnySchemaType? SchemaType  { get; set; }
+    public NodeType? SchemaType  { get; set; }
 }
 
 /// <summary>
 /// The function expressions
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.exp")]
+[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.exp")]
 public sealed class FuncExp {
     /// <summary>
     /// The expression name
@@ -117,7 +118,7 @@ public sealed class FuncExp {
     /// <summary>
     /// The call function
     /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<Property.Schema.SchemaType>(typeof(FuncType))]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -128,7 +129,7 @@ public sealed class FuncExp {
     /// <summary>
     /// The expression type
     /// </summary>
-    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -146,7 +147,7 @@ public sealed class FuncExp {
 /// <summary>
 /// The function call arguments
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.callarg")]
+[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.callarg")]
 public class CallArg
 {
     /// <summary>
@@ -157,12 +158,12 @@ public class CallArg
     /// <summary>
     /// The const value
     /// </summary>
-    [Meta<SchemaType>(typeof(AnyValue))]
+    [Meta<Property.Schema.SchemaType>(typeof(AnyValue))]
     public JsonNode? Value { get; set; }
     
     /// <summary>
     /// The argument type
     /// </summary>
-    [Meta<SchemaType>(typeof(AnyType))]
+    [Meta<Property.Schema.SchemaType>(typeof(AnyType))]
     public string? Type { get; set; }
 }

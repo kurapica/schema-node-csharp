@@ -118,7 +118,7 @@ public static partial class SchemaNodeExtensions
         foreach (var item in schemaKinds.Values.OrderBy(t => t.kind.Order))
         {
             logger.LogSchemaKindRegistered(item.kind.Value!, item.schemaType.Name);
-            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out List<Type>? propertyTypes) ? propertyTypes.ToArray() : null);
+            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out List<Type>? propertyTypes) ? SortProperties(propertyTypes) : null);
         }
         
         // System Schema
@@ -136,6 +136,47 @@ public static partial class SchemaNodeExtensions
             logger.LogProcessingRuntimeStageStage(stage);
             foreach (var handler in handlers)
                 await invoke(handler);
+        }
+
+        // sort property types with depends & option depends
+        Type[] SortProperties(List<Type> types)
+        {
+            List<Type> sorted = [];
+
+            foreach (Type type in types)
+                InsertPropertyType(type);
+
+            bool InsertPropertyType(Type type)
+            {
+                if (sorted.Contains(type)) return true;
+                
+                Type[]? depends = type.GetMetaProperty<Depends>()?.GetValue<Depends>()?.GetValue<Type[]>();
+                Type[]? optionDepends = type.GetMetaProperty<OptionDepends>()?.GetValue<OptionDepends>()?.GetValue<Type[]>();
+
+                if (depends is { Length: > 0 })
+                {
+                    foreach (Type depend in depends)
+                    {
+                        if (types.Contains(depend) && InsertPropertyType(depend)) continue;
+                        logger.LogError("Failed to insert property type '{type}' due to missing or circular dependency on '{depend}'", type.FullName, depend.FullName);
+                        return false;
+                    }
+                }
+
+                if (optionDepends is  { Length: > 0 })
+                {
+                    foreach (Type option in optionDepends)
+                    {
+                        if (types.Contains(option))
+                            InsertPropertyType(option);
+                    }
+                }
+                
+                sorted.Add(type);
+                return true;
+            }
+            
+            return sorted.ToArray();
         }
     }
 

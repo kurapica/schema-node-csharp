@@ -3,12 +3,15 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
+using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using NodeType = SchemaNode.Property.Schema.NodeType;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
 
 namespace SchemaNode.Service;
 
@@ -29,14 +32,13 @@ public interface INodeSchemaGenerator
 internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 {
     /// <inheritdoc />
-    public Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)
+    public async Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)
     {
-        SchemaRuntime? runtime = context.Runtime as SchemaRuntime;
-        if (runtime is null) return Task.CompletedTask; // not support
+        if (context is not SchemaContext schemaContext || context.Runtime is not SchemaRuntime runtime) return; // not support
 
         #region Prepare
 
-        List<(string kind, Type schemaType, Type runtimeType, Type? propertyType)> nodeSchemaTypes = [];
+        List<(string kind, Type schemaType, Type? propertyType)> nodeSchemaTypes = [];
         List<INodeSchemaGenerator> schemaGenerators = [];
         Dictionary<string, INodeSchemaGenerator> kindGenerators = [];
         Dictionary<string, string> arrayTypes = [];
@@ -44,11 +46,15 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Gets all node schema kinds & property type & generators
         foreach (var (kind, schemaType) in runtime.GetSchemaKinds())
         {
-            // Gets node schema types
-            if (schemaType.GetMetaProperty<NodeSchemaType>()?.Value is not { } nodeSchemaType) continue;
+            // Gets node schema kind
+            if (schemaType.GetMetaProperty<NodeSchemaKind>() is not { HasValue: true } schemaKind) continue;
+            
+            // Register node types
+            if (schemaType.GetMetaProperty<NodeType>()?.Value is { } runtimeType)
+                runtime.RegisterNodeType(schemaKind.Value!, runtimeType);
             
             // Gets the match node schema property type
-            nodeSchemaTypes.Add((kind, schemaType, nodeSchemaType,
+            nodeSchemaTypes.Add((kind, schemaType,
     runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE).
                 FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
                 GetGenericArguments().ElementAtOrDefault(0) == schemaType)));
@@ -130,7 +136,15 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         #endregion
         
-        return Task.CompletedTask;
+        #region System Node Type Loading
+        
+        // Loading the system schema as node types, so they should be ready for other stages
+        schemaContext.SystemMode = true;
+        await LoadAllNodeTypes(string.Empty);
+        
+        #endregion
+        
+        return;
 
         #region Utility
 
@@ -182,13 +196,13 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             string name = schemaType?.Value?.GetSchemaName() ?? type.Name.ToLowerInvariant();
             
             OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
+            NodeSchema? mainSchema = null;
             foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
                  ? kindGenerators.Where(g => 
                          ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
                      .Select(g => g.Value)
                  : schemaGenerators)
             {
-                NodeSchema? mainSchema = null;
                 foreach (NodeSchema schema in generator.GenerateSchema(runtime, type, defaultNs, name, ResolveOtherSchema))
                 {
                     runtime.SaveSystemSchema(schema.Type == type ? ExtendSchema(schema, type) : schema);
@@ -200,10 +214,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                     if (schema.Type == type) mainSchema = schema;
                 }
 
-                if (mainSchema != null)
-                    return GetResult(mainSchema.FullName);
             }
-            return null;
+
+            return mainSchema != null ? GetResult(mainSchema.FullName) : null;
 
             string GetResult(string schemaName) => isArray
                 ? (arrayTypes.TryGetValue(schemaName, out string? arraySchema)
@@ -215,7 +228,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Save properties to the schema
         NodeSchema ExtendSchema(NodeSchema nodeSchema, Type type)
         {
-            (string kind, Type schemaType, Type runtimeType, Type? propertyType)? info = nodeSchemaTypes.
+            (string kind, Type schemaType, Type? propertyType)? info = nodeSchemaTypes.
                 FirstOrDefault(t => nodeSchema.Kind.Equals(t.kind, StringComparison.OrdinalIgnoreCase));
             if (info?.propertyType == null) return nodeSchema;
             
@@ -234,7 +247,27 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             nodeSchema.SetProperty(property);
             return nodeSchema;
         }
+
+        async Task LoadAllNodeTypes(string fullName)
+        {
+            Runtime.NodeType? nodeType = await schemaContext.GetNodeTypeAsync(fullName);
+            if (nodeType is not NamespaceType ns) return;
+            
+            foreach (NodeSchema schema in ns.GetNodeSchemas())
+                await LoadAllNodeTypes(schema.FullName);
+        }
         
         #endregion
+    }
+
+    /// <inheritdoc />
+    public Task OnSchemaLoadingAsync(ISchemaContext context)
+    {
+        if (context is not SchemaContext schemaContext || context.Runtime is not SchemaRuntime runtime) return Task.CompletedTask; // not support
+        
+        // mark all node types not loaded, so they can combine custom settings, like 'display' or custom properties
+        schemaContext.SystemMode = false; // avoid system mode
+        runtime.RootNamespace.ResetLoadState();
+        return Task.CompletedTask;
     }
 }

@@ -7,6 +7,8 @@ using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -16,7 +18,6 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
-[Meta<NodeSchemaType>(typeof(PropertyType))]
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
 public class PropertySchema

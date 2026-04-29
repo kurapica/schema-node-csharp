@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
@@ -43,12 +44,7 @@ public sealed class NodeSchema: ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(typeof(NodeSchemaKind))]
     public string Kind { get; set; } = null!;
-    
-    /// <summary>
-    /// The schema is system defined, can't be change
-    /// </summary>
-    public bool IsSystem { get; set; }
-    
+   
     /// <summary>
     /// The sub schemas (for namespace schemas)
     /// </summary>
@@ -79,7 +75,36 @@ public sealed class NodeSchema: ExtensibleSchema
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public Type[]? Equivalents { get; internal set; }
+    public IReadOnlyList<Type>? Equivalents { get; internal set; }
+    
+    /// <summary>
+    /// The schema provider
+    /// </summary>
+    [SchemaIgnore]
+    [JsonIgnore]
+    internal Type? Provider { get; set; }
+    
+    /// <summary>
+    /// The schema load state
+    /// </summary>
+    [SchemaIgnore]
+    [JsonIgnore]
+    internal SchemaLoadState? LoadState { get; set; }
+    
+    /// <summary>
+    /// Gets the clone
+    /// </summary>
+    public NodeSchema Clone(IEnumerable<Type>? propTypes = null)
+    {
+        var nodeSchema = new NodeSchema()
+        {
+            Name = Name,
+            Namespace = Namespace,
+            Kind = Kind,
+        };
+        nodeSchema.CombineExtensions(this, propTypes);
+        return nodeSchema;
+    }
     
     // Create Node Schema
     internal static NodeSchema Create(string kind, string name, Type? type = null, string? display = null)

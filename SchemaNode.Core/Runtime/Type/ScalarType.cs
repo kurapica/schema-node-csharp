@@ -1,122 +1,160 @@
-﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Function;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
+using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.Extension;
+using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 namespace SchemaNode.Runtime;
 
 /// <summary>
 /// The in-memory scalar schema representation
 /// </summary>
-[Meta<ErrorCode>("scalar_wrong_base", SCHEMA_KIND_ORDER_SCALAR * 100 + 1)]
-public sealed class ScalarType : AnySchemaType
+public sealed class ScalarType: ValueType
 {
     #region Data
-
+     
     /// <summary>
-    /// The base type name of the scalar
+    /// The base type of the scalar
     /// </summary>
     public string? Base { get; private set; }
 
     #endregion
-
+     
     #region Status
-
+     
     /// <summary>
-    /// The scalar value type flags
+    /// The scalar value type
     /// </summary>
     public ScalarValueType ValueType { get; private set; } = ScalarValueType.None;
 
-    /// <summary>Is a number type</summary>
+    /// <summary>
+    /// The type is number
+    /// </summary>
     public bool IsNumber => (ValueType & ScalarValueType.Number) > 0;
-
-    /// <summary>Is an integer type</summary>
-    public bool IsInt => (ValueType & ScalarValueType.Integer) > 0;
-
-    /// <summary>Is a float type</summary>
+     
+    /// <summary>
+    /// the type is int
+    /// </summary>
+    public bool IsInt  => (ValueType & ScalarValueType.Integer) > 0;
+     
+    /// <summary>
+    /// the type is single
+    /// </summary>
     public bool IsSingle => (ValueType & ScalarValueType.Single) > 0;
-
-    /// <summary>Is a double type</summary>
+     
+    /// <summary>
+    /// The type is number
+    /// </summary>
     public bool IsDouble => (ValueType & ScalarValueType.Double) > 0;
-
-    /// <summary>Is a bool type</summary>
+     
+    /// <summary>
+    /// The type is bool
+    /// </summary>
     public bool IsBool => (ValueType & ScalarValueType.Boolean) > 0;
 
-    /// <summary>Is a char type</summary>
+    /// <summary>
+    /// The type is char
+    /// </summary>
     public bool IsChar => (ValueType & ScalarValueType.Char) > 0;
 
-    /// <summary>Is a string type</summary>
+    /// <summary>
+    /// The type is string
+    /// </summary>
     public bool IsString => (ValueType & ScalarValueType.String) > 0;
-
-    /// <summary>Is a date type</summary>
+     
+    /// <summary>
+    /// The type is date
+    /// </summary>
     public bool IsDate => (ValueType & ScalarValueType.Date) > 0;
-
-    /// <summary>Is a year type</summary>
+     
+    /// <summary>
+    /// The type is year
+    /// </summary>
     public bool IsYear => (ValueType & ScalarValueType.Year) > 0;
-
-    /// <summary>Is a year-month type</summary>
+     
+    /// <summary>
+    /// The type is year month
+    /// </summary>
     public bool IsYearMonth => (ValueType & ScalarValueType.YearMonth) > 0;
-
-    /// <summary>Is a full date type</summary>
+     
+    /// <summary>
+    /// The type is full date
+    /// </summary>
     public bool IsFullDate => (ValueType & ScalarValueType.FullDate) > 0;
-
-    /// <summary>Is a GUID type</summary>
-    public bool IsGuid => (ValueType & ScalarValueType.Guid) > 0;
 
     #endregion
 
     #region Property
 
-    /// <summary>The up limit constraint value</summary>
+    /// <summary>
+    /// The default unit of the scalar value
+    /// </summary>
+    public LocaleString? Unit => Properties?.FirstOrDefault(p => p is UnitProperty) is UnitProperty unit ? unit.Value : null;
+
+    /// <summary>
+    /// The up limit
+    /// </summary>
     public object? UpLimit { get; private set; }
 
-    /// <summary>The low limit constraint value</summary>
+    /// <summary>
+    /// The low limit
+    /// </summary>
     public object? LowLimit { get; private set; }
 
-    /// <summary>The pattern constraint</summary>
-    public PatternProperty? Pattern { get; private set; }
+    /// <summary>
+    /// The pattern
+    /// </summary>
+    public Pattern[]? Pattern { get; private set; }
 
     #endregion
 
     #region Ref
 
-    /// <summary>The resolved base scalar type</summary>
+    /// <summary>
+    /// The base node
+    /// </summary>
     public ScalarType? BaseNode { get; private set; }
-
+     
     #endregion
 
-    #region Loading
+    #region Method
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
-    {
-        // Load scalar-specific schema data
-        ScalarSchema? scalar = schema.GetProperty<ScalarProperty>()?.Value;
+     {
+        ScalarSchema? scalar = schema.Scalar;
 
+        // Data
         Base = scalar?.Base;
 
-        if (scalar == null) Error = "no_definition";
+        // Status
+        if (scalar == null) ErrorCode = SchemaNodeStatus.NoDefinition;
 
-        // Resolve base type
+        // Base
         if (!string.IsNullOrWhiteSpace(Base))
         {
-            AnySchemaType? node = await context.Runtime.GetSchemaTypeAsync(context, Base, preload: preload);
-            if (node is ScalarType baseScalar)
+            NodeType? node = await context.GetSchemaTypeAsync(Base, preload: preload);
+            if (node is ScalarType snode)
             {
-                BaseNode = baseScalar;
-                baseScalar.AddRef(this);
+                BaseNode = snode;
+                snode.AddRef(this);
             }
             else
             {
                 BaseNode = null;
-                Error = "scalar_wrong_base";
+                ErrorCode = SchemaNodeStatus.ScalarHasWrongBase;
             }
         }
 
-        // Determine value type from name
+        // Value Type
         ValueType = schema.Name.ToLowerInvariant() switch
         {
             NS_SYSTEM_CHAR => ScalarValueType.Char | ScalarValueType.String,
@@ -132,46 +170,231 @@ public sealed class ScalarType : AnySchemaType
             NS_SYSTEM_YEAR => ScalarValueType.Year | ScalarValueType.Integer | ScalarValueType.Number,
             NS_SYSTEM_YEARMONTH => ScalarValueType.YearMonth | ScalarValueType.Date,
             NS_SYSTEM_GUID => ScalarValueType.Guid | ScalarValueType.String,
-            NS_SYSTEM_IDENTIFIER => ScalarValueType.String,
             _ => BaseNode?.ValueType ?? ScalarValueType.None
         };
 
-        // Extract constraints
-        UpLimit = Constraints?.OfType<UplimitNumberProperty>().FirstOrDefault()?.GetValue<object>()
-                  ?? Constraints?.OfType<UplimitStringProperty>().FirstOrDefault()?.GetValue<object>();
-        LowLimit = Constraints?.OfType<LowLimitNumberProperty>().FirstOrDefault()?.GetValue<object>()
-                   ?? Constraints?.OfType<LowLimitStringProperty>().FirstOrDefault()?.GetValue<object>();
-        Pattern = Constraints?.OfType<PatternProperty>().FirstOrDefault();
+        // Properties
+        UpLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_UPLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
+        LowLimit = Properties?.FirstOrDefault(p => p.Name.Equals(PROPERTY_LOWLIMIT, StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
+        Pattern = Constraints?.FirstOrDefault(p => p is PatternProperty) is PatternProperty pattern ? pattern.Value : null;
+    }
+
+    /// <summary>
+    /// Gets the up limit
+    /// </summary>
+    public T? GetUplimit<T>() where T : struct
+    {
+        if (UpLimit == null) return null;
+        object? uplimit = Utility.Extension.TryConvert(typeof(T), UpLimit);
+        if (uplimit == null) return null;
+        return (T)uplimit;
+    }
+
+    /// <summary>
+    /// Gets the low limit
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public T? GetLowlimit<T>()
+    {
+        if (LowLimit == null) return default;
+        object? lowlimit = Utility.Extension.TryConvert(typeof(T), LowLimit);
+        if (lowlimit == null) return default;
+        return (T)lowlimit;
     }
 
     /// <inheritdoc />
-    public override void ReleaseType()
+    public override void Release()
     {
         BaseNode?.RemoveRef(this);
-        BaseNode = null;
-        base.ReleaseType();
+    }
+
+    /// <inheritdoc />
+    public override async Task<(Node.DataNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
+    {
+        await Task.Yield();
+        if (value is not JsonValue val || val.IsEmpty())
+            return (null, TYPE_VALUE_NOT_VALID);
+
+        // validate the scalar value
+        string strVal = value.ToString();
+        Node.DataNode result = new ScalarNode(this);
+
+        // check with type
+        try
+        {
+            if (IsYear)
+            {
+                if (long.TryParse(strVal, out long year))
+                {
+                    // pass
+                }
+                else if (TryParseDateTimeOffset(strVal, out DateTimeOffset? dateTime))
+                {
+                    year = SystemCalendar.getyear(context, dateTime!.Value);
+                }
+                else
+                {
+                    return (null, TYPE_VALUE_NOT_VALID);
+                }
+
+                result.Value = year;
+            }
+               
+            else if (IsInt)
+            {
+                if (!long.TryParse(strVal, out long lval))
+                    return (null, TYPE_VALUE_NOT_VALID);
+                result.Value = lval;
+            }
+               
+            else if (IsSingle)
+            {
+                if (!float.TryParse(strVal, out float fval))
+                    return (null, TYPE_VALUE_NOT_VALID);
+                result.Value = fval;
+            }
+               
+            else if (IsDouble)
+            {
+                if (!double.TryParse(strVal, out double dval))
+                    return (null, TYPE_VALUE_NOT_VALID);
+                result.Value = dval;
+            }
+               
+            else if (IsNumber)
+            {
+                if (!decimal.TryParse(strVal, out decimal mval))
+                    return (null, TYPE_VALUE_NOT_VALID);
+                result.Value = mval;
+            }
+               
+            else if (IsBool)
+            {
+                if (TryParseBoolValue(strVal, out bool bval))
+                {
+                    result.Value = bval;
+                }
+                else
+                {
+                    return (null, TYPE_VALUE_NOT_VALID);
+                }
+            }
+               
+            else if (IsString)
+            {
+                result.Value = strVal;
+            }
+               
+            else if (IsDate)
+            {
+                if (TryParseDateTimeOffset(strVal, out DateTimeOffset? date))
+                {
+                    result.Value = date!.Value;
+                }
+                else
+                {
+                    return (null, TYPE_VALUE_NOT_VALID);
+                }
+            }
+
+            // Constraint validation
+            if (Constraints is { Length: > 0 })
+            {
+                foreach (IConstraintProperty constraint in Constraints)
+                {
+                    if (constraints != null && constraints.FirstOrDefault(c => c.GetType() == constraint.GetType()) is IConstraintProperty cst && cst.HasValue)
+                    {
+                        if (await cst.ValidateScalarAsync(context, (ScalarNode)result) == false)
+                            return (null, TYPE_VALUE_NOT_VALID);
+                    }
+                    else if (await constraint.ValidateScalarAsync(context, (ScalarNode)result) == false)
+                        return (null, TYPE_VALUE_NOT_VALID);
+                }
+            }
+
+            return (result, null);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.GetInnermostException().Message);
+        }
+        return (null, TYPE_VALUE_NOT_VALID);
+    }
+
+    /// <inheritdoc />
+    public override bool CanBeUseAs(NodeType other, bool exactly = false) =>
+        base.CanBeUseAs(other, exactly) 
+        || other switch
+        {
+            ScalarType scalar =>
+            scalar.IsString || 
+            (scalar.IsInt 
+                ? IsInt
+                : (scalar.IsNumber 
+                        ? IsNumber 
+                        : (scalar.ValueType & ValueType) > 0)),
+            EnumType @enum => @enum.ValueType switch
+            {
+                EnumValueType.String => IsString,
+                EnumValueType.Int => IsInt,
+                EnumValueType.Flags => IsInt,
+                _ => false
+            },
+            _ => false
+        };
+
+    /// <inheritdoc />
+    public override bool IsIndexable => ((ValueType & ScalarValueType.Indexable) > 0) 
+                                         || (ValueType & ScalarValueType.String) > 0 && UpLimit is <= ENTITY_PRIMARY_KEY_MAX_LEN;
+
+    public override IEnumerable<NodeType> GetDependNodes()
+    {
+        if (BaseNode != null)
+            yield return BaseNode;
+    }
+
+    /// <summary>
+    /// Try parse bool value from string
+    /// </summary>
+    static bool TryParseBoolValue(string value, out bool ret)
+    {
+        ret = false;
+        if (string.IsNullOrEmpty(value))
+            return false;
+        value = value.ToLower();
+        switch (value)
+        {
+            case "true":
+                ret = true;
+                return true;
+            case "false":
+                ret = false;
+                return true;
+            default:
+                {
+                    if (!int.TryParse(value, out int val) || val is < 0 or > 1)
+                        return false;
+                    ret = val == 1;
+                    return true;
+                }
+        }
     }
 
     #endregion
-}
 
-/// <summary>
-/// Scalar value type classification flags
-/// </summary>
-[Flags]
-public enum ScalarValueType
-{
-    None = 0,
-    Boolean = 1,
-    String = 1 << 1,
-    Char = 1 << 2,
-    Number = 1 << 3,
-    Integer = 1 << 4,
-    Single = 1 << 5,
-    Double = 1 << 6,
-    Date = 1 << 7,
-    FullDate = 1 << 8,
-    Year = 1 << 9,
-    YearMonth = 1 << 10,
-    Guid = 1 << 11,
+    #region Conversion
+
+    /// <summary>
+    /// Convert the node to schema
+    /// </summary>
+    public static implicit operator NodeSchema?(ScalarType? schema)
+    {
+        return schema?.ToSchema().With(new ScalarSchema
+        {
+            Base = schema.Base
+        });
+    }
+     
+     #endregion
 }

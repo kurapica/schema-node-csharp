@@ -10,6 +10,8 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using GenericParameter = SchemaNode.Property.Schema.GenericParameter;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Service;
@@ -91,13 +93,14 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             funcSchema.SetProperty(prop);
 
         // Generics
-        funcSchema.SetProperty<Generics, GenericParameter[]>(genInfos.Select((g, i) => 
-            new GenericParameter
-            {
-                Name = genInfos.Length > 1 ? $"T{i + 1}" : "T",
-                Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-            }
-        ).ToArray());
+        if (genInfos.Length > 0)
+            funcSchema.SetProperty<Generics, GenericParameter[]>(genInfos.Select((g, i) => 
+                new GenericParameter
+                {
+                    Name = genInfos.Length > 1 ? $"T{i + 1}" : "T",
+                    Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                }
+            ).ToArray());
 
         // Parameter types
         TypeDetails?[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetails()).ToArray();

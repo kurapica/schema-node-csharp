@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using System.Xml;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Schema;
+using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 namespace SchemaNode.Utility;
 
@@ -465,7 +466,7 @@ internal static class Extension
             if (value.GetType().IsAssignableTo(type)) return value;
 
             // for schema node
-            if (value is AnySchemaNode node) return node.ToValue(type);
+            if (value is DataNode node) return node.ToTypeValue(type);
 
             // json type
             if (value is JsonElement ele)

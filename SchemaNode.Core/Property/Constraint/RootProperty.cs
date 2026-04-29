@@ -10,10 +10,10 @@ namespace SchemaNode.Property.Constraint;
 /// <summary>
 /// Restrict the enum value to be a descendant of the specified root value.
 /// </summary>
-[SchemaProperty([SchemaType.StructField], [ValueSchemaType.Enum, ValueSchemaType.Namespace], optionDepends: [nameof(RequireProperty)])]
-public class RootProperty : SchemaProperty<AnySchemaNode>, IConstraintProperty
+[SchemaProperty([NodeType.StructField], [ValueSchemaType.Enum, ValueSchemaType.Namespace], optionDepends: [nameof(RequireProperty)])]
+public class RootProperty : SchemaProperty<Node.DataNode>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         var effectiveNode = overrideValue ?? Value;
         if (effectiveNode is not EnumNode enumNode || enumNode.IsEmpty || node.IsEmpty) return null;
@@ -22,7 +22,7 @@ public class RootProperty : SchemaProperty<AnySchemaNode>, IConstraintProperty
         string nodeValue = node.ToString();
         if (root.Equals(nodeValue)) return true;
 
-        EnumValueAccess[] access = await (node.SchemaType as EnumType)!.LoadEnumAccessListAsync(context, nodeValue, noSubList: true);
+        EnumValueAccess[] access = await (node.NodeType as EnumType)!.LoadEnumAccessListAsync(context, nodeValue, noSubList: true);
         return access.Any(a => a.Value.Equals(root));
     }
 }

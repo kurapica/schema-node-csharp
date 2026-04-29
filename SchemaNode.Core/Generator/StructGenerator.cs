@@ -8,6 +8,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
 
 namespace SchemaNode.Service;
 
@@ -38,7 +39,12 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         List<StructFieldSchema> fieldConfigs = [];
         bool solveLater = false;
         Dictionary<string, Type> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
-
+        
+        // Check generic types
+        TypeDetails[] genInfos = type.GetGenericArguments()
+            .Select(g => g.GetTypeDetails() ?? throw new Exception($"The {g.FullName} used by type {type.FullName} can't be resolved"))
+            .ToArray(); // The generic type infos
+        
         foreach (PropertyInfo p in type
                      .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
                      .Where(p =>
@@ -48,9 +54,13 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                      .OrderBy(p => p.MetadataToken))
         {
             string fieldName = p.Name.ToCamelCase();
-
+            TypeDetails? pt = p.PropertyType.GetTypeDetails();
+            if (pt == null) continue;
+            
             // Explicit [Meta<SchemaType>] on the property overrides type resolution
-            string? fieldType = p.GetMetaProperty<SchemaType>()?.Value ?? runtime.GetTypeSchema(p.PropertyType);
+            string? fieldType = pt.Generic != null 
+                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic)}" : "T")
+                    : p.GetMetaProperty<SchemaType>()?.Value ?? runtime.GetTypeSchema(p.PropertyType);
 
             StructFieldSchema field = new()
             {
@@ -95,6 +105,17 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         StructSchema structSchema = new() { Fields = fieldConfigs.ToArray() };
         if (relations.Count > 0)
             structSchema.SetProperty<RelationsProperty, RelationSchema[]>(relations.ToArray());
+        
+        // Generics
+        if (genInfos.Length > 0)
+            structSchema.SetProperty<Generics, GenericParameter[]>(genInfos.Select((g, i) => 
+                new GenericParameter
+                {
+                    Name = genInfos.Length > 1 ? $"T{i + 1}" : "T",
+                    Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                }
+            ).ToArray());
+        
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         
         // save the struct schema
@@ -120,10 +141,9 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         if (!solveLater) yield break;
         
         foreach (StructFieldSchema field in structSchema.Fields)
-        {
             if (unSolvedField.TryGetValue(field.Name, out Type? propType))
                 field.Type = typeResolver(propType, @namespace) ?? throw new Exception($"Type {propType} not found for {type.FullName}'s {field.Name} property");
-        }
+        
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         yield return schema;
     }

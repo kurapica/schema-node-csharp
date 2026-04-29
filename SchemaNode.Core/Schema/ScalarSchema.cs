@@ -11,7 +11,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_SCALAR, SCHEMA_KIND_ORDER_SCALAR)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_SCALAR, SCHEMA_KIND_ORDER_SCALAR)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_SCALAR, SCHEMA_KIND_ORDER_SCALAR)]
-[Meta<NodeSchemaType>(typeof(Runtime.ScalarType))]
+[Meta<NodeType>(typeof(Runtime.ScalarType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_SCALAR}.schema")]
 public sealed class ScalarSchema: ExtensibleSchema
 {

@@ -1,0 +1,160 @@
+﻿using SchemaNode.Context;
+using System.Linq.Expressions;
+using SchemaNode.Components;
+using SchemaNode.Enum;
+using SchemaNode.Node;
+using SchemaNode.Schema;
+using ExpressionType = SchemaNode.Enum.ExpressionType;
+using static SchemaNode.Utility.Constant;
+
+namespace SchemaNode.Runtime;
+
+/// <summary>
+/// The policy filter compile context
+/// </summary>
+public class QueryFilterCompileContext : CompileContext
+{
+    private LogicExp? _lastLogicExp;
+    private StructType? _queryType;
+
+    /// <summary>
+    /// The policy filter compile context
+    /// </summary>
+    public QueryFilterCompileContext(SchemaContext context, FunctionType function) : base(context, function)
+    {
+        if (Function.Args.Length < 1 || Function.Args[0].SchemaType is not StructType structType)
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+        _queryType = structType;
+    }
+
+    /// <summary>
+    /// The field query access expression
+    /// </summary>
+    record QueryFieldAccessExpression(string FieldName, NodeType NodeType) : SchemaExp(NodeType);
+
+    /// <summary>
+    /// Transform the last logic expression to filter expression
+    /// </summary>
+    public override async Task<FunctionTypeSchema> VisitFunctionType()
+    {
+        if (Function.TryGetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
+        {
+            _lastLogicExp = schema!.Exps.LastOrDefault()?.Value as LogicExp;
+            if (_lastLogicExp == null)
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+            return schema;
+        }
+        
+        schema = await base.VisitFunctionType();
+        _lastLogicExp = schema.Exps.LastOrDefault()?.Value as LogicExp;
+        if (_lastLogicExp == null)
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+        
+        // Re-write the return type to AppSchemaDataFilter
+        return Function.SetRuntimeFuncCache<QueryFilterCompileContext, FunctionTypeSchema>(
+            new FunctionTypeSchema(schema.Args.Skip(1).ToArray(), schema.Exps, typeof(AppSchemaDataFilter)))!;
+    }
+
+    /// <summary>
+    /// Replace the argument field access expression to FieldAccessExpression without owner
+    /// </summary>
+    public override async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
+    {
+        if (exp is FuncCallExp { ExpType: ExpressionType.Call } funcCallExp)
+        {
+            SchemaExp[] args = new SchemaExp[funcCallExp.Args.Length];
+            bool changed = false;
+            for (int i = 0; i < funcCallExp.Args.Length; i++)
+            {
+                var oldArg = funcCallExp.Args[i];
+                var innerArg = oldArg is DefaultExp dftExp ? dftExp.Inner : oldArg;
+                if (innerArg is FieldAccessExp
+                    {
+                        Owner: ArgumentExp { Index: 0 } or VariableExp { Value: ArgumentExp { Index: 0 } }
+                    } fExp)
+                {
+                    var field = _queryType!.Fields.FirstOrDefault(f => f.Name == fExp.FieldName);
+                    if (field == null) throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+
+                    // Check field source
+                    if (field.DisplayOnly == true)
+                    {
+                        var relation = _queryType.Relations?.FirstOrDefault(r => r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && r.Field.Equals(fExp.FieldName, StringComparison.OrdinalIgnoreCase));
+                        if (relation?.FuncNode == null) throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+
+                        if (DynamicTableSchema.IsReferenceFunc(relation.Func))
+                        {
+                            // From third app field, leave it to data source to handle
+                            args[i] = new QueryFieldAccessExpression(fExp.FieldName, fExp.NodeType);
+                        }
+                        else
+                        {
+                            SchemaExp[] replaceArgs = new SchemaExp[relation.Args.Length];
+                            for (int j = 0; j < relation.Args.Length; j++)
+                            {
+                                FuncCallArg a = relation.Args[j];
+                                if (!string.IsNullOrWhiteSpace(a.Name))
+                                {
+                                    StructFieldSchema? fld = _queryType.GetField(a.Name);
+                                    if (fld == null)
+                                        throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+                                    replaceArgs[j] = new FieldAccessExp(fExp.Owner, fld.Name, fld.SchemaType!);
+                                }
+                                else
+                                {
+                                    Node.DataNode valueNode = await Context.GetSchemaNodeAsync(a.SchemeType ?? relation.FuncNode.Args[j].SchemaType, a.Value)
+                                                                ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
+                                    replaceArgs[j] = new ConstantExp(valueNode);
+                                }
+                            }
+
+                            var replaceExp = new FuncCallExp(relation.FuncNode!, replaceArgs, field.SchemaType!);
+                            args[i] = await VisitSchemaExpAsync(replaceExp);
+                        }
+                    }
+                    else
+                    {
+                        args[i] = new QueryFieldAccessExpression(fExp.FieldName, fExp.NodeType);
+                    }
+
+                    changed = true;
+                }
+                else
+                {
+                    args[i] = oldArg;
+                }
+            }
+            if (changed)
+                exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.NodeType, funcCallExp.ExpType);
+        }
+        SchemaExp result = await base.VisitSchemaExpAsync(exp);
+        return (result is FieldAccessExp { Owner: ArgumentExp { Index: 0 } or 
+            VariableExp { Value: ArgumentExp { Index: 0 } } } fieldExp)
+            ? new QueryFieldAccessExpression(fieldExp.FieldName, fieldExp.NodeType)
+            : result;
+    }
+
+    /// <summary>
+    /// Compile the last logic exp as app schema data filter
+    /// </summary>
+    public override Task<Expression> CompileSchemaExpAsync(SchemaExp exp, Type? expectedType = null)
+    {
+        return ReferenceEquals(exp, _lastLogicExp)
+            ? CompileDataSourceFilter(_lastLogicExp)
+            : base.CompileSchemaExpAsync(exp, expectedType);
+    }
+
+    async Task<Expression>  CompileDataSourceFilter(SchemaExp exp)
+    {
+        return exp switch
+        {
+            VariableExp varExp => await CompileDataSourceFilter(varExp.Value), // nested variable
+            DefaultExp defaultExp => await CompileDataSourceFilter(defaultExp.Inner),
+            QueryFieldAccessExpression fieldExp => Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName)),
+            UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(unaryExp.Inner)),
+            BinaryLogicExp binaryExp => Expression.New(typeof(AppSchemaDataFilterBinary).GetConstructors()[0], Expression.Constant(binaryExp.Type), await CompileDataSourceFilter(binaryExp.Left), await CompileDataSourceFilter(binaryExp.Right)),
+            ArithmeticExp arExp => Expression.New(typeof(AppSchemaDataFilterArith).GetConstructors()[0], Expression.Constant(arExp.Type), arExp.Args.Length > 2 ? await CompileDataSourceFilter(new ArithmeticExp(arExp.Type, arExp.Args.SkipLast(1).ToArray(), arExp.NodeType)) : await CompileDataSourceFilter(arExp.Args[0]), await CompileDataSourceFilter(arExp.Args.Last())),
+            _ => Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], Expression.Convert(await base.CompileSchemaExpAsync(exp), typeof(object))),
+        };
+    }
+}

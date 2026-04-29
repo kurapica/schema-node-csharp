@@ -9,6 +9,9 @@ using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Schema;
 using SchemaNode.Property.Function;
 using SchemaNode.Enum;
+using JsonNode = System.Text.Json.Nodes.JsonNode;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
+
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -69,7 +72,7 @@ public static class SystemLogic
         if (a is null) return true;
         switch (a)
         {
-            case AnySchemaNode n:
+            case Node.DataNode n:
                 return n.IsEmpty;
             case JsonNode j:
                 return j.IsEmpty();

@@ -7,15 +7,15 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
-[SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.String],
+[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.String],
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LowLimitStringProperty : SchemaProperty<long>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         long? effectValue = overrideValue?.ToValue<long>() ?? Value;
         if (effectValue == null || node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.SchemaType;
+        ScalarType scalar = (ScalarType)node.NodeType;
 
         if (scalar.IsString)
             return node.ToValue<string>()!.Length >= effectValue;
@@ -25,15 +25,15 @@ public class LowLimitStringProperty : SchemaProperty<long>, IConstraintProperty
 }
 
 
-[SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.Number],
+[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.Number],
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LowLimitNumberProperty : SchemaProperty<ScalarNode>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
-        AnySchemaNode? effectValueNode = overrideValue ?? Value;
+        Node.DataNode? effectValueNode = overrideValue ?? Value;
         if (effectValueNode == null || effectValueNode.IsEmpty || node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.SchemaType;
+        ScalarType scalar = (ScalarType)node.NodeType;
 
         if (scalar.IsInt)
             return node.ToValue<long>() >= effectValueNode!.ToValue<long>();
@@ -52,15 +52,15 @@ public class LowLimitNumberProperty : SchemaProperty<ScalarNode>, IConstraintPro
 }
 
 
-[SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.Date],
+[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.Date],
     name: PROPERTY_LOWLIMIT, includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class LowLimitDateProperty : SchemaProperty<DateTimeOffset>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         DateTimeOffset? effectValueNode = overrideValue?.ToValue<DateTimeOffset>() ?? Value;
         if (effectValueNode == null || node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.SchemaType;
+        ScalarType scalar = (ScalarType)node.NodeType;
 
         if (scalar.IsDate)
             return node.ToValue<DateTimeOffset>() >= effectValueNode;

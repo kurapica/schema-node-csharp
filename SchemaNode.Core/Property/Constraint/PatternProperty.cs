@@ -7,13 +7,13 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
-[SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.String], includeArray: true, optionDepends: [nameof(RequireProperty)])]
+[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.String], includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class PatternProperty : SchemaProperty<Pattern[]>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         if (node.IsEmpty || Value is not { Length: > 0 }) return null;
-        ScalarType scalar = (ScalarType)node.SchemaType;
+        ScalarType scalar = (ScalarType)node.NodeType;
 
         if (scalar.IsString)
             return Pattern.IsMatch(node.Value!.ToString()!, overrideValue?.ToValue<Pattern[]>() ?? Value);

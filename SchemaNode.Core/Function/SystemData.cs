@@ -7,6 +7,8 @@ using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.Schema;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
+
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
 
@@ -32,7 +34,7 @@ public static class SystemData
             if (value.Equals(root)) return true;
 
             // Check with value access
-            EnumType? enumType = await context.GetSchemaTypeAsync<EnumType>(@enum);
+            EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return false;
             EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, value, noSubList: true);
             return access.Any(a => a.Value.Equals(root));
@@ -49,7 +51,7 @@ public static class SystemData
             if (roots.Any(r => r.Equals(value))) return true;
 
             // Check with value access
-            EnumType? enumType = await context.GetSchemaTypeAsync<EnumType>(@enum);
+            EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return false;
             EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, value, noSubList: true);
             return access.Any(a => rootSet.Contains(a.Value));
@@ -63,7 +65,7 @@ public static class SystemData
             value = value.Trim();
             if (string.IsNullOrWhiteSpace(value)) return string.Empty;
             // Check with value access
-            EnumType? enumType = await context.GetSchemaTypeAsync<EnumType>(@enum);
+            EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return string.Empty;
             EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, value, noSubList: true);
             return depth < 0 
@@ -79,7 +81,7 @@ public static class SystemData
             value = value.Trim();
             if (string.IsNullOrWhiteSpace(value)) return -1;
             // Check with value access
-            EnumType? enumType = await context.GetSchemaTypeAsync<EnumType>(@enum);
+            EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return -1;
             EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, value, noSubList: true);
             return access.Length - 1;
@@ -92,7 +94,7 @@ public static class SystemData
         {
             values = values.Select(v => v.Trim()).Where(v => !string.IsNullOrWhiteSpace(v)).ToArray();
             if (values.Length == 0) return string.Empty;
-            EnumType? enumType = await context.GetSchemaTypeAsync<EnumType>(@enum);
+            EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return string.Empty;
             EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, values[0], noSubList: true);
             for (int i = 1; i < values.Length; i++)

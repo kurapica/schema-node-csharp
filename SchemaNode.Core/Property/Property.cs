@@ -22,7 +22,7 @@ public interface IProperty
     /// <summary>
     /// Gets the property value
     /// </summary>
-    T? GetValue<T>();
+    T? GetValue<T>(bool matchType = false);
 }
 
 /// <summary>
@@ -43,7 +43,7 @@ public abstract class Property<T> : IProperty
     /// <summary>
     /// Gets the value
     /// </summary>
-    public virtual TV? GetValue<TV>() => HasValue ? Value.TryConvertTo<TV>() : default(TV?);
+    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.TryConvertTo<TV>() : default(TV?);
 
     /// <summary>
     /// Check the value is not empty

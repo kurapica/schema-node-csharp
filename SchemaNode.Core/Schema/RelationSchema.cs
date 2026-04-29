@@ -51,7 +51,7 @@ public interface IRelationOwner
     /// </summary>
     /// <param name="source"></param>
     /// <returns></returns>
-    AnySchemaNode? GetSourceValue(string source);
+    Node.DataNode? GetSourceValue(string source);
 
     /// <summary>
     /// Sets the target's property value
@@ -59,7 +59,7 @@ public interface IRelationOwner
     /// <param name="target"></param>
     /// <param name="prop"></param>
     /// <param name="value"></param>
-    void SetPropertyValue(string target, string prop, AnySchemaNode? value);
+    void SetPropertyValue(string target, string prop, Node.DataNode? value);
 }
 
 /// <summary>
@@ -67,7 +67,7 @@ public interface IRelationOwner
 /// </summary>
 public interface IRelationProcess
 {
-    Task<AnySchemaNode?> ProcessAsync(SchemaContext context, IRelationOwner target);
+    Task<Node.DataNode?> ProcessAsync(SchemaContext context, IRelationOwner target);
 }
 /// <summary>
 /// The relation property for data schemas
@@ -92,7 +92,7 @@ public class RelationCall: IRelationProcess
     public CallArg[] Args { get; set; } = [];
 
     /// <inheritdoc/>
-    public Task<AnySchemaNode?> ProcessAsync(SchemaContext context, IRelationOwner target)
+    public Task<Node.DataNode?> ProcessAsync(SchemaContext context, IRelationOwner target)
     {
         throw new NotImplementedException();
     }

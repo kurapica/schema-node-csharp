@@ -8,14 +8,14 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
-[SchemaProperty([SchemaType.Scalar, SchemaType.StructField], [ValueSchemaType.String, ValueSchemaType.Number, ValueSchemaType.Date], 
+[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.String, ValueSchemaType.Number, ValueSchemaType.Date], 
     includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class ValidateProperty : SchemaProperty<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
 {
-    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         if (node.Value == null || string.IsNullOrWhiteSpace(Value?.Func)) return null;
-        FunctionType? validFunc = !string.IsNullOrWhiteSpace(Value?.Func) ? await context.GetSchemaTypeAsync<FunctionType>(Value.Func) : null;
+        FunctionType? validFunc = !string.IsNullOrWhiteSpace(Value?.Func) ? await context.GetNodeTypeAsync<FunctionType>(Value.Func) : null;
         if (validFunc == null || validFunc.ReturnNode == null || validFunc.ReturnNode is not ScalarType { IsBool: true }) return null;
 
         try

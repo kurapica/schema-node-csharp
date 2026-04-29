@@ -102,8 +102,8 @@ public static class SystemStr
         
         public static Entry toentry(StructNode node, string valueField, string labelField)
         {
-            AnySchemaNode? val = node.GetValueByPaths(valueField);
-            AnySchemaNode? label = node.GetValueByPaths(labelField);
+            Node.DataNode? val = node.GetValueByPaths(valueField);
+            Node.DataNode? label = node.GetValueByPaths(labelField);
             return new Entry
             {
                 Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",

@@ -5,6 +5,8 @@ using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Schema;
 using SchemaNode.Property.Function;
 using SchemaNode.Enum;
+using SchemaType = SchemaNode.Property.Schema.SchemaType;
+
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;

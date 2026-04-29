@@ -1,71 +1,116 @@
-using System.Collections.Concurrent;
-using SchemaNode.Attribute;
-using SchemaNode.Context;
-using SchemaNode.Property.Schema;
+﻿using SchemaNode.Context;
 using SchemaNode.Schema;
+using System.Collections.Concurrent;
+using Microsoft.CSharp.RuntimeBinder;
+using SchemaNode.Property;
+using SchemaNode.Property.Record;
 
 namespace SchemaNode.Runtime;
 
 /// <summary>
-/// The namespace node that holds sub-schema types
+/// The namespace node
 /// </summary>
-public class NamespaceType : AnySchemaType
+public sealed class NamespaceType: NodeType
 {
-    #region Data
+    #region Field
 
-    /// <summary>
-    /// The sub schemas of the namespace
-    /// </summary>
-    public NodeSchema[] Schemas { get; set; } = [];
+    private readonly ConcurrentDictionary<string, NodeSchema> _schemas = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, NodeType> _types = new(StringComparer.OrdinalIgnoreCase);
 
     #endregion
 
-    #region Ref
+    #region Method
 
-    /// <summary>
-    /// The sub schema type nodes
-    /// </summary>
-    public ConcurrentDictionary<string, AnySchemaType> SchemaNodes { get; set; } = new();
-
-    #endregion
-
-    #region Status
-
-    /// <summary>
-    /// A namespace is considered "used" if it has schemas
-    /// </summary>
-    public override bool IsUsed => Schemas.Length > 0;
-
-    #endregion
-
-    #region Loading
-
-    /// <summary>
-    /// Load the namespace schema data
-    /// </summary>
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    /// <inheritdoc/>
+    public override Task LoadAsync(SchemaContext context, NodeSchema schema)
     {
-        // Store sub-schema metadata (name + kind) for lazy loading
-        Schemas = schema.Schemas?.Select(p => new NodeSchema
+        _schemas.Clear();
+        if (schema.Schemas == null || schema.Schemas.Length == 0) return Task.CompletedTask;
+        
+        // record
+        foreach (NodeSchema nodeSchema in schema.Schemas)
+            _schemas[nodeSchema.Name] = nodeSchema;
+        
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets the node schema by name
+    /// </summary>
+    internal NodeSchema? GetNodeSchema(string name) => _schemas.GetValueOrDefault(name);
+
+    /// <summary>
+    /// Gets the node schema
+    /// </summary>
+    public NodeSchema? GetNodeSchema(SchemaContext context, string name)
+    {
+        NodeSchema? schema = _schemas.GetValueOrDefault(name);
+        return schema?.Clone(context.Runtime.GetSchemaKindProperties(schema.Kind));
+    }
+
+    /// <summary>
+    /// Get all node schemas
+    /// </summary>
+    internal IEnumerable<NodeSchema> GetNodeSchemas() => _schemas.Values;
+
+    /// <summary>
+    /// Get all node schemas
+    /// </summary>
+    public IEnumerable<NodeSchema> GetNodeSchemas(SchemaContext context)
+    {
+        // get order
+        Dictionary<string, int> order = new (StringComparer.OrdinalIgnoreCase);
+        foreach (IOrderProperty recordedValue in typeof(NodeSchemaKind).GetRecordedValues())
+            order[recordedValue.GetValue<string>()!] = recordedValue.Order;
+        
+        // return the clone schemas
+        return _schemas.Values.OrderBy(s => order.GetValueOrDefault(s.Kind, 0))
+            .Select(s => s.Clone(context.Runtime.GetSchemaKindProperties(s.Kind)));
+    }
+    
+    /// <summary>
+    /// Gets the saved node type
+    /// </summary>
+    public NodeType? GetNodeType(string name) => _types.GetValueOrDefault(name);
+    
+    /// <summary>
+    /// Saves the node type
+    /// </summary>
+    internal void SaveNodeType(NodeType nodeType) => _types[nodeType.Name] = nodeType;
+    
+    /// <summary>
+    /// Save the node schema to the namespace
+    /// </summary>
+    internal void SaveNodeSchema(NodeSchema schema) => _schemas[schema.FullName] = schema;
+    
+    /// <summary>
+    /// Remove node schema
+    /// </summary>
+    internal void RemoveNodeSchema(string name)
+    {
+        _schemas.TryRemove(name, out _);
+        _types.TryRemove(name, out _);
+    }
+
+    /// <summary>
+    /// Rest loading stage for reload
+    /// </summary>
+    internal void ResetLoadState()
+    {
+        Loaded = false;
+        foreach (var nodeType in _types.Values)
         {
-            Name = p.Name,
-            Kind = p.Kind,
-        }).ToArray() ?? [];
-
-        if (!preload || schema.Schemas == null || schema.Schemas.Length == 0) return;
-
-        ISchemaRuntime runtime = context.Runtime;
-
-        // Preload schemas by kind in dependency order
-        foreach (SchemaKindInfo kindInfo in runtime.GetSchemaKinds())
-        {
-            foreach (NodeSchema s in schema.Schemas.Where(s =>
-                         s.Kind?.Equals(kindInfo.Kind, StringComparison.OrdinalIgnoreCase) == true))
-            {
-                await runtime.GetSchemaTypeAsync(context, s.Name, preload: true);
-            }
+            if (nodeType is NamespaceType namespaceType)
+                namespaceType.ResetLoadState();
+            else
+                nodeType.Loaded = false;
         }
     }
+
+    /// <summary>
+    /// Whether the node is used
+    /// </summary>
+    public override bool IsUsed => _schemas.Count > 0;
 
     #endregion
 }

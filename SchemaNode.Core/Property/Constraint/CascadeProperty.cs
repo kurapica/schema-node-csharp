@@ -9,14 +9,14 @@ namespace SchemaNode.Property.Constraint;
 /// <summary>
 /// Limit the enum's cascade level
 /// </summary>
-[SchemaProperty([SchemaType.StructField], [ValueSchemaType.Enum], includeArray: true, optionDepends: [nameof(RequireProperty)])]
+[SchemaProperty([NodeType.StructField], [ValueSchemaType.Enum], includeArray: true, optionDepends: [nameof(RequireProperty)])]
 public class CascadeProperty : SchemaProperty<long>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, AnySchemaNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         var effectiveValue = overrideValue?.ToValue<long>() ?? Value;
         if (effectiveValue <= 0 || node.IsEmpty) return null;
-        EnumType? enumType = node.SchemaType as EnumType;
+        EnumType? enumType = node.NodeType as EnumType;
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
         var access = await enumType.LoadEnumAccessListAsync(context, node.Value!.ToString()!, noSubList: true, withSubList: false);

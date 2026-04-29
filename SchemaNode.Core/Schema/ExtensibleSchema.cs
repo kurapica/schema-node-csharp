@@ -37,14 +37,51 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// <summary>
     /// Combine other extensible properties into this instance. If there are duplicate keys, the values from the other instance will overwrite the existing values.
     /// </summary>
-    /// <param name="other"></param>
-    public void CombineExtensions(ExtensibleSchema? other)
+    public void CombineExtensions(ExtensibleSchema? other, IEnumerable<Type>? propTypes = null)
     {
         if (other?.Extensions is not { Count: > 0 } || !other.GetType().IsAssignableTo(GetType())) return;
 
-        Extensions ??= [];
-        foreach (var (key, value) in other.Extensions)
-            Extensions[key] = value;
+        if (Extensions == null || Extensions.Count == 0 || propTypes == null)
+        {
+            Extensions ??= [];
+            foreach (var (key, value) in other.Extensions)
+                Extensions[key] = Combine(value, Extensions.GetValueOrDefault(key));
+        }
+        else
+        {
+            foreach (Type propType in propTypes)
+            {
+                IProperty? otherProp = other.GetProperty(propType);
+                if (otherProp is not { HasValue: true }) continue;
+                Extensions ??= [];
+
+                if (otherProp.GetValue<ExtensibleSchema>(true) is { } innerSchema)
+                {
+                    IProperty? innerProp = innerSchema.GetProperty(propType);
+                    ExtensibleSchema? existSchema = innerProp?.GetValue<ExtensibleSchema>(true);
+                    if (existSchema == null) continue;
+                    existSchema.CombineExtensions(innerSchema);
+                    innerProp!.SetValue(existSchema);
+                    SetProperty(innerProp);
+                }
+                else
+                {
+                    SetProperty(otherProp);
+                }
+            }
+        }
+
+        JsonNode Combine(JsonNode from, JsonNode? to)
+        {
+            if (to == null || to.IsEmpty() || to is not JsonObject toObject) return from;
+            if (from is not JsonObject fromObject) return toObject;
+            foreach (var (key, value) in fromObject)
+            {
+                if (value != null && !value.IsEmpty())
+                    toObject[key] = Combine(value, toObject.TryGetValue(key,  out JsonNode? child) ? child : null);
+            }
+            return toObject;
+        }
     }
 
     #endregion
