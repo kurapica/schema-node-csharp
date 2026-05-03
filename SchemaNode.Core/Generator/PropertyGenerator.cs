@@ -4,7 +4,6 @@ using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -43,9 +42,6 @@ internal class PropertyGenerator : INodeSchemaGenerator
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() 
                          ?? throw new ArgumentException($"Type '{type}' is not a valid as property type."),
-        
-            // For Types
-            ForTypes = type.GetMetaProperty<ForTypes>()?.GetValue<string[]>()
         });
         
         yield return schema;

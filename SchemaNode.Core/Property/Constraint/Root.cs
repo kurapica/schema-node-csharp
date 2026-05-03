@@ -1,17 +1,19 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
 /// <summary>
 /// Restrict the enum value to be a descendant of the specified root value.
 /// </summary>
-[SchemaProperty([NodeType.StructField], [ValueSchemaType.Enum, ValueSchemaType.Namespace], optionDepends: [nameof(RequireProperty)])]
-public class RootProperty : SchemaProperty<Node.DataNode>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<OptionDepends>(typeof(Require))]
+public class Root: Property<Node.DataNode>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

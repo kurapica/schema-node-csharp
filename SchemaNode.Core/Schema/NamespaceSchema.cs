@@ -1,6 +1,4 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Property;
-using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
@@ -15,4 +13,4 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeType>(typeof(NamespaceType))]
-public sealed class NamespaceSchema : ExtensibleSchema;
+public sealed class NamespaceSchema;

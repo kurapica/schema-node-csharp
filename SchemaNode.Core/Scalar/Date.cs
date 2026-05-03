@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Schema;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Scalar;
@@ -9,7 +10,8 @@ namespace SchemaNode.Scalar;
 /// </summary>
 [Meta<ClrEquivalent>(typeof(Date))]
 [Meta<ClrEquivalent>(typeof(DateOnly))]
-[Meta<SchemaType>(NS_SYSTEM_DOUBLE)]
+[Meta<SchemaType>(NS_SYSTEM_DATE)]
+[Meta<OfSchema>(SCHEMA_KIND_DATE)]
 public class Date: IScalarType<DateTimeOffset>;
 
 /// <summary>

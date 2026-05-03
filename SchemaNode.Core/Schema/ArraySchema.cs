@@ -5,7 +5,6 @@ using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Scalar.Schema;
-using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
@@ -78,7 +77,7 @@ public sealed class DataIndex
     /// <summary>
     /// The index name
     /// </summary>
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>

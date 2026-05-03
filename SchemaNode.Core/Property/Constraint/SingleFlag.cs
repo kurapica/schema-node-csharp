@@ -1,15 +1,17 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
 /// <summary>
 /// Don't allow flags enum value combination.
 /// </summary>
-[SchemaProperty([SchemaType.StructField], [ValueSchemaType.FlagsEnum], optionDepends: [nameof(RequireProperty)])]
-public class SingleFlagProperty : SchemaProperty<bool>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<OptionDepends>(typeof(Require))]
+public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

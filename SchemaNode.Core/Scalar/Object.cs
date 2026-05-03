@@ -1,15 +1,15 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
-using SchemaNode.Node;
 using SchemaNode.Property.Schema;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 namespace SchemaNode.Scalar;
 
 /// <summary>
-/// Represents the object value type, which can be any value, including string, number, boolean, null, array and object.
+/// Represents the object value type — any JSON value. The actual type is resolved by Relation at runtime.
 /// </summary>
 [Meta<ClrEquivalent>(typeof(JsonElement))]
 [Meta<ClrEquivalent>(typeof(JsonNode))]
@@ -18,4 +18,5 @@ namespace SchemaNode.Scalar;
 [Meta<ClrEquivalent>(typeof(JsonObject))]
 [Meta<ClrEquivalent>(typeof(Node.DataNode))]
 [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
+[Meta<OfSchema>(SCHEMA_KIND_OBJECT)]
 public class Object: IScalarType<object>;

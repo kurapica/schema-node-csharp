@@ -46,12 +46,12 @@ public sealed class EnumType: ValueType
     /// <summary>
     /// The root for all enum values
     /// </summary>
-    EnumValueInfo Root { get; set; } = new();
+    EnumValueSchema Root { get; set; } = new();
 
     /// <summary>
     /// The enum value cache
     /// </summary>
-    ConcurrentDictionary<string, EnumValueInfo> valueMaps = new(StringComparer.OrdinalIgnoreCase);
+    ConcurrentDictionary<string, EnumValueSchema> valueMaps = new(StringComparer.OrdinalIgnoreCase);
 
     #endregion
     
@@ -66,7 +66,7 @@ public sealed class EnumType: ValueType
         valueMaps.Clear();
         ValueType = @enum?.Type ?? EnumValueType.String;
         Cascade = @enum?.Cascade;
-        Root = new EnumValueInfo
+        Root = new EnumValueSchema
         {
             SubList = @enum?.Values
         };
@@ -83,25 +83,25 @@ public sealed class EnumType: ValueType
     /// </summary>
     /// <param name="value"></param>
     /// <returns></returns>
-    public async Task<EnumValueInfo?> LoadEnumValueInfo(SchemaContext context, string value)
+    public async Task<EnumValueSchema?> LoadEnumValueInfo(SchemaContext context, string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         if (valueMaps.TryGetValue(value, out var node)) return node;
 
-        EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         return accesses.Length > 0 ? accesses.Last() : null;
     }
 
     /// <summary>
     /// Load the enum value access path
     /// </summary>
-    public EnumValueInfo[] LoadCachedEnumValueAccessAsync(string? value)
+    public EnumValueSchema[] LoadCachedEnumValueAccessAsync(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return [];
 
         if (valueMaps.TryGetValue(value, out var node))
         {
-            EnumValueInfo[] temp = new EnumValueInfo[node.Level + 1];
+            EnumValueSchema[] temp = new EnumValueSchema[node.Level + 1];
             temp[node.Level] = node;
             for (int i = node.Level - 1; i >= 0; i--)
             {
@@ -117,9 +117,9 @@ public sealed class EnumType: ValueType
     /// <summary>
     /// Load the enum value access path
     /// </summary>
-    public async Task<EnumValueInfo[]> LoadEnumValueAccessAsync(SchemaContext context, string? value)
+    public async Task<EnumValueSchema[]> LoadEnumValueAccessAsync(SchemaContext context, string? value)
     {
-        EnumValueInfo[]? accesses = [];
+        EnumValueSchema[]? accesses = [];
         if (string.IsNullOrWhiteSpace(value)) return [];
 
         // Try to get from cache
@@ -140,12 +140,12 @@ public sealed class EnumType: ValueType
         // Ignore the value not exist after loading
         return getAccess(value, out accesses) ? accesses ?? [] : [];
 
-        bool getAccess(string value, out EnumValueInfo[]? accesses)
+        bool getAccess(string value, out EnumValueSchema[]? accesses)
         {
             accesses = null;
             if (valueMaps.TryGetValue(value, out var node))
             {
-                var temp = new EnumValueInfo[node.Level + 1];
+                var temp = new EnumValueSchema[node.Level + 1];
                 temp[node.Level] = node;
                 for (int i = node.Level - 1; i >= 0; i--)
                 {
@@ -167,13 +167,13 @@ public sealed class EnumType: ValueType
     /// <param name="value">The root enum value, optional</param>
     /// <param name="fullList">Whether try to load the full list</param>
     /// <returns></returns>
-    public async Task<EnumValueInfo[]> LoadEnumSubListAsync(SchemaContext context, string? value, bool fullList = false)
+    public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value, bool fullList = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return Root.SubList ?? [];
 
-        EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];
-        EnumValueInfo access = accesses.Last();
+        EnumValueSchema access = accesses.Last();
         if (!(access.HasSubList ?? false)) return [];
          
         // load sub list
@@ -186,7 +186,7 @@ public sealed class EnumType: ValueType
             return access.Clone(chkLvl).SubList ?? [];
             
         // load sub list
-        EnumValueInfo[] subList = await context.LoadEnumSubListAsync(this, value!, true);
+        EnumValueSchema[] subList = await context.LoadEnumSubListAsync(this, value!, true);
         lock (_lock)
         {
             access.SubList = subList;
@@ -206,7 +206,7 @@ public sealed class EnumType: ValueType
     /// <returns></returns>
     public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList = false, bool? withSubList = false)
     {
-        EnumValueInfo[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];
         
         withSubList = (withSubList ?? false) && accesses.Length < (Cascade?.Length ?? 1) && accesses.Last().SubList is { Length: > 0};
@@ -252,7 +252,7 @@ public sealed class EnumType: ValueType
 
                 if (!Root.IsFullyLoaded)
                 {
-                    EnumValueInfo[] infos = await context.LoadEnumSubListAsync(this, null);
+                    EnumValueSchema[] infos = await context.LoadEnumSubListAsync(this, null);
                     lock (_lock)
                     {
                         Root.SubList = infos;
@@ -274,7 +274,7 @@ public sealed class EnumType: ValueType
             }
         }
         
-        EnumValueInfo[] access = await LoadEnumValueAccessAsync(context, value.ToString());
+        EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, value.ToString());
         if (access.Length == 0)
             return (null, TYPE_VALUE_NOT_VALID);
 
@@ -357,7 +357,7 @@ public sealed class EnumType: ValueType
                 Type = valueType,
                 Values = type.GetFields(BindingFlags.Public | BindingFlags.Static).Select(f =>
                 {
-                    return new EnumValueInfo
+                    return new EnumValueSchema
                     {
                         Name = type.GetSummaryFromXmlDoc(f) ?? $"{typeName}.{f.Name.ToLower()}",
                         Value = valueType switch
@@ -374,7 +374,7 @@ public sealed class EnumType: ValueType
         if (Utility.SystemLocale.HasLocales)
         {
             Utility.SystemLocale.Translate(enumSchema.Display, enumSchema.Name);
-            foreach (EnumValueInfo value in enumSchema.Enum!.Values)
+            foreach (EnumValueSchema value in enumSchema.Enum!.Values)
                 Utility.SystemLocale.Translate(value.Name);
         }
 
@@ -388,7 +388,7 @@ public sealed class EnumType: ValueType
     /// <summary>
     /// Refresh status
     /// </summary>
-    bool UpdateLoadState(EnumValueInfo node, int level = 999, EnumValueInfo? parent = null, bool reset = false)
+    bool UpdateLoadState(EnumValueSchema node, int level = 999, EnumValueSchema? parent = null, bool reset = false)
     {
         if (node.IsFullyLoaded && !reset || level == 0) return true;
         node.IsFullyLoaded = false;
@@ -428,7 +428,7 @@ public sealed class EnumType: ValueType
         long max = 0;
         try
         {
-            foreach (EnumValueInfo info in Root.SubList)
+            foreach (EnumValueSchema info in Root.SubList)
             {
                 if (long.TryParse(info.Value, out long val))
                 {

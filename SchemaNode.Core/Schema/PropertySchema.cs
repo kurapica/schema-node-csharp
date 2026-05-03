@@ -3,7 +3,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
-using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
@@ -20,12 +19,12 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
-public class PropertySchema
+public class PropertySchema: ExtensibleSchema
 {
     /// <summary>
     /// The property name, such as "uplimit", "lowlimit", "pattern", etc.
     /// </summary>
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Property { get; internal set; } = string.Empty;
 
     /// <summary>
@@ -48,12 +47,6 @@ public class PropertySchema
     /// The schema types that this constraint applies to
     /// </summary>
     public string[] ForSchemas { get; set; } = [];
-
-    /// <summary>
-    /// For value kinds
-    /// </summary>
-    [Meta<SchemaType>(nameof(Scalar.Schema.ValueType))]
-    public string[]? ForTypes { get; set; }
 }
 
 

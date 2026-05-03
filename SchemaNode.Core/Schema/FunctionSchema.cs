@@ -10,9 +10,11 @@ using SchemaNode.Runtime;
 using SchemaNode.Scalar.Schema;
 using SchemaNode.Service;
 using SchemaNode.Struct;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Runtime.NodeType;
+using Object = SchemaNode.Scalar.Object;
 using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
@@ -24,13 +26,13 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<Property.Schema.NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
-[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 public sealed class FunctionSchema: ExtensibleSchema
 {
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -54,19 +56,19 @@ public sealed class FuncProperty: Property<FunctionSchema>;
 /**
  * The function argument information
  */
-[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
 public sealed class FuncArg
 {
     /// <summary>
     /// The argument name
     /// </summary>
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The argument type, T T1 T2 means the generic type
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
 
     /// <summary>
@@ -107,18 +109,18 @@ public sealed class FuncArg
 /// <summary>
 /// The function expressions
 /// </summary>
-[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.exp")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.exp")]
 public sealed class FuncExp {
     /// <summary>
     /// The expression name
     /// </summary>
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
     /// The call function
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(FuncType))]
+    [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -129,7 +131,7 @@ public sealed class FuncExp {
     /// <summary>
     /// The expression type
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(ValueType))]
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
@@ -147,8 +149,8 @@ public sealed class FuncExp {
 /// <summary>
 /// The function call arguments
 /// </summary>
-[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.callarg")]
-public class CallArg
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.callarg")]
+public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
     /// The argument data source, like field access path
@@ -158,12 +160,21 @@ public class CallArg
     /// <summary>
     /// The const value
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(AnyValue))]
+    [Meta<SchemaType>(typeof(Object))]
     public JsonNode? Value { get; set; }
     
     /// <summary>
     /// The argument type
     /// </summary>
-    [Meta<Property.Schema.SchemaType>(typeof(AnyType))]
+    [Meta<SchemaType>(typeof(AnyType))]
     public string? Type { get; set; }
+
+    public bool Equals(CallArg? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return string.IsNullOrWhiteSpace(Source)
+            ? string.IsNullOrWhiteSpace(other.Source) && !Value.IsEmpty() && !other.Value.IsEmpty() && Value!.ToJsonString().Equals(other.Value!.ToJsonString())
+            : !string.IsNullOrWhiteSpace(other.Source) && Source.Equals(other.Source, StringComparison.OrdinalIgnoreCase);
+    }
 }

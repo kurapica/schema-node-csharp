@@ -1,0 +1,31 @@
+using SchemaNode.Attribute;
+using SchemaNode.Property;
+using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Record;
+using SchemaNode.Property.Schema;
+using SchemaNode.Scalar.Schema;
+using static SchemaNode.Utility.Constant;
+using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+
+namespace SchemaNode.Schema;
+
+[Meta<SchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
+[Meta<NodeSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
+[Meta<ValueSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
+[Meta<NodeType>(typeof(Runtime.StringType))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRING}.schema")]
+public sealed class StringSchema : ScalarSchema
+{
+    /// <summary>
+    /// The base string schema to inherit from
+    /// </summary>
+    [Meta<SchemaType>(typeof(StringScalarType))]
+    public override string? Base { get; set; }
+}
+
+/// <summary>
+/// Declare string property for node schema
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRING)]
+public sealed class StringProperty : Property<StringSchema>;

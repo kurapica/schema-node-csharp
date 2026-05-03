@@ -35,7 +35,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Works in system only mode
     /// </summary>
-    internal bool SystemMode { get; set; } = false;
+    internal bool SystemMode { get; set; }
 
     /// <summary>
     /// Gets the logger
@@ -171,9 +171,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     return null;
                 }
                 
-                // cache
+                // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
                 if (parent != result)
-                    parent.SaveNodeType(result);
+                    parent.SaveNodeType(next!, result);
 
                 // Load the schema
                 LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
@@ -214,7 +214,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     }
                     
                     // Combine
-                    schema.CombineExtensions(loadSchema);
+                    schema.CombineExtensions(loadSchema, runtime);
 
                     if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
@@ -232,7 +232,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         int index = Array.FindIndex(schema.Schemas, s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
                         if (index >= 0)
                         {
-                            schema.Schemas[index].CombineExtensions(otherSchema);
+                            schema.Schemas[index].CombineExtensions(otherSchema, runtime);
                         }
                         else
                         {

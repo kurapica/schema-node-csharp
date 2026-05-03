@@ -61,9 +61,10 @@ public class SchemaRuntime : ISchemaRuntime
 
     #endregion
 
-    #region System Schema
+    #region System Node Schema
 
     private readonly ConcurrentDictionary<Type, string> _typeCache = new();
+    private readonly ConcurrentDictionary<string, string> _arrayCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly NodeSchema _rootSchema = new()
     {
         Name = "",
@@ -83,6 +84,10 @@ public class SchemaRuntime : ISchemaRuntime
     /// </summary>
     internal void SaveSystemSchema(NodeSchema schema)
     {
+        // special for array
+        if (schema.Kind == SCHEMA_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
+            _arrayCache[arraySchema.Element] = schema.FullName;
+
         string schemaName = schema.FullName.ToLowerInvariant();
         NodeSchema root = _rootSchema;
         string fullPath = "";
@@ -129,7 +134,7 @@ public class SchemaRuntime : ISchemaRuntime
             // override the extension properties
             else if (node.Kind != SCHEMA_KIND_NAMESPACE)
             {
-                node.CombineExtensions(schema, GetSchemaKindProperties(node.Kind));
+                node.CombineExtensions(schema, this);
             }
         }
         
@@ -154,9 +159,15 @@ public class SchemaRuntime : ISchemaRuntime
             if (node == null) return null;
         }
 
-        return node.Clone(GetSchemaKindProperties(node.Kind));
+        return node.Clone(this);
     }
-
+    
+    /// <summary>
+    /// Try gets the array schema for the given element type. The element type should be the full name of the type, e.g. "system.string" for string array.
+    /// </summary>
+    public string GetSystemArraySchema(string elementType) => 
+        _arrayCache.GetValueOrDefault(elementType) ?? $"{NS_SYSTEM_LIST}<{elementType.ToLowerInvariant()}>";
+    
     #endregion
 
     #region Node Types

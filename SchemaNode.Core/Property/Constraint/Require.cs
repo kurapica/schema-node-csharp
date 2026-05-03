@@ -1,15 +1,16 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
 /// <summary>
 /// The node data is required.
 /// </summary>
-[SchemaProperty([SchemaType.StructField], [ValueSchemaType.Scalar, ValueSchemaType.Enum, ValueSchemaType.Array, ValueSchemaType.Struct])]
-public class RequireProperty : SchemaProperty<bool>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+public class Require : Property<bool>, IConstraintProperty
 {
     bool? ValidateAny(SchemaContext context, Node.DataNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

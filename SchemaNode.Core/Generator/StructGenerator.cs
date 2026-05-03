@@ -38,7 +38,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         List<RelationSchema> relations = [];
         List<StructFieldSchema> fieldConfigs = [];
         bool solveLater = false;
-        Dictionary<string, Type> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, PropertyInfo> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
         
         // Check generic types
         TypeDetails[] genInfos = type.GetGenericArguments()
@@ -60,7 +60,10 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Explicit [Meta<SchemaType>] on the property overrides type resolution
             string? fieldType = pt.Generic != null 
                     ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic)}" : "T")
-                    : p.GetMetaProperty<SchemaType>()?.Value ?? runtime.GetTypeSchema(p.PropertyType);
+                    : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.BaseType ?? p.PropertyType);
+
+            if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
+                fieldName = pt.Generic != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
 
             StructFieldSchema field = new()
             {
@@ -72,7 +75,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             if (string.IsNullOrWhiteSpace(fieldType))
             {
                 solveLater = true;
-                unSolvedField.Add(fieldName, p.PropertyType);
+                unSolvedField.Add(fieldName, p);
             }
             
             // Extension Properties
@@ -141,8 +144,8 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         if (!solveLater) yield break;
         
         foreach (StructFieldSchema field in structSchema.Fields)
-            if (unSolvedField.TryGetValue(field.Name, out Type? propType))
-                field.Type = typeResolver(propType, @namespace) ?? throw new Exception($"Type {propType} not found for {type.FullName}'s {field.Name} property");
+            if (unSolvedField.TryGetValue(field.Name, out PropertyInfo? propType))
+                field.Type = typeResolver(propType.PropertyType, @namespace) ?? throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         yield return schema;

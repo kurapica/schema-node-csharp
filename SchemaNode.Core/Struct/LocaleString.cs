@@ -42,7 +42,7 @@ public sealed class LocaleString : ICloneable
     /// {@schema.path} - use schema path to translate, default display
     /// </summary>
     [Meta<PrimaryIndex>]
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
 
     /// <summary>

@@ -1,7 +1,6 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
-using Microsoft.CSharp.RuntimeBinder;
 using SchemaNode.Property;
 using SchemaNode.Property.Record;
 
@@ -45,7 +44,7 @@ public sealed class NamespaceType: NodeType
     public NodeSchema? GetNodeSchema(SchemaContext context, string name)
     {
         NodeSchema? schema = _schemas.GetValueOrDefault(name);
-        return schema?.Clone(context.Runtime.GetSchemaKindProperties(schema.Kind));
+        return schema?.Clone(context.Runtime);
     }
 
     /// <summary>
@@ -65,7 +64,7 @@ public sealed class NamespaceType: NodeType
         
         // return the clone schemas
         return _schemas.Values.OrderBy(s => order.GetValueOrDefault(s.Kind, 0))
-            .Select(s => s.Clone(context.Runtime.GetSchemaKindProperties(s.Kind)));
+            .Select(s => s.Clone(context.Runtime));
     }
     
     /// <summary>
@@ -74,14 +73,14 @@ public sealed class NamespaceType: NodeType
     public NodeType? GetNodeType(string name) => _types.GetValueOrDefault(name);
     
     /// <summary>
-    /// Saves the node type
+    /// Saves the node type by segment name (not full name, since Schema may not be set yet)
     /// </summary>
-    internal void SaveNodeType(NodeType nodeType) => _types[nodeType.Name] = nodeType;
+    internal void SaveNodeType(string name, NodeType nodeType) => _types[name] = nodeType;
     
     /// <summary>
-    /// Save the node schema to the namespace
+    /// Save the node schema to the namespace (keyed by partial Name, consistent with LoadAsync)
     /// </summary>
-    internal void SaveNodeSchema(NodeSchema schema) => _schemas[schema.FullName] = schema;
+    internal void SaveNodeSchema(NodeSchema schema) => _schemas[schema.Name] = schema;
     
     /// <summary>
     /// Remove node schema

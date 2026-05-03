@@ -2,15 +2,17 @@
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using NodeType = SchemaNode.Runtime.NodeType;
 
 namespace SchemaNode.Property.Constraint;
 
-[SchemaProperty([NodeType.Scalar, NodeType.StructField], [ValueSchemaType.String, ValueSchemaType.Number, ValueSchemaType.Date], 
-    includeArray: true, optionDepends: [nameof(RequireProperty)])]
-public class ValidateProperty : SchemaProperty<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForValueTypes>(NS_SYSTEM_STRING, NS_SYSTEM_NUMBER, NS_SYSTEM_DATE)]
+[Meta<OptionDepends>(typeof(Require))]
+public class Validate : Property<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
 {
     public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

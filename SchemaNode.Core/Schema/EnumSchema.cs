@@ -64,14 +64,14 @@ public sealed class EnumValueSchema: ExtensibleSchema
     /// </summary>
     [Meta<PrimaryIndex>]
     [Meta<UniqueIndex>("SUB_LIST", 1)]
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
     /// The root value
     /// </summary>
     [Meta<UniqueIndex>("SUB_LIST", 0)]
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
     
     #region Runtime info

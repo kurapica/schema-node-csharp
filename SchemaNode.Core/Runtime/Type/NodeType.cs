@@ -230,7 +230,7 @@ public abstract class NodeType: IDisposable
             parent = sub;
         }
 
-        NodeSchema schema = Schema.Clone();
+        NodeSchema schema = Schema.Clone(context.Runtime);
         if (includeUsedBy)
         {
             schema.UsedBy = _usedBy?.Keys.Select(p => p.Name).ToArray();
@@ -365,7 +365,7 @@ public abstract class ValueType : NodeType
     /// </summary>
     public override async Task<bool> IsPropertyTypeUsable(SchemaContext context, Type propertyType)
     {
-        string[]? forTypes = propertyType.GetMetaProperty<ForTypes>()?.Value;
+        string[]? forTypes = propertyType.GetMetaProperty<ForValueTypes>()?.Value;
         if (forTypes == null || forTypes.Length == 0) return true;
         foreach (string type in forTypes)
         {

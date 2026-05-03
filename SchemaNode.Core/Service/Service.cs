@@ -93,15 +93,17 @@ public static partial class SchemaNodeExtensions
         // Gather the schema kind & schema properties
         foreach (Assembly assembly in assemblies)
         {
-            foreach (Type type in assembly.GetTypes().Where(t => t is { IsClass: true, IsAbstract: false }))
+            foreach (Type type in assembly.GetTypes())
             {
-                // Check if this type has [Meta<AsSchemaKind>] attribute
-                if (type.GetMetaProperty<SchemaKind>() is { HasValue: true } asSchemaKind)
+                // Gather [Meta<SchemaKind>] attribute
+                foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
                 {
-                    if (schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind))) continue;
-                    throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
+                    if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
+                        throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
                 }
-                else if (type.IsAssignableTo(typeof(IProperty)) && type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
+                
+                // Gather properties
+                if (type is { IsClass: true, IsAbstract: false } && type.IsAssignableTo(typeof(IProperty)) && type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
                 {
                     foreach (string kind in forSchema.Value!)
                     {

@@ -8,10 +8,12 @@ using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Scalar.Schema;
 using SchemaNode.Service;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Schema.NodeType;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
 using StructType = SchemaNode.Runtime.StructType;
+using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
@@ -36,6 +38,55 @@ public sealed class StructSchema : ExtensibleSchema
     /// The union validations
     /// </summary>
     public StructUnionValidation[]? UnionValids { get; set; }
+
+    public override void CombineExtensions(ExtensibleSchema? other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not StructSchema otherStruct) return; 
+        base.CombineExtensions(otherStruct, runtime);
+
+        // Find the one that contains another
+        if (Fields.All(f => otherStruct.Fields.Any(of => f.Name.Equals(of.Name, StringComparison.OrdinalIgnoreCase))))
+        {
+            foreach (StructFieldSchema field in otherStruct.Fields)
+            {
+                StructFieldSchema? match = Fields.FirstOrDefault(x => x.Name == field.Name);
+                if (match is not null)
+                    field.CombineExtensions(match, runtime);
+            }
+            Fields = otherStruct.Fields;
+        }
+        else
+        {
+            foreach (StructFieldSchema field in Fields)
+            {
+                StructFieldSchema? match = otherStruct.Fields.FirstOrDefault(x => x.Name == field.Name);
+                if (match is not null)
+                    field.CombineExtensions(match, runtime);
+            }
+        }
+        
+        // Combine the union valids
+        if (otherStruct.UnionValids is { Length: > 0 })
+        {
+            if (UnionValids is null || UnionValids.Length == 0)
+            {
+                UnionValids = otherStruct.UnionValids[..];
+            }
+            else
+            {
+                List<StructUnionValidation> combined = new List<StructUnionValidation>(UnionValids);
+                foreach (StructUnionValidation union in otherStruct.UnionValids)
+                {
+                    if (union.Args.All(a => !a.Value.IsEmpty() || 
+                                            a.Source?.Split('.').FirstOrDefault() is { } source &&
+                                            Fields.Any(f => f.Name.Equals(source, StringComparison.OrdinalIgnoreCase)))
+                            && combined.All(f => !f.Equals(union)))
+                        combined.Add(union);
+                }
+                UnionValids = combined.ToArray();
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -45,7 +96,7 @@ public sealed class StructSchema : ExtensibleSchema
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty: Property<StructSchema>;
 
-// <summary>
+/// <summary>
 /// The struct field schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT_FIELD}.schema")]
@@ -63,10 +114,16 @@ public sealed class StructFieldSchema : ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
+
+    public override bool Equals(ExtensibleSchema? other)
+    {
+        if (other is not StructFieldSchema otherField) return false;
+        return ReferenceEquals(this, otherField) || Name.Equals(otherField.Name, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.unionvalid")]
-public class StructUnionValidation
+public class StructUnionValidation: IEquatable<StructUnionValidation>
 {
     /// <summary>
     /// The union validation func
@@ -91,4 +148,14 @@ public class StructUnionValidation
     [JsonIgnore]
     [SchemaIgnore]
     public FunctionType? FuncNode { get; set; }
+    
+    /// <summary>
+    /// Whether the schema is equals
+    /// </summary>
+    public bool Equals(StructUnionValidation? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Func == other.Func && Args.SequenceEqual(other.Args);
+    }
 }

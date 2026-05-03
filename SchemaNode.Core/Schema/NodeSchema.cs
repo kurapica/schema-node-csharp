@@ -4,13 +4,15 @@ using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
+using SchemaNode.Runtime;
 using SchemaNode.Scalar;
-using SchemaNode.Scalar.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using NamespaceType = SchemaNode.Scalar.Schema.NamespaceType;
 using NodeSchemaKind = SchemaNode.Enum.NodeSchemaKind;
 // ReSharper disable NotAccessedPositionalProperty.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -94,7 +96,7 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// Gets the clone
     /// </summary>
-    public NodeSchema Clone(IEnumerable<Type>? propTypes = null)
+    public NodeSchema Clone(ISchemaRuntime? runtime = null)
     {
         var nodeSchema = new NodeSchema()
         {
@@ -102,7 +104,7 @@ public sealed class NodeSchema: ExtensibleSchema
             Namespace = Namespace,
             Kind = Kind,
         };
-        nodeSchema.CombineExtensions(this, propTypes);
+        nodeSchema.CombineExtensions(this, runtime);
         return nodeSchema;
     }
     

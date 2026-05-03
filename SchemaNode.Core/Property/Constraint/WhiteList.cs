@@ -1,13 +1,14 @@
 ﻿using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
-[SchemaProperty([SchemaType.StructField], [ValueSchemaType.Scalar, ValueSchemaType.Enum],
-    includeArray: true, optionDepends: [nameof(RequireProperty)])]
-public class WhiteListProperty : SchemaProperty<ArrayNode>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<OptionDepends>(typeof(Require))]
+public class WhiteList : Property<ArrayNode>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

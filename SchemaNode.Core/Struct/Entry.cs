@@ -14,7 +14,7 @@ public sealed class Entry
     /// <summary>
     /// The entry value
     /// </summary>
-    [Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     [Meta<PrimaryIndex>]
     public string Value { get; set; } = string.Empty;
 

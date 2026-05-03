@@ -10,9 +10,9 @@ namespace SchemaNode.Scalar.Schema;
 /// <summary>
 /// Represents the property that can be used on the schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.property")]
-[Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
-public class Property:  String;
+[Meta<SchemaType>($"{NS_SYSTEM}.property")]
+[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+public class Property: String;
 
 #endregion
 
@@ -21,14 +21,8 @@ public class Property:  String;
 /// <summary>
 /// Represents the namespace type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.anyvalue")]
-public class AnyValue: String;
-
-/// <summary>
-/// Represents the namespace type
-/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.anytype")]
-[Meta<UplimitStringProperty>(PRIMARY_KEY_MAX_LEN)]
+[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
 public class AnyType: String;
 
 /// <summary>
@@ -50,10 +44,40 @@ public class ElementType : AnyType;
 public class ValueType : AnyType;
 
 /// <summary>
-/// Represents the scalar type
+/// Represents the bool scalar type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.scalar")]
-public class ScalarType : AnyType;
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.bool")]
+public class BoolType : AnyType;
+
+/// <summary>
+/// Represents the string scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.string")]
+public class StringScalarType : AnyType;
+
+/// <summary>
+/// Represents the date scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.date")]
+public class DateScalarType : AnyType;
+
+/// <summary>
+/// Represents the decimal scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.decimal")]
+public class DecimalType : AnyType;
+
+/// <summary>
+/// Represents the int scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.int")]
+public class IntScalarType : AnyType;
+
+/// <summary>
+/// Represents the object (any-value) scalar type — actual type is resolved by Relation
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_TYPE}.object")]
+public class AnyObjectType : AnyType;
 
 /// <summary>
 /// Represents the enum type

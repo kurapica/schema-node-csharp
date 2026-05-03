@@ -1,17 +1,19 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
 /// <summary>
 /// Only allow leaf level enum values to be selected.
 /// </summary>
-[SchemaProperty([NodeType.StructField], [ValueSchemaType.Enum], includeArray: true, optionDepends: [nameof(RequireProperty)])]
-public class LeafOnlyProperty : SchemaProperty<bool>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<OptionDepends>(typeof(Require))]
+public class LeafOnly : Property<bool>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {

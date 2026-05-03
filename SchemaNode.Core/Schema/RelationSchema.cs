@@ -1,7 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
@@ -39,6 +38,19 @@ public class RelationSchema: ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(typeof(RelationKind))]
     public string Kind { get; set; } = null!;
+
+    /// <summary>
+    /// Equals check
+    /// </summary>
+    public override bool Equals(ExtensibleSchema? other)
+    {
+        if (other is not RelationSchema otherRelation) return false;
+        if (ReferenceEquals(this, otherRelation)) return true;
+        return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) && 
+               Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) && 
+               Stage == otherRelation.Stage && 
+               Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 /// <summary>

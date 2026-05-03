@@ -13,6 +13,7 @@ public static class Constant
 
     public const int LANGUAGE_MAX_LEN = 8;
     public const int PRIMARY_KEY_MAX_LEN = 128;
+    public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
 
     #endregion
     
@@ -27,7 +28,12 @@ public static class Constant
     
     public const string SCHEMA_KIND_NODE = "node";
     public const string SCHEMA_KIND_NAMESPACE = "namespace";
-    public const string SCHEMA_KIND_SCALAR = "scalar";
+    public const string SCHEMA_KIND_OBJECT = "object";
+    public const string SCHEMA_KIND_BOOL = "bool";
+    public const string SCHEMA_KIND_INT = "int";
+    public const string SCHEMA_KIND_DECIMAL = "decimal";
+    public const string SCHEMA_KIND_STRING = "string";
+    public const string SCHEMA_KIND_DATE = "date";
     public const string SCHEMA_KIND_ENUM = "enum";
     public const string SCHEMA_KIND_STRUCT = "struct";
     public const string SCHEMA_KIND_ARRAY = "array";
@@ -39,15 +45,20 @@ public static class Constant
 
     public const int SCHEMA_KIND_ORDER_NODE = 0;
     public const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
-    public const int SCHEMA_KIND_ORDER_SCALAR = 2;
-    public const int SCHEMA_KIND_ORDER_ENUM = 3;
-    public const int SCHEMA_KIND_ORDER_STRUCT = 4;
-    public const int SCHEMA_KIND_ORDER_ARRAY = 5;
-    public const int SCHEMA_KIND_ORDER_FUNC = 6;
-    public const int SCHEMA_KIND_ORDER_PROP = 7;
-    public const int SCHEMA_KIND_ORDER_RELATION = 8;
-    public const int SCHEMA_KIND_ORDER_ENUM_VALUE = 9;
-    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 10;
+    public const int SCHEMA_KIND_ORDER_OBJECT = 2;
+    public const int SCHEMA_KIND_ORDER_BOOL = 3;
+    public const int SCHEMA_KIND_ORDER_INT = 4;
+    public const int SCHEMA_KIND_ORDER_DECIMAL = 5;
+    public const int SCHEMA_KIND_ORDER_STRING = 6;
+    public const int SCHEMA_KIND_ORDER_DATE = 7;
+    public const int SCHEMA_KIND_ORDER_ENUM = 8;
+    public const int SCHEMA_KIND_ORDER_STRUCT = 9;
+    public const int SCHEMA_KIND_ORDER_ARRAY = 10;
+    public const int SCHEMA_KIND_ORDER_FUNC = 11;
+    public const int SCHEMA_KIND_ORDER_PROP = 12;
+    public const int SCHEMA_KIND_ORDER_RELATION = 13;
+    public const int SCHEMA_KIND_ORDER_ENUM_VALUE = 14;
+    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
     
     #endregion
 
@@ -103,7 +114,12 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_NODE_KIND = "system.schema.node.kind";
     public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = "system.schema.node.valuekind";
     public const string NS_SYSTEM_SCHEMA_NS = "system.schema.namespace";
-    public const string NS_SYSTEM_SCHEMA_SCALAR = "system.schema.scalar";
+    public const string NS_SYSTEM_SCHEMA_OBJECT = "system.schema.object";
+    public const string NS_SYSTEM_SCHEMA_BOOL = "system.schema.bool";
+    public const string NS_SYSTEM_SCHEMA_INT = "system.schema.int";
+    public const string NS_SYSTEM_SCHEMA_DECIMAL = "system.schema.decimal";
+    public const string NS_SYSTEM_SCHEMA_STRING = "system.schema.string";
+    public const string NS_SYSTEM_SCHEMA_DATE = "system.schema.date";
     public const string NS_SYSTEM_SCHEMA_ENUM = "system.schema.enum";
     public const string NS_SYSTEM_SCHEMA_STRUCT = "system.schema.struct";
     public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = "system.schema.struct.field";

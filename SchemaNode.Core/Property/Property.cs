@@ -23,6 +23,11 @@ public interface IProperty
     /// Gets the property value
     /// </summary>
     T? GetValue<T>(bool matchType = false);
+    
+    /// <summary>
+    /// The property value type
+    /// </summary>
+    Type Type { get; }
 }
 
 /// <summary>
@@ -49,6 +54,11 @@ public abstract class Property<T> : IProperty
     /// Check the value is not empty
     /// </summary>
     public virtual bool HasValue => !SystemLogic.isempty(Value);
+    
+    /// <summary>
+    /// The property value type
+    /// </summary>
+    public Type Type => typeof(T);
 }
 
 #region Property Owner

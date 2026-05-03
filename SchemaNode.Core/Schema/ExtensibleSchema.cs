@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using SchemaNode.Property;
+﻿using SchemaNode.Property;
 using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Presentation;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -37,11 +37,12 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// <summary>
     /// Combine other extensible properties into this instance. If there are duplicate keys, the values from the other instance will overwrite the existing values.
     /// </summary>
-    public void CombineExtensions(ExtensibleSchema? other, IEnumerable<Type>? propTypes = null)
+    public virtual void CombineExtensions(ExtensibleSchema? other, ISchemaRuntime? runtime = null)
     {
         if (other?.Extensions is not { Count: > 0 } || !other.GetType().IsAssignableTo(GetType())) return;
 
-        if (Extensions == null || Extensions.Count == 0 || propTypes == null)
+        string? kind = GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>();
+        if (Extensions == null || Extensions.Count == 0 || runtime == null || kind is null)
         {
             Extensions ??= [];
             foreach (var (key, value) in other.Extensions)
@@ -49,25 +50,53 @@ public abstract class ExtensibleSchema : IPropertyOwner
         }
         else
         {
-            foreach (Type propType in propTypes)
+            foreach (Type propType in runtime.GetSchemaKindProperties(kind))
             {
                 IProperty? otherProp = other.GetProperty(propType);
                 if (otherProp is not { HasValue: true }) continue;
-                Extensions ??= [];
+                
+                IProperty? existProp = GetProperty(propType);
+                if (existProp is { HasValue: true })
+                {
+                    if (otherProp.GetValue<ExtensibleSchema>(true) is { } innerSchema)
+                    {
+                        ExtensibleSchema? existSchema = existProp.GetValue<ExtensibleSchema>(true);
+                        if (existSchema == null)
+                        {
+                            SetProperty(otherProp);
+                            continue;
+                        }
+                        
+                        existSchema.CombineExtensions(innerSchema, runtime);
+                        existProp!.SetValue(existSchema);
+                        SetProperty(existProp);
+                        continue;
+                    }
+                    else if (otherProp.GetValue<IEnumerable<ExtensibleSchema>>(true) is { } innerEnumerable)
+                    {
+                        if (existProp.GetValue<IEnumerable<ExtensibleSchema>>() is not { } existEnumerable)
+                        {
+                            SetProperty(otherProp);
+                            continue;
+                        }
+                        
+                        List<ExtensibleSchema> resultList = existEnumerable.ToList();
+                        foreach (ExtensibleSchema combine in innerEnumerable.ToList())
+                        {
+                            ExtensibleSchema? match = resultList.FirstOrDefault(e => e.Equals(combine));
+                            if (match != null)
+                                match.CombineExtensions(combine, runtime);
+                            else
+                                resultList.Add(combine);
+                        }
 
-                if (otherProp.GetValue<ExtensibleSchema>(true) is { } innerSchema)
-                {
-                    IProperty? innerProp = innerSchema.GetProperty(propType);
-                    ExtensibleSchema? existSchema = innerProp?.GetValue<ExtensibleSchema>(true);
-                    if (existSchema == null) continue;
-                    existSchema.CombineExtensions(innerSchema);
-                    innerProp!.SetValue(existSchema);
-                    SetProperty(innerProp);
+                        existProp.SetValue(resultList.ToArray());
+                        SetProperty(existProp);
+                        continue;
+                    }
                 }
-                else
-                {
-                    SetProperty(otherProp);
-                }
+                
+                SetProperty(otherProp);
             }
         }
 
@@ -84,6 +113,11 @@ public abstract class ExtensibleSchema : IPropertyOwner
         }
     }
 
+    /// <summary>
+    /// Equal check
+    /// </summary>
+    public virtual bool Equals(ExtensibleSchema? other) => other != null && ReferenceEquals(this, other);
+    
     #endregion
 
     #region Implementation of IPropertyOwner

@@ -8,6 +8,9 @@ namespace SchemaNode.Utility;
 /// </summary>
 public static class ErrorCodes
 {
+    [Meta<ErrorCode>(SCALAR_WRONG_BASE)]
+    public const string SCALAR_WRONG_BASE = "scalar_wront_base";
+    
     [Meta<ErrorCode>(WRONG_REF_TYPE)]
     public const string WRONG_REF_TYPE = "wrong_ref_type";
 
