@@ -7,6 +7,7 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 
 // ReSharper disable AccessToDisposedClosure
 
@@ -88,7 +89,7 @@ public static partial class SchemaNodeExtensions
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         Assembly[] assemblies = provider.GetService<SchemaOptions>()?.Assemblies ?? [];
         Dictionary<string, (Type schemaType, SchemaKind kind)> schemaKinds = [];
-        Dictionary<string, List<Type>> schemaProperties = new();
+        Dictionary<string, Dictionary<string, Type>> schemaProperties = new();
 
         // Gather the schema kind & schema properties
         foreach (Assembly assembly in assemblies)
@@ -105,12 +106,17 @@ public static partial class SchemaNodeExtensions
                 // Gather properties
                 if (type is { IsClass: true, IsAbstract: false } && type.IsAssignableTo(typeof(IProperty)) && type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
                 {
+                    string propName = type.GetPropertyName();
                     foreach (string kind in forSchema.Value!)
                     {
-                        if (schemaProperties.TryGetValue(kind, out List<Type>? propertyTypes))
-                            propertyTypes.Add(type);
-                        else
-                            schemaProperties.Add(kind, [type]);
+                        if (!schemaProperties.TryGetValue(kind, out Dictionary<string, Type>? propertyTypes))
+                        {
+                            propertyTypes = new Dictionary<string, Type>();
+                            schemaProperties[kind] = propertyTypes;
+                        }
+
+                        if (!propertyTypes.TryAdd(propName, type))
+                            throw new Exception($"Duplicate property name '{propName}' found for schema kind '{kind}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                     }
                 }
             }
@@ -120,7 +126,7 @@ public static partial class SchemaNodeExtensions
         foreach (var item in schemaKinds.Values.OrderBy(t => t.kind.Order))
         {
             logger.LogSchemaKindRegistered(item.kind.Value!, item.schemaType.Name);
-            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out List<Type>? propertyTypes) ? SortProperties(propertyTypes) : null);
+            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out Dictionary<string, Type>? propertyTypes) ? SortProperties(propertyTypes.Values.ToList()) : null);
         }
         
         // System Schema
@@ -128,8 +134,8 @@ public static partial class SchemaNodeExtensions
         await DispatchAsync("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies));
         
         // Schema
-        await DispatchAsync("SchemaLoading",  h => h.OnSchemaLoadingAsync(context));
-        await DispatchAsync("SchemaLoaded",   h => h.OnSchemaLoadedAsync(context));
+        await DispatchAsync("SchemaLoading", h => h.OnSchemaLoadingAsync(context));
+        await DispatchAsync("SchemaLoaded",  h => h.OnSchemaLoadedAsync(context));
         
         return provider;
         
@@ -193,8 +199,8 @@ public static partial class SchemaNodeExtensions
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         
         // Activate
-        await DispatchAsync("Activating",    h => h.OnActivatingAsync(context));
-        await DispatchAsync("Activated",    h => h.OnActivatedAsync(context));
+        await DispatchAsync("Activating", h => h.OnActivatingAsync(context));
+        await DispatchAsync("Activated",  h => h.OnActivatedAsync(context));
 
         return provider;
         
@@ -217,8 +223,8 @@ public static partial class SchemaNodeExtensions
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         
         // Activate
-        await DispatchAsync("Deactivating",    h => h.OnDeactivatingAsync(context));
-        await DispatchAsync("Deactivated",    h => h.OnDeactivatedAsync(context));
+        await DispatchAsync("Deactivating", h => h.OnDeactivatingAsync(context));
+        await DispatchAsync("Deactivated",  h => h.OnDeactivatedAsync(context));
 
         return provider;
         

@@ -12,7 +12,6 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using String = SchemaNode.Scalar.String;
 using Type = System.Type;
-
 // ReSharper disable NotAccessedPositionalProperty.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

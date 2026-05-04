@@ -9,6 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
 
 // ReSharper disable VariableHidesOuterVariable

@@ -68,7 +68,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
                         }
                         
                         existSchema.CombineExtensions(innerSchema, runtime);
-                        existProp!.SetValue(existSchema);
+                        existProp.SetValue(existSchema);
                         SetProperty(existProp);
                         continue;
                     }

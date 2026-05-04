@@ -141,9 +141,9 @@ public class SchemaRuntime : ISchemaRuntime
         // Cache the type to name mapping for quick lookup
         if (schema.Type != null)
             _typeCache.TryAdd(schema.Type, schemaName);
-        if (schema.Equivalents != null)
-            foreach (Type eq in schema.Equivalents)
-                _typeCache.TryAdd(eq, schemaName);
+        if (schema.Equivalents == null) return;
+        foreach (Type eq in schema.Equivalents)
+            _typeCache[eq] = schemaName;
     }
 
     /// <summary>

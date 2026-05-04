@@ -44,9 +44,14 @@ public class PropertySchema: ExtensibleSchema
     public string[]? OptionDepends { get; set; }
 
     /// <summary>
-    /// The schema types that this constraint applies to
+    /// The schema kinds that this property applies to
     /// </summary>
     public string[] ForSchemas { get; set; } = [];
+    
+    /// <summary>
+    /// The node schema type that this property applies to, such as 'system.schema.node.type'
+    /// </summary>
+    public string[]? ForTypes { get; set; } = [];
 }
 
 /// <summary>
