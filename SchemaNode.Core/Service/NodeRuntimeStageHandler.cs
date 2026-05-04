@@ -9,6 +9,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Property.Schema.NodeType;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
 

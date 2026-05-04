@@ -3,7 +3,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
-using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -29,3 +28,9 @@ public sealed class DateSchema : ScalarSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
 public sealed class DateProperty : Property<DateSchema>;
+
+/// <summary>
+/// Represents the date scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.type")]
+public class DateScalarType : AnyType;

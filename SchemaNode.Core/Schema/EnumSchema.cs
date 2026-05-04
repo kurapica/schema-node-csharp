@@ -5,7 +5,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
-using SchemaNode.Runtime;
 using SchemaNode.Service;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
@@ -51,6 +50,12 @@ public sealed class EnumSchema : ExtensibleSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty: Property<EnumSchema>;
+
+/// <summary>
+/// Represents the enum type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
+public class EnumType: AnyType;
 
 /// <summary>
 /// The enum value info

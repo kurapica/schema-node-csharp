@@ -30,7 +30,7 @@ public class PropertySchema: ExtensibleSchema
     /// <summary>
     /// The value type, null means use the target node type
     /// </summary>
-    [Meta<SchemaType>(typeof(Scalar.Schema.ValueType))]
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; internal set; } = string.Empty;
 
     /// <summary>
@@ -49,6 +49,11 @@ public class PropertySchema: ExtensibleSchema
     public string[] ForSchemas { get; set; } = [];
 }
 
+/// <summary>
+/// Represents the property type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
+public class PropertyType: AnyType;
 
 /// <summary>
 /// Declare the "property" property for node schema

@@ -25,7 +25,7 @@ public class RelationSchema: ExtensibleSchema
     /// <summary>
     /// The property the relation applied to
     /// </summary>
-    [Meta<SchemaType>(typeof(Scalar.Schema.Property))]
+    [Meta<SchemaType>(typeof(Scalar.Property))]
     public string Property { get; set; } = null!;
     
     /// <summary>
@@ -95,7 +95,7 @@ public class RelationCall: IRelationProcess
     /// <summary>
     /// The function to be used
     /// </summary>
-    [Meta<SchemaType>(typeof(Scalar.Schema.FuncType))]
+    [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; set; } = null!;
 
     /// <summary>

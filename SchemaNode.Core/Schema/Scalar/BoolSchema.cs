@@ -12,3 +12,9 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(Runtime.BoolType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.schema")]
 public sealed class BoolSchema;
+
+/// <summary>
+/// Represents the bool scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.type")]
+public class BoolType : AnyType;

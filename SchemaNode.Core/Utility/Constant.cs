@@ -94,6 +94,7 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
     public const string NS_SYSTEM_IDENTIFIER = "system.identifier";
+    public const string NS_SYSTEM_PROPERTY = "system.property";
 
     // language x translate x entry
     public const string NS_SYSTEM_LANGUAGE = "system.language";
@@ -111,7 +112,6 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA = "system.schema";
     public const string NS_SYSTEM_SCHEMA_KIND = "system.schema.kind";
     public const string NS_SYSTEM_SCHEMA_NODE = "system.schema.node";
-    public const string NS_SYSTEM_SCHEMA_NODE_KIND = "system.schema.node.kind";
     public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = "system.schema.node.valuekind";
     public const string NS_SYSTEM_SCHEMA_NS = "system.schema.namespace";
     public const string NS_SYSTEM_SCHEMA_OBJECT = "system.schema.object";
@@ -128,7 +128,6 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_RELATION = "system.schema.relation";
     public const string NS_SYSTEM_SCHEMA_PROPERTY = "system.schema.property";
     
-    public const string NS_SYSTEM_SCHEMA_TYPE = "system.schema.type";
     public const string NS_SYSTEM_SCHEMA_ERROR = "system.schema.error";
     
     #endregion

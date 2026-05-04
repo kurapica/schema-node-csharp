@@ -3,7 +3,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
-using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -19,7 +18,7 @@ public sealed class IntSchema : ScalarSchema
     /// <summary>
     /// The base int schema to inherit from
     /// </summary>
-    [Meta<SchemaType>(typeof(IntScalarType))]
+    [Meta<SchemaType>(typeof(IntType))]
     public override string? Base { get; set; }
 }
 
@@ -29,3 +28,9 @@ public sealed class IntSchema : ScalarSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_INT)]
 public sealed class IntProperty : Property<IntSchema>;
+
+/// <summary>
+/// Represents the int scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_INT}.int")]
+public class IntType : AnyType;

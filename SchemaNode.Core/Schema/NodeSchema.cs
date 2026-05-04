@@ -2,6 +2,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
@@ -9,8 +10,9 @@ using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using NamespaceType = SchemaNode.Scalar.Schema.NamespaceType;
-using NodeSchemaKind = SchemaNode.Enum.NodeSchemaKind;
+using String = SchemaNode.Scalar.String;
+using Type = System.Type;
+
 // ReSharper disable NotAccessedPositionalProperty.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -131,6 +133,18 @@ public sealed class NodeSchema: ExtensibleSchema
     }
 }
 
+/// <summary>
+/// Represents the namespace type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.type")]
+[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+public class AnyType: String;
+
+/// <summary>
+/// Represents the value type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
+public class ValueType : AnyType;
 
 /// <summary>
 /// The compatible schema record

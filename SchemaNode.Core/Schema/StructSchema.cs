@@ -6,15 +6,12 @@ using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
-using SchemaNode.Scalar.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Schema.NodeType;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
-using StructType = SchemaNode.Runtime.StructType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
-using ValueType = SchemaNode.Scalar.Schema.ValueType;
 
 namespace SchemaNode.Schema;
 
@@ -95,6 +92,12 @@ public sealed class StructSchema : ExtensibleSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty: Property<StructSchema>;
+
+/// <summary>
+/// Represents the struct type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
+public class StructType: AnyType;
 
 /// <summary>
 /// The struct field schema

@@ -40,3 +40,10 @@ public class Language: String;
 [Meta<SchemaType>(NS_SYSTEM_IDENTIFIER)]
 [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
 public class Identifier: String;
+
+/// <summary>
+/// Represents the property that can be used on the schema
+/// </summary>
+[Meta<SchemaType>(NS_SYSTEM_PROPERTY)]
+[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+public class Property: String;

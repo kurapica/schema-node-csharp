@@ -4,9 +4,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
-using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
-using ArrayType = SchemaNode.Runtime.ArrayType;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -53,6 +51,18 @@ public sealed class ArraySchema: ExtensibleSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 public sealed class ArrayProperty: Property<ArraySchema>;
+
+/// <summary>
+/// Represents the array type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.type")]
+public class ArrayType: AnyType;
+
+/// <summary>
+/// Represents the non-array type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.elementtype")]
+public class ElementType : AnyType;
 
 /// <summary>
 /// The data combine settings

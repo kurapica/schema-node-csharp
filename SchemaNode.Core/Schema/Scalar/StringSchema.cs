@@ -3,7 +3,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
-using SchemaNode.Scalar.Schema;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -19,7 +18,7 @@ public sealed class StringSchema : ScalarSchema
     /// <summary>
     /// The base string schema to inherit from
     /// </summary>
-    [Meta<SchemaType>(typeof(StringScalarType))]
+    [Meta<SchemaType>(typeof(StringType))]
     public override string? Base { get; set; }
 }
 
@@ -29,3 +28,9 @@ public sealed class StringSchema : ScalarSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRING)]
 public sealed class StringProperty : Property<StringSchema>;
+
+/// <summary>
+/// Represents the string scalar type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRING}.type")]
+public class StringType : AnyType;
