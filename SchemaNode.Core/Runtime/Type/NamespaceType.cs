@@ -20,19 +20,6 @@ public sealed class NamespaceType: NodeType
 
     #region Method
 
-    /// <inheritdoc/>
-    public override Task LoadAsync(SchemaContext context, NodeSchema schema)
-    {
-        _schemas.Clear();
-        if (schema.Schemas == null || schema.Schemas.Length == 0) return Task.CompletedTask;
-        
-        // record
-        foreach (NodeSchema nodeSchema in schema.Schemas)
-            _schemas[nodeSchema.Name] = nodeSchema;
-        
-        return Task.CompletedTask;
-    }
-
     /// <summary>
     /// Gets the node schema by name
     /// </summary>

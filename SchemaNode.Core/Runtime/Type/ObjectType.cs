@@ -1,5 +1,4 @@
 using SchemaNode.Node;
-using JsonNode = SchemaNode.Node.JsonNode;
 
 namespace SchemaNode.Runtime;
 
@@ -10,5 +9,5 @@ namespace SchemaNode.Runtime;
 public sealed class ObjectType : ScalarType
 {
     /// <inheritdoc/>
-    public override DataNode? ParseValue(object value) => new JsonNode(this, value);
+    protected override DataNode ParseValue(object? value) => new AnyNode(this, value);
 }

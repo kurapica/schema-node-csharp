@@ -7,7 +7,7 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The value type of the enum.
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.valuetype")]
 public enum EnumValueType
 {
     /// <summary>

@@ -8,14 +8,14 @@ namespace SchemaNode.Utility;
 /// </summary>
 public static class ErrorCodes
 {
+    [Meta<ErrorCode>(NO_DEFINITION)]
+    public const string NO_DEFINITION = "no_definition";
+
     [Meta<ErrorCode>(SCALAR_WRONG_BASE)]
     public const string SCALAR_WRONG_BASE = "scalar_wront_base";
     
     [Meta<ErrorCode>(WRONG_REF_TYPE)]
     public const string WRONG_REF_TYPE = "wrong_ref_type";
-
-    [Meta<ErrorCode>(NO_DEFINITION)]
-    public const string NO_DEFINITION = "no_definition";
 
     [Meta<ErrorCode>(ARRAY_WRONG_ELEMENT)]
     public const string ARRAY_WRONG_ELEMENT = "array_wrong_element";
@@ -25,6 +25,9 @@ public static class ErrorCodes
 
     [Meta<ErrorCode>(STRUCT_WRONG_VALID)]
     public const string STRUCT_WRONG_VALID = "struct_wrong_valid";
+    
+    [Meta<ErrorCode>(STRUCT_RELATION_WRONG_FUNC)]
+    public const string STRUCT_FIELD_WRONG_TYPE = "struct_field_wrong_type";
 
     [Meta<ErrorCode>(STRUCT_RELATION_WRONG_FIELD)]
     public const string STRUCT_RELATION_WRONG_FIELD = "struct_relation_wrong_field";

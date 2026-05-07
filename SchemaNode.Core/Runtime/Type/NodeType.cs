@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Schema;
-using System.Collections.Concurrent;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Function;
@@ -40,7 +40,7 @@ public abstract class NodeType: IDisposable
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    internal Type? Provider { get; set; }
+    public Type? Provider => Schema?.Provider;
     
     /// <summary>
     /// The type is loaded
@@ -76,7 +76,6 @@ public abstract class NodeType: IDisposable
     /// <summary>
     /// Load the schema data
     /// </summary>
-    /// <param name="context">The schema context</param>
     public virtual Task LoadAsync(SchemaContext context) => Task.CompletedTask;
 
     /// <summary>
@@ -88,10 +87,7 @@ public abstract class NodeType: IDisposable
     /// Gets the depends schema nodes
     /// </summary>
     /// <returns></returns>
-    public virtual IEnumerable<NodeType> GetDependNodes()
-    {
-        yield break;
-    }
+    public virtual IEnumerable<NodeType> GetDependNodes() { yield break; }
 
     #endregion
     
@@ -344,7 +340,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// The array type
     /// </summary>
-    public ArrayType? ArrayType { get; private set; }
+    internal ArrayType? ArrayType { get; private set; }
     
     #endregion
     
@@ -405,14 +401,18 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Validate the value with the schema
     /// </summary>
-    public virtual Task<DataNode?> ValidateValueAsync(SchemaContext context, object value) => Task.FromResult<DataNode?>(null);
+    public abstract Task<DataNode> ValidateValueAsync(SchemaContext context, object? value);
 
     /// <summary>
     /// The value type is assignable to other value type
     /// </summary>
     public virtual bool IsAssignableTo(ValueType other)
-        => this == other || Name.Equals(other.Name) || Kind.Equals(SCHEMA_KIND_OBJECT)  || other.Kind.Equals(SCHEMA_KIND_OBJECT) ||
-           _isAssignableTo != null && (_isAssignableTo.ContainsKey(other) || _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));
+        => this == other || Name.Equals(other.Name) || 
+           Kind.Equals(SCHEMA_KIND_OBJECT)  || 
+           other.Kind.Equals(SCHEMA_KIND_OBJECT) ||
+           _isAssignableTo != null && 
+           (_isAssignableTo.ContainsKey(other) || 
+            _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));
 
     /// <summary>
     /// The value type is assignable from other value type

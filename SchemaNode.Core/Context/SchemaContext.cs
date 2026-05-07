@@ -180,6 +180,13 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
 
                 await result.LoadTypeAsync(this, schema);
+                
+                // Namespace
+                if (result is NamespaceType ns && schema.Schemas is { Length: > 0 })
+                {
+                    foreach (NodeSchema s in schema.Schemas)
+                        ns.SaveNodeSchema(s);
+                }
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
             }

@@ -145,7 +145,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
         prop.SetValue(node);
         return (T?)prop;
     }
-
+    
     /// <inheritdoc/>
     public void SetProperty(IProperty property)
     {

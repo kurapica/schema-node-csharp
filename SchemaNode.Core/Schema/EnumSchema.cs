@@ -134,6 +134,37 @@ public sealed class EnumValueSchema: ExtensibleSchema
         schema.CombineExtensions(this);
         return schema;
     }
+    
+    /// <summary>
+    /// Combine the access list
+    /// </summary>
+    /// <param name="accesses"></param>
+    internal void CombineAccessList(EnumValueAccess[] accesses)
+    {
+        if (accesses.Length == 0) return;
+        EnumValueAccess current = accesses[0];
+
+        if (current.SubList is not null)
+        {
+            // replace with new
+            if (SubList is not null && SubList.Length > 0) {
+                foreach (var v in current.SubList)
+                {
+                    EnumValueSchema? match = SubList!.FirstOrDefault(x => x.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase));
+                    if (match is not null) v.SubList = match.SubList;
+                }
+            }
+
+            SubList = current.SubList;
+
+            if (accesses.Length > 1)
+            {
+                EnumValueSchema? match = SubList!.FirstOrDefault(x => x.Value.Equals(current.Value, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                    match.CombineAccessList(accesses.Skip(1).ToArray());
+            }
+        }
+    }
 }
 
 /// <summary>

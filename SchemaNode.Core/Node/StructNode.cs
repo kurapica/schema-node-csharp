@@ -123,12 +123,12 @@ public class StructNode : DataNode
             {
                 StructFieldSchema[] fields = (NodeType as StructType)!.Fields;
                 Dictionary<string, DataNode> fieldMap = [];
-                JsonNode? unpackNode = null;
+                AnyNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     fieldMap[fields[i].Name.ToLower()] = Fields[i];
                     if (fields[i].Unpack ?? false)
-                        unpackNode = Fields[i] as JsonNode;
+                        unpackNode = Fields[i] as AnyNode;
                 }
 
                 JsonObject? packData = unpackNode != null ? new JsonObject() : null;

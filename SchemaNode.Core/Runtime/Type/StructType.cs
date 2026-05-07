@@ -9,8 +9,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
-using JsonNode = System.Text.Json.Nodes.JsonNode; 
 
 namespace SchemaNode.Runtime;
 
@@ -35,12 +35,7 @@ public sealed class StructType: ValueType
     /// The union validations
     /// </summary>
     public StructUnionValidation[]? UnionValids { get; set; }
-
-    /// <summary>
-    /// The atomic flag indicates whether the struct is atomic, which means that the struct should be treated as a whole when performing operations such as updates, delete or render.
-    /// </summary>
-    public bool? Atomic { get; set; }
-
+    
     #endregion
 
     #region State
@@ -55,22 +50,22 @@ public sealed class StructType: ValueType
     #region Methods
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public override async Task LoadAsync(SchemaContext context)
     {
-        StructSchema? @struct = schema.Struct;
+        StructSchema? @struct = GetPropertyValue<StructSchema>();
         
         // Data
         Fields = @struct?.Fields ?? [];
-        Relations = @struct?.Relations ?? [];
-        Atomic = @struct?.Atomic ?? false;
+        Relations = @struct?.GetProperty<RelationsProperty>()?.Value;
+        GenericParameter[]? genericParams = @struct?.GetProperty<Generics>()?.Value;
         
         // Status
-        if (@struct == null) Error = SchemaNodeStatus.NoDefinition;
+        if (@struct == null) Error = ErrorCodes.NO_DEFINITION;
                
         // Load Fields
         foreach (StructFieldSchema field in Fields)
         {
-            await field.LoadFieldSchema(context, this, preload);
+            await field.LoadFieldSchema(context, this, genericParams);
             if (field.Status.HasValue && field.Status != SchemaNodeStatus.Ready)
             {
                 Error = field.Status.Value;

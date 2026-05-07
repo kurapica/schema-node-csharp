@@ -5,11 +5,11 @@ using SchemaNode.Utility;
 
 namespace SchemaNode.Node;
 
-public class JsonNode: DataNode
+public class AnyNode: DataNode
 {
     private const string IsoFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
     
-    internal JsonNode(ObjectType type, object? value = null) : base(type, null)
+    internal AnyNode(ObjectType type, object? value = null) : base(type, null)
     {
         Value = value switch
         {
@@ -23,7 +23,7 @@ public class JsonNode: DataNode
     public override bool Equals(DataNode other)
     {
         if (this == other) return true;
-        if (other is not JsonNode otherJson) return false;
+        if (other is not AnyNode otherJson) return false;
 
         return this.ToLiteral() == otherJson.ToLiteral();
     }
