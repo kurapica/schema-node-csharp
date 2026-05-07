@@ -9,6 +9,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 using ExpressionType = SchemaNode.Enum.ExpressionType;
@@ -124,7 +125,7 @@ public sealed class FunctionType : NodeType
         // Status
         if (func == null)
         {
-            ErrorCode = SchemaNodeStatus.NoDefinition;
+            Error = SchemaNodeStatus.NoDefinition;
             return;
         }
         
@@ -147,14 +148,14 @@ public sealed class FunctionType : NodeType
         {
             if (string.IsNullOrWhiteSpace(arg.Type))
             {
-                ErrorCode = SchemaNodeStatus.FunctionArgumentWrongType;
+                Error = SchemaNodeStatus.FunctionArgumentWrongType;
             }
             else if (Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
             {
                 // Only system function can be generic
                 if (!IsSystemCall)
                 {
-                    ErrorCode = SchemaNodeStatus.FunctionArgumentWrongType;
+                    Error = SchemaNodeStatus.FunctionArgumentWrongType;
                 }
                 else
                 {
@@ -167,21 +168,21 @@ public sealed class FunctionType : NodeType
             else
             {
                 arg.SchemaType = await context.GetNodeTypeAsync(arg.Type);
-                if (arg.SchemaType is not ValueType) ErrorCode = SchemaNodeStatus.FunctionArgumentWrongType;
+                if (arg.SchemaType is not ValueType) Error = SchemaNodeStatus.FunctionArgumentWrongType;
             }
         }
         
         // Return type
         if (string.IsNullOrWhiteSpace(Return))
         {
-            ErrorCode = SchemaNodeStatus.FunctionWrongReturnType;
+            Error = SchemaNodeStatus.FunctionWrongReturnType;
         }
         else if (Regex.IsMatch(Return, @"^[tT]\d*$"))
         {
             // Only system function can be generic
             if (!IsSystemCall)
             {
-                ErrorCode = SchemaNodeStatus.FunctionWrongReturnType;
+                Error = SchemaNodeStatus.FunctionWrongReturnType;
             }
             else
             {
@@ -194,15 +195,15 @@ public sealed class FunctionType : NodeType
         else
         {
             ReturnNode = await context.GetNodeTypeAsync(Return);
-            if (ReturnNode is not ValueType) ErrorCode = SchemaNodeStatus.FunctionWrongReturnType;
+            if (ReturnNode is not ValueType) Error = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
         // Generate the exp trees
-        bool isOkay = ErrorCode == SchemaNodeStatus.Ready;
+        bool isOkay = Error == SchemaNodeStatus.Ready;
         if (isOkay) await PreCompileAsync(context);
 
         // Add usages
-        if (ErrorCode == SchemaNodeStatus.Ready)
+        if (Error == SchemaNodeStatus.Ready)
         {
             ReturnNode?.AddRef(this);
             foreach (FunctionNodeArgument arg in Args)
@@ -381,19 +382,19 @@ public sealed class FunctionType : NodeType
     {
         try
         {
-            ErrorCode = SchemaNodeStatus.Ready;
+            Error = SchemaNodeStatus.Ready;
             
             // Try build the function and validate
             return await context.VisitFunctionTypeAsync(this);
         }
         catch(FunctionVisitException fex)
         {
-            ErrorCode = fex.Status;
+            Error = fex.Status;
         }
         catch(Exception ex)
         {
             context.LogError(ex, "FunctionType LoadAsync Error: {0}", Name);
-            ErrorCode = SchemaNodeStatus.FunctionExpsHasCompileError;
+            Error = SchemaNodeStatus.FunctionExpsHasCompileError;
         }
 
         return null;
@@ -444,7 +445,7 @@ public sealed class FunctionType : NodeType
         }
         
         // Only full-filled function can be complied
-        if (ErrorCode != SchemaNodeStatus.Ready) throw new Exception($"The {Name} can't be compiled because of {ErrorCode}");
+        if (Error != SchemaNodeStatus.Ready) throw new Exception($"The {Name} can't be compiled because of {Error}");
 
         // Build Exp
         SchemaFuncInfo funcInfo = new ()
@@ -659,8 +660,8 @@ public sealed class FunctionType : NodeType
             foreach (object? arg in args) 
                 cArgs.Add(arg is Node.DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
-            result = SchemaProvider != null
-                ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider)).CallFunctionAsync(Name, cArgs, rType, target)
+            result = Provider != null
+                ? await ((ISchemaProvider)context.GetRequiredService(Provider)).CallFunctionAsync(Name, cArgs, rType, target)
                 : null;
         }
 
@@ -760,7 +761,9 @@ public sealed class FunctionType : NodeType
         }
         else if (retType.IsAssignableTo(typeof(Node.DataNode)))
         {
-            return (T)(object)(ReturnNode?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
+            return (T)(object)((ReturnNode != null 
+                ? await ReturnNode.ValidateValueAsync(context, result) 
+                : null) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
         }
         return (T?)typeof(T).TryConvert(result);
     }
@@ -1234,6 +1237,19 @@ public sealed class SchemaFuncInfo
 }
 
 #endregion
+
+public interface IFunctionSchemaProvider: INodeSchemaProvider
+{
+    /// <summary>
+    /// Call the function with arguments and given generic type
+    /// </summary>
+    /// <param name="schemaName">The function schema name</param>
+    /// <param name="args">The arguments</param>
+    /// <param name="retType">The return type</param>
+    /// <param name="target">The related target</param>
+    /// <returns>The result</returns>
+    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null, string? target = null);
+}
 
 public static class FunctionTypeExtensions
 {

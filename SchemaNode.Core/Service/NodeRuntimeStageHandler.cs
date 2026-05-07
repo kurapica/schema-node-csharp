@@ -23,8 +23,14 @@ public interface INodeSchemaGenerator
     /// <summary>
     /// Generate the node schemas from type
     /// </summary>
+    /// <param name="runtime">The schema runtime</param>
+    /// <param name="type">The type to generate the schemas</param>
+    /// <param name="namespace">The default namespace</param>
+    /// <param name="name">The suggest schema name</param>
+    /// <param name="typeResolver">The function used to solve the schema type of the given type</param>
+    /// <returns>The node schemas that generated</returns>
     IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver);
-} 
+}
 
 /// <summary>
 /// The handler to load system schema kinds from assemblies
@@ -34,33 +40,33 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
     /// <inheritdoc />
     public async Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)
     {
-        if (context is not SchemaContext schemaContext || context.Runtime is not SchemaRuntime runtime) return; // not support
+        if (context is not SchemaContext schemaContext || context.Runtime is not SchemaRuntime runtime) return;
 
         #region Prepare
 
-        List<(string kind, Type schemaType, Type? propertyType)> nodeSchemaTypes = [];
+        List<(string kind, Type schemaType, Type? nodeSchemaProp)> nodeSchemaTypes = [];
         List<INodeSchemaGenerator> schemaGenerators = [];
         Dictionary<string, INodeSchemaGenerator> kindGenerators = [];
         Dictionary<Type, string> scalarTypes = [];
         
         // Gets all node schema kinds & property type & generators
-        foreach (var (kind, schemaType) in runtime.GetSchemaKinds())
+        foreach ((string kind, Type type) in runtime.GetSchemaKinds())
         {
             // Gets node schema kind
-            if (schemaType.GetMetaProperty<NodeSchemaKind>() is not { HasValue: true } schemaKind) continue;
+            if (type.GetMetaProperty<NodeSchemaKind>() is not { HasValue: true } schemaKind) continue;
             
             // Register node types
-            if (schemaType.GetMetaProperty<NodeType>()?.Value is { } runtimeType)
+            if (type.GetMetaProperty<NodeType>()?.Value is { } runtimeType)
                 runtime.RegisterNodeType(schemaKind.Value!, runtimeType);
             
             // Gets the match node schema property type
-            nodeSchemaTypes.Add((kind, schemaType,
+            nodeSchemaTypes.Add((kind, type,
     runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE).
                 FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
-                GetGenericArguments().ElementAtOrDefault(0) == schemaType)));
+                GetGenericArguments().ElementAtOrDefault(0) == type)));
             
             // Load schema generators
-            if (schemaType.GetMetaProperty<SchemaGenerator>()?.Value is { } schemaGenerator)
+            if (type.GetMetaProperty<SchemaGenerator>()?.Value is { } schemaGenerator)
             {
                 var generator = schemaGenerators.FirstOrDefault(g => g.GetType() == schemaGenerator);
                 if (generator is null)
@@ -124,7 +130,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             }
 
             // other types
-            foreach (Type type in assembly.GetTypes().Where(t => !handled.Contains(t)))
+            foreach (Type type in assembly.GetTypes().Where(handled.Add))
             {
                 if (type.GetMetaProperty<SchemaType>() == null) continue;
                 string _ = ResolveOtherSchema(type, defaultNs) ?? throw  new Exception($"Failed to resolve schema for type '{type}'");
@@ -150,7 +156,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         string ResolveScalarSchema(Type type, string defaultNs)
         {
             // Already resolved via CLR generic-type key?
-            if (scalarTypes.TryGetValue(type, out string? typeName)) return  typeName;
+            if (scalarTypes.TryGetValue(type, out string? typeName)) return typeName;
 
             SchemaType? schemaType = type.GetMetaProperty<SchemaType>();
             string name = schemaType?.Value ?? $"{defaultNs}.{type.Name}".ToLowerInvariant();
@@ -158,8 +164,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             NodeSchema? schema;
             NodeSchema? baseSchema = null;
             Type? valType = type.GetGenericBaseType(typeof(IScalarType<>))?.GetGenericArguments().ElementAtOrDefault(0);
+            
             // OfSchema marks a kind root — check it first so that types like Int (which extend Number
-            // but belong to a different kind) are not incorrectly categorised by their C# base class.
+            // but belong to a different kind) are not incorrectly categorized by their C# base class.
             if (type.GetMetaProperty<OfSchema>() is { Value: { Length: > 0 } } ofSchema && valType != null)
             {
                 schema = NodeSchema.Create(ofSchema.Value[0], name, valType);
@@ -183,10 +190,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // Gets the equivalents
             schema.Equivalents = type.GetMetaProperties<ClrEquivalent>()
                 .Where(p => p.HasValue)
-                .Select(p => p.Value!).ToArray();
+                .Select(p => p.Value!)
+                .ToArray();
             
             // Gen scalar definitions
-            Type? propType = nodeSchemaTypes.FirstOrDefault(t => t.kind.Equals(schema.Kind, StringComparison.OrdinalIgnoreCase)).propertyType;
+            Type? propType = nodeSchemaTypes.FirstOrDefault(t => t.kind.Equals(schema.Kind, StringComparison.OrdinalIgnoreCase)).nodeSchemaProp;
             if (propType != null)
             {
                 IProperty prop = (ActivatorUtilities.CreateInstance(context.Services, propType) as IProperty)!;
@@ -213,7 +221,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             if (!string.IsNullOrWhiteSpace(fullName)) return GetResult(fullName);
 
             SchemaType? schemaType = type.GetMetaProperty<SchemaType>();
-            defaultNs = schemaType?.Value != null ? schemaType.Value.GetNamespace() : defaultNs;
+            defaultNs = schemaType?.Value?.GetNamespace() ?? defaultNs;
             string name = schemaType?.Value?.GetSchemaName() ?? type.Name.ToLowerInvariant();
             
             OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
@@ -239,12 +247,12 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Save properties to the schema
         NodeSchema ExtendSchema(NodeSchema nodeSchema, Type type)
         {
-            (string kind, Type schemaType, Type? propertyType)? info = nodeSchemaTypes.
+            (string kind, Type schemaType, Type? nodeSchemaProp)? info = nodeSchemaTypes.
                 FirstOrDefault(t => nodeSchema.Kind.Equals(t.kind, StringComparison.OrdinalIgnoreCase));
-            if (info?.propertyType == null) return nodeSchema;
+            if (info?.nodeSchemaProp == null) return nodeSchema;
             
             // get the property
-            IProperty? property = nodeSchema.GetProperty(info.Value.propertyType);
+            IProperty? property = nodeSchema.GetProperty(info.Value.nodeSchemaProp);
             if (property == null) return nodeSchema;
             
             ExtensibleSchema? schema = property.GetValue<ExtensibleSchema>();
@@ -276,7 +284,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
     {
         if (context is not SchemaContext schemaContext || context.Runtime is not SchemaRuntime runtime) return Task.CompletedTask; // not support
         
-        // mark all node types not loaded, so they can combine custom settings, like 'display' or custom properties
+        // mark all node types not loaded, so they can combine custom schemas
         schemaContext.SystemMode = false; // avoid system mode
         runtime.RootNamespace.ResetLoadState();
         return Task.CompletedTask;

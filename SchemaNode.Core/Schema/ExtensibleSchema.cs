@@ -4,9 +4,9 @@ using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Runtime;
-using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -21,7 +21,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// <summary>
     /// The error status
     /// </summary>
-    [Meta<SchemaType>(NS_SYSTEM_SCHEMA_ERROR)]
+    [Meta<SchemaType>(typeof(ErrorCode))]
     [Meta<ReadOnly>(true)]
     public string? Error { get; set; }
 

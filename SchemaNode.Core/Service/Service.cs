@@ -25,9 +25,6 @@ public static partial class SchemaNodeExtensions
     /// </summary>
     public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
     {
-        List<Assembly> orderAssemblies = [];
-        Dictionary<Assembly, bool> loadingAssemblies = [];
-
         // Default run-time
         services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
         
@@ -41,25 +38,36 @@ public static partial class SchemaNodeExtensions
         services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
         services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
 
-        Assembly? entry = Assembly.GetEntryAssembly();
+        #region Register Assemblys
         
+        List<Assembly> orderAssemblies = [];
+        Dictionary<Assembly, bool> loadingAssemblies = [];
+
         // Add core first
         AddAssembly(typeof(SchemaNodeExtensions).Assembly);
+
+        // Add others but not entry
+        Assembly? entry = Assembly.GetEntryAssembly();
+        SchemaOptions? options = services.FirstOrDefault(x => x.ServiceType == typeof(SchemaOptions))?
+            .ImplementationInstance as SchemaOptions;
+        if (options?.Assemblies != null)
+            foreach (Assembly assembly in options.Assemblies.Where(a => a != entry))
+                AddAssembly(assembly);
         
         // Prepare the loading schema assemblies
-        foreach (var assembly in assemblies)
-        {
-            if (assembly == entry) continue;
+        foreach (var assembly in assemblies.Where(a => a != entry))
             AddAssembly(assembly);
-        }
         
         // Add entry last
         if (entry != null) AddAssembly(entry);
 
-        services.AddSingleton(new SchemaOptions
-        {
-            Assemblies = orderAssemblies.ToArray(),
-        });
+        if (options != null)
+            options.Assemblies = orderAssemblies.ToArray();
+        else
+            services.AddSingleton(new SchemaOptions
+            {
+                Assemblies = orderAssemblies.ToArray(),
+            });
         
         // Gets all stage handlers
         return services;
@@ -69,13 +77,15 @@ public static partial class SchemaNodeExtensions
             if (!loadingAssemblies.TryAdd(assembly, true)) return;
             orderAssemblies.Add(assembly);
         }
-
+        
+        #endregion
     }
     
     /// <summary>
     /// Add schema assembly of the given type
     /// </summary>
-    public static IServiceCollection AddSchemaAssembly<T>(this IServiceCollection services) where T: class => services.AddSchemaAssemblies(typeof(T).Assembly);
+    public static IServiceCollection AddSchemaAssembly<T>(this IServiceCollection services) where T: class 
+        => services.AddSchemaAssemblies(typeof(T).Assembly);
     
     /// <summary>
     /// Loading the schema runtime
@@ -98,13 +108,13 @@ public static partial class SchemaNodeExtensions
             {
                 // Gather [Meta<SchemaKind>] attribute
                 foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
-                {
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
                         throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
-                }
                 
                 // Gather properties
-                if (type is { IsClass: true, IsAbstract: false } && type.IsAssignableTo(typeof(IProperty)) && type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
+                if (type is { IsClass: true, IsAbstract: false } && 
+                    type.IsAssignableTo(typeof(IProperty)) && 
+                    type.GetMetaProperty<ForSchema>() is { HasValue: true } forSchema)
                 {
                     string propName = type.GetPropertyName();
                     foreach (string kind in forSchema.Value!)
@@ -126,7 +136,10 @@ public static partial class SchemaNodeExtensions
         foreach (var item in schemaKinds.Values.OrderBy(t => t.kind.Order))
         {
             logger.LogSchemaKindRegistered(item.kind.Value!, item.schemaType.Name);
-            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, schemaProperties.TryGetValue(item.kind.Value!, out Dictionary<string, Type>? propertyTypes) ? SortProperties(propertyTypes.Values.ToList()) : null);
+            runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, 
+                schemaProperties.TryGetValue(item.kind.Value!, out Dictionary<string, Type>? propertyTypes) 
+                    ? SortProperties(propertyTypes.Values.ToList()) 
+                    : null);
         }
         
         // System Schema

@@ -39,6 +39,11 @@ public sealed class NamespaceType: NodeType
     internal NodeSchema? GetNodeSchema(string name) => _schemas.GetValueOrDefault(name);
 
     /// <summary>
+    /// Get all node schemas
+    /// </summary>
+    internal IEnumerable<NodeSchema> GetNodeSchemas() => _schemas.Values;
+
+    /// <summary>
     /// Gets the node schema
     /// </summary>
     public NodeSchema? GetNodeSchema(SchemaContext context, string name)
@@ -46,11 +51,6 @@ public sealed class NamespaceType: NodeType
         NodeSchema? schema = _schemas.GetValueOrDefault(name);
         return schema?.Clone(context.Runtime);
     }
-
-    /// <summary>
-    /// Get all node schemas
-    /// </summary>
-    internal IEnumerable<NodeSchema> GetNodeSchemas() => _schemas.Values;
 
     /// <summary>
     /// Get all node schemas

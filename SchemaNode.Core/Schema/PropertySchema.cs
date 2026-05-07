@@ -7,6 +7,7 @@ using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using String = SchemaNode.Scalar.String;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -47,11 +48,6 @@ public class PropertySchema: ExtensibleSchema
     /// The schema kinds that this property applies to
     /// </summary>
     public string[] ForSchemas { get; set; } = [];
-    
-    /// <summary>
-    /// The node schema type that this property applies to, such as 'system.schema.node.type'
-    /// </summary>
-    public string[]? ForTypes { get; set; } = [];
 }
 
 /// <summary>
@@ -59,6 +55,12 @@ public class PropertySchema: ExtensibleSchema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
 public class PropertyType: AnyType;
+
+/// <summary>
+/// Represents the property name
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.name")]
+public class PropertyName : String;
 
 /// <summary>
 /// Declare the "property" property for node schema

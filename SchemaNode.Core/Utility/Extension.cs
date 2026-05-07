@@ -15,101 +15,7 @@ namespace SchemaNode.Utility;
 
 internal static class Extension
 {
-    #region String
-
-    /// <summary>
-    /// Returns the camel case of this string.
-    /// </summary>
-    internal static string ToCamelCase(this string s) => s.Length > 0 ? string.Concat(s[..1].ToLowerInvariant(), s.AsSpan(1)) : s;
-
-    internal static string? ToLiteral(this object input)
-    {
-        return input switch
-        {
-            DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            _ => input.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Split the type path
-    /// </summary>
-    internal static string[] SplitTypeName(this string name)
-    {
-        List<string> paths = [..name.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
-        while (paths.Count > 1 && paths[^1].EndsWith(">") && !paths[^1].Contains("<"))
-        {
-            string last = paths[^1];
-            paths.RemoveAt(paths.Count - 1);
-            paths[^1] += "." + last;
-        }
-        return [..paths];
-    }
-
-    /// <summary>
-    /// Gets the base type
-    /// </summary>
-    internal static string GetBaseType(this string name) =>name.Contains("<") ? name[..name.IndexOf('<')] : name;
-
-    /// <summary>
-    /// Gets the namespace
-    /// </summary>
-    internal static string GetNamespace(this string name) => string.Join('.', name.SplitTypeName().SkipLast(1));
-    
-    /// <summary>
-    /// Gets the schema name
-    /// </summary>
-    /// <param name="name"></param>
-    /// <returns></returns>
-    internal static string GetSchemaName(this string name) => name.SplitTypeName().Last();
-    
-    /// <summary>
-    /// Remove the ending part if existed
-    /// </summary>
-    internal static string RemoveEnding(this string name, string ending)
-    {
-        if (name.EndsWith(ending, StringComparison.OrdinalIgnoreCase))
-            return name[..^ending.Length];
-        return name;
-    }
-
-    /// <summary>
-    /// Remove the start part if existed
-    /// </summary>
-    /// <param name="name"></param>
-    /// <param name="start"></param>
-    /// <returns></returns>
-    internal static string RemoveStart(this string name, string start)
-    {
-        if (name.StartsWith(start, StringComparison.OrdinalIgnoreCase))
-            return name[start.Length..];
-        return name;
-    }
-
-    /// <summary>
-    /// Gets the property kind from the name
-    /// </summary>
-    /// <param name="name"></param>
-    /// <returns></returns>
-    internal static string GetPropertyKind(this string name) => name.RemoveEnding("Property").RemoveStart("I").ToLower();
-
-    /// <summary>
-    /// Gets the property name from a property type, checking for Alias meta attribute first
-    /// </summary>
-    internal static string GetPropertyName(this Type type)
-        => type.GetMetaProperty<Alias>()?.Value ?? type.Name.RemoveEnding("Property").ToCamelCase();
-
-    /// <summary>
-    /// Gets the schema type from the type
-    /// </summary>
-    internal static string? GetSchemaType(this Type type) => type.GetMetaProperty<SchemaType>()?.Value;
-    
-    #endregion
-
-    #region JSON
-
-    #region Json Options
+    #region Utility
 
     private static readonly JsonSerializerOptions DefaultJsonOptions = new()
     {
@@ -123,7 +29,35 @@ internal static class Extension
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    private static readonly string[] DateFormats =
+    [
+        "yyyy-MM-dd",
+        "yyyy/MM/dd",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ssZ",
+        "yyyy-MM-ddTHH:mm:ss.fffZ",
+        "yyyy-MM-dd HH:mm:ss.fff",
+        "yyyy-MM-ddTHH:mm:sszzz",
+        "yyyy/M/d H:mm:ss zzz",
+        "yyyy/M/d H:mm:ss",
+        "yyyyMMdd",
+        "yyyyMMddHHmmss"
+    ];
+
     #endregion
+
+    #region Generic
+
+    internal static string? ToLiteral(this object input)
+    {
+        return input switch
+        {
+            DateTime dt => dt.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            _ => input.ToString()
+        };
+    }
 
     /// <summary>
     /// Serializes a .NET value to JSON string.
@@ -131,54 +65,6 @@ internal static class Extension
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
     internal static string ToJson<T>(this T value) =>value is JsonNode json ? json.ToString() : JsonSerializer.Serialize(value, DefaultJsonOptions);
-
-    /// <summary>
-    /// Deserializes a JSON string to a .NET value.
-    /// </summary>
-    /// <typeparam name="T">The type of the value.</typeparam>
-    /// <param name="value">The value.</param>
-    internal static T? FromJson<T>(this string value) => (T?)value.FromJson(typeof(T));
-
-    /// <summary>
-    /// Deserializes a JSON string to a .NET value.
-    /// </summary>
-    internal static object? FromJson(this string value, Type type)
-    {
-        if (type == typeof(string))
-            return value;
-        if (type == typeof(DateTimeOffset))
-            return DateTimeOffset.Parse(value);
-        if (type == typeof(DateTime))
-            return DateTime.Parse(value);
-            
-        return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
-    }
-
-    /// <summary>
-    /// Convert the JsonNode to the given type
-    /// </summary>
-    internal static T? FromJson<T>(this JsonNode value) => (T?)value.FromJson(typeof(T));
-
-    internal static object? FromJson(this JsonNode value, Type type)
-    {
-        if (type == typeof(JsonObject))
-        {
-            return value is JsonObject obj ? obj : throw new JsonException("The value is not an object");
-        }
-        else if (type == typeof(JsonArray))
-        {
-            return value is JsonArray arr ? arr : throw new JsonException("The value is not an array.");
-        }
-        else if (type == typeof(JsonValue))
-        {
-            return value is JsonValue val ? val : throw new JsonException("The value is not a valid JsonValue");
-        }
-        else if (type == typeof(JsonNode))
-        {
-            return value;
-        }
-        return value.Deserialize(type, DefaultJsonOptions);
-    }
 
     internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
@@ -195,39 +81,175 @@ internal static class Extension
             return null;
         }
     }
+    
+    internal static T? TryConvertTo<T>(this object? value) => (T?)typeof(T).TryConvert(value);
 
-    internal static T? ToValue<T>(this JsonNode node) => (T?)(TryConvert(typeof(T), node) ?? default(T?));
-
-    static readonly string[] DateFormats =
+    #endregion
+    
+    #region String
+    
+    /// <param name="value"></param>
+    extension(string value)
     {
-        "yyyy-MM-dd",
-        "yyyy/MM/dd",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ssZ",
-        "yyyy-MM-ddTHH:mm:ss.fffZ",
-        "yyyy-MM-dd HH:mm:ss.fff",
-        "yyyy-MM-ddTHH:mm:sszzz",
-        "yyyy/M/d H:mm:ss zzz",
-         "yyyy/M/d H:mm:ss",
-         "yyyyMMdd",
-         "yyyyMMddHHmmss"
-    };
-
-    internal static bool TryParseDateTimeOffset(string str, out DateTimeOffset? dateTime)
-    {
-        if (DateTimeOffset.TryParseExact(
-              str,
-              DateFormats,
-              CultureInfo.InvariantCulture,
-              DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-              out var dto))
+        internal bool TryParseDateTimeOffset(out DateTimeOffset? dateTime)
         {
-            dateTime = dto;
-            return true;
+            if (DateTimeOffset.TryParseExact(
+                    value,
+                    DateFormats,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                    out var dto))
+            {
+                dateTime = dto;
+                return true;
+            }
+            dateTime = null;
+            return false;
         }
-        dateTime = null;
-        return false;
+
+        /// <summary>
+        /// Returns the camel case of this string.
+        /// </summary>
+        internal string ToCamelCase() => value.Length > 0 ? string.Concat(value[..1].ToLowerInvariant(), value.AsSpan(1)) : value;
+
+        /// <summary>
+        /// Split the type path
+        /// </summary>
+        internal string[] SplitTypeName()
+        {
+            List<string> paths = [..value.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
+            while (paths.Count > 1 && paths[^1].EndsWith('>') && !paths[^1].Contains('<'))
+            {
+                string last = paths[^1];
+                paths.RemoveAt(paths.Count - 1);
+                paths[^1] += "." + last;
+            }
+            return [..paths];
+        }
+
+        /// <summary>
+        /// Gets the base type
+        /// </summary>
+        internal string GetBaseType() => value.Contains('<') ? value[..value.IndexOf('<')] : value;
+
+        /// <summary>
+        /// Gets the namespace
+        /// </summary>
+        internal string GetNamespace() => string.Join('.', value.SplitTypeName().SkipLast(1));
+
+        /// <summary>
+        /// Gets the schema name
+        /// </summary>
+        /// <returns></returns>
+        internal string GetSchemaName() => value.SplitTypeName().Last();
+
+        /// <summary>
+        /// Remove the ending part if existed
+        /// </summary>
+        internal string RemoveEnding(string ending) => value.EndsWith(ending, StringComparison.OrdinalIgnoreCase) ? value[..^ending.Length] : value;
+
+        /// <summary>
+        /// Remove the start part if existed
+        /// </summary>
+        /// <param name="start"></param>
+        /// <returns></returns>
+        internal string RemoveStart(string start) => value.StartsWith(start, StringComparison.OrdinalIgnoreCase) ? value[start.Length..] : value;
+
+        /// <summary>
+        /// Deserializes a JSON string to a .NET value.
+        /// </summary>
+        /// <typeparam name="T">The type of the value.</typeparam>
+        internal T? FromJson<T>() => (T?)value.FromJson(typeof(T));
+
+        /// <summary>
+        /// Deserializes a JSON string to a .NET value.
+        /// </summary>
+        internal object? FromJson(Type type)
+        {
+            if (type == typeof(string))
+                return value;
+            if (type == typeof(DateTimeOffset))
+                return DateTimeOffset.Parse(value);
+            if (type == typeof(DateTime))
+                return DateTime.Parse(value);
+
+            return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
+        }
+    }
+
+    #endregion
+
+    #region JSON
+
+    extension(JsonNode value)
+    {
+        /// <summary>
+        /// Convert the JsonNode to the given type
+        /// </summary>
+        internal T? FromJson<T>() => (T?)value.FromJson(typeof(T));
+
+        internal object? FromJson(Type type)
+        {
+            if (type == typeof(JsonObject))
+            {
+                return value is JsonObject obj ? obj : throw new JsonException("The value is not an object");
+            }
+            else if (type == typeof(JsonArray))
+            {
+                return value is JsonArray arr ? arr : throw new JsonException("The value is not an array.");
+            }
+            else if (type == typeof(JsonValue))
+            {
+                return value is JsonValue val ? val : throw new JsonException("The value is not a valid JsonValue");
+            }
+            else if (type == typeof(JsonNode))
+            {
+                return value;
+            }
+            return value.Deserialize(type, DefaultJsonOptions);
+        }
+       
+        internal T? ToValue<T>() => (T?)(typeof(T).TryConvert(value) ?? default(T?));
+        
+        /// <summary>
+        /// Gets the value with paths
+        /// </summary>
+        internal JsonNode? GetValueByPaths(IEnumerable<string> paths)
+        {
+            JsonNode? token = value;
+            foreach (string path in paths)
+            {
+                if (token is JsonObject obj && obj.ContainsKey(path))
+                {
+                    token = obj[path];
+                }
+                else
+                {
+                    token = null;
+                    break;
+                }
+            }
+            return token;
+        }
+
+        /// <summary>
+        /// Gets the value with paths
+        /// </summary>
+        internal JsonNode? GetValueByPaths(string paths) => value.GetValueByPaths(paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
+
+        /// <summary>
+        /// Whether the json node is empty
+        /// </summary>
+        internal bool IsEmpty()
+        {
+            return value switch
+            {
+                JsonArray a => a.Count == 0,
+                JsonObject o => o.Count == 0,
+                JsonValue v => v.ToJsonString() == "null" || string.IsNullOrWhiteSpace(v.ToString()),
+                _ => true
+            };
+        }
     }
 
     /// <summary>
@@ -242,7 +264,7 @@ internal static class Extension
                 { 
                     s = s.Trim();
 
-                    if (TryParseDateTimeOffset(s, out var dto))
+                    if (s.TryParseDateTimeOffset(out var dto))
                     {
                         return (dto, typeof(DateTimeOffset));
                     }
@@ -273,23 +295,7 @@ internal static class Extension
                 throw new ArgumentOutOfRangeException();
         }
     }
-
-
-    /// <summary>
-    /// Whether the json node is empty
-    /// </summary>
-    internal static bool IsEmpty(this JsonNode? node)
-    {
-        if (node == null) return true;
-        return node switch
-        {
-            JsonArray a => a.Count == 0,
-            JsonObject o => o.Count == 0,
-            JsonValue v => v.ToJsonString() == "null" || string.IsNullOrWhiteSpace(v.ToString()),
-            _ => true
-        };
-    }
-
+    
     /// <summary>
     /// Add range
     /// </summary>
@@ -301,31 +307,6 @@ internal static class Extension
                 a.Add(item.DeepClone());
         }
     }
-
-    /// <summary>
-    /// Gets the value with paths
-    /// </summary>
-    internal static JsonNode? GetValueByPaths(this JsonNode? token, IEnumerable<string> paths)
-    {
-        foreach (string path in paths)
-        {
-            if (token is JsonObject obj && obj.ContainsKey(path))
-            {
-                token = obj[path];
-            }
-            else
-            {
-                token = null;
-                break;
-            }
-        }
-        return token;
-    }
-
-    /// <summary>
-    /// Gets the value with paths
-    /// </summary>
-    internal static JsonNode? GetValueByPaths(this JsonNode? token, string paths) => GetValueByPaths(token, paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
 
     /// <summary>
     /// Try get the value with name
@@ -343,320 +324,350 @@ internal static class Extension
 
     #endregion
 
-    #region Generics
+    #region Type
 
-    internal static bool IsPrimitiveLike(this Type type)
+    extension(Type type)
     {
-        if (type.IsEnum) return true;
-        if (type == typeof(Guid) || type == typeof(DateTimeOffset)) return true; // no type code
-        return Type.GetTypeCode(type) switch
-        {
-            TypeCode.Boolean or TypeCode.Char or TypeCode.SByte or TypeCode.Byte or TypeCode.Int16 or TypeCode.UInt16
-                or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single
-                or TypeCode.Double or TypeCode.Decimal or TypeCode.String or TypeCode.DateTime => true,
-            _ => false
-        };
-    }
+        /// <summary>
+        /// Gets the property name from a property type, checking for Alias meta attribute first.
+        /// </summary>
+        internal string GetPropertyName()
+            => type.GetMetaProperty<Alias>()?.Value ?? type.Name.RemoveEnding("Property").ToCamelCase();
 
-    // Checks if the type is nullable
-    internal static bool IsNullable(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>));
+        /// <summary>
+        /// Gets the schema type from the type.
+        /// </summary>
+        internal string? GetSchemaType() => type.GetMetaProperty<SchemaType>()?.Value;
 
-    /// <summary>
-    /// Gets a specific generic base type.
-    /// </summary>
-    internal static Type? GetGenericBaseType(this Type type, Type genericType)
-    {
-        // Initialize.
-        if (!genericType.IsGenericType || genericType.GetGenericTypeDefinition() != genericType)
+        internal bool IsPrimitiveLike()
         {
+            if (type.IsEnum) return true;
+            if (type == typeof(Guid) || type == typeof(DateTimeOffset)) return true; // no type code
+            return Type.GetTypeCode(type) switch
+            {
+                TypeCode.Boolean or TypeCode.Char or TypeCode.SByte or TypeCode.Byte or TypeCode.Int16 or TypeCode.UInt16
+                    or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Single
+                    or TypeCode.Double or TypeCode.Decimal or TypeCode.String or TypeCode.DateTime => true,
+                _ => false
+            };
+        }
+
+        internal bool IsNullable() => type.IsSubclassOfGenericType(typeof(Nullable<>));
+
+        /// <summary>
+        /// Gets a specific generic base type.
+        /// </summary>
+        internal Type? GetGenericBaseType(Type genericType)
+        {
+            // Initialize.
+            if (!genericType.IsGenericType || genericType.GetGenericTypeDefinition() != genericType)
+            {
+                return null;
+            }
+
+            // Check inheritance chain.
+            if (type.IsGenericType && type.GetGenericTypeDefinition() == genericType)
+            {
+                return type;
+            }
+            if (genericType.IsInterface)
+            {
+                foreach (Type interfaceType in type.GetInterfaces())
+                {
+                    Type? result = interfaceType.GetGenericBaseType(genericType);
+                    if (result != null) return result;
+                }
+            }
+            else if (type.BaseType != null)
+            {
+                Type? result = type.BaseType.GetGenericBaseType(genericType);
+                if (result != null) return result;
+            }
+
+            // Finish.
             return null;
         }
 
-        // Check inheritance chain.
-        if (type.IsGenericType && type.GetGenericTypeDefinition() == genericType)
-        {
-            return type;
+        /// <summary>
+        /// Gets a specific generic base type.
+        /// </summary>
+        internal Type? GetGenericBaseType<T>() => type.GetGenericBaseType(typeof(T));
+
+        /// <summary>
+        /// Checks whether a type is a subclass of a specific generic type.
+        /// </summary>
+        internal bool IsSubclassOfGenericType(Type genericType) => type.GetGenericBaseType(genericType) != null;
+
+        /// <summary>
+        /// Checks whether a type is a subclass of a specific generic type.
+        /// </summary>
+        internal bool IsSubclassOfGenericType<T>() => type.IsSubclassOfGenericType(typeof(T));
+
+        /// <summary>
+        /// Gets the not null type
+        /// </summary>
+        internal Type GetNotNullType() => Nullable.GetUnderlyingType(type) ?? type;
+
+        /// <summary>
+        /// Gets the nullable type
+        /// </summary>
+        internal Type GetNullableType() => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
+
+        /// <summary>
+        /// The type is simple array type
+        /// </summary>
+        internal bool IsArrayType() => type != typeof(string) && 
+                                       type != typeof(ArrayNode) && 
+                                       ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || 
+                                         type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
+
+        internal bool IsSafeConstantValue()
+        { 
+            if (type.IsValueType || type == typeof(string))
+                return true;
+
+            if (typeof(Type).IsAssignableFrom(type))
+                return true;
+
+            if (type == typeof(Uri) || type == typeof(Version))
+                return true;
+
+            return false;
         }
-        if (genericType.IsInterface)
+        /// <summary>
+        /// Try to convert the value for the given type.
+        /// </summary>
+        internal object? TryConvert(object? value)
         {
-            foreach (Type interfaceType in type.GetInterfaces())
+            Type targetType = type.GetNotNullType();
+
+            try
             {
-                Type? result = GetGenericBaseType(interfaceType, genericType);
-                if (result != null) return result;
+                // value match
+                if (value == null) return null;
+                if (value.GetType().IsAssignableTo(targetType)) return value;
+
+                // for schema node
+                if (value is DataNode node) return node.ToTypeValue(targetType);
+
+                // json type
+                if (value is JsonElement ele)
+                {
+                    value = ele.ValueKind switch
+                    {
+                        JsonValueKind.Null => null,
+                        JsonValueKind.String => ele.GetString(),
+                        JsonValueKind.Number => ele.TryGetInt64(out var l) ? l :
+                                                ele.TryGetDouble(out var d) ? d : ele.GetDecimal(),
+                        JsonValueKind.True => true,
+                        JsonValueKind.False => false,
+                        JsonValueKind.Array => ele.EnumerateArray().Select(e => (object?)e).ToArray(),
+                        JsonValueKind.Object => JsonNode.Parse(ele.GetRawText()),
+                        _ => null
+                    };
+                    if (value == null) return null;
+                    if (value.GetType().IsAssignableTo(targetType)) return value;
+                }
+
+                if (value is (JsonArray or JsonObject))
+                    return (value as JsonNode).Deserialize(targetType, DefaultJsonOptions);
+
+                if (targetType == typeof(JsonArray))
+                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonArray;
+
+                if (targetType == typeof(JsonObject))
+                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonObject;
+
+                if (targetType == typeof(JsonValue))
+                    return JsonValue.Create(value);
+
+                if (targetType == typeof(JsonNode))
+                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
+
+                // none json type
+                if (value is JsonValue v)
+                {
+                    switch (v.GetValueKind())
+                    {
+                        case JsonValueKind.String:
+                            if (v.TryGetValue(out string? s))
+                            {
+                                s = s.Trim();
+
+                                if (TryParseDateTimeOffset(s, out var dto))
+                                    value = dto;
+                                else
+                                    value = s;
+                            }
+                            else
+                                value = null;
+                            break;
+
+                        case JsonValueKind.Number:
+                            if (v.TryGetValue(out long l))
+                                value = l;
+                            else if (v.TryGetValue(out int i))
+                                value = i;
+                            else if (v.TryGetValue(out double db))
+                                value = db;
+                            else if (v.TryGetValue(out float f))
+                                value = f;
+                            else if (v.TryGetValue(out decimal d))
+                                value = d;
+                            else
+                                value = null;
+                            break;
+                        case JsonValueKind.True:
+                            value = true;
+                            break;
+                        case JsonValueKind.False:
+                            value = false;
+                            break;
+                        default:
+                            value = null;
+                            break;
+                    }
+                    if (value == null) return null;
+                    if (value.GetType().IsAssignableTo(targetType)) return value;
+                }
+                // for collections
+                else if (value is Array arr)
+                {
+                    return ConvertToCollection(arr.Cast<object?>(), targetType);
+                }
+                else if (value is not string && value is IEnumerable iter)
+                {
+                    return ConvertToCollection(iter.Cast<object?>(), targetType);
+                }
+
+                // Enum convert
+                if (targetType.IsEnum)
+                {
+                    return value is string s
+                        ? System.Enum.Parse(targetType, s, ignoreCase: true)
+                        : value.GetType().IsPrimitive
+                            ? System.Enum.ToObject(targetType, value)
+                            : null;
+                }
+
+                // Primitive
+                switch (Type.GetTypeCode(targetType))
+                {
+                    case TypeCode.Empty:
+                    case TypeCode.DBNull:
+                        return null;
+                    case TypeCode.Object:
+                        break;
+                    case TypeCode.Boolean:
+                        return Convert.ToBoolean(value);
+                    case TypeCode.Char:
+                        return Convert.ToChar(value);
+                    case TypeCode.SByte:
+                        return Convert.ToSByte(value);
+                    case TypeCode.Byte:
+                        return Convert.ToByte(value);
+                    case TypeCode.Int16:
+                        return Convert.ToInt16(value);
+                    case TypeCode.UInt16:
+                        return Convert.ToUInt16(value);
+                    case TypeCode.Int32:
+                        return Convert.ToInt32(value);
+                    case TypeCode.UInt32:
+                        return Convert.ToUInt32(value);
+                    case TypeCode.Int64:
+                        return Convert.ToInt64(value);
+                    case TypeCode.UInt64:
+                        return Convert.ToUInt64(value);
+                    case TypeCode.Single:
+                        return Convert.ToSingle(value);
+                    case TypeCode.Double:
+                        return Convert.ToDouble(value);
+                    case TypeCode.Decimal:
+                        return Convert.ToDecimal(value);
+                    case TypeCode.DateTime:
+                    {
+                        string? str = value.ToString();
+                        if (DateTimeOffset.TryParseExact(
+                                str,
+                                DateFormats,
+                                CultureInfo.InvariantCulture,
+                                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
+                                out var dto))
+                        {
+                            return dto.DateTime;
+                        }
+
+                        if (DateTime.TryParseExact(
+                                str,
+                                DateFormats,
+                                CultureInfo.InvariantCulture,
+                                DateTimeStyles.None,
+                                out var dt))
+                        {
+                            return dt;
+                        }
+                        return Convert.ToDateTime(value);
+                    }
+                    case TypeCode.String:
+                        return Convert.ToString(value);
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                // Object
+                if (targetType == typeof(Guid))
+                {
+                    return Guid.TryParse(value.ToString(), out Guid result) ? result : null;
+                }
+
+                if (targetType == typeof(DateTimeOffset))
+                {
+                    if (value is string s)
+                    {
+                        if (TryParseDateTimeOffset(s, out var dto)) return dto;
+                        return DateTimeOffset.Parse(s);
+                    }
+                    if (value is long or int)
+                        return DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
+                    return null;
+                }
+
+                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions)?.Deserialize(targetType, DefaultJsonOptions);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidCastException($"Cannot convert the value '{value}' to type '{targetType.FullName}'", ex);
             }
         }
-        else if (type.BaseType != null)
+
+        /// <summary>
+        /// Get summary contents from XML document.
+        /// </summary>
+        internal string? GetSummaryFromXmlDoc(PropertyInfo? prop = null)
         {
-            Type? result = GetGenericBaseType(type.BaseType, genericType);
-            if (result != null) return result;
+            string prefix = prop == null ? "T:" : "P:";
+            string memberName = $"{prefix}{type.FullName!.Replace('+', '.')}";
+            if (prop != null)
+                memberName += $".{prop.Name}";
+
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
         }
 
-        // Finish.
-        return null;
-    }
+        /// <summary>
+        /// Get summary contents of enum field from XML doc.
+        /// </summary>
+        internal string? GetSummaryFromXmlDoc(FieldInfo field)
+        {
+            if (!type.IsEnum) return null;
 
-    /// <summary>
-    /// Gets a specific generic base type.
-    /// </summary>
-    internal static Type? GetGenericBaseType<T>(this Type type) => GetGenericBaseType(type, typeof(T));
-
-    /// <summary>
-    /// Checks whether a type is a subclass of a specific generic type.
-    /// </summary>
-    internal static bool IsSubclassOfGenericType(this Type type, Type genericType) => GetGenericBaseType(type, genericType) != null;
-
-    /// <summary>
-    /// Checks whether a type is a subclass of a specific generic type.
-    /// </summary>
-    internal static bool IsSubclassOfGenericType<T>(this Type type) => IsSubclassOfGenericType(type, typeof(T));
-
-    /// <summary>
-    /// Gets the not null type
-    /// </summary>
-    internal static Type GetNotNullType(this Type type) => Nullable.GetUnderlyingType(type) ?? type;
-
-    /// <summary>
-    /// Gets the nullable type
-    /// </summary>
-    internal static Type GetNullableType(this Type type) => type.IsSubclassOfGenericType(typeof(Nullable<>)) ? type : typeof(Nullable<>).MakeGenericType(type);
-
-    /// <summary>
-    /// The type is simple array type
-    /// </summary>
-    internal static bool IsArrayType(this Type type) => type != typeof(string) && 
-        type != typeof(ArrayNode) && 
-        ( type.IsSZArray || type.IsSubclassOfGenericType(typeof(List<>)) || 
-        type.IsSubclassOfGenericType(typeof(IEnumerable<>)));
-    
-    internal static bool IsSafeConstantValue(this Type type)
-    { 
-        if (type.IsValueType || type == typeof(string))
-            return true;
-
-        if (typeof(Type).IsAssignableFrom(type))
-            return true;
-
-        if (type == typeof(Uri) || type == typeof(Version))
-            return true;
-
-        return false;
+            string memberName = $"F:{type.FullName!.Replace('+', '.')}.{field.Name}";
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
+        }
     }
 
     internal static bool HasClosure(this Delegate method)
     {
         return method.Target != null && method.Target.GetType().FullName == "System.Runtime.CompilerServices.Closure";
-    }
-
-    #endregion
-
-    #region Type Conversion
-
-    internal static T? TryConvertTo<T>(this object? value) => (T?)TryConvert(typeof(T), value);
-
-    /// <summary>
-    /// Try to convert the value for the given type
-    /// </summary>
-    internal static object? TryConvert(this Type type, object? value)
-    {
-        try
-        {
-            // value match
-            if (value == null) return null;
-            type = type.GetNotNullType();
-            if (value.GetType().IsAssignableTo(type)) return value;
-
-            // for schema node
-            if (value is DataNode node) return node.ToTypeValue(type);
-
-            // json type
-            if (value is JsonElement ele)
-            {
-                value = ele.ValueKind switch
-                {
-                    JsonValueKind.Null => null,
-                    JsonValueKind.String => ele.GetString(),
-                    JsonValueKind.Number => ele.TryGetInt64(out var l) ? l :
-                                            ele.TryGetDouble(out var d) ? d : ele.GetDecimal(),
-                    JsonValueKind.True => true,
-                    JsonValueKind.False => false,
-                    JsonValueKind.Array => ele.EnumerateArray().Select(e => (object?)e).ToArray(),
-                    JsonValueKind.Object => JsonNode.Parse(ele.GetRawText()),
-                    _ => null
-                };
-                if (value == null) return null;
-                if (value.GetType().IsAssignableTo(type)) return value;
-            }
-
-            if (value is (JsonArray or JsonObject))
-                return (value as JsonNode).Deserialize(type, DefaultJsonOptions);
-            
-            if (type == typeof(JsonArray))
-                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonArray;
-
-            if (type == typeof(JsonObject))
-                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonObject;
-
-            if (type == typeof(JsonValue))
-                return JsonValue.Create(value);
-
-            if (type == typeof(JsonNode))
-                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
-
-            // none json type
-            if (value is JsonValue v)
-            {
-                switch (v.GetValueKind())
-                {
-                    case JsonValueKind.String:
-                        if (v.TryGetValue(out string? s))
-                        {
-                            s = s.Trim();
-
-                            if (TryParseDateTimeOffset(s, out var dto))
-                                value = dto;
-                            else
-                                value = s;
-                        }
-                        else
-                            value = null;
-                        break;
-
-                    case JsonValueKind.Number:
-                        if (v.TryGetValue(out long l))
-                            value = l;
-                        else if (v.TryGetValue(out int i))
-                            value = i;
-                        else if (v.TryGetValue(out double db))
-                            value = db;
-                        else if (v.TryGetValue(out float f))
-                            value = f;
-                        else if (v.TryGetValue(out decimal d))
-                            value = d;
-                        else
-                            value = null;
-                        break;
-                    case JsonValueKind.True:
-                        value = true;
-                        break;
-                    case JsonValueKind.False:
-                        value = false;
-                        break;
-                    default:
-                        value = null;
-                        break;
-                }
-                if (value == null) return null;
-                if (value.GetType().IsAssignableTo(type)) return value;
-            }
-            // for collections
-            else if (value is Array arr)
-            {
-                return ConvertToCollection(arr.Cast<object?>(), type);
-            }
-            else if (value is not string && value is IEnumerable iter)
-            {
-                return ConvertToCollection(iter.Cast<object?>(), type);
-            }
-
-            // Enum convert
-            if (type.IsEnum)
-            {
-                return value is string s
-                    ? System.Enum.Parse(type, s, ignoreCase: true)
-                    : value.GetType().IsPrimitive
-                        ? System.Enum.ToObject(type, value)
-                        : null;
-            }
-
-            // Primitive
-            switch (Type.GetTypeCode(type))
-            {
-                case TypeCode.Empty:
-                case TypeCode.DBNull:
-                    return null;
-                case TypeCode.Object:
-                    break;
-                case TypeCode.Boolean:
-                    return Convert.ToBoolean(value);
-                case TypeCode.Char:
-                    return Convert.ToChar(value);
-                case TypeCode.SByte:
-                    return Convert.ToSByte(value);
-                case TypeCode.Byte:
-                    return Convert.ToByte(value);
-                case TypeCode.Int16:
-                    return Convert.ToInt16(value);
-                case TypeCode.UInt16:
-                    return Convert.ToUInt16(value);
-                case TypeCode.Int32:
-                    return Convert.ToInt32(value);
-                case TypeCode.UInt32:
-                    return Convert.ToUInt32(value);
-                case TypeCode.Int64:
-                    return Convert.ToInt64(value);
-                case TypeCode.UInt64:
-                    return Convert.ToUInt64(value);
-                case TypeCode.Single:
-                    return Convert.ToSingle(value);
-                case TypeCode.Double:
-                    return Convert.ToDouble(value);
-                case TypeCode.Decimal:
-                    return Convert.ToDecimal(value);
-                case TypeCode.DateTime:
-                {
-                    string? str = value.ToString();
-                    if (DateTimeOffset.TryParseExact(
-                            str,
-                            DateFormats,
-                            CultureInfo.InvariantCulture,
-                            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                            out var dto))
-                    {
-                        return dto.DateTime;
-                    }
-
-                    if (DateTime.TryParseExact(
-                            str,
-                            DateFormats,
-                            CultureInfo.InvariantCulture,
-                            DateTimeStyles.None,
-                            out var dt))
-                    {
-                        return dt;
-                    }
-                    return Convert.ToDateTime(value);
-                }
-                case TypeCode.String:                    
-                    return Convert.ToString(value);
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-
-            // Object
-            if (type == typeof(Guid))
-            {
-                return Guid.TryParse(value.ToString(), out Guid result) ? result : null;
-            }
-            else if (type == typeof(DateTimeOffset))
-            {
-                if (value is string s)
-                {
-                    if (TryParseDateTimeOffset(s, out var dto)) return dto;
-                    return DateTimeOffset.Parse(s);
-                }
-                if (value is long or int)
-                    return DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
-                return null;
-            }
-            else
-            {
-                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions)?.Deserialize(type, DefaultJsonOptions);
-            }
-        }
-        catch(Exception ex)
-        {
-            throw new InvalidCastException($"Cannot convert the value '{value}' to type '{type.FullName}'", ex);
-        }
     }
 
     /// <summary>
@@ -671,7 +682,7 @@ internal static class Extension
             var items = source.ToArray();
             var result = Array.CreateInstance(eleType, items.Length);
             for (int i = 0; i < items.Length; i++)
-                result.SetValue(TryConvert(eleType, items[i]), i);
+                result.SetValue(eleType.TryConvert(items[i]), i);
             return result;
         }
         if (targetType.IsSubclassOfGenericType(typeof(List<>)))
@@ -679,7 +690,7 @@ internal static class Extension
             Type eleType = targetType.GetGenericBaseType(typeof(List<>))!.GetGenericArguments()[0];
             var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(eleType))!;
             foreach (var item in source)
-                list.Add(TryConvert(eleType, item));
+                list.Add(eleType.TryConvert(item));
             return list;
         }
         if (targetType.IsSubclassOfGenericType(typeof(IEnumerable<>)))
@@ -688,90 +699,66 @@ internal static class Extension
             var items = source.ToArray();
             var result = Array.CreateInstance(eleType, items.Length);
             for (int i = 0; i < items.Length; i++)
-                result.SetValue(TryConvert(eleType, items[i]), i);
+                result.SetValue(eleType.TryConvert(items[i]), i);
             return result;
         }
         return null;
     }
 
-    #endregion
 
-    #region XML Documentation
-
-    /// <summary>
-    /// Get summary contents from XML document.
-    /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this Type type, PropertyInfo? prop = null)
+    extension(MethodInfo method)
     {
-        string prefix = prop == null ? "T:" : "P:";
-        string memberName = $"{prefix}{type.FullName!.Replace('+', '.')}";
-        if (prop != null)
-            memberName += $".{prop.Name}";
+        /// <summary>
+        /// Get summary contents of method from XML doc.
+        /// </summary>
+        internal string? GetSummaryFromXmlDoc()
+        {
+            const string prefix = "M:";
+            var type = method.DeclaringType!;
 
-        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
-    }
+            string typeName = type.FullName!.Replace('+', '.');
+            string methodName = method.Name;
 
-    /// <summary>
-    /// Get summary contents of enum field from XML doc.
-    /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this Type type, FieldInfo field)
-    {
-        if (!type.IsEnum) return null;
+            // Generic method: Method``1
+            if (method.IsGenericMethodDefinition)
+                methodName += $"``{method.GetGenericArguments().Length}";
 
-        string memberName = $"F:{type.FullName!.Replace('+', '.')}.{field.Name}";
-        return GetSummaryFromXmlDocInternal(type.Assembly, memberName);
-    }
+            // Parameters
+            string paramList = string.Join(",", method.GetParameters()
+                .Select(p => GetXmlDocTypeName(p.ParameterType)));
 
-    /// <summary>
-    /// Get summary contents of method from XML doc.
-    /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this MethodInfo method)
-    {
-        const string prefix = "M:";
-        var type = method.DeclaringType!;
+            string memberName = $"{prefix}{typeName}.{methodName}";
+            if (!string.IsNullOrEmpty(paramList))
+                memberName += $"({paramList})";
 
-        string typeName = type.FullName!.Replace('+', '.');
-        string methodName = method.Name;
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName, "summary");
+        }
 
-        // Generic method: Method``1
-        if (method.IsGenericMethodDefinition)
-            methodName += $"``{method.GetGenericArguments().Length}";
+        /// <summary>
+        /// Get summary contents of method from XML doc.
+        /// </summary>
+        internal string? GetSummaryFromXmlDoc(ParameterInfo parameter)
+        {
+            const string prefix = "M:";
+            var type = method.DeclaringType!;
 
-        // Parameters
-        string paramList = string.Join(",", method.GetParameters()
-            .Select(p => GetXmlDocTypeName(p.ParameterType)));
+            string typeName = type.FullName!.Replace('+', '.');
+            string methodName = method.Name;
 
-        string memberName = $"{prefix}{typeName}.{methodName}";
-        if (!string.IsNullOrEmpty(paramList))
-            memberName += $"({paramList})";
+            // Generic method: Method``1
+            if (method.IsGenericMethodDefinition)
+                methodName += $"``{method.GetGenericArguments().Length}";
 
-        return GetSummaryFromXmlDocInternal(type.Assembly, memberName, "summary");
-    }
+            // Parameters
+            string paramList = string.Join(",", method.GetParameters()
+                .Select(p => GetXmlDocTypeName(p.ParameterType)));
 
-    /// <summary>
-    /// Get summary contents of method from XML doc.
-    /// </summary>
-    internal static string? GetSummaryFromXmlDoc(this MethodInfo method, ParameterInfo parameter)
-    {
-        const string prefix = "M:";
-        var type = method.DeclaringType!;
+            string memberName = $"{prefix}{typeName}.{methodName}";
+            if (!string.IsNullOrEmpty(paramList))
+                memberName += $"({paramList})";
 
-        string typeName = type.FullName!.Replace('+', '.');
-        string methodName = method.Name;
-
-        // Generic method: Method``1
-        if (method.IsGenericMethodDefinition)
-            methodName += $"``{method.GetGenericArguments().Length}";
-
-        // Parameters
-        string paramList = string.Join(",", method.GetParameters()
-            .Select(p => GetXmlDocTypeName(p.ParameterType)));
-
-        string memberName = $"{prefix}{typeName}.{methodName}";
-        if (!string.IsNullOrEmpty(paramList))
-            memberName += $"({paramList})";
-
-        return GetSummaryFromXmlDocInternal(type.Assembly, memberName, $"param[@name='{parameter.Name}']");
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName, $"param[@name='{parameter.Name}']");
+        }
     }
 
     /// <summary>

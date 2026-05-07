@@ -74,7 +74,7 @@ public sealed class EnumType: ValueType
         UpdateMaxFlags();
         
         // Status
-        if (@enum == null) ErrorCode = SchemaNodeStatus.NoDefinition;
+        if (@enum == null) Error = SchemaNodeStatus.NoDefinition;
         return Task.CompletedTask;
     }
 
@@ -461,6 +461,28 @@ public sealed class EnumType: ValueType
     #endregion
 }
 
+public interface IEnumSchemaProvider: INodeSchemaProvider
+{
+    /// <summary>
+    /// Load the enum value sub list
+    /// </summary>
+    /// <param name="schemaName">The enum schema name</param>
+    /// <param name="value">The root enum value, optional</param>
+    /// <param name="fullList">Whether load the full list</param>
+    /// <returns></returns>
+    Task<EnumValueSchema[]> LoadEnumSubListAsync(string schemaName, string? value, bool? fullList = null);
+    
+    /// <summary>
+    /// Load the enum value access list from the server
+    /// </summary>
+    /// <param name="schemaName">The enum schema name</param>
+    /// <param name="value">The enum value for access</param>
+    /// <param name="noSubList">no sub list should be loaded</param>
+    /// <param name="withSubList">with the value's sub list if existed</param>
+    /// <returns></returns>
+    Task<EnumValueAccess[]> LoadEnumAccessListAsync(string schemaName, string value, bool? noSubList = null, bool? withSubList = null);
+}
+
 public static class EnumTypeExtensions
 {
     
@@ -474,16 +496,16 @@ public static class EnumTypeExtensions
     /// <returns></returns>
     public static async Task<EnumValueSchema[]> LoadEnumSubListAsync(this SchemaContext context, EnumType node, string? value, bool? fullList = null)
     {
-        if (node.SchemaProvider != null)
+        if (node.Provider != null)
         {
-            return await ((INodeSchemaProvider)context.GetRequiredService(node.SchemaProvider)).LoadEnumSubListAsync(node.Name, value, fullList);
+            return await ((INodeSchemaProvider)context.GetRequiredService(node.Provider)).LoadEnumSubListAsync(node.Name, value, fullList);
         }
         foreach (INodeSchemaProvider provider in context.GetServices<INodeSchemaProvider>())
         {
             try
             {
                 EnumValueSchema[] result = await provider.LoadEnumSubListAsync(node.Name, value, fullList);
-                node.SchemaProvider = provider.GetType();
+                node.Provider = provider.GetType();
                 return result;
             }
             catch
@@ -505,16 +527,16 @@ public static class EnumTypeExtensions
     /// <returns></returns>
     public static async Task<EnumValueAccess[]> LoadEnumAccessListAsync(this SchemaContext context, EnumType node, string value, bool? noSubList = null, bool? withSubList = null)
     {
-        if (node.SchemaProvider != null)
+        if (node.Provider != null)
         {
-            return await ((INodeSchemaProvider)context.GetRequiredService(node.SchemaProvider)).LoadEnumAccessListAsync(node.Name, value, noSubList, withSubList);
+            return await ((INodeSchemaProvider)context.GetRequiredService(node.Provider)).LoadEnumAccessListAsync(node.Name, value, noSubList, withSubList);
         }
         foreach (INodeSchemaProvider provider in context.GetServices<INodeSchemaProvider>())
         {
             try
             {
                 EnumValueAccess[] result = await provider.LoadEnumAccessListAsync(node.Name, value, noSubList, withSubList);
-                node.SchemaProvider = provider.GetType();
+                node.Provider = provider.GetType();
                 return result;
             }
             catch

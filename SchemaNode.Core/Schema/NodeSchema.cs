@@ -109,7 +109,7 @@ public sealed class NodeSchema: ExtensibleSchema
         return nodeSchema;
     }
     
-    // Create Node Schema
+    // Create Node Schema with full name
     internal static NodeSchema Create(string kind, string name, Type? type = null, string? display = null)
     {
         NodeSchema nodeSchema = new()
@@ -126,10 +126,9 @@ public sealed class NodeSchema: ExtensibleSchema
         return nodeSchema;
     }
 
+    // Create Node Schema with split namespace and name
     internal static NodeSchema Create(string kind, string @namespace, string name, Type? type = null, string? display = null)
-    {
-        return Create(kind, $"{@namespace}.{name}".Trim('.'), type, display);
-    }
+        => Create(kind, $"{@namespace}.{name}".Trim('.'), type, display);
 }
 
 /// <summary>

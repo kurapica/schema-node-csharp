@@ -83,7 +83,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // Require exps
         if (Function is { IsSystemCall: false, Exps.Length: 0 })
         {
-            Function.ErrorCode = SchemaNodeStatus.FunctionNoExps;
+            Function.Error = SchemaNodeStatus.FunctionNoExps;
             throw new FunctionVisitException(SchemaNodeStatus.FunctionNoExps);
         }
 
@@ -91,7 +91,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         NodeType? returnType = Function.ReturnNode ?? (!string.IsNullOrWhiteSpace(Function.Return) ? await Context.GetNodeTypeAsync(Function.Return) : null);
         if (!Function.IsSystemCall && returnType is not ValueType)
         {
-            Function.ErrorCode = SchemaNodeStatus.FunctionWrongReturnType;
+            Function.Error = SchemaNodeStatus.FunctionWrongReturnType;
             throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
         }
         Function.ReturnNode = returnType;
@@ -194,7 +194,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     {
                         if (!fieldExp!.NodeType.CanBeUseAs(f.SchemaType!))
                         {
-                            Function.ErrorCode = SchemaNodeStatus.FunctionReturnMemberNotValid;
+                            Function.Error = SchemaNodeStatus.FunctionReturnMemberNotValid;
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
                         }
                         fields.Add(new StructFieldExp(f.Name, fieldExp));
@@ -204,7 +204,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     }
                     else if (f.Require ?? false)
                     {
-                        Function.ErrorCode = SchemaNodeStatus.FunctionReturnMemberNotValid;
+                        Function.Error = SchemaNodeStatus.FunctionReturnMemberNotValid;
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
                     }
                 }
@@ -212,7 +212,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
             else
             {
-                Function.ErrorCode = SchemaNodeStatus.FunctionWrongReturnType;
+                Function.Error = SchemaNodeStatus.FunctionWrongReturnType;
                 throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
             }
         }

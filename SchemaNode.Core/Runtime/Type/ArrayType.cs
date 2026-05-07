@@ -79,7 +79,7 @@ public sealed class ArrayType: ValueType
         Atomic = array?.Atomic;
         
         // Status
-        if (array == null) ErrorCode = SchemaNodeStatus.NoDefinition;
+        if (array == null) Error = SchemaNodeStatus.NoDefinition;
         
         // Ref
         if (!string.IsNullOrWhiteSpace(Element))
@@ -87,7 +87,7 @@ public sealed class ArrayType: ValueType
             NodeType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
             if (node == null || node is not GenericType && node.Kind is NodeType.Namespace or NodeType.Array or NodeType.Func)
             {
-                ErrorCode = SchemaNodeStatus.ArrayHasWrongElementType;
+                Error = SchemaNodeStatus.ArrayHasWrongElementType;
             }
             else
             {
@@ -105,7 +105,7 @@ public sealed class ArrayType: ValueType
                 if (node is not FunctionType funcNode)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    ErrorCode = SchemaNodeStatus.StructRelationshipWrongFunc;
+                    Error = SchemaNodeStatus.StructRelationshipWrongFunc;
                     continue;
                 }
                 relation.FuncNode = funcNode;
@@ -308,7 +308,7 @@ public sealed class ArrayType: ValueType
                 Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,
-                SchemaProvider = SchemaProvider,
+                Provider = Provider,
                 Extensions = Extensions
             };
             eleType.AddRef(arrayType);
@@ -338,7 +338,7 @@ public sealed class ArrayType: ValueType
                 Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,
-                SchemaProvider = SchemaProvider,
+                Provider = Provider,
                 Extensions = Extensions
             };
             elementType.AddRef(arrayType);

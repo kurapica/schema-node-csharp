@@ -48,6 +48,8 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
                      .GetMethods(BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly)
                      .Where(m => m is { IsSpecialName: false, IsAbstract: false, IsConstructor: false }))
         {
+            if (method.GetCustomAttribute<SchemaIgnoreAttribute>()  != null) continue;
+            
             // Determine schema name: explicit [Meta<SchemaType>] wins, otherwise "<classNs>.<methodName>"
             schemaType = method.GetMetaProperty<SchemaType>();
 

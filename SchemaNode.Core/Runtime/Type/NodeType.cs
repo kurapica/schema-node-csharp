@@ -2,11 +2,9 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
-using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Function;
-using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -32,17 +30,17 @@ public abstract class NodeType: IDisposable
     /// <summary>
     /// The node schema
     /// </summary>
-    protected NodeSchema? Schema { get; private set; }
+    internal NodeSchema? Schema { get; private set; }
 
     /// <summary>
     /// The schema node error code
     /// </summary>
-    public string? ErrorCode { get; protected set; }
+    public string? Error { get; protected set; }
         
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
-    internal Type? SchemaProvider { get; set; }
+    internal Type? Provider { get; set; }
     
     /// <summary>
     /// The type is loaded
@@ -79,8 +77,7 @@ public abstract class NodeType: IDisposable
     /// Load the schema data
     /// </summary>
     /// <param name="context">The schema context</param>
-    /// <param name="schema">The schema</param>
-    public virtual Task LoadAsync(SchemaContext context, NodeSchema schema) => Task.CompletedTask;
+    public virtual Task LoadAsync(SchemaContext context) => Task.CompletedTask;
 
     /// <summary>
     /// Release the references
@@ -96,11 +93,6 @@ public abstract class NodeType: IDisposable
         yield break;
     }
 
-    /// <summary>
-    /// Whether the property type is supported
-    /// </summary>
-    public virtual Task<bool> IsPropertyTypeUsable(SchemaContext context, Type propertyType) => Task.FromResult(true);
-
     #endregion
     
     #region Methods
@@ -111,7 +103,7 @@ public abstract class NodeType: IDisposable
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema)
     {
         ReleaseType();
-        ErrorCode = null;
+        Error = null;
         
         Schema = schema;
         List<IProperty> props = [];
@@ -126,9 +118,9 @@ public abstract class NodeType: IDisposable
         _props = props.Count > 0 ? props.ToArray() : null;
         
         Loaded = true;
-        await LoadAsync(context, schema);
+        await LoadAsync(context);
         
-        // Loading schema properties
+        // Loading schema properties after loading, to avoid cycle ref
         List<NodeType> refTypes = [];
         foreach (IProperty prop in props.ToArray())
         {
@@ -137,9 +129,6 @@ public abstract class NodeType: IDisposable
             if (prop.GetValue<ExtensibleSchema>(true) is not { } s) continue;
             foreach (Type spType in context.Runtime.GetSchemaKindProperties(schema.Kind))
             {
-                // For custom usable property check, like uplimitString, uplimitNumber bother use 'uplimit' property
-                if (!await IsPropertyTypeUsable(context, spType)) continue;
-
                 IProperty? sProp = s.GetProperty(spType);
                 if (sProp is not { HasValue: true }) continue;
                 props.Add(sProp);
@@ -164,7 +153,7 @@ public abstract class NodeType: IDisposable
                 }
                 else
                 {
-                    ErrorCode = ErrorCodes.WRONG_REF_TYPE;
+                    Error = ErrorCodes.WRONG_REF_TYPE;
                     context.LogWarning($"Failed to load ref type '{name}' for property '{name}' in schema '{Name}'");
                 }
             }
@@ -173,12 +162,10 @@ public abstract class NodeType: IDisposable
 
     internal void ReleaseType()
     {
-        if (_refTypes != null)
-        {
-            foreach (NodeType node in _refTypes)
-                node.RemoveRef(this);
-        }
         Release();
+        if (_refTypes == null || _refTypes.Length == 0) return;
+        foreach (NodeType node in _refTypes)
+            node.RemoveRef(this);
     }
 
     /// <summary>
@@ -190,6 +177,15 @@ public abstract class NodeType: IDisposable
     /// Gets the constraints
     /// </summary>
     public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    
+    /// <summary>
+    /// Gets the property value with given type, returns null if not exist or not match type
+    /// </summary>
+    public T? GetPropertyValue<T>()
+    {
+        IProperty? prop = _props?.FirstOrDefault(p => p.Type.IsAssignableTo(typeof(T)));
+        return prop != null ? prop.GetValue<T>(true) : default(T?);
+    }
 
     /// <summary>
     /// Gets all node schemas used by the node schema
@@ -361,21 +357,6 @@ public abstract class ValueType : NodeType
     }
 
     /// <summary>
-    /// Whether the property type is usable for the type
-    /// </summary>
-    public override async Task<bool> IsPropertyTypeUsable(SchemaContext context, Type propertyType)
-    {
-        string[]? forTypes = propertyType.GetMetaProperty<ForValueTypes>()?.Value;
-        if (forTypes == null || forTypes.Length == 0) return true;
-        foreach (string type in forTypes)
-        {
-            if (type.Equals(Name, StringComparison.OrdinalIgnoreCase)) return true;
-            if (await context.GetNodeTypeAsync(type) is ValueType nodeType && IsAssignableTo(nodeType)) return true;
-        }
-        return false;
-    }
-
-    /// <summary>
     /// Used by unknown objects
     /// </summary>
     public override void AddRef<T>(T usedBy)
@@ -422,11 +403,6 @@ public abstract class ValueType : NodeType
     #region Abstract Methods
     
     /// <summary>
-    /// Create the schema node by value
-    /// </summary>
-    public virtual DataNode? CreateNode(object? value = null) => null;
-
-    /// <summary>
     /// Validate the value with the schema
     /// </summary>
     public virtual Task<DataNode?> ValidateValueAsync(SchemaContext context, object value) => Task.FromResult<DataNode?>(null);
@@ -435,7 +411,7 @@ public abstract class ValueType : NodeType
     /// The value type is assignable to other value type
     /// </summary>
     public virtual bool IsAssignableTo(ValueType other)
-        => this == other || Name.Equals(other.Name) || Name.Equals(NS_SYSTEM_OBJECT)  || other.Name.Equals(NS_SYSTEM_OBJECT) ||
+        => this == other || Name.Equals(other.Name) || Kind.Equals(SCHEMA_KIND_OBJECT)  || other.Kind.Equals(SCHEMA_KIND_OBJECT) ||
            _isAssignableTo != null && (_isAssignableTo.ContainsKey(other) || _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));
 
     /// <summary>

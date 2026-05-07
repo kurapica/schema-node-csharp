@@ -102,7 +102,7 @@ public class StructType: AnyType;
 /// <summary>
 /// The struct field schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT_FIELD}.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 public sealed class StructFieldSchema : ExtensibleSchema
 {

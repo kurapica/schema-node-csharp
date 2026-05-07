@@ -1,6 +1,4 @@
-using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Schema;
@@ -12,7 +10,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
-using JsonNode = System.Text.Json.Nodes.JsonNode;
+using JsonNode = System.Text.Json.Nodes.JsonNode; 
 
 namespace SchemaNode.Runtime;
 
@@ -67,7 +65,7 @@ public sealed class StructType: ValueType
         Atomic = @struct?.Atomic ?? false;
         
         // Status
-        if (@struct == null) ErrorCode = SchemaNodeStatus.NoDefinition;
+        if (@struct == null) Error = SchemaNodeStatus.NoDefinition;
                
         // Load Fields
         foreach (StructFieldSchema field in Fields)
@@ -75,7 +73,7 @@ public sealed class StructType: ValueType
             await field.LoadFieldSchema(context, this, preload);
             if (field.Status.HasValue && field.Status != SchemaNodeStatus.Ready)
             {
-                ErrorCode = field.Status.Value;
+                Error = field.Status.Value;
             }
         }
 
@@ -89,14 +87,14 @@ public sealed class StructType: ValueType
                 if (field == null)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongField;
-                    ErrorCode = SchemaNodeStatus.StructRelationshipWrongField;
+                    Error = SchemaNodeStatus.StructRelationshipWrongField;
                     continue;
                 }
 
                 if (string.IsNullOrWhiteSpace(relation.Prop))
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongProp;
-                    ErrorCode = SchemaNodeStatus.StructRelationshipWrongProp;
+                    Error = SchemaNodeStatus.StructRelationshipWrongProp;
                     continue;
                 }
 
@@ -104,7 +102,7 @@ public sealed class StructType: ValueType
                 if (funcNode == null)
                 {
                     relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    ErrorCode = SchemaNodeStatus.StructRelationshipWrongFunc;
+                    Error = SchemaNodeStatus.StructRelationshipWrongFunc;
                     continue;
                 }
                 relation.Status = null;
@@ -122,7 +120,7 @@ public sealed class StructType: ValueType
                         if (depField == null || dependsMap[depField] != null && dependsMap[depField].Contains(field))
                         {
                             relation.Status = SchemaNodeStatus.StructRelationshipWrongArguments;
-                            ErrorCode = SchemaNodeStatus.StructRelationshipWrongArguments;
+                            Error = SchemaNodeStatus.StructRelationshipWrongArguments;
                             break;
                         }
                         dependsMap[field].Add(depField);
@@ -140,7 +138,7 @@ public sealed class StructType: ValueType
                 if (funcNode is not FunctionType node)
                 {
                     valid.Status = SchemaNodeStatus.StructHasWrongValid;
-                    ErrorCode = SchemaNodeStatus.StructHasWrongValid;
+                    Error = SchemaNodeStatus.StructHasWrongValid;
                     continue;
                 }
                 valid.Status = null;

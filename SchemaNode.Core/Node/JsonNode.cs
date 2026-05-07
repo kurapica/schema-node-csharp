@@ -9,7 +9,7 @@ public class JsonNode: DataNode
 {
     private const string IsoFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
     
-    internal JsonNode(JsonType type, object? value = null) : base(type, null)
+    internal JsonNode(ObjectType type, object? value = null) : base(type, null)
     {
         Value = value switch
         {

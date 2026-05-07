@@ -25,7 +25,7 @@ public class RelationSchema: ExtensibleSchema
     /// <summary>
     /// The property the relation applied to
     /// </summary>
-    [Meta<SchemaType>(typeof(Scalar.Property))]
+    [Meta<SchemaType>(typeof(PropertyName))]
     public string Property { get; set; } = null!;
     
     /// <summary>
