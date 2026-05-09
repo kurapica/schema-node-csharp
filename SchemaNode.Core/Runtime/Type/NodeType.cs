@@ -13,14 +13,14 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public abstract class NodeType: IDisposable
+public abstract class NodeType: INodeReferences, IDisposable, INodeError
 {
     #region Properties
 
     /// <summary>
     /// The namespace
     /// </summary>
-    public string Name => Schema?.FullName ?? string.Empty;
+    public string Name => Schema != null ? Generics != null ? $"{Schema.FullName}<{string.Join(", ", Generics.Select(g => g.Name))}>" : Schema.FullName : string.Empty;
 
     /// <summary>
     /// The node schema type
@@ -31,11 +31,26 @@ public abstract class NodeType: IDisposable
     /// The node schema
     /// </summary>
     internal NodeSchema? Schema { get; private set; }
+    
+    /// <summary>
+    /// The generic types
+    /// </summary>
+    public IReadOnlyList<NodeType>? Generics { get; private set; }
+    
+    /// <summary>
+    /// The generic type map for generic type definition, like T => string, used for generic type definition, which is important for generic type loading and refactor. The key is the generic type name, and the value is the actual node type.
+    /// </summary>
+    internal ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
 
     /// <summary>
     /// The schema node error code
     /// </summary>
     public string? Error { get; protected set; }
+    
+    /// <summary>
+    /// The node type is generic template
+    /// </summary>
+    public bool IsGeneric { get; private set; }
         
     /// <summary>
     /// The scheme provider used to load the node
@@ -83,12 +98,6 @@ public abstract class NodeType: IDisposable
     /// </summary>
     public virtual void Release() { }
 
-    /// <summary>
-    /// Gets the depends schema nodes
-    /// </summary>
-    /// <returns></returns>
-    public virtual IEnumerable<NodeType> GetDependNodes() { yield break; }
-
     #endregion
     
     #region Methods
@@ -96,10 +105,12 @@ public abstract class NodeType: IDisposable
     /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema)
+    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? generics = null)
     {
         ReleaseType();
         Error = null;
+        IsGeneric = false;
+        Generics = generics is { Length: > 0 } ? generics : null;
         
         Schema = schema;
         List<IProperty> props = [];
@@ -136,16 +147,23 @@ public abstract class NodeType: IDisposable
         _props = props.Count > 0 ? props.ToArray() : null;
         _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
 
+        foreach (NodeType referenceType in Generics ?? GetReferenceTypes())
+        {
+            if (referenceType is not GenericType)
+                referenceType.AddUsedBy(this);
+            else
+                IsGeneric = true;
+        }
+
         async Task SaveRef(IProperty prop)
         {
-            if (prop is ITypeRefProperty typeRefProp)
+            if (Generics == null && prop is ITypeRefProperty typeRefProp)
             {
                 string? name = typeRefProp.GetValue<string>();
                 NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
                 if (node != null)
                 {
                     refTypes.Add(node);
-                    node.AddRef(this);
                 }
                 else
                 {
@@ -158,10 +176,10 @@ public abstract class NodeType: IDisposable
 
     internal void ReleaseType()
     {
+        foreach (NodeType node in Generics ?? GetReferenceTypes())
+            if (node is not GenericType)
+                node.RemoveUsedBy(this);
         Release();
-        if (_refTypes == null || _refTypes.Length == 0) return;
-        foreach (NodeType node in _refTypes)
-            node.RemoveRef(this);
     }
 
     /// <summary>
@@ -245,17 +263,11 @@ public abstract class NodeType: IDisposable
             }
         }
 
-        // add dependencies
-        foreach (NodeType n in GetDependNodes())
+        // add references
+        foreach (NodeType n in GetReferenceTypes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
             await n.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
-        }
-
-        if (_refTypes != null)
-        {
-            foreach (var refType in _refTypes)
-                await refType.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
         }
 
         return root;
@@ -263,12 +275,12 @@ public abstract class NodeType: IDisposable
 
     #endregion
 
-    #region Reference
+    #region UsedBy
     
     /// <summary>
     /// Used by unknown objects
     /// </summary>
-    public virtual void AddRef<T>(T usedBy)
+    public virtual void AddUsedBy<T>(T usedBy)
     {
         if ((LoadState & SchemaLoadState.System) == SchemaLoadState.System) return;
         
@@ -289,7 +301,7 @@ public abstract class NodeType: IDisposable
     /// <summary>
     /// Remove a ref from another node
     /// </summary>
-    public virtual void RemoveRef<T>(T usedBy)
+    public virtual void RemoveUsedBy<T>(T usedBy)
     {
         if (usedBy is NodeType any)
         {
@@ -299,6 +311,18 @@ public abstract class NodeType: IDisposable
         
         if (_usedByOther != null && _usedByOther.TryGetValue(typeof(T), out ConcurrentDictionary<object, bool>? dict))
             dict.TryRemove(usedBy!, out _);
+    }
+
+    #endregion
+
+    #region Implementation of INodeReference
+
+    /// <inheritdoc/>
+    public IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (_refTypes == null) yield break;
+        foreach (var t in _refTypes)
+            yield return t;
     }
 
     #endregion
@@ -346,16 +370,16 @@ public abstract class ValueType : NodeType
     
     #region Override Methods
 
-    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema)
+    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? generics = null)
     {
-        await base.LoadTypeAsync(context, schema);
+        await base.LoadTypeAsync(context, schema, generics);
         _constraints = GetProperties<IConstraintProperty>().ToArray();
     }
 
     /// <summary>
     /// Used by unknown objects
     /// </summary>
-    public override void AddRef<T>(T usedBy)
+    public override void AddUsedBy<T>(T usedBy)
     {
         switch (usedBy)
         {
@@ -374,13 +398,13 @@ public abstract class ValueType : NodeType
                 break;
         }
 
-        base.AddRef(usedBy);
+        base.AddUsedBy(usedBy);
     }
 
     /// <summary>
     /// Remove a ref from another node
     /// </summary>
-    public override void RemoveRef<T>(T usedBy)
+    public override void RemoveUsedBy<T>(T usedBy)
     {
         if (usedBy is FunctionType { ReturnNode: not null } func 
             && _isAssignableTo != null
@@ -391,7 +415,7 @@ public abstract class ValueType : NodeType
 
         if (usedBy != null && usedBy.Equals(ArrayType)) ArrayType = null;
         
-        base.RemoveRef(usedBy);
+        base.RemoveUsedBy(usedBy);
     }
 
     #endregion
@@ -402,6 +426,12 @@ public abstract class ValueType : NodeType
     /// Validate the value with the schema
     /// </summary>
     public abstract Task<DataNode> ValidateValueAsync(SchemaContext context, object? value);
+
+    /// <summary>
+    /// Gets the child value type by given path
+    /// </summary>
+    /// <param name="path">The access path, like 'pos.x'</param>
+    public virtual ValueType? GetChildValueType(string path) => null;
 
     /// <summary>
     /// The value type is assignable to other value type
@@ -418,11 +448,6 @@ public abstract class ValueType : NodeType
     /// The value type is assignable from other value type
     /// </summary>
     public bool IsAssignableFrom(ValueType other) => other.IsAssignableFrom(this);
-
-    /// <summary>
-    /// Generate the node type with generic parameters
-    /// </summary>
-    public virtual Task<NodeType?> GetGenericTypeAsync(SchemaContext context, string[] types) => Task.FromResult<NodeType?>(null);
 
     #endregion
 }

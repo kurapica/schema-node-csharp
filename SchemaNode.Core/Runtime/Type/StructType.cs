@@ -4,13 +4,12 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Reflection;
-using System.Text.Json;
 using System.Text.Json.Nodes;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
 
@@ -19,194 +18,138 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class StructType: ValueType
 {
-    #region Data
+    #region Fields
     
     /// <summary>
     /// The struct fields
     /// </summary>
-    public StructFieldSchema[] Fields { get; set; } = [];
-    
-    /// <summary>
-    /// The relations between the fields
-    /// </summary>
-    public RelationSchema[]? Relations { get; set; }
+    private List<StructFieldType> _fields = [];
 
     /// <summary>
     /// The union validations
     /// </summary>
-    public StructUnionValidation[]? UnionValids { get; set; }
+    private List<StructUnionValidation>? _unionValids;
+    
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    private List<IRelationProcess>? _relations;
     
     #endregion
-
-    #region State
-
-    /// <summary>
-    /// The fields with validation order
-    /// </summary>
-    StructFieldSchema[] ValidateFields = [];
-
-    #endregion
         
-    #region Methods
+    #region Implementations
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
+        // reset
+        _fields = [];
+        _relations = null;
+        
+        // load struct schema
         StructSchema? @struct = GetPropertyValue<StructSchema>();
-        
-        // Data
-        Fields = @struct?.Fields ?? [];
-        Relations = @struct?.GetProperty<RelationsProperty>()?.Value;
-        GenericParameter[]? genericParams = @struct?.GetProperty<Generics>()?.Value;
-        
-        // Status
-        if (@struct == null) Error = ErrorCodes.NO_DEFINITION;
-               
-        // Load Fields
-        foreach (StructFieldSchema field in Fields)
+        if (@struct == null)
         {
-            await field.LoadFieldSchema(context, this, genericParams);
-            if (field.Status.HasValue && field.Status != SchemaNodeStatus.Ready)
-            {
-                Error = field.Status.Value;
-            }
+            Error = ErrorCodes.NO_DEFINITION;
+            return;
+        }
+        GenericParameter[]? genericParams = @struct.GetProperty<Generics>()?.Value;
+        
+        // load fields
+        foreach (StructFieldSchema field in @struct.Fields)
+        {
+            field.Error = null;
+            StructFieldType fieldType = new();
+            await fieldType.LoadAsync(context, field, genericParams, Generics);
+            Error ??= field.Error;
+            _fields.Add(fieldType);
         }
 
         // Load Relation
-        Dictionary<StructFieldSchema, List<StructFieldSchema>> dependsMap = new();
-        if (Relations != null)
+        RelationSchema[]? relations = @struct.GetProperty<RelationsProperty>()?.Value;
+        if (relations is { Length: > 0 })
         {
-            foreach (StructRelationSchema relation in Relations)
+            foreach (RelationSchema relation in relations)
             {
-                var field = !string.IsNullOrWhiteSpace(relation.Field) ? Fields.FirstOrDefault(f => f.Name.Equals(relation.Field, StringComparison.OrdinalIgnoreCase)) : null;
-                if (field == null)
-                {
-                    relation.Status = SchemaNodeStatus.StructRelationshipWrongField;
-                    Error = SchemaNodeStatus.StructRelationshipWrongField;
-                    continue;
-                }
-
-                if (string.IsNullOrWhiteSpace(relation.Prop))
-                {
-                    relation.Status = SchemaNodeStatus.StructRelationshipWrongProp;
-                    Error = SchemaNodeStatus.StructRelationshipWrongProp;
-                    continue;
-                }
-
-                FunctionType? funcNode = !string.IsNullOrWhiteSpace(relation.Func) ? await context.GetNodeTypeAsync<FunctionType>(relation.Func, preload: preload) : null;
-                if (funcNode == null)
-                {
-                    relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    Error = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    continue;
-                }
-                relation.Status = null;
-                relation.FuncNode = funcNode;
-                funcNode.AddRef(this);
-
-                // Check the constraint validation order based on the relation
-                if (field.Constraints != null && field.Constraints.Any(p => p.Name.Equals(relation.Prop, StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (!dependsMap.ContainsKey(field))
-                        dependsMap[field] = new List<StructFieldSchema>();
-                    foreach (var arg in relation.Args.Where(a => !string.IsNullOrWhiteSpace(a.Name)).Select(a => a.Name!.Split('.', StringSplitOptions.RemoveEmptyEntries).First()))
-                    {
-                        var depField = Fields.FirstOrDefault(f => f.Name.Equals(arg, StringComparison.OrdinalIgnoreCase));
-                        if (depField == null || dependsMap[depField] != null && dependsMap[depField].Contains(field))
-                        {
-                            relation.Status = SchemaNodeStatus.StructRelationshipWrongArguments;
-                            Error = SchemaNodeStatus.StructRelationshipWrongArguments;
-                            break;
-                        }
-                        dependsMap[field].Add(depField);
-                    }
-                }
+                IRelationProcess? process = await context.GetRelationProcessAsync(this, relation);
+                if (process == null) continue;
+                if (process is INodeError error && !string.IsNullOrWhiteSpace(error.Error))
+                    Error ??= error.Error;
+                _relations ??= [];
+                _relations.Add(process);
             }
         }
-
+        
         // Load Union Validation
-        if (UnionValids is { Length: > 0 })
+        if (@struct.UnionValids is { Length: > 0 })
         {
-            foreach (StructUnionValidation valid in UnionValids)
-            {
-                NodeType? funcNode = await context.GetSchemaTypeAsync(valid.Func, preload: preload);
-                if (funcNode is not FunctionType node)
+            _unionValids = @struct.UnionValids
+                .Where(v => !string.IsNullOrWhiteSpace(v.Func))
+                .Select(v => new StructUnionValidation
                 {
-                    valid.Status = SchemaNodeStatus.StructHasWrongValid;
-                    Error = SchemaNodeStatus.StructHasWrongValid;
-                    continue;
+                    Func = v.Func,
+                    Args = v.Args,
+                }).ToList();
+            foreach (StructUnionValidation valid in _unionValids)
+            {
+                FunctionType? funcNode = await context.GetNodeTypeAsync<FunctionType>(valid.Func);
+                if (funcNode != null)
+                {
+                    valid.FuncNode = funcNode;
                 }
-                valid.Status = null;
-                valid.FuncNode = node;
-                node.AddRef(this);
-            }
-        }
-
-        List<StructFieldSchema> orderFields = [];
-
-        // Build the struct field validation order
-        void BuildOrderField(StructFieldSchema field, bool require = false)
-        {
-            if (orderFields.Contains(field)) return;
-            if (!require && field.DisplayOnly == true) return;
-
-            if (dependsMap.TryGetValue(field, out var depends))
-            {
-                foreach (StructFieldSchema dep in depends)
+                else
                 {
-                    BuildOrderField(dep, true);
+                    valid.Error = ErrorCodes.STRUCT_VALID_FUNC_NOT_EXIST;
+                    Error ??= valid.Error;
                 }
             }
-            orderFields.Add(field);
         }
-
-        foreach (var field in Fields)
-            BuildOrderField(field);
-
-        ValidateFields = orderFields.ToArray();
     }
 
     /// <inheritdoc />
     public override void Release()
     {
-        foreach (StructFieldSchema config in Fields)
+        _fields = [];
+        _relations = null;
+        _unionValids = null;
+    }
+
+    /// <summary>
+    /// Gets the references types
+    /// </summary>
+    public new IEnumerable<NodeType> GetReferenceTypes()
+    {
+        foreach (StructFieldType field in _fields)
         {
-            config.UnloadFieldSchema(this);
+            foreach (NodeType node in field.GetReferenceTypes())
+                yield return node;
         }
 
-        if (Relations != null)
+        if (_relations != null)
         {
-            foreach (StructRelationSchema relation in Relations)
-            {
-                relation.FuncNode?.RemoveRef(this);
-                relation.FuncNode = null;
-            }
+            foreach (INodeReferences nodeRefs in _relations.Cast<INodeReferences>())
+            foreach (NodeType node in nodeRefs.GetReferenceTypes())
+                yield return node;
         }
 
-        if (UnionValids != null)
+        if (_unionValids != null)
         {
-            foreach (StructUnionValidation valid in UnionValids)
-            {
-                valid.FuncNode?.RemoveRef(this);
-                valid.FuncNode = null;
-            }
+            foreach(StructUnionValidation valid in _unionValids)
+                if (valid.FuncNode != null)
+                    yield return valid.FuncNode;
         }
         
-        // Gets relative struct types
-        List<NodeType> relTypes = [this];
-        
-        if (UsedBy is { Count: > 0 })
-            relTypes.AddRange(UsedBy.Keys.Where(p => p.Type == NodeType.Struct));
+        foreach (NodeType nodeType in base.GetReferenceTypes())
+            yield return nodeType;
+    }
 
-        foreach (NodeType node in relTypes.ToList().Where(node => node.UsedBy is { Count: > 0 }))
-            relTypes.AddRange(node.UsedBy!.Keys.Where(p => p.Type == NodeType.Array));
-
-        // Gets the relative field type
-        foreach (AppFieldType field in relTypes.Where(node => node.UsedByApp is { Count: > 0 }).SelectMany(node => node.UsedByApp!.Keys))
-            field.Schema = null; // Clear to reload
-
-        // Clear the validation
-        ValidateFields = [];
+    /// <inheritdoc />
+    public override ValueType? GetChildValueType(string path)
+    {
+        string[] parts = path.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        StructFieldType? field = _fields.FirstOrDefault(f => f.Name.Equals(parts[0], StringComparison.OrdinalIgnoreCase));
+        if (field == null) return null;
+        return parts.Length == 1 ? field.Type : field.Type?.GetChildValueType(string.Join('.', parts.Skip(1)));
     }
 
     /// <inheritdoc />
@@ -242,7 +185,7 @@ public sealed class StructType: ValueType
                         {
                             // Check if there's a relation that provides an override value for this constraint property
                             Node.DataNode? overrideVal = null;
-                            var relation = Relations?.FirstOrDefault(r =>
+                            var relation = _relations?.FirstOrDefault(r =>
                                 r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
                                 r.Prop.Equals(constraint.Name, StringComparison.OrdinalIgnoreCase));
 
@@ -274,7 +217,7 @@ public sealed class StructType: ValueType
             }
             else if (field.Require ?? false)
             {
-                StructRelationSchema? r = Relations?.FirstOrDefault(r => 
+                StructRelationSchema? r = _relations?.FirstOrDefault(r => 
                     r.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) &&
                     r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
 
@@ -310,7 +253,7 @@ public sealed class StructType: ValueType
 
         if (additionalField != null)
         {
-            string[] fieldsName = Fields.Select(f => f.Name).ToArray();
+            string[] fieldsName = _fields.Select(f => f.Name).ToArray();
             JsonObject additionalData = new();
             foreach (var kv in jObject)
             {
@@ -326,9 +269,9 @@ public sealed class StructType: ValueType
         }
 
         // Union validation
-        if (error == null && UnionValids is { Length: > 0 })
+        if (error == null && _unionValids is { Length: > 0 })
         {
-            foreach(var r in UnionValids)
+            foreach(var r in _unionValids)
             {
                 var valid = r.FuncNode ?? await context.GetNodeTypeAsync<FunctionType>(r.Func);
                 if (valid == null) continue;
@@ -373,54 +316,26 @@ public sealed class StructType: ValueType
     {
         if (Name.Equals(NS_SYSTEM_STRUCT) || other.Name.Equals(NS_SYSTEM_STRUCT) || base.CanBeUseAs(other, exactly)) return true;
         if (other is not StructType @struct) return false;
-        return @struct.Fields.Any(v => Fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
-               && @struct.Fields.All(v =>
+        return @struct._fields.Any(v => _fields.Any(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase))) 
+               && @struct._fields.All(v =>
                {
-                   StructFieldSchema? match = Fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
+                   StructFieldSchema? match = _fields.FirstOrDefault(f => f.Name.Equals(v.Name, StringComparison.OrdinalIgnoreCase));
                    return match?.SchemaType == null ? !(v.Require ?? false) : v.SchemaType != null && match.SchemaType.CanBeUseAs(v.SchemaType);
                });
     }
-
-    public override IEnumerable<NodeType> GetDependNodes()
-    {
-        foreach (StructFieldSchema field in Fields)
-        {
-            if (field.SchemaType != null)
-                yield return field.SchemaType;
-        }
-        if (Relations != null)
-        {
-            foreach (StructRelationSchema relation in Relations)
-            {
-                if (relation.FuncNode != null)
-                    yield return relation.FuncNode;
-            }
-        }
-    }
-
-    public IReadOnlyList<PropertyInfo>? GetCSharpProperties(bool primary = false)
-    {
-        return GetStructFieldCSharpProperties(Name, primary);
-    }
     
-    /// <summary>
-    /// Gets the field by name
-    /// </summary>
-    public StructFieldSchema? GetField(string fieldName) 
-        => Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
-
     /// <summary>
     /// Resolve a relation function call to get an override value as AnySchemaNode, using already validated struct fields as arguments.
     /// </summary>
     private static async Task<Node.DataNode?> ResolveRelationNodeAsync(
-        SchemaContext context, StructRelationSchema relation, StructNode result)
+        SchemaContext context, RelationSchema relation, StructNode result)
     {
         if (relation.FuncNode == null) return null;
 
         var args = new object?[relation.Args.Length];
         for (int k = 0; k < relation.Args.Length; k++)
         {
-            FuncCallArg arg = relation.Args[k];
+            CallArg arg = relation.Args[k];
             if (!string.IsNullOrEmpty(arg.Name))
                 args[k] = result.GetValueByPaths(arg.Name.Split('.', StringSplitOptions.RemoveEmptyEntries));
             else
@@ -432,275 +347,149 @@ public sealed class StructType: ValueType
 
     #endregion
 
-    #region Static Feature
+    #region Methods
+    
+    /// <summary>
+    /// Gets the field by name
+    /// </summary>
+    public StructFieldType? GetField(string fieldName) 
+        => _fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+    
+    #endregion
+}
+
+/// <summary>
+/// The runtime struct field type
+/// </summary>
+public class StructFieldType : INodeReferences
+{
+    /// <summary>
+    /// The field name
+    /// </summary>
+    public string Name { get; private set; } = String.Empty;
 
     /// <summary>
-    /// Generate system enum
+    /// The type node ref
     /// </summary>
-    public static NodeSchema[] GenerateSystemStruct(Type type, string? ns = null)
+    public ValueType? Type { get; private set; }
+    
+    /// <summary>
+    /// The properties
+    /// </summary>
+    internal IProperty[]? Properties { get; private set; }
+
+    /// <summary>
+    /// The constraint properties from Extensions
+    /// </summary>
+    internal IConstraintProperty[]? Constraints { get; private set; }
+
+    /// <summary>
+    /// The ref types from the properties in Extensions
+    /// </summary>
+    internal NodeType[]? RefTypes { get; private set; }
+    
+    /// <summary>
+    /// The node data is required.
+    /// </summary>
+    public bool? Require { get; private set; }
+
+    /// <summary>
+    /// The node should be display only, won't be submitted.
+    /// </summary>
+    public bool? DisplayOnly { get; private set; }
+
+    /// <summary>
+    /// Unpack/pack additional data for the json node.
+    /// </summary>
+    public bool? Unpack { get; private set; }
+
+    /// <summary>
+    /// The default value of the node.
+    /// </summary>
+    public DataNode? Default { get; private set; }
+
+    /// <summary>
+    /// The low limit of the scalar value.
+    /// </summary>
+    public object? LowLimit { get; private set; }
+
+    /// <summary>
+    /// The up limit of the scalar value.
+    /// </summary>
+    public object? UpLimit { get; private set; }
+
+    /// <summary>
+    /// Load struct field schema
+    /// </summary>
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? genericParams = null, IReadOnlyList<NodeType>? genericTypes = null)
     {
-        if (type is { IsClass: false, IsValueType: false } || 
-            type is { IsClass: true, IsAbstract: true } ||
-            (type.IsValueType && type.IsPrimitiveLike())) return [];
-        
-        List<PropertyInfo> fieldMaps = [];
-        string[] primarys = [];
-        Dictionary<string, string[]> indexes = [];
-        SchemaAttribute? typeAttr = type.GetCustomAttribute<SchemaAttribute>();
-        string typeName = typeAttr?.Name ?? $"{(string.IsNullOrWhiteSpace(ns) ? "" : $"{ns}.")}{type.Name.ToLowerInvariant()}";
-        bool hasNestType = false;
-
-        // Keep in the same namespace if the struct is marked with SchemaAttribute, otherwise use the parent namespace
-        if (typeAttr?.Name != null)
-            ns = string.Join('.', typeAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
-
-        List<StructFieldSchema> fieldConfigs = [];
-        foreach (PropertyInfo p in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance).Where(p =>
-                     p.GetMethod?.IsPrivate != true &&
-                     p.GetCustomAttribute<NotMappedAttribute>() == null &&
-                     p is { CanRead: true, CanWrite: true })
-                     .OrderBy(p => p.MetadataToken)) // with define order
+        if (await context.GetNodeTypeAsync(field.Type, genericParams) is not ValueType valueType)
         {
+            field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
+            return;
+        }
 
-            SchemaAttribute? fieldAttr = p.GetCustomAttribute<SchemaAttribute>();
-            string fieldName = p.Name.ToCamelCase();
-            
-            // Gets the field type
-            string? fieldType = fieldAttr?.Name;
-            if (string.IsNullOrWhiteSpace(fieldType))
+        // Generic type resolution
+        if (valueType is GenericType gen && genericTypes is { Count: > 0 })
+        {
+            int index = Array.FindIndex(genericParams ?? [], p => p.Name.Equals(gen.Name, StringComparison.OrdinalIgnoreCase));
+            if (index >= 0 && index < genericTypes.Count)
+                valueType = genericTypes[index] as ValueType ?? valueType;
+            if (valueType is GenericType)
             {
-                var info = p.PropertyType.GetSchemaTypeInfo();
-                if (info?.BaseType == type)
-                {
-                    hasNestType = true;
-                    if (info.AnyArray)
-                    {
-                        fieldType = $"{typeName}s";
-                    }
-                    else
-                        fieldType = typeName;
-                }
-                else
-                    fieldType = info?.GetSchemaType(true, ns);
-                if (string.IsNullOrWhiteSpace(fieldType))
-                    continue;
+                field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
+                return;
             }
-            
-            StructFieldSchema config = new ()
+        }
+        Type = valueType;
+        
+        // Properties
+        IProperty[] props = context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)
+            .Select(field.GetProperty).Where(p => p is { HasValue: true })
+            .Cast<IProperty>().ToArray();
+        IConstraintProperty[] constraints = props.Cast<IConstraintProperty>().ToArray();
+        ITypeRefProperty[] typeRefs = props.Cast<ITypeRefProperty>().ToArray();
+        
+        // ref types
+        List<NodeType>? refTypes = null;
+        foreach (ITypeRefProperty prop in typeRefs)
+        {
+            string? name = prop.GetValue<string>();
+            NodeType? refType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+            if (refType != null)
             {
-                Name = fieldName,
-                Type = fieldType,
-                Display = fieldAttr?.Display ?? type.GetSummaryFromXmlDoc(p) ?? $"{typeName}.{fieldName}",
-            };
-
-            if (p.GetCustomAttribute<RequiredAttribute>() != null)
-            {
-                config.Extensions ??= [];
-                config.Extensions["require"] = JsonSerializer.SerializeToElement(true);
-            }
-
-            // limit check
-            if (config.Type == NS_SYSTEM_STRING)
-            {
-                StringLengthAttribute? strLenAttr = p.GetCustomAttribute<StringLengthAttribute>();
-                MaxLengthAttribute? maxLengthAttribute = p.GetCustomAttribute<MaxLengthAttribute>();
-
-                long? upLimit = strLenAttr?.MaximumLength ?? maxLengthAttribute?.Length;
-                long? lowLimit = strLenAttr?.MinimumLength;
-
-                if (upLimit.HasValue)
-                {
-                    config.Extensions ??= [];
-                    config.Extensions[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(upLimit.Value);
-                }
-
-                if (lowLimit.HasValue)
-                {
-                    config.Extensions ??= [];
-                    config.Extensions[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(lowLimit.Value);
-                }
+                refTypes ??= [];
+                refTypes.Add(refType);
             }
             else
             {
-                RangeAttribute? rangeAttr = p.GetCustomAttribute<RangeAttribute>();
-                if (rangeAttr != null)
-                {
-                    config.Extensions ??= [];
-                    config.Extensions[PROPERTY_UPLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Maximum);
-                    config.Extensions[PROPERTY_LOWLIMIT] = JsonSerializer.SerializeToElement(rangeAttr.Minimum);
-                }
-            }
-
-            // index check
-            foreach(IndexAttribute attr in p.GetCustomAttributes<IndexAttribute>())
-            {
-                if (string.IsNullOrEmpty(attr.Name))
-                {
-                    // primary
-                    if (attr.Order >= primarys.Length)
-                        Array.Resize(ref primarys, attr.Order + 1);
-
-                    if (string.IsNullOrWhiteSpace(primarys[attr.Order]))
-                    {
-                        // with given order
-                        primarys[attr.Order] = config.Name;
-                    }
-                    else
-                    {
-                        // follow default order
-                        Array.Resize(ref primarys, primarys.Length + 1);
-                        primarys[^1] = config.Name;
-                    }
-                }
-                else
-                {
-                    // normal index
-                    if (!indexes.ContainsKey(attr.Name)) indexes[attr.Name] = [];
-                    string[] fields = indexes[attr.Name];
-                    if (attr.Order >= fields.Length)
-                        Array.Resize(ref fields, attr.Order + 1);
-
-                    if (string.IsNullOrWhiteSpace(fields[attr.Order]))
-                    {
-                        // with given order
-                        fields[attr.Order] = config.Name;
-                    }
-                    else
-                    {
-                        // follow default order
-                        Array.Resize(ref fields, fields.Length + 1);
-                        fields[^1] = config.Name;
-                    }
-                    indexes[attr.Name] = fields;
-                }
-            }
-            
-            fieldMaps.Add(p);
-            fieldConfigs.Add(config);
-        }
-
-        NodeSchema structSchema = new ()
-        {
-            Name = typeName,
-            Type = NodeType.Struct,
-            Display = typeAttr?.Display ?? type.GetSummaryFromXmlDoc() ?? typeName,
-            Struct = new StructSchema
-            {
-                Fields = fieldConfigs.ToArray(),
-                Atomic = hasNestType ? true : null
-            }
-        };
-        CsharpTypeProperties[structSchema.Name.ToLower()] = fieldMaps;
-
-        if (SystemLocale.HasLocales)
-        {
-            SystemLocale.Translate(structSchema.Display, structSchema.Name);
-            foreach (StructFieldSchema field in structSchema.Struct!.Fields)
-                SystemLocale.Translate(field.Display);
-        }
-
-        if (primarys.Length == 0 && !hasNestType) return [structSchema];
-        CSharpTypePrimaryProperties[structSchema.Name.ToLower()] = primarys.Select(p => fieldMaps.First(f => f.Name.Equals(p, StringComparison.OrdinalIgnoreCase))).ToArray();
-
-        NodeSchema arraySchema = new NodeSchema
-        {
-            Name = $"{structSchema.Name}s",
-            Type = NodeType.Array,
-            Display = $"{Locale.LIST_PREFIX}{{@{structSchema.Name}}}{Locale.LIST_SUFFIX}",
-            Array = new ArraySchema
-            {
-                Element = structSchema.Name,
-                Primary = primarys,
-                Atomic = hasNestType ? true : null,
-                Indexes = indexes.Select(kv => new DataIndex
-                {
-                    Name = kv.Key,
-                    Fields = kv.Value
-                }).ToArray()
-            }
-        };
-        return [structSchema, arraySchema];
-    }
-    
-    /// <summary>
-    /// Gets the C# properties for the struct type
-    /// </summary>
-    internal static IReadOnlyList<PropertyInfo>? GetStructFieldCSharpProperties(string type, bool primary = false) => (primary ? CSharpTypePrimaryProperties : CsharpTypeProperties).GetValueOrDefault(type.GetBaseType().ToLower());
-    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CsharpTypeProperties = [];
-    static readonly ConcurrentDictionary<string, IReadOnlyList<PropertyInfo>> CSharpTypePrimaryProperties = [];
-
-    #endregion
-    
-    #region Conversion
-    
-    /// <summary>
-    /// Convert the node to schema
-    /// </summary>
-    public static implicit operator NodeSchema?(StructType? schema)
-    {
-        return schema?.ToSchema().With(new StructSchema
-        {
-            Fields = schema.Fields,
-            Relations = schema.Relations,
-            Atomic = schema.Atomic
-        });
-    }
-    
-    #endregion
-    
-    #region Generic Struct Implementations
-
-    /// <summary>
-    /// Get the generic struct type
-    /// </summary>
-    public async Task<StructType?> GetGenericTypeAsync(SchemaContext context, string[] types)
-    {
-        string[] generics = Fields.Where(f => f.SchemaType is GenericType).Select(f => f.Type).Distinct().ToArray();
-        if (generics.Length == 0 || generics.Length != types.Length) return null; // Not a generic struct or not contains
-
-        _genericTypes ??= new ConcurrentDictionary<string, StructType>();
-        string key = string.Join('|', types);
-        if (_genericTypes.TryGetValue(key, out StructType? type)) return type;
-        
-        // Generate new struct type
-        StructType newStruct = new()
-        {
-            Name = $"{Name}<{string.Join(',', types)}>",
-            Display = $"{Locale.LIST_PREFIX}{string.Join(",", types.Select(t => $"{{@{t}}}"))}{Locale.LIST_SUFFIX}",
-            Fields = new StructFieldSchema[Fields.Length],
-            Namespace = Namespace,
-            Relations = Relations,
-            Atomic = Atomic,
-        };
-
-        for (int i = 0; i < Fields.Length; i++)
-        {
-            StructFieldSchema f = Fields[i];
-            
-            if (f.SchemaType is GenericType)
-            {
-                StructFieldSchema copy = f.ToJsonNode()!.FromJson<StructFieldSchema>()!;
-                int index = Array.IndexOf(generics, f.Type);
-                copy.Type = types[index];
-                NodeType? schemaType = await context.GetNodeTypeAsync(copy.Type);
-                if (schemaType == null || schemaType.Kind is NodeType.Namespace or NodeType.Func)
-                {
-                    return null;
-                }
-                copy.SchemaType = schemaType;
-                schemaType.AddRef(newStruct);
-                newStruct.Fields[i] = copy;
-            }
-            else
-            {
-                newStruct.Fields[i] = f;
+                field.Error = ErrorCodes.WRONG_REF_TYPE;
+                context.LogWarning($"Failed to load ref type '{name}' for property '{prop.GetType().GetPropertyName()}' in struct field '{field.Name}'");
             }
         }
         
-        return _genericTypes.GetOrAdd(key, newStruct);
+        // init
+        Name = field.Name;
+        Type = valueType;
+        Properties = props;
+        Constraints = constraints;
+        RefTypes = refTypes?.ToArray();
+        Require = props.FirstOrDefault(p => p is Require) is Require r ? r.Value : null;
+        DisplayOnly = props.FirstOrDefault(p => p is DisplayOnly) is DisplayOnly d ? d.Value : null;
+        Unpack = props.FirstOrDefault(p => p is Unpack) is Unpack u ? u.Value : null;
+        Default = props.FirstOrDefault(p => p is Default) is Default defProp ? await valueType.ValidateValueAsync(context, defProp.Value) : null;
+        UpLimit = props.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(UpLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
+        LowLimit = props.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(LowLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
     }
 
-    private ConcurrentDictionary<string, StructType>? _genericTypes;
-
-    #endregion
+    /// <summary>
+    /// Gets all references types
+    /// </summary>
+    public IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (Type != null) yield return Type;
+        if (RefTypes != null)
+            foreach (NodeType nodeType in RefTypes)
+                yield return nodeType;
+    }
 }

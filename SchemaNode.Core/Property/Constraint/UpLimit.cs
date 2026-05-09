@@ -11,7 +11,6 @@ namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_STRING)]
 [Meta<OptionDepends>(typeof(Require))]
 public class UplimitString : Property<long>, IConstraintProperty
 {
@@ -31,7 +30,6 @@ public class UplimitString : Property<long>, IConstraintProperty
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_NUMBER)]
 [Meta<OptionDepends>(typeof(Require))]
 public class UplimitNumber : Property<ScalarNode>, IConstraintProperty
 {
@@ -70,7 +68,6 @@ public class UplimitInt : Property<long>, IConstraintProperty
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_DATE)]
 [Meta<OptionDepends>(typeof(Require))]
 public class UplimitDate : Property<DateTimeOffset>, IConstraintProperty
 {

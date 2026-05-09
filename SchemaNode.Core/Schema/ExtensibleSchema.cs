@@ -171,6 +171,5 @@ public abstract class ExtensibleSchema : IPropertyOwner
         prop.SetValue(value);
         SetProperty(prop);
     }
-
     #endregion
 }

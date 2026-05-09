@@ -106,4 +106,19 @@ public abstract class DataNode
 
     // The internal value
     protected object? _value;
+    
+    /// <summary>
+    /// Gets the value by source
+    /// </summary>
+    /// <param name="source"></param>
+    /// <returns></returns>
+    public abstract DataNode? GetSourceValue(string source);
+
+    /// <summary>
+    /// Sets the target's property value
+    /// </summary>
+    /// <param name="target"></param>
+    /// <param name="prop"></param>
+    /// <param name="value"></param>
+    public abstract void SetPropertyValue(string target, string prop, DataNode? value);
 }

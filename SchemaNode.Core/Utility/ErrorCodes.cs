@@ -10,7 +10,13 @@ public static class ErrorCodes
 {
     [Meta<ErrorCode>(NO_DEFINITION)]
     public const string NO_DEFINITION = "no_definition";
+    
+    [Meta<ErrorCode>(RELATION_FUNC_NOT_EXIST)]
+    public const string RELATION_FUNC_NOT_EXIST = "relation_func_not_exist";
 
+    [Meta<ErrorCode>(STRUCT_VALID_FUNC_NOT_EXIST)]
+    public const string STRUCT_VALID_FUNC_NOT_EXIST = "struct_valid_func_not_exist";
+    
     [Meta<ErrorCode>(SCALAR_WRONG_BASE)]
     public const string SCALAR_WRONG_BASE = "scalar_wront_base";
     

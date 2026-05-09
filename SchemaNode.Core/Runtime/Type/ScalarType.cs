@@ -34,13 +34,14 @@ public abstract class ScalarType : ValueType
         }
     }
 
-    /// <inheritdoc />
-    public override void Release() => BaseNode?.RemoveRef(this);
-    
-    /// <inheritdoc />
-    public override IEnumerable<NodeType> GetDependNodes()
+    /// <summary>
+    /// Gets the reference types
+    /// </summary>
+    public new IEnumerable<NodeType> GetReferenceTypes()
     {
         if (BaseNode != null) yield return BaseNode;
+        foreach(var nodeType in base.GetReferenceTypes())
+            yield return nodeType;
     }
 
     /// <inheritdoc />

@@ -156,9 +156,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             }
             
             NodeType? result = next != null ? parent.GetNodeType(next) : parent;
+            NodeSchema? schema = result?.Schema;
             if (reload || result is not { Loaded: true })
             {
-                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, next ?? "");
+                schema = await LoadNodeSchemaAsync(parent != result ? parent : null, next ?? "");
                 if (schema == null) return null;
 
                 // node type
@@ -187,14 +188,48 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     foreach (NodeSchema s in schema.Schemas)
                         ns.SaveNodeSchema(s);
                 }
+                
+                // Generic Types Reloading
+                if (result.GenericMap is { Count: > 0 })
+                {
+                    foreach (NodeType g in result.GenericMap.Values)
+                        await g.LoadTypeAsync(this, schema.Clone(runtime), g.Generics!.ToArray());
+                }
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
             }
 
             if (generic is not { Length: > 0 }) return result;
-            return result is Runtime.ValueType valType
-                ? await valType.GetGenericTypeAsync(this, generic)
-                : null;
+
+            #region Generics Type
+            
+            string key = string.Join(',', generic);
+            if (result.GenericMap != null && result.GenericMap.TryGetValue(key, out NodeType? genericType))
+                return genericType;
+            
+            NodeType[] genericTypes = new NodeType[generic.Length];
+            for (int i = 0; i < generic.Length; i++)
+            {
+                NodeType? type = !string.IsNullOrWhiteSpace(generic[i]) ? await GetNodeTypeAsync(generic[i]) : null;
+                if (type == null)
+                {
+                    LogError("Generic type {genericType} of {schemaName} not found", generic[i], fullName);
+                    return null;
+                }
+                genericTypes[i] = type;
+            }
+            genericType = ActivatorUtilities.CreateInstance(Services, result.GetType()) as NodeType;
+            if (genericType == null)
+            {
+                LogError("Generic type {schemaName} load failed", fullName);
+                return null;
+            }
+            result.GenericMap ??= new ConcurrentDictionary<string, NodeType>();
+            result.GenericMap[key] = genericType;
+            await genericType.LoadTypeAsync(this, schema!.Clone(runtime), genericTypes);
+            return genericType;
+
+            #endregion
         }
         
         async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name)
@@ -374,5 +409,4 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     }
 
     #endregion
-    
 }

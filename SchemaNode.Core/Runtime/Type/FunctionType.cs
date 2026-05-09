@@ -205,15 +205,15 @@ public sealed class FunctionType : NodeType
         // Add usages
         if (Error == SchemaNodeStatus.Ready)
         {
-            ReturnNode?.AddRef(this);
+            ReturnNode?.AddUsedBy(this);
             foreach (FunctionNodeArgument arg in Args)
-                arg.SchemaType?.AddRef(this);
+                arg.SchemaType?.AddUsedBy(this);
             
             // Add ref
             foreach (FunctionNodeExpression exp in Exps)
             {
-                exp.SchemaType?.AddRef(this);
-                exp.FuncNode?.AddRef(this);
+                exp.SchemaType?.AddUsedBy(this);
+                exp.FuncNode?.AddUsedBy(this);
                 
                 // State taint
                 if (exp.FuncNode?.RequireRemoteCall == true)
@@ -238,19 +238,19 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override void Release()
     {
-        ReturnNode?.RemoveRef(this);
+        ReturnNode?.RemoveUsedBy(this);
         ReturnNode = null;
         foreach (FunctionNodeArgument arg in Args)
         {
-            arg.SchemaType?.RemoveRef(this);
+            arg.SchemaType?.RemoveUsedBy(this);
             arg.SchemaType = null;
         }
 
         foreach (FunctionNodeExpression exp in Exps)
         {
-            exp.SchemaType?.RemoveRef(this);
+            exp.SchemaType?.RemoveUsedBy(this);
             exp.SchemaType = null;
-            exp.FuncNode?.RemoveRef(this);
+            exp.FuncNode?.RemoveUsedBy(this);
             exp.FuncNode = null;
         }
         Args = [];

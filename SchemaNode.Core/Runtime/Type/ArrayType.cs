@@ -92,7 +92,7 @@ public sealed class ArrayType: ValueType
             else
             {
                 ElementSchemaType = node;
-                node.AddRef(this);
+                node.AddUsedBy(this);
             }
         }
         
@@ -109,7 +109,7 @@ public sealed class ArrayType: ValueType
                     continue;
                 }
                 relation.FuncNode = funcNode;
-                funcNode.AddRef(this);
+                funcNode.AddUsedBy(this);
             }
         }
     }
@@ -117,7 +117,7 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override void Release()
     {
-        ElementSchemaType?.RemoveRef(this);
+        ElementSchemaType?.RemoveUsedBy(this);
         ElementSchemaType = null;
 
         if (Relations != null)
@@ -311,7 +311,7 @@ public sealed class ArrayType: ValueType
                 Provider = Provider,
                 Extensions = Extensions
             };
-            eleType.AddRef(arrayType);
+            eleType.AddUsedBy(arrayType);
             return arrayType;
         });
     }
@@ -341,7 +341,7 @@ public sealed class ArrayType: ValueType
                 Provider = Provider,
                 Extensions = Extensions
             };
-            elementType.AddRef(arrayType);
+            elementType.AddUsedBy(arrayType);
             return arrayType;
         });
     }

@@ -1,18 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
+﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Context;
-using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Service;
-using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Schema.NodeType;
@@ -122,165 +116,12 @@ public sealed class StructFieldSchema : ExtensibleSchema
     [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
 
+    /// <inheritdoc/>
     public override bool Equals(ExtensibleSchema? other)
     {
         if (other is not StructFieldSchema otherField) return false;
         return ReferenceEquals(this, otherField) || Name.Equals(otherField.Name, StringComparison.OrdinalIgnoreCase);
     }
-
-    #region Runtime
-  
-    /// <summary>
-    /// The type node ref
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal Runtime.ValueType? NodeType { get; set; }
-    
-    /// <summary>
-    /// The properties
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal IProperty[]? Properties { get; set; }
-
-    /// <summary>
-    /// The constraint properties from Extensions
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal IConstraintProperty[]? Constraints { get; set; }
-
-    /// <summary>
-    /// The ref types from the properties in Extensions
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal Runtime.NodeType[]? RefTypes { get; set; }
-    
-    /// <summary>
-    /// The node data is required.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public bool? Require { get; private set; }
-
-    /// <summary>
-    /// The node should be display only, won't be submitted.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public bool? DisplayOnly { get; private set; }
-
-    /// <summary>
-    /// Unpack/pack additional data for the json node.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public bool? Unpack { get; private set; }
-
-    /// <summary>
-    /// The default value of the node.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public object? Default { get; private set; }
-
-    /// <summary>
-    /// The low limit of the scalar value.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public object? LowLimit { get; private set; }
-
-    /// <summary>
-    /// The up limit of the scalar value.
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public object? UpLimit { get; private set; }
-
-    // Load field schema    
-    internal async Task LoadFieldSchema(SchemaContext context, Runtime.StructType @struct, GenericParameter[]? genericParameters = null)
-    {
-        Error = null;
-        if (await context.GetNodeTypeAsync(Type, genericParameters) is not Runtime.ValueType nodeType)
-        {
-            Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
-            return;
-        }
-
-        NodeType = nodeType;
-        nodeType.AddRef(@struct);
-
-        Properties = null;
-        Constraints = null;
-        RefTypes = null;
-
-        // Collect property names referenced by relations for this field
-        var relationProps = @struct.Relations?
-            .Where(rs => rs.Target.Equals(Name, StringComparison.OrdinalIgnoreCase))
-            .Select(rs => rs.Property).ToArray();
-
-        if (Extensions != null || relationProps?.Any() == true)
-        {
-            Properties = PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.StructField, Extensions ?? new(), SchemaType, relationProps)?.ToArray();
-
-            if (Properties is { Length: > 0 })
-            {
-                Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
-                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty && p.HasValue).Cast<ITypeRefProperty>())
-                {
-                    string? name = typeRef.GetValue<string>();
-                    AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;
-                    if (node != null)
-                    {
-                        RefTypes ??= [];
-                        RefTypes.Add(node);
-                        node.AddRef(@struct);
-                    }
-                    else
-                    {
-                        Status = SchemaNodeStatus.WrongRefType;
-                        context.LogWarning($"Failed to load ref type '{name}' for property '{typeRef.Name}' in schema '{Name}'");
-                    }
-                }
-            }
-        }
-
-        // Cache
-        Require = Properties?.FirstOrDefault(p => p is Require) is Require r ? r.Value : null;
-        DisplayOnly = Properties?.FirstOrDefault(p => p is DisplayOnly) is DisplayOnly d ? d.Value : null;
-        Unpack = Properties?.FirstOrDefault(p => p is Unpack) is Unpack u ? u.Value : null;
-        Default = Properties?.FirstOrDefault(p => p is Default) is Default def ? def.Value : null;
-        UpLimit = Properties?.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(UpLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
-        LowLimit = Properties?.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(LowLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
-    }
-
-    internal void UnloadFieldSchema(StructType @struct)
-    {
-        if (NodeType != null) NodeType.RemoveRef(@struct);
-        if (RefTypes != null)
-        {
-            foreach (var type in RefTypes)
-            {
-                type.RemoveRef(@struct);
-            }
-        }
-        Properties = null;
-        Constraints = null;
-        RefTypes = null;
-        Error = null;
-
-        Require = null;
-        DisplayOnly = null;
-        Unpack = null;
-        Default = null;
-        UpLimit = null;
-        LowLimit = null;
-    }
-
-    #endregion
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.unionvalid")]
