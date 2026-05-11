@@ -163,7 +163,6 @@ public static partial class SchemaNodeExtensions
         Type[] SortProperties(List<Type> types)
         {
             List<Type> sorted = [];
-
             foreach (Type type in types)
                 InsertPropertyType(type);
 
@@ -171,10 +170,7 @@ public static partial class SchemaNodeExtensions
             {
                 if (sorted.Contains(type)) return true;
                 
-                Type[]? depends = type.GetMetaProperty<Depends>()?.GetValue<Depends>()?.GetValue<Type[]>();
-                Type[]? optionDepends = type.GetMetaProperty<OptionDepends>()?.GetValue<OptionDepends>()?.GetValue<Type[]>();
-
-                if (depends is { Length: > 0 })
+                if (type.GetMetaProperty<Depend>()?.GetValue<Depend>()?.GetValue<Type[]>() is { Length: > 0 } depends)
                 {
                     foreach (Type depend in depends)
                     {
@@ -184,12 +180,13 @@ public static partial class SchemaNodeExtensions
                     }
                 }
 
-                if (optionDepends is  { Length: > 0 })
+                if (type.GetMetaProperty<Override>()?.GetValue<Override>()?.GetValue<Type[]>() is { Length: > 0 } overrides)
                 {
-                    foreach (Type option in optionDepends)
+                    foreach (Type @override in overrides)
                     {
-                        if (types.Contains(option))
-                            InsertPropertyType(option);
+                        if (types.Contains(@override) && InsertPropertyType(@override)) continue;
+                        logger.LogError("Failed to insert property type '{type}' due to missing or circular dependency on '{@override}'", type.FullName, @override.FullName);
+                        return false;
                     }
                 }
                 

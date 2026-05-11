@@ -8,7 +8,6 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Constraint;
 
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class Validate : Property<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
 {
     public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)

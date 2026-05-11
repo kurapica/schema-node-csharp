@@ -10,7 +10,6 @@ namespace SchemaNode.Property.Constraint;
 /// Don't allow flags enum value combination.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)

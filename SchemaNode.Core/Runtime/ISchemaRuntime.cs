@@ -31,4 +31,12 @@ public interface ISchemaRuntime
     /// <param name="valueType"></param>
     /// <returns></returns>
     Type? GetSchemaKindProperty(string kind, Type valueType);
+    
+    /// <summary>
+    /// Gets the schema property by property name
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <param name="propertyName"></param>
+    /// <returns></returns>
+    Type? GetSchemaKindPropertyByName(string kind, string propertyName);
 }

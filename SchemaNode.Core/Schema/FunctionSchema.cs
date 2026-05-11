@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
@@ -184,6 +185,20 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [Meta<SchemaType>(typeof(AnyType))]
     public string? Type { get; set; }
+    
+    /// <summary>
+    /// The node type of the call argument
+    /// </summary>
+    [SchemaIgnore] 
+    [JsonIgnore] 
+    public NodeType? NodeType { get; set; }
+
+    /// <summary>
+    /// The data node represents the value
+    /// </summary>
+    [SchemaIgnore] 
+    [JsonIgnore] 
+    public DataNode? Constant { get; set; }
 
     public bool Equals(CallArg? other)
     {

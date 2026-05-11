@@ -40,9 +40,9 @@ public class PropertySchema: ExtensibleSchema
     public string[]? Depends { get; set; }
 
     /// <summary>
-    /// The optional property names that this depends on
+    /// The other properties be overridden by this property
     /// </summary>
-    public string[]? OptionDepends { get; set; }
+    public string[]? Overrides { get; set; }
 
     /// <summary>
     /// The schema kinds that this property applies to

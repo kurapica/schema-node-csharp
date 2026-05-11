@@ -22,7 +22,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
         
         // Build property schema
-        schema.SetProperty<PropProperty, PropertySchema>( new PropertySchema()
+        schema.SetProperty<PropProperty, PropertySchema>( new PropertySchema
         {
             // name
             Property = type.GetPropertyName(),
@@ -31,16 +31,13 @@ internal class PropertyGenerator : INodeSchemaGenerator
             Type = typeResolver(valueType, @namespace) ?? throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
             
             // Depends
-            Depends = type.GetMetaProperty<Depends>()?.Value?.Select(t => typeResolver(t, @namespace))
-                .Where(s => s != null).Cast<string>().ToArray(),
-        
-            // OptionDepends
-            OptionDepends = type.GetMetaProperty<OptionDepends>()?.Value?.Select(t => typeResolver(t, @namespace))
-                .Where(s => s != null).Cast<string>().ToArray(),
+            Depends = type.GetMetaProperty<Depend>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),
+            
+            // Override
+            Overrides = type.GetMetaProperty<Override>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),
         
             // ForSchemas
-            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() 
-                         ?? throw new ArgumentException($"Type '{type}' is not a valid as property type."),
+            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>()  ?? throw new ArgumentException($"Type '{type}' is not a valid as property type."),
         });
         
         yield return schema;

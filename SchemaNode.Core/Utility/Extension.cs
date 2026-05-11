@@ -181,7 +181,7 @@ internal static class Extension
 
     #region JSON
 
-    extension(JsonNode value)
+    extension(JsonNode? value)
     {
         /// <summary>
         /// Convert the JsonNode to the given type

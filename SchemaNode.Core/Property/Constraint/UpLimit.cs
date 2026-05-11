@@ -11,7 +11,6 @@ namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class UplimitString : Property<long>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -30,7 +29,6 @@ public class UplimitString : Property<long>, IConstraintProperty
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class UplimitNumber : Property<ScalarNode>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -57,7 +55,6 @@ public class UplimitNumber : Property<ScalarNode>, IConstraintProperty
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class UplimitInt : Property<long>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -68,7 +65,6 @@ public class UplimitInt : Property<long>, IConstraintProperty
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class UplimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)

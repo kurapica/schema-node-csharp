@@ -11,7 +11,6 @@ namespace SchemaNode.Property.Constraint;
 /// Limit the enum's cascade level
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class Cascade : Property<long>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)

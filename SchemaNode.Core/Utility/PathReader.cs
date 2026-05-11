@@ -34,4 +34,6 @@ public ref struct PathReader(ReadOnlySpan<char> path)
 
         return true;
     }
+    
+    public static PathReader Create(ReadOnlySpan<char> path) => new(path);
 }

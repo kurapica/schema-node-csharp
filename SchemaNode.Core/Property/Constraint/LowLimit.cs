@@ -11,8 +11,6 @@ namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_STRING)]
-[Meta<OptionDepends>(typeof(Require))]
 public class LowLimitString : Property<long>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -30,8 +28,6 @@ public class LowLimitString : Property<long>, IConstraintProperty
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_NUMBER)]
-[Meta<OptionDepends>(typeof(Require))]
 public class LowLimitNumber : Property<ScalarNode>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -58,7 +54,6 @@ public class LowLimitNumber : Property<ScalarNode>, IConstraintProperty
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<OptionDepends>(typeof(Require))]
 public class LowLimitInt : Property<long>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
@@ -70,8 +65,6 @@ public class LowLimitInt : Property<long>, IConstraintProperty
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForValueTypes>(NS_SYSTEM_DATE)]
-[Meta<OptionDepends>(typeof(Require))]
 public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
     public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)

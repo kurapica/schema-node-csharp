@@ -42,7 +42,11 @@ public class SchemaRuntime : ISchemaRuntime
         }
         return null;
     }
-    
+
+    /// <inheritdoc/>
+    public Type? GetSchemaKindPropertyByName(string kind, string propertyName)
+        => GetSchemaKindProperties(kind).FirstOrDefault(propType => propertyName.Equals(propType.GetPropertyName(), StringComparison.OrdinalIgnoreCase));
+
     #endregion
 
     #region Node Type

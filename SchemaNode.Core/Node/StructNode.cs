@@ -43,17 +43,7 @@ public class StructNode : DataNode
         }
     }
 
-    /// <summary>
-    /// Get value with field name
-    /// </summary>
-    public DataNode? GetField(string fieldName)
-    {
-        var type = NodeType as StructType;
-        if (type == null) return null;
-        var index = Array.FindIndex(type.Fields, f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
-        if (index < 0 || index >= Fields.Length) return null;
-        return Fields[index];
-    }
+    public DataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((NodeType as StructType)!.GetIndex(segment));
 
     /// <summary>
     /// Gets the field schema
@@ -180,12 +170,12 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    internal DataNode? GetValueByPaths(IEnumerable<string> paths)
+    internal DataNode? GetValueByPaths(PathReader paths)
     {
         DataNode? node = this;
-        foreach (string path in paths)
+        while (paths.TryRead(out ReadOnlySpan<char> part))
         {
-            node = (node is StructNode obj) ? obj.GetField(path) : null;
+            node = (node is StructNode obj) ? obj.GetField(part) : null;
             if (node == null) return null;
         }
         return node;
@@ -194,7 +184,7 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(paths.Split('.', StringSplitOptions.RemoveEmptyEntries));
+    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(PathReader.Create(paths));
 
     public override object? ToTypeValue(Type type)
     {

@@ -1,3 +1,4 @@
+using System.Runtime.Loader;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -8,6 +9,8 @@ using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;
+using Type = System.Type;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -68,6 +71,24 @@ public sealed class StructType: ValueType
         {
             foreach (RelationSchema relation in relations)
             {
+                // Gets the target type
+                PathReader paths = PathReader.Create(relation.Target);
+                ValueType? currentType = this;
+                while (currentType != null && paths.TryRead(out var curr))
+                {
+                    currentType = currentType switch
+                    {
+                        StructType s => s.GetField(curr)?.Type,
+                        ArrayType { ElementSchemaType: StructType s } => s.GetField(curr)?.Type,
+                        _ => null
+                    };
+                }
+                if (currentType == null) continue;
+                
+                // Only check constraint properties
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
+                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                
                 IRelationProcess? process = await context.GetRelationProcessAsync(this, relation);
                 switch (process)
                 {
@@ -171,7 +192,6 @@ public sealed class StructType: ValueType
     public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
         StructNode result = (ParseValue(value) as StructNode)!;
-        bool hasError = false;
         
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
@@ -180,30 +200,59 @@ public sealed class StructType: ValueType
             if (dataNode == null) continue;
             await field.Type!.ValidateValueAsync(context, dataNode);
 
-            if (field.Constraints != null)
+            if (field.Constraints is not { Length: > 0 }) continue;
+            HashSet<string>? errors = dataNode.ViolatedConstraints?.ToHashSet() ?? [];
+            foreach (IConstraintProperty constraint in field.Constraints)
             {
-                HashSet<string>? errors = dataNode.ViolatedConstraints?.ToHashSet() ?? [];
-                foreach (IConstraintProperty constraint in field.Constraints)
+                if (await constraint.ValidateAsync(context, dataNode) != false)
                 {
-                    if (await constraint.ValidateAsync(context, dataNode) != false)
+                    errors?.Remove(constraint.Name);
+                }
+                else
+                {
+                    errors ??= [];
+                    errors.Add(constraint.Name);
+                }
+            }
+            dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
+        }
+
+        // Union validation
+        bool hasError = false;
+        if (_unionValids is { Count: > 0 })
+        {
+            foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
+            {
+                var args = new object?[valid.Args.Length];
+                DataNode? first = null;
+                for(int i = 0; i < valid.Args.Length; i++)
+                {
+                    var arg = valid.Args[i];
+                    if (!string.IsNullOrWhiteSpace(arg.Source))
                     {
-                        errors?.Remove(constraint.Name);
+                        DataNode? node = result.GetValueByPaths(arg.Source);
+                        first ??= node;
+                        args[i] = node;
                     }
                     else
                     {
-                        errors ??= [];
-                        errors.Add(constraint.Name);
+                        args[i] = arg.Value;
                     }
                 }
-                dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
-            }
-        }
-        hasError = result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 });
 
-        // Union validation
-        if (_unionValids is { Count: > 0 })
-        {
-            
+                if (first == null) continue;
+                try
+                {
+                    if (await valid.FuncNode!.CallAsync<bool>(context, args)) continue;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                hasError = true;
+                first.ViolatedConstraints = first.ViolatedConstraints is { Length: > 0 } ? first.ViolatedConstraints.Append(valid.Func).ToArray() : [valid.Func];
+            }
         }
 
         // Validate by relations
@@ -213,7 +262,7 @@ public sealed class StructType: ValueType
         }
 
         // error check
-        if (hasError)
+        if (hasError || result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 }))
             result.ViolatedConstraints = [Kind];
         
         return result;
@@ -222,12 +271,32 @@ public sealed class StructType: ValueType
     #endregion
 
     #region Methods
-    
+
     /// <summary>
     /// Gets the field by name
     /// </summary>
-    public StructFieldType? GetField(string fieldName) 
-        => _fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+    public StructFieldType? GetField(ReadOnlySpan<char> fieldName)
+    {
+        foreach (StructFieldType field in _fields)
+        {
+            if  (field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                return field;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets the field index, -1 if not found
+    /// </summary>
+    public int GetIndex(ReadOnlySpan<char> fieldName)
+    {
+        for (int i = 0; i < _fields.Count; i++)
+        {
+            if (fieldName.Equals(_fields[i].Name, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        return -1;
+    }
     
     #endregion
 }
