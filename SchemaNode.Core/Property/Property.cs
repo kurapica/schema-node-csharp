@@ -9,6 +9,13 @@ namespace SchemaNode.Property;
 /// </summary>
 public interface IProperty
 {
+    private static readonly ConcurrentDictionary<Type, string> _names = [];
+    
+    /// <summary>
+    /// Gets the property name
+    /// </summary>
+    public string Name => _names.GetOrAdd(GetType(), static t => t.GetPropertyName());
+    
     /// <summary>
     /// The property has value
     /// </summary>

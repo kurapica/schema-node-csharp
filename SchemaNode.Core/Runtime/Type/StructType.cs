@@ -172,8 +172,43 @@ public sealed class StructType: ValueType
     public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
         StructNode result = (ParseValue(value) as StructNode)!;
-
+        bool hasError = false;
         
+        // Validate by fields
+        foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
+        {
+            DataNode? dataNode = result.GetField(field.Name);
+            if (dataNode == null) continue;
+            await field.Type!.ValidateValueAsync(context, dataNode);
+
+            if (field.Constraints != null)
+            {
+                HashSet<string>? errors = dataNode.ViolatedConstraints?.ToHashSet() ?? [];
+                foreach (IConstraintProperty constraint in field.Constraints)
+                {
+                    if (await constraint.ValidateAsync(context, dataNode) != false)
+                    {
+                        errors?.Remove(constraint.Name);
+                    }
+                    else
+                    {
+                        errors ??= [];
+                        errors.Add(constraint.Name);
+                    }
+                }
+                dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
+            }
+        }
+        
+        // Validate by relations
+        if (_relations != null)
+        {
+            
+        }
+
+        // error check
+        if (result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 }))
+            result.ViolatedConstraints = [Kind];
         
         return result;
     }
@@ -297,7 +332,7 @@ public class StructFieldType : INodeReferences
             else
             {
                 field.Error = ErrorCodes.WRONG_REF_TYPE;
-                context.LogWarning($"Failed to load ref type '{name}' for property '{prop.GetType().GetPropertyName()}' in struct field '{field.Name}'");
+                context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in struct field '{field.Name}'");
             }
         }
         
@@ -311,8 +346,8 @@ public class StructFieldType : INodeReferences
         DisplayOnly = props.FirstOrDefault(p => p is DisplayOnly) is DisplayOnly d ? d.Value : null;
         Unpack = props.FirstOrDefault(p => p is Unpack) is Unpack u ? u.Value : null;
         Default = props.FirstOrDefault(p => p is Default) is Default defProp ? await valueType.ValidateValueAsync(context, defProp.Value) : null;
-        UpLimit = props.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(UpLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
-        LowLimit = props.FirstOrDefault(p => p.GetType().GetPropertyName().Equals(nameof(LowLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
+        UpLimit = props.FirstOrDefault(p => p.Name.Equals(nameof(UpLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
+        LowLimit = props.FirstOrDefault(p => p.Name.Equals(nameof(LowLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
     }
 
     /// <summary>

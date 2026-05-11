@@ -188,7 +188,7 @@ public sealed class EnumType: ValueType
         {
             if (await constraint.ValidateAsync(context, result) != false) continue;
             errors ??= [];
-            errors.Add(constraint.Type.GetPropertyName());
+            errors.Add(constraint.Name);
         }
         if (errors != null)
             result.ViolatedConstraints = errors.ToArray();
