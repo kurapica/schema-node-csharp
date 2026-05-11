@@ -11,6 +11,12 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public abstract class ScalarType : ValueType
 {
+    #region Field
+
+    private IConstraintProperty[]? constraints;
+
+    #endregion
+
     #region Ref
 
     /// <summary>The base type node.</summary>
@@ -32,6 +38,9 @@ public abstract class ScalarType : ValueType
             if (BaseNode == null)
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }
+        constraints = BaseNode?.constraints is { Length: > 0 }
+            ? Constraints.Concat(BaseNode.constraints).DistinctBy(p => p.Name).ToArray()
+            : Constraints.ToArray();
     }
 
     /// <summary>
@@ -58,16 +67,19 @@ public abstract class ScalarType : ValueType
             result.ViolatedConstraints = [Kind];
             return result;
         }
-        
-        List<string>? errors = null;
-        foreach (IConstraintProperty constraint in Constraints)
+
+        if (constraints is { Length : > 0 })
         {
-            if (await constraint.ValidateAsync(context, result) != false) continue;
-            errors ??= [];
-            errors.Add(constraint.Name);
+            List<string>? errors = null;
+            foreach (IConstraintProperty constraint in constraints)
+            {
+                if (await constraint.ValidateAsync(context, result) != false) continue;
+                errors ??= [];
+                errors.Add(constraint.Name);
+            }
+            if (errors != null)
+                result.ViolatedConstraints = errors.ToArray();
         }
-        if (errors != null)
-            result.ViolatedConstraints = errors.ToArray();
         return result;
     }
 

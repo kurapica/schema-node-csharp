@@ -64,8 +64,7 @@ public sealed class StructType: ValueType
         }
 
         // Load Relation
-        RelationSchema[]? relations = @struct.GetProperty<Relations>()?.Value;
-        if (relations is { Length: > 0 })
+        if (@struct.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
             {
@@ -199,7 +198,14 @@ public sealed class StructType: ValueType
                 dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
             }
         }
-        
+        hasError = result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 });
+
+        // Union validation
+        if (_unionValids is { Count: > 0 })
+        {
+            
+        }
+
         // Validate by relations
         if (_relations != null)
         {
@@ -207,7 +213,7 @@ public sealed class StructType: ValueType
         }
 
         // error check
-        if (result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 }))
+        if (hasError)
             result.ViolatedConstraints = [Kind];
         
         return result;
@@ -342,6 +348,8 @@ public class StructFieldType : INodeReferences
         Properties = props;
         Constraints = constraints;
         RefTypes = refTypes?.ToArray();
+
+        // Useful properties
         Require = props.FirstOrDefault(p => p is Require) is Require r ? r.Value : null;
         DisplayOnly = props.FirstOrDefault(p => p is DisplayOnly) is DisplayOnly d ? d.Value : null;
         Unpack = props.FirstOrDefault(p => p is Unpack) is Unpack u ? u.Value : null;
