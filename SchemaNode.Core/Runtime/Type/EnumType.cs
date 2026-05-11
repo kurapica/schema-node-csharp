@@ -6,6 +6,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using SchemaNode.Service;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
 
@@ -146,39 +147,47 @@ public sealed class EnumType: ValueType
         };
     }
 
+    /// <inheritdoc />
+    public override DataNode ParseValue(object? value)
+    {
+        return value is EnumNode node && node.NodeType == this ? node : _enumSchema?.Type switch
+        {
+            EnumValueType.Int or EnumValueType.Flags => new EnumNode(this, value?.TryConvertTo<long>()),
+            _ => new EnumNode(this, value?.TryConvertTo<string>()),
+        };
+    }
+
+    /// <inheritdoc />
     public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
-        EnumNode result = new EnumNode(this);
-        if (value == null) return result;
+        EnumNode result = (ParseValue(value) as EnumNode)!;
+        if (result.IsEmpty) return result; // require is handled by struct, not here
 
-        // Combine value
+        // Validate value
         if (_enumSchema?.Type == EnumValueType.Flags)
         {
-            long? total = value.TryConvertTo<long>();
-            if (total >= 0 && _maxFlags > total)
-                result.Value = total.Value;
+            if (result.Value is not long flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
+            {
+                result.ViolatedConstraints = [SCHEMA_KIND_ENUM];
+                return result;
+            }
         }
         else
         {
-            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, value.ToString());
-            if (access.Length > 0)
+            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.Value!.ToString());
+            if (access.Length == 0)
             {
-                result.Value = _enumSchema?.Type switch
-                {
-                    EnumValueType.String => access.Last().Value,
-                    _ => access.Last().Value.TryConvertTo<long>()
-                };
+                result.ViolatedConstraints = [SCHEMA_KIND_ENUM];
+                return result;
             }
         }
-
-        if (result.IsEmpty) return result;
         
         // Constraint validation
         List<string>? errors = null;
         foreach (IConstraintProperty constraint in Constraints)
         {
             if (await constraint.ValidateAsync(context, result) != false) continue;
-            errors ??= new List<string>();
+            errors ??= [];
             errors.Add(constraint.Type.GetPropertyName());
         }
         if (errors != null)

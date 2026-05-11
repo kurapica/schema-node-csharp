@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
 using System.Runtime.Serialization;
-using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using SchemaNode.Schema;
+using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
 

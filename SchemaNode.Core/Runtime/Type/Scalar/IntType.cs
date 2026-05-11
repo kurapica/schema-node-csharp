@@ -13,6 +13,6 @@ public sealed class IntType : ScalarType
     public override bool IsIndexable => true;
     
     /// <inheritdoc/>
-    protected override DataNode ParseValue(object? value)
-        => new IntNode(this, value?.TryConvertTo<long>());
+    public override DataNode ParseValue(object? value)
+        => value is IntNode node && node.NodeType == this ? node :  new IntNode(this, value?.TryConvertTo<long>());
 }

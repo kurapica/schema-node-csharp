@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Runtime;
 
@@ -11,8 +12,8 @@ public sealed class BoolType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc />
-    protected override DataNode ParseValue(object? value)
-        => new BoolNode(this, value is bool bVal || TryParseBoolValue(value?.ToString(), out bVal) ? bVal : null);
+    public override DataNode ParseValue(object? value)
+        =>  value is BoolNode node && node.NodeType == this ? node : new BoolNode(this, value is bool bVal || TryParseBoolValue(value?.TryConvertTo<string>(), out bVal) ? bVal : null);
 
     // Parses a string to a bool (accepts "true"/"false"/0/1)
     static bool TryParseBoolValue(string? value, out bool ret)

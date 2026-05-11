@@ -107,7 +107,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 
         StructSchema structSchema = new() { Fields = fieldConfigs.ToArray() };
         if (relations.Count > 0)
-            structSchema.SetProperty<RelationsProperty, RelationSchema[]>(relations.ToArray());
+            structSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Generics
         if (genInfos.Length > 0)

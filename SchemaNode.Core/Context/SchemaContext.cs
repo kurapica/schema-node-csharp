@@ -125,10 +125,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node type by name
     /// </summary>
-    public async Task<NodeType?> GetNodeTypeAsync(string fullName, GenericParameter[]? genericParameters = null, bool reload = false)
+    public async Task<NodeType?> GetNodeTypeAsync(string fullName, GenericParameter[]? generics = null, bool reload = false)
     {
         // generic type
-        if (genericParameters?.FirstOrDefault(g => g.Name.Equals(fullName, StringComparison.OrdinalIgnoreCase)) is { } generic)
+        if (generics?.FirstOrDefault(g => g.Name.Equals(fullName, StringComparison.OrdinalIgnoreCase)) is { } generic)
             return new GenericType{ Name = generic.Name };
         
         // registered type
@@ -184,30 +184,32 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 
                 // Namespace
                 if (result is NamespaceType ns && schema.Schemas is { Length: > 0 })
-                {
                     foreach (NodeSchema s in schema.Schemas)
                         ns.SaveNodeSchema(s);
-                }
                 
                 // Generic Types Reloading
                 if (result.GenericMap is { Count: > 0 })
-                {
                     foreach (NodeType g in result.GenericMap.Values)
-                        await g.LoadTypeAsync(this, schema.Clone(runtime), g.Generics!.ToArray());
-                }
+                        await g.LoadTypeAsync(this, schema.Clone(runtime), g.GenericParams!.ToArray());
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
             }
 
             if (generic is not { Length: > 0 }) return result;
-
-            #region Generics Type
             
+            #region Generics Type
+
+            if (result.Generics == null || result.Generics.Length != generic.Length)
+            {
+                LogError("Generic type count mismatch for {schemaName}, expected {expected} but got {actual}", fullName, result.Generics?.Length ?? 0, generic.Length);
+                return null;
+            }
+
             string key = string.Join(',', generic);
             if (result.GenericMap != null && result.GenericMap.TryGetValue(key, out NodeType? genericType))
                 return genericType;
             
-            NodeType[] genericTypes = new NodeType[generic.Length];
+            NodeType[] genericParams = new NodeType[generic.Length];
             for (int i = 0; i < generic.Length; i++)
             {
                 NodeType? type = !string.IsNullOrWhiteSpace(generic[i]) ? await GetNodeTypeAsync(generic[i]) : null;
@@ -216,7 +218,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     LogError("Generic type {genericType} of {schemaName} not found", generic[i], fullName);
                     return null;
                 }
-                genericTypes[i] = type;
+                genericParams[i] = type;
             }
             genericType = ActivatorUtilities.CreateInstance(Services, result.GetType()) as NodeType;
             if (genericType == null)
@@ -226,7 +228,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             }
             result.GenericMap ??= new ConcurrentDictionary<string, NodeType>();
             result.GenericMap[key] = genericType;
-            await genericType.LoadTypeAsync(this, schema!.Clone(runtime), genericTypes);
+            await genericType.LoadTypeAsync(this, schema!.Clone(runtime), genericParams);
             return genericType;
 
             #endregion
@@ -311,8 +313,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, GenericParameter[]? genericParameters = null, bool reload = false) where T : NodeType
-        => await GetNodeTypeAsync(schemaName, genericParameters, reload) as T;
+    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, GenericParameter[]? generics = null, bool reload = false) where T : NodeType
+        => await GetNodeTypeAsync(schemaName, generics, reload) as T;
     
     #endregion
     

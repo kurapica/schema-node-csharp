@@ -1,5 +1,6 @@
 using SchemaNode.Node;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -13,6 +14,6 @@ public sealed class StringType : ScalarType
     public override bool IsIndexable => GetProperty<UplimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
 
     /// <inheritdoc/>
-    protected override DataNode ParseValue(object? value)
-        => new StringNode(this, value?.ToString());
+    public override DataNode ParseValue(object? value)
+        => value is StringNode node && node.NodeType == this ? node : new StringNode(this, value?.TryConvertTo<string>());
 }

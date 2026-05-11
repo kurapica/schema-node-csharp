@@ -37,7 +37,7 @@ public abstract class ScalarType : ValueType
     /// <summary>
     /// Gets the reference types
     /// </summary>
-    public new IEnumerable<NodeType> GetReferenceTypes()
+    public override IEnumerable<NodeType> GetReferenceTypes()
     {
         if (BaseNode != null) yield return BaseNode;
         foreach(var nodeType in base.GetReferenceTypes())
@@ -52,6 +52,13 @@ public abstract class ScalarType : ValueType
     public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
         DataNode result = ParseValue(value);
+        if (value != null && result.IsEmpty)
+        {
+            result.Value = value;
+            result.ViolatedConstraints = [Kind];
+            return result;
+        }
+        
         List<string>? errors = null;
         foreach (IConstraintProperty constraint in Constraints)
         {
@@ -63,11 +70,6 @@ public abstract class ScalarType : ValueType
             result.ViolatedConstraints = errors.ToArray();
         return result;
     }
-
-    /// <summary>
-    /// Parse value to data node
-    /// </summary>
-    protected abstract DataNode ParseValue(object? value);
 
     #endregion
 }

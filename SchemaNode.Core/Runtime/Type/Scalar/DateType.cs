@@ -12,6 +12,6 @@ public sealed class DateType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc/>
-    protected override DataNode ParseValue(object? value)
-        => new DateNode(this, value?.TryConvertTo<DateTimeOffset>());
+    public override DataNode ParseValue(object? value)
+        => value is DateNode node && node.NodeType == this ? node :  new DateNode(this, value?.TryConvertTo<DateTimeOffset>());
 }

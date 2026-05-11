@@ -5,6 +5,7 @@ using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Function;
+using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -20,7 +21,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The namespace
     /// </summary>
-    public string Name => Schema != null ? Generics != null ? $"{Schema.FullName}<{string.Join(", ", Generics.Select(g => g.Name))}>" : Schema.FullName : string.Empty;
+    public string Name => Schema != null ? GenericParams != null ? $"{Schema.FullName}<{string.Join(", ", GenericParams.Select(g => g.Name))}>" : Schema.FullName : string.Empty;
 
     /// <summary>
     /// The node schema type
@@ -33,25 +34,10 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     internal NodeSchema? Schema { get; private set; }
     
     /// <summary>
-    /// The generic types
-    /// </summary>
-    public IReadOnlyList<NodeType>? Generics { get; private set; }
-    
-    /// <summary>
-    /// The generic type map for generic type definition, like T => string, used for generic type definition, which is important for generic type loading and refactor. The key is the generic type name, and the value is the actual node type.
-    /// </summary>
-    internal ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
-
-    /// <summary>
     /// The schema node error code
     /// </summary>
     public string? Error { get; protected set; }
     
-    /// <summary>
-    /// The node type is generic template
-    /// </summary>
-    public bool IsGeneric { get; private set; }
-        
     /// <summary>
     /// The scheme provider used to load the node
     /// </summary>
@@ -71,6 +57,30 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// Whether the node is used
     /// </summary>
     public virtual bool IsUsed => _usedBy is { IsEmpty: false } || _usedByOther is { IsEmpty: false } && _usedByOther.Any(k => !k.Value.IsEmpty);
+
+    #endregion
+    
+    #region Generic
+    
+    /// <summary>
+    /// The generics
+    /// </summary>
+    internal GenericParameter[]? Generics { get; private set; }
+    
+    /// <summary>
+    /// The generic type map for generic type definition, like T => string, used for generic type definition, which is important for generic type loading and refactor. The key is the generic type name, and the value is the actual node type.
+    /// </summary>
+    internal ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
+
+    /// <summary>
+    /// The generic parameters
+    /// </summary>
+    public IReadOnlyList<NodeType>? GenericParams { get; private set; }
+    
+    /// <summary>
+    /// The node type is generic template
+    /// </summary>
+    public bool IsGeneric => GenericParams == null && Generics is { Length: > 0 };
 
     #endregion
     
@@ -105,16 +115,16 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? generics = null)
+    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema,
+        NodeType[]? genericParams = null)
     {
         ReleaseType();
         Error = null;
-        IsGeneric = false;
-        Generics = generics is { Length: > 0 } ? generics : null;
-        
+        GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
+
         Schema = schema;
         List<IProperty> props = [];
-        
+
         // loading node properties
         foreach (Type pType in context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE))
         {
@@ -122,44 +132,31 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
             if (prop is not { HasValue: true }) continue;
             props.Add(prop);
         }
-        _props = props.Count > 0 ? props.ToArray() : null;
-        
-        Loaded = true;
-        await LoadAsync(context);
-        
-        // Loading schema properties after loading, to avoid cycle ref
-        List<NodeType> refTypes = [];
+
         foreach (IProperty prop in props.ToArray())
         {
-            await SaveRef(prop);
-            
             if (prop.GetValue<ExtensibleSchema>(true) is not { } s) continue;
             foreach (Type spType in context.Runtime.GetSchemaKindProperties(schema.Kind))
             {
                 IProperty? sProp = s.GetProperty(spType);
                 if (sProp is not { HasValue: true }) continue;
                 props.Add(sProp);
-                await SaveRef(sProp);
             }
         }
-        
-        // Update the properties
+
         _props = props.Count > 0 ? props.ToArray() : null;
-        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+        Generics = GetProperty<Generics>()?.Value;
 
-        foreach (NodeType referenceType in Generics ?? GetReferenceTypes())
-        {
-            if (referenceType is not GenericType)
-                referenceType.AddUsedBy(this);
-            else
-                IsGeneric = true;
-        }
+        Loaded = true;
+        await LoadAsync(context);
 
-        async Task SaveRef(IProperty prop)
+        // Loading schema properties after loading, to avoid cycle ref
+        List<NodeType> refTypes = [];
+        if (GenericParams == null)
         {
-            if (Generics == null && prop is ITypeRefProperty typeRefProp)
+            foreach (ITypeRefProperty prop in props.Cast<ITypeRefProperty>())
             {
-                string? name = typeRefProp.GetValue<string>();
+                string? name = prop.GetValue<string>();
                 NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
                 if (node != null)
                 {
@@ -172,20 +169,29 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
                 }
             }
         }
+
+        // Update the properties
+        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+        
+        // Register UsedBy
+        foreach (NodeType referenceType in GenericParams ?? GetReferenceTypes())
+        {
+            if (referenceType is not GenericType)
+                referenceType.AddUsedBy(this);
+        }
     }
 
     internal void ReleaseType()
     {
-        foreach (NodeType node in Generics ?? GetReferenceTypes())
-            if (node is not GenericType)
-                node.RemoveUsedBy(this);
+        foreach (NodeType node in GenericParams ?? GetReferenceTypes())
+            node.RemoveUsedBy(this);
         Release();
     }
 
     /// <summary>
     /// Gets the property with given type
     /// </summary>
-    public IProperty? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
 
     /// <summary>
     /// Gets the constraints
@@ -318,7 +324,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     #region Implementation of INodeReference
 
     /// <inheritdoc/>
-    public IEnumerable<NodeType> GetReferenceTypes()
+    public virtual IEnumerable<NodeType> GetReferenceTypes()
     {
         if (_refTypes == null) yield break;
         foreach (var t in _refTypes)
@@ -370,9 +376,9 @@ public abstract class ValueType : NodeType
     
     #region Override Methods
 
-    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? generics = null)
+    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? genericParams = null)
     {
-        await base.LoadTypeAsync(context, schema, generics);
+        await base.LoadTypeAsync(context, schema, genericParams);
         _constraints = GetProperties<IConstraintProperty>().ToArray();
     }
 
@@ -428,10 +434,20 @@ public abstract class ValueType : NodeType
     public abstract Task<DataNode> ValidateValueAsync(SchemaContext context, object? value);
 
     /// <summary>
+    /// Generate the data node from value, no validation will be performed
+    /// </summary>
+    public abstract DataNode ParseValue(object? value);
+
+    /// <summary>
     /// Gets the child value type by given path
     /// </summary>
     /// <param name="path">The access path, like 'pos.x'</param>
-    public virtual ValueType? GetChildValueType(string path) => null;
+    public ValueType? GetAccessValueType(string path) => GetValueTypeByPath(new PathReader(path));
+    
+    /// <summary>
+    /// Gets value type through path reader
+    /// </summary>
+    public virtual ValueType? GetValueTypeByPath(PathReader reader) => reader.IsEmpty ? this : null;
 
     /// <summary>
     /// The value type is assignable to other value type

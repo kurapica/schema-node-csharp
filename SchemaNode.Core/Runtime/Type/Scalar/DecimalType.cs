@@ -8,6 +8,6 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class DecimalType : ScalarType
 {
-    protected override DataNode ParseValue(object? value)
-        => new NumericNode(this, value?.TryConvertTo<decimal>());
+    public override DataNode ParseValue(object? value)
+        => value is NumericNode node && node.NodeType == this ? node :  new NumericNode(this, value?.TryConvertTo<decimal>());
 }

@@ -1,6 +1,5 @@
 ﻿using SchemaNode.Runtime;
 using SchemaNode.Utility;
-using System.Text.Json.Nodes;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 

@@ -94,7 +94,7 @@ public interface IRelationProcessBuilder
 /// The relation property for data schemas
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY)]
-public class RelationsProperty: Property<RelationSchema[]>;
+public class Relations: Property<RelationSchema[]>;
 
 #region Relation Call Process
 
@@ -165,7 +165,7 @@ public class RelationCallBuidler: IRelationProcessBuilder
         // check args
         foreach (var arg in Args)
         {
-            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetChildValueType(arg.Source) == null)
+            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetAccessValueType(arg.Source) == null)
                 error ??= ErrorCodes.STRUCT_RELATION_WRONG_ARGS;
         }
         

@@ -9,5 +9,5 @@ namespace SchemaNode.Runtime;
 public sealed class ObjectType : ScalarType
 {
     /// <inheritdoc/>
-    protected override DataNode ParseValue(object? value) => new AnyNode(this, value);
+    public override DataNode ParseValue(object? value) => value as AnyNode ?? new AnyNode(this, value);
 }
