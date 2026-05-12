@@ -1,10 +1,8 @@
-using System.Runtime.Loader;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Text.Json.Nodes;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
@@ -147,7 +145,7 @@ public sealed class StructType: ValueType
             yield return node;
 
         if (_relations != null)
-            foreach (NodeType node in _relations.Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+            foreach (NodeType node in _relations.Select(r => r.Item1).Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
 
         if (_unionValids != null)
@@ -160,13 +158,13 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetValueTypeByPath(PathReader reader)
+    public override ValueType? GetAccessValueType(PathReader reader)
     {
         if (!reader.TryRead(out ReadOnlySpan<char> current)) return this;
         foreach (StructFieldType field in _fields)
         {
             if (current.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return field.Type?.GetValueTypeByPath(reader);
+                return field.Type?.GetAccessValueType(reader);
         }
         return null;
     }
@@ -217,9 +215,18 @@ public sealed class StructType: ValueType
             dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
         }
 
+        // Validate by relations
+        if (_relations != null)
+        {
+            foreach ((IRelationProcess process, Type propType) in _relations)
+            {
+                
+            }
+        }
+
         // Union validation
-        bool hasError = false;
-        if (_unionValids is { Count: > 0 })
+        bool hasError = result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 });
+        if (!hasError && _unionValids is { Count: > 0 })
         {
             foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
             {
@@ -255,14 +262,8 @@ public sealed class StructType: ValueType
             }
         }
 
-        // Validate by relations
-        if (_relations != null)
-        {
-            
-        }
-
         // error check
-        if (hasError || result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 }))
+        if (hasError)
             result.ViolatedConstraints = [Kind];
         
         return result;
@@ -385,11 +386,9 @@ public class StructFieldType : INodeReferences
             }
         }
         Type = valueType;
-        
+
         // Properties
-        IProperty[] props = context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)
-            .Select(field.GetProperty).Where(p => p is { HasValue: true })
-            .Cast<IProperty>().ToArray();
+        List<IProperty> props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD));
         IConstraintProperty[] constraints = props.Cast<IConstraintProperty>().ToArray();
         ITypeRefProperty[] typeRefs = props.Cast<ITypeRefProperty>().ToArray();
         
@@ -414,7 +413,7 @@ public class StructFieldType : INodeReferences
         // init
         Name = field.Name;
         Type = valueType;
-        Properties = props;
+        Properties = props.ToArray();
         Constraints = constraints;
         RefTypes = refTypes?.ToArray();
 

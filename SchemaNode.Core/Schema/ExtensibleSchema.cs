@@ -7,6 +7,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Runtime;
+using Microsoft.Extensions.Options;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -18,6 +19,10 @@ namespace SchemaNode.Schema;
 /// </summary>
 public abstract class ExtensibleSchema : IPropertyOwner
 {
+    [SchemaIgnore]
+    [JsonIgnore]
+    public string? SchemaKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>();
+
     /// <summary>
     /// The error status
     /// </summary>
@@ -41,7 +46,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
     {
         if (other?.Extensions is not { Count: > 0 } || !other.GetType().IsAssignableTo(GetType())) return;
 
-        string? kind = GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>();
+        string? kind = SchemaKind;
         if (Extensions == null || Extensions.Count == 0 || runtime == null || kind is null)
         {
             Extensions ??= [];
@@ -171,5 +176,25 @@ public abstract class ExtensibleSchema : IPropertyOwner
         prop.SetValue(value);
         SetProperty(prop);
     }
+
+    /// <summary>
+    /// Gets properties from the given types. The properties will be returned in the order of the given types. If there are duplicate properties, the properties from the later types will overwrite the previous ones. If a property has dependencies, it will only be returned when all its dependencies are satisfied. If a property has overrides, it will override the properties with the same name from the previous types.
+    /// </summary>
+    /// <param name="types">The property types/param>
+    /// <returns></returns>
+    public List<IProperty> GetProperties(IEnumerable<Type> types)
+    {
+        List<IProperty> props = [];
+        foreach (Type type in types)
+        {
+            IProperty? prop = GetProperty(type);
+            if (prop is not { HasValue: true }) continue;
+            if (prop.Depends is { Length: > 0 } depends && depends.Any(d => props.All(p => !p.Name.Equals(d, StringComparison.OrdinalIgnoreCase)))) continue;
+            if (prop.Overrides is { Length: > 0 } overrides) props = props.Where(p => !overrides.Any(o => o.Equals(p.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            props.Add(prop);
+        }
+        return props;
+    }
+
     #endregion
 }

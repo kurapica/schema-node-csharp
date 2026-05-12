@@ -123,25 +123,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
 
         Schema = schema;
-        List<IProperty> props = [];
-
-        // loading node properties
-        foreach (Type pType in context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE))
-        {
-            IProperty? prop = schema.GetProperty(pType);
-            if (prop is not { HasValue: true }) continue;
-            props.Add(prop);
-        }
+        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE));
 
         foreach (IProperty prop in props.ToArray())
         {
-            if (prop.GetValue<ExtensibleSchema>(true) is not { } s) continue;
-            foreach (Type spType in context.Runtime.GetSchemaKindProperties(schema.Kind))
-            {
-                IProperty? sProp = s.GetProperty(spType);
-                if (sProp is not { HasValue: true }) continue;
-                props.Add(sProp);
-            }
+            if (prop.GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
+            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
@@ -442,12 +429,12 @@ public abstract class ValueType : NodeType
     /// Gets the child value type by given path
     /// </summary>
     /// <param name="path">The access path, like 'pos.x'</param>
-    public ValueType? GetAccessValueType(string path) => GetValueTypeByPath(new PathReader(path));
+    public ValueType? GetAccessValueType(string path) => GetAccessValueType(new PathReader(path));
     
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetValueTypeByPath(PathReader reader) => reader.IsEmpty ? this : null;
+    public virtual ValueType? GetAccessValueType(PathReader reader) => reader.IsEmpty ? this : null;
 
     /// <summary>
     /// The value type is assignable to other value type
