@@ -15,6 +15,9 @@ public interface IProperty
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _depends = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _overrides = [];
+
+    private static ImmutableArray<string> GetOverrides(Type propertyType)
+        => _overrides.GetOrAdd(propertyType, static t => t.GetMetaProperty<Override>()?.Value?.SelectMany(v => GetOverrides(v).Concat([v.GetPropertyName()])).ToImmutableArray() ?? []);
     
     /// <summary>
     /// Gets the property name
@@ -29,7 +32,7 @@ public interface IProperty
     /// <summary>
     /// Gets the override properties
     /// </summary>
-    public ImmutableArray<string> Overrides => _overrides.GetOrAdd(GetType(), static t => t.GetMetaProperty<Override>()?.Value?.Select(v => v.GetPropertyName()).ToImmutableArray() ?? []);
+    public ImmutableArray<string> Overrides => GetOverrides(GetType());
     
     /// <summary>
     /// The property has value
