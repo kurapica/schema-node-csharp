@@ -96,7 +96,7 @@ public class SchemaRuntime : ISchemaRuntime
         NodeSchema root = _rootSchema;
         string fullPath = "";
 
-        foreach (string part in schemaName.SplitTypeName())
+        foreach (string part in schemaName.GetNamespaces())
         {
             string ns = fullPath;
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{part}" : part;
@@ -157,7 +157,7 @@ public class SchemaRuntime : ISchemaRuntime
     {
         NodeSchema? node = _rootSchema;
 
-        foreach (string part in schemaName.SplitTypeName())
+        foreach (string part in schemaName.GetNamespaces())
         {
             node = node.Schemas?.FirstOrDefault(x => x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
             if (node == null) return null;

@@ -115,16 +115,31 @@ internal static class Extension
         /// <summary>
         /// Split the type path
         /// </summary>
-        internal string[] SplitTypeName()
+        internal IEnumerable<string> GetNamespaces()
         {
-            List<string> paths = [..value.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
-            while (paths.Count > 1 && paths[^1].EndsWith('>') && !paths[^1].Contains('<'))
+            ReadOnlySpan<char> span = value.AsSpan();
+            int start = 0;
+            int depth = 0;
+            for (int i = 0; i < span.Length; i++)
             {
-                string last = paths[^1];
-                paths.RemoveAt(paths.Count - 1);
-                paths[^1] += "." + last;
+                if (span[i] == '.' && depth == 0)
+                {
+                    yield return span.Slice(start, i - start).ToString();
+                    start = i + 1;
+                }
+                else if (span[i] == '<')
+                {
+                    depth++;
+                }
+                else if (span[i] == '>')
+                {
+                    depth--;
+                }
             }
-            return [..paths];
+            if (start < span.Length)
+            {
+                yield return span.Slice(start).ToString();
+            }
         }
 
         /// <summary>
@@ -135,13 +150,13 @@ internal static class Extension
         /// <summary>
         /// Gets the namespace
         /// </summary>
-        internal string GetNamespace() => string.Join('.', value.SplitTypeName().SkipLast(1));
+        internal string GetNamespace() => string.Join('.', value.GetNamespaces().SkipLast(1));
 
         /// <summary>
         /// Gets the schema name
         /// </summary>
         /// <returns></returns>
-        internal string GetSchemaName() => value.SplitTypeName().Last();
+        internal string GetSchemaName() => value.GetNamespaces().Last();
 
         /// <summary>
         /// Remove the ending part if existed
@@ -174,6 +189,41 @@ internal static class Extension
                 return DateTime.Parse(value);
 
             return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
+        }
+    }
+
+    #endregion
+
+    #region ReadOnlySpan<char>
+
+    extension (ReadOnlySpan<char> span)
+    {
+
+        /// <summary>
+        /// Split the type path
+        /// </summary>
+        internal IEnumerable<(int start, int? stop)> GetNamespacesSpans()
+        {
+            int start = 0;
+            int depth = 0;
+            for (int i = 0; i < span.Length; i++)
+            {
+                if (span[i] == '.' && depth == 0)
+                {
+                    yield return (start, i - start);
+                    start = i + 1;
+                }
+                else if (span[i] == '<')
+                {
+                    depth++;
+                }
+                else if (span[i] == '>')
+                {
+                    depth--;
+                }
+            }
+            if (start < span.Length)
+                yield return (start, null);
         }
     }
 

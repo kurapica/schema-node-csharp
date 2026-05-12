@@ -133,8 +133,14 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         
         // registered type
         SchemaRuntime runtime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
-        string[] parts = fullName.SplitTypeName();
+        string[] parts = fullName.GetNamespaces().ToArray();
         NodeType? node = await LoadNodeTypeAsync(runtime.RootNamespace, null, reload && parts.Length == 0);
+
+        foreach(var part in fullName.GetNamespaces())
+        {
+                if (node is not NamespaceType ns) return null;
+                node = await LoadNodeTypeAsync(ns, part, reload && parts.Length == 0);
+        }
         for (int i = 1; i <= parts.Length; i++)
         {
             if (node is not NamespaceType ns) return null;

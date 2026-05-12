@@ -218,7 +218,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         // install
         string fullPath = string.Empty;
         NodeSchema parent = root;
-        foreach (string p in Name.SplitTypeName())
+        foreach (string p in Name.GetNamespaces())
         {
             fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
                 
@@ -424,17 +424,11 @@ public abstract class ValueType : NodeType
     /// Generate the data node from value, no validation will be performed
     /// </summary>
     public abstract DataNode ParseValue(object? value);
-
-    /// <summary>
-    /// Gets the child value type by given path
-    /// </summary>
-    /// <param name="path">The access path, like 'pos.x'</param>
-    public ValueType? GetAccessValueType(string path) => GetAccessValueType(new PathReader(path));
-    
+        
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetAccessValueType(PathReader reader) => reader.IsEmpty ? this : null;
+    public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty ? this : null;
 
     /// <summary>
     /// The value type is assignable to other value type

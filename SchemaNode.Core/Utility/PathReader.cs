@@ -3,15 +3,10 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The path reader for 'person.name'
 /// </summary>
-public ref struct PathReader(ReadOnlySpan<char> path)
+internal ref struct PathReader(ReadOnlySpan<char> path)
 {
-    private ReadOnlySpan<char> _remaining;
+    private ReadOnlySpan<char> _remaining = path;
     
-    /// <summary>
-    /// The path is empty
-    /// </summary>
-    public bool IsEmpty => _remaining.IsEmpty;
-
     public bool TryRead(out ReadOnlySpan<char> segment)
     {
         if (_remaining.IsEmpty)
@@ -34,6 +29,4 @@ public ref struct PathReader(ReadOnlySpan<char> path)
 
         return true;
     }
-    
-    public static PathReader Create(ReadOnlySpan<char> path) => new(path);
 }

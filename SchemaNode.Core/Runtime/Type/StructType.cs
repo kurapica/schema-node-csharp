@@ -70,7 +70,7 @@ public sealed class StructType: ValueType
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                PathReader paths = PathReader.Create(relation.Target);
+                ReadOnlySpan<char> target = relation.Target;
                 ValueType? currentType = this;
                 while (currentType != null && paths.TryRead(out var curr))
                 {
@@ -158,13 +158,19 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(PathReader reader)
+    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
-        if (!reader.TryRead(out ReadOnlySpan<char> current)) return this;
+        ReadOnlySpan<char> remain = null;
+        int index = path.IndexOf('.');
+        if (index > 0)
+        {
+            remain = path[(index + 1)..];
+            path = path[..index];
+        }
         foreach (StructFieldType field in _fields)
         {
-            if (current.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return field.Type?.GetAccessValueType(reader);
+            if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
+                return field.Type?.GetAccessValueType(remain);
         }
         return null;
     }
