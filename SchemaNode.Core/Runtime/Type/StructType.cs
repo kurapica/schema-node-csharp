@@ -35,7 +35,7 @@ public sealed class StructType: ValueType
     /// <summary>
     /// The relations between the fields
     /// </summary>
-    private List<IRelationProcess>? _relations;
+    private List<(IRelationProcess, Type)>? _relations;
     
     #endregion
         
@@ -100,7 +100,7 @@ public sealed class StructType: ValueType
                 }
 
                 _relations ??= [];
-                _relations.Add(process);
+                _relations.Add((process, propType));
             }
         }
         

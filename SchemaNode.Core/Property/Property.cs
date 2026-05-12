@@ -1,5 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using SchemaNode.Attribute;
 using SchemaNode.Function;
+using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;
@@ -10,11 +13,23 @@ namespace SchemaNode.Property;
 public interface IProperty
 {
     private static readonly ConcurrentDictionary<Type, string> _names = [];
+    private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _depends = [];
+    private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _overrides = [];
     
     /// <summary>
     /// Gets the property name
     /// </summary>
     public string Name => _names.GetOrAdd(GetType(), static t => t.GetPropertyName());
+    
+    /// <summary>
+    /// Gets the depend properties
+    /// </summary>
+    public ImmutableArray<string> Depends => _depends.GetOrAdd(GetType(), static t => t.GetMetaProperty<Depend>()?.Value?.Select(v => v.GetPropertyName()).ToImmutableArray() ?? []);
+    
+    /// <summary>
+    /// Gets the override properties
+    /// </summary>
+    public ImmutableArray<string> Overrides => _overrides.GetOrAdd(GetType(), static t => t.GetMetaProperty<Override>()?.Value?.Select(v => v.GetPropertyName()).ToImmutableArray() ?? []);
     
     /// <summary>
     /// The property has value
