@@ -68,35 +68,7 @@ public class ElementType : AnyType;
 /// The data combine settings
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.combine")]
-public sealed class DataCombine
-{
-    /// <summary>
-    /// The field
-    /// </summary>
-    public string Field { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The combine type
-    /// </summary>
-    public DataCombineType Type { get; set; } = DataCombineType.Assign;
-}
+public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Assign);
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.index")]
-public sealed class DataIndex
-{
-    /// <summary>
-    /// The index name
-    /// </summary>
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
-    public string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The index fields
-    /// </summary>
-    public string[] Fields { get; set; } = [];
-    
-    /// <summary>
-    /// Whether the index is unique
-    /// </summary>
-    public bool IsUnique { get; set; }
-}
+public sealed record DataIndex([Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)] string Name, string[] Fields, bool IsUnique = false);

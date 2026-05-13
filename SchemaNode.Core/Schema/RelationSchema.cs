@@ -77,7 +77,7 @@ public interface IRelationProcess
     public RelationStage Stage { get; }
 
     /// <summary>
-    /// Process the relation
+    /// Process the relation and return the new property value
     /// </summary>
     Task<DataNode?> ProcessAsync(SchemaContext context, DataNode owner);
 }
@@ -127,9 +127,17 @@ public class RelationCall : IRelationProcess, INodeReferences, INodeError
     /// </summary>
     public string? Error { get; init; }
 
+    /// <inheritdoc/>
     public async Task<DataNode?> ProcessAsync(SchemaContext context, DataNode owner)
     {
-        throw new NotImplementedException();
+        if (Function == null) return null;
+        return await Function.CallAsync<DataNode>(context, Args.Select<CallArg, object?>(a =>
+        {
+            if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
+            DataNode? value = owner.GetSourceValue(a.Source);
+            if (value == null) throw new Exception($"Source {a.Source} not found in owner");
+            return value;
+        }).ToArray());
     }
 
     /// <inheritdoc/>
@@ -165,7 +173,7 @@ public class RelationCallBuidler: IRelationProcessBuilder
         // check args
         foreach (var arg in Args)
         {
-            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetAccessValueType(arg.Source) == null)
+            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetSourceValueType(arg.Source) == null)
                 error ??= ErrorCodes.STRUCT_RELATION_WRONG_ARGS;
         }
         

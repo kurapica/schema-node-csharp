@@ -301,7 +301,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             SchemaExp owner = varExp;
             if (type is ArrayType arrayType)
             {
-                type = arrayType.ElementSchemaType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                type = arrayType.Element ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 
                 // Only allow one collection root in one function call
                 if (colSource != null && colSource.Collection != varExp) throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongCollection);
@@ -414,9 +414,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 case ExpressionType.Map:
                 {
-                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null } arrayType)
+                    if (exp.SchemaType is ArrayType { Element: not null } arrayType)
                     {
-                        funcRetType = arrayType.ElementSchemaType;
+                        funcRetType = arrayType.Element;
                     }
                     else
                     {
@@ -447,7 +447,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
                 case ExpressionType.Filter:
                 {
-                    if (exp.SchemaType is ArrayType { ElementSchemaType: not null })
+                    if (exp.SchemaType is ArrayType { Element: not null })
                     {
                         // pass
                     }
@@ -536,7 +536,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     var paramType = ParseGenericType(expFuncInfo.Args.Last(), argDef.SchemaType);
                     if (paramType is ArrayType arrayType)
-                        paramType = arrayType.ElementSchemaType;
+                        paramType = arrayType.Element;
 
                     for (int j = expFuncType.Args.Length; j < exp.Args.Length; j++)
                     {
@@ -610,11 +610,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 // Params type check
                 NodeType? argType = argDef.SchemaType;
                 if (argDef.Params == true && argType is ArrayType arrayType)
-                    argType = arrayType.ElementSchemaType;
+                    argType = arrayType.Element;
                 
                 // Collection expression check
                 if (isColExp && argType is not ArrayType && (
-                        argExp?.NodeType is ArrayType { ElementSchemaType: not null } || 
+                        argExp?.NodeType is ArrayType { Element: not null } || 
                         argExp is FieldAccessExp { Owner: CollectionItemExp }))
                 {
                     if (argDef.Params == true)
@@ -627,7 +627,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (colSource == null)
                     {
                         colSource = new CollectionRootExp(argExp, argExp.NodeType!);
-                        iteratorExp = new CollectionItemExp(colSource, argExp.NodeType is ArrayType at ? at.ElementSchemaType! : argExp.NodeType!);
+                        iteratorExp = new CollectionItemExp(colSource, argExp.NodeType is ArrayType at ? at.Element! : argExp.NodeType!);
                         argExp = iteratorExp;
                     }
                     else if (colSource.Collection is VariableExp && ( colSource.Collection == argExp ||
@@ -943,7 +943,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
         Type expReturnType = exp.NodeType.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0);
         Type expRetElement = funcCallExp.ExpType is ExpressionType.Map && exp.NodeType is ArrayType arr
-            ? arr.ElementSchemaType!.ToCSharpType()
+            ? arr.Element!.ToCSharpType()
             : expReturnType;
 
         // Make generic method for system defined methods

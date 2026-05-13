@@ -139,7 +139,7 @@ public class CollectionExpVisitor : IExpVisitor
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
                 {
                     string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                    if (string.IsNullOrEmpty(fieldName) || sourceExp.NodeType is not ArrayType { ElementSchemaType: StructType structType })
+                    if (string.IsNullOrEmpty(fieldName) || sourceExp.NodeType is not ArrayType { Element: StructType structType })
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     NodeType type = structType;
                     string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
@@ -162,7 +162,7 @@ public class CollectionExpVisitor : IExpVisitor
                     string orderField = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
                     bool descending = funcExp.Args.ElementAtOrDefault(2) is ConstantExp descExp && descExp.Value.ToValue<bool>();
 
-                    if (string.IsNullOrEmpty(orderField) || sourceExp.NodeType is not ArrayType { ElementSchemaType: StructType structType } || structType.GetField(orderField) == null)
+                    if (string.IsNullOrEmpty(orderField) || sourceExp.NodeType is not ArrayType { Element: StructType structType } || structType.GetField(orderField) == null)
                         throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 
                     return new OrderByCollectionOperator(sourceExp, orderField, descending, sourceExp.NodeType);
@@ -234,7 +234,7 @@ public class CollectionExpVisitor : IExpVisitor
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
                     {
                         string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                        if (string.IsNullOrEmpty(fieldName) || source.NodeType is not ArrayType { ElementSchemaType: StructType structType })
+                        if (string.IsNullOrEmpty(fieldName) || source.NodeType is not ArrayType { Element: StructType structType })
                             throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                         NodeType type = structType;
                         string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
@@ -262,7 +262,7 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (funcExp.NodeType as ArrayType)!.ElementSchemaType!
+                        (funcExp.NodeType as ArrayType)!.Element!
                     )),
                     funcExp.NodeType
                 );
@@ -707,14 +707,14 @@ public class CollectionExpVisitor : IExpVisitor
             case FieldsCollectionResult fieldsExp:
             {
                 // Create a synthetic item placeholder for the current element
-                NodeType elementType = (fieldsExp.Root.NodeType as ArrayType)!.ElementSchemaType!;
+                NodeType elementType = (fieldsExp.Root.NodeType as ArrayType)!.Element!;
                 CollectionItemExp syntheticItem = new CollectionItemExp(fieldsExp.Root, elementType);
 
                 // Map the synthetic item to the actual iterator
                 context.SetCompiledExpression(syntheticItem, iterator);
 
                 // Compile getfield(item, fieldName) for each element
-                NodeType fieldType = (fieldsExp.NodeType as ArrayType)!.ElementSchemaType!;
+                NodeType fieldType = (fieldsExp.NodeType as ArrayType)!.Element!;
                 Expression callMethod = await context.CompileSchemaExpAsync(new FieldAccessExp(syntheticItem, fieldsExp.Field, fieldType));
 
                 // Generate result expression

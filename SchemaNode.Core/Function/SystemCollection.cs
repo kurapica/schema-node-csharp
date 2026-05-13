@@ -19,13 +19,13 @@ namespace SchemaNode.Function;
 /// <summary>
 /// System.Collection Aps
 /// </summary>
-[Meta<Property.Schema.SchemaType>(NS_SYSTEM_COLLECTION)]
+[Meta<SchemaType>(NS_SYSTEM_COLLECTION)]
 public static class SystemCollection
 {
     /// <summary>
     /// Gets the array length
     /// </summary>
-    public static long length([Meta<Property.Schema.SchemaType>(NS_SYSTEM_ARRAY)] object array)
+    public static long length([Meta<SchemaType>(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is string str) return str.Length;
         if (array is JsonArray jsonArray) return jsonArray.Count;

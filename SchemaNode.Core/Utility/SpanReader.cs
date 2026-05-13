@@ -32,7 +32,7 @@ public class SpanReader(string source)
     /// <summary>
     /// Whether there are no more to be read
     /// </summary>
-    public bool IsEmpty => _start >= _last || Trim().IsEmpty;
+    public bool IsEnd => _start >= _last || Trim().IsEmpty;
     
     /// <summary>
     /// The current read result

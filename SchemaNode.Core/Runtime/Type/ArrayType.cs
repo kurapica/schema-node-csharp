@@ -5,6 +5,7 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -16,100 +17,94 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class ArrayType: ValueType
 {
-    #region Data
-    
-    /// <summary>
-    /// The element type of the array.
-    /// </summary>
-    public string? Element { get; private set; }
-
-    /// <summary>
-    /// The primary fields of the array if the element is a struct.
-    /// </summary>
-    public string[]? Primary { get; private set; }
-
-    /// <summary>
-    /// The indexes
-    /// </summary>
-    public DataIndex[]? Indexes { get; private set; }
-
-    /// <summary>
-    /// The data combine rule
-    /// </summary>
-    public DataCombine[]? Combines { get; private set; }
-
-    /// <summary>
-    /// The relation between the fields
-    /// </summary>
-    public StructRelationSchema[]? Relations { get; private set; }
-
-    /// <summary>
-    /// The atomic flag indicates whether the array is atomic, which means that the array should be treated as a whole when performing operations such as updates, delete or render.
-    /// </summary>
-    public bool? Atomic { get; private set; }
-
-    #endregion
-
-    #region Status
-
-    #endregion
-
-    #region Ref
+    #region Fields
 
     /// <summary>
     /// The element type node
     /// </summary>
-    public NodeType? ElementSchemaType { get; internal set; }
-    
+    public ValueType? Element { get; private set; }
+
+    /// <summary>
+    /// The primary fields of the array if the element is a struct.
+    /// </summary>
+    public ImmutableArray<string>? Primary { get; private set; }
+
+    /// <summary>
+    /// The indexes
+    /// </summary>
+    public ImmutableArray<DataIndex>? Indexes { get; private set; }
+
+    /// <summary>
+    /// The data combine rule
+    /// </summary>
+    public ImmutableArray<DataCombine>? Combines { get; private set; }
+
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    private List<(IRelationProcess, Type)>? _relations;
+
     #endregion
     
     #region Method
 
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public override async Task LoadAsync(SchemaContext context)
     {
-        ArraySchema? array = schema.Array;
-        
-        // Data
-        Element = array?.Element;
-        Primary = array?.Primary;
-        Combines = array?.Combines;
-        Relations = array?.Relations;
-        Indexes = array?.Indexes;
-        Atomic = array?.Atomic;
-        
-        // Status
-        if (array == null) Error = SchemaNodeStatus.NoDefinition;
-        
-        // Ref
-        if (!string.IsNullOrWhiteSpace(Element))
+        ArraySchema? array = GetPropertyValue<ArraySchema>();
+        if (array == null)
         {
-            NodeType? node = await context.GetSchemaTypeAsync(Element, preload: preload);
-            if (node == null || node is not GenericType && node.Kind is NodeType.Namespace or NodeType.Array or NodeType.Func)
-            {
-                Error = SchemaNodeStatus.ArrayHasWrongElementType;
-            }
-            else
-            {
-                ElementSchemaType = node;
-                node.AddUsedBy(this);
-            }
+            Error = ErrorCodes.NO_DEFINITION;
+            return;
         }
         
-        // Relation
-        if (Relations != null)
+        // load properties
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element) : null;
+        Primary = array?.Primary?.ToImmutableArray();
+        Combines = array?.Combines?.ToImmutableArray();
+        Indexes = array?.Indexes?.ToImmutableArray();
+
+        if (Element == null)
         {
-            foreach (StructRelationSchema relation in Relations)
+            Error = ErrorCodes.ARRAY_WRONG_ELEMENT;
+            return;
+        }
+        
+        // Load Relation
+        if (array!.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+        {
+            foreach (RelationSchema relation in relations)
             {
-                NodeType? node = await context.GetSchemaTypeAsync(relation.Func, preload: preload);
-                if (node is not FunctionType funcNode)
+                // Gets the target type
+                SpanReader paths = relation.Target;
+                ValueType? currentType = this;
+                while (currentType != null && paths.NextPath())
                 {
-                    relation.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    Error = SchemaNodeStatus.StructRelationshipWrongFunc;
-                    continue;
+                    currentType = currentType switch
+                    {
+                        StructType s => s.GetField(paths.Current)?.Type,
+                        ArrayType { Element: StructType s } => s.GetField(paths.Current)?.Type,
+                        _ => null
+                    };
                 }
-                relation.FuncNode = funcNode;
-                funcNode.AddUsedBy(this);
+                if (currentType == null) continue;
+                
+                // Only check constraint properties
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
+                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                
+                IRelationProcess? process = await context.GetRelationProcessAsync(this, relation);
+                switch (process)
+                {
+                    case null:
+                        continue;
+                    case INodeError error when !string.IsNullOrWhiteSpace(error.Error):
+                        Error ??= error.Error;
+                        break;
+                }
+
+                _relations ??= [];
+                _relations.Add((process, propType));
             }
         }
     }
@@ -117,17 +112,30 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override void Release()
     {
-        ElementSchemaType?.RemoveUsedBy(this);
-        ElementSchemaType = null;
+        _relations = null;
+    }
 
-        if (Relations != null)
-        {
-            foreach (StructRelationSchema relation in Relations)
-            {
-                relation.FuncNode?.RemoveRef(this);
-                relation.FuncNode = null;
-            }
-        }
+    /// <inheritdoc />
+    public override IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (Element != null)
+            yield return Element;
+        
+        if (_relations != null)
+            foreach (NodeType node in _relations.Select(r => r.Item1).Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+                yield return node;
+        
+        foreach (NodeType nodeType in base.GetReferenceTypes())
+            yield return nodeType;
+    }
+
+    /// <inheritdoc />
+    public override bool IsAssignableTo(ValueType other)
+    {
+        if (base.IsAssignableTo(other)) return true;
+        if (other is not ArrayType array) return false;
+        if (Element == null || array.Element == null) return true;
+        return Element.IsAssignableTo(array.Element);
     }
 
     /// <inheritdoc />
@@ -139,7 +147,7 @@ public sealed class ArrayType: ValueType
         // validate elements
         ArrayNode result = new(this);
         JsonObject? error = null;
-        if (ElementSchemaType != null)
+        if (Element != null)
         {
             IConstraintProperty[] eleConstraints = Constraints?.Where(c => c.ForArrayOnly == false).ToArray() ?? [];
             if (constraints != null)
@@ -154,7 +162,7 @@ public sealed class ArrayType: ValueType
 
             for (int i = 0; i < array.Count; i++)
             {
-                (Node.DataNode? v, JsonNode? e) = await ElementSchemaType.ValidateValueAsync(context, array[i]!, eleConstraints);
+                (Node.DataNode? v, JsonNode? e) = await Element.ValidateValueAsync(context, array[i]!, eleConstraints);
                 if (e != null && !e.IsEmpty())
                 {
                     error ??= new JsonObject();
@@ -194,7 +202,7 @@ public sealed class ArrayType: ValueType
         base.CanBeUseAs(other, exactly)
         || Name.Equals(NS_SYSTEM_ARRAY) 
         || other.Name.Equals(NS_SYSTEM_ARRAY) 
-        || (other is ArrayType array && ElementSchemaType != null && array.ElementSchemaType != null && ElementSchemaType.CanBeUseAs(array.ElementSchemaType));
+        || (other is ArrayType array && Element != null && array.Element != null && Element.CanBeUseAs(array.Element));
 
     /// <inheritdoc />
     public override ArrayType? GetArrayType(bool exactly = false) => null;
@@ -204,7 +212,7 @@ public sealed class ArrayType: ValueType
     /// </summary>
     public string? GetPrimaryKey(JsonObject obj)
     {
-        if (Primary == null || Primary.Length == 0 || ElementSchemaType is not StructType { Fields.Length: > 0 } @struct)
+        if (Primary == null || Primary.Length == 0 || Element is not StructType { Fields.Length: > 0 } @struct)
             return null;
 
         string? key = null;
@@ -230,7 +238,7 @@ public sealed class ArrayType: ValueType
     /// </summary>
     public string? GetPrimaryKey(StructNode obj)
     {
-        if (Primary == null || Primary.Length == 0 || ElementSchemaType is not StructType { Fields.Length: > 0 } @struct)
+        if (Primary == null || Primary.Length == 0 || Element is not StructType { Fields.Length: > 0 } @struct)
             return null;
 
         string? key = null;
@@ -248,8 +256,8 @@ public sealed class ArrayType: ValueType
 
     public override IEnumerable<NodeType> GetDependNodes()
     {
-        if (ElementSchemaType != null)
-            yield return ElementSchemaType;
+        if (Element != null)
+            yield return Element;
         
         if (Relations != null)
         {
@@ -290,7 +298,7 @@ public sealed class ArrayType: ValueType
     /// </summary>
     public async Task<ArrayType?> GetGenericTypeAsync(SchemaContext context, string elementType)
     {
-        if (ElementSchemaType is not GenericType) return null;
+        if (Element is not GenericType) return null;
         _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
         
         NodeType? eleType = await context.GetNodeTypeAsync(elementType);
@@ -304,7 +312,7 @@ public sealed class ArrayType: ValueType
                 Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
                 Namespace = Namespace,
                 Element = elementType,
-                ElementSchemaType = eleType,
+                Element = eleType,
                 Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,
@@ -321,7 +329,7 @@ public sealed class ArrayType: ValueType
     /// </summary>
     public ArrayType? GetGenericType(NodeType elementType)
     {
-        if (ElementSchemaType is not GenericType) return null;
+        if (Element is not GenericType) return null;
         _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
         
         if (elementType is null or GenericType or ArrayType) return null;
@@ -334,7 +342,7 @@ public sealed class ArrayType: ValueType
                 Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
                 Namespace = Namespace,
                 Element = elementType.Name,
-                ElementSchemaType = elementType,
+                Element = elementType,
                 Atomic = Atomic,
                 Loaded = true,
                 LoadState = LoadState,

@@ -111,7 +111,26 @@ public abstract class DataNode
     /// </summary>
     /// <param name="source"></param>
     /// <returns></returns>
-    public abstract DataNode? GetSourceValue(string source);
+    public abstract DataNode? GetSourceValue(ReadOnlySpan<char> source);
+    
+    /// <summary>
+    /// Refresh violated constraints based on data node structure
+    /// </summary>
+    public abstract void RefreshViolatedConstraints();
+
+    /// <summary>
+    /// Gets the source value by path
+    /// </summary>
+    /// <param name="path"></param>
+    /// <returns></returns>
+    public DataNode? GetSourceValue(string path)
+    {
+        SpanReader reader = path;
+        DataNode? curr = this;
+        while (curr != null && reader.NextPath())
+            curr = curr.GetSourceValue(reader.Current);
+        return curr;
+    }
 
     /// <summary>
     /// Sets the target's property value

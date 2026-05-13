@@ -17,4 +17,9 @@ internal sealed class GenericType: ValueType
     {
         throw new NotImplementedException();
     }
+
+    public override DataNode ParseValue(object? value)
+    {
+        throw new NotImplementedException();
+    }
 }

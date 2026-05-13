@@ -123,7 +123,7 @@ internal static class Extension
         internal string GetNamespace()
         {
             SpanReader reader = value;
-            while (!reader.IsEmpty)
+            while (!reader.IsEnd)
                 reader.NextNamespace();
             return reader.Previous.ToString().Trim('.');
         }
@@ -135,7 +135,7 @@ internal static class Extension
         internal string GetSchemaName()
         {
             SpanReader reader = value;
-            while (!reader.IsEmpty)
+            while (!reader.IsEnd)
                 reader.NextNamespace();
             return reader.Current.ToString().Trim('.');
         }

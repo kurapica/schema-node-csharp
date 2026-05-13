@@ -204,7 +204,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             }
             
             // loading
-            if (result is not { Loaded: true } || reload && spans.IsEmpty)
+            if (result is not { Loaded: true } || reload && spans.IsEnd)
             {
                 string nextVal = next.IsEmpty ? "" : next.ToString();
                 NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal);

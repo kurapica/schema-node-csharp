@@ -52,7 +52,7 @@ public class DataSourceExpVisitor : IExpVisitor
         NodeType? schemaType = appField?.SchemaType;
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
             schemaType = await context.GetSchemaTypeAsync(appField.Type);
-        return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
+        return schemaType is ArrayType { Element: StructType, Primary: { Length: > 0 } }
             ? new DataSourceExp(new DataSource(app, field, schemaType))
             : null; // call directly
     }

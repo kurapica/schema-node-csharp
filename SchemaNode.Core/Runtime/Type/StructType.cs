@@ -77,7 +77,7 @@ public sealed class StructType: ValueType
                     currentType = currentType switch
                     {
                         StructType s => s.GetField(paths.Current)?.Type,
-                        ArrayType { ElementSchemaType: StructType s } => s.GetField(paths.Current)?.Type,
+                        ArrayType { Element: StructType s } => s.GetField(paths.Current)?.Type,
                         _ => null
                     };
                 }
@@ -136,9 +136,7 @@ public sealed class StructType: ValueType
         _unionValids = null;
     }
 
-    /// <summary>
-    /// Gets the references types
-    /// </summary>
+    /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
         foreach (NodeType node in _fields.SelectMany(f => f.GetReferenceTypes()))
@@ -158,7 +156,7 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
+    public override ValueType? GetSourceValueType(ReadOnlySpan<char> path)
     {
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
@@ -170,7 +168,7 @@ public sealed class StructType: ValueType
         foreach (StructFieldType field in _fields)
         {
             if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return field.Type?.GetAccessValueType(remain);
+                return field.Type?.GetSourceValueType(remain);
         }
         return null;
     }
@@ -202,7 +200,8 @@ public sealed class StructType: ValueType
         {
             DataNode? dataNode = result.GetField(field.Name);
             if (dataNode == null) continue;
-            await field.Type!.ValidateValueAsync(context, dataNode);
+            dataNode = await field.Type!.ValidateValueAsync(context, dataNode);
+            result[field.Name] = dataNode;
 
             if (field.Constraints is not { Length: > 0 }) continue;
             HashSet<string>? errors = dataNode.ViolatedConstraints?.ToHashSet() ?? [];
@@ -224,17 +223,76 @@ public sealed class StructType: ValueType
         // Validate by relations
         if (_relations != null)
         {
+            bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
-                DataNode? curr = result;
-                SpanReader spans = process.Target;
+                DataNode? propValue = await process.ProcessAsync(context, result);
+                if (propValue == null) continue;
                 
+                // build the constraint property
+                if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
+                prop.SetValue(propValue);
+                
+                // apply constraint on target
+                SpanReader spans = process.Target;
+                List<DataNode> currNodes = [result];
+                while (spans.NextPath())
+                {
+                    if (spans.IsEnd)
+                    {
+                        foreach (DataNode currNode in currNodes)
+                        {
+                            if (await prop.ValidateAsync(context, currNode) == false)
+                            {
+                                if (currNode.ViolatedConstraints != null &&
+                                    currNode.ViolatedConstraints.Contains(prop.Name)) continue;
+                                currNode.ViolatedConstraints = currNode.ViolatedConstraints is { Length: > 0 }
+                                    ? currNode.ViolatedConstraints.Append(prop.Name).ToArray()
+                                    : [prop.Name];
+                                changed = true;
+                            }
+                            else if (currNode.ViolatedConstraints != null && currNode.ViolatedConstraints.Contains(prop.Name))
+                            {
+                                currNode.ViolatedConstraints = currNode.ViolatedConstraints.Length == 1 
+                                    ? null 
+                                    : currNode.ViolatedConstraints.Where(c => c != prop.Name).ToArray();
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    
+                    // Gather effect nodes
+                    ReadOnlySpan<char> path = spans.Current;
+                    List<DataNode> nextLevels = [];
+                    foreach (DataNode currNode in currNodes)
+                    {
+                        if (currNode is ArrayNode arr)
+                        {
+                            foreach (DataNode element in arr)
+                            {
+                                DataNode? next = element.GetSourceValue(path);
+                                if (next != null) nextLevels.Add(next);
+                            }
+                        }
+                        else
+                        {
+                            DataNode? next = currNode.GetSourceValue(path);
+                            if (next != null) nextLevels.Add(next);
+                        }
+                    }
+                    currNodes = nextLevels;
+                }
             }
+            
+            if (changed)
+                foreach (var field in result.Fields)
+                    field.RefreshViolatedConstraints();
         }
 
         // Union validation
         bool hasError = result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 });
-        if (!hasError && _unionValids is { Count: > 0 })
+        if (_unionValids is { Count: > 0 })
         {
             foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
             {
