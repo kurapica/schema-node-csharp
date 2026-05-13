@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
@@ -148,6 +147,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             NodeType? result = node;
             if (!next.IsEmpty)
             {
+                // Generic Types
                 if (next.StartsWith('<'))
                 {
                     if (!next.EndsWith('>'))
@@ -162,6 +162,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
                     List<NodeType> genParams = [];
                     SpanReader genericReader = new SpanReader(next.ToString());
+                    string key = next.ToString();
 
                     while(genericReader.NextGenericParam())
                     {
@@ -189,7 +190,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         return null;
                     }
                     await genType.LoadTypeAsync(this, node.Schema!.Clone(runtime), genParams.ToArray());
-                    node.SetGenericType(next, genType);
+                    node.SetGenericType(key, genType);
                     return genType;
                 }
                 else if (parent == null)
@@ -205,7 +206,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             // loading
             if (result is not { Loaded: true } || reload && spans.IsEmpty)
             {
-                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, next ?? "");
+                string nextVal = next.IsEmpty ? "" : next.ToString();
+                NodeSchema? schema = await LoadNodeSchemaAsync(parent != result ? parent : null, nextVal);
                 if (schema == null) return null;
 
                 // node type
@@ -221,7 +223,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 
                 // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
                 if (parent != result)
-                    parent.SaveNodeType(next!, result);
+                    parent?.SaveNodeType(nextVal, result);
 
                 // Load the schema
                 LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
@@ -234,9 +236,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         ns.SaveNodeSchema(s);
                 
                 // Generic Types Reloading
-                if (result.GenericMap is { Count: > 0 })
-                    foreach (NodeType g in result.GenericMap.Values)
-                        await g.LoadTypeAsync(this, schema.Clone(runtime), g.GenericParams!.ToArray());
+                foreach (NodeType g in result.GetGenericTypes())
+                    await g.LoadTypeAsync(this, schema.Clone(runtime), g.GenericParams!.ToArray());
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
             }

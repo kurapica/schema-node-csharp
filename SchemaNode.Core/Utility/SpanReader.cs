@@ -40,6 +40,16 @@ public class SpanReader(string source)
     public ReadOnlySpan<char> Current => _currStart >= 0 ? source.AsSpan(_currStart, _currLast - _currStart) : default;
     
     /// <summary>
+    /// The full read result
+    /// </summary>
+    public ReadOnlySpan<char> Matched => _start > 0 ? source.AsSpan(0, _start) : default;
+    
+    /// <summary>
+    /// The previous read result, which is the same as Matched if the current read is successful, otherwise the same as Current if the current read is failed
+    /// </summary>
+    public ReadOnlySpan<char> Previous => source.AsSpan(0, _currStart >= 0 ? _currStart : 0);
+    
+    /// <summary>
     /// Try read the next segment of the path, separated by the specified character.
     /// </summary>
     public bool Next(char sep)

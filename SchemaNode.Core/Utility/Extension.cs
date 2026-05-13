@@ -113,21 +113,6 @@ internal static class Extension
         internal string ToCamelCase() => value.Length > 0 ? string.Concat(value[..1].ToLowerInvariant(), value.AsSpan(1)) : value;
 
         /// <summary>
-        /// Split the type path
-        /// </summary>
-        internal IEnumerable<string> GetNamespaces()
-        {
-            List<string> paths = [..value.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
-            while (paths.Count > 1 && paths[^1].EndsWith('>') && !paths[^1].Contains('<'))
-            {
-                string last = paths[^1];
-                paths.RemoveAt(paths.Count - 1);
-                paths[^1] += "." + last;
-            }
-            return [..paths];
-        }
-
-        /// <summary>
         /// Gets the base type
         /// </summary>
         internal string GetBaseType() => value.Contains('<') ? value[..value.IndexOf('<')] : value;
@@ -135,13 +120,25 @@ internal static class Extension
         /// <summary>
         /// Gets the namespace
         /// </summary>
-        internal string GetNamespace() => string.Join('.', value.GetNamespaces().SkipLast(1));
+        internal string GetNamespace()
+        {
+            SpanReader reader = new SpanReader(value);
+            while (!reader.IsEmpty)
+                reader.NextNamespace();
+            return reader.Previous.ToString();
+        }
 
         /// <summary>
         /// Gets the schema name
         /// </summary>
         /// <returns></returns>
-        internal string GetSchemaName() => value.GetNamespaces().Last();
+        internal string GetSchemaName()
+        {
+            SpanReader reader = new SpanReader(value);
+            while (!reader.IsEmpty)
+                reader.NextNamespace();
+            return reader.Current.ToString();
+        }
 
         /// <summary>
         /// Remove the ending part if existed

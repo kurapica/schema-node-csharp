@@ -96,9 +96,11 @@ public class SchemaRuntime : ISchemaRuntime
         NodeSchema root = _rootSchema;
         string fullPath = "";
 
-        foreach (string part in schemaName.GetNamespaces())
+        SpanReader reader = new SpanReader(schemaName);
+        while(reader.NextNamespace())
         {
             string ns = fullPath;
+            string part = reader.Current.ToString();
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{part}" : part;
 
             NodeSchema? node = root.Schemas?.FirstOrDefault(x => x.Name == fullPath);
@@ -156,14 +158,24 @@ public class SchemaRuntime : ISchemaRuntime
     public NodeSchema? GetSystemSchema(string schemaName)
     {
         NodeSchema? node = _rootSchema;
-
-        foreach (string part in schemaName.GetNamespaces())
+        SpanReader reader = new SpanReader(schemaName);
+        while (node != null && reader.NextNamespace())
         {
-            node = node.Schemas?.FirstOrDefault(x => x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
-            if (node == null) return null;
+            ReadOnlySpan<char> part = reader.Current;
+            NodeSchema? curr = null;
+            if (node.Schemas != null)
+            {
+                foreach (NodeSchema schema in node.Schemas)
+                {
+                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    curr = schema;
+                    break;
+                }
+            }
+            node = curr;
         }
 
-        return node.Clone(this);
+        return node?.Clone(this);
     }
     
     /// <summary>

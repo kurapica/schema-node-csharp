@@ -216,6 +216,17 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         GenericMap ??= [];
         GenericMap[name.ToString()] = node;
     }
+    
+    /// <summary>
+    /// Gets all generated generic types
+    /// </summary>
+    /// <returns></returns>
+    internal IEnumerable<NodeType> GetGenericTypes()
+    {
+        if (GenericMap == null) yield break;
+        foreach (NodeType g in GenericMap.Values)
+            yield return g;
+    }
 
     /// <summary>
     /// Gets all node schemas used by the node schema
@@ -239,18 +250,17 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         if (Schema == null || !types.Add(Name) || this is GenericType) return root;
         
         // install
-        string fullPath = string.Empty;
         NodeSchema parent = root;
-        foreach (string p in Name.GetNamespaces())
+        SpanReader reader = new SpanReader(Name);
+        while (reader.NextNamespace())
         {
-            fullPath = string.IsNullOrWhiteSpace(fullPath) ? p : $"{fullPath}.{p}";
-                
             parent.Schemas ??= [];
-            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => fullPath.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
+            string matched = reader.Matched.ToString();
+            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => matched.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
             if (sub == null)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                sub = (await context.GetNodeTypeAsync(fullPath))?.Schema ?? new NodeSchema{ Name = fullPath.GetSchemaName(), Namespace = fullPath.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE };
+                sub = (await context.GetNodeTypeAsync(matched))?.Schema ?? new NodeSchema{ Name = matched.GetSchemaName(), Namespace = matched.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE };
                 parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
             }
             parent = sub;
