@@ -96,7 +96,7 @@ public class SchemaRuntime : ISchemaRuntime
         NodeSchema root = _rootSchema;
         string fullPath = "";
 
-        SpanReader reader = new SpanReader(schemaName);
+        SpanReader reader = schemaName;
         while(reader.NextNamespace())
         {
             string ns = fullPath;
@@ -158,7 +158,7 @@ public class SchemaRuntime : ISchemaRuntime
     public NodeSchema? GetSystemSchema(string schemaName)
     {
         NodeSchema? node = _rootSchema;
-        SpanReader reader = new SpanReader(schemaName);
+        SpanReader reader = schemaName;
         while (node != null && reader.NextNamespace())
         {
             ReadOnlySpan<char> part = reader.Current;

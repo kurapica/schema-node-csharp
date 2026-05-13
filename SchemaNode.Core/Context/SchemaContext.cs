@@ -132,7 +132,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         
         // registered type
         SchemaRuntime runtime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
-        SpanReader spans = new SpanReader(fullName);
+        SpanReader spans = fullName;
         NodeType? node = await LoadNodeTypeAsync(runtime.RootNamespace);
         while (node != null && spans.NextNamespace())
             node = await LoadNodeTypeAsync(node);
@@ -161,7 +161,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     if (node.GetGenericType(next) is { } genType) return genType;
 
                     List<NodeType> genParams = [];
-                    SpanReader genericReader = new SpanReader(next.ToString());
+                    SpanReader genericReader = next;
                     string key = next.ToString();
 
                     while(genericReader.NextGenericParam())

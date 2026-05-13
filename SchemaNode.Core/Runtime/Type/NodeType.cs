@@ -251,7 +251,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         
         // install
         NodeSchema parent = root;
-        SpanReader reader = new SpanReader(Name);
+        SpanReader reader = Name;
         while (reader.NextNamespace())
         {
             parent.Schemas ??= [];

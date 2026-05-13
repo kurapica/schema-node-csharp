@@ -184,7 +184,7 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(SpanReader.Create(paths));
+    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(new SpanReader(paths));
 
     public override object? ToTypeValue(Type type)
     {

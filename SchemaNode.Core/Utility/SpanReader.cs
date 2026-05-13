@@ -164,4 +164,14 @@ public class SpanReader(string source)
         _start = _last;
         return true;
     }
+
+    /// <summary>
+    /// Generate Span reader based on string
+    /// </summary>
+    public static implicit operator SpanReader(string source) => new(source);
+
+    /// <summary>
+    /// Generate Span reader based on span
+    /// </summary>
+    public static implicit operator SpanReader(ReadOnlySpan<char> source) => new(source.ToString());
 }

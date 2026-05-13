@@ -70,14 +70,14 @@ public sealed class StructType: ValueType
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ReadOnlySpan<char> target = relation.Target;
+                SpanReader paths = relation.Target;
                 ValueType? currentType = this;
-                while (currentType != null && paths.TryRead(out var curr))
+                while (currentType != null && paths.NextPath())
                 {
                     currentType = currentType switch
                     {
-                        StructType s => s.GetField(curr)?.Type,
-                        ArrayType { ElementSchemaType: StructType s } => s.GetField(curr)?.Type,
+                        StructType s => s.GetField(paths.Current)?.Type,
+                        ArrayType { ElementSchemaType: StructType s } => s.GetField(paths.Current)?.Type,
                         _ => null
                     };
                 }
@@ -227,7 +227,7 @@ public sealed class StructType: ValueType
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
                 DataNode? curr = result;
-                SpanReader spans = SpanReader.Create(process.Target);
+                SpanReader spans = process.Target;
                 
             }
         }
