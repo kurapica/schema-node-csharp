@@ -133,37 +133,34 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         
         // registered type
         SchemaRuntime runtime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
-        string[] parts = fullName.GetNamespaces().ToArray();
-        NodeType? node = await LoadNodeTypeAsync(runtime.RootNamespace, null, reload && parts.Length == 0);
-
-        foreach(var part in fullName.GetNamespaces())
-        {
-                if (node is not NamespaceType ns) return null;
-                node = await LoadNodeTypeAsync(ns, part, reload && parts.Length == 0);
-        }
-        for (int i = 1; i <= parts.Length; i++)
-        {
-            if (node is not NamespaceType ns) return null;
-            node = await LoadNodeTypeAsync(ns, parts[i - 1], reload && parts.Length == i);
-        }
+        SpanReader spans = new SpanReader(fullName);
+        NodeType? node = await LoadNodeTypeAsync(runtime.RootNamespace);
+        while (node != null && spans.NextNamespace())
+            node = await LoadNodeTypeAsync(node);
 
         return node;
 
-        async Task<NodeType?> LoadNodeTypeAsync(NamespaceType parent, string? next = null, bool reload = false)
+        async Task<NodeType?> LoadNodeTypeAsync(NodeType? node)
         {
-            // Convert path<T1, T2> to path, [T1, T2]
-            string[]? generic = null;
-            if (next != null && Regex.IsMatch(next, REGEX_GENERIC_IMPLEMENT))
+            // Convert <T1, T2> to [T1, T2]
+            ReadOnlySpan<char> next = spans.Current;
+            NamespaceType? parent = node as  NamespaceType;
+            if (!next.IsEmpty)
             {
-                Match match = Regex.Match(next, REGEX_GENERIC_IMPLEMENT);
-                next = match.Groups[1].Value;
-                generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()).ToArray();
+                string[]? generic = null;
+                if (next.StartsWith('<'))
+                {
+                    Match match = Regex.Match(next, REGEX_GENERIC_IMPLEMENT);
+                    next = match.Groups[1].Value;
+                    generic = match.Groups[2].Value.Split(",", StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).ToArray();
+                }
+
             }
             
             NodeType? result = next != null ? parent.GetNodeType(next) : parent;
             NodeSchema? schema = result?.Schema;
-            if (reload || result is not { Loaded: true })
+            if (result is not { Loaded: true } || reload && spans.IsEmpty)
             {
                 schema = await LoadNodeSchemaAsync(parent != result ? parent : null, next ?? "");
                 if (schema == null) return null;

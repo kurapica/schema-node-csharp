@@ -117,29 +117,14 @@ internal static class Extension
         /// </summary>
         internal IEnumerable<string> GetNamespaces()
         {
-            ReadOnlySpan<char> span = value.AsSpan();
-            int start = 0;
-            int depth = 0;
-            for (int i = 0; i < span.Length; i++)
+            List<string> paths = [..value.ToLowerInvariant().Split('.', StringSplitOptions.RemoveEmptyEntries)];
+            while (paths.Count > 1 && paths[^1].EndsWith('>') && !paths[^1].Contains('<'))
             {
-                if (span[i] == '.' && depth == 0)
-                {
-                    yield return span.Slice(start, i - start).ToString();
-                    start = i + 1;
-                }
-                else if (span[i] == '<')
-                {
-                    depth++;
-                }
-                else if (span[i] == '>')
-                {
-                    depth--;
-                }
+                string last = paths[^1];
+                paths.RemoveAt(paths.Count - 1);
+                paths[^1] += "." + last;
             }
-            if (start < span.Length)
-            {
-                yield return span.Slice(start).ToString();
-            }
+            return [..paths];
         }
 
         /// <summary>
@@ -189,41 +174,6 @@ internal static class Extension
                 return DateTime.Parse(value);
 
             return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
-        }
-    }
-
-    #endregion
-
-    #region ReadOnlySpan<char>
-
-    extension (ReadOnlySpan<char> span)
-    {
-
-        /// <summary>
-        /// Split the type path
-        /// </summary>
-        internal IEnumerable<(int start, int? stop)> GetNamespacesSpans()
-        {
-            int start = 0;
-            int depth = 0;
-            for (int i = 0; i < span.Length; i++)
-            {
-                if (span[i] == '.' && depth == 0)
-                {
-                    yield return (start, i - start);
-                    start = i + 1;
-                }
-                else if (span[i] == '<')
-                {
-                    depth++;
-                }
-                else if (span[i] == '>')
-                {
-                    depth--;
-                }
-            }
-            if (start < span.Length)
-                yield return (start, null);
         }
     }
 

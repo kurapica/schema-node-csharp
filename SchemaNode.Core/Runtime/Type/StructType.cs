@@ -227,7 +227,7 @@ public sealed class StructType: ValueType
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
                 DataNode? curr = result;
-                PathReader paths = PathReader.Create(process.Target);
+                SpanReader spans = SpanReader.Create(process.Target);
                 
             }
         }

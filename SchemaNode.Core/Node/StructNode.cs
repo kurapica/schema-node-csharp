@@ -170,10 +170,10 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    internal DataNode? GetValueByPaths(PathReader paths)
+    internal DataNode? GetValueByPaths(SpanReader spans)
     {
         DataNode? node = this;
-        while (paths.TryRead(out ReadOnlySpan<char> part))
+        while (spans.NextNamespace(out ReadOnlySpan<char> part))
         {
             node = (node is StructNode obj) ? obj.GetField(part) : null;
             if (node == null) return null;
@@ -184,7 +184,7 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(PathReader.Create(paths));
+    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(SpanReader.Create(paths));
 
     public override object? ToTypeValue(Type type)
     {
