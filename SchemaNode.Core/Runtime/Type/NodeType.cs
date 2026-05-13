@@ -70,7 +70,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The generic type map for generic type definition, like T => string, used for generic type definition, which is important for generic type loading and refactor. The key is the generic type name, and the value is the actual node type.
     /// </summary>
-    internal ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
+    private ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
+
+    /// <summary>
+    /// The generic type lookup
+    /// </summary>
+    private ConcurrentDictionary<string, NodeType>.AlternateLookup<ReadOnlySpan<char>>? GenericMapLookup { get; set; }
 
     /// <summary>
     /// The generic parameters
@@ -115,8 +120,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema,
-        NodeType[]? genericParams = null)
+    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? genericParams = null)
     {
         ReleaseType();
         Error = null;
@@ -192,6 +196,25 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     {
         IProperty? prop = _props?.FirstOrDefault(p => p.Type.IsAssignableTo(typeof(T)));
         return prop != null ? prop.GetValue<T>(true) : default(T?);
+    }
+
+    /// <summary>
+    /// Gets the generic map
+    /// </summary>
+    internal NodeType? GetGenericType(ReadOnlySpan<char> name)
+    {
+        if (GenericMap == null) return null;
+        GenericMapLookup ??= GenericMap.GetAlternateLookup<ReadOnlySpan<char>>();
+        return GenericMapLookup.Value.TryGetValue(name, out NodeType? node) ? node : null;
+    }
+
+    /// <summary>
+    /// Sets the generic map
+    /// </summary>
+    internal void SetGenericType(ReadOnlySpan<char> name, NodeType node)
+    {
+        GenericMap ??= [];
+        GenericMap[name.ToString()] = node;
     }
 
     /// <summary>

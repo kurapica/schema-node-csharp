@@ -77,6 +77,18 @@ public class SpanReader(string source)
     public bool NextGenericParam()
     {
         var span = Trim();
+        if (!span.IsEmpty && span[0] == '<')
+        {
+            _start++;
+            span = span[1..];
+
+            if (!span.IsEmpty && span[^1] == '>')
+            {
+                _last--;
+                span = span[..^1];
+            }
+        }
+
         if (span.IsEmpty)
         {
             _currStart = -1;
@@ -91,6 +103,15 @@ public class SpanReader(string source)
             {
                 case ',' when depth == 0:
                     _currStart = _start;
+                    _currLast = i;
+                    _start += i + 1;
+                    return true;
+                case '<':
+                    depth++;
+                    break;
+                case '>':
+                    depth--;
+                    break;
             }
         }
         _currStart = _start;
