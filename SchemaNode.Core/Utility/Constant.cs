@@ -16,16 +16,24 @@ public static class Constant
     public const int ENTITY_PRIMARY_KEY_MAX_LEN = 128;
 
     #endregion
-    
+
     #region Pattern
-    
+
     public const string REGEX_GENERIC_TYPE = @"^T\d*$";
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
-    
+
     #endregion
-    
+
+    #region Relation
+
+    public const string ARRAY_ITSELF = "$array";
+    public const string ARRAY_ELEMENT = "$element";
+    public const string NODE_SELF = "$self";
+
+    #endregion
+
     #region Schema Kind
-    
+
     public const string SCHEMA_KIND_NODE = "node";
     public const string SCHEMA_KIND_NAMESPACE = "namespace";
     public const string SCHEMA_KIND_OBJECT = "object";
@@ -167,10 +175,6 @@ public static class Constant
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
 
     // Represents the special node used as function arguments for validation or relation
-    public const string ARRAY_ITSELF = "$array";
-    public const string ARRAY_ELEMENT = "$ele";
-    public const string NODE_SELF = "$self";
-
 
     public const string NS_SYSTEM_SCHEMA_PROPERTY = $"{NS_SYSTEM_SCHEMA}.property";
 

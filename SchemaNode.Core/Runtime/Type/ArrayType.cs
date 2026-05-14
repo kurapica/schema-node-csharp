@@ -1,11 +1,10 @@
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -59,10 +58,13 @@ public sealed class ArrayType: ValueType
         }
         
         // load properties
-        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element) : null;
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics) : null;
         Primary = array?.Primary?.ToImmutableArray();
         Combines = array?.Combines?.ToImmutableArray();
         Indexes = array?.Indexes?.ToImmutableArray();
+
+        if (Element is GenericType && GenericParams is { Count: 1 })
+            Element = GenericParams[0] as ValueType;
 
         if (Element == null)
         {
@@ -130,6 +132,15 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
+    public override ValueType? GetSourceValueType(ReadOnlySpan<char> path)
+    {
+        if (path.IsEmpty) return this;
+        if (path.SequenceEqual(ARRAY_ITSELF)) return this;
+        if (path.SequenceEqual(ARRAY_ELEMENT)) return Element;
+        return null;
+    }
+
+    /// <inheritdoc />
     public override bool IsAssignableTo(ValueType other)
     {
         if (base.IsAssignableTo(other)) return true;
@@ -139,73 +150,27 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override async Task<Node.DataNode?> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
+    public override DataNode ParseValue(object? value)
+        => value is ArrayNode node && node.NodeType == this ? node : new ArrayNode(this, value);
+
+
+    /// <inheritdoc />
+    public override Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
-        if (value is not JsonArray array)
-            return (null, TYPE_VALUE_NOT_VALID);
+        ArrayNode result = (ParseValue(value) as ArrayNode)!;
 
-        // validate elements
-        ArrayNode result = new(this);
-        JsonObject? error = null;
-        if (Element != null)
-        {
-            IConstraintProperty[] eleConstraints = Constraints?.Where(c => c.ForArrayOnly == false).ToArray() ?? [];
-            if (constraints != null)
-            {
-                for(int i = 0; i < eleConstraints.Length; i++)
-                {
-                    if (constraints.FirstOrDefault(c => c.GetType() == eleConstraints[i].GetType()) is IConstraintProperty cst && cst.HasValue)
-                        eleConstraints[i] = cst;
-                }
-            }
-            eleConstraints = eleConstraints.Where(c => c.HasValue).ToArray();
+        // Validate by elements
+        
 
-            for (int i = 0; i < array.Count; i++)
-            {
-                (Node.DataNode? v, JsonNode? e) = await Element.ValidateValueAsync(context, array[i]!, eleConstraints);
-                if (e != null && !e.IsEmpty())
-                {
-                    error ??= new JsonObject();
-                    error[i.ToString()] = e;
-                }
-                else if (v != null)
-                {
-                    result.Add(v);
-                }
-            }
-        }
-        else
-        {
-            result.AddRange(array);
-        }
+        // Validate by constraints
 
-        // Constraint validation
-        if (Constraints is { Length: > 0 })
-        {
-            foreach (IConstraintProperty constraint in Constraints.Where(p => p.ForArrayOnly))
-            {
-                if (constraints != null && constraints.FirstOrDefault(c => c.GetType() == constraint.GetType()) is IConstraintProperty cst && cst.HasValue)
-                {
-                    if (await cst.ValidateArrayAsync(context, (ArrayNode)result) == false)
-                        return (null, TYPE_VALUE_NOT_VALID);
-                }
-                else if (await constraint.ValidateArrayAsync(context, (ArrayNode)result) == false)
-                    return (null, TYPE_VALUE_NOT_VALID);
-            }
-        }
+        // Validate by relations
 
-        return (result, error);
     }
 
-    /// <inheritdoc />
-    public override bool CanBeUseAs(NodeType other, bool exactly = false) => 
-        base.CanBeUseAs(other, exactly)
-        || Name.Equals(NS_SYSTEM_ARRAY) 
-        || other.Name.Equals(NS_SYSTEM_ARRAY) 
-        || (other is ArrayType array && Element != null && array.Element != null && Element.CanBeUseAs(array.Element));
+    #endregion
 
-    /// <inheritdoc />
-    public override ArrayType? GetArrayType(bool exactly = false) => null;
+    #region Method
 
     /// <summary>
     /// Get unique key for object
@@ -253,108 +218,6 @@ public sealed class ArrayType: ValueType
         }
         return key;
     }
-
-    public override IEnumerable<NodeType> GetDependNodes()
-    {
-        if (Element != null)
-            yield return Element;
-        
-        if (Relations != null)
-        {
-            foreach (StructRelationSchema relation in Relations)
-            {
-                if (relation.FuncNode != null)
-                    yield return relation.FuncNode;
-            }
-        }
-    }
-
-    #endregion
-
-    #region Conversion
-    
-    /// <summary>
-    /// Convert the node to schema
-    /// </summary>
-    public static implicit operator NodeSchema?(ArrayType? schema)
-    {
-        return schema?.ToSchema().With(new ArraySchema
-        {
-            Element = schema.Element,
-            Primary = schema.Primary,
-            Indexes = schema.Indexes,
-            Combines = schema.Combines,
-            Relations = schema.Relations,
-            Atomic = schema.Atomic,
-        });
-    }
-    
-    #endregion
-    
-    #region Generic type
-    
-    /// <summary>
-    /// Gets the generic type of the array
-    /// </summary>
-    public async Task<ArrayType?> GetGenericTypeAsync(SchemaContext context, string elementType)
-    {
-        if (Element is not GenericType) return null;
-        _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
-        
-        NodeType? eleType = await context.GetNodeTypeAsync(elementType);
-        if (eleType is null or GenericType or ArrayType) return null;
-        
-        return _genericArrayTypes.GetOrAdd(elementType, _ =>
-        {
-            ArrayType arrayType = new()
-            {
-                Name = $"{Name}<{elementType}>",
-                Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
-                Namespace = Namespace,
-                Element = elementType,
-                Element = eleType,
-                Atomic = Atomic,
-                Loaded = true,
-                LoadState = LoadState,
-                Provider = Provider,
-                Extensions = Extensions
-            };
-            eleType.AddUsedBy(arrayType);
-            return arrayType;
-        });
-    }
-
-    /// <summary>
-    /// Gets the generic type of the array
-    /// </summary>
-    public ArrayType? GetGenericType(NodeType elementType)
-    {
-        if (Element is not GenericType) return null;
-        _genericArrayTypes ??= new ConcurrentDictionary<string, ArrayType>();
-        
-        if (elementType is null or GenericType or ArrayType) return null;
-        
-        return _genericArrayTypes.GetOrAdd(elementType.Name.ToLower(), _ =>
-        {
-            ArrayType arrayType = new()
-            {
-                Name = $"{Name}<{elementType}>",
-                Display = $"{Locale.LIST_PREFIX}{{@{elementType}}}{Locale.LIST_SUFFIX}",
-                Namespace = Namespace,
-                Element = elementType.Name,
-                Element = elementType,
-                Atomic = Atomic,
-                Loaded = true,
-                LoadState = LoadState,
-                Provider = Provider,
-                Extensions = Extensions
-            };
-            elementType.AddUsedBy(arrayType);
-            return arrayType;
-        });
-    }
-    
-    private ConcurrentDictionary<string, ArrayType>? _genericArrayTypes;
 
     #endregion
 }
