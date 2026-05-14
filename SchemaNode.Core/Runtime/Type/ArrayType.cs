@@ -112,10 +112,7 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override void Release()
-    {
-        _relations = null;
-    }
+    public override void Release() => _relations = null;
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
@@ -134,10 +131,8 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override ValueType? GetSourceValueType(ReadOnlySpan<char> path)
     {
-        if (path.IsEmpty) return this;
-        if (path.SequenceEqual(ARRAY_ITSELF)) return this;
-        if (path.SequenceEqual(ARRAY_ELEMENT)) return Element;
-        return null;
+        if (path.IsEmpty || path.SequenceEqual(ARRAY_ITSELF)) return this;
+        return path.SequenceEqual(ARRAY_ELEMENT) ? Element : null;
     }
 
     /// <inheritdoc />
@@ -145,14 +140,12 @@ public sealed class ArrayType: ValueType
     {
         if (base.IsAssignableTo(other)) return true;
         if (other is not ArrayType array) return false;
-        if (Element == null || array.Element == null) return true;
-        return Element.IsAssignableTo(array.Element);
+        return Element == array.Element || Element != null && array.Element != null && Element.IsAssignableTo(array.Element);
     }
 
     /// <inheritdoc />
     public override DataNode ParseValue(object? value)
         => value is ArrayNode node && node.NodeType == this ? node : new ArrayNode(this, value);
-
 
     /// <inheritdoc />
     public override Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
@@ -160,7 +153,11 @@ public sealed class ArrayType: ValueType
         ArrayNode result = (ParseValue(value) as ArrayNode)!;
 
         // Validate by elements
-        
+        bool hasError = false;
+        foreach (DataNode element in result)
+        {
+            
+        }
 
         // Validate by constraints
 

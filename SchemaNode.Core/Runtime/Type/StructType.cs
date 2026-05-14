@@ -191,9 +191,13 @@ public sealed class StructType: ValueType
         => value is StructNode node && node.NodeType == this ? node : new StructNode(this, value);
 
     /// <inheritdoc />
-    public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
     {
-        StructNode result = (ParseValue(value) as StructNode)!;
+        if (value is not StructNode result)
+        {
+            value.ViolatedConstraints = value.ViolatedConstraints is { Length: > 0 } ? value.ViolatedConstraints.Append(Kind).ToArray() : [Kind];
+            return;
+        }
         
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))

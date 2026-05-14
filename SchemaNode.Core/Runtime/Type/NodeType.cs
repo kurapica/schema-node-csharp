@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.ComponentModel.DataAnnotations;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Schema;
@@ -419,7 +420,7 @@ public abstract class ValueType : NodeType
                 _isAssignableTo ??= [];
                 _isAssignableTo.TryAdd(func.ReturnNode, func);
                 break;
-            case ArrayType arr when Name.Equals(arr.Element, StringComparison.OrdinalIgnoreCase):
+            case ArrayType arr when Name.Equals(arr.Element?.Name, StringComparison.OrdinalIgnoreCase):
                 ArrayType ??= arr;
                 break;
         }
@@ -447,11 +448,56 @@ public abstract class ValueType : NodeType
     #endregion
     
     #region Abstract Methods
+
+    /// <summary>
+    /// Generate data node from object and validate the value
+    /// </summary>
+    public virtual async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    {
+        DataNode result;
+        if (value is DataNode node && node.NodeType == this)
+        {
+            result = node;
+        }
+        else
+        {
+            result = ParseValue(value);
+            if (result.IsEmpty && value != null || result.NodeType != this)
+            {
+                result.ViolatedConstraints = [Kind];
+                result.Value = value; // try keep it
+                return result;
+            }
+        }
+    
+        // Custom validation
+        await ValidateValueAsync(context, result);
+        if (result.ViolatedConstraints is { Length: > 0 } && result.ViolatedConstraints.Contains(Kind)) 
+            return result;
+        
+        // apply constraints
+        List<string>? errors = null;
+        foreach (IConstraintProperty constraint in Constraints)
+        {
+            if (await constraint.ValidateAsync(context, result) != false) continue;
+            errors ??= [];
+            errors.Add(constraint.Name);
+        }
+        if (errors != null)
+            result.ViolatedConstraints = result.ViolatedConstraints == null 
+                ? errors.ToArray()
+                : result.ViolatedConstraints.Concat(errors).Distinct().ToArray();
+        
+        return result;
+    }
     
     /// <summary>
-    /// Validate the value with the schema
+    /// Validate the 
     /// </summary>
-    public abstract Task<DataNode> ValidateValueAsync(SchemaContext context, object? value);
+    /// <param name="context"></param>
+    /// <param name="node"></param>
+    /// <returns></returns>
+    protected virtual Task ValidateValueAsync(SchemaContext context, DataNode node) => Task.CompletedTask;
 
     /// <summary>
     /// Generate the data node from value, no validation will be performed
@@ -473,11 +519,6 @@ public abstract class ValueType : NodeType
            _isAssignableTo != null && 
            (_isAssignableTo.ContainsKey(other) || 
             _isAssignableTo.Keys.Any(k => k.IsAssignableTo(other)));
-
-    /// <summary>
-    /// The value type is assignable from other value type
-    /// </summary>
-    public bool IsAssignableFrom(ValueType other) => other.IsAssignableFrom(this);
 
     #endregion
 }

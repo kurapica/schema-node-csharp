@@ -57,32 +57,6 @@ public abstract class ScalarType : ValueType
     public override bool IsAssignableTo(ValueType other)
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
-    /// <inheritdoc />
-    public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
-    {
-        DataNode result = ParseValue(value);
-        if (value != null && result.IsEmpty)
-        {
-            result.Value = value;
-            result.ViolatedConstraints = [Kind];
-            return result;
-        }
-
-        if (constraints is { Length : > 0 })
-        {
-            List<string>? errors = null;
-            foreach (IConstraintProperty constraint in constraints)
-            {
-                if (await constraint.ValidateAsync(context, result) != false) continue;
-                errors ??= [];
-                errors.Add(constraint.Name);
-            }
-            if (errors != null)
-                result.ViolatedConstraints = errors.ToArray();
-        }
-        return result;
-    }
-
     #endregion
 }
 

@@ -158,18 +158,23 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
     {
-        EnumNode result = (ParseValue(value) as EnumNode)!;
-        if (result.IsEmpty) return result; // require is handled by struct, not here
+        if (value is not EnumNode result)
+        {
+            value.ViolatedConstraints = value.ViolatedConstraints != null
+                ? value.ViolatedConstraints.Append(Kind).ToArray()
+                : [Kind];
+            return;
+        }
+        if (result.IsEmpty) return; // require is handled by struct, not here
 
         // Validate value
         if (_enumSchema?.Type == EnumValueType.Flags)
         {
             if (result.Value is not long flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
             {
-                result.ViolatedConstraints = [SCHEMA_KIND_ENUM];
-                return result;
+                result.ViolatedConstraints = [Kind];
             }
         }
         else
@@ -177,22 +182,9 @@ public sealed class EnumType: ValueType
             EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.Value!.ToString());
             if (access.Length == 0)
             {
-                result.ViolatedConstraints = [SCHEMA_KIND_ENUM];
-                return result;
+                result.ViolatedConstraints = [Kind];
             }
         }
-        
-        // Constraint validation
-        List<string>? errors = null;
-        foreach (IConstraintProperty constraint in Constraints)
-        {
-            if (await constraint.ValidateAsync(context, result) != false) continue;
-            errors ??= [];
-            errors.Add(constraint.Name);
-        }
-        if (errors != null)
-            result.ViolatedConstraints = errors.ToArray();
-        return result;
     }
 
     /// <inheritdoc />
