@@ -23,7 +23,7 @@ public class Root: Property<Node.DataNode>, IConstraintProperty
         string nodeValue = node.ToString();
         if (root.Equals(nodeValue)) return true;
 
-        EnumValueAccess[] access = await (node.NodeType as EnumType)!.LoadEnumAccessListAsync(context, nodeValue, noSubList: true);
+        EnumValueAccess[] access = await (node.Type as EnumType)!.LoadEnumAccessListAsync(context, nodeValue, noSubList: true);
         return access.Any(a => a.Value.Equals(root));
     }
 }

@@ -28,7 +28,7 @@ public class AnyNode: DataNode
         return this.ToLiteral() == otherJson.ToLiteral();
     }
     
-    System.Text.Json.Nodes.JsonNode? ParseJsonNode(System.Text.Json.Nodes.JsonNode? node)
+    JsonNode? ParseJsonNode(JsonNode? node)
     {
         switch (node)
         {
@@ -46,7 +46,7 @@ public class AnyNode: DataNode
             case JsonArray arr:
             {
                 JsonArray res = [];
-                foreach (System.Text.Json.Nodes.JsonNode? n in arr)
+                foreach (JsonNode? n in arr)
                 {
                     var childNode = ParseJsonNode(n);
                     if (childNode != null && !childNode.IsEmpty())

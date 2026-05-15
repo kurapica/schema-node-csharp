@@ -188,7 +188,7 @@ public sealed class StructType: ValueType
 
     /// <inheritdoc />
     public override DataNode ParseValue(object? value)
-        => value is StructNode node && node.NodeType == this ? node : new StructNode(this, value);
+        => value is StructNode node && node.Type == this ? node : new StructNode(this, value);
 
     /// <inheritdoc />
     protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)

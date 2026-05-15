@@ -1,8 +1,5 @@
-using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
@@ -11,8 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.Schema;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
+using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 // ReSharper disable InconsistentNaming
@@ -530,7 +526,7 @@ public sealed class FunctionType : NodeType
                 }
 
                 // Parse argument
-                var eleType = GetArgType(arg, argNode?.NodeType.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
+                var eleType = GetArgType(arg, argNode?.Type.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
 
                 // JsonNode
                 if (argJson != null)
@@ -602,7 +598,7 @@ public sealed class FunctionType : NodeType
                             argObj = argNode;
                         else
                         {
-                            eleType ??= GetArgType(arg, argNode.NodeType.ToCSharpType());
+                            eleType ??= GetArgType(arg, argNode.Type.ToCSharpType());
                             argObj = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {j + 1} argument not valid");
                         }
                     }
@@ -1010,7 +1006,7 @@ public sealed class FunctionType : NodeType
             {
                 Name = e.Name.ToCamelCase(),
                 Func = e.Func,
-                Type = e.Type ?? ExpressionType.Call,
+                Type = e.Type ?? ExpType.Call,
                 Return = e.Return,
                 Args = e.Args,
                 Status = e.Status != null && e.Status != SchemaNodeStatus.Ready ? e.Status : null,
@@ -1131,7 +1127,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The function used to map array elements
     /// </summary>
-    public ExpressionType? Type { get; init; } = ExpressionType.Call;
+    public ExpType? Type { get; init; } = ExpType.Call;
 
     /// <summary>
     /// The namespace.

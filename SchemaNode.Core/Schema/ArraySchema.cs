@@ -1,7 +1,5 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using static SchemaNode.Utility.Constant;

@@ -14,5 +14,5 @@ public sealed class IntType : ScalarType
     
     /// <inheritdoc/>
     public override DataNode ParseValue(object? value)
-        => value is IntNode node && node.NodeType == this ? node :  new IntNode(this, value?.TryConvertTo<long>());
+        => value is IntNode node && node.Type == this ? node :  new IntNode(this, value?.TryConvertTo<long>());
 }

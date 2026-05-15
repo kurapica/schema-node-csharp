@@ -106,7 +106,7 @@ public static class SystemCollection
                 return descending ? cb.CompareTo(ca) : ca.CompareTo(cb);
             return 0;
         });
-        return new ArrayNode(obj.NodeType, list);
+        return new ArrayNode(obj.Type, list);
     }
     
     /// <summary>
@@ -116,8 +116,8 @@ public static class SystemCollection
     {
         if (count <= 0) return obj;
         return count > obj.Count 
-            ? new ArrayNode(obj.NodeType) 
-            : new ArrayNode(obj.NodeType, obj.Skip(count));
+            ? new ArrayNode(obj.Type) 
+            : new ArrayNode(obj.Type, obj.Skip(count));
     }
 
     /// <summary>
@@ -127,8 +127,8 @@ public static class SystemCollection
     {
         if (count >= obj.Count) return obj;
         return count <= 0 
-            ? new ArrayNode(obj.NodeType)
-            : new ArrayNode(obj.NodeType, obj.Take(count));
+            ? new ArrayNode(obj.Type)
+            : new ArrayNode(obj.Type, obj.Take(count));
     }
     
     /// <summary>
@@ -139,7 +139,7 @@ public static class SystemCollection
         if (paths.Length == 0) return obj;
         if (obj is not StructNode s) return null;
         
-        StructType structType = (s.NodeType as StructType)! ;
+        StructType structType = (s.Type as StructType)! ;
         StructFieldSchema? fldConfig = structType.GetField(paths[0]);
         Node.DataNode? field = s.GetField(paths[0]);
         if (field == null) return null;

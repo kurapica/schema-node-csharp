@@ -30,11 +30,6 @@ public sealed class ArrayType: ValueType
     public ImmutableList<string>? Primary { get; private set; }
 
     /// <summary>
-    /// The indexes
-    /// </summary>
-    public ImmutableList<DataIndex>? Indexes { get; private set; }
-
-    /// <summary>
     /// The relations between the fields
     /// </summary>
     private List<(IRelationProcess, Type)>? _relations;
@@ -56,7 +51,6 @@ public sealed class ArrayType: ValueType
         // load properties
         Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics) : null;
         Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
-        Indexes = GetProperty<Indexes>()?.Value?.ToImmutableList();
 
         if (Element is GenericType && GenericParams is { Count: 1 })
             Element = GenericParams[0] as ValueType;
@@ -140,12 +134,12 @@ public sealed class ArrayType: ValueType
 
     /// <inheritdoc />
     public override DataNode ParseValue(object? value)
-        => value is ArrayNode node && node.NodeType == this ? node : new ArrayNode(this, value);
+        => value is ArrayNode node && node.Type == this ? node : new ArrayNode(this, value);
 
     /// <inheritdoc />
     protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
     {
-        if (Element == null || value is not ArrayNode result || result.NodeType == this)
+        if (Element == null || value is not ArrayNode result || result.Type == this)
         {
             value.ViolatedConstraints = [Kind];
             return;

@@ -7,7 +7,6 @@ namespace SchemaNode.Property.Constraint;
 /// <summary>
 /// The array primaries
 /// </summary>
+[Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
-public class Primary: Property<string[]>, IConstraintProperty
-{
-}
+public class Primary : Property<string[]>, IConstraintProperty;

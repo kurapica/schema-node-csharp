@@ -48,6 +48,11 @@ public class PropertySchema: ExtensibleSchema
     /// The schema kinds that this property applies to
     /// </summary>
     public string[] ForSchemas { get; set; } = [];
+
+    /// <summary>
+    /// Whether the property can't be changed by relations
+    /// </summary>
+    public bool? Static { get; set; }
 }
 
 /// <summary>

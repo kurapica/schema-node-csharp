@@ -1,5 +1,6 @@
-﻿using SchemaNode.Runtime;
-using SchemaNode.Utility;
+﻿using SchemaNode.Utility;
+using System.Text.Json.Nodes;
+using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 
@@ -7,25 +8,24 @@ namespace SchemaNode.Node;
 
 public abstract class DataNode
 {
-    internal DataNode(NodeType type, object? value = null) {
-        NodeType = type;
-        CsharpType = type.ToCSharpType();
-
-        if (value != null) Value = value;
+    public DataNode(ValueType type, object? value = null)
+    {
+        Type = type;
+        Value = value;
     }
 
     /// <summary>
-    /// The schema type representation
+    /// The value type
     /// </summary>
-    public NodeType NodeType { get; internal set; }
+    public ValueType Type { get; internal set; }
 
     /// <summary>
     /// The c# type representation
     /// </summary>
-    public Type CsharpType { get; internal set; }
+    protected virtual Type? CsharpType => Type?.ToCsharpType();
 
     /// <summary>
-    /// The origin value to track the changes, also simple the event payload
+    /// The origin value to track the changes if needed
     /// </summary>
     public DataNode? Origin { get; internal set; }
 
@@ -37,12 +37,7 @@ public abstract class DataNode
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public virtual bool IsValid => ViolatedConstraints == null || ViolatedConstraints.Length == 0;
-
-    /// <summary>
-    /// Gets the node error
-    /// </summary>
-    public virtual System.Text.Json.Nodes.JsonNode? ToError => IsValid ? null : ViolatedConstraints.ToJsonNode();
+    public virtual bool IsValid => ViolatedConstraints is not { Length: > 0 };
 
     /// <summary>
     /// indicate whether the node is empty
@@ -59,15 +54,17 @@ public abstract class DataNode
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    public virtual bool Equals(DataNode other)
-    {
-        return ReferenceEquals(this, other) || object.Equals(_value, other._value);
-    }
+    public virtual bool Equals(DataNode other) => ReferenceEquals(this, other) || object.Equals(_value, other._value);
 
     /// <summary>
     /// Convert to type value
     /// </summary>
     public virtual object? ToTypeValue(Type type) => type.TryConvert(_value);
+
+    /// <summary>
+    /// Convert to type value with generic type
+    /// </summary>
+    public T? ToTypeValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
 
     /// <summary>
     /// The value of the node
@@ -79,11 +76,18 @@ public abstract class DataNode
         {
             if (value is DataNode node)
             {
-                _value = node.NodeType.CanBeUseAs(NodeType) ? CsharpType.TryConvert(node.Value) : throw new InvalidCastException();
+                if (node == this) return;
+                value = node.Value;
+            }
+            if (value == null)
+                _value = null;
+            else if (CsharpType != null)
+            {
+                _value = CsharpType.TryConvert(value);
             }
             else
             {
-                _value = CsharpType.TryConvert(value);
+                _value = value;
             }
         }
     }
@@ -91,7 +95,7 @@ public abstract class DataNode
     /// <summary>
     /// Convert to json node
     /// </summary>
-    public virtual System.Text.Json.Nodes.JsonNode? ToJson() => _value?.ToJsonNode();
+    public virtual JsonNode? ToJson() => _value?.ToJsonNode();
     
     /// <summary>
     /// Convert to literal value
@@ -105,18 +109,18 @@ public abstract class DataNode
 
     // The internal value
     protected object? _value;
-    
+
     /// <summary>
     /// Gets the value by source
     /// </summary>
     /// <param name="source"></param>
     /// <returns></returns>
-    public abstract DataNode? GetSourceValue(ReadOnlySpan<char> source);
-    
+    public virtual DataNode? GetSourceValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
+
     /// <summary>
     /// Refresh violated constraints based on data node structure
     /// </summary>
-    public abstract void RefreshViolatedConstraints();
+    public virtual void RefreshViolatedConstraints() { }
 
     /// <summary>
     /// Gets the source value by path
@@ -131,12 +135,4 @@ public abstract class DataNode
             curr = curr.GetSourceValue(reader.Current);
         return curr;
     }
-
-    /// <summary>
-    /// Sets the target's property value
-    /// </summary>
-    /// <param name="target"></param>
-    /// <param name="prop"></param>
-    /// <param name="value"></param>
-    public abstract void SetPropertyValue(string target, string prop, DataNode? value);
 }

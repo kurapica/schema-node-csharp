@@ -8,6 +8,7 @@ namespace SchemaNode.Property.Presentation;
 /// <summary>
 /// The data combine rules
 /// </summary>
+[Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 public class Combines : Property<DataCombine[]>;
 

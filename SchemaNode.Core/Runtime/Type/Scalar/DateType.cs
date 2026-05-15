@@ -13,5 +13,5 @@ public sealed class DateType : ScalarType
 
     /// <inheritdoc/>
     public override DataNode ParseValue(object? value)
-        => value is DateNode node && node.NodeType == this ? node :  new DateNode(this, value?.TryConvertTo<DateTimeOffset>());
+        => value is DateNode node && node.Type == this ? node :  new DateNode(this, value?.TryConvertTo<DateTimeOffset>());
 }

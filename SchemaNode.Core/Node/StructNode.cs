@@ -43,7 +43,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
         }
     }
 
-    public DataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((NodeType as StructType)!.GetIndex(segment));
+    public DataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((Type as StructType)!.GetIndex(segment));
 
     /// <summary>
     /// Gets the field schema
@@ -51,7 +51,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
     public StructFieldSchema? GetFieldSchema(DataNode? node)
     {
         if (node == null) return null;
-        var type = NodeType as StructType;
+        var type = Type as StructType;
         if (type == null) return null;
         var index = Array.FindIndex(Fields, f => f == node);
         if (index < 0 || index >= type.Fields.Length) return null;
@@ -76,7 +76,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
         if (this == other) return true;
         if (other is not StructNode otherStruct) return false;
 
-        var fields = (NodeType as StructType)!.Fields;
+        var fields = (Type as StructType)!.Fields;
         foreach (var t in fields)
         {
             var field = otherStruct.GetField(t.Name);
@@ -103,7 +103,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
             }
             else if(value is StructNode @struct)
             {
-                var fields = (NodeType as StructType)!.Fields;
+                var fields = (Type as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
                     Fields[i].Value = @struct.GetField(fields[i].Name);
@@ -111,7 +111,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
             }
             else if(value is JsonObject obj)
             {
-                StructFieldSchema[] fields = (NodeType as StructType)!.Fields;
+                StructFieldSchema[] fields = (Type as StructType)!.Fields;
                 Dictionary<string, DataNode> fieldMap = [];
                 AnyNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
@@ -141,7 +141,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
             }
             else if(value.GetType() == CsharpType)
             {
-                IReadOnlyList<PropertyInfo>? props = (NodeType as StructType)!.GetCSharpProperties();
+                IReadOnlyList<PropertyInfo>? props = (Type as StructType)!.GetCSharpProperties();
                 if (props != null)
                 {
                     _csharpObject = value;
@@ -153,7 +153,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
                 else
                 {
                     JsonObject jsonObj = (JsonObject)value.ToJsonNode()!;
-                    var fields = (NodeType as StructType)!.Fields;
+                    var fields = (Type as StructType)!.Fields;
                     for (int i = 0; i < fields.Length; i++)
                     {
                         Fields[i].Value = jsonObj[fields[i].Name];
@@ -202,7 +202,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
     {
         JsonObject result = [];
 
-        var fields = (NodeType as StructType)!.Fields;
+        var fields = (Type as StructType)!.Fields;
         for (int i = 0; i < fields.Length; i++)
         {
             System.Text.Json.Nodes.JsonNode? d = Fields[i].ToJson();

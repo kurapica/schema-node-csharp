@@ -150,7 +150,7 @@ public sealed class EnumType: ValueType
     /// <inheritdoc />
     public override DataNode ParseValue(object? value)
     {
-        return value is EnumNode node && node.NodeType == this ? node : _enumSchema?.Type switch
+        return value is EnumNode node && node.Type == this ? node : _enumSchema?.Type switch
         {
             EnumValueType.Int or EnumValueType.Flags => new EnumNode(this, value?.TryConvertTo<long>()),
             _ => new EnumNode(this, value?.TryConvertTo<string>()),

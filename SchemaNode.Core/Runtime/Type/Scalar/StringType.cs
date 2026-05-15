@@ -15,5 +15,5 @@ public sealed class StringType : ScalarType
 
     /// <inheritdoc/>
     public override DataNode ParseValue(object? value)
-        => value is StringNode node && node.NodeType == this ? node : new StringNode(this, value?.TryConvertTo<string>());
+        => value is StringNode node && node.Type == this ? node : new StringNode(this, value?.TryConvertTo<string>());
 }

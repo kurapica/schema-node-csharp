@@ -79,7 +79,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
                 }
                 else if (value is IEnumerable<DataNode> nodes)
                 {
-                    _elements = nodes.Where(n => n.NodeType.CanBeUseAs(ElementType)).ToList();
+                    _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
                 }
                 else if (value is not string && value is not JsonObject && value is IEnumerable objs)
                 {

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.ComponentModel.DataAnnotations;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Schema;
@@ -113,6 +112,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// Release the references
     /// </summary>
     public virtual void Release() { }
+
+    /// <summary>
+    /// Gets the csharp type
+    /// </summary>
+    public virtual Type? ToCsharpType() => Schema?.Type;
 
     #endregion
     
@@ -455,14 +459,14 @@ public abstract class ValueType : NodeType
     public virtual async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
         DataNode result;
-        if (value is DataNode node && node.NodeType == this)
+        if (value is DataNode node && node.Type == this)
         {
             result = node;
         }
         else
         {
             result = ParseValue(value);
-            if (result.IsEmpty && value != null || result.NodeType != this)
+            if (result.IsEmpty && value != null || result.Type != this)
             {
                 result.ViolatedConstraints = [Kind];
                 result.Value = value; // try keep it

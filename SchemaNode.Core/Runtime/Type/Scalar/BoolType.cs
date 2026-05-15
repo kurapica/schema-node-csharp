@@ -13,7 +13,7 @@ public sealed class BoolType : ScalarType
 
     /// <inheritdoc />
     public override DataNode ParseValue(object? value)
-        =>  value is BoolNode node && node.NodeType == this ? node : new BoolNode(this, value is bool bVal || TryParseBoolValue(value?.TryConvertTo<string>(), out bVal) ? bVal : null);
+        =>  value is BoolNode node && node.Type == this ? node : new BoolNode(this, value is bool bVal || TryParseBoolValue(value?.TryConvertTo<string>(), out bVal) ? bVal : null);
 
     // Parses a string to a bool (accepts "true"/"false"/0/1)
     static bool TryParseBoolValue(string? value, out bool ret)

@@ -57,6 +57,10 @@ public abstract class ScalarType : ValueType
     public override bool IsAssignableTo(ValueType other)
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
+    /// <inheritdoc />
+    public override Type? ToCsharpType()
+        => base.ToCsharpType() ?? BaseNode?.ToCsharpType();
+
     #endregion
 }
 

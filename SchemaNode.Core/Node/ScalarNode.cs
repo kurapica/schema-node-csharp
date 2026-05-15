@@ -2,14 +2,21 @@
 
 namespace SchemaNode.Node;
 
+public abstract class ScalarNode : DataNode
+{
+    public ScalarNode(ScalarType type, object? value = null) : base(type, value)
+    {
+    }
+}
+
 /// <summary>
 ///  For bool node
 /// </summary>
 public class BoolNode : DataNode
 {
     public override bool IsEmpty => _value == null;
-    
-    internal BoolNode(BoolType type, object? value = null) : base(type, value)
+
+    public BoolNode(BoolType type, object? value = null) : base(type, value)
     {
     }
 }
