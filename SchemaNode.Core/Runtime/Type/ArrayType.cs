@@ -141,7 +141,7 @@ public sealed class ArrayType: ValueType
     {
         if (Element == null || value is not ArrayNode result || result.Type == this)
         {
-            value.ViolatedConstraints = [Kind];
+            value.Violated = [Kind];
             return;
         }
 
@@ -173,18 +173,18 @@ public sealed class ArrayType: ValueType
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
-                                if (currNode.ViolatedConstraints != null &&
-                                    currNode.ViolatedConstraints.Contains(prop.Name)) continue;
-                                currNode.ViolatedConstraints = currNode.ViolatedConstraints is { Length: > 0 }
-                                    ? currNode.ViolatedConstraints.Append(prop.Name).ToArray()
+                                if (currNode.Violated != null &&
+                                    currNode.Violated.Contains(prop.Name)) continue;
+                                currNode.Violated = currNode.Violated is { Length: > 0 }
+                                    ? currNode.Violated.Append(prop.Name).ToArray()
                                     : [prop.Name];
                                 changed = true;
                             }
-                            else if (currNode.ViolatedConstraints != null && currNode.ViolatedConstraints.Contains(prop.Name))
+                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
-                                currNode.ViolatedConstraints = currNode.ViolatedConstraints.Length == 1 
+                                currNode.Violated = currNode.Violated.Length == 1 
                                     ? null 
-                                    : currNode.ViolatedConstraints.Where(c => c != prop.Name).ToArray();
+                                    : currNode.Violated.Where(c => c != prop.Name).ToArray();
                                 changed = true;
                             }
                         }
@@ -220,8 +220,8 @@ public sealed class ArrayType: ValueType
         }
         
         // Check
-        if (result.Any(e => e.ViolatedConstraints is { Length: > 0 }))
-            result.ViolatedConstraints = [Kind];
+        if (result.Any(e => e.Violated is { Length: > 0 }))
+            result.Violated = [Kind];
     }
 
     #endregion

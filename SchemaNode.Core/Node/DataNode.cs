@@ -17,27 +17,25 @@ public abstract class DataNode
     /// <summary>
     /// The value type
     /// </summary>
-    public ValueType Type { get; internal set; }
+    public ValueType Type { get; }
+
+    // The internal value
+    protected object? _value;
 
     /// <summary>
     /// The c# type representation
     /// </summary>
-    protected virtual Type? CsharpType => Type?.ToCsharpType();
-
-    /// <summary>
-    /// The origin value to track the changes if needed
-    /// </summary>
-    public DataNode? Origin { get; internal set; }
+    public virtual Type? CsharpType => Type.ToCsharpType();
 
     /// <summary>
     /// Violated Constraints
     /// </summary>
-    public string[]? ViolatedConstraints { get; internal set; }
+    public string[]? Violated { get; internal set; }
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public virtual bool IsValid => ViolatedConstraints is not { Length: > 0 };
+    public virtual bool IsValid => Violated is not { Length: > 0 };
 
     /// <summary>
     /// indicate whether the node is empty
@@ -54,7 +52,7 @@ public abstract class DataNode
     /// </summary>
     /// <param name="other"></param>
     /// <returns></returns>
-    public virtual bool Equals(DataNode other) => ReferenceEquals(this, other) || object.Equals(_value, other._value);
+    public virtual bool Equals(DataNode other) => ReferenceEquals(this, other) || Equals(_value, other._value);
 
     /// <summary>
     /// Convert to type value
@@ -81,9 +79,9 @@ public abstract class DataNode
             }
             if (value == null)
                 _value = null;
-            else if (CsharpType != null)
+            else if (CsharpType is {} type)
             {
-                _value = CsharpType.TryConvert(value);
+                _value = type.TryConvert(value);
             }
             else
             {
@@ -106,9 +104,6 @@ public abstract class DataNode
     /// To string
     /// </summary>
     public override string ToString() => _value?.ToLiteral() ?? string.Empty;
-
-    // The internal value
-    protected object? _value;
 
     /// <summary>
     /// Gets the value by source

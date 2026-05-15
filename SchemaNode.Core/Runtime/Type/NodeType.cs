@@ -468,7 +468,7 @@ public abstract class ValueType : NodeType
             result = ParseValue(value);
             if (result.IsEmpty && value != null || result.Type != this)
             {
-                result.ViolatedConstraints = [Kind];
+                result.Violated = [Kind];
                 result.Value = value; // try keep it
                 return result;
             }
@@ -476,7 +476,7 @@ public abstract class ValueType : NodeType
     
         // Custom validation
         await ValidateValueAsync(context, result);
-        if (result.ViolatedConstraints is { Length: > 0 } && result.ViolatedConstraints.Contains(Kind)) 
+        if (result.Violated is { Length: > 0 } && result.Violated.Contains(Kind)) 
             return result;
         
         // apply constraints
@@ -488,9 +488,9 @@ public abstract class ValueType : NodeType
             errors.Add(constraint.Name);
         }
         if (errors != null)
-            result.ViolatedConstraints = result.ViolatedConstraints == null 
+            result.Violated = result.Violated == null 
                 ? errors.ToArray()
-                : result.ViolatedConstraints.Concat(errors).Distinct().ToArray();
+                : result.Violated.Concat(errors).Distinct().ToArray();
         
         return result;
     }

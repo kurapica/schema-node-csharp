@@ -195,8 +195,8 @@ public sealed class StructType: ValueType
     {
         if (value is not StructNode result)
         {
-            value.ViolatedConstraints = value.ViolatedConstraints is { Length: > 0 } 
-                ? value.ViolatedConstraints.Append(Kind).ToArray() 
+            value.Violated = value.Violated is { Length: > 0 } 
+                ? value.Violated.Append(Kind).ToArray() 
                 : [Kind];
             return;
         }
@@ -210,7 +210,7 @@ public sealed class StructType: ValueType
             result[field.Name] = dataNode;
 
             if (field.Constraints is not { Length: > 0 }) continue;
-            HashSet<string>? errors = dataNode.ViolatedConstraints?.ToHashSet() ?? [];
+            HashSet<string>? errors = dataNode.Violated?.ToHashSet() ?? [];
             foreach (IConstraintProperty constraint in field.Constraints)
             {
                 if (await constraint.ValidateAsync(context, dataNode) != false)
@@ -223,7 +223,7 @@ public sealed class StructType: ValueType
                     errors.Add(constraint.Name);
                 }
             }
-            dataNode.ViolatedConstraints = errors is { Count: > 0 } ? errors.ToArray() : null;
+            dataNode.Violated = errors is { Count: > 0 } ? errors.ToArray() : null;
         }
 
         // Validate by relations
@@ -250,18 +250,18 @@ public sealed class StructType: ValueType
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
-                                if (currNode.ViolatedConstraints != null &&
-                                    currNode.ViolatedConstraints.Contains(prop.Name)) continue;
-                                currNode.ViolatedConstraints = currNode.ViolatedConstraints is { Length: > 0 }
-                                    ? currNode.ViolatedConstraints.Append(prop.Name).ToArray()
+                                if (currNode.Violated != null &&
+                                    currNode.Violated.Contains(prop.Name)) continue;
+                                currNode.Violated = currNode.Violated is { Length: > 0 }
+                                    ? currNode.Violated.Append(prop.Name).ToArray()
                                     : [prop.Name];
                                 changed = true;
                             }
-                            else if (currNode.ViolatedConstraints != null && currNode.ViolatedConstraints.Contains(prop.Name))
+                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
-                                currNode.ViolatedConstraints = currNode.ViolatedConstraints.Length == 1 
+                                currNode.Violated = currNode.Violated.Length == 1 
                                     ? null 
-                                    : currNode.ViolatedConstraints.Where(c => c != prop.Name).ToArray();
+                                    : currNode.Violated.Where(c => c != prop.Name).ToArray();
                                 changed = true;
                             }
                         }
@@ -297,7 +297,7 @@ public sealed class StructType: ValueType
         }
 
         // Union validation
-        bool hasError = result.Fields.Any(f => f.ViolatedConstraints is { Length: > 0 });
+        bool hasError = result.Fields.Any(f => f.Violated is { Length: > 0 });
         if (_unionValids is { Count: > 0 })
         {
             foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
@@ -330,13 +330,13 @@ public sealed class StructType: ValueType
                 }
 
                 hasError = true;
-                first.ViolatedConstraints = first.ViolatedConstraints is { Length: > 0 } ? first.ViolatedConstraints.Append(valid.Func).ToArray() : [valid.Func];
+                first.Violated = first.Violated is { Length: > 0 } ? first.Violated.Append(valid.Func).ToArray() : [valid.Func];
             }
         }
 
         // error check
         if (hasError)
-            result.ViolatedConstraints = [Kind];
+            result.Violated = [Kind];
     }
 
     #endregion

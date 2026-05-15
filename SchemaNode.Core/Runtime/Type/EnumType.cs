@@ -162,8 +162,8 @@ public sealed class EnumType: ValueType
     {
         if (value is not EnumNode result)
         {
-            value.ViolatedConstraints = value.ViolatedConstraints != null
-                ? value.ViolatedConstraints.Append(Kind).ToArray()
+            value.Violated = value.Violated != null
+                ? value.Violated.Append(Kind).ToArray()
                 : [Kind];
             return;
         }
@@ -174,7 +174,7 @@ public sealed class EnumType: ValueType
         {
             if (result.Value is not long flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
             {
-                result.ViolatedConstraints = [Kind];
+                result.Violated = [Kind];
             }
         }
         else
@@ -182,7 +182,7 @@ public sealed class EnumType: ValueType
             EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.Value!.ToString());
             if (access.Length == 0)
             {
-                result.ViolatedConstraints = [Kind];
+                result.Violated = [Kind];
             }
         }
     }
