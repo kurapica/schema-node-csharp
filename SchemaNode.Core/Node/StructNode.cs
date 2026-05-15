@@ -7,7 +7,7 @@ using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
 
-public class StructNode : DataNode
+public class StructNode : DataNode, IDictionary<string, DataNode>
 {
     internal DataNode[] Fields;
     object? _csharpObject;

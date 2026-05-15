@@ -1,6 +1,7 @@
 using System.Reflection;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
@@ -9,6 +10,7 @@ using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using Type = System.Type;
 
 namespace SchemaNode.Service;
 
@@ -128,16 +130,16 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         if (primaries is { Count: > 0 } || dataIndexes is { Length: > 0 })
         {
             // Also generate a companion array schema when primary keys, indexes, or nested types are present
-            NodeSchema arraySchema = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
+            NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
                 $"{Locale.LIST_PREFIX}{{@{schema.FullName}}}{Locale.LIST_SUFFIX}");
-            arraySchema.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema
-            {
-                Element = schema.FullName,
-                Primary = primaryFields,
-                Indexes = dataIndexes
-            });
+            ArraySchema arraySchema = new() { Element = schema.FullName };
+            if (primaryFields is  { Length: > 0 })
+                arraySchema.SetProperty<Primary, string[]>(primaryFields);
+            if (dataIndexes is { Length: > 0 })
+                arraySchema.SetProperty<Indexes, DataIndex[]>(dataIndexes);
+            array.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
 
-            yield return arraySchema;
+            yield return array;
         }
 
         // Re-generate the struct schema
@@ -194,12 +196,11 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             string[]? fields = BuildFields(index.Fields);
             if (fields == null || fields.Length == 0) continue;
 
-            dataIndexes.Add(new DataIndex
-            {
-                Name = index.Name,
-                Fields = fields,
-                IsUnique = index.IsUnique
-            });
+            dataIndexes.Add(new DataIndex(
+                Name : index.Name,
+                Fields : fields,
+                IsUnique : index.IsUnique
+            ));
         }
 
         return dataIndexes.Count > 0 ? dataIndexes.ToArray() : null;

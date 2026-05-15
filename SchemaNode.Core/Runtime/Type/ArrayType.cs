@@ -4,10 +4,11 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
-using System.Text.Json.Nodes;
+using SchemaNode.Property.Constraint;
 using static SchemaNode.Utility.Constant;
-using JsonNode = System.Text.Json.Nodes.JsonNode;
+using Type = System.Type;
+
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
 
@@ -26,17 +27,12 @@ public sealed class ArrayType: ValueType
     /// <summary>
     /// The primary fields of the array if the element is a struct.
     /// </summary>
-    public ImmutableArray<string>? Primary { get; private set; }
+    public ImmutableList<string>? Primary { get; private set; }
 
     /// <summary>
     /// The indexes
     /// </summary>
-    public ImmutableArray<DataIndex>? Indexes { get; private set; }
-
-    /// <summary>
-    /// The data combine rule
-    /// </summary>
-    public ImmutableArray<DataCombine>? Combines { get; private set; }
+    public ImmutableList<DataIndex>? Indexes { get; private set; }
 
     /// <summary>
     /// The relations between the fields
@@ -59,9 +55,8 @@ public sealed class ArrayType: ValueType
         
         // load properties
         Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics) : null;
-        Primary = array?.Primary?.ToImmutableArray();
-        Combines = array?.Combines?.ToImmutableArray();
-        Indexes = array?.Indexes?.ToImmutableArray();
+        Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
+        Indexes = GetProperty<Indexes>()?.Value?.ToImmutableList();
 
         if (Element is GenericType && GenericParams is { Count: 1 })
             Element = GenericParams[0] as ValueType;
@@ -73,7 +68,7 @@ public sealed class ArrayType: ValueType
         }
         
         // Load Relation
-        if (array!.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+        if (GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
             foreach (RelationSchema relation in relations)
             {
@@ -148,21 +143,91 @@ public sealed class ArrayType: ValueType
         => value is ArrayNode node && node.NodeType == this ? node : new ArrayNode(this, value);
 
     /// <inheritdoc />
-    public override Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
     {
-        ArrayNode result = (ParseValue(value) as ArrayNode)!;
-
-        // Validate by elements
-        bool hasError = false;
-        foreach (DataNode element in result)
+        if (Element == null || value is not ArrayNode result || result.NodeType == this)
         {
-            
+            value.ViolatedConstraints = [Kind];
+            return;
         }
 
-        // Validate by constraints
+        // Validate by elements
+        foreach (DataNode element in result)
+            await Element.ValidateValueAsync(context, element);
 
         // Validate by relations
-
+        if (_relations != null)
+        {
+            bool changed = false;
+            foreach ((IRelationProcess process, Type propType) in _relations)
+            {
+                DataNode? propValue = await process.ProcessAsync(context, result);
+                if (propValue == null) continue;
+                
+                // build the constraint property
+                if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
+                prop.SetValue(propValue);
+                
+                // apply constraint on target
+                SpanReader spans = process.Target;
+                List<DataNode> currNodes = [result];
+                while (spans.NextPath())
+                {
+                    if (spans.IsEnd)
+                    {
+                        foreach (DataNode currNode in currNodes)
+                        {
+                            if (await prop.ValidateAsync(context, currNode) == false)
+                            {
+                                if (currNode.ViolatedConstraints != null &&
+                                    currNode.ViolatedConstraints.Contains(prop.Name)) continue;
+                                currNode.ViolatedConstraints = currNode.ViolatedConstraints is { Length: > 0 }
+                                    ? currNode.ViolatedConstraints.Append(prop.Name).ToArray()
+                                    : [prop.Name];
+                                changed = true;
+                            }
+                            else if (currNode.ViolatedConstraints != null && currNode.ViolatedConstraints.Contains(prop.Name))
+                            {
+                                currNode.ViolatedConstraints = currNode.ViolatedConstraints.Length == 1 
+                                    ? null 
+                                    : currNode.ViolatedConstraints.Where(c => c != prop.Name).ToArray();
+                                changed = true;
+                            }
+                        }
+                        break;
+                    }
+                    
+                    // Gather effect nodes
+                    ReadOnlySpan<char> path = spans.Current;
+                    List<DataNode> nextLevels = [];
+                    foreach (DataNode currNode in currNodes)
+                    {
+                        if (currNode is ArrayNode arr)
+                        {
+                            foreach (DataNode element in arr)
+                            {
+                                DataNode? next = element.GetSourceValue(path);
+                                if (next != null) nextLevels.Add(next);
+                            }
+                        }
+                        else
+                        {
+                            DataNode? next = currNode.GetSourceValue(path);
+                            if (next != null) nextLevels.Add(next);
+                        }
+                    }
+                    currNodes = nextLevels;
+                }
+            }
+            
+            if (changed)
+                foreach (DataNode field in result)
+                    field.RefreshViolatedConstraints();
+        }
+        
+        // Check
+        if (result.Any(e => e.ViolatedConstraints is { Length: > 0 }))
+            result.ViolatedConstraints = [Kind];
     }
 
     #endregion
@@ -172,48 +237,28 @@ public sealed class ArrayType: ValueType
     /// <summary>
     /// Get unique key for object
     /// </summary>
-    public string? GetPrimaryKey(JsonObject obj)
+    public string[]? GetPrimaryKeys<T>(IDictionary<string, T> obj)
     {
-        if (Primary == null || Primary.Length == 0 || Element is not StructType { Fields.Length: > 0 } @struct)
+        if (Primary == null || Primary.Count == 0 || Element is not StructType @struct)
             return null;
 
-        string? key = null;
-        foreach (string p in Primary)
+        string[] keys = new string[Primary.Count];
+        for (var index = 0; index < Primary.Count; index++)
         {
-            if (obj.ContainsKey(p))
+            var p = Primary[index];
+            StructFieldType? fld = @struct.GetField(p);
+            if (fld == null) return null;
+
+            if (obj.TryGetValue(p, out T? objValue) && objValue?.ToString() is { } str && !string.IsNullOrWhiteSpace(str))
             {
-                StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
-                if (fld == null) return null;
-                string part = fld.SchemaType is ScalarType { IsDate: true } ? $"{obj[p]!.GetValue<DateTime>():yyyyMMdd}" : $"{obj[p]}";
-                key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
+                keys[index] = str;
             }
             else
             {
                 return null;
             }
         }
-        return key;
-    }
-
-    /// <summary>
-    /// Get unique key for object
-    /// </summary>
-    public string? GetPrimaryKey(StructNode obj)
-    {
-        if (Primary == null || Primary.Length == 0 || Element is not StructType { Fields.Length: > 0 } @struct)
-            return null;
-
-        string? key = null;
-        foreach (string p in Primary)
-        {
-            StructFieldSchema? fld = @struct.Fields.FirstOrDefault(f => f.Name.Equals(p));
-            if (fld == null) return null;
-            Node.DataNode? fieldNode = obj.GetField(p);
-            if (fieldNode == null) return null;
-            string part = fld.SchemaType is ScalarType { IsDate: true } ? $"{fieldNode.ToValue<DateTime>():yyyyMMdd}" : $"{fieldNode}";
-            key = string.IsNullOrWhiteSpace(key) ? part : $"{key}^{part}";
-        }
-        return key;
+        return keys;
     }
 
     #endregion

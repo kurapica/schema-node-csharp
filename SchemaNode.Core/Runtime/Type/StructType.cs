@@ -195,7 +195,9 @@ public sealed class StructType: ValueType
     {
         if (value is not StructNode result)
         {
-            value.ViolatedConstraints = value.ViolatedConstraints is { Length: > 0 } ? value.ViolatedConstraints.Append(Kind).ToArray() : [Kind];
+            value.ViolatedConstraints = value.ViolatedConstraints is { Length: > 0 } 
+                ? value.ViolatedConstraints.Append(Kind).ToArray() 
+                : [Kind];
             return;
         }
         
@@ -335,8 +337,6 @@ public sealed class StructType: ValueType
         // error check
         if (hasError)
             result.ViolatedConstraints = [Kind];
-        
-        return result;
     }
 
     #endregion

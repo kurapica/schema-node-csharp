@@ -28,21 +28,6 @@ public sealed class ArraySchema: ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(nameof(ElementType))]
     public required string Element { get; set; }
-
-    /// <summary>
-    /// The primary fields of the array if the element is a struct.
-    /// </summary>
-    public string[]? Primary { get; set; }
-
-    /// <summary>
-    /// The indexes
-    /// </summary>
-    public DataIndex[]? Indexes { get; set; }
-
-    /// <summary>
-    /// The data combine rule
-    /// </summary>
-    public DataCombine[]? Combines { get; set; }
 }
 
 /// <summary>
@@ -63,12 +48,3 @@ public class ArrayType: AnyType;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.elementtype")]
 public class ElementType : AnyType;
-
-/// <summary>
-/// The data combine settings
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.combine")]
-public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Assign);
-
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.index")]
-public sealed record DataIndex([Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)] string Name, string[] Fields, bool IsUnique = false);
