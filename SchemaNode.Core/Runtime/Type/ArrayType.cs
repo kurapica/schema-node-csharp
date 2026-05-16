@@ -137,7 +137,7 @@ public sealed class ArrayType: ValueType
         => value is ArrayNode node && node.Type == this ? node : new ArrayNode(this, value);
 
     /// <inheritdoc />
-    protected override async Task ValidateValueAsync(SchemaContext context, IDataNode value)
+    protected override async Task ValidateNodeAsync(SchemaContext context, IDataNode value)
     {
         if (Element == null || value is not ArrayNode result || result.Type == this)
         {
@@ -147,7 +147,7 @@ public sealed class ArrayType: ValueType
 
         // Validate by elements
         foreach (IDataNode element in result)
-            await Element.ValidateValueAsync(context, element);
+            await Element.ValidateNodeAsync(context, element);
 
         // Validate by relations
         if (_relations != null)

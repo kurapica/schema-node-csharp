@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using SchemaNode.Context;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable InconsistentNaming
@@ -17,7 +16,7 @@ public interface IDataNode: IEquatable<IDataNode>
     /// <summary>
     /// The value type
     /// </summary>
-    ValueType Type { get; init; }
+    ValueType Type { get; }
 
     /// <summary>
     /// Violated Constraints
@@ -82,6 +81,12 @@ public interface IDataNode: IEquatable<IDataNode>
             v = v.Where(x => !passed.Contains(x, StringComparer.OrdinalIgnoreCase));
         Violated = [..v.Distinct(StringComparer.OrdinalIgnoreCase)];
     }
+
+    /// <summary>
+    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// </summary>
+    /// <param name="violated"></param>
+    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
 
     /// <summary>
     /// Refresh violated constraints based on data node structure

@@ -64,23 +64,7 @@ public class SchemaRuntime : ISchemaRuntime
     public Type? GetNodeType(string kind) => _nodeTypes.GetValueOrDefault(kind);
 
     #endregion
-    
-    #region Data Node Type
-    
-    private readonly ConcurrentDictionary<string, Type> _dataTypes = new (StringComparer.OrdinalIgnoreCase);
-    
-    /// <summary>
-    /// Register the data node type for schema kind
-    /// </summary>
-    public void RegisterDataType(string kind, Type dataType) => _dataTypes.TryAdd(kind, dataType);
-    
-    /// <summary>
-    /// Gets the data node type for schema kind
-    /// </summary>
-    public Type? GetDataType(string kind) => _dataTypes.GetValueOrDefault(kind);
-
-    #endregion
-    
+        
     #region System Node Schema
 
     private readonly ConcurrentDictionary<Type, string> _typeCache = new();

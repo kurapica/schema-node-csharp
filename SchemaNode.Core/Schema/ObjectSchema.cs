@@ -13,7 +13,6 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_OBJECT, SCHEMA_KIND_ORDER_OBJECT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_OBJECT, SCHEMA_KIND_ORDER_OBJECT)]
 [Meta<NodeType>(typeof(Runtime.ObjectType))]
-[Meta<Property.Schema.ValueType>(typeof(Node.AnyNode))]
 public sealed class ObjectSchema;
 
 /// <summary>

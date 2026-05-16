@@ -25,7 +25,6 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeType>(typeof(EnumType))]
-[Meta<Property.Schema.ValueType>(typeof(EnumNode))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 public sealed class EnumSchema : ExtensibleSchema

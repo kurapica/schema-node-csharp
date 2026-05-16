@@ -468,14 +468,14 @@ public abstract class ValueType : NodeType
             result = ParseValue(value);
             if (result.IsEmpty && value != null || result.Type != this)
             {
-                result.Violated = [Kind];
-                result.Value = value; // try keep it
+                result.SetViolated(Kind);
+                result.SetValue(value);
                 return result;
             }
         }
     
         // Custom validation
-        await ValidateValueAsync(context, result);
+        await ValidateNodeAsync(context, result);
         if (result.Violated is { Length: > 0 } && result.Violated.Contains(Kind)) 
             return result;
         
@@ -501,7 +501,8 @@ public abstract class ValueType : NodeType
     /// <param name="context"></param>
     /// <param name="node"></param>
     /// <returns></returns>
-    public virtual Task<string[]?> ValidateValueAsync(SchemaContext context, IDataNode node) => Task.FromResult<string[]?>(null);
+    public virtual Task<string[]?> ValidateNodeAsync(SchemaContext context, IDataNode node)
+        => Task.FromResult<string[]?>(null);
 
     /// <summary>
     /// Generate the data node from value, no validation will be performed

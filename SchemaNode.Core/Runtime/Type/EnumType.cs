@@ -158,7 +158,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    protected override async Task ValidateValueAsync(SchemaContext context, IDataNode value)
+    protected override async Task ValidateNodeAsync(SchemaContext context, IDataNode value)
     {
         if (value is not EnumNode result)
         {

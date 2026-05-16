@@ -12,7 +12,6 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
 [Meta<NodeType>(typeof(Runtime.DecimalType))]
-[Meta<Property.Schema.ValueType>(typeof(Node.NumericNode))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.schema")]
 public sealed class DecimalSchema : ScalarSchema
 {

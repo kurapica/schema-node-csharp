@@ -191,7 +191,7 @@ public sealed class StructType: ValueType
         => value is StructNode node && node.Type == this ? node : new StructNode(this, value);
 
     /// <inheritdoc />
-    protected override async Task ValidateValueAsync(SchemaContext context, IDataNode value)
+    protected override async Task ValidateNodeAsync(SchemaContext context, IDataNode value)
     {
         if (value is not StructNode result)
         {
@@ -206,7 +206,7 @@ public sealed class StructType: ValueType
         {
             IDataNode? dataNode = result.GetField(field.Name);
             if (dataNode == null) continue;
-            dataNode = await field.Type!.ValidateValueAsync(context, dataNode);
+            dataNode = await field.Type!.ValidateNodeAsync(context, dataNode);
             result[field.Name] = dataNode;
 
             if (field.Constraints is not { Length: > 0 }) continue;
