@@ -16,7 +16,7 @@ namespace SchemaNode.Scalar;
 [Meta<ClrEquivalent>(typeof(JsonValue))]
 [Meta<ClrEquivalent>(typeof(JsonArray))]
 [Meta<ClrEquivalent>(typeof(JsonObject))]
-[Meta<ClrEquivalent>(typeof(Node.DataNode))]
+[Meta<ClrEquivalent>(typeof(Node.IDataNode))]
 [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
 [Meta<OfSchema>(SCHEMA_KIND_OBJECT)]
 public class Object: IScalarType<object>;

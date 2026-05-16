@@ -79,7 +79,7 @@ public interface IRelationProcess
     /// <summary>
     /// Process the relation and return the new property value
     /// </summary>
-    Task<DataNode?> ProcessAsync(SchemaContext context, DataNode owner);
+    Task<IDataNode?> ProcessAsync(SchemaContext context, IDataNode owner);
 }
 
 /// <summary>
@@ -128,13 +128,13 @@ public class RelationCall : IRelationProcess, INodeReferences, INodeError
     public string? Error { get; init; }
 
     /// <inheritdoc/>
-    public async Task<DataNode?> ProcessAsync(SchemaContext context, DataNode owner)
+    public async Task<IDataNode?> ProcessAsync(SchemaContext context, IDataNode owner)
     {
         if (Function == null) return null;
-        return await Function.CallAsync<DataNode>(context, Args.Select<CallArg, object?>(a =>
+        return await Function.CallAsync<IDataNode>(context, Args.Select<CallArg, object?>(a =>
         {
             if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
-            DataNode? value = owner.GetSourceValue(a.Source);
+            IDataNode? value = owner.GetSourceValue(a.Source);
             if (value == null) throw new Exception($"Source {a.Source} not found in owner");
             return value;
         }).ToArray());

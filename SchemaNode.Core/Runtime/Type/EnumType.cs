@@ -148,7 +148,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode ParseValue(object? value)
+    public override IDataNode ParseValue(object? value)
     {
         return value is EnumNode node && node.Type == this ? node : _enumSchema?.Type switch
         {
@@ -158,7 +158,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
+    protected override async Task ValidateValueAsync(SchemaContext context, IDataNode value)
     {
         if (value is not EnumNode result)
         {

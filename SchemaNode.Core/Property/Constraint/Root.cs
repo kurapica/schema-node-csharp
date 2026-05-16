@@ -12,9 +12,9 @@ namespace SchemaNode.Property.Constraint;
 /// Restrict the enum value to be a descendant of the specified root value.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-public class Root: Property<Node.DataNode>, IConstraintProperty
+public class Root: Property<Node.IDataNode>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         var effectiveNode = overrideValue ?? Value;
         if (effectiveNode is not EnumNode enumNode || enumNode.IsEmpty || node.IsEmpty) return null;

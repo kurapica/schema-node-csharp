@@ -9,14 +9,14 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 public class BlackList : Property<ArrayNode>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         var list = overrideValue as ArrayNode ?? Value;
         if (list == null || node.IsEmpty) return null;
         return list.All(v => !v.Equals(node));
     }
 
-    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         var list = overrideValue as ArrayNode ?? Value;
         if (list == null || node.IsEmpty) return null;

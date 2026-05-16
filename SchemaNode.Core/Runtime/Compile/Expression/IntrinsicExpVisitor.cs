@@ -53,14 +53,14 @@ public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp F
 /// Represents a schema expression that evaluates to a constant value.
 /// </summary>
 /// <param name="Value">The schema node representing the constant value for this expression. Cannot be null.</param>
-public record ConstantExp(Node.DataNode Value) : SchemaExp(Value.Type);
+public record ConstantExp(Node.IDataNode Value) : SchemaExp(Value.Type);
 
 /// <summary>
 /// The default expression
 /// </summary>
 /// <param name="Inner"></param>
 /// <param name="Default"></param>
-public record DefaultExp(SchemaExp Inner, Node.DataNode Default) : SchemaExp(Default.Type);
+public record DefaultExp(SchemaExp Inner, Node.IDataNode Default) : SchemaExp(Default.Type);
 
 /// <summary>
 /// The null expression

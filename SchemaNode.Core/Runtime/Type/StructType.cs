@@ -187,11 +187,11 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode ParseValue(object? value)
+    public override IDataNode ParseValue(object? value)
         => value is StructNode node && node.Type == this ? node : new StructNode(this, value);
 
     /// <inheritdoc />
-    protected override async Task ValidateValueAsync(SchemaContext context, DataNode value)
+    protected override async Task ValidateValueAsync(SchemaContext context, IDataNode value)
     {
         if (value is not StructNode result)
         {
@@ -204,7 +204,7 @@ public sealed class StructType: ValueType
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
         {
-            DataNode? dataNode = result.GetField(field.Name);
+            IDataNode? dataNode = result.GetField(field.Name);
             if (dataNode == null) continue;
             dataNode = await field.Type!.ValidateValueAsync(context, dataNode);
             result[field.Name] = dataNode;
@@ -232,7 +232,7 @@ public sealed class StructType: ValueType
             bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
-                DataNode? propValue = await process.ProcessAsync(context, result);
+                IDataNode? propValue = await process.ProcessAsync(context, result);
                 if (propValue == null) continue;
                 
                 // build the constraint property
@@ -241,12 +241,12 @@ public sealed class StructType: ValueType
                 
                 // apply constraint on target
                 SpanReader spans = process.Target;
-                List<DataNode> currNodes = [result];
+                List<IDataNode> currNodes = [result];
                 while (spans.NextPath())
                 {
                     if (spans.IsEnd)
                     {
-                        foreach (DataNode currNode in currNodes)
+                        foreach (IDataNode currNode in currNodes)
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
@@ -270,20 +270,20 @@ public sealed class StructType: ValueType
                     
                     // Gather effect nodes
                     ReadOnlySpan<char> path = spans.Current;
-                    List<DataNode> nextLevels = [];
-                    foreach (DataNode currNode in currNodes)
+                    List<IDataNode> nextLevels = [];
+                    foreach (IDataNode currNode in currNodes)
                     {
                         if (currNode is ArrayNode arr)
                         {
-                            foreach (DataNode element in arr)
+                            foreach (IDataNode element in arr)
                             {
-                                DataNode? next = element.GetSourceValue(path);
+                                IDataNode? next = element.GetSourceValue(path);
                                 if (next != null) nextLevels.Add(next);
                             }
                         }
                         else
                         {
-                            DataNode? next = currNode.GetSourceValue(path);
+                            IDataNode? next = currNode.GetSourceValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
                     }
@@ -303,13 +303,13 @@ public sealed class StructType: ValueType
             foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
             {
                 var args = new object?[valid.Args.Length];
-                DataNode? first = null;
+                IDataNode? first = null;
                 for(int i = 0; i < valid.Args.Length; i++)
                 {
                     var arg = valid.Args[i];
                     if (!string.IsNullOrWhiteSpace(arg.Source))
                     {
-                        DataNode? node = result.GetValueByPaths(arg.Source);
+                        IDataNode? node = result.GetValueByPaths(arg.Source);
                         first ??= node;
                         args[i] = node;
                     }
@@ -420,7 +420,7 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// The default value of the node.
     /// </summary>
-    public DataNode? Default { get; private set; }
+    public IDataNode? Default { get; private set; }
 
     /// <summary>
     /// The low limit of the scalar value.

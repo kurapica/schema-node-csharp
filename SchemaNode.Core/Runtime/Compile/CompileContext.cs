@@ -1104,7 +1104,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         Type notNullType = type.GetNotNullType();
         
         // convert csharp type to schema type node
-        if (type.IsAssignableTo(typeof(Node.DataNode)))
+        if (type.IsAssignableTo(typeof(Node.IDataNode)))
         {
             string schema = exp.Type.GetSchemaType(true) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
             NodeType nodeType = Context.GetNodeTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
@@ -1113,7 +1113,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         // simple type conversion
-        if (!notNullExp.Type.IsAssignableTo(typeof(Node.DataNode)))
+        if (!notNullExp.Type.IsAssignableTo(typeof(Node.IDataNode)))
         {
             resExp = Type.GetTypeCode(notNullType) switch
             {

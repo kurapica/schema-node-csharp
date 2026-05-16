@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace SchemaNode.Node;
 
-public class EnumNode : DataNode
+public class EnumNode : IDataNode
 {
     internal EnumNode(EnumType type, object? value = null) : base(type, value)
     {

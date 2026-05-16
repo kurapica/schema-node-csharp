@@ -5,7 +5,7 @@ using SchemaNode.Utility;
 
 namespace SchemaNode.Node;
 
-public class AnyNode: DataNode
+public class AnyNode: IDataNode
 {
     private const string IsoFormat = "yyyy-MM-dd'T'HH:mm:ss.fff'Z'";
     
@@ -15,12 +15,12 @@ public class AnyNode: DataNode
         {
             // init value
             System.Text.Json.Nodes.JsonNode jsonNode => ParseJsonNode(jsonNode),
-            DataNode node => node.ToJsonNode(),
+            IDataNode node => node.ToJsonNode(),
             _ => value?.ToJsonNode() ?? new JsonObject()
         };
     }
 
-    public override bool Equals(DataNode other)
+    public override bool Equals(IDataNode other)
     {
         if (this == other) return true;
         if (other is not AnyNode otherJson) return false;

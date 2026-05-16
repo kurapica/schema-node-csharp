@@ -12,32 +12,32 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 public class Require : Property<bool>, IConstraintProperty
 {
-    bool? ValidateAny(SchemaContext context, Node.DataNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    bool? ValidateAny(SchemaContext context, Node.IDataNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         if ((overrideValue?.ToValue<bool>() ?? Value) != true || parent == null) return null;
         return !node.IsEmpty;
     }
 
     /// <inheritdoc/>
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         return ValidateAny(context, node, parent, overrideValue);
     }
 
     /// <inheritdoc/>
-    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         return ValidateAny(context, node, parent, overrideValue);
     }
 
     /// <inheritdoc/>
-    public bool? ValidateArray(SchemaContext context, ArrayNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateArray(SchemaContext context, ArrayNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         return ValidateAny(context, node, parent, overrideValue);
     }
 
     /// <inheritdoc/>
-    public bool? ValidateStruct(SchemaContext context, StructNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateStruct(SchemaContext context, StructNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         return ValidateAny(context, node, parent, overrideValue);
     }

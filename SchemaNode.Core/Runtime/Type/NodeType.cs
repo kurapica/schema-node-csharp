@@ -456,10 +456,10 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public virtual async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    public virtual async Task<IDataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
-        DataNode result;
-        if (value is DataNode node && node.Type == this)
+        IDataNode result;
+        if (value is IDataNode node && node.Type == this)
         {
             result = node;
         }
@@ -501,12 +501,12 @@ public abstract class ValueType : NodeType
     /// <param name="context"></param>
     /// <param name="node"></param>
     /// <returns></returns>
-    protected virtual Task ValidateValueAsync(SchemaContext context, DataNode node) => Task.CompletedTask;
+    protected virtual Task ValidateValueAsync(SchemaContext context, IDataNode node) => Task.CompletedTask;
 
     /// <summary>
     /// Generate the data node from value, no validation will be performed
     /// </summary>
-    public abstract DataNode ParseValue(object? value);
+    public abstract IDataNode ParseValue(object? value);
         
     /// <summary>
     /// Gets value type through path reader

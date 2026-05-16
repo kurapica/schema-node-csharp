@@ -13,7 +13,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 public class Cascade : Property<long>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
     {
         var effectiveValue = overrideValue?.ToValue<long>() ?? Value;
         if (effectiveValue <= 0 || node.IsEmpty) return null;

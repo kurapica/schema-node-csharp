@@ -73,7 +73,7 @@ public static class SystemLogic
         if (a is null) return true;
         switch (a)
         {
-            case DataNode n:
+            case IDataNode n:
                 return n.IsEmpty;
             case JsonNode j:
                 return j.IsEmpty();

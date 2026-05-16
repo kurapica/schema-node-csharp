@@ -14,6 +14,6 @@ public sealed class StringType : ScalarType
     public override bool IsIndexable => GetProperty<UplimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
 
     /// <inheritdoc/>
-    public override DataNode ParseValue(object? value)
+    public override IDataNode ParseValue(object? value)
         => value is StringNode node && node.Type == this ? node : new StringNode(this, value?.TryConvertTo<string>());
 }

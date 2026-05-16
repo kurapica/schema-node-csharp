@@ -2,7 +2,7 @@
 
 namespace SchemaNode.Node;
 
-public abstract class ScalarNode : DataNode
+public abstract class ScalarNode : IDataNode
 {
     public ScalarNode(ScalarType type, object? value = null) : base(type, value)
     {
@@ -12,7 +12,7 @@ public abstract class ScalarNode : DataNode
 /// <summary>
 ///  For bool node
 /// </summary>
-public class BoolNode : DataNode
+public class BoolNode : IDataNode
 {
     public override bool IsEmpty => _value == null;
 
@@ -24,7 +24,7 @@ public class BoolNode : DataNode
 /// <summary>
 ///  For string node
 /// </summary>
-public class StringNode : DataNode
+public class StringNode : IDataNode
 {
     public override bool IsEmpty => _value == null || string.IsNullOrWhiteSpace(_value.ToString());
     
@@ -36,7 +36,7 @@ public class StringNode : DataNode
 /// <summary>
 ///  For numeric node
 /// </summary>
-public class NumericNode : DataNode
+public class NumericNode : IDataNode
 {
     public override bool IsEmpty => _value == null || string.IsNullOrWhiteSpace(_value.ToString());
     
@@ -48,7 +48,7 @@ public class NumericNode : DataNode
 /// <summary>
 ///  For int node
 /// </summary>
-public class IntNode : DataNode
+public class IntNode : IDataNode
 {
     public override bool IsEmpty => _value == null || string.IsNullOrWhiteSpace(_value.ToString());
     
@@ -60,7 +60,7 @@ public class IntNode : DataNode
 /// <summary>
 ///  For date node
 /// </summary>
-public class DateNode : DataNode
+public class DateNode : IDataNode
 {
     public override bool IsEmpty => _value == null || string.IsNullOrWhiteSpace(_value.ToString());
     

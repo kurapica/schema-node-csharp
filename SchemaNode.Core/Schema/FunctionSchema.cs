@@ -198,7 +198,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [SchemaIgnore] 
     [JsonIgnore] 
-    public DataNode? Constant { get; set; }
+    public IDataNode? Constant { get; set; }
 
     public bool Equals(CallArg? other)
     {

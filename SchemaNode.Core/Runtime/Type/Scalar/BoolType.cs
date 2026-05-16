@@ -12,7 +12,7 @@ public sealed class BoolType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc />
-    public override DataNode ParseValue(object? value)
+    public override IDataNode ParseValue(object? value)
         =>  value is BoolNode node && node.Type == this ? node : new BoolNode(this, value is bool bVal || TryParseBoolValue(value?.TryConvertTo<string>(), out bVal) ? bVal : null);
 
     // Parses a string to a bool (accepts "true"/"false"/0/1)
