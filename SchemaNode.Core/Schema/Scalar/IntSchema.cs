@@ -12,6 +12,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_INT, SCHEMA_KIND_ORDER_INT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_INT, SCHEMA_KIND_ORDER_INT)]
 [Meta<NodeType>(typeof(Runtime.IntType))]
+[Meta<Property.Schema.ValueType>(typeof(Node.IntNode))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_INT}.schema")]
 public sealed class IntSchema : ScalarSchema
 {

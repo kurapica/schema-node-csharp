@@ -1,200 +1,92 @@
-﻿using SchemaNode.Utility;
-using System.Text.Json.Nodes;
+﻿using System.Collections.Immutable;
+using SchemaNode.Context;
+using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 
 namespace SchemaNode.Node;
 
-public interface IDataNode
+/// <summary>
+/// The data node interface, which represents a node in the data structure. It can be a value node, an array node, or a struct node.
+/// </summary>
+public interface IDataNode: IEquatable<IDataNode>
 {
+    #region Abstract
+    
     /// <summary>
     /// The value type
     /// </summary>
-    ValueType Type { get; }
-
-    /// <summary>
-    /// The c# type representation
-    /// </summary>
-    public Type? CsharpType => Type.ToCsharpType();
+    ValueType Type { get; init; }
 
     /// <summary>
     /// Violated Constraints
     /// </summary>
-    string[]? Violated { get; internal set; }
+    ImmutableArray<string>? Violated { get; protected set; }
+    
+    /// <summary>
+    /// indicate whether the node is empty
+    /// </summary>
+    bool IsEmpty { get; }
+
+    /// <summary>
+    /// Set value to the data node without validation
+    /// </summary>
+    /// <param name="value"></param>
+    /// <typeparam name="T"></typeparam>
+    void SetValue<T>(T? value);
+    
+    /// <summary>
+    /// Gets the value as the given type
+    /// </summary>
+    T? GetValue<T>();
+    
+    #endregion
+
+    #region Virtual
+
+    /// <summary>
+    /// The c# type representation
+    /// </summary>
+    public virtual Type? CsharpType => Type.ToCsharpType();
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public bool IsValid => Violated is not { Length: > 0 };
+    public virtual bool IsValid => Violated is not { Length: > 0 };
 
     /// <summary>
-    /// indicate whether the node is empty
+    /// Gets the access value by path
     /// </summary>
-    public virtual bool IsEmpty => _value == null;
-
-    /// <summary>
-    /// Convert to value
-    /// </summary>
-    public virtual T? ToValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
-
-    /// <summary>
-    /// The value equals
-    /// </summary>
-    /// <param name="other"></param>
-    /// <returns></returns>
-    public virtual bool Equals(IDataNode other) => ReferenceEquals(this, other) || Equals(_value, other._value);
-
-    /// <summary>
-    /// Convert to type value
-    /// </summary>
-    public virtual object? ToTypeValue(Type type) => type.TryConvert(_value);
-
-    /// <summary>
-    /// Convert to type value with generic type
-    /// </summary>
-    public T? ToTypeValue<T>() => ToTypeValue(typeof(T)) is T val ? val : default;
-
-    // The internal value
-    protected object? _value;
-
-    /// <summary>
-    /// The value of the node
-    /// </summary>
-    public virtual object? Value
-    {
-        get => _value;
-        set
-        {
-            if (value is IDataNode node)
-            {
-                if (node == this) return;
-                value = node.Value;
-            }
-            if (value == null)
-                _value = null;
-            else if (CsharpType is {} type)
-            {
-                _value = type.TryConvert(value);
-            }
-            else
-            {
-                _value = value;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Convert to json node
-    /// </summary>
-    public virtual JsonNode? ToJson() => _value?.ToJsonNode();
-    
-    /// <summary>
-    /// Convert to literal value
-    /// </summary>
-    public virtual object? LiteralValue => Value;
-
-    /// <summary>
-    /// To string
-    /// </summary>
-    public override string ToString() => _value?.ToLiteral() ?? string.Empty;
-
-    /// <summary>
-    /// Gets the value by source
-    /// </summary>
-    /// <param name="source"></param>
-    /// <returns></returns>
-    public virtual IDataNode? GetSourceValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
-
-    /// <summary>
-    /// Refresh violated constraints based on data node structure
-    /// </summary>
-    public virtual void RefreshViolatedConstraints() { }
-
-    /// <summary>
-    /// Gets the source value by path
-    /// </summary>
-    /// <param name="path"></param>
-    /// <returns></returns>
-    public IDataNode? GetSourceValue(string path)
+    public IDataNode? GetAccessValue(string path)
     {
         SpanReader reader = path;
         IDataNode? curr = this;
         while (curr != null && reader.NextPath())
-            curr = curr.GetSourceValue(reader.Current);
+            curr = curr.GetAccessValue(reader.Current);
         return curr;
     }
-}
-
-public abstract class DataNode : IDataNode
-{
-    // The internal value
-    protected object? _value;
+    
+    /// <summary>
+    /// Gets the access value by part path
+    /// </summary>
+    public virtual IDataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
 
     /// <summary>
-    /// The value of the node
+    /// Sets violated constraints, which will be used to determine whether the node is valid
     /// </summary>
-    public virtual object? Value
+    public void SetViolated(string[] violated, string[]? passed, bool? reset = null)
     {
-        get => _value;
-        set
-        {
-            if (value is IDataNode node)
-            {
-                if (node == this) return;
-                value = node.Value;
-            }
-            if (value == null)
-                _value = null;
-            else if (CsharpType is {} type)
-            {
-                _value = type.TryConvert(value);
-            }
-            else
-            {
-                _value = value;
-            }
-        }
+        IEnumerable<string> v = reset == true || Violated == null ? violated : Violated.Concat(violated);
+        if (passed is not null)
+            v = v.Where(x => !passed.Contains(x, StringComparer.OrdinalIgnoreCase));
+        Violated = [..v.Distinct(StringComparer.OrdinalIgnoreCase)];
     }
-
-}
-
-public abstract class DataNode<T> : IDataNode
-{
-    
-    public IDataNode(ValueType type, object? value = null)
-    {
-        Type = type;
-        Value = value;
-    }
-    
-    // The internal value
-    protected T? _value;
 
     /// <summary>
-    /// The value of the node
+    /// Refresh violated constraints based on data node structure
     /// </summary>
-    public virtual object? Value
-    {
-        get => _value;
-        set
-        {
-            if (value is IDataNode node)
-            {
-                if (node == this) return;
-                value = node.Value;
-            }
-            if (value == null)
-                _value = null;
-            else if (CsharpType is {} type)
-            {
-                _value = type.TryConvert(value);
-            }
-            else
-            {
-                _value = value;
-            }
-        }
-    }
+    public virtual void RefreshViolated() { }
 
+    #endregion
 }

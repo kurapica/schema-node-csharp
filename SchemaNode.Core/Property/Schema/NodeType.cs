@@ -1,5 +1,3 @@
-using SchemaNode.Runtime;
-
 namespace SchemaNode.Property.Schema;
 
 /// <summary>

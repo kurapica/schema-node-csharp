@@ -156,7 +156,7 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetSourceValueType(ReadOnlySpan<char> path)
+    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
@@ -168,7 +168,7 @@ public sealed class StructType: ValueType
         foreach (StructFieldType field in _fields)
         {
             if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return field.Type?.GetSourceValueType(remain);
+                return field.Type?.GetAccessValueType(remain);
         }
         return null;
     }
@@ -277,13 +277,13 @@ public sealed class StructType: ValueType
                         {
                             foreach (IDataNode element in arr)
                             {
-                                IDataNode? next = element.GetSourceValue(path);
+                                IDataNode? next = element.GetAccessValue(path);
                                 if (next != null) nextLevels.Add(next);
                             }
                         }
                         else
                         {
-                            IDataNode? next = currNode.GetSourceValue(path);
+                            IDataNode? next = currNode.GetAccessValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
                     }
@@ -293,7 +293,7 @@ public sealed class StructType: ValueType
             
             if (changed)
                 foreach (var field in result.Fields)
-                    field.RefreshViolatedConstraints();
+                    field.RefreshViolated();
         }
 
         // Union validation

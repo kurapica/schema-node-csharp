@@ -1,4 +1,5 @@
 ﻿using SchemaNode.Attribute;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
@@ -17,6 +18,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeType>(typeof(ArrayType))]
+[Meta<Property.Schema.ValueType>(typeof(ArrayNode))]
 [Meta<IsArray>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 public sealed class ArraySchema: ExtensibleSchema

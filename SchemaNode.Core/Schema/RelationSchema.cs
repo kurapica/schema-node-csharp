@@ -134,7 +134,7 @@ public class RelationCall : IRelationProcess, INodeReferences, INodeError
         return await Function.CallAsync<IDataNode>(context, Args.Select<CallArg, object?>(a =>
         {
             if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
-            IDataNode? value = owner.GetSourceValue(a.Source);
+            IDataNode? value = owner.GetAccessValue(a.Source);
             if (value == null) throw new Exception($"Source {a.Source} not found in owner");
             return value;
         }).ToArray());
@@ -173,7 +173,7 @@ public class RelationCallBuidler: IRelationProcessBuilder
         // check args
         foreach (var arg in Args)
         {
-            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetSourceValueType(arg.Source) == null)
+            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetAccessValueType(arg.Source) == null)
                 error ??= ErrorCodes.STRUCT_RELATION_WRONG_ARGS;
         }
         

@@ -12,6 +12,7 @@ using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Property.Schema.NodeType;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using ValueType = SchemaNode.Property.Schema.ValueType;
 
 namespace SchemaNode.Service;
 
@@ -58,6 +59,10 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // Register node types
             if (type.GetMetaProperty<NodeType>()?.Value is { } runtimeType)
                 runtime.RegisterNodeType(schemaKind.Value!, runtimeType);
+            
+            // Register data types
+            if (type.GetMetaProperty<ValueType>()?.Value is { } dataNodeType)
+                runtime.RegisterDataType(schemaKind.Value!, dataNodeType);
             
             // Gets the match node schema property type
             nodeSchemaTypes.Add((kind, type,

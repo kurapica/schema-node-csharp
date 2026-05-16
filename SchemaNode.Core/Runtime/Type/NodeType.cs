@@ -501,7 +501,7 @@ public abstract class ValueType : NodeType
     /// <param name="context"></param>
     /// <param name="node"></param>
     /// <returns></returns>
-    protected virtual Task ValidateValueAsync(SchemaContext context, IDataNode node) => Task.CompletedTask;
+    public virtual Task<string[]?> ValidateValueAsync(SchemaContext context, IDataNode node) => Task.FromResult<string[]?>(null);
 
     /// <summary>
     /// Generate the data node from value, no validation will be performed
@@ -511,7 +511,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetSourceValueType(ReadOnlySpan<char> path) => path.IsEmpty ? this : null;
+    public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty ? this : null;
 
     /// <summary>
     /// The value type is assignable to other value type

@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Record;
@@ -20,6 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeType>(typeof(StructType))]
+[Meta<NodeType>(typeof(StructNode))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 public sealed class StructSchema : ExtensibleSchema

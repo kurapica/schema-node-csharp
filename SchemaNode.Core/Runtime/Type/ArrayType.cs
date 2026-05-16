@@ -118,7 +118,7 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetSourceValueType(ReadOnlySpan<char> path)
+    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
         if (path.IsEmpty || path.SequenceEqual(ARRAY_ITSELF)) return this;
         return path.SequenceEqual(ARRAY_ELEMENT) ? Element : null;
@@ -200,13 +200,13 @@ public sealed class ArrayType: ValueType
                         {
                             foreach (IDataNode element in arr)
                             {
-                                IDataNode? next = element.GetSourceValue(path);
+                                IDataNode? next = element.GetAccessValue(path);
                                 if (next != null) nextLevels.Add(next);
                             }
                         }
                         else
                         {
-                            IDataNode? next = currNode.GetSourceValue(path);
+                            IDataNode? next = currNode.GetAccessValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
                     }
@@ -216,7 +216,7 @@ public sealed class ArrayType: ValueType
             
             if (changed)
                 foreach (IDataNode field in result)
-                    field.RefreshViolatedConstraints();
+                    field.RefreshViolated();
         }
         
         // Check
