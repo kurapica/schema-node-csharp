@@ -66,23 +66,24 @@ public sealed class EnumType: ValueType
     /// <returns></returns>
     public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value, bool fullList = false)
     {
-        if (string.IsNullOrWhiteSpace(value)) 
+        if (string.IsNullOrWhiteSpace(value))
             return _root.Clone(fullList ? (_enumSchema?.Cascade?.Length ?? 1) : 1).SubList ?? [];
 
         EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];
+
         EnumValueSchema access = accesses.Last();
         if (!(access.HasSubList ?? false)) return [];
-         
+
         // load sub list
         int chkLvl = 1;
         if (fullList)
             chkLvl = Math.Min((_enumSchema?.Cascade?.Length ?? 1) - accesses.Length + 1, MAX_SUBLIST_LEVEL);
-            
+
         // full-filled
         if (UpdateLoadState(access, chkLvl))
             return access.Clone(chkLvl).SubList ?? [];
-        
+
         // load sub list
         if (Provider != null && context.GetRequiredService(Provider) is IEnumSchemaProvider provider)
         {
@@ -148,38 +149,24 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override IDataNode ParseValue(object? value)
-    {
-        return value is EnumNode node && node.Type == this ? node : _enumSchema?.Type switch
-        {
-            EnumValueType.Int or EnumValueType.Flags => new EnumNode(this, value?.TryConvertTo<long>()),
-            _ => new EnumNode(this, value?.TryConvertTo<string>()),
-        };
-    }
+    public override DataNode Create() => new EnumNode { Type = this };
 
     /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, IDataNode value)
+    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
     {
-        if (value is not EnumNode result)
-        {
-            value.Violated = value.Violated != null
-                ? value.Violated.Append(Kind).ToArray()
-                : [Kind];
-            return;
-        }
-        if (result.IsEmpty) return; // require is handled by struct, not here
+        if (value is not EnumNode result || result.Type != this || result.IsEmpty) return;
 
         // Validate value
         if (_enumSchema?.Type == EnumValueType.Flags)
         {
-            if (result.Value is not long flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
+            if (result.GetValue<long>() is { } flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
             {
                 result.Violated = [Kind];
             }
         }
         else
         {
-            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.Value!.ToString());
+            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.GetValue<string>());
             if (access.Length == 0)
             {
                 result.Violated = [Kind];

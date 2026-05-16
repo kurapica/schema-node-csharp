@@ -1,27 +1,34 @@
-﻿using SchemaNode.Runtime;
-using SchemaNode.Utility;
-using System.Text.Json.Nodes;
+﻿using System.Collections.Immutable;
+using SchemaNode.Runtime;
+using ValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.Node;
 
-public class EnumNode : IDataNode
+public class EnumNode : DataNode
 {
-    internal EnumNode(EnumType type, object? value = null) : base(type, value)
+    public bool Equals(DataNode? other)
     {
+        throw new NotImplementedException();
     }
     
-    /// <summary>
-    /// Convert to json node
-    /// </summary>
-    public override System.Text.Json.Nodes.JsonNode? ToJson() => _value == null ? null : (Type as EnumType)!.ValueType == Enum.EnumValueType.String ? _value.ToJsonNode() : JsonValue.Create(_value is long ? _value : (int)_value);
-
-    /// <summary>
-    /// Convert to literal value
-    /// </summary>
-    public override object? LiteralValue => _value != null ? ((Type as EnumType)!.ValueType == Enum.EnumValueType.String ? _value.ToString() : (_value is long ? _value : (int)_value)) : null;
+    /// <inheritdoc/>
+    public ValueType Type { get; init; }
     
-    /// <summary>
-    /// To string
-    /// </summary>
-    public override string ToString() => _value != null ? ((Type as EnumType)!.ValueType == Enum.EnumValueType.String ? _value.ToString() : (_value is long ? _value : (int)_value).ToString())! : string.Empty;
+    /// <inheritdoc/>
+    public ImmutableArray<string>? Violated { get; set; }
+    
+    /// <inheritdoc/>
+    public bool IsEmpty { get; }
+    
+    /// <inheritdoc/>
+    public void SetValue<T>(T? value)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public T? GetValue<T>()
+    {
+        throw new NotImplementedException();
+    }
 }

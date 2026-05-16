@@ -13,12 +13,7 @@ internal sealed class GenericType: ValueType
     /// </summary>
     public new string Name { get; set; } = null!;
 
-    public override Task<IDataNode> ValidateValueAsync(SchemaContext context, object? value)
-    {
-        throw new NotImplementedException();
-    }
-
-    public override IDataNode ParseValue(object? value)
+    public override DataNode Create()
     {
         throw new NotImplementedException();
     }

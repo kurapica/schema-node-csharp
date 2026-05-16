@@ -1,5 +1,4 @@
 using SchemaNode.Node;
-using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Runtime;
 
@@ -12,6 +11,5 @@ public sealed class DateType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc/>
-    public override IDataNode ParseValue(object? value)
-        => value is DateNode node && node.Type == this ? node :  new DateNode(this, value?.TryConvertTo<DateTimeOffset>());
+    public override DataNode Create() => new DateNode { Type = this };
 }

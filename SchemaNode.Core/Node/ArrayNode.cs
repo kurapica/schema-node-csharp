@@ -7,7 +7,7 @@ using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : IDataNode, IEnumerable<IDataNode>
+public class ArrayNode : DataNode, IEnumerable<DataNode>
 {
     public ArrayNode(NodeType type, object? value = null) : base(SchemaContext.GetArraySchemaType(type)!)
     {
@@ -77,7 +77,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
                 {
                     _elements.Clear();
                 }
-                else if (value is IEnumerable<IDataNode> nodes)
+                else if (value is IEnumerable<DataNode> nodes)
                 {
                     _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
                 }
@@ -100,7 +100,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
                 {
                     _rawElements.Clear();
                 }
-                else if (value is IEnumerable<IDataNode> nodes)
+                else if (value is IEnumerable<DataNode> nodes)
                 {
                     _rawElements = nodes.Select(p => (object)p).ToList();
                 }
@@ -127,7 +127,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
             foreach (var o in node)
             {
                 if (o is null) continue;
-                if (o is IDataNode { IsEmpty: true }) continue;
+                if (o is DataNode { IsEmpty: true }) continue;
                 _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
             }
         }
@@ -144,7 +144,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
     public void Add(object node)
     {
         if (node is null) return;
-        if (node is IDataNode { IsEmpty: true }) return;
+        if (node is DataNode { IsEmpty: true }) return;
         if (ElementType != null)
         {
             _elements.Add(ElementType.CreateNode(node) ?? throw new NotSupportedException());
@@ -248,7 +248,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public IDataNode? GetValueByPaths(string paths) {
+    public DataNode? GetValueByPaths(string paths) {
         if (ElementType != null)
         {
             NodeType? type = ElementType;
@@ -260,7 +260,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
             }
 
             if (type == null) return null;
-            IDataNode result = new ArrayNode(type);
+            DataNode result = new ArrayNode(type);
             result.Value = _elements.Select(p => ((StructNode)p).GetValueByPaths(paths)).Where(p => p != null).ToList();
             return result;
         }
@@ -285,7 +285,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
     /// <summary>
     /// Equals the other node
     /// </summary>
-    public override bool Equals(IDataNode other)
+    public override bool Equals(DataNode other)
     {
         if (this == other) return true;
         if (other is not ArrayNode otherArray) return false;
@@ -298,7 +298,7 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
         return true;
     }
 
-    public IEnumerator<IDataNode> GetEnumerator()
+    public IEnumerator<DataNode> GetEnumerator()
     {
         return _elements.GetEnumerator();
     }
@@ -308,6 +308,6 @@ public class ArrayNode : IDataNode, IEnumerable<IDataNode>
         return ElementType != null ? ((IEnumerable)_elements).GetEnumerator() : ((IEnumerable)_rawElements).GetEnumerator();
     }
 
-    List<IDataNode> _elements = [];
+    List<DataNode> _elements = [];
     List<object> _rawElements = [];
 }

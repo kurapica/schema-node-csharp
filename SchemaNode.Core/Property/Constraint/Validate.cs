@@ -10,7 +10,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
 public class Validate : Property<ValidFuncCall>, IConstraintProperty, ITypeRefProperty
 {
-    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
+    public async Task<bool?> ValidateScalarAsync(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         if (node.Value == null || string.IsNullOrWhiteSpace(Value?.Func)) return null;
         FunctionType? validFunc = !string.IsNullOrWhiteSpace(Value?.Func) ? await context.GetNodeTypeAsync<FunctionType>(Value.Func) : null;

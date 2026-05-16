@@ -62,7 +62,7 @@ public static class SystemCollection
     /// </summary>
     public static async Task<T?> getfield<T>(SchemaContext context, StructNode obj, string field, T? @default)
     {
-        Node.IDataNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
+        Node.DataNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
         return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : (@default ?? default);
     }
 
@@ -80,9 +80,9 @@ public static class SystemCollection
 
         ArrayNode resultType = new (arrayNode);
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        foreach (Node.IDataNode item in array)
+        foreach (Node.DataNode item in array)
         {
-            Node.IDataNode? fieldNode = await GetFieldNode(context, item, paths);
+            Node.DataNode? fieldNode = await GetFieldNode(context, item, paths);
             if (fieldNode != null) resultType.Add(fieldNode);
         }
         return resultType;
@@ -93,7 +93,7 @@ public static class SystemCollection
     /// </summary>
     public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
     {
-        var list = new List<Node.IDataNode>(obj);
+        var list = new List<Node.DataNode>(obj);
         list.Sort((a, b) =>
         {
             if (a is not StructNode sa || b is not StructNode sb) return 0;
@@ -134,14 +134,14 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field node from object
     /// </summary>
-    static async Task<Node.IDataNode?> GetFieldNode(SchemaContext context, Node.IDataNode? obj, string[] paths)
+    static async Task<Node.DataNode?> GetFieldNode(SchemaContext context, Node.DataNode? obj, string[] paths)
     {
         if (paths.Length == 0) return obj;
         if (obj is not StructNode s) return null;
         
         StructType structType = (s.Type as StructType)! ;
         StructFieldSchema? fldConfig = structType.GetField(paths[0]);
-        Node.IDataNode? field = s.GetField(paths[0]);
+        Node.DataNode? field = s.GetField(paths[0]);
         if (field == null) return null;
         if (fldConfig?.DisplayOnly != true)
             return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());

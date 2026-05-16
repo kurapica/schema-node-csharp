@@ -810,7 +810,7 @@ public class CollectionExpVisitor : IExpVisitor
     public static void AddIfNotEmpty(IList result, object? item)
     {
         if (item == null) return;
-        if (item is Node.IDataNode { IsEmpty: true }) return;
+        if (item is Node.DataNode { IsEmpty: true }) return;
         result.Add(item);
     }
 
@@ -823,7 +823,7 @@ public class CollectionExpVisitor : IExpVisitor
         foreach (var item in items)
         {
             if (item == null) continue;
-            if (item is Node.IDataNode { IsEmpty: true }) continue;
+            if (item is Node.DataNode { IsEmpty: true }) continue;
             result.Add(item);
         }
     }

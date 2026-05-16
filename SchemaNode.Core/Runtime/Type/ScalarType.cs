@@ -11,20 +11,14 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public abstract class ScalarType : ValueType
 {
-    #region Field
-
-    private IConstraintProperty[]? constraints;
-
-    #endregion
-
-    #region Ref
+    #region Reference
 
     /// <summary>The base type node.</summary>
     public ScalarType? BaseNode { get; private set; }
 
     #endregion
 
-    #region Methods
+    #region Implementations
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -38,9 +32,6 @@ public abstract class ScalarType : ValueType
             if (BaseNode == null)
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }
-        constraints = BaseNode?.constraints is { Length: > 0 }
-            ? Constraints.Concat(BaseNode.constraints).DistinctBy(p => p.Name).ToArray()
-            : Constraints.ToArray();
     }
 
     /// <summary>
@@ -58,8 +49,11 @@ public abstract class ScalarType : ValueType
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
     /// <inheritdoc />
-    public override Type? ToCsharpType()
-        => base.ToCsharpType() ?? BaseNode?.ToCsharpType();
+    public override Type? ToCsharpType() => base.ToCsharpType() ?? BaseNode?.ToCsharpType();
+    
+    /// <inheritdoc />
+    protected override Task ValidateNodeAsync(SchemaContext context, DataNode node)
+        => BaseNode?.ValidateValueAsync(context, node) ?? Task.CompletedTask;
 
     #endregion
 }

@@ -7,15 +7,15 @@ using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
 
-public class StructNode : IDataNode, IDictionary<string, IDataNode>
+public class StructNode : DataNode, IDictionary<string, DataNode>
 {
-    internal IDataNode[] Fields;
+    internal DataNode[] Fields;
     object? _csharpObject;
 
     public StructNode(StructType type, object? value = null) : base(type, null)
     {
         // init fields
-        Fields = new IDataNode[type.Fields.Length];
+        Fields = new DataNode[type.Fields.Length];
         for(int i = 0; i < Fields.Length; i++)
         {
             var field = type.Fields[i];
@@ -43,12 +43,12 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
         }
     }
 
-    public IDataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((Type as StructType)!.GetIndex(segment));
+    public DataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((Type as StructType)!.GetIndex(segment));
 
     /// <summary>
     /// Gets the field schema
     /// </summary>
-    public StructFieldSchema? GetFieldSchema(IDataNode? node)
+    public StructFieldSchema? GetFieldSchema(DataNode? node)
     {
         if (node == null) return null;
         var type = Type as StructType;
@@ -71,7 +71,7 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
     /// <summary>
     /// Equals override
     /// </summary>
-    public override bool Equals(IDataNode other)
+    public override bool Equals(DataNode other)
     {
         if (this == other) return true;
         if (other is not StructNode otherStruct) return false;
@@ -96,7 +96,7 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
             _csharpObject = null;
             if (value == null)
             {
-                foreach (IDataNode @field in Fields)
+                foreach (DataNode @field in Fields)
                 {
                     @field.Value = null;
                 }
@@ -112,7 +112,7 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
             else if(value is JsonObject obj)
             {
                 StructFieldSchema[] fields = (Type as StructType)!.Fields;
-                Dictionary<string, IDataNode> fieldMap = [];
+                Dictionary<string, DataNode> fieldMap = [];
                 AnyNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
                 {
@@ -124,7 +124,7 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
                 JsonObject? packData = unpackNode != null ? new JsonObject() : null;
                 foreach ((string key, System.Text.Json.Nodes.JsonNode? val) in obj)
                 {
-                    if (fieldMap.TryGetValue(key.ToLower(), out IDataNode? @field))
+                    if (fieldMap.TryGetValue(key.ToLower(), out DataNode? @field))
                     {
                         @field.Value = val;
                     }
@@ -170,9 +170,9 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    internal IDataNode? GetValueByPaths(SpanReader spans)
+    internal DataNode? GetValueByPaths(SpanReader spans)
     {
-        IDataNode? node = this;
+        DataNode? node = this;
         while (spans.NextNamespace(out ReadOnlySpan<char> part))
         {
             node = (node is StructNode obj) ? obj.GetField(part) : null;
@@ -184,7 +184,7 @@ public class StructNode : IDataNode, IDictionary<string, IDataNode>
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public IDataNode? GetValueByPaths(string paths) => GetValueByPaths(new SpanReader(paths));
+    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(new SpanReader(paths));
 
     public override object? ToTypeValue(Type type)
     {

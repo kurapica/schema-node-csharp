@@ -1,5 +1,4 @@
 using SchemaNode.Node;
-using SchemaNode.Utility;
 
 namespace SchemaNode.Runtime;
 
@@ -11,8 +10,7 @@ public sealed class IntType : ScalarType
 {
     /// <inheritdoc/>
     public override bool IsIndexable => true;
-    
+
     /// <inheritdoc/>
-    public override IDataNode ParseValue(object? value)
-        => value is IntNode node && node.Type == this ? node :  new IntNode(this, value?.TryConvertTo<long>());
+    public override DataNode Create() => new IntNode { Type = this };
 }

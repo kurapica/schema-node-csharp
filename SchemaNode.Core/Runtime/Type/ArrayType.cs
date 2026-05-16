@@ -133,11 +133,11 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override IDataNode ParseValue(object? value)
+    public override DataNode Create(object? value)
         => value is ArrayNode node && node.Type == this ? node : new ArrayNode(this, value);
 
     /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, IDataNode value)
+    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
     {
         if (Element == null || value is not ArrayNode result || result.Type == this)
         {
@@ -146,7 +146,7 @@ public sealed class ArrayType: ValueType
         }
 
         // Validate by elements
-        foreach (IDataNode element in result)
+        foreach (DataNode element in result)
             await Element.ValidateNodeAsync(context, element);
 
         // Validate by relations
@@ -155,7 +155,7 @@ public sealed class ArrayType: ValueType
             bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
-                IDataNode? propValue = await process.ProcessAsync(context, result);
+                DataNode? propValue = await process.ProcessAsync(context, result);
                 if (propValue == null) continue;
                 
                 // build the constraint property
@@ -164,12 +164,12 @@ public sealed class ArrayType: ValueType
                 
                 // apply constraint on target
                 SpanReader spans = process.Target;
-                List<IDataNode> currNodes = [result];
+                List<DataNode> currNodes = [result];
                 while (spans.NextPath())
                 {
                     if (spans.IsEnd)
                     {
-                        foreach (IDataNode currNode in currNodes)
+                        foreach (DataNode currNode in currNodes)
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
@@ -193,20 +193,20 @@ public sealed class ArrayType: ValueType
                     
                     // Gather effect nodes
                     ReadOnlySpan<char> path = spans.Current;
-                    List<IDataNode> nextLevels = [];
-                    foreach (IDataNode currNode in currNodes)
+                    List<DataNode> nextLevels = [];
+                    foreach (DataNode currNode in currNodes)
                     {
                         if (currNode is ArrayNode arr)
                         {
-                            foreach (IDataNode element in arr)
+                            foreach (DataNode element in arr)
                             {
-                                IDataNode? next = element.GetAccessValue(path);
+                                DataNode? next = element.GetAccessValue(path);
                                 if (next != null) nextLevels.Add(next);
                             }
                         }
                         else
                         {
-                            IDataNode? next = currNode.GetAccessValue(path);
+                            DataNode? next = currNode.GetAccessValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
                     }
@@ -215,7 +215,7 @@ public sealed class ArrayType: ValueType
             }
             
             if (changed)
-                foreach (IDataNode field in result)
+                foreach (DataNode field in result)
                     field.RefreshViolated();
         }
         

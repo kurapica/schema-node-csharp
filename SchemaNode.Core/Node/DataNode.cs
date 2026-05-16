@@ -9,37 +9,39 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The data node interface, which represents a node in the data structure. It can be a value node, an array node, or a struct node.
 /// </summary>
-public interface IDataNode: IEquatable<IDataNode>
+public abstract class DataNode: IEquatable<DataNode>
 {
-    #region Abstract
+    #region Properties
     
     /// <summary>
     /// The value type
     /// </summary>
-    ValueType Type { get; }
+    public required ValueType Type { get; init; }
 
     /// <summary>
     /// Violated Constraints
     /// </summary>
-    ImmutableArray<string>? Violated { get; protected set; }
+    public ImmutableArray<string>? Violated { get; private set; }
+    
+    #endregion
+    
+    #region Abstract
     
     /// <summary>
-    /// indicate whether the node is empty
+    /// indicate whether the node has value
     /// </summary>
-    bool IsEmpty { get; }
+    public abstract bool IsEmpty { get; }
 
     /// <summary>
-    /// Set value to the data node without validation
+    /// Try set value to the data node
     /// </summary>
-    /// <param name="value"></param>
-    /// <typeparam name="T"></typeparam>
-    void SetValue<T>(T? value);
-    
+    public abstract void SetValue<T>(T? value);
+
     /// <summary>
     /// Gets the value as the given type
     /// </summary>
-    T? GetValue<T>();
-    
+    public abstract T? GetValue<T>();
+
     #endregion
 
     #region Virtual
@@ -57,10 +59,10 @@ public interface IDataNode: IEquatable<IDataNode>
     /// <summary>
     /// Gets the access value by path
     /// </summary>
-    public IDataNode? GetAccessValue(string path)
+    public DataNode? GetAccessValue(string path)
     {
         SpanReader reader = path;
-        IDataNode? curr = this;
+        DataNode? curr = this;
         while (curr != null && reader.NextPath())
             curr = curr.GetAccessValue(reader.Current);
         return curr;
@@ -69,29 +71,31 @@ public interface IDataNode: IEquatable<IDataNode>
     /// <summary>
     /// Gets the access value by part path
     /// </summary>
-    public virtual IDataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
-
-    /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
-    /// </summary>
-    public void SetViolated(string[] violated, string[]? passed, bool? reset = null)
-    {
-        IEnumerable<string> v = reset == true || Violated == null ? violated : Violated.Concat(violated);
-        if (passed is not null)
-            v = v.Where(x => !passed.Contains(x, StringComparer.OrdinalIgnoreCase));
-        Violated = [..v.Distinct(StringComparer.OrdinalIgnoreCase)];
-    }
-
-    /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
-    /// </summary>
-    /// <param name="violated"></param>
-    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
+    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
 
     /// <summary>
     /// Refresh violated constraints based on data node structure
     /// </summary>
     public virtual void RefreshViolated() { }
 
+    #endregion
+    
+    #region Methods
+    
+    /// <summary>
+    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// </summary>
+    public void SetViolated(IEnumerable<string>? violated = null, IEnumerable<string>? passed = null, bool? reset = null)
+    {
+        IEnumerable<string>? v = reset == true || Violated == null ? violated : violated != null ? Violated.Concat(violated) : Violated;
+        if (passed is not null) v = v?.Except(passed, StringComparer.OrdinalIgnoreCase);
+        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
+    }
+
+    /// <summary>
+    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// </summary>
+    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
+    
     #endregion
 }

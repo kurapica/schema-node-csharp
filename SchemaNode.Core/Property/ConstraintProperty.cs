@@ -13,12 +13,12 @@ public interface IConstraintProperty: IProperty
     /// <summary>
     /// Validate the data node with the constraint rule. Return true if valid, false if invalid, null if not applicable.
     /// </summary>
-    public virtual bool? Validate(SchemaContext context, IDataNode node) => null;
+    public virtual bool? Validate(SchemaContext context, DataNode node) => null;
 
     /// <summary>
     /// Async version of <see cref="Validate"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateAsync(SchemaContext context, IDataNode node) => Task.FromResult(Validate(context, node));
+    public virtual Task<bool?> ValidateAsync(SchemaContext context, DataNode node) => Task.FromResult(Validate(context, node));
 
     /// <summary>
     /// Validate the array data node

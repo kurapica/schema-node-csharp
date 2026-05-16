@@ -21,7 +21,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The namespace
     /// </summary>
-    public string Name => Schema != null ? GenericParams != null ? $"{Schema.FullName}<{string.Join(", ", GenericParams.Select(g => g.Name))}>" : Schema.FullName : string.Empty;
+    public string Name => Schema != null 
+        ? GenericParams != null 
+            ? $"{Schema.FullName}<{string.Join(", ", GenericParams.Select(g => g.Name))}>" 
+            : Schema.FullName 
+        : string.Empty;
 
     /// <summary>
     /// The node schema type
@@ -66,16 +70,6 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// The generics
     /// </summary>
     internal GenericParameter[]? Generics { get; private set; }
-    
-    /// <summary>
-    /// The generic type map for generic type definition, like T => string, used for generic type definition, which is important for generic type loading and refactor. The key is the generic type name, and the value is the actual node type.
-    /// </summary>
-    private ConcurrentDictionary<string, NodeType>? GenericMap { get; set; }
-
-    /// <summary>
-    /// The generic type lookup
-    /// </summary>
-    private ConcurrentDictionary<string, NodeType>.AlternateLookup<ReadOnlySpan<char>>? GenericMapLookup { get; set; }
 
     /// <summary>
     /// The generic parameters
@@ -91,6 +85,10 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     
     #region Fields
     
+    // generic
+    private ConcurrentDictionary<string, NodeType>? _genericMap;
+    private ConcurrentDictionary<string, NodeType>.AlternateLookup<ReadOnlySpan<char>>? _genericMapLookup;
+
     // properties
     private IProperty[]? _props;
     private NodeType[]? _refTypes;
@@ -127,13 +125,16 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// </summary>
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? genericParams = null)
     {
+        // reset
         ReleaseType();
         Error = null;
+        
+        // load basic info
+        Schema = schema;
         GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
 
-        Schema = schema;
+        // load properties
         List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE));
-
         foreach (IProperty prop in props.ToArray())
         {
             if (prop.GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
@@ -208,9 +209,9 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// </summary>
     internal NodeType? GetGenericType(ReadOnlySpan<char> name)
     {
-        if (GenericMap == null) return null;
-        GenericMapLookup ??= GenericMap.GetAlternateLookup<ReadOnlySpan<char>>();
-        return GenericMapLookup.Value.TryGetValue(name, out NodeType? node) ? node : null;
+        if (_genericMap == null) return null;
+        _genericMapLookup ??= _genericMap.GetAlternateLookup<ReadOnlySpan<char>>();
+        return _genericMapLookup.Value.TryGetValue(name, out NodeType? node) ? node : null;
     }
 
     /// <summary>
@@ -218,8 +219,8 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// </summary>
     internal void SetGenericType(ReadOnlySpan<char> name, NodeType node)
     {
-        GenericMap ??= [];
-        GenericMap[name.ToString()] = node;
+        _genericMap ??= [];
+        _genericMap[name.ToString()] = node;
     }
     
     /// <summary>
@@ -228,8 +229,8 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <returns></returns>
     internal IEnumerable<NodeType> GetGenericTypes()
     {
-        if (GenericMap == null) yield break;
-        foreach (NodeType g in GenericMap.Values)
+        if (_genericMap == null) yield break;
+        foreach (NodeType g in _genericMap.Values)
             yield return g;
     }
 
@@ -395,7 +396,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// The array type
     /// </summary>
-    internal ArrayType? ArrayType { get; private set; }
+    public ArrayType? ArrayType { get; internal set; }
     
     #endregion
     
@@ -428,7 +429,6 @@ public abstract class ValueType : NodeType
                 ArrayType ??= arr;
                 break;
         }
-
         base.AddUsedBy(usedBy);
     }
 
@@ -454,61 +454,72 @@ public abstract class ValueType : NodeType
     #region Abstract Methods
 
     /// <summary>
+    /// Generate the data node from the node type
+    /// </summary>
+    public abstract DataNode Create();
+
+    /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public virtual async Task<IDataNode> ValidateValueAsync(SchemaContext context, object? value)
+    public async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
     {
-        IDataNode result;
-        if (value is IDataNode node && node.Type == this)
+        DataNode? result = null;
+        if (value is DataNode node)
         {
-            result = node;
+            if (node.Type == this || IsAssignableTo(node.Type))
+                result = node;
+            else
+                value = node.GetValue<object>();
         }
-        else
+        
+        if (result == null)
         {
-            result = ParseValue(value);
-            if (result.IsEmpty && value != null || result.Type != this)
+            result = Create();
+            try
+            {
+                result.SetValue(value);
+            }
+            catch
+            {
+                // ignore
+            }
+            if (result.IsEmpty && value != null)
             {
                 result.SetViolated(Kind);
-                result.SetValue(value);
                 return result;
             }
         }
     
         // Custom validation
         await ValidateNodeAsync(context, result);
-        if (result.Violated is { Length: > 0 } && result.Violated.Contains(Kind)) 
-            return result;
         
         // apply constraints
         List<string>? errors = null;
-        foreach (IConstraintProperty constraint in Constraints)
+        List<string>? passed = null;
+        foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            if (await constraint.ValidateAsync(context, result) != false) continue;
-            errors ??= [];
-            errors.Add(constraint.Name);
+            if (await constraint.ValidateAsync(context, result) == false)
+            {
+                errors ??= [];
+                errors.Add(constraint.Name);
+            }
+            else
+            {
+                passed ??= [];
+                passed.Add(constraint.Name);
+            }
         }
-        if (errors != null)
-            result.Violated = result.Violated == null 
-                ? errors.ToArray()
-                : result.Violated.Concat(errors).Distinct().ToArray();
+        if (errors != null || passed != null)
+            result.SetViolated(errors, passed);
         
         return result;
     }
     
     /// <summary>
-    /// Validate the 
+    /// Validate the data node
     /// </summary>
-    /// <param name="context"></param>
-    /// <param name="node"></param>
-    /// <returns></returns>
-    public virtual Task<string[]?> ValidateNodeAsync(SchemaContext context, IDataNode node)
-        => Task.FromResult<string[]?>(null);
+    protected virtual Task ValidateNodeAsync(SchemaContext context, DataNode node) => Task.CompletedTask;
 
-    /// <summary>
-    /// Generate the data node from value, no validation will be performed
-    /// </summary>
-    public abstract IDataNode ParseValue(object? value);
-        
     /// <summary>
     /// Gets value type through path reader
     /// </summary>

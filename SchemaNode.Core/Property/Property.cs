@@ -63,7 +63,7 @@ public abstract class Property<T> : IProperty
     /// <summary>
     /// The property value
     /// </summary>
-    public T? Value { get; protected set; }
+    public T? Value { get; private set; }
 
     /// <summary>
     /// Sets the property value

@@ -516,7 +516,7 @@ public sealed class FunctionType : NodeType
             {
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                Node.IDataNode? argNode = argObj as Node.IDataNode;
+                Node.DataNode? argNode = argObj as Node.DataNode;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -535,9 +535,9 @@ public sealed class FunctionType : NodeType
                     callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                     if (eleType == null)
                         GetArgType(arg, gen ?? o.GetType());
-                    else if (eleType.IsAssignableTo(typeof(Node.IDataNode)))
+                    else if (eleType.IsAssignableTo(typeof(Node.DataNode)))
                     {
-                        GetArgType(arg, typeof(Node.IDataNode));
+                        GetArgType(arg, typeof(Node.DataNode));
                         NodeType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType)
                             ? await context.GetNodeTypeAsync(arg.SchemaType)
                             : null;
@@ -550,7 +550,7 @@ public sealed class FunctionType : NodeType
                 // AnySchemaNode
                 else if (argNode != null)
                 {
-                    if (eleType != null && eleType.IsAssignableTo(typeof(Node.IDataNode)))
+                    if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
                         callArgs[i] = argNode;
                     else
                         callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
@@ -573,7 +573,7 @@ public sealed class FunctionType : NodeType
                 {
                     object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
-                    Node.IDataNode? argNode = argObj as Node.IDataNode;
+                    Node.DataNode? argNode = argObj as Node.DataNode;
 
                     if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true }) continue;
 
@@ -584,7 +584,7 @@ public sealed class FunctionType : NodeType
                         argObj = o ?? throw new Exception($"The {j + 1} argument not valid");
                         eleType ??= GetArgType(arg, gen ?? o.GetType());
 
-                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.IDataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
                         {
 
                             argObj = schemaType?.CreateNode(argJson) ?? await context.GetSchemaNodeAsync(o)
@@ -594,7 +594,7 @@ public sealed class FunctionType : NodeType
                     // AnySchemaNode
                     else if (argNode != null)
                     {
-                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.IDataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
                             argObj = argNode;
                         else
                         {
@@ -654,7 +654,7 @@ public sealed class FunctionType : NodeType
         {
             JsonArray cArgs = [];
             foreach (object? arg in args) 
-                cArgs.Add(arg is Node.IDataNode node ? node.ToJsonNode() : arg.ToJsonNode());
+                cArgs.Add(arg is Node.DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
             result = Provider != null
                 ? await ((ISchemaProvider)context.GetRequiredService(Provider)).CallFunctionAsync(Name, cArgs, rType, target)
@@ -682,7 +682,7 @@ public sealed class FunctionType : NodeType
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                Node.IDataNode? argNode = argObj as Node.IDataNode;
+                Node.DataNode? argNode = argObj as Node.DataNode;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -694,7 +694,7 @@ public sealed class FunctionType : NodeType
                 // Parse argument
                 var eleType = arg.NodeType.ToCSharpType();
 
-                if (eleType.IsAssignableTo(typeof(Node.IDataNode)))
+                if (eleType.IsAssignableTo(typeof(Node.DataNode)))
                 {
                     callArgs[i] = arg.NodeType.CreateNode(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                 }
@@ -745,7 +745,7 @@ public sealed class FunctionType : NodeType
         Type retType = typeof(T);
         if (retType.IsAssignableTo(typeof(JsonNode)))
         {
-            result = result is Node.IDataNode node ? node.ToJson() : result is JsonNode jn ? jn : result.ToJsonNode();
+            result = result is Node.DataNode node ? node.ToJson() : result is JsonNode jn ? jn : result.ToJsonNode();
             if (retType == typeof(JsonArray))
                 return (T)(object)(result as JsonArray ?? []);
             else if (retType == typeof(JsonObject))
@@ -755,7 +755,7 @@ public sealed class FunctionType : NodeType
             else
                 return (T)result!;
         }
-        else if (retType.IsAssignableTo(typeof(Node.IDataNode)))
+        else if (retType.IsAssignableTo(typeof(Node.DataNode)))
         {
             return (T)(object)((ReturnNode != null 
                 ? await ReturnNode.ValidateValueAsync(context, result) 

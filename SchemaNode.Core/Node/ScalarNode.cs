@@ -3,7 +3,7 @@ using ValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.Node;
 
-public abstract class ScalarNode<T> : IDataNode
+public abstract class ScalarNode<T> : DataNode
 {
     private T? _value;
     
@@ -17,7 +17,7 @@ public abstract class ScalarNode<T> : IDataNode
     public bool IsEmpty => _value == null;
     
     /// <inheritdoc/>
-    public void SetValue<T1>(T1? value)
+    public void TrtSetValue<T1>(T1? value)
         => _value = value != null ? value.TryConvertTo<T>() : default(T?);
     
     /// <inheritdoc/>
@@ -25,14 +25,33 @@ public abstract class ScalarNode<T> : IDataNode
         => _value != null ? _value.TryConvertTo<T1>() : default(T1?);
 
     /// <inheritdoc/>
-    public bool Equals(IDataNode? other)
+    public bool Equals(DataNode? other)
         => other is ScalarNode<T> scalarNode && GetType() == scalarNode.GetType() && Equals(_value, scalarNode._value);
 }
 
 /// <summary>
 ///  For bool node
 /// </summary>
-public class BoolNode : ScalarNode<bool>;
+public class BoolNode : ScalarNode<bool>
+{
+    
+    // Parses a string to a bool (accepts "true"/"false"/0/1)
+    static bool TryParseBoolValue(string? value, out bool ret)
+    {
+        ret = false;
+        if (string.IsNullOrEmpty(value)) return false;
+        value = value.ToLower();
+        switch (value)
+        {
+            case "true":  ret = true;  return true;
+            case "false": ret = false; return true;
+            default:
+                if (!int.TryParse(value, out int val) || val is < 0 or > 1) return false;
+                ret = val == 1;
+                return true;
+        }
+    }
+}
 
 /// <summary>
 ///  For string node

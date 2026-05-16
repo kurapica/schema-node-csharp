@@ -12,7 +12,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
-    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.IDataNode? overrideValue = null)
+    public bool? ValidateEnum(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
     {
         if ((overrideValue?.ToValue<bool>() ?? Value) != true || node.IsEmpty) return null;
 

@@ -1,5 +1,4 @@
 using SchemaNode.Node;
-using static SchemaNode.Utility.Extension;
 
 namespace SchemaNode.Runtime;
 
@@ -8,6 +7,5 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class DecimalType : ScalarType
 {
-    public override IDataNode ParseValue(object? value)
-        => value is NumericNode node && node.Type == this ? node :  new NumericNode(this, value?.TryConvertTo<decimal>());
+    public override DataNode Create() => new NumericNode { Type = this };
 }
