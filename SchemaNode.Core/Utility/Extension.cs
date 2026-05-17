@@ -82,7 +82,7 @@ internal static class Extension
         }
     }
     
-    internal static T? TryConvertTo<T>(this object? value) => (T?)typeof(T).TryConvert(value);
+    internal static T? TryConvertTo<T>(this object? value) => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
 
     #endregion
     
@@ -434,18 +434,29 @@ internal static class Extension
         /// <summary>
         /// Try to convert the value for the given type.
         /// </summary>
-        internal object? TryConvert(object? value)
+        internal bool TryConvert(object? value, out object? result)
         {
             Type targetType = type.GetNotNullType();
 
             try
             {
-                // value match
-                if (value == null) return null;
-                if (value.GetType().IsAssignableTo(targetType)) return value;
+                result = null;
 
-                // for schema node
-                if (value is DataNode node) return node.TryGetValue(out object? val) ? targetType.TryConvert(val) : null;
+                // for data node
+                if (value is DataNode node)
+                {
+                    if (node.TryGetValue(out object? nv))
+                        value = nv;
+                    else
+                        return false;
+                }
+
+                // value match
+                if (value == null || value.GetType().IsAssignableTo(targetType))
+                {
+                    result = value;
+                    return true;
+                }
 
                 // json type
                 if (value is JsonElement ele)
@@ -462,24 +473,42 @@ internal static class Extension
                         JsonValueKind.Object => JsonNode.Parse(ele.GetRawText()),
                         _ => null
                     };
-                    if (value == null) return null;
-                    if (value.GetType().IsAssignableTo(targetType)) return value;
+                    if (value == null || value.GetType().IsAssignableTo(targetType))
+                    {
+                        result = value;
+                        return true;
+                    }
                 }
 
                 if (value is (JsonArray or JsonObject))
-                    return (value as JsonNode).Deserialize(targetType, DefaultJsonOptions);
+                {
+                    result = (value as JsonNode).Deserialize(targetType, DefaultJsonOptions);
+                    return true;
+                }
 
                 if (targetType == typeof(JsonArray))
-                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonArray;
+                {
+                    result = JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonArray;
+                    return true;
+                }
 
                 if (targetType == typeof(JsonObject))
-                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonObject;
+                {
+                    result = JsonSerializer.SerializeToNode(value, DefaultJsonOptions) as JsonObject;
+                    return true;
+                }
 
                 if (targetType == typeof(JsonValue))
-                    return JsonValue.Create(value);
+                {
+                    result = JsonValue.Create(value);
+                    return true;
+                }
 
                 if (targetType == typeof(JsonNode))
-                    return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
+                {
+                    result = JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
+                    return true;
+                }
 
                 // none json type
                 if (value is JsonValue v)
@@ -524,27 +553,33 @@ internal static class Extension
                             value = null;
                             break;
                     }
-                    if (value == null) return null;
-                    if (value.GetType().IsAssignableTo(targetType)) return value;
+                    if (value == null || value.GetType().IsAssignableTo(targetType))
+                    {
+                        result = value;
+                        return true;
+                    }
                 }
                 // for collections
                 else if (value is Array arr)
                 {
-                    return ConvertToCollection(arr.Cast<object?>(), targetType);
+                    result = ConvertToCollection(arr.Cast<object?>(), targetType);
+                    return true;
                 }
                 else if (value is not string && value is IEnumerable iter)
                 {
-                    return ConvertToCollection(iter.Cast<object?>(), targetType);
+                    result = ConvertToCollection(iter.Cast<object?>(), targetType);
+                    return true;
                 }
 
                 // Enum convert
                 if (targetType.IsEnum)
                 {
-                    return value is string s
+                    result = value is string s
                         ? System.Enum.Parse(targetType, s, ignoreCase: true)
                         : value.GetType().IsPrimitive
                             ? System.Enum.ToObject(targetType, value)
                             : null;
+                    return true;
                 }
 
                 // Primitive
@@ -552,35 +587,51 @@ internal static class Extension
                 {
                     case TypeCode.Empty:
                     case TypeCode.DBNull:
-                        return null;
+                    {
+                        result = null;
+                        return true;
+                    }
                     case TypeCode.Object:
                         break;
                     case TypeCode.Boolean:
-                        return Convert.ToBoolean(value);
+                        result = Convert.ToBoolean(value);
+                        return true;
                     case TypeCode.Char:
-                        return Convert.ToChar(value);
+                        result = Convert.ToChar(value);
+                        return true;
                     case TypeCode.SByte:
-                        return Convert.ToSByte(value);
+                        result = Convert.ToSByte(value);
+                        return true;
                     case TypeCode.Byte:
-                        return Convert.ToByte(value);
+                        result = Convert.ToByte(value);
+                        return true;
                     case TypeCode.Int16:
-                        return Convert.ToInt16(value);
+                        result = Convert.ToInt16(value);
+                        return true;
                     case TypeCode.UInt16:
-                        return Convert.ToUInt16(value);
+                        result = Convert.ToUInt16(value);
+                        return true;
                     case TypeCode.Int32:
-                        return Convert.ToInt32(value);
+                        result = Convert.ToInt32(value);
+                        return true;
                     case TypeCode.UInt32:
-                        return Convert.ToUInt32(value);
+                        result = Convert.ToUInt32(value);
+                        return true;
                     case TypeCode.Int64:
-                        return Convert.ToInt64(value);
+                        result = Convert.ToInt64(value);
+                        return true;
                     case TypeCode.UInt64:
-                        return Convert.ToUInt64(value);
+                        result = Convert.ToUInt64(value);
+                        return true;
                     case TypeCode.Single:
-                        return Convert.ToSingle(value);
+                        result = Convert.ToSingle(value);
+                        return true;
                     case TypeCode.Double:
-                        return Convert.ToDouble(value);
+                        result = Convert.ToDouble(value);
+                        return true;
                     case TypeCode.Decimal:
-                        return Convert.ToDecimal(value);
+                        result = Convert.ToDecimal(value);
+                        return true;
                     case TypeCode.DateTime:
                     {
                         string? str = value.ToString();
@@ -591,7 +642,8 @@ internal static class Extension
                                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                                 out var dto))
                         {
-                            return dto.DateTime;
+                            result = dto.DateTime;
+                            return true;
                         }
 
                         if (DateTime.TryParseExact(
@@ -601,12 +653,15 @@ internal static class Extension
                                 DateTimeStyles.None,
                                 out var dt))
                         {
-                            return dt;
+                            result = dt;
+                            return true;
                         }
-                        return Convert.ToDateTime(value);
+                        result = Convert.ToDateTime(value);
+                        return true;
                     }
                     case TypeCode.String:
-                        return Convert.ToString(value);
+                        result = Convert.ToString(value);
+                        return true;
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -614,26 +669,41 @@ internal static class Extension
                 // Object
                 if (targetType == typeof(Guid))
                 {
-                    return Guid.TryParse(value.ToString(), out Guid result) ? result : null;
+                    if (Guid.TryParse(value.ToString(), out Guid g))
+                    {
+                        result = g;
+                        return true;
+                    }
+                    return false;
                 }
 
                 if (targetType == typeof(DateTimeOffset))
                 {
                     if (value is string s)
                     {
-                        if (TryParseDateTimeOffset(s, out var dto)) return dto;
-                        return DateTimeOffset.Parse(s);
+                        if (TryParseDateTimeOffset(s, out var dto))
+                        {
+                            result = dto;
+                            return true;
+                        }
+                        result = DateTimeOffset.Parse(s);
+                        return true;
                     }
                     if (value is long or int)
-                        return DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
-                    return null;
+                    {
+                        result = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
+                        return true;
+                    }
+                    return false;
                 }
 
-                return JsonSerializer.SerializeToNode(value, DefaultJsonOptions)?.Deserialize(targetType, DefaultJsonOptions);
+                result = JsonSerializer.SerializeToNode(value, DefaultJsonOptions)?.Deserialize(targetType, DefaultJsonOptions);
+                return true;
             }
-            catch (Exception ex)
+            catch
             {
-                throw new InvalidCastException($"Cannot convert the value '{value}' to type '{targetType.FullName}'", ex);
+                result = null;
+                return false;
             }
         }
 
