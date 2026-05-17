@@ -389,11 +389,6 @@ public abstract class ValueType : NodeType
     public IEnumerable<IConstraintProperty> Constraints => _constraints?.AsEnumerable() ?? [];
 
     /// <summary>
-    /// Whether the type can be used as data index
-    /// </summary>
-    public virtual bool IsIndexable => false;
-    
-    /// <summary>
     /// The array type
     /// </summary>
     public ArrayType? ArrayType { get; internal set; }
@@ -450,14 +445,9 @@ public abstract class ValueType : NodeType
     }
 
     #endregion
+
+    #region Methods
     
-    #region Abstract Methods
-
-    /// <summary>
-    /// Generate the data node from the node type
-    /// </summary>
-    public abstract DataNode Create();
-
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
@@ -469,28 +459,20 @@ public abstract class ValueType : NodeType
             if (node.Type == this || IsAssignableTo(node.Type))
                 result = node;
             else
-                value = node.GetValue<object>();
+                value = node.TryGetValue(out object? v) ? v : null;
         }
         
         if (result == null)
         {
             result = Create();
-            try
-            {
-                result.SetValue(value);
-            }
-            catch
-            {
-                // ignore
-            }
-            if (result.IsEmpty && value != null)
+            if (value != null && !result.TrySetValue(value))
             {
                 result.SetViolated(Kind);
                 return result;
             }
         }
     
-        // Custom validation
+        // Node type validation
         await ValidateNodeAsync(context, result);
         
         // apply constraints
@@ -514,7 +496,24 @@ public abstract class ValueType : NodeType
         
         return result;
     }
+
+    #endregion
     
+    #region Abstract
+
+    /// <summary>
+    /// Generate the data node from the node type
+    /// </summary>
+    public abstract DataNode Create();
+    
+    #endregion
+
+    #region Virtual
+    /// <summary>
+    /// Whether the type can be used as data index
+    /// </summary>
+    public virtual bool IsIndexable => false;
+
     /// <summary>
     /// Validate the data node
     /// </summary>

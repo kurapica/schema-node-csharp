@@ -12,8 +12,10 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
     internal DataNode[] Fields;
     object? _csharpObject;
 
-    public StructNode(StructType type, object? value = null) : base(type, null)
+    public StructNode(StructType type)
     {
+        Type = type;
+        
         // init fields
         Fields = new DataNode[type.Fields.Length];
         for(int i = 0; i < Fields.Length; i++)

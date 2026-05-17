@@ -159,18 +159,14 @@ public sealed class EnumType: ValueType
         // Validate value
         if (_enumSchema?.Type == EnumValueType.Flags)
         {
-            if (result.GetValue<long>() is { } flagsValue || flagsValue < 0 || flagsValue > _maxFlags)
-            {
-                result.Violated = [Kind];
-            }
+            if (result.TryGetValue(out long flagsValue) || flagsValue < 0 || flagsValue > _maxFlags)
+                result.SetViolated(Kind);
         }
-        else
+        else if (result.TryGetValue(out string? strValue))
         {
-            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, result.GetValue<string>());
+            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, strValue);
             if (access.Length == 0)
-            {
-                result.Violated = [Kind];
-            }
+                result.SetViolated(Kind);
         }
     }
 

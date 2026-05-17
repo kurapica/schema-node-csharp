@@ -133,21 +133,16 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create(object? value)
-        => value is ArrayNode node && node.Type == this ? node : new ArrayNode(this, value);
+    public override DataNode Create() => new ArrayNode(this);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
     {
-        if (Element == null || value is not ArrayNode result || result.Type == this)
-        {
-            value.Violated = [Kind];
-            return;
-        }
+        if (Element == null || value is not ArrayNode result || result.Type != this) return;
 
         // Validate by elements
         foreach (DataNode element in result)
-            await Element.ValidateNodeAsync(context, element);
+            await Element.ValidateValueAsync(context, element);
 
         // Validate by relations
         if (_relations != null)
@@ -173,18 +168,13 @@ public sealed class ArrayType: ValueType
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
-                                if (currNode.Violated != null &&
-                                    currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.Violated = currNode.Violated is { Length: > 0 }
-                                    ? currNode.Violated.Append(prop.Name).ToArray()
-                                    : [prop.Name];
+                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
+                                currNode.SetViolated(prop.Name);
                                 changed = true;
                             }
                             else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
-                                currNode.Violated = currNode.Violated.Length == 1 
-                                    ? null 
-                                    : currNode.Violated.Where(c => c != prop.Name).ToArray();
+                                currNode.ClearViolated(prop.Name);
                                 changed = true;
                             }
                         }
@@ -218,10 +208,6 @@ public sealed class ArrayType: ValueType
                 foreach (DataNode field in result)
                     field.RefreshViolated();
         }
-        
-        // Check
-        if (result.Any(e => e.Violated is { Length: > 0 }))
-            result.Violated = [Kind];
     }
 
     #endregion

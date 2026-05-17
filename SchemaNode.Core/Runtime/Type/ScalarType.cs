@@ -1,5 +1,4 @@
 using SchemaNode.Context;
-using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Node;
@@ -29,7 +28,7 @@ public abstract class ScalarType : ValueType
         if (!string.IsNullOrWhiteSpace(scalar?.Base))
         {
             BaseNode = await context.GetNodeTypeAsync<ScalarType>(scalar.Base);
-            if (BaseNode == null)
+            if (BaseNode == null || !BaseNode.Kind.Equals(Kind, StringComparison.OrdinalIgnoreCase))
                 Error = ErrorCodes.SCALAR_WRONG_BASE;
         }
     }

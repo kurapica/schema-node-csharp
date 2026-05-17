@@ -445,7 +445,7 @@ internal static class Extension
                 if (value.GetType().IsAssignableTo(targetType)) return value;
 
                 // for schema node
-                if (value is DataNode node) return node.TryConvertTo(targetType);
+                if (value is DataNode node) return node.TryGetValue(out object? val) ? targetType.TryConvert(val) : null;
 
                 // json type
                 if (value is JsonElement ele)

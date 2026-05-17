@@ -1,5 +1,4 @@
 ﻿using SchemaNode.Utility;
-using ValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.Node;
 
@@ -8,25 +7,23 @@ public abstract class ScalarNode<T> : DataNode
     private T? _value;
     
     /// <inheritdoc/>
-    public required ValueType Type { get; init; }
-    
-    /// <inheritdoc/>
-    public string[]? Violated { get; set; }
-    
-    /// <inheritdoc/>
-    public bool IsEmpty => _value == null;
-    
-    /// <inheritdoc/>
-    public void TrtSetValue<T1>(T1? value)
-        => _value = value != null ? value.TryConvertTo<T>() : default(T?);
-    
-    /// <inheritdoc/>
-    public T1? GetValue<T1>() 
-        => _value != null ? _value.TryConvertTo<T1>() : default(T1?);
+    public override bool IsEmpty => _value == null;
 
     /// <inheritdoc/>
-    public bool Equals(DataNode? other)
-        => other is ScalarNode<T> scalarNode && GetType() == scalarNode.GetType() && Equals(_value, scalarNode._value);
+    public override bool TryGetValue<T1>(out T1? value) where T1 : default
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public override bool TrySetValue<T1>(T1? value) where T1 : default
+    {
+        _value = value.TryConvertTo<T>();
+        return true;
+    }
+    
+    /// <inheritdoc/>
+    public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(_value, scalarNode._value);
 }
 
 /// <summary>
@@ -56,10 +53,7 @@ public class BoolNode : ScalarNode<bool>
 /// <summary>
 ///  For string node
 /// </summary>
-public class StringNode : ScalarNode<string>
-{
-    
-}
+public class StringNode : ScalarNode<string>;
 
 /// <summary>
 ///  For numeric node

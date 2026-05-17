@@ -6,28 +6,13 @@ namespace SchemaNode.Node;
 
 public class EnumNode : DataNode
 {
-    public bool Equals(DataNode? other)
-    {
-        throw new NotImplementedException();
-    }
-    
-    /// <inheritdoc/>
-    public ValueType Type { get; init; }
-    
-    /// <inheritdoc/>
-    public ImmutableArray<string>? Violated { get; set; }
-    
-    /// <inheritdoc/>
-    public bool IsEmpty { get; }
-    
-    /// <inheritdoc/>
-    public void SetValue<T>(T? value)
+    public override bool IsEmpty { get; }
+    public override bool TrySetValue<T>(T? value) where T : default
     {
         throw new NotImplementedException();
     }
 
-    /// <inheritdoc/>
-    public T? GetValue<T>()
+    public override bool TryGetValue<T>(out T? value) where T : default
     {
         throw new NotImplementedException();
     }

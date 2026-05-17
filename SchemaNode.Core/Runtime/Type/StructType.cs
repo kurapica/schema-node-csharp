@@ -168,7 +168,7 @@ public sealed class StructType: ValueType
         foreach (StructFieldType field in _fields)
         {
             if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return field.Type?.GetAccessValueType(remain);
+                return remain.IsEmpty ? field.Type : field.Type?.GetAccessValueType(remain);
         }
         return null;
     }
@@ -187,35 +187,32 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create(object? value)
-        => value is StructNode node && node.Type == this ? node : new StructNode(this, value);
+    public override DataNode Create() => new StructNode(this);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
     {
-        if (value is not StructNode result)
-        {
-            value.Violated = value.Violated is { Length: > 0 } 
-                ? value.Violated.Append(Kind).ToArray() 
-                : [Kind];
-            return;
-        }
+        if (value is not StructNode result) return;
         
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
         {
             DataNode? dataNode = result.GetField(field.Name);
             if (dataNode == null) continue;
-            dataNode = await field.Type!.ValidateNodeAsync(context, dataNode);
-            result[field.Name] = dataNode;
+            
+            // Validate the struct fields
+            await field.Type!.ValidateValueAsync(context, dataNode);
 
             if (field.Constraints is not { Length: > 0 }) continue;
-            HashSet<string>? errors = dataNode.Violated?.ToHashSet() ?? [];
+            
+            List<string>? errors = null;
+            List<string>? passed = null;
             foreach (IConstraintProperty constraint in field.Constraints)
             {
                 if (await constraint.ValidateAsync(context, dataNode) != false)
                 {
-                    errors?.Remove(constraint.Name);
+                    passed ??= [];
+                    passed.Add(constraint.Name);
                 }
                 else
                 {
@@ -223,7 +220,8 @@ public sealed class StructType: ValueType
                     errors.Add(constraint.Name);
                 }
             }
-            dataNode.Violated = errors is { Count: > 0 } ? errors.ToArray() : null;
+            if (errors != null || passed != null)
+                dataNode.SetViolated(errors, passed);
         }
 
         // Validate by relations
@@ -250,18 +248,13 @@ public sealed class StructType: ValueType
                         {
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
-                                if (currNode.Violated != null &&
-                                    currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.Violated = currNode.Violated is { Length: > 0 }
-                                    ? currNode.Violated.Append(prop.Name).ToArray()
-                                    : [prop.Name];
+                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
+                                currNode.SetViolated(prop.Name);
                                 changed = true;
                             }
                             else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
-                                currNode.Violated = currNode.Violated.Length == 1 
-                                    ? null 
-                                    : currNode.Violated.Where(c => c != prop.Name).ToArray();
+                                currNode.ClearViolated(prop.Name);
                                 changed = true;
                             }
                         }
@@ -297,7 +290,6 @@ public sealed class StructType: ValueType
         }
 
         // Union validation
-        bool hasError = result.Fields.Any(f => f.Violated is { Length: > 0 });
         if (_unionValids is { Count: > 0 })
         {
             foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
@@ -328,15 +320,9 @@ public sealed class StructType: ValueType
                 {
                     // ignore
                 }
-
-                hasError = true;
-                first.Violated = first.Violated is { Length: > 0 } ? first.Violated.Append(valid.Func).ToArray() : [valid.Func];
+                first.SetViolated(valid.Func);
             }
         }
-
-        // error check
-        if (hasError)
-            result.Violated = [Kind];
     }
 
     #endregion
