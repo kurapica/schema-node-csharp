@@ -36,6 +36,15 @@ public sealed class EnumType: ValueType
 
     #endregion
     
+    #region Properties
+    
+    /// <summary>
+    /// The enum value type
+    /// </summary>
+    public EnumValueType Type => _enumSchema?.Type ?? EnumValueType.String;
+    
+    #endregion
+    
     #region Method
 
     /// <inheritdoc />
@@ -149,7 +158,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new EnumNode { Type = this };
+    public override DataNode Create() => new EnumNode(this);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)

@@ -218,7 +218,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
                 var array = Array.CreateInstance(elementType, _rawElements.Count);
                 for (int i = 0; i < _rawElements.Count; i++)
                 {
-                    array.SetValue(elementType.TryConvert(_rawElements[i]), i);
+                    array.SetValue(elementType.TryConvert(_rawElements[i], out var o) ? o : null, i);
                 }
                 return array;
             }
@@ -232,12 +232,11 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
                 var listType = typeof(List<>).MakeGenericType(genericType);
                 var list = (IList)Activator.CreateInstance(listType)!;
                 foreach (var element in _rawElements)
-                {
-                    list.Add(genericType.TryConvert(element));
-                }
+                    if (genericType.TryConvert(element, out var o))
+                        list.Add(o);
                 return list;
             }
-            else if (type == typeof(JsonArray) || type == typeof(System.Text.Json.Nodes.JsonNode))
+            else if (type == typeof(JsonArray) || type == typeof(JsonNode))
             {
                 return ToJson();
             }

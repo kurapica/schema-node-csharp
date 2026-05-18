@@ -9,7 +9,7 @@ namespace SchemaNode.Node;
 
 public class StructNode : DataNode
 {
-    internal DataNode[] Fields;
+    private readonly DataNode[] _fields;
     object? _csharpObject;
 
     public StructNode(StructType type)
@@ -17,8 +17,8 @@ public class StructNode : DataNode
         Type = type;
         
         // init fields
-        Fields = new DataNode[type.Fields.Length];
-        for(int i = 0; i < Fields.Length; i++)
+        _fields = new DataNode[type.Fields.Length];
+        for(int i = 0; i < _fields.Length; i++)
         {
             var field = type.Fields[i];
             if (field.SchemaType == null)
@@ -26,7 +26,7 @@ public class StructNode : DataNode
                 throw new SerializationException($"The field {field.Name} type is not defined.");
             }
 
-            Fields[i] = field.SchemaType!.CreateNode() ?? throw new NotSupportedException();
+            _fields[i] = field.SchemaType!.CreateNode() ?? throw new NotSupportedException();
         }
         Value = value;
     }
@@ -45,7 +45,7 @@ public class StructNode : DataNode
         }
     }
 
-    public DataNode? GetField(ReadOnlySpan<char> segment) => Fields.ElementAtOrDefault((Type as StructType)!.GetIndex(segment));
+    public DataNode? GetField(ReadOnlySpan<char> segment) => _fields.ElementAtOrDefault((Type as StructType)!.GetIndex(segment));
 
     /// <summary>
     /// Gets the field schema
@@ -55,7 +55,7 @@ public class StructNode : DataNode
         if (node == null) return null;
         var type = Type as StructType;
         if (type == null) return null;
-        var index = Array.FindIndex(Fields, f => f == node);
+        var index = Array.FindIndex(_fields, f => f == node);
         if (index < 0 || index >= type.Fields.Length) return null;
         return type.Fields[index];
     }
@@ -88,7 +88,7 @@ public class StructNode : DataNode
         return true;
     }
 
-    public override bool IsEmpty => Fields.All(f => f.IsEmpty);
+    public override bool IsEmpty => _fields.All(f => f.IsEmpty);
 
     public override object? Value
     {
@@ -98,7 +98,7 @@ public class StructNode : DataNode
             _csharpObject = null;
             if (value == null)
             {
-                foreach (DataNode @field in Fields)
+                foreach (DataNode @field in _fields)
                 {
                     @field.Value = null;
                 }
@@ -108,7 +108,7 @@ public class StructNode : DataNode
                 var fields = (Type as StructType)!.Fields;
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    Fields[i].Value = @struct.GetField(fields[i].Name);
+                    _fields[i].Value = @struct.GetField(fields[i].Name);
                 }
             }
             else if(value is JsonObject obj)
@@ -118,9 +118,9 @@ public class StructNode : DataNode
                 AnyNode? unpackNode = null;
                 for (int i = 0; i < fields.Length; i++)
                 {
-                    fieldMap[fields[i].Name.ToLower()] = Fields[i];
+                    fieldMap[fields[i].Name.ToLower()] = _fields[i];
                     if (fields[i].Unpack ?? false)
-                        unpackNode = Fields[i] as AnyNode;
+                        unpackNode = _fields[i] as AnyNode;
                 }
 
                 JsonObject? packData = unpackNode != null ? new JsonObject() : null;
@@ -149,7 +149,7 @@ public class StructNode : DataNode
                     _csharpObject = value;
                     for (int i = 0; i < props.Count; i++)
                     {
-                        Fields[i].Value = props[i]?.GetValue(value);
+                        _fields[i].Value = props[i]?.GetValue(value);
                     }
                 }
                 else
@@ -158,7 +158,7 @@ public class StructNode : DataNode
                     var fields = (Type as StructType)!.Fields;
                     for (int i = 0; i < fields.Length; i++)
                     {
-                        Fields[i].Value = jsonObj[fields[i].Name];
+                        _fields[i].Value = jsonObj[fields[i].Name];
                     }
                 }
             }
@@ -207,7 +207,7 @@ public class StructNode : DataNode
         var fields = (Type as StructType)!.Fields;
         for (int i = 0; i < fields.Length; i++)
         {
-            System.Text.Json.Nodes.JsonNode? d = Fields[i].ToJson();
+            System.Text.Json.Nodes.JsonNode? d = _fields[i].ToJson();
             if (d != null && !d.IsEmpty())
             {
                 if (fields[i].Unpack ?? false)

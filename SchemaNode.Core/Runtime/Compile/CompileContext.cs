@@ -1139,8 +1139,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // for complex types
         if (resExp == null)
         {
-            MethodInfo method = typeof(Extension).GetMethod(nameof(Extension.TryConvert), BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp, Expression.Constant(null, typeof(DateFormatMode?))), type);
+            MethodInfo method = typeof(Extension).GetMethod(nameof(Extension.Convert), BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
+            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp), type);
         }
 
         // nullable result

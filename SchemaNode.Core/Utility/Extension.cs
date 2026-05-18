@@ -82,8 +82,19 @@ internal static class Extension
         }
     }
     
-    internal static T? TryConvertTo<T>(this object? value) => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
+    internal static T? ConvertTo<T>(this object? value) => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
 
+    internal static bool TryConvertTo<T>(this object? value, out T? result)
+    {
+        if (value == null || !typeof(T).TryConvert(value, out object? r))
+        {
+            result = default(T?);
+            return value == null;
+        }
+        result = (T?)r;
+        return true;
+    }
+    
     #endregion
     
     #region String
@@ -206,7 +217,7 @@ internal static class Extension
             return value.Deserialize(type, DefaultJsonOptions);
         }
        
-        internal T? ToValue<T>() => (T?)(typeof(T).TryConvert(value) ?? default(T?));
+        internal T? ToValue<T>() => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
         
         /// <summary>
         /// Gets the value with paths
@@ -594,43 +605,79 @@ internal static class Extension
                     case TypeCode.Object:
                         break;
                     case TypeCode.Boolean:
-                        result = Convert.ToBoolean(value);
-                        return true;
+                    {
+                        if (value is bool b)
+                        {
+                            result = b;
+                            return true;
+                        }
+                        
+                        string? str = value.ToString();
+                        if (string.IsNullOrEmpty(str))
+                        {
+                            result = null;
+                            return true;
+                        }
+                        switch (str.ToLowerInvariant())
+                        {
+                            case "true":
+                            {
+                                result = true;
+                                return true;
+                            }
+                            case "false":
+                            {
+                                result = false;
+                                return true;
+                            }
+                            default:
+                            {
+                                if (!int.TryParse(str, out int val) || val is < 0 or > 1)
+                                {
+                                    result = null;
+                                    return false;
+                                }
+
+                                result = val == 1;
+                                return true;
+                            }
+                        }
+                    }
                     case TypeCode.Char:
-                        result = Convert.ToChar(value);
+                        result = System.Convert.ToChar(value);
                         return true;
                     case TypeCode.SByte:
-                        result = Convert.ToSByte(value);
+                        result = System.Convert.ToSByte(value);
                         return true;
                     case TypeCode.Byte:
-                        result = Convert.ToByte(value);
+                        result = System.Convert.ToByte(value);
                         return true;
                     case TypeCode.Int16:
-                        result = Convert.ToInt16(value);
+                        result = System.Convert.ToInt16(value);
                         return true;
                     case TypeCode.UInt16:
-                        result = Convert.ToUInt16(value);
+                        result = System.Convert.ToUInt16(value);
                         return true;
                     case TypeCode.Int32:
-                        result = Convert.ToInt32(value);
+                        result = System.Convert.ToInt32(value);
                         return true;
                     case TypeCode.UInt32:
-                        result = Convert.ToUInt32(value);
+                        result = System.Convert.ToUInt32(value);
                         return true;
                     case TypeCode.Int64:
-                        result = Convert.ToInt64(value);
+                        result = System.Convert.ToInt64(value);
                         return true;
                     case TypeCode.UInt64:
-                        result = Convert.ToUInt64(value);
+                        result = System.Convert.ToUInt64(value);
                         return true;
                     case TypeCode.Single:
-                        result = Convert.ToSingle(value);
+                        result = System.Convert.ToSingle(value);
                         return true;
                     case TypeCode.Double:
-                        result = Convert.ToDouble(value);
+                        result = System.Convert.ToDouble(value);
                         return true;
                     case TypeCode.Decimal:
-                        result = Convert.ToDecimal(value);
+                        result = System.Convert.ToDecimal(value);
                         return true;
                     case TypeCode.DateTime:
                     {
@@ -656,11 +703,11 @@ internal static class Extension
                             result = dt;
                             return true;
                         }
-                        result = Convert.ToDateTime(value);
+                        result = System.Convert.ToDateTime(value);
                         return true;
                     }
                     case TypeCode.String:
-                        result = Convert.ToString(value);
+                        result = System.Convert.ToString(value);
                         return true;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -691,7 +738,7 @@ internal static class Extension
                     }
                     if (value is long or int)
                     {
-                        result = DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(value));
+                        result = DateTimeOffset.FromUnixTimeSeconds(System.Convert.ToInt64(value));
                         return true;
                     }
                     return false;
@@ -707,6 +754,11 @@ internal static class Extension
             }
         }
 
+        /// <summary>
+        /// Convert the value as the given type
+        /// </summary>
+        internal object? Convert(object? value) => type.TryConvert(value, out object? result) ? result : null;
+        
         /// <summary>
         /// Get summary contents from XML document.
         /// </summary>
@@ -749,7 +801,7 @@ internal static class Extension
             var items = source.ToArray();
             var result = Array.CreateInstance(eleType, items.Length);
             for (int i = 0; i < items.Length; i++)
-                result.SetValue(eleType.TryConvert(items[i]), i);
+                result.SetValue(eleType.TryConvert(items[i], out var o) ? o : null, i);
             return result;
         }
         if (targetType.IsSubclassOfGenericType(typeof(List<>)))
@@ -757,7 +809,8 @@ internal static class Extension
             Type eleType = targetType.GetGenericBaseType(typeof(List<>))!.GetGenericArguments()[0];
             var list = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(eleType))!;
             foreach (var item in source)
-                list.Add(eleType.TryConvert(item));
+                if (eleType.TryConvert(item, out var o))
+                    list.Add(o);
             return list;
         }
         if (targetType.IsSubclassOfGenericType(typeof(IEnumerable<>)))
@@ -766,7 +819,7 @@ internal static class Extension
             var items = source.ToArray();
             var result = Array.CreateInstance(eleType, items.Length);
             for (int i = 0; i < items.Length; i++)
-                result.SetValue(eleType.TryConvert(items[i]), i);
+                result.SetValue(eleType.TryConvert(items[i], out var o) ? o : null, i);
             return result;
         }
         return null;
@@ -840,7 +893,7 @@ internal static class Extension
 
         if (!string.IsNullOrEmpty(subPath))
         {
-            XmlNode? subNode = memberNode.SelectSingleNode(subPath!);
+            XmlNode? subNode = memberNode.SelectSingleNode(subPath);
             return subNode != null ? CleanupSummary(subNode.InnerText) : null;
         }
 

@@ -4,68 +4,74 @@ namespace SchemaNode.Node;
 
 public abstract class ScalarNode<T> : DataNode
 {
-    private T? _value;
+    protected T? Value;
     
     /// <inheritdoc/>
-    public override bool IsEmpty => _value == null;
-
-    /// <inheritdoc/>
-    public override bool TryGetValue<T1>(out T1? value) where T1 : default
-    {
-        throw new NotImplementedException();
-    }
+    public override bool IsEmpty => Value == null;
 
     /// <inheritdoc/>
     public override bool TrySetValue<T1>(T1? value) where T1 : default
     {
-        _value = value.TryConvertTo<T>();
+        if (!value.TryConvertTo<T>(out var result)) return false;
+        Value = result;
         return true;
     }
-    
+
     /// <inheritdoc/>
-    public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(_value, scalarNode._value);
-}
-
-/// <summary>
-///  For bool node
-/// </summary>
-public class BoolNode : ScalarNode<bool>
-{
-    
-    // Parses a string to a bool (accepts "true"/"false"/0/1)
-    static bool TryParseBoolValue(string? value, out bool ret)
+    public override bool TryGetValue(Type type, out object? value)
     {
-        ret = false;
-        if (string.IsNullOrEmpty(value)) return false;
-        value = value.ToLower();
-        switch (value)
+        if (type.TryConvert(Value, out var result))
         {
-            case "true":  ret = true;  return true;
-            case "false": ret = false; return true;
-            default:
-                if (!int.TryParse(value, out int val) || val is < 0 or > 1) return false;
-                ret = val == 1;
-                return true;
+            value = result;
+            return true;
         }
+        value = null;
+        return false;
     }
+
+    /// <inheritdoc/>
+    public override bool TryGetValue<T1>(out T1? value) where T1 : default
+    {
+        if (Value.TryConvertTo<T1>(out var result))
+        {
+            value = result;
+            return true;
+        }
+        value = default(T1?);
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
+                                                    other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
 }
 
 /// <summary>
-///  For string node
+/// Object data node
+/// </summary>
+public class AnyNode: ScalarNode<object>;
+
+/// <summary>
+///  Bool data node
+/// </summary>
+public class BoolNode : ScalarNode<bool>;
+
+/// <summary>
+///  String data node
 /// </summary>
 public class StringNode : ScalarNode<string>;
 
 /// <summary>
-///  For numeric node
+///  Numeric data node
 /// </summary>
 public class NumericNode : ScalarNode<decimal>;
 
 /// <summary>
-///  For int node
+/// Int data node
 /// </summary>
 public class IntNode : ScalarNode<long>;
 
 /// <summary>
-///  For date node
+/// DateTime data node
 /// </summary>
 public class DateNode : ScalarNode<DateTimeOffset>;

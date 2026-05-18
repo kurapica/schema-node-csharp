@@ -68,12 +68,12 @@ public abstract class Property<T> : IProperty
     /// <summary>
     /// Sets the property value
     /// </summary>
-    public virtual void SetValue<TValue>(TValue value) => Value = value.TryConvertTo<T>();
+    public virtual void SetValue<TValue>(TValue value) => Value = value.ConvertTo<T>();
 
     /// <summary>
     /// Gets the value
     /// </summary>
-    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.TryConvertTo<TV>() : default(TV?);
+    public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
 
     /// <summary>
     /// Check the value is not empty

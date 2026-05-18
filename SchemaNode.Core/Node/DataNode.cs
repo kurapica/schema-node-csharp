@@ -74,9 +74,24 @@ public abstract class DataNode
     public abstract bool TrySetValue<T>(T? value);
 
     /// <summary>
+    /// Try gets the value as the gieven type
+    /// </summary>
+    public abstract bool TryGetValue(Type type, out object? value);
+
+    /// <summary>
     /// Try gets the value as the given type
     /// </summary>
-    public abstract bool TryGetValue<T>(out T? value);
+    public virtual bool TryGetValue<T>(out T? value)
+    {
+        bool isEmpty = IsEmpty;
+        if (isEmpty || !TryGetValue(typeof(T), out object? obj))
+        {
+            value = default(T?);
+            return isEmpty;
+        }
+        value = (T?)obj;
+        return true;
+    }
     
     #endregion
 
