@@ -1,3 +1,4 @@
+using System.Collections;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -16,7 +17,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType
+public sealed class StructType: ValueType, IEnumerable<StructFieldType>
 {
     #region Fields
     
@@ -285,8 +286,7 @@ public sealed class StructType: ValueType
             }
             
             if (changed)
-                foreach (var field in result.Fields)
-                    field.RefreshViolated();
+                result.RefreshViolated();
         }
 
         // Union validation
@@ -325,6 +325,12 @@ public sealed class StructType: ValueType
         }
     }
 
+    /// <inheritdoc />
+    public IEnumerator<StructFieldType> GetEnumerator() => ((IEnumerable<StructFieldType>)_fields).GetEnumerator();
+    
+    /// <inheritdoc />
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    
     #endregion
 
     #region Methods

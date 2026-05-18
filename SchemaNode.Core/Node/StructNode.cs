@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using System.Runtime.Serialization;
+﻿using System.Collections;
+using System.Reflection;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using SchemaNode.Schema;
@@ -7,7 +7,7 @@ using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Node;
 
-public class StructNode : DataNode
+public class StructNode : DataNode, IEnumerable<KeyValuePair<string, DataNode>>
 {
     private readonly DataNode[] _fields;
     object? _csharpObject;
@@ -17,18 +17,7 @@ public class StructNode : DataNode
         Type = type;
         
         // init fields
-        _fields = new DataNode[type.Fields.Length];
-        for(int i = 0; i < _fields.Length; i++)
-        {
-            var field = type.Fields[i];
-            if (field.SchemaType == null)
-            {
-                throw new SerializationException($"The field {field.Name} type is not defined.");
-            }
-
-            _fields[i] = field.SchemaType!.CreateNode() ?? throw new NotSupportedException();
-        }
-        Value = value;
+        _fields = type.Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
     public object? this[string name]
@@ -36,12 +25,10 @@ public class StructNode : DataNode
         get => GetField(name);
         set
         {
-            var field = GetField(name);
-            if (field != null)
-            {
-                _csharpObject = null;
-                field.Value = value;
-            }
+            DataNode? field = GetField(name);
+            if (field == null) return;
+            _csharpObject = null;
+            field.TrySetValue(value);
         }
     }
 
@@ -89,6 +76,15 @@ public class StructNode : DataNode
     }
 
     public override bool IsEmpty => _fields.All(f => f.IsEmpty);
+    public override bool TrySetValue<T>(T? value) where T : default
+    {
+        throw new NotImplementedException();
+    }
+
+    public override bool TryGetValue(Type type, out object? value)
+    {
+        throw new NotImplementedException();
+    }
 
     public override object? Value
     {
@@ -230,5 +226,18 @@ public class StructNode : DataNode
         return result;
     }
 
+    public IEnumerator<KeyValuePair<string, DataNode>> GetEnumerator()
+    {
+        var fields = (Type as StructType);
+        foreach (var VARIABLE in (Type as StructType)!.gfie)
+        {
+            
+        }
+    }
+
     public override string ToString() => ToJson()?.ToString() ?? string.Empty;
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 }
