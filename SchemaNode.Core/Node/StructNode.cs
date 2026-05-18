@@ -1,7 +1,6 @@
-﻿using System.Reflection;
-using SchemaNode.Utility;
+﻿using SchemaNode.Utility;
 using System.Text.Json.Nodes;
-using SchemaNode.Schema;
+using SchemaNode.Context;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
 
@@ -19,7 +18,7 @@ public class StructNode : DataNode
         Type = type;
         
         // init fields
-        _fields = type.Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+        _fields = type.GetFields().Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
     #endregion
@@ -29,10 +28,10 @@ public class StructNode : DataNode
     // struct[field] access
     public object? this[string name]
     {
-        get => GetField(name);
+        get => GetAccessValue(name);
         set
         {
-            DataNode? field = GetField(name);
+            DataNode? field = base.GetAccessValue(name);
             if (field == null) return;
             _csharpObject = null;
             field.TrySetValue(value);
@@ -44,18 +43,41 @@ public class StructNode : DataNode
     #region Methods
 
     /// <summary>
-    /// Gets the field data node
+    /// Gets or calc the field value
     /// </summary>
-    public DataNode? GetField(ReadOnlySpan<char> name) => _fields.ElementAtOrDefault((Type as StructType)!.GetIndex(name));
+    /// <param name="context"></param>
+    /// <param name="fieldName"></param>
+    /// <returns></returns>
+    public Task<DataNode?> GetFieldValueAsync(SchemaContext context, string fieldName)
+        => (Type as StructType)!.GetFieldValueAsync(context, this, fieldName);
 
     /// <summary>
-    /// Gets the field type
+    /// Gets the struct field type by name
     /// </summary>
-    public StructFieldType? GetFieldType(ReadOnlySpan<char> name) => (Type as StructType)?.GetField(name);
+    public StructFieldType? GetFieldType(string fieldName) => (Type as StructType)?.GetField(fieldName);
 
+    /// <summary>
+    /// Gets the field type and values
+    /// </summary>
+    public IEnumerable<(StructFieldType field, DataNode value)> GetFields()
+    {
+        int i = 0;
+        foreach (var field in (Type as StructType)!.GetFields())
+        {
+            yield return (field, _fields[i]);
+            i++;
+        }
+    }
+    
     #endregion
-
+    
     #region Implementation
+
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
+    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+        => _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(source) ?? -1);
 
     /// <inheritdoc/>
     public override bool Equals(DataNode? other)
@@ -63,11 +85,11 @@ public class StructNode : DataNode
         if (this == other) return true;
         if (other is not StructNode otherStruct || !Type.IsAssignableTo(otherStruct.Type)) return false;
 
-        foreach (var t in (Type as StructType)!)
+        foreach (var (field, value) in GetFields())
         {
-            var field = otherStruct.GetField(t.Name);
-            var thisField = GetField(t.Name);
-            if (field == null || thisField == null || !field.Equals(thisField)) return false;
+            if (field.DisplayOnly == true) continue;
+            DataNode? otherValue = otherStruct.GetAccessValue(field.Name);
+            if (otherValue == null || !value.Equals(otherValue)) return false;
         }
         return true;
     }
@@ -84,40 +106,37 @@ public class StructNode : DataNode
         _csharpObject = null;
         if (value == null)
         {
-            foreach (DataNode @field in _fields)
-                @field.ClearValue();
-            return true;
+            ClearValue();
         }
         else if (value is StructNode @struct)
         {
-            foreach(var field in (Type as StructType)!)
-            {
+            if (@struct == this) return true;
+            if (!@struct.Type.IsAssignableTo(Type)) return false;
 
-            }
-            var fields = (Type as StructType)!.Fields;
-            for (int i = 0; i < fields.Length; i++)
+            // copy
+            foreach ((StructFieldType f, DataNode v) in GetFields())
             {
-                _fields[i].Value = @struct.GetField(fields[i].Name);
+                DataNode? otherValue = @struct.GetAccessValue(f.Name);
+                if (otherValue != null) v.TrySetValue(otherValue);
             }
         }
         else if (value is JsonObject obj)
         {
-            StructFieldSchema[] fields = (Type as StructType)!.Fields;
             Dictionary<string, DataNode> fieldMap = [];
-            AnyNode? unpackNode = null;
-            for (int i = 0; i < fields.Length; i++)
+            DataNode? unpackNode = null;
+            foreach ((StructFieldType f, DataNode v)  in GetFields())
             {
-                fieldMap[fields[i].Name.ToLower()] = _fields[i];
-                if (fields[i].Unpack ?? false)
-                    unpackNode = _fields[i] as AnyNode;
+                fieldMap.Add(f.Name, v);
+                if (f.Unpack ?? false)
+                    unpackNode = v;
             }
 
             JsonObject? packData = unpackNode != null ? new JsonObject() : null;
-            foreach ((string key, System.Text.Json.Nodes.JsonNode? val) in obj)
+            foreach ((string key, JsonNode? val) in obj)
             {
-                if (fieldMap.TryGetValue(key.ToLower(), out DataNode? @field))
+                if (fieldMap.TryGetValue(key.ToLower(), out DataNode? field))
                 {
-                    @field.Value = val;
+                    if (!field.TrySetValue(val)) return false;
                 }
                 else if (packData != null)
                 {
@@ -125,106 +144,76 @@ public class StructNode : DataNode
                 }
             }
 
-            if (unpackNode != null && (unpackNode.Value is not JsonObject jobj || jobj.IsEmpty()))
-            {
-                unpackNode.Value = packData;
-            }
+            if (unpackNode is { IsEmpty: true } && packData != null && !packData.IsEmpty())
+                if (!unpackNode.TrySetValue(packData)) return false;
         }
         else if (value.GetType() == CsharpType)
         {
-            IReadOnlyList<PropertyInfo>? props = (Type as StructType)!.GetCSharpProperties();
-            if (props != null)
-            {
-                _csharpObject = value;
-                for (int i = 0; i < props.Count; i++)
-                {
-                    _fields[i].Value = props[i]?.GetValue(value);
-                }
-            }
-            else
-            {
-                JsonObject jsonObj = (JsonObject)value.ToJsonNode()!;
-                var fields = (Type as StructType)!.Fields;
-                for (int i = 0; i < fields.Length; i++)
-                {
-                    _fields[i].Value = jsonObj[fields[i].Name];
-                }
-            }
+            foreach ((StructFieldType f, DataNode v) in GetFields())
+                if (!v.TrySetValue(f.Property?.GetValue(value) ?? false)) return false;
         }
         else
         {
             throw new InvalidCastException($"Invalid value type {value.GetType()}");
         }
+        return true;
     }
 
     /// <inheritdoc/>
     public override bool TryGetValue(Type type, out object? value)
     {
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Gets the value with paths
-    /// </summary>
-    internal DataNode? GetValueByPaths(SpanReader spans)
-    {
-        DataNode? node = this;
-        while (spans.NextNamespace(out ReadOnlySpan<char> part))
+        if (type == typeof(JsonObject))
         {
-            node = (node is StructNode obj) ? obj.GetField(part) : null;
-            if (node == null) return null;
-        }
-        return node;
-    }
-
-    /// <summary>
-    /// Gets the value with paths
-    /// </summary>
-    public DataNode? GetValueByPaths(string paths) => GetValueByPaths(new SpanReader(paths));
-
-    public override object? ToTypeValue(Type type)
-    {
-        if (type.IsAssignableFrom(typeof(StructNode))) return this;
-        
-        if (CsharpType.IsAssignableTo(type))
-        {
-            _csharpObject ??= ToJson()?.FromJson(CsharpType);
-            return _csharpObject;
-        }
-        return ToJson()?.FromJson(type);
-    }
-
-    public override System.Text.Json.Nodes.JsonNode? ToJson()
-    {
-        JsonObject result = [];
-
-        var fields = (Type as StructType)!.Fields;
-        for (int i = 0; i < fields.Length; i++)
-        {
-            System.Text.Json.Nodes.JsonNode? d = _fields[i].ToJson();
-            if (d != null && !d.IsEmpty())
+            JsonObject result = [];
+            foreach ((StructFieldType f, DataNode v) in GetFields())
             {
-                if (fields[i].Unpack ?? false)
+                if (v.IsEmpty) continue;
+                if (f.Unpack ?? false)
                 {
-                    if (d is JsonObject obj)
-                    {
-                        foreach ((string key, System.Text.Json.Nodes.JsonNode? val) in obj)
-                        {
-                            if (!result.ContainsKey(key) && val != null && !val.IsEmpty())
-                                result[key] = val?.DeepClone();
-                        }
-                    }
+                    if (v.TryGetValue(out JsonObject? obj) && obj != null)
+                        foreach ((string key, JsonNode? val) in obj)
+                            result[key] = val?.DeepClone();
                 }
-                else
+                else if (v.TryGetValue(out JsonNode? d) && d != null && !d.IsEmpty())
                 {
-                    result.Add(fields[i].Name, d);
+                    result.Add(f.Name, d.DeepClone());
                 }
             }
+            value = result;
+            return true;
         }
-        return result;
+        
+        if (type.IsAssignableFrom(typeof(StructNode)))
+        {
+            value = this;
+            return true;
+        }
+        
+        if (CsharpType != null && CsharpType.IsAssignableTo(type))
+        {
+            if (_csharpObject != null)
+            {
+                value = _csharpObject;
+            }
+            else if (TryGetValue(out JsonObject? obj) && obj != null)
+            {
+                _csharpObject = obj.FromJson(CsharpType);
+                value = _csharpObject;
+                return _csharpObject != null;
+            }
+            value = null;
+            return true;
+        }
+        value = null;
+        return false;
     }
 
-    public override string ToString() => ToJson()?.ToString() ?? string.Empty;
-
+    /// <inheritdoc/>
+    public override void ClearValue()
+    {
+        foreach (DataNode field in _fields)
+            field.ClearValue();
+    }
+    
     #endregion
 }

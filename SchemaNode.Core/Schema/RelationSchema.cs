@@ -149,7 +149,7 @@ public class RelationCall : IRelationProcess, INodeReferences, INodeError
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.call")]
-public class RelationCallBuidler: IRelationProcessBuilder
+public class RelationCallBuilder: IRelationProcessBuilder
 {
     /// <summary>
     /// The function to be used
@@ -196,7 +196,7 @@ public class RelationCallBuidler: IRelationProcessBuilder
 [Meta<ForSchema>(SCHEMA_KIND_RELATION)]
 [Meta<Property.Record.RelationKind>("call", 0)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
-public class RelationCallProperty : Property<RelationCallBuidler>;
+public class RelationCallProperty : Property<RelationCallBuilder>;
 
 #endregion
 

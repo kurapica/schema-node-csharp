@@ -1,8 +1,11 @@
 ﻿using System.Collections.Immutable;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
+// ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 
 namespace SchemaNode.Node;
 
@@ -46,7 +49,7 @@ public abstract class DataNode
     {
         IEnumerable<string>? v = reset == true || Violated == null ? violated : violated != null ? Violated.Concat(violated) : Violated;
         if (passed is not null) v = v?.Except(passed, StringComparer.OrdinalIgnoreCase);
-        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
+        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase) ?.ToImmutableArray();
     }
 
     /// <summary>
@@ -126,6 +129,6 @@ public abstract class DataNode
     /// Equals check
     /// </summary>
     public virtual bool Equals(DataNode? other) => other != null && (ReferenceEquals(this, other) || IsEmpty ? other.IsEmpty : TryGetValue(out object? thisValue) && other.TryGetValue(out object? otherValue) && Equals(thisValue, otherValue));
-
+    
     #endregion
 }

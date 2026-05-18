@@ -215,7 +215,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             Kind = relation.Kind
         };
 
-        IRelationProcess process = relation.GetRelationProcess();
+        IRelationProcessBuilder process = relation.GetRelationProcess();
         Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
             ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
         relationSchema.SetProperty(propType, process);

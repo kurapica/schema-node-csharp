@@ -97,8 +97,8 @@ public static class SystemCollection
         list.Sort((a, b) =>
         {
             if (a is not StructNode sa || b is not StructNode sb) return 0;
-            var fa = sa.GetField(field);
-            var fb = sb.GetField(field);
+            var fa = sa.GetAccessValue(field);
+            var fb = sb.GetAccessValue(field);
             if ((fa == null || fa.IsEmpty) && (fb == null || fb.IsEmpty)) return 0;
             if (fa == null || fa.IsEmpty) return descending ? 1 : -1;
             if (fb == null || fb.IsEmpty) return descending ? -1 : 1;
@@ -141,7 +141,7 @@ public static class SystemCollection
         
         StructType structType = (s.Type as StructType)! ;
         StructFieldSchema? fldConfig = structType.GetField(paths[0]);
-        Node.DataNode? field = s.GetField(paths[0]);
+        Node.DataNode? field = s.GetAccessValue(paths[0]);
         if (field == null) return null;
         if (fldConfig?.DisplayOnly != true)
             return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());

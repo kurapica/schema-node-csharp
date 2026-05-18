@@ -1,29 +1,47 @@
-﻿using SchemaNode.Runtime;
-using SchemaNode.Utility;
-using System.Collections;
+﻿using System.Collections;
+using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.Context;
-using SchemaNode.Schema;
+using SchemaNode.Runtime;
+using SchemaNode.Utility;
+using RuntimeArrayType = SchemaNode.Runtime.ArrayType;
+using RuntimeStructFieldType = SchemaNode.Runtime.StructFieldType;
+using RuntimeStructType = SchemaNode.Runtime.StructType;
+using RuntimeValueType = SchemaNode.Runtime.ValueType;
 
 namespace SchemaNode.Node;
 
 public class ArrayNode : DataNode, IEnumerable<DataNode>
 {
-    public ArrayNode(NodeType type, object? value = null) : base(SchemaContext.GetArraySchemaType(type)!)
+    public ArrayNode(NodeType type, object? value = null)
     {
-        ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
-        Value = value;
+        switch (type)
+        {
+            case RuntimeArrayType arrayType:
+                Type = arrayType;
+                ElementType = arrayType.Element;
+                break;
+            case RuntimeValueType valueType:
+                Type = valueType.ArrayType ?? valueType;
+                ElementType = valueType;
+                break;
+            default:
+                throw new ArgumentException($"The node type '{type.Name}' is not a value type.", nameof(type));
+        }
+
+        if (value != null)
+            SetValueInternal(value);
     }
 
-    public NodeType? ElementType { get; set; }
+    public RuntimeValueType? ElementType { get; }
 
     public object? this[int index]
     {
-        get {
-            if (ElementType != null) 
-                return index >= 0 && index < _elements.Count ? _elements[index] : null;
-            else
-                return index >= 0 && index < _rawElements.Count ? _rawElements[index] : null;
+        get
+        {
+            if (index < 0) return null;
+            return ElementType != null
+                ? index < _elements.Count ? _elements[index] : null
+                : index < _rawElements.Count ? _rawElements[index] : null;
         }
         set
         {
@@ -33,32 +51,35 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
             {
                 if (index < _elements.Count)
                 {
-                    _elements[index].Value = value;
+                    if (!_elements[index].TrySetValue(value))
+                        throw new InvalidCastException($"Invalid array element value type '{value?.GetType()}'.");
+                    return;
                 }
-                else if (index == _elements.Count)
+
+                if (index == _elements.Count)
                 {
-                    _elements.Add(ElementType.CreateNode(value) ?? throw new NotSupportedException());
-                }
-                else
-                {
-                    throw new IndexOutOfRangeException();
+                    if (!TryCreateElement(value, out DataNode node))
+                        throw new InvalidCastException($"Invalid array element value type '{value?.GetType()}'.");
+                    _elements.Add(node);
+                    return;
                 }
             }
             else
             {
                 if (index < _rawElements.Count)
                 {
-                    _rawElements[index] = value!;
+                    _rawElements[index] = value;
+                    return;
                 }
-                else if (index == _rawElements.Count)
+
+                if (index == _rawElements.Count)
                 {
-                    _rawElements.Add(value!);
-                }
-                else
-                {
-                    throw new IndexOutOfRangeException();
+                    _rawElements.Add(value);
+                    return;
                 }
             }
+
+            throw new IndexOutOfRangeException();
         }
     }
 
@@ -66,93 +87,94 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
 
     public override bool IsEmpty => Count == 0;
 
-    public override object? Value
+    public override bool TrySetValue<T>(T? value) where T : default => SetValueInternal(value);
+
+    public override bool TryGetValue(Type type, out object? value)
     {
-        get => this;
-        set
+        if (type == typeof(object) || type.IsAssignableFrom(typeof(ArrayNode)))
         {
+            value = this;
+            return true;
+        }
+
+        if (type == typeof(JsonArray) || type == typeof(JsonNode))
+        {
+            value = ToJson();
+            return true;
+        }
+
+        if (type == typeof(IEnumerable))
+        {
+            value = ElementType != null
+                ? _elements.Select(static element => ToLiteralValue(element)).ToList()
+                : _rawElements;
+            return true;
+        }
+
+        if (type.IsArray)
+        {
+            Type itemType = type.GetElementType() ?? typeof(object);
+            Array array = Array.CreateInstance(itemType, Count);
+            for (int i = 0; i < Count; i++)
+            {
+                object? item = ElementType != null
+                    ? ToLiteralValue(_elements[i], itemType)
+                    : ConvertRawValue(_rawElements[i], itemType);
+                array.SetValue(item, i);
+            }
+            value = array;
+            return true;
+        }
+
+        if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
+        {
+            Type itemType = type.GetGenericArguments()[0];
+            Type listType = typeof(List<>).MakeGenericType(itemType);
+            IList list = (IList)Activator.CreateInstance(listType)!;
             if (ElementType != null)
             {
-                if (value == null)
-                {
-                    _elements.Clear();
-                }
-                else if (value is IEnumerable<DataNode> nodes)
-                {
-                    _elements = nodes.Where(n => n.Type.CanBeUseAs(ElementType)).ToList();
-                }
-                else if (value is not string && value is not JsonObject && value is IEnumerable objs)
-                {
-                    _elements.Clear();
-                    foreach (object o in objs)
-                    {
-                        _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
-                    }
-                }
-                else
-                {
-                    Add(value);
-                }
+                foreach (DataNode element in _elements)
+                    list.Add(ToLiteralValue(element, itemType));
             }
             else
             {
-                if (value == null)
-                {
-                    _rawElements.Clear();
-                }
-                else if (value is IEnumerable<DataNode> nodes)
-                {
-                    _rawElements = nodes.Select(p => (object)p).ToList();
-                }
-                else if (value is IEnumerable objs)
-                {
-                    _rawElements.Clear();
-                    foreach (object o in objs)
-                    {
-                        _rawElements.Add(o);
-                    }
-                }
-                else
-                {
-                    throw new InvalidCastException();
-                }
+                foreach (object? element in _rawElements)
+                    list.Add(ConvertRawValue(element, itemType));
             }
+            value = list;
+            return true;
         }
+
+        value = null;
+        return false;
     }
 
-    public void AddRange(IEnumerable node)
+    public override void ClearValue()
     {
-        if (ElementType != null)
-        {
-            foreach (var o in node)
-            {
-                if (o is null) continue;
-                if (o is DataNode { IsEmpty: true }) continue;
-                _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
-            }
-        }
-        else
-        {
-            foreach (var o in node)
-            {
-                if (o is null) continue;
-                _rawElements.Add(o);
-            }
-        }
+        _elements.Clear();
+        _rawElements.Clear();
     }
 
-    public void Add(object node)
+    public void AddRange(IEnumerable nodes)
     {
-        if (node is null) return;
+        foreach (object? node in nodes.Cast<object?>())
+            Add(node);
+    }
+
+    public void Add(object? node)
+    {
+        if (node == null) return;
         if (node is DataNode { IsEmpty: true }) return;
+
         if (ElementType != null)
         {
-            _elements.Add(ElementType.CreateNode(node) ?? throw new NotSupportedException());
+            if (!TryCreateElement(node, out DataNode element))
+                throw new InvalidCastException($"Invalid array element value type '{node.GetType()}'.");
+            _elements.Add(element);
+            return;
         }
-        else
-        {
-            _rawElements.Add(node);
-        }
+
+        _rawElements.Add(node);
     }
 
     /// <summary>
@@ -160,153 +182,202 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     internal ArrayNode FilterByPrimaryKeys(string[] primaryKeys)
     {
-        if (ElementType is not StructType @struct || primaryKeys.Any(k => @struct.GetField(k) == null)) return this;
-        StructFieldSchema[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
+        if (ElementType is not RuntimeStructType @struct) return this;
+
+        RuntimeStructFieldType[] fields = primaryKeys
+            .Select(key => @struct.GetField(key))
+            .OfType<RuntimeStructFieldType>()
+            .ToArray();
+
+        if (fields.Length != primaryKeys.Length) return this;
+
         return new ArrayNode(@struct)
         {
-            _elements = _elements.Where(e =>
-            {
-                return e is StructNode structNode && 
-                       fields.Select(field => structNode.GetField(field.Name))
-                           .All(value => value is not null && !value.IsEmpty);
-            }).ToList()
+            _elements = _elements.Where(element =>
+                    element is StructNode structNode &&
+                    fields.All(field => structNode.GetAccessValue(field.Name) is { IsEmpty: false }))
+                .ToList()
         };
     }
 
-    public override object? ToTypeValue(Type type)
-    {
-        if (type == typeof(ArrayNode))
-            return this;
-
-        if (ElementType != null)
-        {
-            if (type.IsArray)
-            {
-                var elementType = type.GetElementType() ?? typeof(object);
-                var array = Array.CreateInstance(elementType, _elements.Count);
-                for (int i = 0; i < _elements.Count; i++)
-                {
-                    array.SetValue(_elements[i].ToTypeValue(elementType) ?? DBNull.Value, i);
-                }
-                return array;
-            }
-            else if (type == typeof(IEnumerable))
-            {
-                return _elements.Select(e => e.Value ?? DBNull.Value);
-            }
-            else if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
-            {
-                var genericType = type.GetGenericArguments()[0];
-                var listType = typeof(List<>).MakeGenericType(genericType);
-                var list = (IList)Activator.CreateInstance(listType)!;
-                foreach (var element in _elements)
-                {
-                    list.Add(element.ToTypeValue(genericType) ?? DBNull.Value);
-                }
-                return list;
-            }
-            else if (type == typeof(JsonArray) || type == typeof(System.Text.Json.Nodes.JsonNode))
-            {
-                return ToJson();
-            }
-        }
-        else
-        {
-            if (type.IsArray)
-            {
-                var elementType = type.GetElementType() ?? typeof(object);
-                var array = Array.CreateInstance(elementType, _rawElements.Count);
-                for (int i = 0; i < _rawElements.Count; i++)
-                {
-                    array.SetValue(elementType.TryConvert(_rawElements[i], out var o) ? o : null, i);
-                }
-                return array;
-            }
-            else if (type == typeof(IEnumerable))
-            {
-                return _rawElements;
-            }
-            else if (type.IsGenericType && typeof(IEnumerable).IsAssignableFrom(type))
-            {
-                var genericType = type.GetGenericArguments()[0];
-                var listType = typeof(List<>).MakeGenericType(genericType);
-                var list = (IList)Activator.CreateInstance(listType)!;
-                foreach (var element in _rawElements)
-                    if (genericType.TryConvert(element, out var o))
-                        list.Add(o);
-                return list;
-            }
-            else if (type == typeof(JsonArray) || type == typeof(JsonNode))
-            {
-                return ToJson();
-            }
-        }
-        return null;
-    }
+    public object? ToTypeValue(Type type)
+        => TryGetValue(type, out object? value) ? value : null;
 
     /// <summary>
     /// Gets the value with paths
     /// </summary>
-    public DataNode? GetValueByPaths(string paths) {
+    public DataNode? GetValueByPaths(string paths)
+    {
+        if (string.IsNullOrWhiteSpace(paths) || ElementType == null)
+            return this;
+
+        RuntimeValueType? type = ElementType;
+        foreach (string path in paths.Split('.', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (type is not RuntimeStructType @struct) return null;
+            type = @struct.GetField(path)?.Type;
+        }
+
+        if (type == null) return null;
+
+        ArrayNode result = new(type);
+        foreach (DataNode element in _elements)
+        {
+            DataNode? field = element.GetAccessValue(paths);
+            if (field != null)
+                result.Add(field);
+        }
+        return result;
+    }
+
+    public JsonArray ToJson()
+    {
+        JsonArray array = [];
+
         if (ElementType != null)
         {
-            NodeType? type = ElementType;
-            foreach (string path in paths.Split('.', StringSplitOptions.RemoveEmptyEntries))
-            {
-                if (type is not StructType @struct) return null;
-                type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
-                    ?.SchemaType;
-            }
-
-            if (type == null) return null;
-            DataNode result = new ArrayNode(type);
-            result.Value = _elements.Select(p => ((StructNode)p).GetValueByPaths(paths)).Where(p => p != null).ToList();
-            return result;
+            foreach (DataNode element in _elements)
+                array.Add(ToJsonNode(element));
         }
         else
         {
-            return this;
+            foreach (object? raw in _rawElements)
+                array.Add(ToJsonNode(raw));
         }
-    }
 
-    public override JsonArray? ToJson()
-    {
-        JsonArray array = new();
-        foreach(var element in _elements)
-        {
-            array.Add(element.ToJson());
-        }
         return array;
     }
 
-    public override string ToString() => ToJson()?.ToString() ?? string.Empty;
+    public override string ToString() => ToJson().ToJsonString();
 
-    /// <summary>
-    /// Equals the other node
-    /// </summary>
-    public override bool Equals(DataNode other)
+    public override bool Equals(DataNode? other)
     {
-        if (this == other) return true;
+        if (ReferenceEquals(this, other)) return true;
         if (other is not ArrayNode otherArray) return false;
-        if (ElementType != otherArray.ElementType) return false;
         if (Count != otherArray.Count) return false;
+
+        if (ElementType != null && otherArray.ElementType != null && !ElementType.IsAssignableTo(otherArray.ElementType))
+            return false;
+
         for (int i = 0; i < Count; i++)
         {
-            if (!this[i]!.Equals(otherArray[i])) return false;
+            object? left = this[i];
+            object? right = otherArray[i];
+            if (left is DataNode leftNode && right is DataNode rightNode)
+            {
+                if (!leftNode.Equals(rightNode)) return false;
+            }
+            else if (!Equals(left, right))
+            {
+                return false;
+            }
         }
+
         return true;
     }
 
-    public IEnumerator<DataNode> GetEnumerator()
-    {
-        return _elements.GetEnumerator();
-    }
+    public IEnumerator<DataNode> GetEnumerator() => _elements.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator()
+        => ElementType != null ? _elements.GetEnumerator() : _rawElements.GetEnumerator();
+
+    private bool SetValueInternal(object? value)
     {
-        return ElementType != null ? ((IEnumerable)_elements).GetEnumerator() : ((IEnumerable)_rawElements).GetEnumerator();
+        if (value is ArrayNode arrayNode)
+        {
+            if (ReferenceEquals(arrayNode, this)) return true;
+            return ReplaceEnumerable(arrayNode.ElementType != null
+                ? arrayNode._elements.Cast<object?>()
+                : arrayNode._rawElements);
+        }
+
+        if (value == null)
+        {
+            ClearValue();
+            return true;
+        }
+
+        if (value is JsonElement { ValueKind: JsonValueKind.Array } jsonElement)
+            return ReplaceEnumerable(jsonElement.EnumerateArray().Select(static item => (object?)item));
+
+        if (value is JsonArray jsonArray)
+            return ReplaceEnumerable(jsonArray);
+
+        if (value is not string && value is not JsonObject && value is IEnumerable enumerable)
+            return ReplaceEnumerable(enumerable.Cast<object?>());
+
+        ClearValue();
+        Add(value);
+        return true;
     }
 
-    List<DataNode> _elements = [];
-    List<object> _rawElements = [];
+    private bool ReplaceEnumerable(IEnumerable<object?> values)
+        => ElementType != null ? ReplaceTypedRange(values) : ReplaceRawRange(values);
+
+    private bool ReplaceTypedRange(IEnumerable<object?> values)
+    {
+        List<DataNode> nodes = [];
+        foreach (object? item in values)
+        {
+            if (item == null) continue;
+            if (item is DataNode { IsEmpty: true }) continue;
+            if (!TryCreateElement(item, out DataNode node)) return false;
+            nodes.Add(node);
+        }
+
+        _rawElements.Clear();
+        _elements = nodes;
+        return true;
+    }
+
+    private bool ReplaceRawRange(IEnumerable<object?> values)
+    {
+        _elements.Clear();
+        _rawElements = values.Where(static item => item != null).ToList();
+        return true;
+    }
+
+    private bool TryCreateElement(object? value, out DataNode node)
+    {
+        if (ElementType == null)
+        {
+            node = null!;
+            return false;
+        }
+
+        if (value is DataNode dataNode && dataNode.Type.IsAssignableTo(ElementType))
+        {
+            node = dataNode;
+            return true;
+        }
+
+        node = ElementType.Create();
+        return node.TrySetValue(value);
+    }
+
+    private static JsonNode? ToJsonNode(object? value)
+    {
+        if (value is DataNode node)
+        {
+            if (node.TryGetValue(typeof(JsonNode), out object? json) && json is JsonNode jsonNode)
+                return jsonNode.DeepClone();
+            return ToLiteralValue(node)?.ToJsonNode(noError: true);
+        }
+
+        return value.ToJsonNode(noError: true);
+    }
+
+    private static object? ToLiteralValue(DataNode node, Type? targetType = null)
+    {
+        if (targetType != null && node.TryGetValue(targetType, out object? typedValue))
+            return typedValue;
+
+        return node.TryGetValue(out object? value) ? value : null;
+    }
+
+    private static object? ConvertRawValue(object? value, Type type)
+        => type.TryConvert(value, out object? converted) ? converted : null;
+
+    private List<DataNode> _elements = [];
+    private List<object?> _rawElements = [];
 }

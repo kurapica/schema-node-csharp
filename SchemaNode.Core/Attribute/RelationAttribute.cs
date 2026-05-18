@@ -23,7 +23,7 @@ public interface IRelationAttribute
     /// <summary>
     /// Generate the relation schema data
     /// </summary>
-    IRelationProcess GetRelationProcess();
+    IRelationProcessBuilder GetRelationProcess();
 }
 
 /// <summary>
@@ -49,9 +49,9 @@ public sealed class RelationAttribute<T>(string func, params object[] args): Sys
     object[] Args { get; } = args;
     
     /// <inheritdoc/>
-    public IRelationProcess GetRelationProcess()
+    public IRelationProcessBuilder GetRelationProcess()
     {
-        return new RelationCall
+        return new RelationCallBuilder
         {
             Func = Func,
             Args = Args.Select(a => a is string str

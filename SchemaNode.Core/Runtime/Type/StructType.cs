@@ -1,4 +1,4 @@
-using System.Collections;
+using System.Reflection;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -17,7 +17,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType, IEnumerable<StructFieldType>
+public sealed class StructType: ValueType
 {
     #region Fields
     
@@ -56,11 +56,12 @@ public sealed class StructType: ValueType, IEnumerable<StructFieldType>
         }
         
         // load fields
+        Type? cType = Schema?.Type;
         foreach (StructFieldSchema field in @struct.Fields)
         {
             field.Error = null;
             StructFieldType fieldType = new();
-            await fieldType.LoadAsync(context, field, Generics, GenericParams);
+            await fieldType.LoadAsync(context, field, Generics, GenericParams, cType?.GetProperty(field.Name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase));
             Error ??= field.Error;
             _fields.Add(fieldType);
         }
@@ -198,7 +199,7 @@ public sealed class StructType: ValueType, IEnumerable<StructFieldType>
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
         {
-            DataNode? dataNode = result.GetField(field.Name);
+            DataNode? dataNode = result.GetAccessValue(field.Name);
             if (dataNode == null) continue;
             
             // Validate the struct fields
@@ -301,7 +302,7 @@ public sealed class StructType: ValueType, IEnumerable<StructFieldType>
                     var arg = valid.Args[i];
                     if (!string.IsNullOrWhiteSpace(arg.Source))
                     {
-                        DataNode? node = result.GetValueByPaths(arg.Source);
+                        DataNode? node = result.GetAccessValue(arg.Source);
                         first ??= node;
                         args[i] = node;
                     }
@@ -324,16 +325,15 @@ public sealed class StructType: ValueType, IEnumerable<StructFieldType>
             }
         }
     }
-
-    /// <inheritdoc />
-    public IEnumerator<StructFieldType> GetEnumerator() => ((IEnumerable<StructFieldType>)_fields).GetEnumerator();
-    
-    /// <inheritdoc />
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     
     #endregion
 
     #region Methods
+    
+    /// <summary>
+    /// Gets the fields
+    /// </summary>
+    public IEnumerable<StructFieldType> GetFields() => _fields.AsEnumerable();
 
     /// <summary>
     /// Gets the field by name
@@ -348,6 +348,28 @@ public sealed class StructType: ValueType, IEnumerable<StructFieldType>
         return null;
     }
 
+    /// <summary>
+    /// Gets or calc the field value
+    /// </summary>
+    public async Task<DataNode?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
+    {
+        StructFieldType? fieldType = GetField(fieldName);
+        if (fieldType == null) return null;
+        DataNode? value = node.GetAccessValue(fieldName);
+        if (value == null) return null;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return value;
+        
+        // check relations
+        (IRelationProcess, Type)? r = _relations?.FirstOrDefault(rel 
+            => rel.Item1.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.Item2 == typeof(Default));
+        if (r == null) return value;
+        
+        // process relations
+        DataNode? def = await r.Value.Item1.ProcessAsync(context, node);
+        value.TrySetValue(def);
+        return value;
+    }
+    
     /// <summary>
     /// Gets the field index, -1 if not found
     /// </summary>
@@ -378,6 +400,11 @@ public class StructFieldType : INodeReferences
     /// The type node ref
     /// </summary>
     public ValueType? Type { get; private set; }
+    
+    /// <summary>
+    /// The property info
+    /// </summary>
+    public PropertyInfo? Property { get; private set; }
     
     /// <summary>
     /// The properties
@@ -427,8 +454,10 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Load struct field schema
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? genericParams = null, IReadOnlyList<NodeType>? genericTypes = null)
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? genericParams = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
     {
+        Property = property;
+        
         if (await context.GetNodeTypeAsync(field.Type, genericParams) is not ValueType valueType)
         {
             field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
