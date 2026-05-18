@@ -79,6 +79,11 @@ public abstract class DataNode
     public abstract bool TryGetValue(Type type, out object? value);
 
     /// <summary>
+    /// Clear value
+    /// </summary>
+    public virtual void ClearValue() => TrySetValue<object>(null);
+
+    /// <summary>
     /// Try gets the value as the given type
     /// </summary>
     public virtual bool TryGetValue<T>(out T? value)

@@ -42,6 +42,9 @@ public abstract class ScalarNode<T> : DataNode
     }
 
     /// <inheritdoc/>
+    public override void ClearValue() => Value = default(T?);
+
+    /// <inheritdoc/>
     public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
                                                     other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
 }

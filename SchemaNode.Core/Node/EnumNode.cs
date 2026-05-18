@@ -75,6 +75,14 @@ public class EnumNode : DataNode
         return false;
     }
 
+    /// <inheritdoc/>
+    public override void ClearValue()
+    {
+        _strValue = null;
+        _longValue = null;
+    }
+
+    /// <inheritdoc/>
     public override bool Equals(DataNode? other)
     {
         if (other == null) return IsEmpty;
