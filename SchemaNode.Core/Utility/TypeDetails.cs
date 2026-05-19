@@ -1,5 +1,7 @@
+using SchemaNode.Property.Schema;
 using System.Numerics;
 using System.Text.Json.Nodes;
+using NodeType = SchemaNode.Runtime.NodeType;
 
 namespace SchemaNode.Utility;
 
@@ -212,4 +214,12 @@ internal static class TypeInfoExtensions
         result.Type = input;
         return result;
     }
+
+    /// <summary>
+    /// Gets the node type info
+    /// </summary>
+    /// <param name="input"></param>
+    /// <returns></returns>
+    internal static TypeDetails? GetNodeTypeDetails(this NodeType input)
+        => new TypeDetails { Type = input.ToCsharpType() };
 }

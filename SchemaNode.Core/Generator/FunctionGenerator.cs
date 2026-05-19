@@ -240,11 +240,6 @@ internal sealed class SchemaFuncInfo
     public Delegate? DynamicMethod { get; internal set; }
 
     /// <summary>
-    /// The function node
-    /// </summary>
-    public FunctionType? FunctionNode { get; internal set; }
-
-    /// <summary>
     ///  The sign of the function
     /// </summary>
     public FunctionFlags Sign { get; internal set; } = FunctionFlags.None;

@@ -5,10 +5,8 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using SchemaNode.Property;
 using SchemaNode.Service;
-using static SchemaNode.Utility.Constant;
 using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;
@@ -46,27 +44,27 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// As type converter
     /// </summary>
-    public bool? Converter { get; private set; }
+    internal bool? Converter { get; private set; }
 
     /// <summary>
     /// The method info of the function if it's a system function
     /// </summary>
-    public MethodInfo? MethodInfo => FuncInfo?.Method;
+    internal MethodInfo? MethodInfo => FuncInfo?.Method;
     
-    /// <summary>
-    /// Whether the function is remote call only
-    /// </summary>
-    public bool IsRemoteCall => (LoadState & SchemaLoadState.Remote) > 0;
-
     /// <summary>
     /// Whether the function require call server
     /// </summary>
-    public bool RequireRemoteCall { get; private set; }
+    internal bool RequireRemoteCall { get; private set; }
+
+    /// <summary>
+    /// Whether the function is remote call only
+    /// </summary>
+    internal bool IsRemoteCall => (LoadState & SchemaLoadState.Remote) > 0;
 
     /// <summary>
     /// Whether the function is defined as system, direct call
     /// </summary>
-    public bool IsSystemCall => (LoadState & SchemaLoadState.System) > 0;
+    internal bool IsSystemCall => (LoadState & SchemaLoadState.System) > 0;
 
     /// <summary>
     /// The function info
@@ -144,8 +142,7 @@ public sealed class FunctionType : NodeType
         }
         
         // Generate the exp trees
-        bool isOkay = Error ==  null;
-        if (isOkay) await PreCompileAsync(context);
+        await PreCompileAsync(context);
         
         foreach (FunctionNodeExpression exp in Exps)
         {
@@ -158,21 +155,6 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override void Release()
     {
-        ReturnNode?.RemoveUsedBy(this);
-        ReturnNode = null;
-        foreach (FunctionNodeArgument arg in Args)
-        {
-            arg.NodeType?.RemoveUsedBy(this);
-            arg.NodeType = null;
-        }
-
-        foreach (FunctionNodeExpression exp in Exps)
-        {
-            exp.NodeType?.RemoveUsedBy(this);
-            exp.NodeType = null;
-            exp.FuncNode?.RemoveUsedBy(this);
-            exp.FuncNode = null;
-        }
         Args = [];
         Exps = [];
 
@@ -181,24 +163,18 @@ public sealed class FunctionType : NodeType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(NodeType other, bool exactly = false) => false;
-
-    /// <inheritdoc />
-    public override ArrayType? GetArrayType(bool exactly = false) => null;
-
-    /// <inheritdoc />
-    public override IEnumerable<NodeType> GetDependNodes()
+    public override IEnumerable<NodeType> GetReferenceTypes()
     {
         if (ReturnNode != null && ReturnNode is not GenericType)
             yield return ReturnNode;
 
         foreach (FunctionNodeArgument arg in Args)
-        {             
+        {
             if (arg.NodeType != null && arg.NodeType is not GenericType)
                 yield return arg.NodeType;
         }
 
-        foreach(FunctionNodeExpression exp in Exps)
+        foreach (FunctionNodeExpression exp in Exps)
         {
             if (exp.NodeType != null && exp.NodeType is not GenericType)
                 yield return exp.NodeType;
@@ -208,13 +184,16 @@ public sealed class FunctionType : NodeType
 
             if (exp.Args is { Length: > 0 })
             {
-                foreach (FuncCallArg callArg in exp.Args)
+                foreach (var callArg in exp.Args)
                 {
-                    if (callArg.SchemeType != null && callArg.SchemeType is not GenericType)
-                        yield return callArg.SchemeType;
+                    if (callArg.NodeType != null && callArg.NodeType is not GenericType)
+                        yield return callArg.NodeType;
                 }
             }
         }
+
+        foreach (var type in base.GetReferenceTypes())
+            yield return type;
     }
 
     #endregion
@@ -302,7 +281,7 @@ public sealed class FunctionType : NodeType
     {
         try
         {
-            Error = SchemaNodeStatus.Ready;
+            Error = null;
             
             // Try build the function and validate
             return await context.VisitFunctionTypeAsync(this);
@@ -314,7 +293,7 @@ public sealed class FunctionType : NodeType
         catch(Exception ex)
         {
             context.LogError(ex, "FunctionType LoadAsync Error: {0}", Name);
-            Error = SchemaNodeStatus.FunctionExpsHasCompileError;
+            Error = ErrorCodes.FUNC_COMPILE_ERROR;
         }
 
         return null;
@@ -323,59 +302,32 @@ public sealed class FunctionType : NodeType
     // Clear the function info to be re-complied
     private void ClearFunctionInfo()
     {
-        if (FuncInfo != null && (FuncInfo.Sign & FUNC_SIGN_IMMUTABLE) > 0) return; // Immutable, no need to clear
+        if (FuncInfo != null && (FuncInfo.Sign & FunctionFlags.Immutable) > 0) return; // Immutable, no need to clear
 
         _runtimeFuncCache.Clear();
         FuncInfo = null;
-        if (UsedBy == null || UsedBy.IsEmpty) return;
-        foreach ((NodeType other, _) in UsedBy)
-        {
-            if (other is FunctionType func)
-                func.ClearFunctionInfo();
-        }
-    }
-
-    /// <summary>
-    /// Gets the system function info
-    /// </summary>
-    public SchemaFuncInfo? GetSystemSchemaFuncInfo()
-    {
-        if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
-
-        // Check is static
-        if (!StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) || (result.Sign & FUNC_SIGN_IMMUTABLE) != FUNC_SIGN_IMMUTABLE) return null;
-        result.FunctionNode = this;
-        FuncInfo = result;
-        return result;
+        foreach (FunctionType f in GetUsedBy().Cast<FunctionType>())
+            f.ClearFunctionInfo();
     }
 
     /// <summary>
     /// Gets the function info
     /// </summary>
-    public async Task<SchemaFuncInfo?> GetSchemaFuncInfoAsync(SchemaContext context)
+    internal async Task<SchemaFuncInfo?> GetSchemaFuncInfoAsync(SchemaContext context)
     {
         if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
-
-        // Check is static
-        if (StaticMethodMap.TryGetValue(Name, out SchemaFuncInfo? result) && (result.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
-        {
-            result.FunctionNode = this;
-            FuncInfo = result;
-            return result;
-        }
-        
+                
         // Only full-filled function can be complied
-        if (Error != SchemaNodeStatus.Ready) throw new Exception($"The {Name} can't be compiled because of {Error}");
+        if (Error != null) throw new Exception($"The {Name} can't be compiled because of {Error}");
 
         // Build Exp
         SchemaFuncInfo funcInfo = new ()
         {
             Name = Name,
-            Sign = FUNC_SIGN_CONTEXT, // always use context for dynamic func
-            FunctionNode = this,
+            Sign = FunctionFlags.Context, // always use context for dynamic func
             Args = Args.Select(a =>
             {
-                var info = a.NodeType!.GetSchemaTypeInfo()!;
+                var info = a.NodeType.GetNodeTypeDetails();
                 if (a.Nullable ?? false) info.Kind |= ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),

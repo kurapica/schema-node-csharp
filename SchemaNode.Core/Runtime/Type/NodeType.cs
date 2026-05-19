@@ -346,6 +346,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
             dict.TryRemove(usedBy!, out _);
     }
 
+    /// <summary>
+    /// Gets the nodes that reference this node, only return node types, other types are not tracked and will not be returned
+    /// </summary>
+    public IEnumerable<NodeType> GetUsedBy() => _usedBy?.Keys ?? [];
+
     #endregion
 
     #region Implementation of INodeReference
