@@ -204,6 +204,14 @@ public class StructNode : DataNode
             value = null;
             return true;
         }
+
+        // convert to string
+        if (type == typeof(string) && TryGetValue(out JsonObject? jsonObj))
+        {
+            value = jsonObj?.ToJsonString();
+            return true;
+        }
+        
         value = null;
         return false;
     }
