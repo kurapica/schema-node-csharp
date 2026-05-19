@@ -18,9 +18,9 @@ namespace SchemaNode.Service;
 
 /// <summary>
 /// Generates FunctionSchema for each public static method found in a static class
-/// annotated with [Meta&lt;SchemaType&gt;]. The class maps to a namespace; each method
+/// annotated with [Meta&lt;NodeType&gt;]. The class maps to a namespace; each method
 /// becomes a separate function schema whose full name is either the method's own
-/// [Meta&lt;SchemaType&gt;] value or "&lt;classNamespace&gt;.&lt;methodName&gt;".
+/// [Meta&lt;NodeType&gt;] value or "&lt;classNamespace&gt;.&lt;methodName&gt;".
 /// </summary>
 internal sealed class FunctionGenerator : INodeSchemaGenerator
 {
@@ -50,7 +50,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         {
             if (method.GetCustomAttribute<SchemaIgnoreAttribute>()  != null) continue;
             
-            // Determine schema name: explicit [Meta<SchemaType>] wins, otherwise "<classNs>.<methodName>"
+            // Determine schema name: explicit [Meta<NodeType>] wins, otherwise "<classNs>.<methodName>"
             schemaType = method.GetMetaProperty<SchemaType>();
 
             NodeSchema? funcSchema = BuildFunctionSchema(method, 

@@ -14,7 +14,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Service;
 
 /// <summary>
-/// Generates EnumSchema from C# enum types annotated with [Meta&lt;SchemaType&gt;]
+/// Generates EnumSchema from C# enum types annotated with [Meta&lt;NodeType&gt;]
 /// </summary>
 internal sealed class EnumGenerator : INodeSchemaGenerator
 {

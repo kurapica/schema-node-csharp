@@ -120,7 +120,7 @@ public sealed class FuncArg
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public NodeType? SchemaType  { get; set; }
+    public NodeType? NodeType  { get; set; }
 }
 
 /// <summary>

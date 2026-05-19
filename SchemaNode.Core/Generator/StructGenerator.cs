@@ -16,7 +16,7 @@ namespace SchemaNode.Service;
 
 /// <summary>
 /// Generates StructSchema (and optional ArraySchema) from C# class/struct types
-/// annotated with [Meta&lt;SchemaType&gt;]. Fields are described via standard data-annotation
+/// annotated with [Meta&lt;NodeType&gt;]. Fields are described via standard data-annotation
 /// attributes and [Meta&lt;T&gt;] Meta property declarations, following the same pattern
 /// as EnumGenerator and PropertyGenerator.
 /// </summary>
@@ -59,7 +59,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             TypeDetails? pt = p.PropertyType.GetTypeDetails();
             if (pt == null) continue;
             
-            // Explicit [Meta<SchemaType>] on the property overrides type resolution
+            // Explicit [Meta<NodeType>] on the property overrides type resolution
             string? fieldType = pt.Generic != null 
                     ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic)}" : "T")
                     : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.BaseType ?? p.PropertyType);

@@ -8,6 +8,7 @@ using SchemaNode.Property.Function;
 using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using System.Collections.Immutable;
 
 namespace SchemaNode.Runtime;
 
@@ -69,7 +70,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The generics
     /// </summary>
-    internal GenericParameter[]? Generics { get; private set; }
+    internal ImmutableArray<GenericParameter>? Generics { get; private set; }
 
     /// <summary>
     /// The generic parameters
@@ -142,7 +143,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
-        Generics = GetProperty<Generics>()?.Value;
+        Generics = GetProperty<Generics>()?.Value?.ToImmutableArray();
 
         Loaded = true;
         await LoadAsync(context);
@@ -412,7 +413,7 @@ public abstract class ValueType : NodeType
         {
             // check compatibles, rare but important
             case FunctionType { Args.Length: 1, Converter: true } func 
-                when func.Args[0].SchemaType == this && 
+                when func.Args[0].NodeType == this && 
                      func.ReturnNode != null && 
                      !IsAssignableTo(func.ReturnNode) && 
                      func.GetProperty<Converter>() != null:

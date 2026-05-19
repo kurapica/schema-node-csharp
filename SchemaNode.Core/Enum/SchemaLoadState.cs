@@ -6,9 +6,18 @@ namespace SchemaNode.Enum;
 [Flags]
 public enum SchemaLoadState
 {
-    /// <summary>System defined</summary>
+    /// <summary>
+    /// System defined
+    /// </summary>
     System = 1,
     
-    /// <summary>Service defined</summary>
+    /// <summary>
+    /// Service defined
+    /// </summary>
     Service = 2,
+
+    /// <summary>
+    /// Remote defined
+    /// </summary>
+    Remote = 4,
 }

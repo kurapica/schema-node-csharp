@@ -10,6 +10,8 @@ using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
+using SchemaNode.Property.Function;
+using SchemaNode.Struct;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -23,46 +25,33 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class FunctionType : NodeType
 {
-    #region Data
+    #region Properties
 
     /// <summary>
-    /// The return type of the function, T T1 T2 means the generic type
+    /// The return type node
     /// </summary>
-    public string Return { get; private set; } = string.Empty;
+    public ValueType ReturnNode { get; internal set; } = null!;
 
     /// <summary>
     /// The function arguments
     /// </summary>
-    public FunctionNodeArgument[] Args { get; private set; } = [];
+    internal FunctionNodeArgument[] Args { get; private set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    public FunctionNodeExpression[] Exps { get; private set; } = [];
-
-    /// <summary>
-    /// The basic type of generic types, provided to T(single generic type),
-    /// T1, T2(for multi generic type)
-    /// </summary>
-    public NodeType?[] Generic { get; private set; } = [];
+    internal FunctionNodeExpression[] Exps { get; private set; } = [];
 
     /// <summary>
     /// As type converter
     /// </summary>
     public bool? Converter { get; private set; }
     
-    #endregion
-    
-    #region Status
-    
     /// <summary>
     /// The method info of the function if it's a system function
     /// </summary>
     public MethodInfo? MethodInfo { get; private set; }
     
-    /// <inheritdoc />
-    public override NodeType Type => NodeType.Func;
-
     /// <summary>
     /// Whether the function is remote call only
     /// </summary>
@@ -83,91 +72,22 @@ public sealed class FunctionType : NodeType
     /// </summary>
     internal SchemaFuncInfo? FuncInfo { get; private set; }
     
-    /// <summary>
-    /// The runtime cache
-    /// </summary>
-    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<Type, object>> _runtimeFuncCache = new();
-    
     #endregion
-    
-    #region Ref
-    
-    /// <summary>
-    /// The return type node
-    /// </summary>
-    public ValueType? ReturnNode { get; internal set; }
-    
-    #endregion
-    
+        
     #region Implementation
     
     /// <inheritdoc />
-    public override async Task LoadAsync(SchemaContext context, NodeSchema schema, bool preload = false)
+    public override async Task LoadAsync(SchemaContext context)
     {
-        FunctionSchema? func = schema.Func;
+        FunctionSchema? func = GetPropertyValue<FunctionSchema>();
         
-        // Data
-        Return = func?.Return ?? string.Empty;
-        Args = func?.Args.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
-        Exps = func?.Exps.Select(e => (FunctionNodeExpression)e).ToArray() ?? [];
-        Generic = func?.Generic != null ? new NodeType?[func.Generic.Length] : [];
-        Server = func?.Server;
-        Nocache = func?.Nocache;
-        Converter = func?.Converter;
-        SideEffect = func?.SideEffect;
-        WorkflowOnly = func?.WorkflowOnly;
-        MethodInfo = StaticMethodMap.TryGetValue(schema.Name, out SchemaFuncInfo? info) ? info.Method : null;
-
         // Status
         if (func == null)
         {
-            Error = SchemaNodeStatus.NoDefinition;
+            Error = ErrorCodes.NO_DEFINITION;
             return;
         }
-        
-        // Generic check
-        if (Generic.Length > 0)
-        {
-            for(int i = 0; i < Generic.Length; i++)
-            {
-                string name = func.Generic![i];
-                if (!string.IsNullOrWhiteSpace(name) && !Regex.IsMatch(name, @"^[tT]\d*$"))
-                    Generic[i] = await context.GetNodeTypeAsync(name);
-            }
-        }
 
-        // Check if server or direct call
-        RequireRemoteCall = IsRemoteCall;
-        
-        // Argument types
-        foreach (FunctionNodeArgument arg in Args)
-        {
-            if (string.IsNullOrWhiteSpace(arg.Type))
-            {
-                Error = SchemaNodeStatus.FunctionArgumentWrongType;
-            }
-            else if (Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
-            {
-                // Only system function can be generic
-                if (!IsSystemCall)
-                {
-                    Error = SchemaNodeStatus.FunctionArgumentWrongType;
-                }
-                else
-                {
-                    // Generic type// Generic type
-                    int index = arg.Type.Length > 1 && int.TryParse(arg.Type[1..], out int i) ? i : 1;
-                    ResizeGeneric(index);
-                    arg.SchemaType = new GenericType { Index = index };
-                }
-            }
-            else
-            {
-                arg.SchemaType = await context.GetNodeTypeAsync(arg.Type);
-                if (arg.SchemaType is not ValueType) Error = SchemaNodeStatus.FunctionArgumentWrongType;
-            }
-        }
-        
         // Return type
         if (string.IsNullOrWhiteSpace(Return))
         {
@@ -194,6 +114,48 @@ public sealed class FunctionType : NodeType
             if (ReturnNode is not ValueType) Error = SchemaNodeStatus.FunctionWrongReturnType;
         }
 
+        // Data
+        Return = func?.Return ?? string.Empty;
+        Args = func?.Args.Select(a => (FunctionNodeArgument)a).ToArray() ?? [];
+        Exps = func?.Exps.Select(e => (FunctionNodeExpression)e).ToArray() ?? [];
+
+        Converter = func?.GetProperty<Converter>()?.Value;
+        MethodInfo = FunctionGenerator.GetSystemFuncInfo(Name)?.Method;
+
+        // Check if server or direct call
+        RequireRemoteCall = IsRemoteCall;
+        
+        // Argument types
+        foreach (FunctionNodeArgument arg in Args)
+        {
+            if (string.IsNullOrWhiteSpace(arg.Type))
+            {
+                Error ??= ErrorCodes.FUNC_ARG_WRONG_TYPE;
+                return;
+            }
+
+            else if (Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
+            {
+                // Only system function can be generic
+                if (!IsSystemCall)
+                {
+                    Error = ErrorCodes.FUNC_ARG_WRONG_TYPE;
+                }
+                else
+                {
+                    // Generic type// Generic type
+                    int index = arg.Type.Length > 1 && int.TryParse(arg.Type[1..], out int i) ? i : 1;
+                    ResizeGeneric(index);
+                    arg.NodeType = new GenericType { Index = index };
+                }
+            }
+            else
+            {
+                arg.NodeType = await context.GetNodeTypeAsync(arg.Type);
+                if (arg.NodeType is not ValueType) Error = SchemaNodeStatus.FunctionArgumentWrongType;
+            }
+        }
+        
         // Generate the exp trees
         bool isOkay = Error == SchemaNodeStatus.Ready;
         if (isOkay) await PreCompileAsync(context);
@@ -203,12 +165,12 @@ public sealed class FunctionType : NodeType
         {
             ReturnNode?.AddUsedBy(this);
             foreach (FunctionNodeArgument arg in Args)
-                arg.SchemaType?.AddUsedBy(this);
+                arg.NodeType?.AddUsedBy(this);
             
             // Add ref
             foreach (FunctionNodeExpression exp in Exps)
             {
-                exp.SchemaType?.AddUsedBy(this);
+                exp.NodeType?.AddUsedBy(this);
                 exp.FuncNode?.AddUsedBy(this);
                 
                 // State taint
@@ -238,14 +200,14 @@ public sealed class FunctionType : NodeType
         ReturnNode = null;
         foreach (FunctionNodeArgument arg in Args)
         {
-            arg.SchemaType?.RemoveUsedBy(this);
-            arg.SchemaType = null;
+            arg.NodeType?.RemoveUsedBy(this);
+            arg.NodeType = null;
         }
 
         foreach (FunctionNodeExpression exp in Exps)
         {
-            exp.SchemaType?.RemoveUsedBy(this);
-            exp.SchemaType = null;
+            exp.NodeType?.RemoveUsedBy(this);
+            exp.NodeType = null;
             exp.FuncNode?.RemoveUsedBy(this);
             exp.FuncNode = null;
         }
@@ -270,14 +232,14 @@ public sealed class FunctionType : NodeType
 
         foreach (FunctionNodeArgument arg in Args)
         {             
-            if (arg.SchemaType != null && arg.SchemaType is not GenericType)
-                yield return arg.SchemaType;
+            if (arg.NodeType != null && arg.NodeType is not GenericType)
+                yield return arg.NodeType;
         }
 
         foreach(FunctionNodeExpression exp in Exps)
         {
-            if (exp.SchemaType != null && exp.SchemaType is not GenericType)
-                yield return exp.SchemaType;
+            if (exp.NodeType != null && exp.NodeType is not GenericType)
+                yield return exp.NodeType;
 
             if (exp.FuncNode != null)
                 yield return exp.FuncNode;
@@ -451,7 +413,7 @@ public sealed class FunctionType : NodeType
             FunctionNode = this,
             Args = Args.Select(a =>
             {
-                var info = a.SchemaType!.GetSchemaTypeInfo()!;
+                var info = a.NodeType!.GetSchemaTypeInfo()!;
                 if (a.Nullable ?? false) info.Kind |= ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
@@ -980,46 +942,11 @@ public sealed class FunctionType : NodeType
     private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
     private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
 
-    #endregion
-    
-    #region Conversion
-    
     /// <summary>
-    /// Convert the node to schema
+    /// The runtime cache
     /// </summary>
-    public static implicit operator NodeSchema?(FunctionType? schema)
-    {
-        return schema?.ToSchema().With(new FunctionSchema
-        {
-            Return = schema.Return,
-            Args = schema.Args.Select(a => new FuncArg
-            {
-                Name = a.Name.ToCamelCase(),
-                Type = a.Type,
-                Nullable = a.Nullable,
-                Display = a.Display,
-                Params = a.Params,
-                Default = a.Default,
-                Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
-            }).ToArray(),
-            Exps = schema.Exps.Select(e => new FuncExp
-            {
-                Name = e.Name.ToCamelCase(),
-                Func = e.Func,
-                Type = e.Type ?? ExpType.Call,
-                Return = e.Return,
-                Args = e.Args,
-                Status = e.Status != null && e.Status != SchemaNodeStatus.Ready ? e.Status : null,
-            }).ToArray(),
-            Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
-            Server = schema.Server,
-            Nocache = schema.Nocache,
-            SideEffect = schema.SideEffect,
-            WorkflowOnly = schema.WorkflowOnly,
-            Converter = schema.Converter,
-        });
-    }
-    
+    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<Type, object>> _runtimeFuncCache = new();
+
     #endregion
 }
 
@@ -1028,18 +955,18 @@ public sealed class FunctionType : NodeType
 /// <summary>
 /// The expression tree
 /// </summary>
-public abstract class FunctionNodeExpTree
+internal abstract class FunctionNodeExpTree
 {
     /// <summary>
     /// The type node
     /// </summary>
-    public NodeType? SchemaType { get; set; }
+    public NodeType? NodeType { get; set; }
 }
 
 /// <summary>
 /// The function node argument
 /// </summary>
-public class FunctionNodeArgument : FunctionNodeExpTree
+internal class FunctionNodeArgument : FunctionNodeExpTree
 {
     #region Data
 
@@ -1110,7 +1037,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
 /// <summary>
 /// The function node expression
 /// </summary>
-public class FunctionNodeExpression : FunctionNodeExpTree
+internal class FunctionNodeExpression : FunctionNodeExpTree
 {
     #region Data
     
@@ -1137,7 +1064,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     /// <summary>
     /// The argument list, should be exp name or argument name.
     /// </summary>
-    public FuncCallArg[] Args { get; init; } = [];
+    public CallArg[] Args { get; init; } = [];
 
     #endregion
 
@@ -1184,7 +1111,7 @@ public class FunctionNodeExpression : FunctionNodeExpTree
 /// <summary>
 /// The data dict func info
 /// </summary>
-public sealed class SchemaFuncInfo
+internal sealed class SchemaFuncInfo
 {
     /// <summary>
     /// The method name
@@ -1214,17 +1141,17 @@ public sealed class SchemaFuncInfo
     /// <summary>
     /// The generic info
     /// </summary>
-    public SchemaParamTypeInfo[] Generics { get; init; } = [];
+    public TypeDetails[] Generics { get; init; } = [];
     
     /// <summary>
     /// The argument info
     /// </summary>
-    public SchemaParamTypeInfo[] Args { get; init; } = [];
+    public TypeDetails[] Args { get; init; } = [];
     
     /// <summary>
     /// The return info
     /// </summary>
-    public required SchemaParamTypeInfo Return { get; init; }
+    public required TypeDetails Return { get; init; }
 
     /// <summary>
     /// The generic instances
