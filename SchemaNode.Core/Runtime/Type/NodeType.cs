@@ -70,7 +70,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The generics
     /// </summary>
-    internal ImmutableArray<GenericParameter>? Generics { get; private set; }
+    internal GenericParameter[]? Generics { get; private set; }
 
     /// <summary>
     /// The generic parameters
@@ -143,7 +143,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
-        Generics = GetProperty<Generics>()?.Value?.ToImmutableArray();
+        Generics = GetProperty<Generics>()?.Value;
 
         Loaded = true;
         await LoadAsync(context);

@@ -16,7 +16,7 @@ namespace SchemaNode.Service;
 
 /// <summary>
 /// Generates StructSchema (and optional ArraySchema) from C# class/struct types
-/// annotated with [Meta&lt;NodeType&gt;]. Fields are described via standard data-annotation
+/// annotated with [Meta&lt;SchemaType&gt;]. Fields are described via standard data-annotation
 /// attributes and [Meta&lt;T&gt;] Meta property declarations, following the same pattern
 /// as EnumGenerator and PropertyGenerator.
 /// </summary>
