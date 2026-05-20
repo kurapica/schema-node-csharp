@@ -115,6 +115,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// Gets the csharp type
     /// </summary>
     public virtual Type? GetCsharpType() => Schema?.Type;
+    
+    /// <summary>
+    /// Gets the csharp type with nullable modifier
+    /// </summary>
+    public Type? GetCsharpType(bool? nullable) => nullable == true ? GetCsharpType()?.GetNullableType() : GetCsharpType();
 
     #endregion
     

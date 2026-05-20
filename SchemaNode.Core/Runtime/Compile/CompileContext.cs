@@ -7,7 +7,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 // ReSharper disable MemberCanBeProtected.Global
@@ -356,11 +355,13 @@ public class CompileContext(SchemaContext context, FunctionType function)
             #region Result Type & Generic
             
             // Generic types
-            var genericTypes = expFuncType.Generics?.ToArray() ?? [];
+            ValueType[] genericTypes = expFuncType.Generics?.Select(g =>
+                new GenericType{ Name = g.Name } as ValueType
+            ).ToArray() ?? [];
 
             // Validate return value
             exp.ValueType ??= (!string.IsNullOrWhiteSpace(exp.Return) ? await Context.GetNodeTypeAsync<ValueType>(exp.Return) : null);
-            if (exp.ValueType  is not ValueType)
+            if (exp.ValueType == null)
             {
                 exp.Status = ErrorCodes.FUNC_WRONG_RETURN;
                 throw new FunctionVisitException(ErrorCodes.FUNC_WRONG_RETURN);
@@ -479,7 +480,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (arg != null)
                 {
                     arg.ValueType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetNodeTypeAsync<ValueType>(arg.Type) : ParseGenericType(expFuncInfo.Args[eArgIdx], argDef.ValueType);
-                    if (arg.ValueType is not ValueType)
+                    if (arg.ValueType == null)
                     {
                         exp.Status = ErrorCodes.FUNC_ARG_WRONG_TYPE;
                         throw new FunctionVisitException(ErrorCodes.FUNC_ARG_WRONG_TYPE);
@@ -487,7 +488,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Const expression
-                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(arg.Value)!));
+                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(arg.Value)));
             }
 
             // For params
@@ -518,12 +519,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
                             if (arg.Value == null) continue;
 
                             arg.ValueType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetNodeTypeAsync<ValueType>(arg.Type) : paramType;
-                            if (arg.ValueType is not ValueType)
+                            if (arg.ValueType == null)
                             {
                                 exp.Status = ErrorCodes.FUNC_ARG_WRONG_TYPE;
                                 throw new FunctionVisitException(ErrorCodes.FUNC_ARG_WRONG_TYPE);
                             }
-                            await SetArgExp(j, new ConstantExp(arg.ValueType.From(arg.Value)!));
+                            await SetArgExp(j, new ConstantExp(arg.ValueType.From(arg.Value)));
                         }
                     }
                 }
@@ -605,7 +606,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
                 // Gets the argument type
                 argType = ParseGenericType(argInfo!, argDef.ValueType, argExp?.ValueType);
-                if (argType is not ValueType)
+                if (argType == null)
                 {
                     exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
@@ -617,11 +618,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (argExp == null)
                     {
-                        argExp = new ConstantExp(argType.From(argDef.Default)!);
+                        argExp = new ConstantExp(argType.From(argDef.Default));
                     }
                     else
                     {
-                        argExp = new DefaultExp(argExp, argType.From(argDef.Default)!);
+                        argExp = new DefaultExp(argExp, argType.From(argDef.Default));
                     }
                 }
 
@@ -630,7 +631,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     if (argExp == null) return;
                     var old = args[expFuncType.Args.Length - 1] as ParamsExp;
-                    args[expFuncType.Args.Length - 1] = new ParamsExp(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.ValueType ?? SchemaContext.GetArraySchemaType(argType)!);
+                    args[expFuncType.Args.Length - 1] = new ParamsExp(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.ValueType ?? (await Context.GetArrayNodeTypeAsync(argType))!);
                 }
 
                 // Nullable check
@@ -666,10 +667,10 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
                 else
                 {
-                    int idx = typeInfo.Generic != null
-                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.Generic == g.Generic)
-                        : (((origin as GenericType)?.Index ?? 1) - 1);
-                    if (idx < 0 || genericTypes[idx] != null && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]!))
+                    int idx = typeInfo.Generic != null 
+                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.Generic == g.Generic) 
+                        : origin is GenericType go ? Array.FindIndex(Function.Generics ?? [], g => go.Name == g.Name) : -1;
+                    if (idx < 0 || genericTypes[idx] is not GenericType && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]))
                     {
                         if (isReturn)
                         {
@@ -682,9 +683,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                             throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                         }
                     }
-                    if (genType != null && genType is not GenericType)
-                        genericTypes[idx] ??= genType;
-                    return genericTypes[idx] ?? genType;
+                    if (genType != null && genType is not GenericType && genericTypes[idx] is GenericType)
+                        genericTypes[idx] = genType;
+                    return genericTypes[idx];
                 }
             }
             
@@ -727,8 +728,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             for (int i = 0; i < funcSchema.Args.Length; i++)
             {
                 ArgumentExp arg = funcSchema.Args[i];
-                ParameterExpression paramExp = Expression.Parameter(arg.ValueType.GetCsharpType(arg.Nullable) 
-                    ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
+                ParameterExpression paramExp = Expression.Parameter(arg.ValueType.GetCsharpType(arg.Nullable) ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
                 _paramExpMap[arg.Name] = paramExp;
             }
@@ -799,14 +799,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public ArrayType? GetArrayType(NodeType elementType) => SchemaContext.GetArraySchemaType(elementType);
+    public ArrayType? GetArrayType(ValueType elementType) => Context.GetArrayNodeTypeAsync(elementType).GetAwaiter().GetResult();
     
     /// <summary>
     /// Compile the schema expression to Expression
     /// </summary>
     public virtual async Task<Expression> CompileSchemaExpAsync(SchemaExp exp, Type? expectedType = null)
     {
-        expectedType ??= exp.ValueType.GetCsharpType();
+        expectedType ??= exp.ValueType.GetCsharpType()!;
         if (_compiledExpCache.TryGetValue(exp, out Expression? cachedExp))
             return ConvertExp(expectedType, cachedExp);
         
@@ -856,7 +856,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 List<Expression> blockExps = [
                     Expression.Assign(resultVar, Expression.New(typeof(StructNode).GetConstructors()[0], Expression.Constant(structExp.ValueType), Expression.Constant(null)))
                 ];
-                MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.SetField))!;
+                MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.SetFieldValue))!;
                 foreach (var fieldExp in structExp.Fields)
                     blockExps.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(fieldExp.Name, typeof(string)), ConvertExp(typeof(Object), await CompileSchemaExpAsync(fieldExp.Expression))));
                 blockExps.Add(resultVar); // as the result
@@ -874,7 +874,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         // function validate
         SchemaFuncInfo callFuncInfo = await funcCallExp.Function.GetSchemaFuncInfoAsync(Context) ?? throw new Exception($"The function call {funcCallExp.Function.Name} can't be compiled");
-        int useContext = (callFuncInfo.Sign & FUNC_SIGN_CONTEXT) == FUNC_SIGN_CONTEXT ? 1 : 0;
+        int useContext = (callFuncInfo.Sign & FunctionFlags.Context) > 0 ? 1 : 0;
 
         // Prepare the call arguments
         Expression[] callArgs = new Expression[funcCallExp.Args.Length + useContext];
@@ -885,7 +885,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             SchemaExp leaf = funcCallExp.Args[i];
             Type callType = (funcCallExp.Function.Args[i].ValueType is GenericType ? funcCallExp.Args[i].ValueType : funcCallExp.Function.Args[i].ValueType)
-                            ?.ToCSharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
+                            ?.GetCsharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
 
             if (leaf is CollectionRootExp)
                 throw new Exception("IteratorExpression must be used in non-call exp.");
@@ -897,15 +897,15 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // Prepare the function
         MethodInfo callMethod = callFuncInfo.Method!;
         // bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
-        Type expReturnType = exp.ValueType.ToCSharpType((callFuncInfo.Sign & FUNC_SIGN_NULLABLE_RET) > 0);
+        Type expReturnType = exp.ValueType.GetCsharpType((callFuncInfo.Sign & FunctionFlags.NullableRet) > 0)!;
         Type expRetElement = funcCallExp.ExpType is ExpType.Map && exp.ValueType is ArrayType arr
-            ? arr.Element!.ToCSharpType()
+            ? arr.Element!.GetCsharpType()!
             : expReturnType;
 
         // Make generic method for system defined methods
         Type?[] genTypes = callFuncInfo.Generics.Select(p =>
         {
-            Utility.Schema.SchemaParamTypeInfo? info = null;
+            TypeDetails? info = null;
             Type? type = null;
             if (callFuncInfo.Return.Generic == p.Generic)
             {
@@ -916,7 +916,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 for (int j = 0; j < callFuncInfo.Args.Length; j++)
                 {
-                    Utility.Schema.SchemaParamTypeInfo sInfo = callFuncInfo.Args[j];
+                    TypeDetails sInfo = callFuncInfo.Args[j];
                     if (sInfo.Generic != p.Generic) continue;
                     info = sInfo;
                     type = callArgs[j + useContext].Type.GetNotNullType();
@@ -931,7 +931,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }).ToArray();
         
         // Generate generic method
-        if ((callFuncInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE && (callFuncInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
+        if ((callFuncInfo.Sign & FunctionFlags.Immutable) > 0 && (callFuncInfo.Sign & FunctionFlags.Generic) > 0)
         {
             // Generate the generic method
             string genSign = string.Join('|', genTypes.Select(p => (Nullable.GetUnderlyingType(p!) ?? p!).FullName));
@@ -939,7 +939,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
         
         // Use remote call
-        else if ((callFuncInfo.Sign & FUNC_SIGN_REMOTE_CALL) == FUNC_SIGN_REMOTE_CALL)
+        else if ((callFuncInfo.Sign & FunctionFlags.Remote) > 0)
         {
             // Generate the call
             var convCallArgs = new Expression[callArgs.Length + (useContext > 0 ? 2 : 3)];

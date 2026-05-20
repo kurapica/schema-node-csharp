@@ -202,9 +202,6 @@ public sealed class RecognizerType : AnySchemaType
                     if (rel.FuncNode != null) yield return rel.FuncNode;
         foreach (var part in Parts)
         {
-            if (part.ConvertProperties != null)
-                foreach (var prop in part.ConvertProperties)
-                    if (prop is RecognizerProperty rcp) yield return rcp.Recognizer;
             if (part.RefTypes != null)
                 foreach (var refType in part.RefTypes)
                     yield return refType;
@@ -714,12 +711,12 @@ public sealed class RecognizerType : AnySchemaType
         if (fieldType is ArrayType arrayType)
         {
             var recConv = part.RecognizerProperty;
-            if (recConv != null && recConv.TargetsArray)
+            /*if (recConv != null && recConv.TargetsArray)
             {
-                var r = await recConv.Recognizer.RecognizeAsync(context, segment);
+                var r = await recConv.RecognizeAsync(context, segment);
                 return r.Success ? r.Value : null;
             }
-            return await ParseArrayFieldAsync(context, arrayType, recConv?.Recognizer, part, segment);
+            return await ParseArrayFieldAsync(context, arrayType, recConv?.Recognizer, part, segment);*/
         }
 
         // Non-array: phased pipeline
@@ -779,9 +776,9 @@ public sealed class RecognizerType : AnySchemaType
 
             if (recConv != null)
             {
-                var elemResult = await recConv.Recognizer.RecognizeAsync(context, segment);
+                /*var elemResult = await recConv.Recognizer.RecognizeAsync(context, segment);
                 if (!elemResult.Success) return null;
-                if (elemResult.Value != null) arr.Add(elemResult.Value);
+                if (elemResult.Value != null) arr.Add(elemResult.Value);*/
             }
             else if (arrayType.ElementSchemaType is ScalarType elemScalar)
             {
@@ -995,8 +992,8 @@ public sealed class RecognizerType : AnySchemaType
 
             if (elementRec == null && recConv != null)
             {
-                elementRec = recConv.Recognizer;
-                targetsArray = recConv.TargetsArray;
+                //elementRec = recConv.Recognizer;
+                //targetsArray = recConv.TargetsArray;
             }
             else if (elementRec != null)
             {
@@ -1097,9 +1094,9 @@ public sealed class RecognizerType : AnySchemaType
 
             if (recConv != null && elem is AnySchemaNode elemNode)
             {
-                var emitted = await recConv.Recognizer.EmitAsync(context, elemNode);
-                if (emitted == null) return false;
-                inner.Append(emitted);
+                //var emitted = await recConv.Recognizer.EmitAsync(context, elemNode);
+                //if (emitted == null) return false;
+                //inner.Append(emitted);
             }
             else
             {

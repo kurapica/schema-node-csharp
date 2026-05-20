@@ -138,7 +138,7 @@ public sealed class ArrayType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override async Task<AnySchemaNode?> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
+    public override async Task<(AnySchemaNode?, JsonNode?)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         if (value is not JsonArray array)
             return (null, TYPE_VALUE_NOT_VALID);

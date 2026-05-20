@@ -175,7 +175,7 @@ public sealed class RecognizerPartSchema : ISchemaExtensions
 
         if (Extensions is { Count: > 0 } || relationProps?.Any() == true)
         {
-            Properties = PropertyType.GetProperties<IProperty>(context, SchemaType.RecognizerPart, Extensions ?? new(), partType, relationProps)?.ToArray();
+            Properties = PropertyType.GetProperties<IProperty>(context, SchemaType.RecognizerPart, Extensions ?? new(), partType)?.ToArray();
             if (Properties is { Length: > 0 })
             {
                 // Structural: prefix and suffix are separated from content converters
@@ -233,7 +233,7 @@ public sealed class RecognizerPartSchema : ISchemaExtensions
         bool requireRecognizer = partType is StructType || partType is ArrayType arrType && arrType.ElementSchemaType is StructType;
         if (requireRecognizer || RecognizerProperty != null)
         {
-            if (RecognizerProperty?.Recognizer?.SourceSchemaType == null ||
+            /*if (RecognizerProperty?.Recognizer?.SourceSchemaType == null ||
                 !(RecognizerProperty.Recognizer.SourceSchemaType.CanBeUseAs(partType) ||
                   (partType is ArrayType arrayType && arrayType.ElementSchemaType != null && 
                   RecognizerProperty.Recognizer.SourceSchemaType.CanBeUseAs(arrayType.ElementSchemaType)) ||
@@ -245,7 +245,7 @@ public sealed class RecognizerPartSchema : ISchemaExtensions
                 Status = SchemaNodeStatus.RecognizerPartWrongSubRecognizer;
                 type.Status = SchemaNodeStatus.RecognizerPartWrongSubRecognizer;
                 return;
-            }
+            }*/
         }
     }
 

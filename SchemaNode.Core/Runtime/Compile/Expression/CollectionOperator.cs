@@ -126,7 +126,7 @@ public class CollectionExpVisitor : IExpVisitor
                     string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.GetValue<string>() ?? "" : "";
                     if (string.IsNullOrEmpty(fieldName) || sourceExp.ValueType is not ArrayType { Element: StructType structType })
                         throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
-                    NodeType type = structType;
+                    ValueType type = structType;
                     string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                     foreach (string path in paths)
                     {
@@ -221,7 +221,7 @@ public class CollectionExpVisitor : IExpVisitor
                         string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.GetValue<string>() ?? "" : "";
                         if (string.IsNullOrEmpty(fieldName) || source.ValueType is not ArrayType { Element: StructType structType })
                             throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
-                        NodeType type = structType;
+                        ValueType type = structType;
                         string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                         foreach (string path in paths)
                         {

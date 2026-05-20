@@ -8,12 +8,15 @@ using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
 using BoolType = SchemaNode.Runtime.BoolType;
 using DecimalType = SchemaNode.Schema.DecimalType;
 using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
 using StringType = SchemaNode.Schema.StringType;
+using ValueType = SchemaNode.Runtime.ValueType;
+
 // ReSharper disable RedundantNameQualifier
 
 // ReSharper disable VariableHidesOuterVariable
@@ -336,6 +339,14 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     public async Task<T?> GetNodeTypeAsync<T>(string schemaName, GenericParameter[]? generics = null, bool reload = false) where T : NodeType
         => await GetNodeTypeAsync(schemaName, generics, reload) as T;
+    
+    /// <summary>
+    /// Gets the value type's array type
+    /// </summary>
+    /// <param name="elementType"></param>
+    /// <returns></returns>
+    public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
+        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)));
     
     #endregion
     

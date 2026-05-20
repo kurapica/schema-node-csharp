@@ -69,6 +69,16 @@ public class StructNode : DataNode
         }
     }
     
+    internal void SetFieldValue(string fieldName, object? value)
+    {
+        DataNode? field = GetAccessValue(fieldName);
+        if (field != null)
+        {
+            _csharpObject = null;
+            field.TrySetValue(value);
+        }
+    }
+    
     #endregion
     
     #region Implementation
