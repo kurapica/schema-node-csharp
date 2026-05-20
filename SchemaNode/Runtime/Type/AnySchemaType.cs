@@ -283,7 +283,7 @@ public abstract class AnySchemaType: IDisposable
     /// <summary>
     /// Validate the value with the schema
     /// </summary>
-    public virtual async Task<(AnySchemaNode?, JsonNode?)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
+    public virtual async Task<(AnySchemaNode? value, JsonNode? error)> ValidateValueAsync(SchemaContext context, JsonNode value, IReadOnlyList<IConstraintProperty>? constraints = null)
     {
         await Task.Yield();
         return (null, null);

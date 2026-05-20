@@ -102,16 +102,16 @@ public static class SystemStr
         
         public static Entry toentry(StructNode node, string valueField, string labelField)
         {
-            Node.DataNode? val = node.GetValueByPaths(valueField);
-            Node.DataNode? label = node.GetValueByPaths(labelField);
+            DataNode? val = node.GetAccessValue(valueField);
+            DataNode? label = node.GetAccessValue(labelField);
             return new Entry
             {
-                Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
+                Value = val?.GetValue<string>() ?? "",
                 Label = label switch
                 {
-                    StructNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
-                    ScalarNode or EnumNode => new LocaleString(label.ToTypeValue(typeof(string))?.ToString() ?? ""),
-                    _ => new LocaleString(val?.ToTypeValue(typeof(string))?.ToString() ?? "")
+                    StructNode labelNode => labelNode.GetValue<LocaleString>(),
+                    StringNode or EnumNode => new LocaleString(label.GetValue<string>() ?? ""),
+                    _ => new LocaleString(val?.GetValue<string>() ?? "")
                 }
             };
         }

@@ -339,3 +339,16 @@ public static class SystemCalendar
 
     #endregion
 }
+
+public static class SystemCalendarExtension
+{
+    /// <summary>
+    /// Gets the timezone
+    /// </summary>
+    public static TimeZoneInfo GetTimeZone(this SchemaContext context)
+    {
+        // Gets the shared zone
+        var zone = context.GetService<TimeZoneInfo>();
+        return zone ?? TimeZoneInfo.Local;
+    }
+}
