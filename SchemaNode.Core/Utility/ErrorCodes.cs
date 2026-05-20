@@ -53,6 +53,9 @@ public static class ErrorCodes
     [Meta<ErrorCode>(FUNC_WRONG_RETURN)]
     public const string FUNC_WRONG_RETURN = "func_wrong_return";
 
+    [Meta<ErrorCode>(FUNC_RETURN_MEMBER_NOT_VALID)]
+    public const string FUNC_RETURN_MEMBER_NOT_VALID = "func_return_member_not_valid";
+
     [Meta<ErrorCode>(FUNC_ARG_NO_NAME)]
     public const string FUNC_ARG_NO_NAME = "func_arg_no_name";
 

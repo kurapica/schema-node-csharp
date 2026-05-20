@@ -191,7 +191,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [SchemaIgnore] 
     [JsonIgnore] 
-    public NodeType? NodeType { get; set; }
+    public Runtime.ValueType? ValueType { get; set; }
 
     /// <summary>
     /// The data node represents the value

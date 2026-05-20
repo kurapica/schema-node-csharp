@@ -59,7 +59,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             TypeDetails? pt = p.PropertyType.GetTypeDetails();
             if (pt == null) continue;
             
-            // Explicit [Meta<NodeType>] on the property overrides type resolution
+            // Explicit [Meta<ValueType>] on the property overrides type resolution
             string? fieldType = pt.Generic != null 
                     ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic)}" : "T")
                     : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.BaseType ?? p.PropertyType);

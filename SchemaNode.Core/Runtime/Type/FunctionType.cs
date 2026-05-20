@@ -127,10 +127,22 @@ public sealed class FunctionType : NodeType
 
         // Check if server or direct call
         RequireRemoteCall = IsRemoteCall;
-        
+
         // Argument types
+        HashSet<string> existNames = [];
         foreach (FunctionNodeArgument arg in Args)
         {
+            if (string.IsNullOrWhiteSpace(arg.Name))
+            {
+                Error ??= ErrorCodes.FUNC_ARG_NO_NAME;
+                return;
+            }
+            else if (!existNames.Add(arg.Name))
+            {
+                Error ??= ErrorCodes.FUNC_ARG_DUPLICATE_NAME;
+                return;
+            }
+
             arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) 
                 ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics)
                 : null;
@@ -187,8 +199,8 @@ public sealed class FunctionType : NodeType
             {
                 foreach (var callArg in exp.Args)
                 {
-                    if (callArg.NodeType != null && callArg.NodeType is not GenericType)
-                        yield return callArg.NodeType;
+                    if (callArg.ValueType != null && callArg.ValueType is not GenericType)
+                        yield return callArg.ValueType;
                 }
             }
         }

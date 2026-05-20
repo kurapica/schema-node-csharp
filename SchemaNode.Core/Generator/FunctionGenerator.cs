@@ -50,7 +50,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         {
             if (method.GetCustomAttribute<SchemaIgnoreAttribute>()  != null) continue;
             
-            // Determine schema name: explicit [Meta<NodeType>] wins, otherwise "<classNs>.<methodName>"
+            // Determine schema name: explicit [Meta<ValueType>] wins, otherwise "<classNs>.<methodName>"
             schemaType = method.GetMetaProperty<SchemaType>();
 
             NodeSchema? funcSchema = BuildFunctionSchema(method, 
