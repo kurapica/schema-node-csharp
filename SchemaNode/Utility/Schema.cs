@@ -781,9 +781,7 @@ public static class Schema
     }
 
     #endregion
-
-
-
+    
     #region Inner type
 
     /// <summary>

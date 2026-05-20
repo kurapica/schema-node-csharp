@@ -101,6 +101,16 @@ public abstract class DataNode
         return true;
     }
     
+    /// <summary>
+    /// Gets value
+    /// </summary>
+    public T? GetValue<T>() => TryGetValue(out T? value) ? value : default(T?);
+    
+    /// <summary>
+    /// Gets value
+    /// </summary>
+    public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
+    
     #endregion
 
     #region Virtual
@@ -108,7 +118,7 @@ public abstract class DataNode
     /// <summary>
     /// The c# type representation
     /// </summary>
-    public virtual Type? CsharpType => Type.ToCsharpType();
+    public virtual Type? CsharpType => Type.GetCsharpType();
 
     /// <summary>
     /// Gets the access value by part path

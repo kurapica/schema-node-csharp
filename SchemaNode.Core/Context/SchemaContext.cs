@@ -8,8 +8,13 @@ using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using BoolType = SchemaNode.Runtime.BoolType;
+using DecimalType = SchemaNode.Schema.DecimalType;
+using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
+using StringType = SchemaNode.Schema.StringType;
+// ReSharper disable RedundantNameQualifier
 
 // ReSharper disable VariableHidesOuterVariable
 
@@ -20,7 +25,7 @@ namespace SchemaNode.Context;
 /// </summary>
 public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): ISchemaContext, IDisposable
 {
-    #region Fields
+    #region Properties
 
     /// <summary>
     /// The services provider
@@ -47,6 +52,11 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// The context item
     /// </summary>
     readonly ConcurrentDictionary<Type, object> _contextItems = [];     
+    
+    /// <summary>
+    /// The system access
+    /// </summary>
+    public SystemAccess System => services.GetRequiredService<SystemAccess>();
     
     #endregion
     
@@ -422,4 +432,35 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     }
 
     #endregion
+}
+
+/// <summary>
+/// The system node type access
+/// </summary>
+public class SystemAccess
+{
+    /// <summary>
+    /// THe bool type
+    /// </summary>
+    public Runtime.BoolType Bool { get; internal set; } = null!;
+
+    /// <summary>
+    /// The string type
+    /// </summary>
+    public Runtime.StringType String { get; internal set; } = null!;
+
+    /// <summary>
+    /// The decimal type
+    /// </summary>
+    public Runtime.DecimalType Decimal { get; internal set; } = null!;
+
+    /// <summary>
+    /// The int type
+    /// </summary>
+    public Runtime.IntType Int { get; internal set; } = null!;
+
+    /// <summary>
+    /// The date type
+    /// </summary>
+    public Runtime.DateType Date { get; internal set; } = null!;
 }

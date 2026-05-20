@@ -155,12 +155,19 @@ public static class Constant
     #endregion
 
     #endregion
-    
-    #region Error Codes
 
-    public const string ERR_NO_DEFINITION = "no_definition";
-    public const string ERR_WRONG_REF_TYPE = "wrong_ref_type";
+    #region Function 
     
+    #region Expression Priority
+
+    public const int EXP_INTRINSIC_PRIORITY = 100;
+    public const int EXP_LOGIC_PRIORITY = 90;
+    public const int EXP_ARITHMETIC_PRIORITY = 80;
+    public const int EXP_COLLECTION_PRIORITY = 70;
+    public const int EXP_DATA_SOURCE_PRIORITY = 60;
+
+    #endregion
+
     #endregion
 
     #region Deprecated Schema

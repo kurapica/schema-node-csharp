@@ -1,5 +1,6 @@
-using SchemaNode.Property.Schema;
+using System.Collections.Concurrent;
 using System.Numerics;
+using System.Reflection;
 using System.Text.Json.Nodes;
 using NodeType = SchemaNode.Runtime.NodeType;
 
@@ -101,6 +102,145 @@ internal class TypeDetails
     /// Use complex type like Dict
     /// </summary>
     public bool Complex => (Kind & ParameterTypeKind.Complex) > 0;
+    
+    #endregion
+    
+    #region Methods
+    
+    /// <summary>
+    /// Parse the value to get the real value, type and generic type
+    /// </summary>
+    public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
+    {
+        Type? valueType = Type;
+        if (Params) valueType = valueType?.GetElementType() ?? valueType;
+        
+        if (node == null || node.IsEmpty()) return (null, valueType, generic);
+        if (Generic != null)
+        {
+            if (node is JsonArray arr)
+            {
+                if (!AnyArray) return (null, valueType, generic);
+                if (generic == null)
+                {
+                    if (arr.Count == 0) return (arr, typeof(JsonArray), null); // unkown
+                    var ele = arr[0];
+                    if (ele is JsonObject)
+                    {
+                        return (arr, typeof(JsonArray), null);
+                    }
+                    else if (ele is JsonValue val)
+                    {
+                        (object? _, Type? type) = val.ParseValueAndType();
+                        if (type == null) return (arr, typeof(JsonArray), null); // unkown
+                        generic = type;                            
+                    }
+                    else
+                    {
+                        return (arr, typeof(JsonArray), null); // unkown
+                    }
+                }
+
+                if (Enumerable)
+                {
+                    try
+                    {
+                        MethodInfo method = _convToEnum.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        return (method.Invoke(null, [arr]), typeof(IEnumerable<>).MakeGenericType(generic), generic);
+                    }
+                    catch
+                    {
+                        // pass
+                    }
+                }
+
+                Type arrType = Array ? generic.MakeArrayType() : typeof(List<>).MakeGenericType(generic);
+                try
+                {
+                    return (node.FromJson(arrType), arrType, generic);
+                }
+                catch
+                {
+                    // pass
+                }
+
+                try
+                {
+                    if (Array)
+                    {
+                        MethodInfo method = _arrConv.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToArray), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        return (method.Invoke(null, [arr]), arrType, generic);
+                    }
+                    else
+                    {
+                        MethodInfo method = _lstConv.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToList), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        return (method.Invoke(null, [arr]), arrType, generic);
+                    }
+                }
+                catch
+                {
+                    // pass
+                }
+
+                return (null, arrType, generic);
+            }
+            
+            // single
+            if (AnyArray) return (null, valueType, generic);
+            if (node is JsonObject obj)
+            {
+                return (obj, typeof(JsonObject), null);
+            }
+            else if (node is JsonValue val)
+            {
+                (object? value, Type? type) = val.ParseValueAndType();
+                if (value == null) return (null, valueType, generic);
+                if (generic != null)
+                {
+                    try
+                    {
+                        value = generic.TryConvert(value, out var r) ? r : null;
+                        return (value, generic, generic);
+                    }
+                    catch
+                    {
+                        return (null, valueType, generic);
+                    }
+                }
+                return (value, type, type);
+            }
+        }
+        else if (valueType != null)
+        {
+            // list JsonArray for IList
+            if (valueType.IsInstanceOfType(node)) return (node, valueType, null);
+
+            // not generic
+            try
+            {
+                return (node.FromJson(valueType), valueType, null);
+            }
+            catch
+            {
+                // pass
+            }
+        }
+
+        return (null, valueType, generic);
+    }
+    
+    static IEnumerable<T?> ConvertToEnumerable<T>(JsonArray arr)
+    {
+        return arr.Select(a => a.TryConvertTo<T>(out var r) ? r : default(T?));
+    }
+
+    static T?[] ConvertToArray<T>(JsonArray arr) => ConvertToEnumerable<T>(arr).ToArray();
+
+    static List<T?> ConvertToList<T>(JsonArray arr)=> ConvertToEnumerable<T>(arr).ToList();
+
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _arrConv = [];
+    private static readonly ConcurrentDictionary<Type, MethodInfo> _lstConv = [];
     
     #endregion
 }
@@ -220,6 +360,6 @@ internal static class TypeInfoExtensions
     /// </summary>
     /// <param name="input"></param>
     /// <returns></returns>
-    internal static TypeDetails? GetNodeTypeDetails(this NodeType input)
-        => new TypeDetails { Type = input.ToCsharpType() };
+    internal static TypeDetails GetNodeTypeDetails(this NodeType input)
+        => new TypeDetails { Type = input.GetCsharpType() ?? typeof(object) };
 }

@@ -41,6 +41,9 @@ public sealed class StructType: ValueType
     #region Implementations
 
     /// <inheritdoc />
+    public override Type? GetCsharpType() => base.GetCsharpType() ?? typeof(StructNode);
+
+    /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
         // reset

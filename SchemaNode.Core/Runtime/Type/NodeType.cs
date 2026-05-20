@@ -8,7 +8,6 @@ using SchemaNode.Property.Function;
 using SchemaNode.Property.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using System.Collections.Immutable;
 
 namespace SchemaNode.Runtime;
 
@@ -41,7 +40,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The schema node error code
     /// </summary>
-    public string? Error { get; protected set; }
+    public string? Error { get; internal set; }
     
     /// <summary>
     /// The scheme provider used to load the node
@@ -115,7 +114,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// Gets the csharp type
     /// </summary>
-    public virtual Type? ToCsharpType() => Schema?.Type;
+    public virtual Type? GetCsharpType() => Schema?.Type;
 
     #endregion
     
@@ -418,8 +417,7 @@ public abstract class ValueType : NodeType
         {
             // check compatibles, rare but important
             case FunctionType { Args.Length: 1, Converter: true } func 
-                when func.Args[0].NodeType == this && 
-                     func.ReturnNode != null && 
+                when func.Args[0].ValueType == this && 
                      !IsAssignableTo(func.ReturnNode) && 
                      func.GetProperty<Converter>() != null:
                 // Means this type can be converted to func.ReturnNode via func
@@ -438,11 +436,11 @@ public abstract class ValueType : NodeType
     /// </summary>
     public override void RemoveUsedBy<T>(T usedBy)
     {
-        if (usedBy is FunctionType { ReturnNode: not null } func 
+        if (usedBy is FunctionType func 
             && _isAssignableTo != null
-            && _isAssignableTo.TryGetValue(func.ReturnNode!, out var f) && f == func)
+            && _isAssignableTo.TryGetValue(func.ReturnNode, out var f) && f == func)
         {
-            _isAssignableTo.TryRemove(func.ReturnNode!, out _);
+            _isAssignableTo.TryRemove(func.ReturnNode, out _);
         }
 
         if (usedBy != null && usedBy.Equals(ArrayType)) ArrayType = null;
@@ -511,6 +509,16 @@ public abstract class ValueType : NodeType
     /// Generate the data node from the node type
     /// </summary>
     public abstract DataNode Create();
+
+    /// <summary>
+    /// Generate the data node with given value
+    /// </summary>
+    public DataNode From(object value)
+    {
+        var node = Create();
+        node.TrySetValue(value);
+        return node;
+    }
     
     #endregion
 

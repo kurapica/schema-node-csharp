@@ -1,12 +1,9 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Function;
-using SchemaNode.Node;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
+using ExpressionType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -39,7 +36,7 @@ public class ConstantAttribute(object value): System.Attribute
 /// <param name="Type">The break type</param>
 /// <param name="Cond">The condition</param>
 /// <param name="Value">The return value</param>
-public record BreakExp(BreakExpType Type, SchemaExp Cond, SchemaExp Value) : SchemaExp(Value.NodeType);
+public record BreakExp(BreakExpType Type, SchemaExp Cond, SchemaExp Value) : SchemaExp(Value.ValueType);
 
 /// <summary>
 /// The conditional expression
@@ -47,7 +44,7 @@ public record BreakExp(BreakExpType Type, SchemaExp Cond, SchemaExp Value) : Sch
 /// <param name="Condition">The condition</param>
 /// <param name="TrueExp">The true value</param>
 /// <param name="FalseExp">The false value</param>
-public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, NodeType NodeType) : SchemaExp(NodeType);
+public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// Represents a schema expression that evaluates to a constant value.
@@ -65,15 +62,15 @@ public record DefaultExp(SchemaExp Inner, Node.DataNode Default) : SchemaExp(Def
 /// <summary>
 /// The null expression
 /// </summary>
-public record NullExp(NodeType NodeType) : SchemaExp(NodeType);
+public record NullExp(ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The field access expression
 /// </summary>
 /// <param name="Owner">The field owner</param>
 /// <param name="FieldName">The field name</param>
-/// <param name="SchemaType">The schema type</param>
-public record FieldAccessExp(SchemaExp Owner, string FieldName, NodeType NodeType, ConstantExp? Default = null) : SchemaExp(NodeType);
+/// <param name="ValueType">The schema type</param>
+public record FieldAccessExp(SchemaExp Owner, string FieldName, ValueType ValueType, ConstantExp? Default = null) : SchemaExp(ValueType);
 
 #endregion
 
@@ -94,21 +91,21 @@ public class IntrinsicExpVisitor : IExpVisitor
         
         // Constant expression
         if (callExp.Function.MethodInfo.GetCustomAttribute<ConstantAttribute>() is { } constAttr)
-            return new ConstantExp(callExp.NodeType.CreateNode(constAttr.Value)!);
+            return new ConstantExp(callExp.ValueType.From(constAttr.Value));
         
         switch (callExp.Function.Name)
         {
             // Assign expression
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}":
                 return callExp.Args.ElementAtOrDefault(0) 
-                       ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                       ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@default)}":
                 return new DefaultExp(callExp.Args[0],
                     (callExp.Args.ElementAtOrDefault(1) as ConstantExp
-                        ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs))
+                        ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS))
                     .Value);
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@null)}":
-                return new NullExp(callExp.NodeType);
+                return new NullExp(callExp.ValueType);
             
             // Break expressions
             case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.ifret)}":
@@ -124,31 +121,31 @@ public class IntrinsicExpVisitor : IExpVisitor
             case $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.cond)}":
             {
                 if (callExp.Args.Length != 3 || 
-                    !(callExp.Args[0].NodeType is ScalarType { IsBool: true }) ||
-                    !callExp.Args[1].NodeType.CanBeUseAs(exp.NodeType) ||
-                    !callExp.Args[2].NodeType.CanBeUseAs(exp.NodeType))
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-                return new ConditionalExp(callExp.Args[0], callExp.Args[1], callExp.Args[2], exp.NodeType);
+                    !(callExp.Args[0].ValueType is BoolType) ||
+                    !callExp.Args[1].ValueType.IsAssignableTo(exp.ValueType) ||
+                    !callExp.Args[2].ValueType.IsAssignableTo(exp.ValueType))
+                    throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+                return new ConditionalExp(callExp.Args[0], callExp.Args[1], callExp.Args[2], exp.ValueType);
             }
 
             // a[b] ?? defaultValue
             case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
             {
                 if (callExp.Args.Length < 2 || 
-                    (callExp.Args[1] as ConstantExp)?.Value.ToValue<string>() is not { } fieldName || 
+                    (callExp.Args[1] as ConstantExp)?.Value.GetValue<string>() is not { } fieldName || 
                     string.IsNullOrEmpty(fieldName))
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                    throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
                 if (callExp.Args.Length == 3)
                 {
                     if (callExp.Args[2] is not ConstantExp defaultValueExp || 
                         defaultValueExp.Value.IsEmpty || 
-                        !defaultValueExp.NodeType.CanBeUseAs(exp.NodeType))
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-                    return new FieldAccessExp(callExp.Args[0], fieldName, callExp.NodeType, defaultValueExp);
+                        !defaultValueExp.ValueType.IsAssignableTo(exp.ValueType))
+                        throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+                    return new FieldAccessExp(callExp.Args[0], fieldName, callExp.ValueType, defaultValueExp);
                 }
 
-                return new FieldAccessExp(callExp.Args[0], fieldName, callExp.NodeType);
+                return new FieldAccessExp(callExp.Args[0], fieldName, callExp.ValueType);
             }         
         }
         return null;
@@ -199,7 +196,7 @@ public class IntrinsicExpVisitor : IExpVisitor
                 if (constExp.Value.IsEmpty && !expectedType.IsNullable())
                     return Expression.Default(expectedType);
                 
-                return Expression.Constant(constExp.Value.Value, expectedType);
+                return Expression.Constant(constExp.Value.GetValue(expectedType), expectedType);
             }
             
             // a ? b : c
@@ -213,9 +210,9 @@ public class IntrinsicExpVisitor : IExpVisitor
             {
                 if (defaultExp.Inner is LogicExp) return await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
                 var inner = await context.CompileSchemaExpAsync(defaultExp.Inner, expectedType);
-                return inner.Type.IsNullable() ? Expression.Coalesce(inner,
-                    Expression.Constant(expectedType.TryConvert(defaultExp.Default), expectedType))
-                        : inner;
+                return inner.Type.IsNullable() 
+                    ? Expression.Coalesce(inner, Expression.Constant(defaultExp.Default.GetValue(expectedType), expectedType))
+                    : inner;
             }
             
             // null
@@ -228,13 +225,13 @@ public class IntrinsicExpVisitor : IExpVisitor
                 return fldAccess.Default != null
                     ? await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExp(SchemaContext.SystemString.CreateNode(fldAccess.FieldName)!), fldAccess.Default],
-                        fldAccess.NodeType
+                        [fldAccess.Owner, new ConstantExp(context.System.String.From(fldAccess.FieldName)), fldAccess.Default],
+                        fldAccess.ValueType
                     ), expectedType)
                     : await context.CompileSchemaExpAsync(new FuncCallExp(
                         (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExp(SchemaContext.SystemString.CreateNode(fldAccess.FieldName)!)],
-                        fldAccess.NodeType
+                        [fldAccess.Owner, new ConstantExp(context.System.String.From(fldAccess.FieldName))],
+                        fldAccess.ValueType
                     ), expectedType);
             }
         }

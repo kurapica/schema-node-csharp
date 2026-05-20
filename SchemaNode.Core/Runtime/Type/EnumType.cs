@@ -42,7 +42,16 @@ public sealed class EnumType: ValueType
     /// The enum value type
     /// </summary>
     public EnumValueType Type => _enumSchema?.Type ?? EnumValueType.String;
-    
+
+    /// <inheritdoc/>
+    public override Type? GetCsharpType() => base.GetCsharpType() ?? Type switch
+    {
+        EnumValueType.String => typeof(string),
+        EnumValueType.Int => typeof(long),
+        EnumValueType.Flags => typeof(long),
+        _ => null
+    };
+
     #endregion
     
     #region Method

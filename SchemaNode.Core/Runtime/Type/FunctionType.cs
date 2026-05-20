@@ -5,6 +5,7 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json.Nodes;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Service;
 using ExpType = SchemaNode.Enum.ExpType;
@@ -78,13 +79,13 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// Whether the function has the specific flags, like NoCache and etc
     /// </summary>
-    public bool? HasFlags<T>() where T : Property<bool>
+    public bool? HasFlag<T>() where T : Property<bool>
     {
         var prop = GetProperty<T>();
         if (prop != null) return prop.Value;
 
         foreach (FunctionNodeExpression exp in Exps)
-            if (exp.FuncNode?.HasFlags<T>() is { } flags)
+            if (exp.FuncNode?.HasFlag<T>() is { } flags)
                 return flags;
 
         return null;
@@ -130,11 +131,11 @@ public sealed class FunctionType : NodeType
         // Argument types
         foreach (FunctionNodeArgument arg in Args)
         {
-            arg.NodeType = !string.IsNullOrWhiteSpace(arg.Type) 
+            arg.ValueType = !string.IsNullOrWhiteSpace(arg.Type) 
                 ? await context.GetNodeTypeAsync<ValueType>(arg.Type, Generics)
                 : null;
 
-            if (arg.NodeType == null || arg.NodeType is GenericType && !IsSystemCall)
+            if (arg.ValueType == null || arg.ValueType is GenericType && !IsSystemCall)
             {
                 Error ??= ErrorCodes.FUNC_ARG_WRONG_TYPE;
                 return;
@@ -165,19 +166,19 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
-        if (ReturnNode != null && ReturnNode is not GenericType)
+        if (ReturnNode is not GenericType)
             yield return ReturnNode;
 
         foreach (FunctionNodeArgument arg in Args)
         {
-            if (arg.NodeType != null && arg.NodeType is not GenericType)
-                yield return arg.NodeType;
+            if (arg.ValueType != null && arg.ValueType is not GenericType)
+                yield return arg.ValueType;
         }
 
         foreach (FunctionNodeExpression exp in Exps)
         {
-            if (exp.NodeType != null && exp.NodeType is not GenericType)
-                yield return exp.NodeType;
+            if (exp.ValueType != null && exp.ValueType is not GenericType)
+                yield return exp.ValueType;
 
             if (exp.FuncNode != null)
                 yield return exp.FuncNode;
@@ -282,8 +283,6 @@ public sealed class FunctionType : NodeType
         try
         {
             Error = null;
-            
-            // Try build the function and validate
             return await context.VisitFunctionTypeAsync(this);
         }
         catch(FunctionVisitException fex)
@@ -316,7 +315,7 @@ public sealed class FunctionType : NodeType
     internal async Task<SchemaFuncInfo?> GetSchemaFuncInfoAsync(SchemaContext context)
     {
         if (FuncInfo != null) return FuncInfo.Method != null ? FuncInfo : null;
-                
+        
         // Only full-filled function can be complied
         if (Error != null) throw new Exception($"The {Name} can't be compiled because of {Error}");
 
@@ -327,17 +326,17 @@ public sealed class FunctionType : NodeType
             Sign = FunctionFlags.Context, // always use context for dynamic func
             Args = Args.Select(a =>
             {
-                var info = a.NodeType.GetNodeTypeDetails();
-                if (a.Nullable ?? false) info.Kind |= ParameterTypeKind.Nullable;
+                TypeDetails info = a.ValueType!.GetNodeTypeDetails();
+                if (a.Nullable ?? false) info.Kind |= TypeDetails.ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
-            Return = ReturnNode!.GetSchemaTypeInfo()!
+            Return = ReturnNode.GetNodeTypeDetails()
         };
 
         // Remote call, no dynamic function required
         if (IsRemoteCall)
         {
-            funcInfo.Sign |= FUNC_SIGN_CONTEXT | FUNC_SIGN_REMOTE_CALL | FUNC_SIGN_ASYNC;
+            funcInfo.Sign |= FunctionFlags.Remote | FunctionFlags.Async;
             return funcInfo;
         }
         
@@ -364,7 +363,7 @@ public sealed class FunctionType : NodeType
         
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
-        Type? GetArgType(SchemaParamTypeInfo arg, Type? maybeType = null)
+        Type? GetArgType(TypeDetails arg, Type? maybeType = null)
         {
             if (arg.Generic == null) return arg.Type;
             int idx = Array.FindIndex(funcInfo.Generics, f => f.Generic == arg.Generic);
@@ -377,7 +376,7 @@ public sealed class FunctionType : NodeType
         if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.Generic != null)
         {
             var rSchemaType = await context.GetNodeTypeAsync(rType);
-            Type? rCsharpType = rSchemaType?.ToCSharpType();
+            Type? rCsharpType = rSchemaType?.GetCsharpType();
             if (rCsharpType != null) GetArgType(funcInfo.Return, rCsharpType);
         }
         
@@ -385,14 +384,15 @@ public sealed class FunctionType : NodeType
         object?[] callArgs = new object[funcInfo.Args.Length];
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
-            SchemaParamTypeInfo arg = funcInfo.Args[i];
+            TypeDetails arg = funcInfo.Args[i];
+            FunctionNodeArgument argInfo = Args[i];
 
             // non params
             if (!arg.Params)
             {
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                Node.DataNode? argNode = argObj as Node.DataNode;
+                DataNode? argNode = argObj as DataNode;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -402,7 +402,7 @@ public sealed class FunctionType : NodeType
                 }
 
                 // Parse argument
-                var eleType = GetArgType(arg, argNode?.Type.ToCSharpType() ?? (argJson == null ? argObj.GetType() : null));
+                var eleType = GetArgType(arg, argNode?.Type.GetCsharpType() ?? (argJson == null ? argObj.GetType() : null));
 
                 // JsonNode
                 if (argJson != null)
@@ -410,31 +410,34 @@ public sealed class FunctionType : NodeType
                     (object? o, Type? _, Type? gen) = arg.ParseValue(argJson, eleType);
                     callArgs[i] = o ?? throw new Exception($"The {i + 1} argument must be provided and valid");
                     if (eleType == null)
-                        GetArgType(arg, gen ?? o.GetType());
-                    else if (eleType.IsAssignableTo(typeof(Node.DataNode)))
                     {
-                        GetArgType(arg, typeof(Node.DataNode));
-                        NodeType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType)
-                            ? await context.GetNodeTypeAsync(arg.SchemaType)
-                            : null;
-
-                        callArgs[i] = schemaType?.CreateNode(argJson)
-                            ?? await context.GetSchemaNodeAsync(o)
-                            ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                        GetArgType(arg, gen ?? o.GetType());
+                    }
+                    else if (eleType.IsAssignableTo(typeof(DataNode)))
+                    {
+                        GetArgType(arg, eleType);
+                        if (argInfo.ValueType != null && argInfo.ValueType is not GenericType)
+                        {
+                            DataNode node = argInfo.ValueType.Create();
+                            if (!node.TrySetValue(argJson)) throw new Exception($"The {i + 1} argument must be provided and valid");
+                            callArgs[i] = node;
+                        }
+                        else
+                            throw new Exception($"Can't solve the {i + 1} argument type");
                     }
                 }
-                // AnySchemaNode
+                // DataNode
                 else if (argNode != null)
                 {
-                    if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
+                    if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
                         callArgs[i] = argNode;
                     else
-                        callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                        callArgs[i] = eleType != null && argNode.TryGetValue(eleType, out var r) ? r : throw new Exception($"The {i + 1} argument must be provided and valid");
                 }
                 // object
                 else
                 {
-                    callArgs[i] = eleType?.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    callArgs[i] = eleType != null && eleType.TryConvert(argObj, out var r) ? r : throw new Exception($"The {i + 1} argument must be provided and valid");
                 }
             }
 
@@ -442,14 +445,14 @@ public sealed class FunctionType : NodeType
             else
             {
                 Type? eleType = GetArgType(arg);
-                NodeType? schemaType = !string.IsNullOrWhiteSpace(arg.SchemaType) ? await context.GetNodeTypeAsync(arg.SchemaType) : null;
+                ValueType? schemaType = argInfo.ValueType;
                 Array? array = eleType != null ? Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, args.Length - funcInfo.Args.Length + 1)) : null;
                 int count = 0;
                 for (int j = funcInfo.Args.Length - 1; j < Math.Max(args.Length, funcInfo.Args.Length); j++)
                 {
                     object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
-                    Node.DataNode? argNode = argObj as Node.DataNode;
+                    DataNode? argNode = argObj as DataNode;
 
                     if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true }) continue;
 
@@ -460,29 +463,34 @@ public sealed class FunctionType : NodeType
                         argObj = o ?? throw new Exception($"The {j + 1} argument not valid");
                         eleType ??= GetArgType(arg, gen ?? o.GetType());
 
-                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
                         {
-
-                            argObj = schemaType?.CreateNode(argJson) ?? await context.GetSchemaNodeAsync(o)
-                                ?? throw new Exception($"The {j + 1} argument not valid");
+                            if (schemaType != null && schemaType is not GenericType)
+                            {
+                                var node = schemaType.Create();
+                                if (!node.TrySetValue(argJson)) throw new Exception($"The {j + 1} argument not valid");
+                                argObj = node;
+                            }
+                            else
+                                throw new Exception($"Can't solve the {j + 1} argument type");
                         }
                     }
                     // AnySchemaNode
                     else if (argNode != null)
                     {
-                        if (eleType != null && eleType.IsAssignableTo(typeof(Node.DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
                             argObj = argNode;
                         else
                         {
-                            eleType ??= GetArgType(arg, argNode.Type.ToCSharpType());
-                            argObj = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {j + 1} argument not valid");
+                            eleType ??= GetArgType(arg, argNode.Type.GetCsharpType());
+                            argObj = argNode.TryGetValue(eleType!, out var r) ? r : throw new Exception($"The {j + 1} argument not valid");
                         }
                     }
                     // object
                     else
                     {
                         eleType ??= GetArgType(arg, argObj.GetType());
-                        argObj = eleType!.TryConvert(argObj) ?? throw new Exception($"The {j + 1} argument not valid");
+                        argObj = eleType!.TryConvert(argObj, out var r) ? r : throw new Exception($"The {j + 1} argument not valid");
                     }
 
                     if (eleType == null) throw new Exception($"The {j + 1} argument not valid");
@@ -495,14 +503,14 @@ public sealed class FunctionType : NodeType
             }
         }
         
-        if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
+        if ((funcInfo.Sign & FunctionFlags.Context) > 0)
             callArgs = callArgs.Prepend(context).ToArray();
         
         // Call the method
         MethodInfo callMethod = funcInfo.Method!;
 
         // Gets the generic method instance
-        if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
+        if ((funcInfo.Sign & FunctionFlags.Generic) > 0)
         {
             for (int i = 0; i < generics.Length; i++) generics[i] ??= typeof(object);
             if (generics.Any(g => g is null)) throw new Exception("The generic types must be provided");
@@ -512,7 +520,7 @@ public sealed class FunctionType : NodeType
         }
 
         // Call the method
-        return (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
+        return (funcInfo.Sign & FunctionFlags.Async) > 0
             ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
             : callMethod.Invoke(null, callArgs);
     }
@@ -530,10 +538,10 @@ public sealed class FunctionType : NodeType
         {
             JsonArray cArgs = [];
             foreach (object? arg in args) 
-                cArgs.Add(arg is Node.DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
+                cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
-            result = Provider != null
-                ? await ((ISchemaProvider)context.GetRequiredService(Provider)).CallFunctionAsync(Name, cArgs, rType, target)
+            result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
+                ? await provider.CallFunctionAsync(Name, cArgs, rType, target)
                 : null;
         }
 
@@ -558,7 +566,7 @@ public sealed class FunctionType : NodeType
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                Node.DataNode? argNode = argObj as Node.DataNode;
+                DataNode? argNode = argObj as DataNode;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -568,30 +576,33 @@ public sealed class FunctionType : NodeType
                 }
 
                 // Parse argument
-                var eleType = arg.NodeType.ToCSharpType();
+                var eleType = arg.ValueType.GetCsharpType()!;
 
-                if (eleType.IsAssignableTo(typeof(Node.DataNode)))
+                if (eleType.IsAssignableTo(typeof(DataNode)))
                 {
-                    callArgs[i] = arg.NodeType.CreateNode(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    var node = arg.ValueType.Create();
+                    if (!node.TrySetValue(argObj))
+                        throw new Exception($"The {i + 1} argument must be provided and valid");
+                    callArgs[i] = node;
                 }
                 else
                 {
-                    // AnySchemaNode
+                    // DataNode
                     if (argNode != null)
                     {
-                        callArgs[i] = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                        callArgs[i] = argNode.TryGetValue(eleType, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
                     }
                 
                     // JsonNode | object
                     else if (argJson != null)
                     {
-                        callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                        callArgs[i] = eleType.TryConvert(argJson, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
                     }
                     
                     // other
                     else
                     {
-                        callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                        callArgs[i] = eleType.TryConvert(argObj, out var o) ? o : throw new Exception($"The {i + 1} argument must be provided and valid");
                     }
                 }
             }
@@ -616,28 +627,7 @@ public sealed class FunctionType : NodeType
         // Parse the return type
         if (result == null) return default(T);
         if (result is T r) return r;
-
-        // Convert the return type
-        Type retType = typeof(T);
-        if (retType.IsAssignableTo(typeof(JsonNode)))
-        {
-            result = result is Node.DataNode node ? node.ToJson() : result is JsonNode jn ? jn : result.ToJsonNode();
-            if (retType == typeof(JsonArray))
-                return (T)(object)(result as JsonArray ?? []);
-            else if (retType == typeof(JsonObject))
-                return (T)(object)(result as JsonObject ?? new JsonObject());
-            else if (retType == typeof(JsonValue))
-                return (T)(object)(result as JsonValue ?? JsonValue.Create((object?)null)!);
-            else
-                return (T)result!;
-        }
-        else if (retType.IsAssignableTo(typeof(Node.DataNode)))
-        {
-            return (T)(object)((ReturnNode != null 
-                ? await ReturnNode.ValidateValueAsync(context, result) 
-                : null) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
-        }
-        return (T?)typeof(T).TryConvert(result);
+        return result.TryConvertTo<T>(out var f) ? f : default(T?);
     }
 
     /// <summary>
@@ -682,7 +672,7 @@ internal abstract class FunctionNodeExpTree
     /// <summary>
     /// The type node
     /// </summary>
-    public NodeType? NodeType { get; set; }
+    public ValueType? ValueType { get; set; }
 }
 
 /// <summary>
@@ -730,11 +720,6 @@ internal class FunctionNodeArgument : FunctionNodeExpTree
     /// The status
     /// </summary>
     public string? Status { get; set; }
-    
-    /// <summary>
-    /// The index
-    /// </summary>
-    public int? Index { get; set; }
     
     #endregion
     
@@ -796,11 +781,6 @@ internal class FunctionNodeExpression : FunctionNodeExpTree
     /// The status
     /// </summary>
     public string? Status { get; set; }
-
-    /// <summary>
-    /// The index of the array used for Map/Reduce/First
-    /// </summary>
-    public int? ArrayIndex { get; set; }
 
     #endregion
 

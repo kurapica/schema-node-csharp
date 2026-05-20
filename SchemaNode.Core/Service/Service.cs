@@ -25,6 +25,9 @@ public static partial class SchemaNodeExtensions
     /// </summary>
     public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
     {
+        // system access
+        services.TryAddSingleton<SystemAccess>();
+        
         // Default run-time
         services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
         

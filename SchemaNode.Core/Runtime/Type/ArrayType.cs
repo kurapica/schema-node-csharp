@@ -39,6 +39,9 @@ public sealed class ArrayType: ValueType
     #region Method
 
     /// <inheritdoc />
+    public override Type? GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
+
+    /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
         ArraySchema? array = GetPropertyValue<ArraySchema>();

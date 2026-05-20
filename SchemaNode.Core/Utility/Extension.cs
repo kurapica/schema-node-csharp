@@ -64,14 +64,22 @@ internal static class Extension
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="value">The value.</param>
-    internal static string ToJson<T>(this T value) =>value is JsonNode json ? json.ToString() : JsonSerializer.Serialize(value, DefaultJsonOptions);
+    internal static string ToJson<T>(this T value)
+        => value is JsonNode json 
+            ? json.ToString() 
+            : value is DataNode node 
+                ? (node.TryGetValue(out JsonNode? jnode) 
+                    ? jnode!.ToString() 
+                    : "") 
+                : JsonSerializer.Serialize(value, DefaultJsonOptions);
 
     internal static JsonNode? ToJsonNode<T>(this T? value, bool noError = false)
     {
         try
         {
             if (value == null) return null;
-            if (typeof(T).IsAssignableTo(typeof(JsonNode))) return (JsonNode?)(object)value;
+            if (value is DataNode node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
+            if (value is JsonNode) return (JsonNode?)(object)value;
             return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
         }
         catch 

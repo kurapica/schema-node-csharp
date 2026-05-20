@@ -1,8 +1,8 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using SchemaNode.Enum;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
+using ExpressionType = SchemaNode.Enum.ExpType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -56,13 +56,12 @@ public class ArithmeticAttribute(ArithmeticType type) : System.Attribute
 /// <summary>
 /// The arithmetic expression
 /// </summary>
-public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, NodeType NodeType) : SchemaExp(NodeType);
+public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The transform arithmetic expression
 /// </summary>
-public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, NodeType NodeType) 
-    : ArithmeticExp(ArithmeticType.Transform, Args, NodeType);
+public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, ValueType ValueType) : ArithmeticExp(ArithmeticType.Transform, Args, ValueType);
 
 #endregion
 
@@ -84,8 +83,8 @@ public class ArithmeticExpVisitor : IExpVisitor
         
         return Task.FromResult<SchemaExp?>(
             attr.Type == ArithmeticType.Transform
-                ? new TransformArithmeticExp(callExp.Function.MethodInfo, callExp.Args, callExp.NodeType)
-                : new ArithmeticExp(attr.Type, callExp.Args, callExp.NodeType));
+                ? new TransformArithmeticExp(callExp.Function.MethodInfo, callExp.Args, callExp.ValueType)
+                : new ArithmeticExp(attr.Type, callExp.Args, callExp.ValueType));
     }
 
     // <inheritdoc/>
@@ -109,7 +108,7 @@ public class ArithmeticExpVisitor : IExpVisitor
                 argExps.Add(await context.CompileSchemaExpAsync(arg));
             }
         }
-        if (argExps.Count == 0) throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+        if (argExps.Count == 0) throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
         
         // Compile based on arithmetic type
         switch (arithmeticExp.Type)

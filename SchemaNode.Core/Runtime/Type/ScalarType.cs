@@ -48,7 +48,7 @@ public abstract class ScalarType : ValueType
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
     /// <inheritdoc />
-    public override Type? ToCsharpType() => base.ToCsharpType() ?? BaseNode?.ToCsharpType();
+    public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseNode?.GetCsharpType();
     
     /// <inheritdoc />
     protected override Task ValidateNodeAsync(SchemaContext context, DataNode node)

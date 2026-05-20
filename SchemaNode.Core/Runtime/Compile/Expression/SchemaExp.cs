@@ -1,5 +1,5 @@
 ﻿using System.Linq.Expressions;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
+using ExpressionType = SchemaNode.Enum.ExpType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The schema expression
 /// </summary>
-public abstract record SchemaExp(NodeType NodeType);
+public abstract record SchemaExp(ValueType ValueType);
 
 /// <summary>
 /// The expression visitor interface
@@ -36,35 +36,35 @@ public interface IExpVisitor
 /// </summary>
 /// <param name="Name"></param>
 /// <param name="Value"></param>
-public record VariableExp(string Name, SchemaExp Value) : SchemaExp(Value.NodeType);
+public record VariableExp(string Name, SchemaExp Value) : SchemaExp(Value.ValueType);
 
 /// <summary>
 /// Represents an argument expression with a specified name, index, and associated scheme type.
 /// </summary>
 /// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or eq to 0.</param>
-/// <param name="SchemaType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
-public record ArgumentExp(string Name, int Index, bool Nullable, NodeType NodeType) : SchemaExp(NodeType);
+/// <param name="ValueType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
+public record ArgumentExp(string Name, int Index, bool Nullable, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The params expression type
 /// </summary>
 /// <param name="Exps"></param>
-/// <param name="SchemaType"></param>
-public record ParamsExp(SchemaExp[] Exps, NodeType NodeType) : SchemaExp(NodeType);
+/// <param name="ValueType"></param>
+public record ParamsExp(SchemaExp[] Exps, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The struct field expression
 /// </summary>
 /// <param name="Name">The struct field name</param>
 /// <param name="Expression">The expression</param>
-public record StructFieldExp(string Name, SchemaExp Expression): SchemaExp(Expression.NodeType);
+public record StructFieldExp(string Name, SchemaExp Expression): SchemaExp(Expression.ValueType);
 
 /// <summary>
 /// The struct result expression
 /// </summary>
 /// <param name="Fields">The struct field members</param>
-/// <param name="SchemaType">The struct schema type</param>
-public record StructResultExp(StructFieldExp[] Fields, NodeType NodeType) : SchemaExp(NodeType);
+/// <param name="ValueType">The struct schema type</param>
+public record StructResultExp(StructFieldExp[] Fields, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// Represents a function call expression with a specified function, argument expressions, and result type within a
@@ -73,6 +73,6 @@ public record StructResultExp(StructFieldExp[] Fields, NodeType NodeType) : Sche
 /// <param name="Function">The function to be invoked by this expression.</param>
 /// <param name="Args">An array of expressions representing the arguments to pass to the function. The order of expressions corresponds to
 /// the function's parameter order.</param>
-/// <param name="SchemaType">The schema type that describes the result of the function call.</param>
+/// <param name="ValueType">The schema type that describes the result of the function call.</param>
 /// <param name="ExpType">The collection expression type</param>
-public record FuncCallExp(FunctionType Function, SchemaExp[] Args, NodeType NodeType, ExpressionType ExpType = ExpressionType.Call) : SchemaExp(NodeType);
+public record FuncCallExp(FunctionType Function, SchemaExp[] Args, ValueType ValueType, ExpressionType ExpType = ExpressionType.Call) : SchemaExp(ValueType);

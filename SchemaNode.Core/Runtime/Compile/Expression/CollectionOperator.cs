@@ -2,12 +2,9 @@
 using SchemaNode.Utility;
 using System.Collections;
 using System.Linq.Expressions;
-using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Function;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
+using ExpressionType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -16,101 +13,89 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The iterator expression represents an iteration over an array within a schema expression tree.
 /// </summary>
-public record CollectionRootExp(SchemaExp Collection, NodeType NodeType) : SchemaExp(NodeType);
+public record CollectionRootExp(SchemaExp Collection, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The loop argument exp used to replace the collection source in the function call
 /// </summary>
-public record CollectionItemExp(CollectionRootExp Root, NodeType NodeType) : SchemaExp(NodeType);
+public record CollectionItemExp(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection result expression
 /// </summary>
-public abstract record CollectionResult(CollectionRootExp Root, NodeType NodeType) : SchemaExp(NodeType);
+public abstract record CollectionResult(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection expression
 /// </summary>
-public abstract record CollectionOperator(CollectionRootExp Root, NodeType NodeType): CollectionRootExp(Root, NodeType);
+public abstract record CollectionOperator(CollectionRootExp Root, ValueType ValueType): CollectionRootExp(Root, ValueType);
 
 /// <summary>
 /// The predicate collection expression
 /// </summary>
-public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, NodeType NodeType)
-    : CollectionOperator(Root, NodeType);
+public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, ValueType ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// Order by collection expression
 /// </summary>
-public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, NodeType NodeType)
-    : CollectionOperator(Root, NodeType);
+public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, ValueType ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The take collection expression
 /// </summary>
-public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, NodeType NodeType)
-    : CollectionOperator(Root, NodeType);
+public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, ValueType ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The skip collection expression
 /// </summary>
-public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, NodeType NodeType)
-    : CollectionOperator(Root, NodeType);
+public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, ValueType ValueType) : CollectionOperator(Root, ValueType);
 
-public abstract record PredicateCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : CollectionResult(Root, NodeType);
+public abstract record PredicateCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The count collection expression
 /// </summary>
-public record CountCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : PredicateCollectionResult(Root, NodeType, Item, Predicate);
+public record CountCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The any collection expression
 /// </summary>
-public record AnyCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : PredicateCollectionResult(Root, NodeType, Item, Predicate);
+public record AnyCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The all collection expression
 /// </summary>
-public record AllCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : PredicateCollectionResult(Root, NodeType, Item, Predicate);
+public record AllCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The first collection expression
 /// </summary>
-public record FirstCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : PredicateCollectionResult(Root, NodeType, Item, Predicate);
+public record FirstCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The last collection expression
 /// </summary>
-public record LastCollectionResult(CollectionRootExp Root, NodeType NodeType, CollectionItemExp? Item = null, SchemaExp? Predicate = null)
-    : PredicateCollectionResult(Root, NodeType, Item, Predicate);
+public record LastCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The fields collection expression
 /// </summary>
-public record FieldsCollectionResult(CollectionRootExp Root, string Field, NodeType NodeType): CollectionResult(Root, NodeType);
+public record FieldsCollectionResult(CollectionRootExp Root, string Field, ValueType ValueType): CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The reduce sum argument expression to be used as the accumulator in reduce expression
 /// </summary>
-public record ReduceSumExp(SchemaExp Init, NodeType NodeType) : SchemaExp(NodeType);
+public record ReduceSumExp(SchemaExp Init, ValueType ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The reduce collection expression
 /// </summary>
-public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, NodeType NodeType)
-    : CollectionResult(Root, NodeType);
+public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The map collection expression
 /// </summary>
-public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, NodeType NodeType)
-    : CollectionResult(Root, NodeType);
+public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
 
 #endregion
 
@@ -138,43 +123,43 @@ public class CollectionExpVisitor : IExpVisitor
                 // getFields(source)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}":
                 {
-                    string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                    if (string.IsNullOrEmpty(fieldName) || sourceExp.NodeType is not ArrayType { Element: StructType structType })
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                    string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.GetValue<string>() ?? "" : "";
+                    if (string.IsNullOrEmpty(fieldName) || sourceExp.ValueType is not ArrayType { Element: StructType structType })
+                        throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                     NodeType type = structType;
                     string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                     foreach (string path in paths)
                     {
-                        StructFieldSchema field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-                        type = field.SchemaType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                        var field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+                        type = field.Type ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                     }
                     
-                    return new FieldsCollectionResult(sourceExp, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                    return new FieldsCollectionResult(sourceExp, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS));
                 }
             
                 // source.length
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.length)}":
-                    return new CountCollectionResult(sourceExp, SchemaContext.SystemInt);
+                    return new CountCollectionResult(sourceExp, context.System.Int);
             
                 // source.OrderBy(field, desc)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}":
                 {
-                    string orderField = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                    bool descending = funcExp.Args.ElementAtOrDefault(2) is ConstantExp descExp && descExp.Value.ToValue<bool>();
+                    string orderField = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.GetValue<string>() ?? "" : "";
+                    bool descending = funcExp.Args.ElementAtOrDefault(2) is ConstantExp descExp && descExp.Value.GetValue<bool>();
 
-                    if (string.IsNullOrEmpty(orderField) || sourceExp.NodeType is not ArrayType { Element: StructType structType } || structType.GetField(orderField) == null)
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                    if (string.IsNullOrEmpty(orderField) || sourceExp.ValueType is not ArrayType { Element: StructType structType } || structType.GetField(orderField) == null)
+                        throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                 
-                    return new OrderByCollectionOperator(sourceExp, orderField, descending, sourceExp.NodeType);
+                    return new OrderByCollectionOperator(sourceExp, orderField, descending, sourceExp.ValueType);
                 }
             
                 // source.skip(n)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.skip)}":
-                    return new SkipCollectionOperator(sourceExp, funcExp.Args.ElementAtOrDefault(1)!, sourceExp.NodeType);
+                    return new SkipCollectionOperator(sourceExp, funcExp.Args.ElementAtOrDefault(1)!, sourceExp.ValueType);
             
                 // source.take(n)
                 case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.take)}":
-                    return new TakeCollectionOperator(sourceExp, funcExp.Args.ElementAtOrDefault(1)!, sourceExp.NodeType);
+                    return new TakeCollectionOperator(sourceExp, funcExp.Args.ElementAtOrDefault(1)!, sourceExp.ValueType);
                 
                 default:
                     return null;
@@ -183,10 +168,10 @@ public class CollectionExpVisitor : IExpVisitor
         
         // For non-call expression
         SchemaExp iterArg = funcExp.Args.FirstOrDefault(a => a is CollectionItemExp or FieldAccessExp{ Owner: CollectionItemExp})
-            ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+            ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
         
         CollectionItemExp item = iterArg is CollectionItemExp it ? it : (iterArg as FieldAccessExp)!.Owner as CollectionItemExp
-            ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+            ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
         CollectionRootExp source = item.Root;
 
@@ -200,30 +185,30 @@ public class CollectionExpVisitor : IExpVisitor
                         new FuncCallExp(funcExp.Function, funcExp.Args.Select(a => a switch
                         {
                             CollectionItemExp => pre.Item,
-                            FieldAccessExp { Owner: CollectionItemExp } fldAcc => new FieldAccessExp(pre.Item, fldAcc.FieldName, fldAcc.NodeType),
+                            FieldAccessExp { Owner: CollectionItemExp } fldAcc => new FieldAccessExp(pre.Item, fldAcc.FieldName, fldAcc.ValueType),
                             _ => a
-                        }).ToArray(), pre.Predicate.NodeType)), pre.Predicate.NodeType),
-                    funcExp.NodeType);
+                        }).ToArray(), pre.Predicate.ValueType)), pre.Predicate.ValueType),
+                    funcExp.ValueType);
             
             // Default filter
             case ExpressionType.Filter:
                 return new PredicateCollectionOperator(source, item,
-                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, SchemaContext.SystemBool)), 
-                    funcExp.NodeType); 
+                    await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, context.System.Bool)), 
+                    funcExp.ValueType); 
             
             // Reduce the collection source
             case ExpressionType.Reduce:
             {
                 ReduceSumExp sumExp = new ReduceSumExp(funcExp.Args.FirstOrDefault(a => a != iterArg) 
-                                                       ?? new NullExp(funcExp.NodeType), funcExp.NodeType);
+                                                       ?? new NullExp(funcExp.ValueType), funcExp.ValueType);
                 return new ReduceCollectionResult(source, item, sumExp,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args.Select(a => a == iterArg ? iterArg : sumExp).ToArray(),
-                        funcExp.NodeType
+                        funcExp.ValueType
                     )),
-                    funcExp.NodeType
+                    funcExp.ValueType
                 );
             }
             
@@ -233,18 +218,18 @@ public class CollectionExpVisitor : IExpVisitor
                     // getField(source, field), cover the case to FieldsDataSourceExpression
                     case $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}":
                     {
-                        string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.ToValue<string>() ?? "" : "";
-                        if (string.IsNullOrEmpty(fieldName) || source.NodeType is not ArrayType { Element: StructType structType })
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                        string fieldName = funcExp.Args.ElementAtOrDefault(1) is ConstantExp fieldExp ? fieldExp.Value.GetValue<string>() ?? "" : "";
+                        if (string.IsNullOrEmpty(fieldName) || source.ValueType is not ArrayType { Element: StructType structType })
+                            throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                         NodeType type = structType;
                         string[] paths = fieldName.Split('.', StringSplitOptions.RemoveEmptyEntries);
                         foreach (string path in paths)
                         {
-                            StructFieldSchema field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
-                            type = field.SchemaType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                            var field = (type as StructType)?.GetField(path) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
+                            type = field.Type ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                         }
                     
-                        return new FieldsCollectionResult(source, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                        return new FieldsCollectionResult(source, fieldName, context.GetArrayType(type) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS));
                     }
 
                     // assign
@@ -252,7 +237,7 @@ public class CollectionExpVisitor : IExpVisitor
                     case $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.@default)}":
                     {
                         if (iterArg is FieldAccessExp fieldExp)
-                            return new FieldsCollectionResult(source, fieldExp.FieldName, context.GetArrayType(fieldExp.NodeType) ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+                            return new FieldsCollectionResult(source, fieldExp.FieldName, context.GetArrayType(fieldExp.ValueType) ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS));
                         break;
                     }
                 }
@@ -262,55 +247,55 @@ public class CollectionExpVisitor : IExpVisitor
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        (funcExp.NodeType as ArrayType)!.Element!
+                        (funcExp.ValueType as ArrayType)!.Element!
                     )),
-                    funcExp.NodeType
+                    funcExp.ValueType
                 );
             
             case ExpressionType.First:
-                return new FirstCollectionResult(source, funcExp.NodeType, item,
+                return new FirstCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        SchemaContext.SystemBool
+                        context.System.Bool
                     )) as LogicExp
                 );
             
             case ExpressionType.Last:
-                return new LastCollectionResult(source, funcExp.NodeType, item,
+                return new LastCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        SchemaContext.SystemBool
+                        context.System.Bool
                     )) as LogicExp
                 );
             case ExpressionType.Count:
-                return new CountCollectionResult(source, funcExp.NodeType, item,
+                return new CountCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        SchemaContext.SystemBool
+                        context.System.Bool
                     )) as LogicExp
                 );
             case ExpressionType.All:
-                return new AllCollectionResult(source, funcExp.NodeType, item,
+                return new AllCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        SchemaContext.SystemBool
+                        context.System.Bool
                     )) as LogicExp
                 );
             case ExpressionType.Any:
-                return new AnyCollectionResult(source, funcExp.NodeType, item,
+                return new AnyCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
                         funcExp.Function,
                         funcExp.Args,
-                        SchemaContext.SystemBool
+                        context.System.Bool
                     )) as LogicExp
                 );
             default:
@@ -336,16 +321,16 @@ public class CollectionExpVisitor : IExpVisitor
                     (await context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.orderby)}"))!,
                     [
                         orderBy.Root,
-                        new ConstantExp(SchemaContext.SystemString.CreateNode(orderBy.OrderField)!),
-                        new ConstantExp(SchemaContext.SystemBool.CreateNode(orderBy.Descending)!)
+                        new ConstantExp(context.System.String.From(orderBy.OrderField)),
+                        new ConstantExp(context.System.Bool.From(orderBy.Descending))
                     ],
-                    exp.NodeType));
+                    exp.ValueType));
             
             }
         
         // Others will be compiled here
         Expression sourceExp = await context.CompileSchemaExpAsync((exp as CollectionOperator)?.Root ?? (exp as CollectionResult)?.Root
-            ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs));
+            ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS));
         
         // Prepare loop variables
         ParameterExpression start = Expression.Variable(typeof(int), "_start");
@@ -369,7 +354,7 @@ public class CollectionExpVisitor : IExpVisitor
             iterator = Expression.MakeIndex(arrExp, arrExp.Type.GetProperty("Item", [typeof(int)])!, [indexExp]);
         }
 
-        Type expReturnType = exp.NodeType.ToCSharpType();
+        Type expReturnType = exp.ValueType.GetCsharpType() ?? throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
         // Handle different collection expression types
         switch (exp)
@@ -389,7 +374,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop, curr],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.NodeType),
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
                             Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -422,7 +407,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.NodeType),
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
                             Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -453,7 +438,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.NodeType),
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
                             Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, takeCount),
@@ -707,14 +692,14 @@ public class CollectionExpVisitor : IExpVisitor
             case FieldsCollectionResult fieldsExp:
             {
                 // Create a synthetic item placeholder for the current element
-                NodeType elementType = (fieldsExp.Root.NodeType as ArrayType)!.Element!;
+                var elementType = (fieldsExp.Root.ValueType as ArrayType)!.Element!;
                 CollectionItemExp syntheticItem = new CollectionItemExp(fieldsExp.Root, elementType);
 
                 // Map the synthetic item to the actual iterator
                 context.SetCompiledExpression(syntheticItem, iterator);
 
                 // Compile getfield(item, fieldName) for each element
-                NodeType fieldType = (fieldsExp.NodeType as ArrayType)!.Element!;
+                var fieldType = (fieldsExp.ValueType as ArrayType)!.Element!;
                 Expression callMethod = await context.CompileSchemaExpAsync(new FieldAccessExp(syntheticItem, fieldsExp.Field, fieldType));
 
                 // Generate result expression
@@ -724,7 +709,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.NodeType),
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
                             Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -769,7 +754,7 @@ public class CollectionExpVisitor : IExpVisitor
                     [arrExp, resultExp, start, stop],
                     Expression.Assign(arrExp, sourceExp),
                     Expression.Assign(resultExp, resultExp.Type == typeof(ArrayNode)
-                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.NodeType),
+                        ? Expression.New(resultExp.Type.GetConstructors()[0], Expression.Constant(exp.ValueType),
                             Expression.Constant(null))
                         : Expression.New(resultExp.Type)),
                     Expression.Assign(start, Expression.Constant(0, typeof(int))),
@@ -810,7 +795,7 @@ public class CollectionExpVisitor : IExpVisitor
     public static void AddIfNotEmpty(IList result, object? item)
     {
         if (item == null) return;
-        if (item is Node.DataNode { IsEmpty: true }) return;
+        if (item is DataNode { IsEmpty: true }) return;
         result.Add(item);
     }
 
@@ -823,7 +808,7 @@ public class CollectionExpVisitor : IExpVisitor
         foreach (var item in items)
         {
             if (item == null) continue;
-            if (item is Node.DataNode { IsEmpty: true }) continue;
+            if (item is DataNode { IsEmpty: true }) continue;
             result.Add(item);
         }
     }
