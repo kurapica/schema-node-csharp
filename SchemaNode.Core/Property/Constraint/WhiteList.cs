@@ -9,9 +9,26 @@ namespace SchemaNode.Property.Constraint;
 
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(EnumType), typeof(StringType), typeof(IntType))]
-public class WhiteList : Property<string[]>, IConstraintProperty
+public class WhiteList : Property<object[]>, IConstraintProperty
 {
-    public virtual bool? Validate(SchemaContext context, DataNode node)
+    /// <inheritdoc/>
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    {
+        if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
+        var accessList = await (node.Type as Runtime.EnumType)!.LoadEnumAccessListAsync(context, node.GetValue<string>()!);
+        if (accessList == null) return null;
+        return accessList.Any(a => Value.Any(v => v.Equals(a.Value)));
+    }
+
+    /// <inheritdoc/>
+    public bool? ValidateInt(SchemaContext context, IntNode node)
+    {
+        if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
+        return Value.Any(v => v.Equals(node.GetValue<string>()));
+    }
+
+    /// <inheritdoc/>
+    public bool? ValidateString(SchemaContext context, StringNode node)
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
         return Value.Any(v => v.Equals(node.GetValue<string>()));
