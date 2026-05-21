@@ -40,7 +40,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The schema node error code
     /// </summary>
-    public string? Error { get; internal set; }
+    public string? Error { get; set; }
     
     /// <summary>
     /// The scheme provider used to load the node
