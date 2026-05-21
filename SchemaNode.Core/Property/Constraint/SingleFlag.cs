@@ -12,6 +12,8 @@ namespace SchemaNode.Property.Constraint;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForSchema>(typeof(EnumType))]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(SingleFlag)}")]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node)

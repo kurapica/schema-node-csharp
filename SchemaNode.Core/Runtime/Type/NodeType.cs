@@ -164,7 +164,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
                     foreach (var t in prop.ForTypes)
                     {
                         ValueType? matchType = await context.GetNodeTypeAsync<ValueType>(t);
-                        if (matchType != null && valType.IsAssignableTo(matchType))
+                        if (matchType != null && valType.Kind == matchType?.Kind && valType.IsAssignableTo(matchType))
                         {
                             matched = true;
                             break;

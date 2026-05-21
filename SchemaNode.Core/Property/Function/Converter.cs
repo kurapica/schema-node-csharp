@@ -9,4 +9,6 @@ namespace SchemaNode.Property.Function;
 /// </summary>
 [Meta<Default>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Converter)}")]
 public sealed class Converter : Property<bool>;

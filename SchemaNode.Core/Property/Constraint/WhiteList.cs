@@ -9,6 +9,8 @@ namespace SchemaNode.Property.Constraint;
 
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(EnumType), typeof(StringType), typeof(IntType))]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(WhiteList)}")]
 public class WhiteList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>
@@ -16,7 +18,6 @@ public class WhiteList : Property<object[]>, IConstraintProperty
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
         var accessList = await (node.Type as Runtime.EnumType)!.LoadEnumAccessListAsync(context, node.GetValue<string>()!);
-        if (accessList == null) return null;
         return accessList.Any(a => Value.Any(v => v.Equals(a.Value)));
     }
 

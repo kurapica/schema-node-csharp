@@ -10,6 +10,8 @@ namespace SchemaNode.Property.Presentation;
 /// </summary>
 [Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Combines)}")]
 public class Combines : Property<DataCombine[]>;
 
 /// <summary>

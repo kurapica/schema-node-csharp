@@ -12,6 +12,8 @@ namespace SchemaNode.Property.Constraint;
 /// Only allow leaf level enum values to be selected.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(LeafOnly)}")]
 public class LeafOnly : Property<bool>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
