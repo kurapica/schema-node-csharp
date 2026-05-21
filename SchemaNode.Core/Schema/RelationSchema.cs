@@ -213,7 +213,7 @@ public static class RelationExtension
     {
         foreach (Type propType in context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_RELATION))
         {
-            if (relation.Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!relation.Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
             IProperty? prop = relation.GetProperty(propType);
             if (prop is not { HasValue: true }) continue;
             if (prop.GetValue<IRelationProcess>(true) is {}  process)return process;

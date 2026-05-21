@@ -32,7 +32,7 @@ public static class ErrorCodes
     [Meta<ErrorCode>(STRUCT_WRONG_VALID)]
     public const string STRUCT_WRONG_VALID = "struct_wrong_valid";
     
-    [Meta<ErrorCode>(STRUCT_RELATION_WRONG_FUNC)]
+    [Meta<ErrorCode>(STRUCT_FIELD_WRONG_TYPE)]
     public const string STRUCT_FIELD_WRONG_TYPE = "struct_field_wrong_type";
 
     [Meta<ErrorCode>(STRUCT_RELATION_WRONG_FIELD)]
