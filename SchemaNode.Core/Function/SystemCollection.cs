@@ -1,16 +1,13 @@
 using System.Collections;
-using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Schema;
 using SchemaNode.Property.Function;
-using NodeType = SchemaNode.Runtime.NodeType;
+using LogicType = SchemaNode.Runtime.LogicType;
+using StructType = SchemaNode.Runtime.StructType;
 
 // ReSharper disable InconsistentNaming
 
@@ -27,12 +24,15 @@ public static class SystemCollection
     /// </summary>
     public static long length([Meta<SchemaType>(NS_SYSTEM_ARRAY)] object array)
     {
-        if (array is string str) return str.Length;
-        if (array is JsonArray jsonArray) return jsonArray.Count;
-        if (array is Array arr) return arr.LongLength;
-        if (array is ArrayNode node) return node.Count;
-        if (array is ICollection collection) return collection.Count;
-        return 0;
+        return array switch
+        {
+            string str => str.Length,
+            JsonArray jsonArray => jsonArray.Count,
+            Array arr => arr.LongLength,
+            ArrayNode node => node.Count,
+            ICollection collection => collection.Count,
+            _ => 0
+        };
     }
     
     /// <summary>
@@ -41,11 +41,7 @@ public static class SystemCollection
     [Meta<Logic>(LogicType.Contains)]
     public static bool contains<T>(ArrayNode array, T value) where T: IComparable
     {
-        foreach (var item in array)
-        {
-            if (EqualityComparer<T>.Default.Equals(item.ToValue<T>(), value)) return true;
-        }
-        return false;
+        return array.Any(item => EqualityComparer<T>.Default.Equals(item.GetValue<T>(), value));
     }
 
     /// <summary>
@@ -62,8 +58,8 @@ public static class SystemCollection
     /// </summary>
     public static async Task<T?> getfield<T>(SchemaContext context, StructNode obj, string field, T? @default)
     {
-        Node.DataNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
-        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : (@default ?? default);
+        DataNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
+        return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
     }
 
     /// <summary>
@@ -73,16 +69,15 @@ public static class SystemCollection
     {
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
-        var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
-        if (f.SchemaType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        NodeType arrayNode = SchemaContext.GetArraySchemaType(f.SchemaType)
-                                  ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
+        var f = @struct.GetField(field)?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
+        if (f.Type == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
+        var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayNode resultType = new (arrayNode);
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
-        foreach (Node.DataNode item in array)
+        foreach (DataNode item in array)
         {
-            Node.DataNode? fieldNode = await GetFieldNode(context, item, paths);
+            DataNode? fieldNode = await GetFieldNode(context, item, paths);
             if (fieldNode != null) resultType.Add(fieldNode);
         }
         return resultType;
@@ -93,7 +88,7 @@ public static class SystemCollection
     /// </summary>
     public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
     {
-        var list = new List<Node.DataNode>(obj);
+        var list = new List<DataNode>(obj);
         list.Sort((a, b) =>
         {
             if (a is not StructNode sa || b is not StructNode sb) return 0;
@@ -102,11 +97,13 @@ public static class SystemCollection
             if ((fa == null || fa.IsEmpty) && (fb == null || fb.IsEmpty)) return 0;
             if (fa == null || fa.IsEmpty) return descending ? 1 : -1;
             if (fb == null || fb.IsEmpty) return descending ? -1 : 1;
-            if (fa.Value is IComparable ca && fb.Value is IComparable cb)
+            if (fa.GetValue<IComparable>() is {} ca && fb.GetValue<IComparable>() is {} cb)
                 return descending ? cb.CompareTo(ca) : ca.CompareTo(cb);
             return 0;
         });
-        return new ArrayNode(obj.Type, list);
+        var node = new ArrayNode(obj.Type);
+        node.AddRange(list);
+        return node;
     }
     
     /// <summary>
@@ -115,9 +112,9 @@ public static class SystemCollection
     public static ArrayNode skip(ArrayNode obj, int count)
     {
         if (count <= 0) return obj;
-        return count > obj.Count 
-            ? new ArrayNode(obj.Type) 
-            : new ArrayNode(obj.Type, obj.Skip(count));
+        var node = new ArrayNode(obj.Type);
+        node.AddRange(obj.Skip(count));
+        return node;
     }
 
     /// <summary>
@@ -126,36 +123,23 @@ public static class SystemCollection
     public static ArrayNode take(ArrayNode obj, int count)
     {
         if (count >= obj.Count) return obj;
-        return count <= 0 
-            ? new ArrayNode(obj.Type)
-            : new ArrayNode(obj.Type, obj.Take(count));
+        var node = new ArrayNode(obj.Type);
+        node.AddRange(obj.Take(count));
+        return node;
     }
     
     /// <summary>
     /// Gets the field node from object
     /// </summary>
-    static async Task<Node.DataNode?> GetFieldNode(SchemaContext context, Node.DataNode? obj, string[] paths)
+    static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string[] paths)
     {
         if (paths.Length == 0) return obj;
-        if (obj is not StructNode s) return null;
-        
-        StructType structType = (s.Type as StructType)! ;
-        StructFieldSchema? fldConfig = structType.GetField(paths[0]);
-        Node.DataNode? field = s.GetAccessValue(paths[0]);
-        if (field == null) return null;
-        if (fldConfig?.DisplayOnly != true)
-            return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
-        
-        // Calc the display only field
-        StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
-            r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
-            r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
-        if (relation == null) return null;
-        
-        JsonArray args = [];
-        foreach (var arg in relation.Args)
-            args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? s.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
-        field.Value = await context.CallFunctionAsync(relation.Func, args, fldConfig.Type);
-        return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
+
+        foreach (var path in paths)
+        {
+            if (obj is not StructNode s) return null;
+            obj = await s.GetFieldValueAsync(context, path);
+        }
+        return obj;
     }
 }

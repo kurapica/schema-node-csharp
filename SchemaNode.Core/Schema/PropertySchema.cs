@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
@@ -47,7 +48,14 @@ public class PropertySchema: ExtensibleSchema
     /// <summary>
     /// The schema kinds that this property applies to
     /// </summary>
+    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA}.kind>")]
     public string[] ForSchemas { get; set; } = [];
+    
+    /// <summary>
+    /// The assignable value types
+    /// </summary>
+    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA_NODE}.valuetype>")]
+    public string[]? ForTypes { get; set; }
 
     /// <summary>
     /// Whether the property can't be changed by relations

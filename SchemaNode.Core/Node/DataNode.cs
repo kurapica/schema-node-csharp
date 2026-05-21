@@ -119,7 +119,7 @@ public abstract class DataNode
     /// The c# type representation
     /// </summary>
     public virtual Type? CsharpType => Type.GetCsharpType();
-
+    
     /// <summary>
     /// Gets the access value by part path
     /// </summary>

@@ -15,6 +15,7 @@ using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Runtime.NodeType;
 using Object = SchemaNode.Scalar.Object;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 
 namespace SchemaNode.Schema;
 

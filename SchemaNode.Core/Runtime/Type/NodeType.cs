@@ -151,6 +151,32 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
 
         Loaded = true;
         await LoadAsync(context);
+        
+        // Remove type not match properties, can only be done after loaded
+        if (props.Count > 0 && this is ValueType valType)
+        {
+            for (int i = props.Count - 1; i >= 0; i--)
+            {
+                IProperty prop = props[i];
+                if (prop.ForTypes is { Length: > 0 })
+                {
+                    bool matched = false;
+                    foreach (var t in prop.ForTypes)
+                    {
+                        ValueType? matchType = await context.GetNodeTypeAsync<ValueType>(t);
+                        if (matchType != null && valType.IsAssignableTo(matchType))
+                        {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched)
+                        props.RemoveAt(i);
+                }
+            }
+            if (props.Count != _props!.Length)
+                _props = props.ToArray();
+        }
 
         // Loading schema properties after loading, to avoid cycle ref
         List<NodeType> refTypes = [];
@@ -183,7 +209,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         }
     }
 
-    internal void ReleaseType()
+    private void ReleaseType()
     {
         foreach (NodeType node in GenericParams ?? GetReferenceTypes())
             node.RemoveUsedBy(this);

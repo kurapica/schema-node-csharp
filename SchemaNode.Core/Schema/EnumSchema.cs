@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Presentation;
@@ -13,6 +12,7 @@ using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Schema.NodeType;
 using SchemaType = SchemaNode.Property.Schema.SchemaType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

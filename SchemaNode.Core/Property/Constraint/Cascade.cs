@@ -2,8 +2,9 @@
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Schema;
-using SchemaNode.Runtime;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using EnumType = SchemaNode.Runtime.EnumType;
 
 namespace SchemaNode.Property.Constraint;
 
@@ -11,16 +12,17 @@ namespace SchemaNode.Property.Constraint;
 /// Limit the enum's cascade level
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForType>(typeof(EnumType))]
 public class Cascade : Property<long>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
-        var effectiveValue = overrideValue?.ToValue<long>() ?? Value;
+        var effectiveValue = Value;
         if (effectiveValue <= 0 || node.IsEmpty) return null;
         EnumType? enumType = node.Type as EnumType;
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
-        var access = await enumType.LoadEnumAccessListAsync(context, node.Value!.ToString()!, noSubList: true, withSubList: false);
+        EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, node.GetValue<string>()!, noSubList: true, withSubList: false);
         return access.Length <= effectiveValue;
     }
 }

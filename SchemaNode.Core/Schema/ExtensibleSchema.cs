@@ -7,8 +7,9 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property.Presentation;
 using SchemaNode.Runtime;
-using Microsoft.Extensions.Options;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
+// ReSharper disable AccessToModifiedClosure
 
 namespace SchemaNode.Schema;
 
@@ -180,8 +181,6 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// <summary>
     /// Gets properties from the given types. The properties will be returned in the order of the given types. If there are duplicate properties, the properties from the later types will overwrite the previous ones. If a property has dependencies, it will only be returned when all its dependencies are satisfied. If a property has overrides, it will override the properties with the same name from the previous types.
     /// </summary>
-    /// <param name="types">The property types/param>
-    /// <returns></returns>
     public List<IProperty> GetProperties(IEnumerable<Type> types)
     {
         List<IProperty> props = [];

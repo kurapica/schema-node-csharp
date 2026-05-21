@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
+using SchemaNode.Property.Record;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;

@@ -6,6 +6,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using SchemaNode.Service;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -42,6 +43,11 @@ public sealed class EnumType: ValueType
     /// The enum value type
     /// </summary>
     public EnumValueType Type => _enumSchema?.Type ?? EnumValueType.String;
+    
+    /// <summary>
+    /// The enum cascade
+    /// </summary>
+    public LocaleString[]? Cascade => _enumSchema?.Cascade;
 
     /// <inheritdoc/>
     public override Type? GetCsharpType() => base.GetCsharpType() ?? Type switch

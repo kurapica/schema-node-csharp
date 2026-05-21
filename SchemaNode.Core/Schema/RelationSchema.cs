@@ -9,6 +9,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using RelationKind = SchemaNode.Enum.RelationKind;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;

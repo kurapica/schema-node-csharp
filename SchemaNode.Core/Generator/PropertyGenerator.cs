@@ -22,13 +22,13 @@ internal class PropertyGenerator : INodeSchemaGenerator
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
         
         // Build property schema
-        schema.SetProperty<PropProperty, PropertySchema>( new PropertySchema
+        schema.SetProperty<PropProperty, PropertySchema>(new PropertySchema
         {
-            // name
+            // Name
             Property = type.GetPropertyName(),
             
             // Type
-            Type = typeResolver(valueType, @namespace) ?? throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
+            Type = type.GetMetaProperty<PropertyValueType>()?.Value ?? typeResolver(valueType, @namespace) ?? throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
             
             // Depends
             Depends = type.GetMetaProperty<Depend>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),
@@ -38,6 +38,9 @@ internal class PropertyGenerator : INodeSchemaGenerator
         
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>()  ?? throw new ArgumentException($"Type '{type}' is not a valid as property type."),
+            
+            // ForValueTypes
+            ForTypes = type.GetMetaProperty<ForType>()?.GetValue<string[]>(),
         
             // Static
             Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
