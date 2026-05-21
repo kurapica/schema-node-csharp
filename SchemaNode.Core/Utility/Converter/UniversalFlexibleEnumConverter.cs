@@ -25,6 +25,6 @@ internal class UniversalFlexibleEnumConverter : JsonConverterFactory
         });
     }
 
-    static readonly JsonStringEnumConverter NormalEnumConverter = new (JsonNamingPolicy.CamelCase);
+    private static readonly JsonStringEnumConverter NormalEnumConverter = new (JsonNamingPolicy.CamelCase);
     private static readonly ConcurrentDictionary<Type, JsonConverter> FlagsEnums = [];
 }

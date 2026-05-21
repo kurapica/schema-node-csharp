@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices.Marshalling;
-
 namespace SchemaNode.Utility;
 
 /// <summary>

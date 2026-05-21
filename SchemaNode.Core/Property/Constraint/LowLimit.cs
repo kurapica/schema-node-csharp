@@ -1,81 +1,58 @@
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
-using NodeType = SchemaNode.Runtime.NodeType;
+using StringType = SchemaNode.Schema.StringType;
 
 namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForType>(typeof(StringType))]
 public class LowLimitString : Property<long>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateString(SchemaContext context, StringNode node)
     {
-        long? effectValue = overrideValue?.ToValue<long>() ?? Value;
-        if (effectValue == null || node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.NodeType;
-
-        if (scalar.IsString)
-            return node.ToValue<string>()!.Length >= effectValue;
-
-        return null;
+        if (node.IsEmpty) return null;
+        return (node.GetValue<string>() ?? string.Empty).Length >= Value;
     }
 }
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-public class LowLimitNumber : Property<ScalarNode>, IConstraintProperty
+[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForType>(typeof(DecimalType))]
+public class LowLimitNumber : Property<decimal>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateNumeric(SchemaContext context, NumericNode node)
     {
-        Node.DataNode? effectValueNode = overrideValue ?? Value;
-        if (effectValueNode == null || effectValueNode.IsEmpty || node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.NodeType;
-
-        if (scalar.IsInt)
-            return node.ToValue<long>() >= effectValueNode!.ToValue<long>();
-
-        if (scalar.IsSingle)
-            return node.ToValue<float>() >= effectValueNode!.ToValue<float>();
-
-        if (scalar.IsDouble)
-            return node.ToValue<double>() >= effectValueNode!.ToValue<double>();
-
-        if (scalar.IsNumber)
-            return node.ToValue<decimal>() >= effectValueNode!.ToValue<decimal>();
-
-        return null;
+        if (node.IsEmpty) return null;
+        return node.GetValue<decimal>() >= Value;
     }
 }
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForType>(typeof(IntType))]
 public class LowLimitInt : Property<long>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateInt(SchemaContext context, IntNode node)
     {
-        return node.ToValue<long>() >= Value;
+        if (node.IsEmpty) return null;
+        return node.GetValue<long>() >= Value;
     }
 }
 
 
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<ForType>(typeof(DateType))]
 public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
-    public bool? ValidateScalar(SchemaContext context, ScalarNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public bool? ValidateDate(SchemaContext context, DateNode node)
     {
-        DateTimeOffset? effectValueNode = overrideValue?.ToValue<DateTimeOffset>() ?? Value;
-        if (node.IsEmpty) return null;
-        ScalarType scalar = (ScalarType)node.NodeType;
-
-        if (scalar.IsDate)
-            return node.ToValue<DateTimeOffset>() >= effectValueNode;
-
-        return null;
+        if  (node.IsEmpty) return null;
+        return node.GetValue<DateTimeOffset>() >= Value;
     }
 }

@@ -2,9 +2,9 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Schema;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using EnumType = SchemaNode.Runtime.EnumType;
 
 namespace SchemaNode.Property.Constraint;
 
@@ -14,10 +14,10 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 public class LeafOnly : Property<bool>, IConstraintProperty
 {
-    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node, StructNode? parent = null, Node.DataNode? overrideValue = null)
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
-        if ((overrideValue?.ToValue<bool>() ?? Value) != true || node.IsEmpty) return null;
-        EnumValueSchema? val = (node.Type as EnumType) is { } enumType ? await enumType.LoadEnumValueInfo(context, node.Value?.ToString() ?? "") : null;
-        return val != null && val.HasSubList != true;
+        if (!Value || node.IsEmpty) return null;
+        EnumValueSchema[]? val = (node.Type as EnumType) is { } enumType ? await enumType.LoadEnumSubListAsync(context, node.GetValue<string>()) : null;
+        return val == null || val.Length == 0;
     }
 }
