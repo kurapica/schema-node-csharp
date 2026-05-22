@@ -1,14 +1,12 @@
 using System.Reflection;
 using SchemaNode.Attribute;
-using SchemaNode.Property;
-using SchemaNode.Property.Presentation;
 using SchemaNode.Property.Schema;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Service;
-using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.App.Generator;
 
@@ -33,7 +31,7 @@ public sealed class EventGenerator : INodeSchemaGenerator
         PropertyInfo? payloadProp = type.GetProperty("Payload");
         if (payloadProp != null)
         {
-            // Prefer explicit [Meta<SchemaType>] annotation
+            // Prefer explicit [Meta<SchemaType>] annotation on the property
             SchemaType? schemaTypeAttr = payloadProp.GetMetaProperty<SchemaType>();
             if (schemaTypeAttr?.HasValue == true)
                 payloadSchemaType = schemaTypeAttr.Value;
@@ -41,14 +39,8 @@ public sealed class EventGenerator : INodeSchemaGenerator
                 payloadSchemaType = typeResolver(payloadProp.PropertyType, @namespace);
         }
 
-        NodeSchema schema = new()
-        {
-            Name = name.GetSchemaName(),
-            Namespace = name.GetNamespace(),
-            Kind = SCHEMA_KIND_EVENT,
-        };
-        schema.SetProperty<Display, LocaleString>(
-            type.GetSummaryFromXmlDoc() ?? name);
+        // Use Core's NodeSchema.Create to handle namespace splitting, display and property scanning
+        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, name, type);
 
         // Attach the EventSchema property with the resolved payload type
         schema.SetProperty<EventProperty, EventSchema>(new EventSchema

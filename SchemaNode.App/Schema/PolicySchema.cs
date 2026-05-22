@@ -73,7 +73,7 @@ public sealed class PolicyItem : ExtensibleSchema
     /// The resolved function type (set at runtime, not serialized)
     /// </summary>
     [JsonIgnore]
-    public Runtime.NodeType? Function { get; set; }
+    public Runtime.FunctionType? Function { get; set; }
 
     /// <summary>
     /// Runtime load status

@@ -218,11 +218,11 @@ public sealed class RowPolicy
 
     /// <summary>Resolved evaluator function (set at runtime)</summary>
     [JsonIgnore]
-    public Runtime.NodeType? EvaluatorFunc { get; set; }
+    public Runtime.FunctionType? EvaluatorFunc { get; set; }
 
     /// <summary>Resolved filter function (set at runtime)</summary>
     [JsonIgnore]
-    public Runtime.NodeType? FilterFunc { get; set; }
+    public Runtime.FunctionType? FilterFunc { get; set; }
 }
 
 /// <summary>Column-level access policy.</summary>
@@ -236,7 +236,7 @@ public sealed class ColPolicy
 
     /// <summary>Resolved function nodes (set at runtime)</summary>
     [JsonIgnore]
-    public Runtime.NodeType[] Functions { get; set; } = [];
+    public Runtime.FunctionType[] Functions { get; set; } = [];
 }
 
 /// <summary>Data filter applied to field reads.</summary>

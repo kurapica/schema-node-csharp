@@ -122,7 +122,7 @@ public sealed class AppFieldType
     public Runtime.NodeType? SchemaType { get; internal set; }
 
     /// <summary>Resolved push-function node</summary>
-    public Runtime.NodeType? FuncNode { get; internal set; }
+    public Runtime.FunctionType? FuncNode { get; internal set; }
 
     /// <summary>Fields that observe this field for data push triggers</summary>
     public IReadOnlyList<AppFieldType>? Observers => _observers;

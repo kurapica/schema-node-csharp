@@ -69,7 +69,7 @@ public sealed class AppRelationSchema
 
     /// <summary>Resolved function node (set at runtime)</summary>
     [JsonIgnore]
-    public Runtime.NodeType? FuncNode { get; set; }
+    public Runtime.FunctionType? FuncNode { get; set; }
 
     /// <summary>Load status</summary>
     public string? Status { get; set; }

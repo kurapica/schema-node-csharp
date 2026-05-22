@@ -35,8 +35,8 @@ public sealed class PolicyType : NodeType
 
         foreach (PolicyItem item in Items)
         {
-            NodeType? func = !string.IsNullOrEmpty(item.Evaluator)
-                ? await context.GetNodeTypeAsync(item.Evaluator)
+            FunctionType? func = !string.IsNullOrEmpty(item.Evaluator)
+                ? await context.GetNodeTypeAsync(item.Evaluator) as FunctionType
                 : null;
 
             if (func == null)

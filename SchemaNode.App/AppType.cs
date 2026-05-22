@@ -140,7 +140,7 @@ public sealed class AppType
                 // --- Push function ---
                 if (!string.IsNullOrWhiteSpace(field.Func))
                 {
-                    Runtime.NodeType? funcNode = await context.GetNodeTypeAsync(field.Func);
+                    Runtime.FunctionType? funcNode = await context.GetNodeTypeAsync(field.Func) as Runtime.FunctionType;
                     if (funcNode == null)
                     {
                         field.Status = ApplicationFieldWrongFunc;
@@ -169,8 +169,8 @@ public sealed class AppType
                 {
                     foreach (PolicyItem item in field.Auths)
                     {
-                        Runtime.NodeType? fn = !string.IsNullOrEmpty(item.Evaluator)
-                            ? await context.GetNodeTypeAsync(item.Evaluator)
+                        Runtime.FunctionType? fn = !string.IsNullOrEmpty(item.Evaluator)
+                            ? await context.GetNodeTypeAsync(item.Evaluator) as Runtime.FunctionType
                             : null;
                         if (fn != null)
                             item.Function = fn;
@@ -186,13 +186,13 @@ public sealed class AppType
                     {
                         if (!string.IsNullOrEmpty(row.Evaluator))
                         {
-                            Runtime.NodeType? fn = await context.GetNodeTypeAsync(row.Evaluator);
+                            Runtime.FunctionType? fn = await context.GetNodeTypeAsync(row.Evaluator) as Runtime.FunctionType;
                             if (fn != null) row.EvaluatorFunc = fn;
                             else field.Status = ApplicationFieldDataAuthWrongFunc;
                         }
                         if (!string.IsNullOrEmpty(row.Filter))
                         {
-                            Runtime.NodeType? fn = await context.GetNodeTypeAsync(row.Filter);
+                            Runtime.FunctionType? fn = await context.GetNodeTypeAsync(row.Filter) as Runtime.FunctionType;
                             if (fn != null) row.FilterFunc = fn;
                             else field.Status = ApplicationFieldDataAuthWrongFunc;
                         }
@@ -204,11 +204,11 @@ public sealed class AppType
                 {
                     foreach (ColPolicy col in field.ColAuths)
                     {
-                        List<Runtime.NodeType> funcs = [];
+                        List<Runtime.FunctionType> funcs = [];
                         foreach (string ev in col.Evaluators)
                         {
-                            Runtime.NodeType? fn = !string.IsNullOrEmpty(ev)
-                                ? await context.GetNodeTypeAsync(ev)
+                            Runtime.FunctionType? fn = !string.IsNullOrEmpty(ev)
+                                ? await context.GetNodeTypeAsync(ev) as Runtime.FunctionType
                                 : null;
                             if (fn != null) funcs.Add(fn);
                             else field.Status = ApplicationFieldDataAuthWrongFunc;
@@ -308,7 +308,7 @@ public sealed class AppType
                     }
                     else
                     {
-                        Runtime.NodeType? fn = await context.GetNodeTypeAsync(rel.Func);
+                        Runtime.FunctionType? fn = await context.GetNodeTypeAsync(rel.Func) as Runtime.FunctionType;
                         if (fn != null)
                         {
                             fn.AddUsedBy(field);
@@ -328,8 +328,8 @@ public sealed class AppType
         {
             foreach (PolicyItem item in Auths)
             {
-                Runtime.NodeType? fn = !string.IsNullOrEmpty(item.Evaluator)
-                    ? await context.GetNodeTypeAsync(item.Evaluator)
+                Runtime.FunctionType? fn = !string.IsNullOrEmpty(item.Evaluator)
+                    ? await context.GetNodeTypeAsync(item.Evaluator) as Runtime.FunctionType
                     : null;
                 if (fn != null)
                 {
