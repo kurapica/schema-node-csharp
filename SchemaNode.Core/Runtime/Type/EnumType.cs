@@ -183,7 +183,7 @@ public sealed class EnumType: ValueType
         // Validate value
         if (_enumSchema?.Type == EnumValueType.Flags)
         {
-            if (result.TryGetValue(out long flagsValue) || flagsValue < 0 || flagsValue > _maxFlags)
+            if (!result.TryGetValue(out long flagsValue) || flagsValue < 0 || flagsValue > _maxFlags)
                 result.SetViolated(Kind);
         }
         else if (result.TryGetValue(out string? strValue))

@@ -134,7 +134,7 @@ public sealed class AppTypeManager : IAppTypeManager, IAppSchemaContext
     {
         if (await _context.GetNodeTypeAsync(functionName) is not FunctionType func)
             throw new InvalidOperationException($"Function '{functionName}' not found or is not a function type.");
-        return await func.CallAsync<JsonNode, SchemaNode.Runtime.Compile.CompileContext>(_context, args.ToArray());
+        return await func.CallAsync<JsonNode, CompileContext>(_context, args.ToArray());
     }
 
     public void LogWarning(string message, params object[] args)

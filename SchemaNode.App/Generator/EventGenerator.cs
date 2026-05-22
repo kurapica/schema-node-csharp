@@ -9,7 +9,6 @@ using SchemaNode.Service;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.App.Generator;
 

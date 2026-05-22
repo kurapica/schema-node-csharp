@@ -65,7 +65,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                     : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.BaseType ?? p.PropertyType);
 
             if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
-                fieldName = pt.Generic != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
+                fieldType = pt.Generic != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
 
             StructFieldSchema field = new()
             {
