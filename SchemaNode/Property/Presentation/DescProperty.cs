@@ -4,7 +4,7 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 
-namespace SchemaNode.Property.Presentation;
+namespace SchemaNode.Property.Common;
 
 /// <summary>
 /// Define the description for a schema node.

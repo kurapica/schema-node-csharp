@@ -4,13 +4,14 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using GenericParameter = SchemaNode.Property.Schema.GenericParameter;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using GenericParameter = SchemaNode.Property.Core.GenericParameter;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

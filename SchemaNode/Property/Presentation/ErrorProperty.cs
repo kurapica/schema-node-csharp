@@ -4,7 +4,7 @@ using SchemaNode.Enum;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 
-namespace SchemaNode.Property.Presentation;
+namespace SchemaNode.Property.Common;
 
 /// <summary>
 /// Define the error message for a schema node when validation fails.

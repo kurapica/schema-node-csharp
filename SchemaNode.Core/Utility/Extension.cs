@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using SchemaNode.Attribute;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 namespace SchemaNode.Utility;

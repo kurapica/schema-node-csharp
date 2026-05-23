@@ -1,8 +1,9 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using SchemaNode.Enum;
+using SchemaNode.Property.Common;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming

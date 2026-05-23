@@ -5,8 +5,8 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 

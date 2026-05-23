@@ -4,14 +4,14 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
-using NodeType = SchemaNode.Property.Schema.NodeType;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Service;
 

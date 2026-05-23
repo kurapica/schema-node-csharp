@@ -51,22 +51,22 @@ public static class Constant
     public const string SCHEMA_KIND_ENUM_VALUE = "enumvalue";
     public const string SCHEMA_KIND_RELATION = "relation";
 
-    public const int SCHEMA_KIND_ORDER_NODE = 0;
-    public const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
-    public const int SCHEMA_KIND_ORDER_OBJECT = 2;
-    public const int SCHEMA_KIND_ORDER_BOOL = 3;
-    public const int SCHEMA_KIND_ORDER_INT = 4;
-    public const int SCHEMA_KIND_ORDER_DECIMAL = 5;
-    public const int SCHEMA_KIND_ORDER_STRING = 6;
-    public const int SCHEMA_KIND_ORDER_DATE = 7;
-    public const int SCHEMA_KIND_ORDER_ENUM = 8;
-    public const int SCHEMA_KIND_ORDER_STRUCT = 9;
-    public const int SCHEMA_KIND_ORDER_ARRAY = 10;
-    public const int SCHEMA_KIND_ORDER_FUNC = 11;
-    public const int SCHEMA_KIND_ORDER_PROP = 12;
-    public const int SCHEMA_KIND_ORDER_RELATION = 13;
-    public const int SCHEMA_KIND_ORDER_ENUM_VALUE = 14;
-    public const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
+    internal const int SCHEMA_KIND_ORDER_NODE = 0;
+    internal const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
+    internal const int SCHEMA_KIND_ORDER_OBJECT = 2;
+    internal const int SCHEMA_KIND_ORDER_BOOL = 3;
+    internal const int SCHEMA_KIND_ORDER_INT = 4;
+    internal const int SCHEMA_KIND_ORDER_DECIMAL = 5;
+    internal const int SCHEMA_KIND_ORDER_STRING = 6;
+    internal const int SCHEMA_KIND_ORDER_DATE = 7;
+    internal const int SCHEMA_KIND_ORDER_ENUM = 8;
+    internal const int SCHEMA_KIND_ORDER_STRUCT = 9;
+    internal const int SCHEMA_KIND_ORDER_ARRAY = 10;
+    internal const int SCHEMA_KIND_ORDER_FUNC = 11;
+    internal const int SCHEMA_KIND_ORDER_PROP = 12;
+    internal const int SCHEMA_KIND_ORDER_RELATION = 13;
+    internal const int SCHEMA_KIND_ORDER_ENUM_VALUE = 14;
+    internal const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
     
     #endregion
 
@@ -118,25 +118,28 @@ public static class Constant
 
     // system.schema
     public const string NS_SYSTEM_SCHEMA = "system.schema";
-    public const string NS_SYSTEM_SCHEMA_KIND = "system.schema.kind";
-    public const string NS_SYSTEM_SCHEMA_NODE = "system.schema.node";
-    public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = "system.schema.node.valuekind";
-    public const string NS_SYSTEM_SCHEMA_NS = "system.schema.namespace";
-    public const string NS_SYSTEM_SCHEMA_OBJECT = "system.schema.object";
-    public const string NS_SYSTEM_SCHEMA_BOOL = "system.schema.bool";
-    public const string NS_SYSTEM_SCHEMA_INT = "system.schema.int";
-    public const string NS_SYSTEM_SCHEMA_DECIMAL = "system.schema.decimal";
-    public const string NS_SYSTEM_SCHEMA_STRING = "system.schema.string";
-    public const string NS_SYSTEM_SCHEMA_DATE = "system.schema.date";
-    public const string NS_SYSTEM_SCHEMA_ENUM = "system.schema.enum";
-    public const string NS_SYSTEM_SCHEMA_STRUCT = "system.schema.struct";
-    public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = "system.schema.struct.field";
-    public const string NS_SYSTEM_SCHEMA_ARRAY = "system.schema.array";
-    public const string NS_SYSTEM_SCHEMA_FUNC = "system.schema.func";
-    public const string NS_SYSTEM_SCHEMA_RELATION = "system.schema.relation";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY = "system.schema.property";
+    public const string NS_SYSTEM_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA}.kind";
+    public const string NS_SYSTEM_SCHEMA_NODE = $"{NS_SYSTEM_SCHEMA}.node";
+    public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = $"{NS_SYSTEM_SCHEMA}.node.valuekind";
+    public const string NS_SYSTEM_SCHEMA_NS = $"{NS_SYSTEM_SCHEMA}.namespace";
+    public const string NS_SYSTEM_SCHEMA_OBJECT = $"{NS_SYSTEM_SCHEMA}.object";
+    public const string NS_SYSTEM_SCHEMA_BOOL = $"{NS_SYSTEM_SCHEMA}.bool";
+    public const string NS_SYSTEM_SCHEMA_INT = $"{NS_SYSTEM_SCHEMA}.int";
+    public const string NS_SYSTEM_SCHEMA_DECIMAL = $"{NS_SYSTEM_SCHEMA}.decimal";
+    public const string NS_SYSTEM_SCHEMA_STRING = $"{NS_SYSTEM_SCHEMA}.string";
+    public const string NS_SYSTEM_SCHEMA_DATE = $"{NS_SYSTEM_SCHEMA}.date";
+    public const string NS_SYSTEM_SCHEMA_ENUM = $"{NS_SYSTEM_SCHEMA}.enum";
+    public const string NS_SYSTEM_SCHEMA_STRUCT = $"{NS_SYSTEM_SCHEMA}.struct";
+    public const string NS_SYSTEM_SCHEMA_STRUCT_FIELD = $"{NS_SYSTEM_SCHEMA_STRUCT}.field";
+    public const string NS_SYSTEM_SCHEMA_ARRAY = $"{NS_SYSTEM_SCHEMA}.array";
+    public const string NS_SYSTEM_SCHEMA_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
+    public const string NS_SYSTEM_SCHEMA_RELATION = $"{NS_SYSTEM_SCHEMA}.relation";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY = $"{NS_SYSTEM_SCHEMA}.prop";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY_CORE = $"{NS_SYSTEM_SCHEMA_PROPERTY}.core";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY_COMMON = $"{NS_SYSTEM_SCHEMA_PROPERTY}.common";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT = $"{NS_SYSTEM_SCHEMA_PROPERTY}.constraint";
     
-    public const string NS_SYSTEM_SCHEMA_ERROR = "system.schema.error";
+    public const string NS_SYSTEM_SCHEMA_ERROR = $"{NS_SYSTEM_SCHEMA}.error";
     
     #endregion
 
@@ -391,65 +394,6 @@ public static class Constant
 
     #endregion
 
-    #region Expression Priority
-
-    public const int EXP_INTRINSIC_PRIORITY = 100;
-    public const int EXP_LOGIC_PRIORITY = 90;
-    public const int EXP_ARITHMETIC_PRIORITY = 80;
-    public const int EXP_COLLECTION_PRIORITY = 70;
-    public const int EXP_DATA_SOURCE_PRIORITY = 60;
-
-    #endregion
-
-    #region Message
-
-    public const string TYPE_NOT_EXIST = "TYPE_NOT_EXIST";
-    public const string TYPE_VALUE_NOT_VALID = "TYPE_VALUE_NOT_VALID";
-    public const string TYPE_NAMESPACE_NOT_DATA_TYPE = "TYPE_NAMESPACE_NOT_DATA_TYPE";
-    public const string TYPE_VALUE_STRUCT_MEMBER_REQUIRE = "TYPE_VALUE_STRUCT_MEMBER_REQUIRE";
-
-    public const string TYPE_FUNC_NO_DEFINITION = "TYPE_FUNC_NO_DEFINITION";
-    public const string TYPE_FUNC_ARG_NAME_REQUIRED = "TYPE_FUNC_ARG_NAME_REQUIRED";
-    public const string TYPE_FUNC_ARG_NAME_DUPLICATE = "TYPE_FUNC_ARG_NAME_DUPLICATE";
-    public const string TYPE_FUNC_ARG_TYPE_NOT_VALID = "TYPE_FUNC_ARG_TYPE_NOT_VALID";
-    public const string TYPE_FUNC_ARG_NO_TYPE = "TYPE_FUNC_ARG_NO_TYPE";
-    public const string TYPE_FUNC_NEED_EXPS = "TYPE_FUNC_NEED_EXPS";
-    public const string TYPE_FUNC_RETURN_NOT_VALID = "TYPE_FUNC_RETURN_NOT_VALID";
-    public const string TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID = "TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID";
-    public const string TYPE_FUNC_COMPILE_ERROR = "TYPE_FUNC_COMPILE_ERROR";
-    public const string TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER = "TYPE_FUNC_NOT_VALID_FOR_POLICY_FILTER";
-
-    public const string TYPE_FUNC_EXP_NAME_REQUIRED = "TYPE_FUNC_EXP_NAME_REQUIRED";
-    public const string TYPE_FUNC_EXP_NAME_CONFLICT_ARG = "TYPE_FUNC_EXP_NAME_CONFLICT_ARG";
-    public const string TYPE_FUNC_EXP_CALL_FUNC_REQUIRED = "TYPE_FUNC_EXP_CALL_FUNC_REQUIRED";
-    public const string TYPE_FUNC_EXP_CALL_FUNC_NOT_EXIST = "TYPE_FUNC_EXP_CALL_FUNC_NOT_EXIST";
-    public const string TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID = "TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID";
-    public const string TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID = "TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID";
-    public const string TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALID = "TYPE_FUNC_EXP_CALL_CONSTANT_NOT_VALD";
-    public const string TYPE_FUNC_EXP_ARGS_NOT_VALID = "TYPE_FUNC_EXP_ARGS_NOT_VALID";
-    public const string TYPE_FUNC_EXP_CALL_NO_ARRAY = "TYPE_FUNC_EXP_CALL_NO_ARRAY";
-    public const string TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH = "TYPE_FUNC_CALL_ARG_COUNT_NOT_MATCH";
-    public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
-    public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
-
-    public const string TYPE_ENUM_VALUE_HAS_SUBLIST = "TYPE_ENUM_VALUE_HAS_SUBLIST";
-    
-    public const string APP_NOT_FOUND = "APP_NOT_FOUND";
-    public const string APP_FIELD_NOT_FOUND = "APP_FIELD_NOT_FOUND";
-    public const string APP_FIELD_TYPE_NOT_VALID = "APP_FIELD_TYPE_NOT_VALID";
-    public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
-    public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";
-    public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
-    public const string APP_PUSH_DATA_WRONG_FUNC = "APP_PUSH_DATA_WRONG_FUNC";
-    public const string APP_TARGET_POLICY_CANT_CHANGE = "APP_TARGET_POLICY_CANT_CHANGE";
-    public const string APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP = "APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP";
-
-    public const string WORKFLOW_NOT_FOUND = "WORKFLOW_NOT_FOUND";
-    public const string WORKFLOW_NODE_NOT_FOUND = "WORKFLOW_NODE_NOT_FOUND";
-    public const string WORKFLOW_NOT_START = "WORKFLOW_NOT_START";
-    public const string WORKFLOW_NODE_NOT_RUNNING = "WORKFLOW_NODE_NOT_RUNNING";
-    public const string WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID = "WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID";
-    
     */
     #endregion
 }

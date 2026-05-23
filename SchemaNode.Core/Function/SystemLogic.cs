@@ -2,13 +2,14 @@ using System.Collections;
 using System.Numerics;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using LogicType = SchemaNode.Enum.LogicType;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 // ReSharper disable InconsistentNaming
 

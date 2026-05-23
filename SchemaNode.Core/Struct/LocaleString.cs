@@ -1,8 +1,8 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Struct;
 

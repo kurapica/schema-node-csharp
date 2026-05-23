@@ -1,11 +1,11 @@
 ﻿using SchemaNode.Property;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 // ReSharper disable UnusedAutoPropertyAccessor.Global

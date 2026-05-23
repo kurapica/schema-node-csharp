@@ -4,7 +4,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;

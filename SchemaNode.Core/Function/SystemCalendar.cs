@@ -2,7 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using System.Globalization;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 // ReSharper disable InconsistentNaming
 

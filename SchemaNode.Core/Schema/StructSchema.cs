@@ -2,15 +2,15 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using NodeType = SchemaNode.Property.Schema.NodeType;
+using NodeType = SchemaNode.Property.Core.NodeType;
 
 namespace SchemaNode.Schema;
 

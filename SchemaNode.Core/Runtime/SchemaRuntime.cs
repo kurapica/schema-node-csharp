@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using SchemaNode.Property;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;

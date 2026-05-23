@@ -5,8 +5,8 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using SchemaNode.Struct;
@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
-[Meta<Property.Schema.NodeType>(typeof(FunctionType))]
+[Meta<Property.Core.NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 public sealed class FunctionSchema: ExtensibleSchema
@@ -62,13 +62,13 @@ public class FuncType: AnyType;
 /// <summary>
 /// Represents the validation function type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.validtype")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.valid")]
 public class ValidFuncType: FuncType;
 
 /// <summary>
 /// Represents the union validation function type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.unionvalidtype")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.unionvalid")]
 public class UnionValidFuncType : FuncType;
 
 /**

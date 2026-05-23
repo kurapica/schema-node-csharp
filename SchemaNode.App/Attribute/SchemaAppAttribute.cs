@@ -1,0 +1,45 @@
+namespace SchemaNode.Attribute;
+
+/// <summary>
+/// Mark a class or struct to be used as application field
+/// </summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Assembly)]
+public class SchemaAppAttribute: System.Attribute
+{
+    /// <summary>
+    /// The application name
+    /// </summary>
+    public string? Application { get; set; }
+    
+    /// <summary>
+    /// The field name
+    /// </summary>
+    public string? Field { get; set; }
+    
+    /// <summary>
+    /// The display
+    /// </summary>
+    public string? Display { get; }
+    
+    /// <summary>
+    /// The field is incr-update
+    /// </summary>
+    public bool? IncrUpdate { get; }
+    
+    /// <summary>
+    /// The field is system maintain, which means the field is maintained by system and not allowed to be updated by app
+    /// </summary>
+    public bool? SystemMaintain { get; }
+    
+    /// <summary>
+    /// Binding the application & field
+    /// </summary>
+    public SchemaAppAttribute(string? app = null, string? field = null, string? display = null, bool incrUpdate = false, bool systemMaintain = false)
+    {
+        Application = app;
+        Field = field;
+        Display = display;
+        IncrUpdate = incrUpdate;
+        SystemMaintain = systemMaintain;
+    }
+}

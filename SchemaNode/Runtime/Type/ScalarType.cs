@@ -4,7 +4,7 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;

@@ -2,14 +2,14 @@ using System.Reflection;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 using Type = System.Type;
 
 namespace SchemaNode.Service;
@@ -98,7 +98,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                 AddIndex(indexes, idx.Value, fieldName, idx.Order, isUnique: true);
             
             // [Meta<Index>] -> indexes
-            foreach (SchemaNode.Property.Schema.Index idx in p.GetMetaProperties<SchemaNode.Property.Schema.Index>())
+            foreach (Property.Core.Index idx in p.GetMetaProperties<Property.Core.Index>())
                 AddIndex(indexes, idx.Value, fieldName, idx.Order, isUnique: false);
 
             fieldConfigs.Add(field);

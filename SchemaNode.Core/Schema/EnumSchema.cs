@@ -3,14 +3,14 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Service;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using NodeType = SchemaNode.Property.Schema.NodeType;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 

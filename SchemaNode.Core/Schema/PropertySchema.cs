@@ -1,13 +1,13 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 using String = SchemaNode.Scalar.String;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global

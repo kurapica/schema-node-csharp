@@ -2,20 +2,17 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
-using BoolType = SchemaNode.Runtime.BoolType;
-using DecimalType = SchemaNode.Schema.DecimalType;
-using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Runtime.NodeType;
-using StringType = SchemaNode.Schema.StringType;
 using ValueType = SchemaNode.Runtime.ValueType;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 // ReSharper disable RedundantNameQualifier
 
@@ -59,7 +56,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// The system access
     /// </summary>
-    public SystemAccess System => services.GetRequiredService<SystemAccess>();
+    public SystemAccess System => Services.GetRequiredService<SystemAccess>();
     
     #endregion
     
@@ -144,9 +141,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             return new GenericType{ Name = generic.Name };
         
         // registered type
-        SchemaRuntime runtime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
+        SchemaRuntime schemaRuntime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
         SpanReader spans = fullName;
-        NodeType? node = await LoadNodeTypeAsync(runtime.RootNamespace);
+        NodeType? node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace);
         while (node != null && spans.NextNamespace())
             node = await LoadNodeTypeAsync(node);
 
@@ -202,7 +199,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         LogError("Generic type {schemaName} load failed", fullName);
                         return null;
                     }
-                    await genType.LoadTypeAsync(this, node.Schema!.Clone(runtime), genParams.ToArray());
+                    await genType.LoadTypeAsync(this, node.Schema!.Clone(schemaRuntime), genParams.ToArray());
                     node.SetGenericType(key, genType);
                     return genType;
                 }
@@ -224,7 +221,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 if (schema == null) return null;
 
                 // node type
-                Type? nodeType = runtime.GetNodeType(schema.Kind);
+                Type? nodeType = schemaRuntime.GetNodeType(schema.Kind);
                 if (nodeType == null) return null;
 
                 result ??= ActivatorUtilities.CreateInstance(Services, nodeType) as NodeType;
@@ -250,7 +247,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 
                 // Generic Types Reloading
                 foreach (NodeType g in result.GetGenericTypes())
-                    await g.LoadTypeAsync(this, schema.Clone(runtime), g.GenericParams!.ToArray());
+                    await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray());
 
                 LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
             }
@@ -264,7 +261,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
             
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
-            schema = SetSchemaState(runtime.GetSystemSchema(schemaName), SchemaLoadState.System);
+            schema = SetSchemaState(schemaRuntime.GetSystemSchema(schemaName), SchemaLoadState.System);
             if (SystemMode) return schema;
 
             foreach (INodeSchemaProvider provider in GetServices<INodeSchemaProvider>())
@@ -283,7 +280,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     }
                     
                     // Combine
-                    schema.CombineExtensions(loadSchema, runtime);
+                    schema.CombineExtensions(loadSchema, schemaRuntime);
 
                     if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
@@ -301,7 +298,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         int index = Array.FindIndex(schema.Schemas, s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
                         if (index >= 0)
                         {
-                            schema.Schemas[index].CombineExtensions(otherSchema, runtime);
+                            schema.Schemas[index].CombineExtensions(otherSchema, schemaRuntime);
                         }
                         else
                         {
@@ -346,7 +343,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <param name="elementType"></param>
     /// <returns></returns>
     public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
-        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)));
+        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)));
     
     #endregion
     

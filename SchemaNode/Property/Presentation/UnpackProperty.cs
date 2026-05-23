@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 
-namespace SchemaNode.Property.Presentation;
+namespace SchemaNode.Property.Common;
 
 /// <summary>
 /// Unpack/pack additional data for the json node.

@@ -1,9 +1,8 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 using EnumType = SchemaNode.Runtime.EnumType;
 
 // ReSharper disable InconsistentNaming

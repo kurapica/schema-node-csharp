@@ -1,8 +1,8 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
-using SchemaNode.Property.Presentation;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 

@@ -4,7 +4,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using LogicType = SchemaNode.Runtime.LogicType;
 using StructType = SchemaNode.Runtime.StructType;

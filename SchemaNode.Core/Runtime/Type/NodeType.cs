@@ -5,7 +5,7 @@ using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Function;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 

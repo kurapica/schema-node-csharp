@@ -1,8 +1,8 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
-using NodeType = SchemaNode.Property.Schema.NodeType;
+using NodeType = SchemaNode.Property.Core.NodeType;
 
 namespace SchemaNode.Schema;
 

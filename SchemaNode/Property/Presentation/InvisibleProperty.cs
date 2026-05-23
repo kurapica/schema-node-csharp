@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 
-namespace SchemaNode.Property.Presentation;
+namespace SchemaNode.Property.Common;
 
 /// <summary>
 /// The node should be invisible.

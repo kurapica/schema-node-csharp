@@ -2,7 +2,7 @@
 using System.Collections.Immutable;
 using SchemaNode.Attribute;
 using SchemaNode.Function;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;

@@ -2,7 +2,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 
-namespace SchemaNode.Property.Presentation;
+namespace SchemaNode.Property.Common;
 
 [SchemaProperty([SchemaType.Scalar, SchemaType.Enum, SchemaType.StructField],
     [ValueSchemaType.Bool, ValueSchemaType.String, ValueSchemaType.Number, ValueSchemaType.Date, ValueSchemaType.Enum],
