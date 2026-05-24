@@ -43,7 +43,6 @@ public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute whe
     /// <summary>
     /// The meta attribute for order properties, which will set the order value and the default value if it exists
     /// </summary>
-    /// <param name="order"></param>
     public MetaAttribute(int order)
     {
         if (Property is IOrderProperty p)
@@ -61,17 +60,24 @@ public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute whe
     /// <summary>
     /// The meta attribute for order properties
     /// </summary>
-    /// <param name="value"></param>
-    /// <param name="order"></param>
-    public MetaAttribute(object value, int order) {
-        if (Property is IOrderProperty p)
+    public MetaAttribute(object value, int order)
+    {
+        switch (Property)
         {
-            p.Order = order;
-            p.SetValue(value);
-        }
-        else
-        {
-            Property.SetValue(new []{value, order});
+            case IOrderProperty p:
+                p.Order = order;
+                p.SetValue(value);
+                break;
+            case IFuncCallProperty f:
+            {
+                if (value is string s)
+                    f.TrySetFuncCall(s, [order]);
+
+                break;
+            }  
+            default:
+                Property.SetValue(new []{value, order});
+                break;
         }
     }
     
@@ -85,8 +91,17 @@ public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute whe
     /// The meta attribute for properties with array value
     /// </summary>
     /// <param name="values"></param>
-    public MetaAttribute(params object[] values) => Property.SetValue(values);
-    
+    public MetaAttribute(params object[] values)
+    {
+        if (Property is IFuncCallProperty f)
+        {
+            if (values.Length > 0 && values[0] is string s)
+                f.TrySetFuncCall(s, values.Skip(1).ToArray());
+            return;
+        }
+        Property.SetValue(values);
+    }
+
     #endregion
     
     /// <summary>

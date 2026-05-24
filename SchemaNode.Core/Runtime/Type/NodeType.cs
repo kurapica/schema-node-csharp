@@ -184,16 +184,18 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         {
             foreach (ITypeRefProperty prop in props.Cast<ITypeRefProperty>())
             {
-                string? name = prop.GetValue<string>();
-                NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
-                if (node != null)
+                foreach (string name in prop.GetRefTypes())
                 {
-                    refTypes.Add(node);
-                }
-                else
-                {
-                    Error = ErrorCodes.WRONG_REF_TYPE;
-                    context.LogWarning($"Failed to load ref type '{name}' for property '{name}' in schema '{Name}'");
+                    NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                    if (node != null)
+                    {
+                        refTypes.Add(node);
+                    }
+                    else
+                    {
+                        Error = ErrorCodes.WRONG_REF_TYPE;
+                        context.LogWarning($"Failed to load ref type '{name}' for property '{name}' in schema '{Name}'");
+                    }
                 }
             }
         }

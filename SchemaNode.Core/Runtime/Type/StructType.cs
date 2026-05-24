@@ -492,17 +492,19 @@ public class StructFieldType : INodeReferences
         List<NodeType>? refTypes = null;
         foreach (ITypeRefProperty prop in typeRefs)
         {
-            string? name = prop.GetValue<string>();
-            NodeType? refType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
-            if (refType != null)
+            foreach (string name in prop.GetRefTypes())
             {
-                refTypes ??= [];
-                refTypes.Add(refType);
-            }
-            else
-            {
-                field.Error = ErrorCodes.WRONG_REF_TYPE;
-                context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in struct field '{field.Name}'");
+                NodeType? refType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                if (refType != null)
+                {
+                    refTypes ??= [];
+                    refTypes.Add(refType);
+                }
+                else
+                {
+                    field.Error = ErrorCodes.WRONG_REF_TYPE;
+                    context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in struct field '{field.Name}'");
+                }
             }
         }
         
