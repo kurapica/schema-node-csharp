@@ -2,10 +2,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
-using RuntimeArrayType = SchemaNode.Runtime.ArrayType;
-using RuntimeStructFieldType = SchemaNode.Runtime.StructFieldType;
-using RuntimeStructType = SchemaNode.Runtime.StructType;
-using RuntimeValueType = SchemaNode.Runtime.ValueType;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using StructFieldType = SchemaNode.Runtime.StructFieldType;
+using StructType = SchemaNode.Runtime.StructType;
+using ValueType = SchemaNode.Runtime.ValueType;
+using static SchemaNode.Utility.Constant;
+using System.Security.Cryptography.X509Certificates;
 
 namespace SchemaNode.Node;
 
@@ -17,11 +19,11 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     {
         switch (type)
         {
-            case RuntimeArrayType arrayType:
+            case ArrayType arrayType:
                 Type = arrayType;
                 ElementType = arrayType.Element ?? throw new Exception($"The type '{type.Name}' is not a valid array type.");
                 break;
-            case RuntimeValueType valueType:
+            case ValueType valueType:
                 Type = valueType.ArrayType ?? valueType;
                 ElementType = valueType;
                 break;
@@ -30,6 +32,13 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         }
     }
     
+    internal ArrayNode(ArrayNode array, int count)
+    {
+        Type = array.Type;
+        ElementType = array.ElementType;
+        _elements = array._elements.Take(count).ToList();
+    }
+
     #endregion
 
     #region Indexer
@@ -73,7 +82,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <summary>
     /// The array element type
     /// </summary>
-    public RuntimeValueType ElementType { get; }
+    public ValueType ElementType { get; }
     
     /// <summary>
     /// The element count
@@ -181,9 +190,15 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <inheritdoc/>
     public override void ClearValue() => _elements.Clear();
 
+    /// <inheritdoc/>
     public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
     {
-        return base.GetAccessValue(source);
+        if (source.SequenceEqual(NODE_SELF)) return this;
+        if (source.SequenceEqual(ARRAY_PREVIOUS)) return new ArrayNode(this, this.Count - 1);
+
+        var lastEle = _elements.LastOrDefault();
+        if (source.SequenceEqual(ARRAY_ELEMENT)) return lastEle;
+        return lastEle?.GetAccessValue(source);
     }
 
     #endregion
@@ -217,11 +232,11 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     public ArrayNode FilterByPrimaryKeys(string[] primaryKeys)
     {
-        if (ElementType is not RuntimeStructType @struct) return this;
+        if (ElementType is not StructType @struct) return this;
 
-        RuntimeStructFieldType[] fields = primaryKeys
+        StructFieldType[] fields = primaryKeys
             .Select(key => @struct.GetField(key))
-            .OfType<RuntimeStructFieldType>()
+            .OfType<StructFieldType>()
             .ToArray();
 
         if (fields.Length != primaryKeys.Length) return this;

@@ -26,7 +26,7 @@ public static class Constant
 
     #region Relation
 
-    public const string ARRAY_ITSELF = "$array";
+    public const string ARRAY_PREVIOUS = "$previous";
     public const string ARRAY_ELEMENT = "$element";
     public const string NODE_SELF = "$self";
 

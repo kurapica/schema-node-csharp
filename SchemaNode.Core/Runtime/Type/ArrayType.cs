@@ -35,8 +35,8 @@ public sealed class ArrayType: ValueType
     private List<(IRelationProcess, Type)>? _relations;
 
     #endregion
-    
-    #region Method
+
+    #region Implementation
 
     /// <inheritdoc />
     public override Type? GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
@@ -123,8 +123,8 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
-        if (path.IsEmpty || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_ITSELF)) return this;
-        return path.SequenceEqual(ARRAY_ELEMENT) ? Element : null;
+        if (path.IsEmpty || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
+        return path.SequenceEqual(ARRAY_ELEMENT) ? Element : Element?.GetAccessValueType(path);
     }
 
     /// <inheritdoc />
@@ -153,57 +153,52 @@ public sealed class ArrayType: ValueType
             bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
-                DataNode? propValue = await process.ProcessAsync(context, result);
-                if (propValue == null) continue;
-                
-                // build the constraint property
                 if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
-                prop.SetValue(propValue);
-                
-                // apply constraint on target
-                SpanReader spans = process.Target;
-                List<DataNode> currNodes = [result];
-                while (spans.NextPath())
+
+                for (int i = 1; i < result.Count; i++)
                 {
-                    if (spans.IsEnd)
+                    ArrayNode? spanNode = new ArrayNode(result, i);
+
+                    DataNode? propValue = await process.ProcessAsync(context, spanNode);
+                    if (propValue == null) continue;
+
+                    // build the constraint property
+                    prop.SetValue(propValue);
+
+                    // apply constraint on target
+                    SpanReader spans = process.Target;
+                    List<DataNode> currNodes = [spanNode];
+                    while (spans.NextPath())
                     {
+                        if (spans.IsEnd)
+                        {
+                            foreach (DataNode currNode in currNodes)
+                            {
+                                if (await prop.ValidateAsync(context, currNode) == false)
+                                {
+                                    if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
+                                    currNode.SetViolated(prop.Name);
+                                    changed = true;
+                                }
+                                else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
+                                {
+                                    currNode.ClearViolated(prop.Name);
+                                    changed = true;
+                                }
+                            }
+                            break;
+                        }
+
+                        // Gather effect nodes
+                        ReadOnlySpan<char> path = spans.Current;
+                        List<DataNode> nextLevels = [];
                         foreach (DataNode currNode in currNodes)
-                        {
-                            if (await prop.ValidateAsync(context, currNode) == false)
-                            {
-                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.SetViolated(prop.Name);
-                                changed = true;
-                            }
-                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                            {
-                                currNode.ClearViolated(prop.Name);
-                                changed = true;
-                            }
-                        }
-                        break;
-                    }
-                    
-                    // Gather effect nodes
-                    ReadOnlySpan<char> path = spans.Current;
-                    List<DataNode> nextLevels = [];
-                    foreach (DataNode currNode in currNodes)
-                    {
-                        if (currNode is ArrayNode arr)
-                        {
-                            foreach (DataNode element in arr)
-                            {
-                                DataNode? next = element.GetAccessValue(path);
-                                if (next != null) nextLevels.Add(next);
-                            }
-                        }
-                        else
                         {
                             DataNode? next = currNode.GetAccessValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
+                        currNodes = nextLevels;
                     }
-                    currNodes = nextLevels;
                 }
             }
             

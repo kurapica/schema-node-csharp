@@ -59,7 +59,7 @@ public sealed class RelationAttribute<T>(string func, params object[] args): Sys
                 ? str.StartsWith('$')
                     ? str.StartsWith("$$")
                         ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_ITSELF) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
+                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
                     : new CallArg{ Value = JsonValue.Create(str) }
                 : new CallArg { Value = a.ToJsonNode() }).ToArray()
         };
