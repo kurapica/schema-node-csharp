@@ -1,6 +1,5 @@
 ﻿using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
@@ -11,6 +10,7 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaNode.Function;
 
 namespace SchemaNode.Schema;
 
@@ -35,6 +35,7 @@ public sealed class StructSchema : ExtensibleSchema
     /// </summary>
     public StructUnionValidation[]? UnionValids { get; set; }
 
+    /// <inheritdoc/>
     public override void CombineExtensions(ExtensibleSchema? other, ISchemaRuntime? runtime = null)
     {
         if (other is not StructSchema otherStruct) return; 
@@ -89,6 +90,7 @@ public sealed class StructSchema : ExtensibleSchema
 /// Declare struct property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.struct")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty: Property<StructSchema>;
@@ -97,6 +99,7 @@ public sealed class StructProperty: Property<StructSchema>;
 /// Represents the struct type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_STRUCT)]
 public class StructType: AnyType;
 
 /// <summary>

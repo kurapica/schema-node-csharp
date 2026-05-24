@@ -1,6 +1,8 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Property.Record;
+using SchemaNode.Function;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
 
@@ -18,4 +20,5 @@ public sealed class NamespaceSchema;
 /// Represents the namespace type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NS}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_NAMESPACE)]
 public class NamespaceType: AnyType;

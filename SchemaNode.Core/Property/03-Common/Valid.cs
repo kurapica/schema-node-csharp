@@ -12,6 +12,9 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The validation property
 /// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_ENUM)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
 public class Valid : FuncCallProperty<ValidateFuncCall>, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)

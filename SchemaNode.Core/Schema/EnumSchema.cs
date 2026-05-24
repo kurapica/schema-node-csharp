@@ -1,18 +1,19 @@
-﻿using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Service;
 using SchemaNode.Struct;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
-using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -57,6 +58,7 @@ public sealed class EnumProperty: Property<EnumSchema>;
 /// Represents the enum type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_ENUM)]
 public class EnumType: AnyType;
 
 /// <summary>

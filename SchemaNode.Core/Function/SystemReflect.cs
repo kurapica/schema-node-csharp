@@ -11,15 +11,14 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Function;
 
-[Meta<SchemaType>(NS_SYSTEM_SCHEMA_FUNC)]
-public static class SystemSchemaFunc
+[Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT)]
+public static class SystemReflect
 {
-    public static async Task<bool> isvaluekind(SchemaContext context,
-        [Meta<SchemaType>(typeof(AnyType))] string name)
+    public static async Task<bool> isvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
-        return nodeType != null && typeof(ValueSchemaKind).GetRecordedValues().
-            Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
+        return nodeType != null && 
+            typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
     
     /// <summary>
@@ -31,5 +30,13 @@ public static class SystemSchemaFunc
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         return nodeType?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ?? false;
+    }
+
+    public static async Task<bool> isarrayele(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
+    {
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        return nodeType != null && 
+            !nodeType.Kind.Equals(SCHEMA_KIND_ARRAY, StringComparison.OrdinalIgnoreCase) &&
+            typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
 }

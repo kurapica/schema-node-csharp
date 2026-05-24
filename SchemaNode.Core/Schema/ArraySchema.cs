@@ -1,8 +1,9 @@
 ﻿using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
@@ -40,10 +41,12 @@ public sealed class ArrayProperty: Property<ArraySchema>;
 /// Represents the array type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_ARRAY)]
 public class ArrayType: AnyType;
 
 /// <summary>
 /// Represents the non-array type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.elementtype")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}", NODE_SELF)]
 public class ElementType : AnyType;

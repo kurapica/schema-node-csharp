@@ -1,8 +1,9 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -34,4 +35,5 @@ public sealed class DateProperty : Property<DateSchema>;
 /// Represents the date scalar type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_DATE)]
 public class DateScalarType : AnyType;

@@ -1,9 +1,10 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Record;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Record;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
@@ -67,6 +68,7 @@ public class PropertySchema: ExtensibleSchema
 /// Represents the property type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_PROPERTY)]
 public class PropertyType: AnyType;
 
 /// <summary>
@@ -80,6 +82,7 @@ public class PropertyName : String;
 /// </summary>
 [Meta<Alias>("property")]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class PropProperty: Property<PropertySchema>;

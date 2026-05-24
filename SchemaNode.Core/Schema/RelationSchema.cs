@@ -95,6 +95,7 @@ public interface IRelationProcessBuilder
 /// The relation property for data schemas
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
 public class Relations: Property<RelationSchema[]>;
 
@@ -196,6 +197,7 @@ public class RelationCallBuilder: IRelationProcessBuilder
 /// </summary>
 [Meta<Alias>("call")]
 [Meta<ForSchema>(SCHEMA_KIND_RELATION)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relationcall")]
 [Meta<Property.Record.RelationKind>("call", 0)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]

@@ -1,16 +1,17 @@
-﻿using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Runtime.NodeType;
@@ -50,6 +51,7 @@ public sealed class FunctionSchema: ExtensibleSchema
 /// Declare function property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.func")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty: Property<FunctionSchema>;
@@ -58,6 +60,7 @@ public sealed class FuncProperty: Property<FunctionSchema>;
 /// Represents the function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.type")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_FUNCTION)]
 public class FuncType: AnyType;
 
 /// <summary>

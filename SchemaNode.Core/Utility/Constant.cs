@@ -141,11 +141,12 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_PROPERTY_FUNC = $"{NS_SYSTEM_SCHEMA_PROPERTY}.func";
     
     public const string NS_SYSTEM_SCHEMA_ERROR = $"{NS_SYSTEM_SCHEMA}.error";
-    
+
     #endregion
 
     #region Function
 
+    public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";
     public const string NS_SYSTEM_INTRINSIC = "system.intrinsic";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";

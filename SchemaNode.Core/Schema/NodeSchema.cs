@@ -1,18 +1,19 @@
-﻿using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
+﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
 using Type = System.Type;
-using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 // ReSharper disable NotAccessedPositionalProperty.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -143,6 +144,7 @@ public class AnyType: String;
 /// Represents the value type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluetype)}", NODE_SELF)]
 public class ValueType : AnyType;
 
 /// <summary>

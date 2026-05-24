@@ -1,8 +1,9 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
@@ -34,4 +35,5 @@ public sealed class IntProperty : Property<IntSchema>;
 /// Represents the int scalar type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_INT}.int")]
+[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_INT)]
 public class IntType : AnyType;
