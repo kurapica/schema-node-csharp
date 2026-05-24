@@ -15,16 +15,17 @@ namespace SchemaNode.Function;
 public static class SystemCalendar
 {
     #region Now
-    [Meta<NoCache>]
+    [Meta<NoCache>(true)]
     public static DateTimeOffset now() => DateTimeOffset.UtcNow;
-    [Meta<NoCache>]
+    
+    [Meta<NoCache>(true)]
     public static DateTimeOffset today(SchemaContext context)
     {
         var tz = context.GetTimeZone();
         var now = ToLocal(DateTimeOffset.UtcNow, tz);
         return LocalToUtc(now.Year, now.Month, now.Day, 0, 0, 0, tz);
     }
-    [Meta<NoCache>]
+    [Meta<NoCache>(true)]
     public static DateTimeOffset tomorrow(SchemaContext context) => adddays(context, today(context), 1);
 
     #endregion

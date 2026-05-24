@@ -9,5 +9,5 @@ namespace SchemaNode.Property.Common;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(ReadOnly)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(ReadOnly)}")]
 public class ReadOnly:  Property<bool>;

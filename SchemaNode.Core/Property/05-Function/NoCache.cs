@@ -8,8 +8,9 @@ namespace SchemaNode.Property.Function;
 /// <summary>
 /// Marks a function result as not cacheable
 /// </summary>
-[Meta<Default>(true)]
+[Meta<Static>]
+[Meta<ReadOnly>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(NoCache)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_FUNC}.{nameof(NoCache)}")]
 public sealed class NoCache : Property<bool>;

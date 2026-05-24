@@ -49,6 +49,7 @@ public sealed class EnumSchema : ExtensibleSchema
 /// Declare enum property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.enum")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty: Property<EnumSchema>;
 

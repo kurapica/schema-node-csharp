@@ -89,6 +89,7 @@ public sealed class StructSchema : ExtensibleSchema
 /// Declare struct property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.struct")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty: Property<StructSchema>;
 

@@ -138,6 +138,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_PROPERTY_CORE = $"{NS_SYSTEM_SCHEMA_PROPERTY}.core";
     public const string NS_SYSTEM_SCHEMA_PROPERTY_COMMON = $"{NS_SYSTEM_SCHEMA_PROPERTY}.common";
     public const string NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT = $"{NS_SYSTEM_SCHEMA_PROPERTY}.constraint";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY_FUNC = $"{NS_SYSTEM_SCHEMA_PROPERTY}.func";
     
     public const string NS_SYSTEM_SCHEMA_ERROR = $"{NS_SYSTEM_SCHEMA}.error";
     

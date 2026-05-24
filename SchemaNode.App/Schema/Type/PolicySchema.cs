@@ -3,14 +3,14 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using NodeType = SchemaNode.Property.Schema.NodeType;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Schema;
 
@@ -81,5 +81,5 @@ public sealed class PolicyItem
     /// The status
     /// </summary>
     [SchemaIgnore]
-    public SchemaNodeStatus? Status { get; set; }
+    public string? Error { get; set; }
 }

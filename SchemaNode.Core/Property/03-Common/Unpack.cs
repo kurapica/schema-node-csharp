@@ -11,5 +11,5 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<ForType>(typeof(Object))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Unpack)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Unpack)}")]
 public class Unpack : Property<bool>;

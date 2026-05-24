@@ -10,5 +10,5 @@ namespace SchemaNode.Property.Constraint;
 [Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Primary)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Primary)}")]
 public class Primary : Property<string[]>, IConstraintProperty;

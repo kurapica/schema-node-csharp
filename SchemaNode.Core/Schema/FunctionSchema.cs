@@ -50,6 +50,7 @@ public sealed class FunctionSchema: ExtensibleSchema
 /// Declare function property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.func")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty: Property<FunctionSchema>;
 

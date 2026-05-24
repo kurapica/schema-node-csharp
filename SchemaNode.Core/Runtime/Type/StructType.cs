@@ -163,6 +163,8 @@ public sealed class StructType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
+        if (path.IsEmpty || path.SequenceEqual(NODE_SELF)) return this;
+        
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
         if (index > 0)

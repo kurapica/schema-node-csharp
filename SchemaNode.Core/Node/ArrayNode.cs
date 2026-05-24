@@ -180,7 +180,12 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
 
     /// <inheritdoc/>
     public override void ClearValue() => _elements.Clear();
-    
+
+    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+    {
+        return base.GetAccessValue(source);
+    }
+
     #endregion
     
     #region Methods

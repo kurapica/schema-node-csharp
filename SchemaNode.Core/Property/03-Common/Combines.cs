@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Common;
 [Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Combines)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Combines)}")]
 public class Combines : Property<DataCombine[]>;
 
 /// <summary>

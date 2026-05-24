@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Common;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_INT, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_DECIMAL)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Error)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Error)}")]
 public sealed class Error : Property<LocaleString>
 {
     /// <inheritdoc/>

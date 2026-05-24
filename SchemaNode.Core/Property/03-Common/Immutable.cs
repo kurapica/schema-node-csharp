@@ -9,5 +9,5 @@ namespace SchemaNode.Property.Presentation;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Immutable)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Immutable)}")]
 public class Immutable : Property<bool>;

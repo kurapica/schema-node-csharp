@@ -80,5 +80,6 @@ public class PropertyName : String;
 /// </summary>
 [Meta<Alias>("property")]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class PropProperty: Property<PropertySchema>;

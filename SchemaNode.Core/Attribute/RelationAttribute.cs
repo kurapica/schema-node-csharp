@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Attribute;
 
@@ -58,7 +59,7 @@ public sealed class RelationAttribute<T>(string func, params object[] args): Sys
                 ? str.StartsWith('$')
                     ? str.StartsWith("$$")
                         ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                        : new CallArg { Source = str[1..].ToCamelCase() }
+                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_ITSELF) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
                     : new CallArg{ Value = JsonValue.Create(str) }
                 : new CallArg { Value = a.ToJsonNode() }).ToArray()
         };

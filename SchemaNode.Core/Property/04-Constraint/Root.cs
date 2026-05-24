@@ -14,7 +14,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(EnumType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Root)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Root)}")]
 public class Root: Property<string>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)

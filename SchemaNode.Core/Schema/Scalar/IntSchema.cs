@@ -26,6 +26,7 @@ public sealed class IntSchema : ScalarSchema
 /// Declare int property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.int")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_INT)]
 public sealed class IntProperty : Property<IntSchema>;
 

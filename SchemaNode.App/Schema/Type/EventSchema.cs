@@ -3,11 +3,11 @@ using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using NodeType = SchemaNode.Property.Schema.NodeType;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Schema;
 
@@ -32,6 +32,7 @@ public sealed class EventSchema: ExtensibleSchema
 /// Declare event property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.event")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_EVENT)]
 public sealed class EventProperty: Property<EventSchema>;
 

@@ -567,7 +567,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty ? this : null;
+    public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty || path.SequenceEqual(NODE_SELF) ? this : null;
 
     /// <summary>
     /// The value type is assignable to other value type

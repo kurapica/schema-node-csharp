@@ -10,7 +10,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(EnumType), typeof(StringType), typeof(IntType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(BlackList)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(BlackList)}")]
 public class BlackList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>

@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
@@ -87,7 +88,9 @@ public class StructNode : DataNode
     /// Gets the access value
     /// </summary>
     public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
-        => _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(source) ?? -1);
+        => (source.IsEmpty || source.SequenceEqual(NODE_SELF)) 
+            ? this 
+            : _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(source) ?? -1);
 
     /// <inheritdoc/>
     public override bool Equals(DataNode? other)

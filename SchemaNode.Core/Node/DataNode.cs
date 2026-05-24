@@ -1,8 +1,7 @@
 ﻿using System.Collections.Immutable;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
+using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
@@ -123,7 +122,7 @@ public abstract class DataNode
     /// <summary>
     /// Gets the access value by part path
     /// </summary>
-    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty ? this : null;
+    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty || source.SequenceEqual(NODE_SELF) ? this : null;
 
     /// <summary>
     /// Refresh violated constraints based on data node structure

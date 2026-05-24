@@ -10,7 +10,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<Static>]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Indexes)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Indexes)}")]
 public class Indexes : Property<DataIndex[]>, IConstraintProperty;
 
 

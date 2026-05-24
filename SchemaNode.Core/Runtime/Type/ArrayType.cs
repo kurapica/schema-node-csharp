@@ -123,7 +123,7 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
     {
-        if (path.IsEmpty || path.SequenceEqual(ARRAY_ITSELF)) return this;
+        if (path.IsEmpty || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_ITSELF)) return this;
         return path.SequenceEqual(ARRAY_ELEMENT) ? Element : null;
     }
 

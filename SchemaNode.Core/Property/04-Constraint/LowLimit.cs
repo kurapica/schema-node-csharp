@@ -12,7 +12,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(StringType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(LowLimitString)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitString)}")]
 public class LowLimitString : Property<long>, IConstraintProperty
 {
     public bool? ValidateString(SchemaContext context, StringNode node)
@@ -26,7 +26,7 @@ public class LowLimitString : Property<long>, IConstraintProperty
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(DecimalType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(LowLimitNumber)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitNumber)}")]
 public class LowLimitNumber : Property<decimal>, IConstraintProperty
 {
     public bool? ValidateNumeric(SchemaContext context, NumericNode node)
@@ -40,7 +40,7 @@ public class LowLimitNumber : Property<decimal>, IConstraintProperty
 [Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(IntType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(LowLimitInt)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitInt)}")]
 public class LowLimitInt : Property<long>, IConstraintProperty
 {
     public bool? ValidateInt(SchemaContext context, IntNode node)
@@ -55,7 +55,7 @@ public class LowLimitInt : Property<long>, IConstraintProperty
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<ForType>(typeof(DateType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(LowLimitDate)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitDate)}")]
 public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
     public bool? ValidateDate(SchemaContext context, DateNode node)

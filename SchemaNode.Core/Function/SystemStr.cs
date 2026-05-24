@@ -95,10 +95,10 @@ public static class SystemStr
     [Meta<SchemaType>($"{NS_SYSTEM_STR}.map")]
     public static class Map
     {
-        [Meta<Converter>]
+        [Meta<Converter>(true)]
         public static LocaleString tolocale(string? str) => new LocaleString(str ?? "");
         
-        [Meta<Converter>]
+        [Meta<Converter>(true)]
         public static string tolocalestr(LocaleString? locale) => locale?.Key ?? "";
         
         public static Entry toentry(StructNode node, string valueField, string labelField)
@@ -142,8 +142,8 @@ public static class SystemStr
     [Meta<SchemaType>($"{NS_SYSTEM_STR}.util")]
     public static class Util
     {
-        [Meta<ServerOnly>]
-        [Meta<NoCache>]
+        [Meta<ServerOnly>(true)]
+        [Meta<NoCache>(true)]
         public static string newguid() => Guid.CreateVersion7().ToString();
     }
 

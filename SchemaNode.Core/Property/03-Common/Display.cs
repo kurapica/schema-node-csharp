@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Common;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ENUM_VALUE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(Display)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Display)}")]
 public sealed class Display : Property<LocaleString>
 {
     /// <inheritdoc/>
