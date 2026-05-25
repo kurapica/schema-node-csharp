@@ -1,5 +1,4 @@
 using SchemaNode.Attribute;
-using SchemaNode.Function;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
@@ -19,5 +18,5 @@ public sealed class BoolSchema;
 /// Represents the bool scalar type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.type")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_BOOL)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_BOOL)]
 public class BoolType : AnyType;

@@ -141,7 +141,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             {
                 arg.Type = schemaTypeAttr.GetValue<string>()!;
             }
-            else if (pt.Generic != null)
+            else if (pt.GenericParameter != null)
             {
                 if (pt.AnyArray && !(arg.Params ?? false))
                 {
@@ -149,7 +149,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
                 }
                 else
                 {
-                    int gIdx = Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic);
+                    int gIdx = Array.FindIndex(genInfos, (g) => g.GenericParameter == pt.GenericParameter);
                     if (gIdx >= 0)
                     {
                         // generic type
@@ -164,7 +164,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             else
             {
                 string? paramType = typeResolver(
-                    ((arg.Params == true) ? pt.BaseType : pt.Type) 
+                    ((arg.Params == true) ? pt.CoreType : pt.Type) 
                     ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}"), 
                     @namespace);
                 if (paramType == null) return null;
@@ -180,7 +180,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         else if (new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable)
             sign |= FunctionFlags.NullableRet;
 
-        if (retInfo.Generic != null)
+        if (retInfo.GenericParameter != null)
         {
             // IList<T>, use system.array instead
             if (retInfo.AnyArray)
@@ -190,7 +190,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             else
             {
                 // single
-                int gIdx = Array.FindIndex(genInfos, g => g.Generic == retInfo.Generic);
+                int gIdx = Array.FindIndex(genInfos, g => g.GenericParameter == retInfo.GenericParameter);
                 if (gIdx >= 0)
                     funcSchema.Return = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
                 else

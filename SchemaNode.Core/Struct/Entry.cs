@@ -1,5 +1,4 @@
 ﻿using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
@@ -9,22 +8,21 @@ namespace SchemaNode.Struct;
 /// The dict entry
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_ENTRY)]
-public sealed class Entry
+public sealed class Entry<T>
 {
     /// <summary>
     /// The entry value
     /// </summary>
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     [Meta<PrimaryIndex>]
-    public string Value { get; set; } = string.Empty;
+    public T Value { get; set; } = default!;
 
     /// <summary>
     /// The entry label
     /// </summary>
     public LocaleString? Label { get; set; }
-
+    
     /// <summary>
-    /// The entry children
+    /// Whether has children
     /// </summary>
-    public Entry[]? Children { get; set; }
+    public bool? HasChildren { get; set; }
 }

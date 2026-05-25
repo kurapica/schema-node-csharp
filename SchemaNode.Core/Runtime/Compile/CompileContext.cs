@@ -651,7 +651,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             // Sets generic type
             ValueType? ParseGenericType(TypeDetails typeInfo, ValueType? origin = null, ValueType? genType = null, bool isReturn = false)
             {
-                if (typeInfo.Generic == null && origin is not GenericType)
+                if (typeInfo.GenericParameter == null && origin is not GenericType)
                 {
                     if (origin == null || genType == null || genType.IsAssignableTo(origin)) return origin ?? genType;
                     if (isReturn)
@@ -667,8 +667,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
                 else
                 {
-                    int idx = typeInfo.Generic != null 
-                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.Generic == g.Generic) 
+                    int idx = typeInfo.GenericParameter != null 
+                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.GenericParameter == g.GenericParameter) 
                         : origin is GenericType go ? Array.FindIndex(Function.Generics ?? [], g => go.Name == g.Name) : -1;
                     if (idx < 0 || genericTypes[idx] is not GenericType && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]))
                     {
@@ -907,7 +907,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             TypeDetails? info = null;
             Type? type = null;
-            if (callFuncInfo.Return.Generic == p.Generic)
+            if (callFuncInfo.Return.GenericParameter == p.GenericParameter)
             {
                 info = callFuncInfo.Return;
                 type = expRetElement.GetNotNullType();
@@ -917,7 +917,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 for (int j = 0; j < callFuncInfo.Args.Length; j++)
                 {
                     TypeDetails sInfo = callFuncInfo.Args[j];
-                    if (sInfo.Generic != p.Generic) continue;
+                    if (sInfo.GenericParameter != p.GenericParameter) continue;
                     info = sInfo;
                     type = callArgs[j + useContext].Type.GetNotNullType();
                     break;

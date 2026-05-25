@@ -40,7 +40,6 @@ public abstract class FuncCallProperty<T> : Property<T>, IFuncCallProperty, ITyp
         };
         SetValue(call);
     }
-
 }
 
 /// <summary>

@@ -41,12 +41,12 @@ public sealed class ArrayProperty: Property<ArraySchema>;
 /// Represents the array type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.type")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_ARRAY)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_ARRAY)]
 public class ArrayType: AnyType;
 
 /// <summary>
 /// Represents the non-array type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.elementtype")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}", NODE_SELF)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE, NODE_SELF)]
 public class ElementType : AnyType;

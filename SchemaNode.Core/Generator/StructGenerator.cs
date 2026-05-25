@@ -60,12 +60,12 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             if (pt == null) continue;
             
             // Explicit [Meta<ValueType>] on the property overrides type resolution
-            string? fieldType = pt.Generic != null 
-                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.Generic == pt.Generic)}" : "T")
-                    : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.BaseType ?? p.PropertyType);
+            string? fieldType = pt.GenericParameter != null 
+                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.GenericParameter == pt.GenericParameter)}" : "T")
+                    : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.CoreType ?? p.PropertyType);
 
             if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
-                fieldType = pt.Generic != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
+                fieldType = pt.GenericParameter != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
 
             StructFieldSchema field = new()
             {

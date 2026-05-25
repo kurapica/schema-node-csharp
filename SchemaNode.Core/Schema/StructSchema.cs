@@ -10,7 +10,6 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
-using SchemaNode.Function;
 
 namespace SchemaNode.Schema;
 
@@ -99,7 +98,7 @@ public sealed class StructProperty: Property<StructSchema>;
 /// Represents the struct type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_STRUCT)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_STRUCT)]
 public class StructType: AnyType;
 
 /// <summary>
@@ -135,7 +134,7 @@ public class StructUnionValidation: IEquatable<StructUnionValidation>
     /// <summary>
     /// The union validation func
     /// </summary>
-    [Meta<SchemaType>(typeof(UnionValidFuncType))]
+    [Meta<SchemaType>(typeof(ValidFuncType))]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

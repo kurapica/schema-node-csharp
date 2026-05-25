@@ -27,24 +27,36 @@ internal class TypeDetails
         Task = 1 << 6,
         GenericType = 1 << 7,
         GenericParameter = 1 << 8,
-        Params = 1 << 9, // params T[]
-        Complex = 1 << 10, // Dict<TK, TV> || JsonNode || other complex type
+        GenericDefinition = 1 << 9,
+        Params = 1 << 10, // params T[]
+        Complex = 1 << 11, // Dict<TK, TV> || JsonNode || other complex type
     }
     
-    /// <summary>
-    /// The generic type
-    /// </summary>
-    public Type? Generic { get; set; }
-
     /// <summary>
     /// The original type
     /// </summary>
     public Type? Type { get; set; }
     
     /// <summary>
-    /// The base type
+    /// The core type
     /// </summary>
-    public Type? BaseType { get; set; }
+    public Type? CoreType { get; set; }
+    
+    /// <summary>
+    /// The generic parameter
+    /// </summary>
+    [Obsolete("Use CoreType instead")]
+    public Type? GenericParameter { get; set; }
+    
+    /// <summary>
+    /// The generic type definition
+    /// </summary>
+    public TypeDetails? GenericDefine { get; set; }
+
+    /// <summary>
+    /// The generic arguments
+    /// </summary>
+    public TypeDetails[]? GenericArguments { get; set; }
 
     /// <summary>
     /// The generic type kind
@@ -99,6 +111,21 @@ internal class TypeDetails
     public bool OnlyFloat => (Kind & ParameterTypeKind.Float) > 0;
     
     /// <summary>
+    /// Is generic type
+    /// </summary>
+    public bool IsGenericType => (Kind & ParameterTypeKind.GenericType) > 0;
+    
+    /// <summary>
+    /// Is generic parameter
+    /// </summary>
+    public bool IsGenericParameter => (Kind & ParameterTypeKind.GenericParameter) > 0;
+    
+    /// <summary>
+    /// Is generic definition
+    /// </summary>
+    public bool IsGenericDefinition => (Kind & ParameterTypeKind.GenericDefinition) > 0;
+    
+    /// <summary>
     /// Use complex type like Dict
     /// </summary>
     public bool Complex => (Kind & ParameterTypeKind.Complex) > 0;
@@ -116,7 +143,7 @@ internal class TypeDetails
         if (Params) valueType = valueType?.GetElementType() ?? valueType;
         
         if (node == null || node.IsEmpty()) return (null, valueType, generic);
-        if (Generic != null)
+        if (GenericParameter != null)
         {
             if (node is JsonArray arr)
             {
@@ -250,72 +277,23 @@ internal static class TypeInfoExtensions
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    internal static TypeDetails? GetTypeDetails(this Type? input)
+    internal static TypeDetails GetTypeDetails(this Type input)
     {
-        if (input == null) return null;
-        TypeDetails? result;
-        
-        if (input.IsGenericType) // IList<T>, IList<int>
+        TypeDetails? result = null;
+
+        if (input.IsGenericTypeDefinition) // Entry<T>
         {
-            Type[] args = input.GetGenericArguments();
-            if (args.Length != 1)
+            result = new TypeDetails
             {
-                // Normally types like Dict<TK, TV> should be treated as complex type, which is not supported in schema system
-                // so we just return a fake TypeInfo with JsonNode type to cover it, it'll be converted to system.any
-                return new TypeDetails
-                {
-                    Kind = TypeDetails.ParameterTypeKind.GenericType | TypeDetails.ParameterTypeKind.Complex,
-                    Type = typeof(JsonNode),
-                    BaseType = typeof(JsonNode),
-                };
-            }
-            
-            result = GetTypeDetails(args[0]);
-            if (result == null) return null;
-
-            Type genType = input.GetGenericTypeDefinition();
-            
-            // T?
-            if (genType == typeof(Nullable<>))
-            {
-                result.Kind |= TypeDetails.ParameterTypeKind.Nullable;
-            }
-            
-            // IList<T>, List<T>
-            else if (genType == typeof(IList<>) || genType == typeof(List<>))
-            {
-                result.Kind |= TypeDetails.ParameterTypeKind.List;
-            }
-            
-            // IEnumerable<T>
-            else if (genType == typeof(IEnumerable<>))
-            {
-                result.Kind |= TypeDetails.ParameterTypeKind.Enumerable;
-            }
-
-            // Task<T>
-            else if (genType == typeof(Task<>))
-            {
-                result.Kind |= TypeDetails.ParameterTypeKind.Task;
-            }
-            
-            // Like Dict<TK, TV>
-            else
-            {
-                return new TypeDetails
-                {
-                    Kind = TypeDetails.ParameterTypeKind.GenericType | TypeDetails.ParameterTypeKind.Complex,
-                    Type = typeof(JsonNode),
-                    BaseType = typeof(JsonNode),
-                };
-            }
-
-            result.Kind |= TypeDetails.ParameterTypeKind.GenericType;
+                CoreType = input,
+                GenericArguments = input.GetGenericArguments().Select(GetTypeDetails).ToArray(),
+                Kind = TypeDetails.ParameterTypeKind.GenericDefinition,
+            };
         }
         else if (input.IsGenericParameter) // T where T: INumber<T>
         {
             // Only check INumber<T>, IFloatPoint<T>, don't cover full constraints
-            var constraints = input.GetGenericParameterConstraints();
+            Type[] constraints = input.GetGenericParameterConstraints();
             bool isNumber = false;
             bool isFloat = false;
 
@@ -327,30 +305,75 @@ internal static class TypeInfoExtensions
                 else if (constraint.GetGenericTypeDefinition() == typeof(IFloatingPoint<>))
                     isFloat = true;
             }
-            return new TypeDetails
+            result = new TypeDetails
             {
-                Generic = input,
+                CoreType = input,
                 Kind = TypeDetails.ParameterTypeKind.GenericParameter | 
-                       (isNumber ? TypeDetails.ParameterTypeKind.Number : isFloat ? TypeDetails.ParameterTypeKind.Float : TypeDetails.ParameterTypeKind.Normal)
+                       (isNumber 
+                           ? TypeDetails.ParameterTypeKind.Number 
+                           : isFloat 
+                               ? TypeDetails.ParameterTypeKind.Float 
+                               : TypeDetails.ParameterTypeKind.Normal)
             };
+        }
+        else if (input.IsGenericType) // IList<string>, IList<int>
+        {
+            TypeDetails[] args = input.GetGenericArguments().Select(GetTypeDetails).ToArray();
+            Type genType = input.GetGenericTypeDefinition();
+
+            result = new TypeDetails
+            {
+                CoreType = input,
+                GenericDefine = genType.GetTypeDetails(),
+                GenericArguments = args,
+                Kind = TypeDetails.ParameterTypeKind.GenericType
+            };
+            
+            if (args.Length == 1)
+            {
+                // T?
+                if (genType == typeof(Nullable<>))
+                {
+                    result = args[0];
+                    result.Kind |= TypeDetails.ParameterTypeKind.Nullable;
+                }
+            
+                // IList<T>, List<T>
+                else if (genType == typeof(IList<>) || genType == typeof(List<>))
+                {
+                    result = args[0];
+                    result.Kind |= TypeDetails.ParameterTypeKind.List;
+                }
+            
+                // IEnumerable<T>
+                else if (genType == typeof(IEnumerable<>))
+                {
+                    result = args[0];
+                    result.Kind |= TypeDetails.ParameterTypeKind.Enumerable;
+                }
+
+                // Task<T>
+                else if (genType == typeof(Task<>))
+                {
+                    result = args[0];
+                    result.Kind |= TypeDetails.ParameterTypeKind.Task;
+                }
+            }
         }
         else if (input.IsArray && input != typeof(string))
         {
             // only allow one-level array
-            if (!input.IsSZArray) return null;
-            result = GetTypeDetails(input.GetElementType());
-            
-            if (result == null) return null;
-            result.Kind |= TypeDetails.ParameterTypeKind.Array;
+            result = input.IsSZArray 
+                ? input.GetElementType()?.GetTypeDetails()
+                : null;
+            result?.Kind |= TypeDetails.ParameterTypeKind.Array;
         }
-        else
+        result ??= new TypeDetails
         {
-            result = new TypeDetails
-            {
-                BaseType = input,
-            };
-        }
+            CoreType = input,
+        };
 
+        // Always keep the origin type
         result.Type = input;
         return result;
     }

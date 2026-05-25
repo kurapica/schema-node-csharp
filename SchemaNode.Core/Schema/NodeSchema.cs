@@ -144,7 +144,7 @@ public class AnyType: String;
 /// Represents the value type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluetype)}", NODE_SELF)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, NODE_SELF)]
 public class ValueType : AnyType;
 
 /// <summary>

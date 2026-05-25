@@ -224,7 +224,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             TypeDetails? details = type.GetTypeDetails();
 
             // Special to handle array
-            type = details?.BaseType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
+            type = details?.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
             bool isArray = details.AnyArray;
 
             string? fullName = runtime.GetTypeSchema(type);

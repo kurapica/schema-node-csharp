@@ -1,5 +1,4 @@
 using SchemaNode.Attribute;
-using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
@@ -68,7 +67,7 @@ public class PropertySchema: ExtensibleSchema
 /// Represents the property type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_PROPERTY)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_PROPERTY)]
 public class PropertyType: AnyType;
 
 /// <summary>

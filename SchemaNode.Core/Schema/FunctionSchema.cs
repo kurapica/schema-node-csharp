@@ -1,6 +1,5 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -60,20 +59,15 @@ public sealed class FuncProperty: Property<FunctionSchema>;
 /// Represents the function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.type")]
-[Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", NODE_SELF, SCHEMA_KIND_FUNCTION)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_FUNCTION)]
 public class FuncType: AnyType;
 
 /// <summary>
 /// Represents the validation function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.valid")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class ValidFuncType: FuncType;
-
-/// <summary>
-/// Represents the union validation function type
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.unionvalid")]
-public class UnionValidFuncType : FuncType;
 
 /**
  * The function argument information

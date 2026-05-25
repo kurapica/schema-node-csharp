@@ -101,28 +101,6 @@ public static class SystemStr
         [Meta<Converter>(true)]
         public static string tolocalestr(LocaleString? locale) => locale?.Key ?? "";
         
-        public static Entry toentry(StructNode node, string valueField, string labelField)
-        {
-            DataNode? val = node.GetAccessValue(valueField);
-            DataNode? label = node.GetAccessValue(labelField);
-            return new Entry
-            {
-                Value = val?.GetValue<string>() ?? "",
-                Label = label switch
-                {
-                    StructNode labelNode => labelNode.GetValue<LocaleString>(),
-                    StringNode or EnumNode => new LocaleString(label.GetValue<string>() ?? ""),
-                    _ => new LocaleString(val?.GetValue<string>() ?? "")
-                }
-            };
-        }
-        
-        public static List<Entry> toentrys(ArrayNode array, string valueField, string labelField) => array
-            .OfType<StructNode>()
-            .Select(node => toentry(node, valueField, labelField))
-            .DistinctBy(p => p.Value)
-            .ToList();
-        
         public static LocaleString rectifylocale(LocaleString locale, string? defaultLang = null)
         {
             if (string.IsNullOrWhiteSpace(locale.Key))

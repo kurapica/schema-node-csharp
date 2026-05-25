@@ -146,7 +146,6 @@ public static class Constant
 
     #region Function
 
-    public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";
     public const string NS_SYSTEM_INTRINSIC = "system.intrinsic";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
@@ -155,6 +154,15 @@ public static class Constant
     public const string NS_SYSTEM_DATA = "system.data";
     public const string NS_SYSTEM_STR = "system.str";
 
+    public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
+
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluekind)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}";
+
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withreturn)}";
+    
     public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
     
     #endregion
