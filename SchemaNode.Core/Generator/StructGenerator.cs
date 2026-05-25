@@ -43,8 +43,8 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         Dictionary<string, PropertyInfo> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
         
         // Check generic types
-        TypeDetails[] genInfos = type.GetGenericArguments()
-            .Select(g => g.GetTypeDetails() ?? throw new Exception($"The {g.FullName} used by type {type.FullName} can't be resolved"))
+        TypeDetail[] genInfos = type.GetGenericArguments()
+            .Select(g => g.GetTypeDetail() ?? throw new Exception($"The {g.FullName} used by type {type.FullName} can't be resolved"))
             .ToArray(); // The generic type infos
         
         foreach (PropertyInfo p in type
@@ -56,16 +56,15 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                      .OrderBy(p => p.MetadataToken))
         {
             string fieldName = p.Name.ToCamelCase();
-            TypeDetails? pt = p.PropertyType.GetTypeDetails();
-            if (pt == null) continue;
+            TypeDetail pt = p.PropertyType.GetTypeDetail();
             
             // Explicit [Meta<ValueType>] on the property overrides type resolution
-            string? fieldType = pt.GenericParameter != null 
-                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.GenericParameter == pt.GenericParameter)}" : "T")
+            string? fieldType = pt.IsGenericParameter
+                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.CoreType == pt.CoreType)}" : "T")
                     : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.CoreType ?? p.PropertyType);
 
             if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
-                fieldType = pt.GenericParameter != null ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
+                fieldType = pt.IsGenericParameter ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
 
             StructFieldSchema field = new()
             {

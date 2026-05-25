@@ -649,7 +649,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Sets generic type
-            ValueType? ParseGenericType(TypeDetails typeInfo, ValueType? origin = null, ValueType? genType = null, bool isReturn = false)
+            ValueType? ParseGenericType(TypeDetail typeInfo, ValueType? origin = null, ValueType? genType = null, bool isReturn = false)
             {
                 if (typeInfo.GenericParameter == null && origin is not GenericType)
                 {
@@ -905,7 +905,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // Make generic method for system defined methods
         Type?[] genTypes = callFuncInfo.Generics.Select(p =>
         {
-            TypeDetails? info = null;
+            TypeDetail? info = null;
             Type? type = null;
             if (callFuncInfo.Return.GenericParameter == p.GenericParameter)
             {
@@ -916,7 +916,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 for (int j = 0; j < callFuncInfo.Args.Length; j++)
                 {
-                    TypeDetails sInfo = callFuncInfo.Args[j];
+                    TypeDetail sInfo = callFuncInfo.Args[j];
                     if (sInfo.GenericParameter != p.GenericParameter) continue;
                     info = sInfo;
                     type = callArgs[j + useContext].Type.GetNotNullType();

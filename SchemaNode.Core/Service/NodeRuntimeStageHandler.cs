@@ -221,7 +221,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         
         string? ResolveOtherSchema(Type type, string defaultNs)
         {
-            TypeDetails? details = type.GetTypeDetails();
+            TypeDetail? details = type.GetTypeDetail();
 
             // Special to handle array
             type = details?.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");

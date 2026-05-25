@@ -9,7 +9,7 @@ namespace SchemaNode.Utility;
 /// <summary>
 /// The type details of the given C# type
 /// </summary>
-internal class TypeDetails
+internal class TypeDetail
 {
     /// <summary>
     /// The parameter type kind
@@ -51,12 +51,12 @@ internal class TypeDetails
     /// <summary>
     /// The generic type definition
     /// </summary>
-    public TypeDetails? GenericDefine { get; set; }
+    public TypeDetail? GenericDefine { get; set; }
 
     /// <summary>
     /// The generic arguments
     /// </summary>
-    public TypeDetails[]? GenericArguments { get; set; }
+    public TypeDetail[]? GenericArguments { get; set; }
 
     /// <summary>
     /// The generic type kind
@@ -172,7 +172,7 @@ internal class TypeDetails
                 {
                     try
                     {
-                        MethodInfo method = _convToEnum.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        MethodInfo method = _convToEnum.GetOrAdd(generic, t => typeof(TypeDetail).GetMethod(nameof(ConvertToEnumerable), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
                         return (method.Invoke(null, [arr]), typeof(IEnumerable<>).MakeGenericType(generic), generic);
                     }
                     catch
@@ -195,12 +195,12 @@ internal class TypeDetails
                 {
                     if (Array)
                     {
-                        MethodInfo method = _arrConv.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToArray), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        MethodInfo method = _arrConv.GetOrAdd(generic, t => typeof(TypeDetail).GetMethod(nameof(ConvertToArray), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
                         return (method.Invoke(null, [arr]), arrType, generic);
                     }
                     else
                     {
-                        MethodInfo method = _lstConv.GetOrAdd(generic, t => typeof(TypeDetails).GetMethod(nameof(ConvertToList), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
+                        MethodInfo method = _lstConv.GetOrAdd(generic, t => typeof(TypeDetail).GetMethod(nameof(ConvertToList), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(t));
                         return (method.Invoke(null, [arr]), arrType, generic);
                     }
                 }
@@ -256,13 +256,8 @@ internal class TypeDetails
         return (null, valueType, generic);
     }
     
-    static IEnumerable<T?> ConvertToEnumerable<T>(JsonArray arr)
-    {
-        return arr.Select(a => a.TryConvertTo<T>(out var r) ? r : default(T?));
-    }
-
+    static IEnumerable<T?> ConvertToEnumerable<T>(JsonArray arr) => arr.Select(a => a.TryConvertTo<T>(out var r) ? r : default(T?));
     static T?[] ConvertToArray<T>(JsonArray arr) => ConvertToEnumerable<T>(arr).ToArray();
-
     static List<T?> ConvertToList<T>(JsonArray arr)=> ConvertToEnumerable<T>(arr).ToList();
 
     private static readonly ConcurrentDictionary<Type, MethodInfo> _convToEnum = [];
@@ -277,98 +272,93 @@ internal static class TypeInfoExtensions
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    internal static TypeDetails GetTypeDetails(this Type input)
+    internal static TypeDetail GetTypeDetail(this Type input)
     {
-        TypeDetails? result = null;
+        TypeDetail? result = null;
 
         if (input.IsGenericTypeDefinition) // Entry<T>
         {
-            result = new TypeDetails
+            result = new TypeDetail
             {
                 CoreType = input,
-                GenericArguments = input.GetGenericArguments().Select(GetTypeDetails).ToArray(),
-                Kind = TypeDetails.ParameterTypeKind.GenericDefinition,
+                GenericArguments = input.GetGenericArguments().Select(GetTypeDetail).ToArray(),
+                Kind = TypeDetail.ParameterTypeKind.GenericDefinition,
             };
         }
         else if (input.IsGenericParameter) // T where T: INumber<T>
         {
             // Only check INumber<T>, IFloatPoint<T>, don't cover full constraints
-            Type[] constraints = input.GetGenericParameterConstraints();
-            bool isNumber = false;
-            bool isFloat = false;
+            var kind = TypeDetail.ParameterTypeKind.GenericParameter;
 
-            foreach (Type constraint in constraints)
+            foreach (Type constraint in input.GetGenericParameterConstraints())
             {
                 if (!constraint.IsGenericType) continue;
                 if (constraint.GetGenericTypeDefinition() == typeof(INumber<>))
-                    isNumber = true;
+                    kind |= TypeDetail.ParameterTypeKind.Number;
                 else if (constraint.GetGenericTypeDefinition() == typeof(IFloatingPoint<>))
-                    isFloat = true;
+                    kind |= TypeDetail.ParameterTypeKind.Float;
             }
-            result = new TypeDetails
+            result = new TypeDetail
             {
                 CoreType = input,
-                Kind = TypeDetails.ParameterTypeKind.GenericParameter | 
-                       (isNumber 
-                           ? TypeDetails.ParameterTypeKind.Number 
-                           : isFloat 
-                               ? TypeDetails.ParameterTypeKind.Float 
-                               : TypeDetails.ParameterTypeKind.Normal)
+                Kind = kind
             };
         }
-        else if (input.IsGenericType) // IList<string>, IList<int>
+        else if (input.IsGenericType) // IList<string>, IList<int>, Entry<string>
         {
-            TypeDetails[] args = input.GetGenericArguments().Select(GetTypeDetails).ToArray();
+            TypeDetail[] args = input.GetGenericArguments().Select(GetTypeDetail).ToArray();
             Type genType = input.GetGenericTypeDefinition();
 
-            result = new TypeDetails
+            result = new TypeDetail
             {
                 CoreType = input,
-                GenericDefine = genType.GetTypeDetails(),
+                GenericDefine = genType.GetTypeDetail(),
                 GenericArguments = args,
-                Kind = TypeDetails.ParameterTypeKind.GenericType
+                Kind = TypeDetail.ParameterTypeKind.GenericType
             };
             
+            // common generic like nullable, list will be solved here
             if (args.Length == 1)
             {
                 // T?
                 if (genType == typeof(Nullable<>))
                 {
                     result = args[0];
-                    result.Kind |= TypeDetails.ParameterTypeKind.Nullable;
+                    result.Kind |= TypeDetail.ParameterTypeKind.Nullable;
                 }
             
                 // IList<T>, List<T>
                 else if (genType == typeof(IList<>) || genType == typeof(List<>))
                 {
                     result = args[0];
-                    result.Kind |= TypeDetails.ParameterTypeKind.List;
+                    result.Kind |= TypeDetail.ParameterTypeKind.List;
                 }
             
                 // IEnumerable<T>
                 else if (genType == typeof(IEnumerable<>))
                 {
                     result = args[0];
-                    result.Kind |= TypeDetails.ParameterTypeKind.Enumerable;
+                    result.Kind |= TypeDetail.ParameterTypeKind.Enumerable;
                 }
 
                 // Task<T>
                 else if (genType == typeof(Task<>))
                 {
                     result = args[0];
-                    result.Kind |= TypeDetails.ParameterTypeKind.Task;
+                    result.Kind |= TypeDetail.ParameterTypeKind.Task;
                 }
             }
         }
+        // int[]
         else if (input.IsArray && input != typeof(string))
         {
             // only allow one-level array
             result = input.IsSZArray 
-                ? input.GetElementType()?.GetTypeDetails()
+                ? input.GetElementType()?.GetTypeDetail()
                 : null;
-            result?.Kind |= TypeDetails.ParameterTypeKind.Array;
+            result?.Kind |= TypeDetail.ParameterTypeKind.Array;
         }
-        result ??= new TypeDetails
+        result ??= new TypeDetail
         {
             CoreType = input,
         };
@@ -383,6 +373,6 @@ internal static class TypeInfoExtensions
     /// </summary>
     /// <param name="input"></param>
     /// <returns></returns>
-    internal static TypeDetails GetNodeTypeDetails(this NodeType input)
-        => new TypeDetails { Type = input.GetCsharpType() ?? typeof(object) };
+    internal static TypeDetail GetNodeTypeDetails(this NodeType input)
+        => new TypeDetail { Type = input.GetCsharpType() ?? typeof(object) };
 }

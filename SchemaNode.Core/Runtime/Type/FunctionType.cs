@@ -338,8 +338,8 @@ public sealed class FunctionType : NodeType
             Sign = FunctionFlags.Context, // always use context for dynamic func
             Args = Args.Select(a =>
             {
-                TypeDetails info = a.ValueType!.GetNodeTypeDetails();
-                if (a.Nullable ?? false) info.Kind |= TypeDetails.ParameterTypeKind.Nullable;
+                TypeDetail info = a.ValueType!.GetNodeTypeDetails();
+                if (a.Nullable ?? false) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
             Return = ReturnNode.GetNodeTypeDetails()
@@ -375,7 +375,7 @@ public sealed class FunctionType : NodeType
         
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
-        Type? GetArgType(TypeDetails arg, Type? maybeType = null)
+        Type? GetArgType(TypeDetail arg, Type? maybeType = null)
         {
             if (arg.GenericParameter == null) return arg.Type;
             int idx = Array.FindIndex(funcInfo.Generics, f => f.GenericParameter == arg.GenericParameter);
@@ -396,7 +396,7 @@ public sealed class FunctionType : NodeType
         object?[] callArgs = new object[funcInfo.Args.Length];
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
-            TypeDetails arg = funcInfo.Args[i];
+            TypeDetail arg = funcInfo.Args[i];
             FunctionNodeArgument argInfo = Args[i];
 
             // non params

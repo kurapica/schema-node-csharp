@@ -74,8 +74,8 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         
         // Generate the arguments and result type
         ParameterInfo[] parameters = method.GetParameters();
-        TypeDetails[] genInfos = method.GetGenericArguments()
-            .Select(g => g.GetTypeDetails() ?? throw new Exception($"The {g.FullName} used by method {method.Name} can't be resolved"))
+        TypeDetail[] genInfos = method.GetGenericArguments()
+            .Select(g => g.GetTypeDetail() ?? throw new Exception($"The {g.FullName} used by method {method.Name} can't be resolved"))
             .ToArray(); // The generic type infos
 
         // The schema context must be the first if used
@@ -106,11 +106,11 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             ).ToArray());
 
         // Parameter types
-        TypeDetails?[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetails()).ToArray();
+        TypeDetail?[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail()).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
             ParameterInfo p = parameters[i];
-            TypeDetails? pt = paramInfos[i];
+            TypeDetail? pt = paramInfos[i];
             if (pt == null) return null;
 
             var defaultProp = p.GetMetaProperty<Default>();
@@ -126,14 +126,14 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             };
             funcSchema.Args[i] = arg;
             if ((arg.Nullable ?? false) || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable)
-                pt.Kind |= TypeDetails.ParameterTypeKind.Nullable;
+                pt.Kind |= TypeDetail.ParameterTypeKind.Nullable;
 
             // Params
             if (p.IsDefined(typeof(ParamArrayAttribute), false))
             {
                 arg.Params = true;
                 arg.Nullable = true;
-                pt.Kind |= TypeDetails.ParameterTypeKind.Params;
+                pt.Kind |= TypeDetail.ParameterTypeKind.Params;
             }
 
             // Check dynamic type
@@ -173,7 +173,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         }
 
         // Return type
-        TypeDetails? retInfo = method.ReturnType.GetTypeDetails();
+        TypeDetail? retInfo = method.ReturnType.GetTypeDetail();
         if (retInfo == null) return null;
         if (retInfo.Task) sign |= FunctionFlags.Async;
         if (retInfo.Nullable) sign |= FunctionFlags.NullableRet;
@@ -248,17 +248,17 @@ internal sealed class SchemaFuncInfo
     /// <summary>
     /// The generic info
     /// </summary>
-    public TypeDetails[] Generics { get; init; } = [];
+    public TypeDetail[] Generics { get; init; } = [];
     
     /// <summary>
     /// The argument info
     /// </summary>
-    public TypeDetails[] Args { get; init; } = [];
+    public TypeDetail[] Args { get; init; } = [];
     
     /// <summary>
     /// The return info
     /// </summary>
-    public required TypeDetails Return { get; init; }
+    public required TypeDetail Return { get; init; }
 
     /// <summary>
     /// The generic instances
