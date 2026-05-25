@@ -31,11 +31,11 @@ internal class TypeDetail
         Params = 1 << 10, // params T[]
         Complex = 1 << 11, // Dict<TK, TV> || JsonNode || other complex type
     }
-    
+
     /// <summary>
     /// The original type
     /// </summary>
-    public Type? Type { get; set; }
+    public Type Type { get; set; } = null!;
     
     /// <summary>
     /// The core type

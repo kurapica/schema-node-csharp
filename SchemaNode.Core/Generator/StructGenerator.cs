@@ -44,7 +44,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         
         // Check generic types
         TypeDetail[] genInfos = type.GetGenericArguments()
-            .Select(g => g.GetTypeDetail() ?? throw new Exception($"The {g.FullName} used by type {type.FullName} can't be resolved"))
+            .Select(g => g.GetTypeDetail())
             .ToArray(); // The generic type infos
         
         foreach (PropertyInfo p in type
@@ -57,11 +57,17 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         {
             string fieldName = p.Name.ToCamelCase();
             TypeDetail pt = p.PropertyType.GetTypeDetail();
-            
+
             // Explicit [Meta<ValueType>] on the property overrides type resolution
-            string? fieldType = pt.IsGenericParameter
-                    ? (genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.CoreType == pt.CoreType)}" : "T")
-                    : p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.CoreType ?? p.PropertyType);
+            string? fieldType;
+            if (pt.IsGenericParameter)
+                fieldType = genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.CoreType == pt.CoreType)}" : "T";
+            else if(pt.IsGenericType)
+            {
+                fieldType = typeResolver(pt.Type, @namespace);
+            }
+            else
+                fieldType = p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.CoreType ?? p.PropertyType);
 
             if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
                 fieldType = pt.IsGenericParameter ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);

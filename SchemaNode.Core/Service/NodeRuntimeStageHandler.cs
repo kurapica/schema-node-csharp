@@ -12,6 +12,7 @@ using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using System.Data;
 
 namespace SchemaNode.Service;
 
@@ -221,11 +222,26 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         
         string? ResolveOtherSchema(Type type, string defaultNs)
         {
-            TypeDetail? details = type.GetTypeDetail();
+            TypeDetail? detail = type.GetTypeDetail();
 
             // Special to handle array
-            type = details?.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
-            bool isArray = details.AnyArray;
+            type = detail?.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
+            bool isArray = detail.AnyArray;
+
+            if (detail.IsGenericType)
+            {
+                string? genericTypeName = ResolveOtherSchema(type.GetGenericTypeDefinition(), defaultNs);
+                if (string.IsNullOrWhiteSpace(genericTypeName)) return null;
+
+                // Resolve generic arguments
+                string?[] genericArgs = type.GetGenericArguments().Select(t => ResolveOtherSchema(t, defaultNs)).ToArray();
+                if (genericArgs.Any(g => string.IsNullOrWhiteSpace(g))) return null; // failed to resolve generic arguments
+                return GetResult($"{genericTypeName}<{string.Join(", ", genericArgs)}>");
+            }
+            else if(detail.IsGenericParameter)
+            {
+                return null; // skip generic parameter, should be handled in generators
+            }
 
             string? fullName = runtime.GetTypeSchema(type);
             if (!string.IsNullOrWhiteSpace(fullName)) return GetResult(fullName);
