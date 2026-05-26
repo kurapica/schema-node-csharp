@@ -311,8 +311,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 }
                 catch(Exception e)
                 {
-                    //pass
-                    LogError(e, $"Failed to load schema '{schemaName} from schema provider '{provider.GetType().FullName}'.");
+                    LogError(e, $"Failed to load schema '{schemaName}' from schema provider '{provider.GetType().FullName}'.");
                 }
             }
             

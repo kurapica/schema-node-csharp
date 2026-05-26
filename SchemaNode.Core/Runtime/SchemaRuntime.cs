@@ -18,10 +18,14 @@ public class SchemaRuntime : ISchemaRuntime
     #region Implementation of ISchemaRuntime
 
     private (string kind, Type schemaType, Type[]? properties)[] _schemaKinds = [];
+    private readonly object _schemaKindsLock = new();
 
     /// <inheritdoc/>
     public void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null)
-        => _schemaKinds = _schemaKinds.Append((kind, schemaType, properties)).ToArray();
+    {
+        lock (_schemaKindsLock)
+            _schemaKinds = _schemaKinds.Append((kind, schemaType, properties)).ToArray();
+    }
 
     /// <inheritdoc/>
     public IEnumerable<(string kind, Type schemaType)> GetSchemaKinds()

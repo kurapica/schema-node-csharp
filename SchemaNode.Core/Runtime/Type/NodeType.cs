@@ -194,7 +194,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
                     else
                     {
                         Error = ErrorCodes.WRONG_REF_TYPE;
-                        context.LogWarning($"Failed to load ref type '{name}' for property '{name}' in schema '{Name}'");
+                        context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in schema '{Name}'");
                     }
                 }
             }

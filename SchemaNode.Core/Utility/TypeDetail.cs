@@ -283,7 +283,7 @@ internal static class TypeDetailExtensions
             result = new TypeDetail
             {
                 CoreType = input,
-                GenericArguments = input.GetGenericArguments().Select(g => g.GetTypeDetail(noCache)).ToArray(),
+                GenericArguments = input.GetGenericArguments().Select(g => g.GetTypeDetail(true)).ToArray(),
                 Kind = TypeDetail.ParameterTypeKind.GenericDefinition,
             };
         }
@@ -308,13 +308,13 @@ internal static class TypeDetailExtensions
         }
         else if (input.IsGenericType) // IList<string>, IList<int>, Entry<string>
         {
-            TypeDetail[] args = input.GetGenericArguments().Select(g => g.GetTypeDetail(noCache)).ToArray();
+            TypeDetail[] args = input.GetGenericArguments().Select(g => g.GetTypeDetail(true)).ToArray();
             Type genType = input.GetGenericTypeDefinition();
 
             result = new TypeDetail
             {
                 CoreType = input,
-                GenericDefine = genType.GetTypeDetail(noCache),
+                GenericDefine = genType.GetTypeDetail(true),
                 GenericArguments = args,
                 Kind = TypeDetail.ParameterTypeKind.GenericType
             };
@@ -356,7 +356,7 @@ internal static class TypeDetailExtensions
         {
             // only allow one-level array
             result = input.IsSZArray 
-                ? input.GetElementType()?.GetTypeDetail(noCache)
+                ? input.GetElementType()?.GetTypeDetail(true)
                 : null;
             result?.Kind |= TypeDetail.ParameterTypeKind.Array;
         }

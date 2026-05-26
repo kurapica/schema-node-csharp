@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -21,6 +22,17 @@ namespace SchemaNode.Function;
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT)]
 public static class SystemReflect
 {
+    /// <summary>
+    /// Gets the full names and labels of the schema nodes under the namespace with the given name
+    /// </summary>
+    public static async Task<Entry<string>[]> gettypes(SchemaContext context,
+        [Meta<SchemaType>(typeof(Schema.NamespaceType))] string? name = null)
+    {
+        var ns = await context.GetNodeTypeAsync<Runtime.NamespaceType>(name ?? string.Empty);
+        if (ns == null) return [];
+        return ns.GetNodeSchemas().Select(s => new Entry<string> { Value = s.FullName, Label = s.GetProperty<Display>()?.Value, HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE }).ToArray();
+    }
+
     /// <summary>
     /// Checks if the schema kind of the schema node with the given name is the same as the given kind
     /// </summary>

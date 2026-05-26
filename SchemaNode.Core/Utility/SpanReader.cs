@@ -111,7 +111,7 @@ public class SpanReader(string source)
             {
                 case ',' when depth == 0:
                     _currStart = _start;
-                    _currLast = i;
+                    _currLast = _start + i;
                     _start += i + 1;
                     return true;
                 case '<':
