@@ -18,7 +18,7 @@ public sealed class DateSchema : ScalarSchema
     /// <summary>
     /// The base date schema to inherit from
     /// </summary>
-    [Meta<SchemaType>(typeof(DateScalarType))]
+    [Meta<SchemaType>(typeof(DateType))]
     public override string? Base { get; set; }
 }
 
@@ -35,4 +35,4 @@ public sealed class DateProperty : Property<DateSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_DATE)]
-public class DateScalarType : AnyType;
+public class DateType : AnyType;

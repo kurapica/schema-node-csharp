@@ -377,18 +377,24 @@ public sealed class FunctionType : NodeType
         Type?[] generics = new Type?[funcInfo.Generics.Length];
         Type? GetArgType(TypeDetail arg, Type? maybeType = null)
         {
-            if (arg.GenericParameter == null) return arg.Type;
-            int idx = Array.FindIndex(funcInfo.Generics, f => f.GenericParameter == arg.GenericParameter);
-            if (idx < 0) return maybeType;
-            generics[idx] ??= maybeType;
-            return generics[idx];
+            if (arg.IsGenericParameter)
+            {
+                int idx = Array.FindIndex(funcInfo.Generics, f => f.CoreType == arg.CoreType);
+                if (idx < 0) return maybeType;
+                generics[idx] ??= maybeType;
+                return generics[idx];
+            }
+            else if (arg.IsGenericType)
+            {
+                
+            }
+            return arg.Type;
         }
         
         // parse return type
-        if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.GenericParameter != null)
+        if (!string.IsNullOrWhiteSpace(rType) && funcInfo.Return.IsGenericParameter)
         {
-            var rSchemaType = await context.GetNodeTypeAsync(rType);
-            Type? rCsharpType = rSchemaType?.GetCsharpType();
+            Type? rCsharpType = (await context.GetNodeTypeAsync(rType))?.GetCsharpType();
             if (rCsharpType != null) GetArgType(funcInfo.Return, rCsharpType);
         }
         

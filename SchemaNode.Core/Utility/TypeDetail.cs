@@ -36,11 +36,11 @@ internal class TypeDetail
     /// The original type
     /// </summary>
     public Type Type { get; set; } = null!;
-    
+
     /// <summary>
     /// The core type
     /// </summary>
-    public Type? CoreType { get; set; }
+    public Type CoreType { get; set; } = null!;
     
     /// <summary>
     /// The generic parameter
@@ -267,21 +267,29 @@ internal class TypeDetail
     #endregion
 }
 
-internal static class TypeInfoExtensions
+internal static class TypeDetailExtensions
 {
+    private static readonly ConcurrentDictionary<Type, TypeDetail> _typeDetailCache = [];
+    
+    /// <summary>
+    /// Clear the type caches
+    /// </summary>
+    internal static void ClearTypeDetailCache() => _typeDetailCache.Clear();
+    
     /// <summary>
     /// Gets the parameter type info in the schema system
     /// </summary>
-    internal static TypeDetail GetTypeDetail(this Type input)
+    internal static TypeDetail GetTypeDetail(this Type input, bool noCache = false)
     {
         TypeDetail? result = null;
+        if (!noCache && _typeDetailCache.TryGetValue(input, out result)) return result;
 
         if (input.IsGenericTypeDefinition) // Entry<T>
         {
             result = new TypeDetail
             {
                 CoreType = input,
-                GenericArguments = input.GetGenericArguments().Select(GetTypeDetail).ToArray(),
+                GenericArguments = input.GetGenericArguments().Select(g => g.GetTypeDetail(noCache)).ToArray(),
                 Kind = TypeDetail.ParameterTypeKind.GenericDefinition,
             };
         }
@@ -306,13 +314,13 @@ internal static class TypeInfoExtensions
         }
         else if (input.IsGenericType) // IList<string>, IList<int>, Entry<string>
         {
-            TypeDetail[] args = input.GetGenericArguments().Select(GetTypeDetail).ToArray();
+            TypeDetail[] args = input.GetGenericArguments().Select(g => g.GetTypeDetail(noCache)).ToArray();
             Type genType = input.GetGenericTypeDefinition();
 
             result = new TypeDetail
             {
                 CoreType = input,
-                GenericDefine = genType.GetTypeDetail(),
+                GenericDefine = genType.GetTypeDetail(noCache),
                 GenericArguments = args,
                 Kind = TypeDetail.ParameterTypeKind.GenericType
             };
@@ -354,7 +362,7 @@ internal static class TypeInfoExtensions
         {
             // only allow one-level array
             result = input.IsSZArray 
-                ? input.GetElementType()?.GetTypeDetail()
+                ? input.GetElementType()?.GetTypeDetail(noCache)
                 : null;
             result?.Kind |= TypeDetail.ParameterTypeKind.Array;
         }
@@ -365,6 +373,7 @@ internal static class TypeInfoExtensions
 
         // Always keep the origin type
         result.Type = input;
+        _typeDetailCache[input] = result;
         return result;
     }
 

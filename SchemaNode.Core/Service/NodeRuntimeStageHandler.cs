@@ -12,7 +12,6 @@ using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
-using System.Data;
 
 namespace SchemaNode.Service;
 
@@ -30,7 +29,7 @@ public interface INodeSchemaGenerator
     /// <param name="name">The suggest schema name</param>
     /// <param name="typeResolver">The function used to solve the schema type of the given type</param>
     /// <returns>The node schemas that generated</returns>
-    IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver);
+    IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver);
 }
 
 /// <summary>
@@ -220,28 +219,38 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             return name;
         }
         
-        string? ResolveOtherSchema(Type type, string defaultNs)
+        string? ResolveOtherSchema(Type type, string defaultNs, Type[]? genericArguments = null)
         {
-            TypeDetail? detail = type.GetTypeDetail();
-
-            // Special to handle array
-            type = detail?.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
+            TypeDetail detail = type.GetTypeDetail();
             bool isArray = detail.AnyArray;
+            string[]? genericArgs = null;
 
+            if (detail.IsGenericParameter)
+            {
+                return genericArguments is { Length: > 0 } &&
+                       Array.FindIndex(genericArguments, t => t == detail.CoreType) is { } index and >= 0
+                    ? genericArguments.Length > 1 ? $"{NS_GENERIC_TYPE}{index}" : NS_GENERIC_TYPE
+                    : null;
+            }
             if (detail.IsGenericType)
             {
-                string? genericTypeName = ResolveOtherSchema(type.GetGenericTypeDefinition(), defaultNs);
+                string? genericTypeName = ResolveOtherSchema(type.GetGenericTypeDefinition(), defaultNs, genericArguments);
                 if (string.IsNullOrWhiteSpace(genericTypeName)) return null;
 
                 // Resolve generic arguments
-                string?[] genericArgs = type.GetGenericArguments().Select(t => ResolveOtherSchema(t, defaultNs)).ToArray();
-                if (genericArgs.Any(g => string.IsNullOrWhiteSpace(g))) return null; // failed to resolve generic arguments
-                return GetResult($"{genericTypeName}<{string.Join(", ", genericArgs)}>");
+                Type[] args = type.GetGenericArguments();
+                genericArgs = new string[args.Length];
+                for (int i = 0; i < args.Length; i++)
+                {
+                    string? n = ResolveOtherSchema(args[i], defaultNs, genericArguments);
+                    if (string.IsNullOrWhiteSpace(n)) return null;
+                    genericArgs[i] = n;
+                }
+                detail = detail.GenericDefine!;
             }
-            else if(detail.IsGenericParameter)
-            {
-                return null; // skip generic parameter, should be handled in generators
-            }
+
+            // Check the core type
+            type = detail.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
 
             string? fullName = runtime.GetTypeSchema(type);
             if (!string.IsNullOrWhiteSpace(fullName)) return GetResult(fullName);
@@ -267,7 +276,12 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
             return mainSchema != null ? GetResult(mainSchema.FullName) : null;
 
-            string GetResult(string schemaName) => isArray ? runtime.GetSystemArraySchema(schemaName) : schemaName;
+            string GetResult(string schemaName)
+            {
+                if (genericArgs is { Length: > 0 })
+                    schemaName = $"{schemaName}<{string.Join(",", genericArgs)}>";
+                return isArray ? runtime.GetSystemArraySchema(schemaName) : schemaName;
+            }
         }
 
         // Save properties to the schema
@@ -313,6 +327,23 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // mark all node types not loaded, so they can combine custom schemas
         schemaContext.SystemMode = false; // avoid system mode
         runtime.RootNamespace.ResetLoadState();
+        
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task OnActivatedAsync(ISchemaContext context)
+    {
+        // clear cache
+        TypeDetailExtensions.ClearTypeDetailCache();
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public Task OnDeactivatedAsync(ISchemaContext context)
+    {
+        // clear cache
+        TypeDetailExtensions.ClearTypeDetailCache();
         return Task.CompletedTask;
     }
 }

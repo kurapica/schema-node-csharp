@@ -36,7 +36,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
     public static SchemaFuncInfo? GetSystemFuncInfo(string name) => SystemFuncInfos.GetValueOrDefault(name);
 
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
         // Only process static classes with namespace type related
         if (!type.IsAbstract || !type.IsSealed || type.GetMetaProperty<SchemaType>() is not {} schemaType) yield break;
@@ -54,16 +54,14 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             // Determine schema name: explicit [Meta<ValueType>] wins, otherwise "<classNs>.<methodName>"
             schemaType = method.GetMetaProperty<SchemaType>();
 
-            NodeSchema? funcSchema = BuildFunctionSchema(method, 
-                schemaType?.Value?.GetNamespace() ?? nsSchema.FullName, 
-                schemaType?.Value?.GetSchemaName() ?? method.Name.ToLowerInvariant(), 
+            yield return BuildFunctionSchema(method,
+                schemaType?.Value?.GetNamespace() ?? nsSchema.FullName,
+                schemaType?.Value?.GetSchemaName() ?? method.Name.ToLowerInvariant(),
                 typeResolver);
-            if (funcSchema != null)
-                yield return funcSchema;
         }
     }
     
-    private static NodeSchema? BuildFunctionSchema(MethodInfo method, string @namespace, string name, Func<Type, string, string?> typeResolver)
+    private static NodeSchema BuildFunctionSchema(MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
         // node schema
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
@@ -74,9 +72,8 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         
         // Generate the arguments and result type
         ParameterInfo[] parameters = method.GetParameters();
-        TypeDetail[] genInfos = method.GetGenericArguments()
-            .Select(g => g.GetTypeDetail() ?? throw new Exception($"The {g.FullName} used by method {method.Name} can't be resolved"))
-            .ToArray(); // The generic type infos
+        Type[] genericArgs = method.GetGenericArguments();
+        TypeDetail[] genInfos = genericArgs.Select(g => g.GetTypeDetail()).ToArray();
 
         // The schema context must be the first if used
         if (parameters.Length > 0 && parameters[0].ParameterType.IsAssignableTo(typeof(ISchemaContext)))
@@ -96,24 +93,23 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             funcSchema.SetProperty(prop);
 
         // Generics
-        if (genInfos.Length > 0)
-            funcSchema.SetProperty<Generics, GenericParameter[]>(genInfos.Select((g, i) => 
-                new GenericParameter
-                {
-                    Name = genInfos.Length > 1 ? $"T{i + 1}" : "T",
-                    Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-                }
-            ).ToArray());
+        if (genericArgs.Length > 0)
+            funcSchema.SetProperty<Generics, GenericParameter[]>(
+                genInfos.Select(g => 
+                    new GenericParameter
+                    {
+                        Name = typeResolver(g.CoreType, @namespace, genericArgs)!,
+                        Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                    }
+                ).ToArray());
 
         // Parameter types
-        TypeDetail?[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail()).ToArray();
+        TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail(true)).ToArray();
         for (int i = 0; i < parameters.Length; i++)
         {
             ParameterInfo p = parameters[i];
-            TypeDetail? pt = paramInfos[i];
-            if (pt == null) return null;
-
-            var defaultProp = p.GetMetaProperty<Default>();
+            TypeDetail pt = paramInfos[i];
+            Default? defaultProp = p.GetMetaProperty<Default>();
             
             FuncArg arg = new ()
             {
@@ -137,72 +133,18 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             }
 
             // Check dynamic type
-            if (p.GetMetaProperty<SchemaType>() is { HasValue: true} schemaTypeAttr)
-            {
-                arg.Type = schemaTypeAttr.GetValue<string>()!;
-            }
-            else if (pt.GenericParameter != null)
-            {
-                if (pt.AnyArray && !(arg.Params ?? false))
-                {
-                    arg.Type = NS_SYSTEM_ARRAY;
-                }
-                else
-                {
-                    int gIdx = Array.FindIndex(genInfos, (g) => g.GenericParameter == pt.GenericParameter);
-                    if (gIdx >= 0)
-                    {
-                        // generic type
-                        arg.Type = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-            }
-            else
-            {
-                string? paramType = typeResolver(
-                    ((arg.Params == true) ? pt.CoreType : pt.Type) 
-                    ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}"), 
-                    @namespace);
-                if (paramType == null) return null;
-                arg.Type = paramType;
-            }
+            arg.Type = typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, genericArgs)
+                ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
         }
 
         // Return type
-        TypeDetail? retInfo = method.ReturnType.GetTypeDetail();
-        if (retInfo == null) return null;
+        TypeDetail retInfo = method.ReturnType.GetTypeDetail();
         if (retInfo.Task) sign |= FunctionFlags.Async;
-        if (retInfo.Nullable) sign |= FunctionFlags.NullableRet;
-        else if (new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable)
+        if (retInfo.Nullable || new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable) 
             sign |= FunctionFlags.NullableRet;
-
-        if (retInfo.GenericParameter != null)
-        {
-            // IList<T>, use system.array instead
-            if (retInfo.AnyArray)
-            {
-                funcSchema.Return = NS_SYSTEM_ARRAY;
-            }
-            else
-            {
-                // single
-                int gIdx = Array.FindIndex(genInfos, g => g.GenericParameter == retInfo.GenericParameter);
-                if (gIdx >= 0)
-                    funcSchema.Return = genInfos.Length > 1 ? $"T{gIdx + 1}" : "T";
-                else
-                    return null;
-            }
-        }
-        else
-        {
-            string? retType = typeResolver(method.ReturnType, @namespace);
-            if (retType == null) return null;
-            funcSchema.Return = retType;
-        }
+        
+        funcSchema.Return = typeResolver(method.ReturnType, @namespace, genericArgs)
+            ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
 
         // Save the method info to cache
         SystemFuncInfos.TryAdd(schema.FullName, new SchemaFuncInfo
@@ -211,7 +153,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             Method = method,
             Sign = sign,
             Generics = genInfos,
-            Args = paramInfos!,
+            Args = paramInfos,
             Return = retInfo
         });
 

@@ -23,7 +23,8 @@ namespace SchemaNode.Service;
 internal sealed class StructGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver)
+    /// <exception cref="ArgumentNullException"></exception>
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
         // Only process non-abstract, non-enum classes and value types
         if (type.IsEnum ||
@@ -43,43 +44,28 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         Dictionary<string, PropertyInfo> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
         
         // Check generic types
-        TypeDetail[] genInfos = type.GetGenericArguments()
-            .Select(g => g.GetTypeDetail())
-            .ToArray(); // The generic type infos
+        Type[] genericArgs = type.GetGenericArguments();
         
         foreach (PropertyInfo p in type
-                     .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-                     .Where(p =>
-                         p.GetMethod?.IsPrivate != true &&
-                         p.GetCustomAttribute<SchemaIgnoreAttribute>() == null &&
-                         p is { CanRead: true, CanWrite: true })
-                     .OrderBy(p => p.MetadataToken))
+             .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+             .Where(p =>
+                 p.GetMethod?.IsPrivate != true &&
+                 p.GetCustomAttribute<SchemaIgnoreAttribute>() == null &&
+                 p is { CanRead: true, CanWrite: true })
+             .OrderBy(p => p.MetadataToken))
         {
             string fieldName = p.Name.ToCamelCase();
-            TypeDetail pt = p.PropertyType.GetTypeDetail();
 
             // Explicit [Meta<ValueType>] on the property overrides type resolution
-            string? fieldType;
-            if (pt.IsGenericParameter)
-                fieldType = genInfos.Length > 1 ? $"T{Array.FindIndex(genInfos, (g) => g.CoreType == pt.CoreType)}" : "T";
-            else if(pt.IsGenericType)
-            {
-                fieldType = typeResolver(pt.Type, @namespace);
-            }
-            else
-                fieldType = p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(pt.CoreType ?? p.PropertyType);
-
-            if (!string.IsNullOrWhiteSpace(fieldType) && pt.AnyArray)
-                fieldType = pt.IsGenericParameter ? $"{NS_SYSTEM_LIST}<{fieldType}>" : runtime.GetSystemArraySchema(fieldType);
-
             StructFieldSchema field = new()
             {
                 Name = fieldName,
-                Type = fieldType ?? "",
+                Type = p.GetMetaProperty<SchemaType>()?.GetValue<string>() ?? runtime.GetTypeSchema(p.PropertyType) ?? "",
             };
             field.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(p) ?? $"{schema.FullName}.{fieldName}");
+            
             // to avoid the cycle ref, resolve the field type later
-            if (string.IsNullOrWhiteSpace(fieldType))
+            if (string.IsNullOrWhiteSpace(field.Type))
             {
                 solveLater = true;
                 unSolvedField.Add(fieldName, p);
@@ -117,14 +103,15 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             structSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Generics
-        if (genInfos.Length > 0)
-            structSchema.SetProperty<Generics, GenericParameter[]>(genInfos.Select((g, i) => 
+        if (genericArgs.Length > 0)
+            structSchema.SetProperty<Generics, GenericParameter[]>(genericArgs
+                .Select(g => g.GetTypeDetail())
+                .Select(g=>
                 new GenericParameter
                 {
-                    Name = genInfos.Length > 1 ? $"T{i + 1}" : "T",
+                    Name = typeResolver(g.CoreType, @namespace, genericArgs)!,
                     Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-                }
-            ).ToArray());
+                }).ToArray());
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         
@@ -152,7 +139,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         
         foreach (StructFieldSchema field in structSchema.Fields)
             if (unSolvedField.TryGetValue(field.Name, out PropertyInfo? propType))
-                field.Type = typeResolver(propType.PropertyType, @namespace) ?? throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+                field.Type = typeResolver(propType.PropertyType, @namespace, genericArgs) ?? throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         yield return schema;
