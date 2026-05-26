@@ -22,7 +22,7 @@ public sealed class Entry<T>
     public LocaleString? Label { get; set; }
     
     /// <summary>
-    /// Whether has children
+    /// Has children
     /// </summary>
     public bool? HasChildren { get; set; }
 }

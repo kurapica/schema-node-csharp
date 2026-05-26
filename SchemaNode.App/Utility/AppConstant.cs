@@ -1,3 +1,4 @@
+using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Utility;
@@ -16,6 +17,10 @@ public static class AppConstant
     internal const int SCHEMA_KIND_ORDER_POLICY = 21;
     internal const int SCHEMA_KIND_ORDER_EVENT = 22;
     internal const int SCHEMA_KIND_ORDER_WORKFLOW = 23;
+
+    internal const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
+    internal const string NS_SYSTEM_SCHEMA_POLICY = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_POLICY}";
+    internal const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
     
     // Topic
     public const char TOPIC_SEP = '/';

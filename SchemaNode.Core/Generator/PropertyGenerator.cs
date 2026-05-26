@@ -14,7 +14,7 @@ namespace SchemaNode.Service;
 internal class PropertyGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
         Type? valueType = type.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0);
         if (valueType == null) yield break;
@@ -28,7 +28,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
             Property = type.GetPropertyName(),
             
             // Type
-            Type = type.GetMetaProperty<PropertyValueType>()?.Value ?? typeResolver(valueType, @namespace) ?? throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
+            Type = type.GetMetaProperty<PropertyValueType>()?.Value ?? typeResolver(valueType, @namespace, null) ?? throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
             
             // Depends
             Depends = type.GetMetaProperty<Depend>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),

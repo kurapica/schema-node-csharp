@@ -99,7 +99,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
                     new GenericParameter
                     {
                         Name = typeResolver(g.CoreType, @namespace, genericArgs)!,
-                        Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                        Compatibles = g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
                     }
                 ).ToArray());
 

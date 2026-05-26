@@ -43,12 +43,6 @@ internal class TypeDetail
     public Type CoreType { get; set; } = null!;
     
     /// <summary>
-    /// The generic parameter
-    /// </summary>
-    [Obsolete("Use CoreType instead")]
-    public Type? GenericParameter { get; set; }
-    
-    /// <summary>
     /// The generic type definition
     /// </summary>
     public TypeDetail? GenericDefine { get; set; }
@@ -139,11 +133,11 @@ internal class TypeDetail
     /// </summary>
     public (object? value, Type? type, Type? generic) ParseValue(JsonNode? node, Type? generic = null)
     {
-        Type? valueType = Type;
-        if (Params) valueType = valueType?.GetElementType() ?? valueType;
+        Type valueType = Type;
+        if (Params) valueType = valueType.GetElementType() ?? valueType;
         
         if (node == null || node.IsEmpty()) return (null, valueType, generic);
-        if (GenericParameter != null)
+        if (IsGenericParameter)
         {
             if (node is JsonArray arr)
             {
@@ -237,7 +231,7 @@ internal class TypeDetail
                 return (value, type, type);
             }
         }
-        else if (valueType != null)
+        else
         {
             // list JsonArray for IList
             if (valueType.IsInstanceOfType(node)) return (node, valueType, null);

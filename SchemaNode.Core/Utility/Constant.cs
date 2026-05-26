@@ -162,6 +162,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}";
 
     public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withreturn)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withargs)}";
     
     public const string NS_SYSTEM_LOGIC_EQ = $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.eq)}";
     

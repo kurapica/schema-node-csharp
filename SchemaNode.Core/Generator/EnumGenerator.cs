@@ -19,7 +19,7 @@ namespace SchemaNode.Service;
 internal sealed class EnumGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
         if (!type.IsEnum) yield break;
 

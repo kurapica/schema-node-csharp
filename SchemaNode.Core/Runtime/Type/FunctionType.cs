@@ -384,9 +384,16 @@ public sealed class FunctionType : NodeType
                 generics[idx] ??= maybeType;
                 return generics[idx];
             }
-            else if (arg.IsGenericType)
+            else if (arg.IsGenericType && arg.GenericArguments?.Any(g => g.IsGenericParameter) == true)
             {
+                Type[] genArgs = new Type[arg.GenericArguments!.Length];
+                if (maybeType != null && maybeType.GetGenericTypeDefinition() != arg.GenericDefine?.CoreType)
+                    throw new Exception($"The generic type {maybeType.Name} is not match the definition {arg.GenericDefine?.CoreType.Name} for argument {arg.CoreType}");
                 
+                Type[]? maybeGenArgs = maybeType?.GetGenericArguments();
+                for (int i = 0; i < arg.GenericArguments.Length; i++)
+                    genArgs[i] = GetArgType(arg.GenericArguments[i], maybeGenArgs?.ElementAtOrDefault(i)) ?? throw new Exception($"Can't solve the generic type for argument {arg.CoreType}");
+                return arg.GenericDefine?.CoreType.MakeGenericType(genArgs);
             }
             return arg.Type;
         }
@@ -531,9 +538,8 @@ public sealed class FunctionType : NodeType
         if ((funcInfo.Sign & FunctionFlags.Generic) > 0)
         {
             for (int i = 0; i < generics.Length; i++) generics[i] ??= typeof(object);
-            if (generics.Any(g => g is null)) throw new Exception("The generic types must be provided");
 
-            string genSign = string.Join('|', generics.Select(p => p!.Name));
+            string genSign = string.Join('|', generics.Select(p => (Nullable.GetUnderlyingType(p!) ?? p!).FullName));
             callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
         }
 

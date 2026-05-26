@@ -355,12 +355,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
             #region Result Type & Generic
             
             // Generic types
-            ValueType[] genericTypes = expFuncType.Generics?.Select(g =>
-                new GenericType{ Name = g.Name } as ValueType
+            ValueType[] genericTypes = expFuncType.Generics?.Select(
+                g => new GenericType{ Name = g.Name } as ValueType
             ).ToArray() ?? [];
 
             // Validate return value
-            exp.ValueType ??= (!string.IsNullOrWhiteSpace(exp.Return) ? await Context.GetNodeTypeAsync<ValueType>(exp.Return) : null);
+            exp.ValueType ??= !string.IsNullOrWhiteSpace(exp.Return) ? await Context.GetNodeTypeAsync<ValueType>(exp.Return) : null;
             if (exp.ValueType == null)
             {
                 exp.Status = ErrorCodes.FUNC_WRONG_RETURN;
@@ -456,9 +456,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
             SchemaExp[] args = new SchemaExp[expFuncType.Args.Length];
 
             // Check exp access first for generic types
-            for (int eArgIdx = 0; eArgIdx < expFuncType.Args.Length; eArgIdx++)
+            for (int i = 0; i < expFuncType.Args.Length; i++)
             {
-                var arg = exp.Args.ElementAtOrDefault(eArgIdx);
+                var arg = exp.Args.ElementAtOrDefault(i);
                 if (string.IsNullOrWhiteSpace(arg?.Source)) continue;
                 if (!GetExpression(arg.Source, out SchemaExp? argExp))
                 {
@@ -466,20 +466,20 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                 }
                 arg.ValueType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetNodeTypeAsync<ValueType>(arg.Type) : argExp!.ValueType;
-                await SetArgExp(eArgIdx, argExp);
+                await SetArgExp(i, argExp);
             }
             
             // Check const value
-            for (int eArgIdx = 0; eArgIdx < expFuncType.Args.Length; eArgIdx++)
+            for (int i = 0; i < expFuncType.Args.Length; i++)
             {
-                FunctionNodeArgument argDef = expFuncType.Args[eArgIdx];
-                var arg = exp.Args.ElementAtOrDefault(eArgIdx);
+                FunctionNodeArgument argDef = expFuncType.Args[i];
+                var arg = exp.Args.ElementAtOrDefault(i);
                 if (!string.IsNullOrWhiteSpace(arg?.Source)) continue;
 
                 // Validate type
                 if (arg != null)
                 {
-                    arg.ValueType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetNodeTypeAsync<ValueType>(arg.Type) : ParseGenericType(expFuncInfo.Args[eArgIdx], argDef.ValueType);
+                    arg.ValueType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetNodeTypeAsync<ValueType>(arg.Type) : ParseGenericType(expFuncInfo.Args[i], argDef.ValueType);
                     if (arg.ValueType == null)
                     {
                         exp.Status = ErrorCodes.FUNC_ARG_WRONG_TYPE;
@@ -488,7 +488,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Const expression
-                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(arg.Value)));
+                await SetArgExp(i, arg?.Value == null ? null : new ConstantExp(arg.ValueType!.From(arg.Value)));
             }
 
             // For params
@@ -559,7 +559,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             {
                 // Gets the argument definition
                 FunctionNodeArgument? argDef = expFuncType.Args.ElementAtOrDefault(index);
-                var argInfo = expFuncInfo.Args.ElementAtOrDefault(index);
+                TypeDetail? argInfo = expFuncInfo.Args.ElementAtOrDefault(index);
                 if (argDef == null)
                 {
                     argDef = expFuncType.Args.LastOrDefault();
@@ -651,41 +651,25 @@ public class CompileContext(SchemaContext context, FunctionType function)
             // Sets generic type
             ValueType? ParseGenericType(TypeDetail typeInfo, ValueType? origin = null, ValueType? genType = null, bool isReturn = false)
             {
-                if (typeInfo.GenericParameter == null && origin is not GenericType)
+                if (typeInfo.IsGenericParameter || origin is GenericType)
                 {
-                    if (origin == null || genType == null || genType.IsAssignableTo(origin)) return origin ?? genType;
-                    if (isReturn)
-                    {
-                        exp.Status = ErrorCodes.FUNC_WRONG_RETURN;
-                        throw new FunctionVisitException(ErrorCodes.FUNC_WRONG_RETURN);
-                    }
-                    else
-                    {
-                        exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
-                        throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
-                    }
-                }
-                else
-                {
-                    int idx = typeInfo.GenericParameter != null 
-                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.GenericParameter == g.GenericParameter) 
-                        : origin is GenericType go ? Array.FindIndex(Function.Generics ?? [], g => go.Name == g.Name) : -1;
+                    int idx = typeInfo.IsGenericParameter
+                        ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.CoreType == g.CoreType) 
+                        : origin is GenericType go ? Array.FindIndex(expFuncType.Generics ?? [], g => g.Name == go.Name) : -1;
                     if (idx < 0 || genericTypes[idx] is not GenericType && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]))
                     {
-                        if (isReturn)
-                        {
-                            exp.Status = ErrorCodes.FUNC_WRONG_RETURN;
-                            throw new FunctionVisitException(ErrorCodes.FUNC_WRONG_RETURN);
-                        }
-                        else
-                        {
-                            exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
-                            throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
-                        }
+                        exp.Status = isReturn ? ErrorCodes.FUNC_WRONG_RETURN : ErrorCodes.FUNC_EXP_WRONG_ARGS;
+                        throw new FunctionVisitException(exp.Status);
                     }
                     if (genType != null && genType is not GenericType && genericTypes[idx] is GenericType)
                         genericTypes[idx] = genType;
                     return genericTypes[idx];
+                }
+                else
+                {
+                    if (origin == null || genType == null || genType.IsAssignableTo(origin)) return origin ?? genType;
+                    exp.Status = isReturn ? ErrorCodes.FUNC_WRONG_RETURN : ErrorCodes.FUNC_EXP_WRONG_ARGS;
+                    throw new FunctionVisitException(exp.Status);
                 }
             }
             
@@ -907,7 +891,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             TypeDetail? info = null;
             Type? type = null;
-            if (callFuncInfo.Return.GenericParameter == p.GenericParameter)
+            if (callFuncInfo.Return.CoreType == p.CoreType)
             {
                 info = callFuncInfo.Return;
                 type = expRetElement.GetNotNullType();
@@ -917,7 +901,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 for (int j = 0; j < callFuncInfo.Args.Length; j++)
                 {
                     TypeDetail sInfo = callFuncInfo.Args[j];
-                    if (sInfo.GenericParameter != p.GenericParameter) continue;
+                    if (sInfo.CoreType != p.CoreType) continue;
                     info = sInfo;
                     type = callArgs[j + useContext].Type.GetNotNullType();
                     break;

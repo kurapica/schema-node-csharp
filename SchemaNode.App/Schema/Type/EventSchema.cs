@@ -18,7 +18,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_EVENT, SCHEMA_KIND_ORDER_EVENT)]
 [Meta<NodeType>(typeof(EventType))]
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.event.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 public sealed class EventSchema: ExtensibleSchema
 {
     /// <summary>
@@ -39,5 +39,6 @@ public sealed class EventProperty: Property<EventSchema>;
 /// <summary>
 /// Represents the event type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.event.type")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.type")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_EVENT)]
 public class EventType: AnyType;

@@ -5,6 +5,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
@@ -57,7 +58,7 @@ public static class SystemReflect
             !nodeType.Kind.Equals(SCHEMA_KIND_ARRAY, StringComparison.OrdinalIgnoreCase) &&
             typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
-
+    
     /// <summary>
     /// The reflection helpers for the schema functions
     /// </summary>
@@ -74,6 +75,24 @@ public static class SystemReflect
             var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
             var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
             return nodeType?.ReturnNode != null && returnType != null && nodeType.ReturnNode.IsAssignableTo(returnType);
+        }
+
+        /// <summary>
+        /// Checks if the function type's argument match the given types
+        /// </summary>
+        public static async Task<bool> withargs(SchemaContext context,
+            [Meta<SchemaType>(typeof(AnyType))] string func,
+            [Meta<SchemaType>(typeof(ValueType))] params string[] args)
+        {
+            var funcType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
+            if (funcType == null || args.Length != funcType.Args.Length) return false;
+            for (int i = 0; i < args.Length; i++)
+            {
+                var argType = !string.IsNullOrWhiteSpace(args[i]) ? await context.GetNodeTypeAsync<Runtime.ValueType>(args[i]) : null;
+                if (argType == null) return false;
+                if (funcType.Args[i].ValueType == null || !funcType.Args[i].ValueType!.IsAssignableTo(argType)) return false;
+            }
+            return true;
         }
     }
 }

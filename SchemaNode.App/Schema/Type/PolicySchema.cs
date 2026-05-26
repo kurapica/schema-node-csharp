@@ -20,7 +20,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_POLICY, SCHEMA_KIND_ORDER_POLICY)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_POLICY, SCHEMA_KIND_ORDER_POLICY)]
 [Meta<NodeType>(typeof(PolicyType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.policy.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.schema")]
 public sealed class PolicySchema: ExtensibleSchema
 {
     /// <summary>
@@ -39,14 +39,15 @@ public sealed class PolicyProperty: Property<PolicySchema>;
 /// <summary>
 /// Represents the event type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.event.type")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.type")]
 public class PolicyType: AnyType;
 
 /// <summary>
-/// Represents the union validation function type
+/// Represents the policy validation function type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.evaluator")]
-public class EvaluatorType : FuncType;
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.evaluator")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF)] // All parameters will be get from context
+public class EvaluatorType : ValidFuncType;
 
 /// <summary>
 /// The policy item schema
