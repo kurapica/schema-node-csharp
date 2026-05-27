@@ -2,9 +2,11 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.AppConstant;
+using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -12,9 +14,9 @@ namespace SchemaNode.Schema;
 /**
  * The application schema
  */
-[SchemaApp]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.schema")]
-public sealed class AppSchema: ISchemaExtensions
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
+[Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
+public sealed class AppSchema: ExtensibleSchema
 {
     #region Info
 
@@ -39,34 +41,9 @@ public sealed class AppSchema: ISchemaExtensions
     public LocaleString? Display { get; set; }
 
     /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; set; }
-
-    #endregion
-
-    #region Scope Policy
-
-    /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
     /// </summary>
     public AppScopePolicy? ScopePolicy { get; set; }
-
-    #endregion
-
-    #region Auth Policy
-
-    /// <summary>
-    /// The authentication policy type
-    /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_POLICY)]
-    public string? Auth { get; set; }
-
-    /// <summary>
-    /// The app authentication policy type
-    /// </summary>
-    public PolicyItem[]? Auths { get; set; }
 
     #endregion
 
@@ -173,7 +150,7 @@ public sealed class AppSchema: ISchemaExtensions
 /// <summary>
 /// The app target policy
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopePolicy")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.ScopePolicy")]
 public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 {
     /// <summary>
@@ -200,7 +177,7 @@ public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 /// <summary>
 /// The application scope context map, used for the context item mapping when the target policy is IsolationContext
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopeContextMap")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.ScopeContextMap")]
 public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
 {
     /// <summary>

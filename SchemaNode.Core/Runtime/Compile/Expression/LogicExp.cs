@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpType;
@@ -11,43 +12,6 @@ using ExpressionType = SchemaNode.Enum.ExpType;
 namespace SchemaNode.Runtime;
 
 #region Logic Exp
-
-/// <summary>
-/// The logic exp type
-/// </summary>
-public enum LogicType
-{
-    // Combine
-    AndAlso,
-    OrElse,
-    Not,
-
-    // Check
-    IsNull,
-    IsEmpty,
-    NotNull,
-    NotEmpty,
-
-    // Compare
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterEqual,
-    LessThan,
-    LessEqual,
-
-    // Collections
-    Contains,
-    NotContains,
-
-    // String
-    StartsWith,
-    NotStartsWith,
-    EndsWith,
-    NotEndsWith,
-    Match,
-    NotMatch,
-}
 
 /// <summary>
 /// The logic exp type

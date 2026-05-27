@@ -77,7 +77,7 @@ internal static class DataCombineTypeExtensions
                     // count field
                     foreach ((string field, _) in joinMethodMap.Where(p => p.Value == DataCombineType.Count))
                     {
-                        if (type.GetFields().FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { Type: Runtime.IntType })
+                        if (type.GetFields().FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { Type: IntType })
                             @struct[field] = 1;
                     }
                     return @struct;
@@ -105,18 +105,18 @@ internal static class DataCombineTypeExtensions
                             case DataCombineType.Sum:
                                 result[field.Name] = field.Type is DecimalType 
                                     ? array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<decimal>(out var f) == true ? f : 0) 
-                                    : field.Type is Runtime.IntType
+                                    : field.Type is IntType
                                         ? array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<long>(out var l) == true ? l : 0L)
                                         : null;
                                 break;
                             case DataCombineType.Count:
-                                result[field.Name] = field.Type is Runtime.IntType ? array.Count : null;
+                                result[field.Name] = field.Type is IntType ? array.Count : null;
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
                         }
                     }
-                    return value;
+                    return result;
                 }
         }
         return null;
@@ -125,9 +125,9 @@ internal static class DataCombineTypeExtensions
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static Dictionary<string, StructNode> GroupJoinObjectMap(ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    static Dictionary<string, StructNode> GroupJoinObjectMap(ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
-        if (value == null || value.IsEmpty) return new();
+        if (value == null || value.IsEmpty) return new Dictionary<string, StructNode>();
 
         // Gets field type
         StructType @struct = (StructType)type.Element!;
@@ -140,11 +140,11 @@ internal static class DataCombineTypeExtensions
             case StructNode { IsEmpty: false } o:
                 {
                     // Check the primary key
-                    string? key = string.Join("|", type.GetPrimaryKeys(o) ?? []);
-                    if (string.IsNullOrWhiteSpace(key)) return new();
+                    string key = string.Join("|", type.GetPrimaryKeys(o) ?? []);
+                    if (string.IsNullOrWhiteSpace(key)) return new Dictionary<string, StructNode>();
 
                     // Return single element array
-                    return new() { { key, o } };
+                    return new Dictionary<string, StructNode> { { key, o } };
                 }
             case ArrayNode array:
                 {
@@ -156,7 +156,7 @@ internal static class DataCombineTypeExtensions
                         if (token is not StructNode obj) continue;
 
                         // Gets the key
-                        string? key = string.Join("|", type.GetPrimaryKeys(obj) ?? []);
+                        string key = string.Join("|", type.GetPrimaryKeys(obj) ?? []);
                         if (string.IsNullOrWhiteSpace(key)) continue;
                         if (keyMap.TryGetValue(key, out StructNode? total))
                         {
@@ -208,7 +208,7 @@ internal static class DataCombineTypeExtensions
                     return keyMap;
                 }
         }
-        return new();
+        return new Dictionary<string, StructNode>();
     }
 
     internal static AppSchemaDataFilter? GetQueryFilter(this StructNode node, ArrayType array)
@@ -217,7 +217,7 @@ internal static class DataCombineTypeExtensions
         AppSchemaDataFilter? filter = null;
         foreach (string primary in array.Primary)
         {
-            if (node.GetAccessValue(primary) is not DataNode { IsEmpty: false } val) return null;
+            if (node.GetAccessValue(primary) is not { IsEmpty: false } val) return null;
             var keyFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
                 new AppSchemaDataFilterField(primary.ToCamelCase()),
                 new AppSchemaDataFilterValue(val));
@@ -233,7 +233,7 @@ internal static class DataCombineTypeExtensions
     internal static ArrayNode? GroupJoin(this ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (type.Element is not StructType structNode || type.Primary == null) return null;
-        Dictionary<string, AnySchemaType?> primaryNodes = structNode.Fields.Where(fieldType => type.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.SchemaType);
+        Dictionary<string, Runtime.ValueType?> primaryNodes = structNode.GetFields().Where(fieldType => type.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.Type);
 
         // Result
         Dictionary<string, StructNode> resultMap = GroupJoinObjectMap(type, value, joinMethodMap);
@@ -244,30 +244,34 @@ internal static class DataCombineTypeExtensions
             {
                 switch (primaryNodes[s])
                 {
-                    case ScalarType { IsDate: true }:
-                        {
-                            DateTime ad = a.GetField(s)!.ToValue<DateTime>();
-                            DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                            if (!ad.Equals(bd))
-                                return ad.CompareTo(bd);
-                            break;
-                        }
-                    case ScalarType { IsNumber: true }:
-                        {
-                            decimal ad = a.GetField(s)!.ToValue<decimal>();
-                            decimal bd = b.GetField(s)!.ToValue<decimal>();
-                            if (ad != bd)
-                                return ad < bd ? -1 : 1;
-                            break;
-                        }
+                    case DateType:
+                    {
+                        var ad = a.GetAccessValue(s)!.GetValue<DateTimeOffset>();
+                        var bd = b.GetAccessValue(s)!.GetValue<DateTimeOffset>();
+                        if (!ad.Equals(bd)) return ad.CompareTo(bd);
+                        break;
+                    }
+                    case DecimalType:
+                    {
+                        var ad = a.GetAccessValue(s)!.GetValue<decimal>();
+                        var bd = b.GetAccessValue(s)!.GetValue<decimal>();
+                        if (ad != bd) return ad < bd ? -1 : 1;
+                        break;
+                    }
+                    case IntType:
+                    {
+                        var ad = a.GetAccessValue(s)!.GetValue<long>();
+                        var bd = b.GetAccessValue(s)!.GetValue<long>();
+                        if (ad != bd) return ad < bd ? -1 : 1;
+                        break;
+                    }
                     default:
-                        {
-                            string ad = a[s]?.ToString() ?? string.Empty;
-                            string bd = b[s]?.ToString() ?? string.Empty;
-                            if (!ad.Equals(bd))
-                                return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
-                            break;
-                        }
+                    {
+                        string ad = a.GetAccessValue(s)?.GetValue<string>() ?? string.Empty;
+                        string bd = b.GetAccessValue(s)?.GetValue<string>() ?? string.Empty;
+                        if (!ad.Equals(bd)) return string.Compare(ad, bd, StringComparison.OrdinalIgnoreCase);
+                        break;
+                    }
                 }
             }
             return 0;

@@ -2,11 +2,11 @@ using System.Collections;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
-using LogicType = SchemaNode.Runtime.LogicType;
 using StructType = SchemaNode.Runtime.StructType;
 
 // ReSharper disable InconsistentNaming

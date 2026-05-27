@@ -2,9 +2,10 @@
 using SchemaNode.Utility;
 using System.Collections;
 using System.Linq.Expressions;
+using SchemaNode.Enum;
 using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
+using ExpType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -113,7 +114,7 @@ public class CollectionExpVisitor : IExpVisitor
         if (exp is not FuncCallExp funcExp) return null;
 
         // Handle final collection call
-        if (funcExp.ExpType == ExpressionType.Call)
+        if (funcExp.ExpType == ExpType.Call)
         {
             CollectionRootExp? sourceExp = funcExp.Args.FirstOrDefault(a => a is CollectionRootExp) as CollectionRootExp;
             if (sourceExp == null) return null;
@@ -178,7 +179,7 @@ public class CollectionExpVisitor : IExpVisitor
         switch (funcExp.ExpType)
         {
             // Try to merge the predicate
-            case ExpressionType.Filter when source is PredicateCollectionOperator pre:
+            case ExpType.Filter when source is PredicateCollectionOperator pre:
                 return new PredicateCollectionOperator(pre.Root, pre.Item,
                     new BinaryLogicExp(LogicType.AndAlso, pre.Predicate, await context.VisitSchemaExpAsync(
                         // combine the iterator
@@ -191,13 +192,13 @@ public class CollectionExpVisitor : IExpVisitor
                     funcExp.ValueType);
             
             // Default filter
-            case ExpressionType.Filter:
+            case ExpType.Filter:
                 return new PredicateCollectionOperator(source, item,
                     await context.VisitSchemaExpAsync(new FuncCallExp(funcExp.Function, funcExp.Args, context.System.Bool)), 
                     funcExp.ValueType); 
             
             // Reduce the collection source
-            case ExpressionType.Reduce:
+            case ExpType.Reduce:
             {
                 ReduceSumExp sumExp = new ReduceSumExp(funcExp.Args.FirstOrDefault(a => a != iterArg) 
                                                        ?? new NullExp(funcExp.ValueType), funcExp.ValueType);
@@ -212,7 +213,7 @@ public class CollectionExpVisitor : IExpVisitor
                 );
             }
             
-            case ExpressionType.Map:
+            case ExpType.Map:
                 switch (funcExp.Function.Name)
                 {
                     // getField(source, field), cover the case to FieldsDataSourceExpression
@@ -252,7 +253,7 @@ public class CollectionExpVisitor : IExpVisitor
                     funcExp.ValueType
                 );
             
-            case ExpressionType.First:
+            case ExpType.First:
                 return new FirstCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -262,7 +263,7 @@ public class CollectionExpVisitor : IExpVisitor
                     )) as LogicExp
                 );
             
-            case ExpressionType.Last:
+            case ExpType.Last:
                 return new LastCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -271,7 +272,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpressionType.Count:
+            case ExpType.Count:
                 return new CountCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -280,7 +281,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpressionType.All:
+            case ExpType.All:
                 return new AllCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(
@@ -289,7 +290,7 @@ public class CollectionExpVisitor : IExpVisitor
                         context.System.Bool
                     )) as LogicExp
                 );
-            case ExpressionType.Any:
+            case ExpType.Any:
                 return new AnyCollectionResult(source, funcExp.ValueType, item,
                     // Map the function call to schema expression if possible
                     await context.VisitSchemaExpAsync(new FuncCallExp(

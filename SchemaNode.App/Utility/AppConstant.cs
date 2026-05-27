@@ -13,7 +13,9 @@ public static class AppConstant
     public const string SCHEMA_KIND_POLICY = "policy";
     public const string SCHEMA_KIND_EVENT = "event";
     public const string SCHEMA_KIND_WORKFLOW = "workflow";
-    
+
+    internal const int SCHEMA_KIND_ORDER_APP = 20;
+    internal const int SCHEMA_KIND_ORDER_APP_FIELD = 21;
     internal const int SCHEMA_KIND_ORDER_POLICY = 21;
     internal const int SCHEMA_KIND_ORDER_EVENT = 22;
     internal const int SCHEMA_KIND_ORDER_WORKFLOW = 23;
