@@ -1,14 +1,15 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Schema;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using NodeType = SchemaNode.Property.Schema.NodeType;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
-using SchemaType = SchemaNode.Property.Schema.SchemaType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 namespace SchemaNode.Schema;
 
@@ -18,7 +19,8 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeType>(typeof(PolicyType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.workflow.schema")]
+[Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
 public sealed class WorkflowSchema: ExtensibleSchema
 {
     /// <summary>
@@ -60,5 +62,6 @@ public sealed class WorkflowProperty: Property<WorkflowSchema>;
 /// <summary>
 /// Represents the event type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.workflow.type")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.type")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_WORKFLOW)]
 public class WorkflowType: AnyType;

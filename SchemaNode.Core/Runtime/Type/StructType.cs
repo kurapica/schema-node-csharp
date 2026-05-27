@@ -234,7 +234,6 @@ public sealed class StructType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
                 DataNode? propValue = await process.ProcessAsync(context, result);
@@ -257,12 +256,10 @@ public sealed class StructType: ValueType
                             {
                                 if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
                                 currNode.SetViolated(prop.Name);
-                                changed = true;
                             }
                             else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
                                 currNode.ClearViolated(prop.Name);
-                                changed = true;
                             }
                         }
                         break;
@@ -290,9 +287,6 @@ public sealed class StructType: ValueType
                     currNodes = nextLevels;
                 }
             }
-            
-            if (changed)
-                result.RefreshViolated();
         }
 
         // Union validation

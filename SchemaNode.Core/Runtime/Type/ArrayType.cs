@@ -150,14 +150,13 @@ public sealed class ArrayType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            bool changed = false;
             foreach ((IRelationProcess process, Type propType) in _relations)
             {
                 if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
 
                 for (int i = 1; i < result.Count; i++)
                 {
-                    ArrayNode? spanNode = new ArrayNode(result, i);
+                    ArrayNode spanNode = new ArrayNode(result, i);
 
                     DataNode? propValue = await process.ProcessAsync(context, spanNode);
                     if (propValue == null) continue;
@@ -178,12 +177,10 @@ public sealed class ArrayType: ValueType
                                 {
                                     if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
                                     currNode.SetViolated(prop.Name);
-                                    changed = true;
                                 }
                                 else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                                 {
                                     currNode.ClearViolated(prop.Name);
-                                    changed = true;
                                 }
                             }
                             break;
@@ -201,10 +198,6 @@ public sealed class ArrayType: ValueType
                     }
                 }
             }
-            
-            if (changed)
-                foreach (DataNode field in result)
-                    field.RefreshViolated();
         }
     }
 

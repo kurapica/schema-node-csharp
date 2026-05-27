@@ -1,7 +1,7 @@
 namespace SchemaNode.Enum;
 
 [Flags]
-public enum FunctionFlags
+internal enum FunctionFlags
 {
     None = 0,
     Context = 1,

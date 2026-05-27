@@ -1,23 +1,21 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Enum;
 
-/// <summary>
-/// The data combine type
-/// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.{nameof(DataCombineType)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.combinetype")]
 public enum DataCombineType
 {
     /// <summary>
     /// Assign
     /// </summary>
-    Assign,
+    Newest,
     
     /// <summary>
     /// Init
     /// </summary>
-    Init,
+    Oldest,
 
     /// <summary>
     /// Sum

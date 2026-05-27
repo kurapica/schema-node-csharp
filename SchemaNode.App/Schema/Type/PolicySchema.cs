@@ -11,6 +11,7 @@ using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
 
@@ -32,27 +33,35 @@ public sealed class PolicySchema: ExtensibleSchema
 /// <summary>
 /// Declare event property for node schema
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD)]
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_POLICY)]
 public sealed class PolicyProperty: Property<PolicySchema>;
+
+/// <summary>
+/// The auth property, used for declaring the auth policy for the node, the value is the name of the policy which will be evaluated at runtime to determine if the access is allowed or not.
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_WORKFLOW)]
+[Meta<PropertyValueType>(typeof(PolicyType))]
+public sealed class AuthProperty : Property<string>;
 
 /// <summary>
 /// Represents the event type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.type")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_POLICY)]
 public class PolicyType: AnyType;
 
 /// <summary>
 /// Represents the policy validation function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.evaluator")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF)] // All parameters will be get from context
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF)] // All parameters will be fetched from context
 public class EvaluatorType : ValidFuncType;
 
 /// <summary>
 /// The policy item schema
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.policy.item")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.item")]
 public sealed class PolicyItem
 {
     /// <summary>

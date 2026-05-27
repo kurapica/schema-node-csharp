@@ -1,12 +1,12 @@
 using SchemaNode.Attribute;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The field filter resolve type
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.filterresolve")]
+[Schema($"{NS_SYSTEM_SCHEMA_APP_FIELD}.filterresolve")]
 public enum FieldFilterResolve
 {
     /// <summary>

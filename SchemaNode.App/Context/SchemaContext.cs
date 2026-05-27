@@ -16,7 +16,7 @@ namespace SchemaNode.Context;
 /// <summary>
 /// The schema context
 /// </summary>
-public class SchemaContext(IServiceProvider serviceProvider): IDisposable
+public class AppSchemaContext(IServiceProvider serviceProvider): IDisposable
 {
     #region Static Types
 

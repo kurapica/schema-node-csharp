@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
@@ -48,7 +49,7 @@ public abstract class DataNode
     {
         IEnumerable<string>? v = reset == true || Violated == null ? violated : violated != null ? Violated.Concat(violated) : Violated;
         if (passed is not null) v = v?.Except(passed, StringComparer.OrdinalIgnoreCase);
-        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase) ?.ToImmutableArray();
+        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
     }
 
     /// <summary>
@@ -123,11 +124,6 @@ public abstract class DataNode
     /// Gets the access value by part path
     /// </summary>
     public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty || source.SequenceEqual(NODE_SELF) ? this : null;
-
-    /// <summary>
-    /// Refresh violated constraints based on data node structure
-    /// </summary>
-    public virtual void RefreshViolated() { }
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints

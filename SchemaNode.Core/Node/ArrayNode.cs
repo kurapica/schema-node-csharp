@@ -201,6 +201,9 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return lastEle?.GetAccessValue(source);
     }
 
+    /// <inheritdoc/>
+    public override bool IsValid => _elements.All(element => element.IsValid);
+
     #endregion
     
     #region Methods

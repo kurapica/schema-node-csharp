@@ -1,12 +1,12 @@
 using SchemaNode.Attribute;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The app data field filter mode
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.filtermode")]
+[Schema($"{NS_SYSTEM_SCHEMA_APP_FIELD}.filtermode")]
 public enum FieldFilterMode
 {
     /// <summary>

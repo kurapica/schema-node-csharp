@@ -849,19 +849,19 @@ public static class AppDataTransactionExtension
         {
             case EnumType:
                 {
-                    DataCombineType method = field.Combine ?? DataCombineType.Assign;
+                    DataCombineType method = field.Combine ?? DataCombineType.Newest;
                     (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? now = GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
                     {
-                        case DataCombineType.Assign:
+                        case DataCombineType.Newest:
                             {
                                 result = now is { IsEmpty: false } ? now : origin;
                                 break;
                             }
-                        case DataCombineType.Init:
+                        case DataCombineType.Oldest:
                             {
                                 result = origin is { IsEmpty: false } ? origin : now;
                                 break;
@@ -872,7 +872,7 @@ public static class AppDataTransactionExtension
             case ScalarType scalar:
                 {
                     // Gets the join method
-                    DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                    DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Newest);
 
                     // Part
                     (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
@@ -882,12 +882,12 @@ public static class AppDataTransactionExtension
                     // Update with join method
                     switch (method)
                     {
-                        case DataCombineType.Assign:
+                        case DataCombineType.Newest:
                             {
                                 result = now;
                                 break;
                             }
-                        case DataCombineType.Init:
+                        case DataCombineType.Oldest:
                             {
                                 result = origin is { IsEmpty: false } ? origin : now;
                                 break;
@@ -917,7 +917,7 @@ public static class AppDataTransactionExtension
                     {
                         if (f.SchemaType is ScalarType s)
                             joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type
-                                ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
+                                ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Newest);
                     }
 
                     // Gets the result
@@ -939,14 +939,14 @@ public static class AppDataTransactionExtension
                             AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
                             AnySchemaNode? nowFld = now is StructTypeNode ns ? ns.GetField(nodeField.Name) : null;
 
-                            switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Assign))
+                            switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Newest))
                             {
-                                case DataCombineType.Assign:
+                                case DataCombineType.Newest:
                                     {
                                         final[nodeField.Name] = nowFld is { IsEmpty: false } ? nowFld : originFld;
                                         break;
                                     }
-                                case DataCombineType.Init:
+                                case DataCombineType.Oldest:
                                     {
                                         final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
                                         break;
@@ -991,7 +991,7 @@ public static class AppDataTransactionExtension
 
                             if (fieldType.SchemaType is ScalarType s)
                             {
-                                joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
+                                joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Newest;
                             }
                         }
                         else
@@ -1055,13 +1055,13 @@ public static class AppDataTransactionExtension
                                 AnySchemaNode? oldFld = old?.GetField(s);
                                 AnySchemaNode? nowFld = now?.GetField(s);
 
-                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
+                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {
-                                    case DataCombineType.Assign:
+                                    case DataCombineType.Newest:
                                         if (nowFld is { IsEmpty: false })
                                             res1[s] = nowFld;
                                         break;
-                                    case DataCombineType.Init:
+                                    case DataCombineType.Oldest:
                                         if (originFld == null || originFld.IsEmpty)
                                             res1[s] = nowFld;
                                         break;
@@ -1087,13 +1087,13 @@ public static class AppDataTransactionExtension
                                 AnySchemaNode? oldFld = old?.GetField(s);
                                 AnySchemaNode? nowFld = res?.GetField(s);
 
-                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Assign))
+                                switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {
-                                    case DataCombineType.Assign:
+                                    case DataCombineType.Newest:
                                         if (nowFld == null || nowFld.IsEmpty)
                                             res![s] = oldFld;
                                         break;
-                                    case DataCombineType.Init:
+                                    case DataCombineType.Oldest:
                                         if (oldFld is { IsEmpty: false })
                                             res![s] = oldFld;
                                         break;

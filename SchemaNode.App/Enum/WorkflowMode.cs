@@ -1,12 +1,12 @@
 using SchemaNode.Attribute;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// Workflow type
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.mode")]
+[Schema($"{NS_SYSTEM_SCHEMA_WORKFLOW}.mode")]
 public enum WorkflowMode
 {
     /// <summary>

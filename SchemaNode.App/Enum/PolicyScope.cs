@@ -1,12 +1,12 @@
 using SchemaNode.Attribute;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
 
 /// <summary>
 /// The policy scope
 /// </summary>
-[Meta<Property.Schema.SchemaType>($"{NS_SYSTEM_SCHEMA}.policy.scope")]
+[Meta<Property.Core.SchemaType>($"{NS_SYSTEM_SCHEMA_POLICY}.scope")]
 public enum PolicyScope
 {
     /// <summary>
