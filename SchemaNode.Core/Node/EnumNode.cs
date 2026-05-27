@@ -15,7 +15,13 @@ public class EnumNode : DataNode
         Type = type;
         _isString = type.Type == EnumValueType.String;
     }
-    
+
+    public EnumNode(EnumType type, object value) : this(type)
+    {
+        if (!TrySetValue(value))
+            throw new InvalidCastException($"Invalid enum value type '{value.GetType()}'.");
+    }
+
     /// <inheritdoc/>
     public override bool IsEmpty => _isString ? string.IsNullOrWhiteSpace(_strValue) : _longValue == null;
     

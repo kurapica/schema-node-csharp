@@ -31,7 +31,13 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
                 throw new ArgumentException($"The node type '{type.Name}' is not a value type.", nameof(type));
         }
     }
-    
+
+    public ArrayNode(NodeType type, object value): this(type)
+    {
+        if (!TrySetValue(value))
+            throw new InvalidCastException($"Invalid array value type '{value.GetType()}'.");
+    }
+
     internal ArrayNode(ArrayNode array, int count)
     {
         Type = array.Type;

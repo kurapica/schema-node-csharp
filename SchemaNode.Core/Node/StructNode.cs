@@ -4,10 +4,12 @@ using SchemaNode.Context;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+using System.Diagnostics.CodeAnalysis;
+using System.Collections;
 
 namespace SchemaNode.Node;
 
-public class StructNode : DataNode
+public class StructNode : DataNode, IDictionary<string, object>
 {
     private readonly DataNode[] _fields;
     object? _csharpObject;
@@ -20,6 +22,12 @@ public class StructNode : DataNode
         
         // init fields
         _fields = type.GetFields().Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+    }
+
+    public StructNode(StructType type, object value) : this(type)
+    {
+        if (!TrySetValue(value))
+            throw new InvalidCastException($"Invalid struct value type '{value.GetType()}'.");
     }
 
     #endregion
@@ -112,6 +120,14 @@ public class StructNode : DataNode
 
     /// <inheritdoc/>
     public override bool IsValid => _fields.All(f => f.IsValid);
+
+    public ICollection<string> Keys => throw new NotImplementedException();
+
+    public ICollection<object> Values => throw new NotImplementedException();
+
+    public int Count => throw new NotImplementedException();
+
+    public bool IsReadOnly => throw new NotImplementedException();
 
     /// <inheritdoc/>
     public override bool TrySetValue<T>(T? value) where T : default
@@ -235,6 +251,52 @@ public class StructNode : DataNode
         foreach (DataNode field in _fields)
             field.ClearValue();
     }
-    
+
+    public void Add(string key, object value) => throw new NotSupportedException();
+
+    public bool ContainsKey(string key) => (Type as StructType)?.GetField(key) != null;
+
+    public bool Remove(string key) => throw new NotSupportedException();
+
+    public bool TryGetValue(string key, [MaybeNullWhen(false)] out object value)
+    {
+        var field = GetAccessValue(key);
+        if (field != null && field.TryGetValue(out object? v) && v != null)
+        {
+            value = v;
+            return true;
+        }
+        value = null;
+        return false;
+    }
+
+    public void Add(KeyValuePair<string, object> item) => throw new NotSupportedException();
+
+    public void Clear() => throw new NotSupportedException();
+
+    public bool Contains(KeyValuePair<string, object> item)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void CopyTo(KeyValuePair<string, object>[] array, int arrayIndex) => throw new NotSupportedException();
+
+    public bool Remove(KeyValuePair<string, object> item) => throw new NotSupportedException();
+
+    public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+    {
+        foreach ((StructFieldType field, DataNode value) in GetFields())
+        {
+            if (value.IsEmpty) continue;
+            if (value.TryGetValue(out object? v) && v != null)
+                yield return new KeyValuePair<string, object>(field.Name, v);
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+
     #endregion
 }
