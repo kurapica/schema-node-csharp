@@ -12,7 +12,7 @@ namespace SchemaNode.Node;
 public class StructNode : DataNode, IDictionary<string, object>
 {
     private readonly DataNode[] _fields;
-    object? _csharpObject;
+    private object? _csharpObject;
 
     #region Constructor
 

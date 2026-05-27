@@ -49,7 +49,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
             ScopePolicy = node.ScopePolicy,
             Auth = node.Auth?.Name,
             Auths = node.Auths,
-            Status = node.Status,
+            Error = node.Status,
             HasApps = node.Apps is { Length: > 0 },
             HasFields = node.Fields is { Count: > 0 },
             Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
@@ -64,7 +64,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
                     Auth = a.Auth,
                     Auths = a.Auths,
                     Extensions = a.Extensions,
-                    Status = node.Status,
+                    Error = node.Status,
                     HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
                     HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
                 };

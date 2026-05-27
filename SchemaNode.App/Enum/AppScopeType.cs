@@ -1,4 +1,5 @@
 ﻿using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
@@ -6,7 +7,7 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The application target policy type
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_APP}.scope")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.scope")]
 public enum AppScopeType
 {
     /// <summary>

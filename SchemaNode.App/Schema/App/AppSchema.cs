@@ -1,11 +1,16 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Scalar;
 using SchemaNode.Struct;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+using String = SchemaNode.Scalar.String;
+using SchemaNode.Function;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -18,23 +23,27 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
 public sealed class AppSchema: ExtensibleSchema
 {
-    #region Info
+    /// <summary>
+    /// The application name
+    /// </summary>
+    [Meta<PrimaryIndex>(1)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    public string Name { get; set; } = default!;
 
     /// <summary>
     /// The parent app name
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Index("IX_SUB_APP")]
-    public string Parent { get; set; } = string.Empty;
+    [Meta<PrimaryIndex>(0)]
+    [Meta<SchemaType>(typeof(NamespaceType))]
+    public string? Parent { get; set; }
     
     /// <summary>
-    /// The application name
+    /// The full name of the app
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Index]
-    [Index("IX_SUB_APP")]
-    public string Name { get; set; } = default!;
-    
+    [SchemaIgnore]
+    [JsonIgnore]
+    public string FullName => $"{Parent}.{Name}".Trim('.');
+
     /// <summary>
     /// The display name
     /// </summary>
@@ -44,8 +53,6 @@ public sealed class AppSchema: ExtensibleSchema
     /// The target policies, can only be changeable when no app & no fields or in debug mode
     /// </summary>
     public AppScopePolicy? ScopePolicy { get; set; }
-
-    #endregion
 
     #region Details
 
@@ -82,7 +89,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// <summary>
     /// The application field relations
     /// </summary>
-    public StructRelationSchema[]? Relations { get; set; }
+    public RelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The types related to the application
@@ -100,52 +107,15 @@ public sealed class AppSchema: ExtensibleSchema
     [NotMapped]
     public SchemaLoadState? LoadState { get; set; }
     
-    /// <summary>
-    /// The schema node status
-    /// </summary>
-    [NotMapped]
-    public SchemaNodeStatus? Status { get; set; }
-
-    #endregion
-
-    #region Methd
-
-    /// <summary>
-    /// Combine custom app schema
-    /// </summary>
-    internal void CombineCustomSchema(AppSchema? otherSchema)
-    {
-        if (otherSchema == null) return;
-        Display = Display != null ? Display.Concat(otherSchema.Display) : otherSchema.Display;
-        Auth = string.IsNullOrWhiteSpace(Auth) ? otherSchema.Auth : Auth;
-        Auths = Auths ?? otherSchema.Auths;
-
-        this.CombineExtensions(otherSchema);
-
-        // Check fields
-        if (HasApps != true)
-        {
-            if (Fields == null || Fields.Length == 0)
-                Fields = otherSchema.Fields;
-            else if(otherSchema.Fields is { Length: > 0 })
-            {
-                foreach(var field in Fields)
-                {
-                    field.CombineCustomSchema(otherSchema.Fields.FirstOrDefault(f => f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)));
-                }
-                var addFields = otherSchema.Fields.Where(f => !Fields.Any(d => d.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToArray();
-                if (addFields.Length > 0)
-                    Fields = Fields.Concat(addFields).ToArray();
-            }
-        }
-
-        // For simple
-        Workflows = otherSchema.Workflows ?? Workflows;
-        Relations = otherSchema.Relations ?? Relations;
-    }
-
     #endregion
 }
+
+/// <summary>
+/// The appliation type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.type")]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getapps)}")]
+public sealed class AppType : String;
 
 /// <summary>
 /// The app target policy
@@ -184,10 +154,11 @@ public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
     /// The context item
     /// </summary>
     public required string ContextItem { get; set; }
-    
+
     /// <summary>
     /// The map key
     /// </summary>
+    [Meta<SchemaType>(typeof(Identifier))]
     public string? MapKey { get; set; }
 
     public bool Equals(AppScopeContextMap? other)

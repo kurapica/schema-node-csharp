@@ -5,8 +5,14 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
+using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+using SchemaNode.Property.Core;
+using SchemaNode.Scalar;
+using SchemaNode.Struct;
+using SchemaNode.Property.Common;
+using SchemaNode.Function;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -14,24 +20,24 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The application field schema
 /// </summary>
-[SchemaApp]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_FIELD}.schema")]
-public sealed class AppFieldSchema: ISchemaExtensions
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
+[Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
+public sealed class AppFieldSchema: ExtensibleSchema
 {
     #region Info
 
     /// <summary>
     /// the application name
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>(0)]
+    [Meta<SchemaType>(typeof(AppType))]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
     /// The field name
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>(1)]
+    [Meta<SchemaType>(typeof(Identifier))]
     public string Name { get; set; } = default!;
 
     /// <summary>
@@ -42,14 +48,14 @@ public sealed class AppFieldSchema: ISchemaExtensions
     /// <summary>
     /// The field type
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = default!;
     
     /// <summary>
     /// The field display name
     /// </summary>
     public LocaleString? Display { get; set; }
-    
+
     #endregion
 
     #region Push Rule
@@ -57,13 +63,14 @@ public sealed class AppFieldSchema: ISchemaExtensions
     /// <summary>
     /// The calculate function
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
+    [Meta<SchemaType>(typeof(FuncType))]
     public string? Func { get; set; }
 
     /// <summary>
     /// The input field
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(AppFieldSchema.App)}")]
     public string? Arg { get; set; }
 
     #endregion
@@ -206,22 +213,6 @@ public sealed class AppFieldSchema: ISchemaExtensions
     /// The field is a view to source app field
     /// </summary>
     public FieldView? View { get; set; }
-
-    #endregion
-
-    #region Status
-
-    /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; set; }
-
-    /// <summary>
-    /// The schema node status
-    /// </summary>
-    [NotMapped]
-    public SchemaNodeStatus? Status { get; set; }
 
     #endregion
 
