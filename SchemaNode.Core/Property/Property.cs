@@ -15,6 +15,7 @@ public interface IProperty
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _depends = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _overrides = [];
+    private static readonly ConcurrentDictionary<Type, bool> _stackables = [];
 
     private static ImmutableArray<string> GetOverrides(Type propertyType)
         => _overrides.GetOrAdd(propertyType, static t => t.GetMetaProperty<Override>()?.Value?.SelectMany(v => GetOverrides(v).Concat([v.GetPropertyName()])).ToImmutableArray() ?? []);
@@ -33,7 +34,15 @@ public interface IProperty
     /// Gets the override properties
     /// </summary>
     public ImmutableArray<string> Overrides => GetOverrides(GetType());
-    
+
+    /// <summary>
+    /// Whether the property is stackable, which means the property from different sources can be used together.
+    /// For example, for the same name constraint property, 
+    /// if stackable, all the constraints will be checked, the data isn't valid if any constraint check falied, 
+    /// if not stackable, the constraints result will override the previous
+    /// </summary>
+    public bool Stackable => _stackables.GetOrAdd(GetType(), static t => t.GetMetaProperty<Stackable>()?.Value ?? false);
+
     /// <summary>
     /// The property has value
     /// </summary>
@@ -53,6 +62,7 @@ public interface IProperty
     /// The property value type
     /// </summary>
     Type Type { get; }
+
 }
 
 /// <summary>
@@ -84,6 +94,8 @@ public abstract class Property<T> : IProperty
     /// The property value type
     /// </summary>
     public Type Type => typeof(T);
+
+    public virtual bool Stack => false;
 }
 
 /// <summary>

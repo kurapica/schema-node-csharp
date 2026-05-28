@@ -483,19 +483,19 @@ public abstract class ValueType : NodeType
         await ValidateNodeAsync(context, result);
         
         // apply constraints
-        List<string>? errors = null;
-        List<string>? passed = null;
+        List<IProperty>? errors = null;
+        List<IProperty>? passed = null;
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
             if (await constraint.ValidateAsync(context, result) == false)
             {
                 errors ??= [];
-                errors.Add(constraint.Name);
+                errors.Add(constraint);
             }
             else
             {
                 passed ??= [];
-                passed.Add(constraint.Name);
+                passed.Add(constraint);
             }
         }
         if (errors != null || passed != null)

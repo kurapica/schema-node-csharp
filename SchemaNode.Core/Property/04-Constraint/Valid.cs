@@ -7,7 +7,7 @@ using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.Constraint;
 
 /// <summary>
 /// The validation property
@@ -15,6 +15,7 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_ENUM)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
+[Meta<Stackable>]
 public class Valid : FuncCallProperty<ValidateFuncCall>, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)

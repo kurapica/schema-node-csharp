@@ -212,19 +212,19 @@ public sealed class StructType: ValueType
 
             if (field.Constraints is not { Length: > 0 }) continue;
             
-            List<string>? errors = null;
-            List<string>? passed = null;
+            List<IProperty>? errors = null;
+            List<IProperty>? passed = null;
             foreach (IConstraintProperty constraint in field.Constraints)
             {
                 if (await constraint.ValidateAsync(context, dataNode) != false)
                 {
                     passed ??= [];
-                    passed.Add(constraint.Name);
+                    passed.Add(constraint);
                 }
                 else
                 {
                     errors ??= [];
-                    errors.Add(constraint.Name);
+                    errors.Add(constraint);
                 }
             }
             if (errors != null || passed != null)
@@ -255,11 +255,11 @@ public sealed class StructType: ValueType
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
                                 if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.SetViolated(prop.Name);
+                                currNode.SetViolated(prop);
                             }
                             else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                             {
-                                currNode.ClearViolated(prop.Name);
+                                currNode.ClearViolated(prop);
                             }
                         }
                         break;

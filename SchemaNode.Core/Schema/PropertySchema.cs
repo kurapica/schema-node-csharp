@@ -55,6 +55,11 @@ public class PropertySchema: ExtensibleSchema
     /// Whether the property can't be changed by relations
     /// </summary>
     public bool? Static { get; set; }
+
+    /// <summary>
+    /// The property is stackable
+    /// </summary>
+    public bool? Stackable { get; set; }
 }
 
 /// <summary>

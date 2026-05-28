@@ -41,6 +41,9 @@ internal class PropertyGenerator : INodeSchemaGenerator
             
             // Static
             Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
+
+            // Stackable
+            Stackable = type.GetMetaProperty<Stackable>()?.GetValue<bool>(),
         });
         
         yield return schema;

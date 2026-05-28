@@ -176,11 +176,11 @@ public sealed class ArrayType: ValueType
                                 if (await prop.ValidateAsync(context, currNode) == false)
                                 {
                                     if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                    currNode.SetViolated(prop.Name);
+                                    currNode.SetViolated(prop);
                                 }
                                 else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
                                 {
-                                    currNode.ClearViolated(prop.Name);
+                                    currNode.ClearViolated(prop);
                                 }
                             }
                             break;

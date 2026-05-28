@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Property;
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
@@ -45,6 +46,18 @@ public abstract class DataNode
     /// <summary>
     /// Sets violated constraints, which will be used to determine whether the node is valid
     /// </summary>
+    public void SetViolated(IEnumerable<IProperty>? violated = null, IEnumerable<IProperty>? passed = null, bool? reset = null)
+    {
+        var violatedNames = violated?.Select(v => v.Name);
+        IEnumerable<string>? v = reset == true || Violated == null ? violatedNames : violatedNames != null ? Violated.Concat(violatedNames) : Violated;
+        if (passed is not null) v = v?.Except(passed.Where(p => !p.Stackable).Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
+        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
+    }
+
+
+    /// <summary>
+    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// </summary>
     public void SetViolated(IEnumerable<string>? violated = null, IEnumerable<string>? passed = null, bool? reset = null)
     {
         IEnumerable<string>? v = reset == true || Violated == null ? violated : violated != null ? Violated.Concat(violated) : Violated;
@@ -55,17 +68,27 @@ public abstract class DataNode
     /// <summary>
     /// Sets violated constraints, which will be used to determine whether the node is valid
     /// </summary>
-    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
+    public void SetViolated(params IProperty[] violated) => SetViolated(violated, null, false);
     
+    /// <summary>
+    /// Clear violated constraints
+    /// </summary>
+    public void ClearViolated(params IProperty[] passed) => SetViolated(null, passed, false);
+
+    /// <summary>
+    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// </summary>
+    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
+
     /// <summary>
     /// Clear violated constraints
     /// </summary>
     public void ClearViolated(params string[] passed) => SetViolated(null, passed, false);
 
     #endregion
-    
+
     #region Abstract
-    
+
     /// <summary>
     /// indicate whether the node has value
     /// </summary>
