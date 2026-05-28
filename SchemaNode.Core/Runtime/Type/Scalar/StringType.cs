@@ -1,5 +1,6 @@
 using SchemaNode.Node;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Runtime;
@@ -14,4 +15,7 @@ public sealed class StringType : ScalarType
 
     /// <inheritdoc/>
     public override DataNode Create() => new StringNode { Type = this };
+    
+    /// <inheritdoc />
+    protected override ScalarSchema? GetScalarSchema() => GetProperty<StringProperty>()?.Value;
 }

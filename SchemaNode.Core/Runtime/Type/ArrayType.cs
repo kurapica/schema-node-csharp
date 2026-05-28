@@ -44,7 +44,7 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        ArraySchema? array = GetPropertyValue<ArraySchema>();
+        ArraySchema? array = GetProperty<ArrayProperty>()?.Value;
         if (array == null)
         {
             Error = ErrorCodes.NO_DEFINITION;

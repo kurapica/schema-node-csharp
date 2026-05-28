@@ -152,32 +152,6 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         Loaded = true;
         await LoadAsync(context);
         
-        // Remove type not match properties, can only be done after loaded
-        if (props.Count > 0 && this is ValueType valType)
-        {
-            for (int i = props.Count - 1; i >= 0; i--)
-            {
-                IProperty prop = props[i];
-                if (prop.ForTypes is { Length: > 0 })
-                {
-                    bool matched = false;
-                    foreach (var t in prop.ForTypes)
-                    {
-                        ValueType? matchType = await context.GetNodeTypeAsync<ValueType>(t);
-                        if (matchType != null && valType.Kind == matchType?.Kind && valType.IsAssignableTo(matchType))
-                        {
-                            matched = true;
-                            break;
-                        }
-                    }
-                    if (!matched)
-                        props.RemoveAt(i);
-                }
-            }
-            if (props.Count != _props!.Length)
-                _props = props.ToArray();
-        }
-
         // Loading schema properties after loading, to avoid cycle ref
         List<NodeType> refTypes = [];
         if (GenericParams == null)
@@ -229,13 +203,9 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
     
     /// <summary>
-    /// Gets the property value with given type, returns null if not exist or not match type
+    /// Gets the property by property name
     /// </summary>
-    public T? GetPropertyValue<T>()
-    {
-        IProperty? prop = _props?.FirstOrDefault(p => p.Type.IsAssignableTo(typeof(T)));
-        return prop != null ? prop.GetValue<T>(true) : default(T?);
-    }
+    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Gets the generic map

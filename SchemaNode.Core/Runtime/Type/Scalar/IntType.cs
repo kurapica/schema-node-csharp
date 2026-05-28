@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Runtime;
 
@@ -13,4 +14,7 @@ public sealed class IntType : ScalarType
 
     /// <inheritdoc/>
     public override DataNode Create() => new IntNode { Type = this };
+    
+    /// <inheritdoc />
+    protected override ScalarSchema? GetScalarSchema() => GetProperty<IntProperty>()?.Value;
 }

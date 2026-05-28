@@ -2,6 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Node;
+using SchemaNode.Property;
 
 namespace SchemaNode.Runtime;
 
@@ -10,11 +11,20 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public abstract class ScalarType : ValueType
 {
-    #region Reference
+    #region Properties
 
     /// <summary>The base type node.</summary>
     public ScalarType? BaseNode { get; private set; }
 
+    #endregion
+    
+    #region Virtual
+
+    /// <summary>
+    /// Gets the scalar schema
+    /// </summary>
+    protected abstract ScalarSchema? GetScalarSchema();
+    
     #endregion
 
     #region Implementations
@@ -23,7 +33,7 @@ public abstract class ScalarType : ValueType
     public override async Task LoadAsync(SchemaContext context)
     {
         BaseNode = null;
-        ScalarSchema? scalar = GetPropertyValue<ScalarSchema>();
+        ScalarSchema? scalar = GetScalarSchema();
 
         if (!string.IsNullOrWhiteSpace(scalar?.Base))
         {

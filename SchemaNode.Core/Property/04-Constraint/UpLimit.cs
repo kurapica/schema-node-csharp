@@ -8,8 +8,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("uplimit")]
-[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(StringType))]
+[Meta<ForSchema>(SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitString)}")]
 public class UplimitString : Property<long>, IConstraintProperty
@@ -23,8 +22,7 @@ public class UplimitString : Property<long>, IConstraintProperty
 
 
 [Meta<Alias>("uplimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(DecimalType))]
+[Meta<ForSchema>(SCHEMA_KIND_DECIMAL)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitNumber)}")]
 public class UplimitNumber : Property<decimal>, IConstraintProperty
@@ -37,8 +35,7 @@ public class UplimitNumber : Property<decimal>, IConstraintProperty
 }
 
 [Meta<Alias>("uplimit")]
-[Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(IntType))]
+[Meta<ForSchema>(SCHEMA_KIND_INT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitInt)}")]
 public class UplimitInt : Property<long>, IConstraintProperty
@@ -51,8 +48,7 @@ public class UplimitInt : Property<long>, IConstraintProperty
 }
 
 [Meta<Alias>("uplimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(DateType))]
+[Meta<ForSchema>(SCHEMA_KIND_DATE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitInt)}")]
 public class UplimitDate : Property<DateTimeOffset>, IConstraintProperty

@@ -18,7 +18,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
-[Meta<NodeType>(typeof(PolicyType))]
+[Meta<NodeType>(typeof(WorkflowType))]
 [Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
 public sealed class WorkflowSchema: ExtensibleSchema

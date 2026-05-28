@@ -1,10 +1,10 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using EnumType = SchemaNode.Schema.EnumType;
 
 namespace SchemaNode.Property.Constraint;
 
@@ -12,9 +12,9 @@ namespace SchemaNode.Property.Constraint;
 /// Restrict the enum value to be a descendant of the specified root value.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(EnumType))]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Root)}")]
+[Relation<Visible>(NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"${nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
 public class Root: Property<string>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)

@@ -69,6 +69,13 @@ public class FuncType: AnyType;
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class ValidFuncType: FuncType;
 
+/// <summary>
+/// Represents the function with one argument
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.onearg")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, NS_SYSTEM_OBJECT)]
+public class OneArgFuncType : FuncType;
+
 /**
  * The function argument information
  */

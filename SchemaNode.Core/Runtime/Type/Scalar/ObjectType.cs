@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Runtime;
 
@@ -10,4 +11,7 @@ public sealed class ObjectType : ScalarType
 {
     /// <inheritdoc/>
     public override DataNode Create() => new AnyNode { Type = this };
+    
+    /// <inheritdoc />
+    protected override ScalarSchema? GetScalarSchema() => null;
 }

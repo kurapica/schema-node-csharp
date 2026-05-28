@@ -112,9 +112,29 @@ public static partial class SchemaNodeExtensions
             {
                 // Gather [Meta<SchemaKind>] attribute
                 foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
+                {
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
-                        throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
-                
+                        throw new Exception(
+                            $"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
+
+                    foreach (Append append in type.GetMetaProperties<Append>())
+                    {
+                        if (append.Value is not { Length: > 0 }) continue;
+                        foreach (Type propType in append.Value.Where(p => p.IsAssignableTo(typeof(IProperty))))
+                        {
+                            if (!schemaProperties.TryGetValue(asSchemaKind.Value!, out Dictionary<string, Type>? propertyTypes))
+                            {
+                                propertyTypes = new Dictionary<string, Type>();
+                                schemaProperties[asSchemaKind.Value!] = propertyTypes;
+                            }
+                            
+                            string propName = propType.GetPropertyName();
+                            if (!propertyTypes.TryAdd(propName, type))
+                                throw new Exception($"Duplicate property name '{propName}' found for schema kind '{asSchemaKind.Value}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
+                        }
+                    }
+                }
+
                 // Gather properties
                 if (type is { IsClass: true, IsAbstract: false } && 
                     type.IsAssignableTo(typeof(IProperty)) && 

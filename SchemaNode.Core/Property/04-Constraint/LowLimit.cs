@@ -9,8 +9,7 @@ using StringType = SchemaNode.Schema.StringType;
 namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(StringType))]
+[Meta<ForSchema>(SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitString)}")]
 public class LowLimitString : Property<long>, IConstraintProperty
@@ -23,8 +22,7 @@ public class LowLimitString : Property<long>, IConstraintProperty
 }
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(DecimalType))]
+[Meta<ForSchema>(SCHEMA_KIND_DECIMAL)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitNumber)}")]
 public class LowLimitNumber : Property<decimal>, IConstraintProperty
@@ -37,8 +35,7 @@ public class LowLimitNumber : Property<decimal>, IConstraintProperty
 }
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(IntType))]
+[Meta<ForSchema>(SCHEMA_KIND_INT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitInt)}")]
 public class LowLimitInt : Property<long>, IConstraintProperty
@@ -52,8 +49,7 @@ public class LowLimitInt : Property<long>, IConstraintProperty
 
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(DateType))]
+[Meta<ForSchema>(SCHEMA_KIND_DATE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitDate)}")]
 public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty

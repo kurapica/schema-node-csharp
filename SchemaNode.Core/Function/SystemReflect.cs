@@ -8,6 +8,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Schema.ArrayType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
 
@@ -82,11 +83,12 @@ public static class SystemReflect
         /// </summary>
         public static async Task<bool> withreturn(SchemaContext context,
             [Meta<SchemaType>(typeof(FuncType))] string func, 
-            [Meta<SchemaType>(typeof(ValueType))] string type)
+            [Meta<SchemaType>(typeof(ValueType))] string type,
+            bool matchArrayElement = false)
         {
             var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
             var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
-            return nodeType?.ReturnNode != null && returnType != null && nodeType.ReturnNode.IsAssignableTo(returnType);
+            return nodeType?.ReturnNode != null && returnType != null && (nodeType.ReturnNode.IsAssignableTo(returnType) || matchArrayElement && returnType is Runtime.ArrayType { Element: not null } arr && nodeType.ReturnNode.IsAssignableTo(arr.Element)));
         }
 
         /// <summary>

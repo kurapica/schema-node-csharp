@@ -41,7 +41,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         List<RelationSchema> relations = [];
         List<StructFieldSchema> fieldConfigs = [];
         bool solveLater = false;
-        Dictionary<string, PropertyInfo> unSolvedField = new(StringComparer.OrdinalIgnoreCase);
+        Dictionary<StructFieldSchema, PropertyInfo> fields = [];
         
         // Check generic types
         Type[] genericArgs = type.GetGenericArguments();
@@ -65,11 +65,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             field.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(p) ?? $"{schema.FullName}.{fieldName}");
             
             // to avoid the cycle ref, resolve the field type later
-            if (string.IsNullOrWhiteSpace(field.Type))
-            {
-                solveLater = true;
-                unSolvedField.Add(fieldName, p);
-            }
+            fields.Add(field, p);
             
             // Extension Properties
             foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_STRUCT_FIELD))
@@ -134,13 +130,29 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             yield return array;
         }
 
-        // Re-generate the struct schema
-        if (!solveLater) yield break;
-        
-        foreach (StructFieldSchema field in structSchema.Fields)
-            if (unSolvedField.TryGetValue(field.Name, out PropertyInfo? propType))
-                field.Type = typeResolver(propType.PropertyType, @namespace, genericArgs) ?? throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
-        
+        bool changed = false;
+        foreach ((StructFieldSchema field, PropertyInfo p) in fields)
+        {
+            if (string.IsNullOrWhiteSpace(field.Type))
+            {
+                field.Type = typeResolver(p.PropertyType, @namespace, genericArgs) ??
+                             throw new Exception(
+                                 $"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+                changed = true;
+            }
+
+            NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
+            if (fieldTypeSchema == null) throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+            
+            // Extension Properties
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
+            {
+                field.SetProperty(property);
+                changed = true;
+            }
+        }
+        if (!changed) yield break;
+
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         yield return schema;
     }

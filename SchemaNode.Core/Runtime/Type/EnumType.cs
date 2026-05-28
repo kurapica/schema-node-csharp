@@ -65,7 +65,7 @@ public sealed class EnumType: ValueType
     /// <inheritdoc />
     public override Task LoadAsync(SchemaContext context)
     {
-        _enumSchema = GetPropertyValue<EnumSchema>();
+        _enumSchema = GetProperty<EnumProperty>()?.Value;
 
         // Data
         _valueMaps.Clear();

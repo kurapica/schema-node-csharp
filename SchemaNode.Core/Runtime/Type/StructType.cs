@@ -41,7 +41,7 @@ public sealed class StructType: ValueType
     #region Implementations
 
     /// <inheritdoc />
-    public override Type? GetCsharpType() => base.GetCsharpType() ?? typeof(StructNode);
+    public override Type GetCsharpType() => base.GetCsharpType() ?? typeof(StructNode);
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -51,7 +51,7 @@ public sealed class StructType: ValueType
         _relations = null;
         
         // load struct schema
-        StructSchema? @struct = GetPropertyValue<StructSchema>();
+        StructSchema? @struct = GetProperty<StructProperty>()?.Value;
         if (@struct == null)
         {
             Error = ErrorCodes.NO_DEFINITION;
@@ -510,12 +510,12 @@ public class StructFieldType : INodeReferences
         RefTypes = refTypes?.ToArray();
 
         // Useful properties
-        Require = props.FirstOrDefault(p => p is Require) is Require r ? r.Value : null;
-        DisplayOnly = props.FirstOrDefault(p => p is DisplayOnly) is DisplayOnly d ? d.Value : null;
-        Unpack = props.FirstOrDefault(p => p is Unpack) is Unpack u ? u.Value : null;
-        Default = props.FirstOrDefault(p => p is Default) is Default defProp ? await valueType.ValidateValueAsync(context, defProp.Value) : null;
-        UpLimit = props.FirstOrDefault(p => p.Name.Equals(nameof(UpLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty up ? up.GetValue<object>() : null;
-        LowLimit = props.FirstOrDefault(p => p.Name.Equals(nameof(LowLimit), StringComparison.OrdinalIgnoreCase)) is IConstraintProperty low ? low.GetValue<object>() : null;
+        Require = GetProperty<Require>()?.Value;
+        DisplayOnly = GetProperty<DisplayOnly>()?.Value;
+        Unpack =  GetProperty<Unpack>()?.Value;
+        Default = GetProperty<Default>() is {} defProp ? await valueType.ValidateValueAsync(context, defProp.Value) : null;
+        UpLimit = GetProperty(nameof(UpLimit))?.GetValue<object>();
+        LowLimit = GetProperty(nameof(LowLimit))?.GetValue<object>();
     }
 
     /// <summary>
@@ -528,4 +528,14 @@ public class StructFieldType : INodeReferences
             foreach (NodeType nodeType in RefTypes)
                 yield return nodeType;
     }
+    
+    /// <summary>
+    /// Gets the property
+    /// </summary>
+    public IProperty? GetProperty(string propertyName) => Properties?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
+    
+    /// <summary>
+    /// Get the property with property type
+    /// </summary>
+    public T? GetProperty<T>() where T : class, IProperty => Properties?.Cast<T>().FirstOrDefault();
 }

@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Runtime;
 
@@ -12,4 +13,7 @@ public sealed class BoolType : ScalarType
 
     /// <inheritdoc />
     public override DataNode Create() => new BoolNode { Type = this };
+
+    /// <inheritdoc />
+    protected override ScalarSchema? GetScalarSchema() => null;
 }

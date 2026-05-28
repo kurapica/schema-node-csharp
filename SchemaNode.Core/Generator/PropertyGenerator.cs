@@ -39,9 +39,6 @@ internal class PropertyGenerator : INodeSchemaGenerator
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>()  ?? throw new ArgumentException($"Type '{type}' is not a valid as property type."),
             
-            // ForValueTypes
-            ForTypes = type.GetMetaProperty<ForType>()?.GetValue<string[]>(),
-        
             // Static
             Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
         });

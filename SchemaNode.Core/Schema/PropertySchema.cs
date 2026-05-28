@@ -52,12 +52,6 @@ public class PropertySchema: ExtensibleSchema
     public string[] ForSchemas { get; set; } = [];
     
     /// <summary>
-    /// The assignable value types
-    /// </summary>
-    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA_NODE}.valuetype>")]
-    public string[]? ForTypes { get; set; }
-
-    /// <summary>
     /// Whether the property can't be changed by relations
     /// </summary>
     public bool? Static { get; set; }

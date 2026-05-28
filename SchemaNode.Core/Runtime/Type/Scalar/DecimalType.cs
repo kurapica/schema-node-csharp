@@ -1,4 +1,5 @@
 using SchemaNode.Node;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Runtime;
 
@@ -8,4 +9,7 @@ namespace SchemaNode.Runtime;
 public sealed class DecimalType : ScalarType
 {
     public override DataNode Create() => new NumericNode { Type = this };
+    
+    /// <inheritdoc />
+    protected override ScalarSchema? GetScalarSchema() => GetProperty<DecimalProperty>()?.Value;
 }

@@ -2,13 +2,11 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<ForType>(typeof(EnumType), typeof(StringType), typeof(IntType))]
+[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_INT, SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(BlackList)}")]
 public class BlackList : Property<object[]>, IConstraintProperty

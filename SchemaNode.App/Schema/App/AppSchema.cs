@@ -3,7 +3,6 @@ using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
-using SchemaNode.Struct;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
@@ -21,6 +20,7 @@ namespace SchemaNode.Schema;
  */
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
+[Meta<Append>(typeof(Display))]
 public sealed class AppSchema: ExtensibleSchema
 {
     /// <summary>
@@ -34,7 +34,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// The parent app name
     /// </summary>
     [Meta<PrimaryIndex>(0)]
-    [Meta<SchemaType>(typeof(NamespaceType))]
+    [Meta<SchemaType>(typeof(AppType))]
     public string? Parent { get; set; }
     
     /// <summary>
@@ -43,11 +43,6 @@ public sealed class AppSchema: ExtensibleSchema
     [SchemaIgnore]
     [JsonIgnore]
     public string FullName => $"{Parent}.{Name}".Trim('.');
-
-    /// <summary>
-    /// The display name
-    /// </summary>
-    public LocaleString? Display { get; set; }
 
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
@@ -111,7 +106,7 @@ public sealed class AppSchema: ExtensibleSchema
 }
 
 /// <summary>
-/// The appliation type
+/// The application type, used for the parent app reference and app type definition, it's a string with format of {appnamespace}.{appname}
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.type")]
 [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getapps)}")]

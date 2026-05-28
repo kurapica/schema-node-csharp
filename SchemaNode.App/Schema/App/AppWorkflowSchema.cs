@@ -5,8 +5,11 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Runtime;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -14,9 +17,10 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The application workflow
 /// </summary>
-[SchemaApp]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.schema")]
-public sealed class AppWorkflowSchema: ISchemaExtensions
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
+[Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW, SCHEMA_KIND_ORDER_APP_WORKFLOW)]
+[Meta<Append>(typeof(Display))]
+public sealed class AppWorkflowSchema: ExtensibleSchema
 {
     /// <summary>
     /// the application name

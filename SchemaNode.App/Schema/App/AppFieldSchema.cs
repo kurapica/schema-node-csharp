@@ -22,6 +22,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
+[Meta<Append>(typeof(Display))]
 public sealed class AppFieldSchema: ExtensibleSchema
 {
     #region Info
@@ -51,11 +52,6 @@ public sealed class AppFieldSchema: ExtensibleSchema
     [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = default!;
     
-    /// <summary>
-    /// The field display name
-    /// </summary>
-    public LocaleString? Display { get; set; }
-
     #endregion
 
     #region Push Rule
@@ -63,7 +59,8 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// <summary>
     /// The calculate function
     /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<SchemaType>(typeof(OneArgFuncType))]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
     public string? Func { get; set; }
 
     /// <summary>

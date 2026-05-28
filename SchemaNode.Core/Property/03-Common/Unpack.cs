@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
+using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using Object = SchemaNode.Scalar.Object;
 
 namespace SchemaNode.Property.Common;
 
@@ -10,6 +10,6 @@ namespace SchemaNode.Property.Common;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<ForType>(typeof(Object))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Unpack)}")]
+[Relation<Visible>(NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"${nameof(StructFieldSchema.Type)}", SCHEMA_KIND_OBJECT)]
 public class Unpack : Property<bool>;
