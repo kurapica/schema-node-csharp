@@ -40,7 +40,6 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         Dictionary<string, PendingIndex> indexes = new(StringComparer.OrdinalIgnoreCase);
         List<RelationSchema> relations = [];
         List<StructFieldSchema> fieldConfigs = [];
-        bool solveLater = false;
         Dictionary<StructFieldSchema, PropertyInfo> fields = [];
         
         // Check generic types
@@ -143,12 +142,29 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 
             NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
             if (fieldTypeSchema == null) throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+
+            var detail = p.PropertyType.GetTypeDetail();
+            if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                field.Type = runtime.GetSystemArraySchema(field.Type) ?? throw new Exception($"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
             
             // Extension Properties
             foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
             {
                 field.SetProperty(property);
                 changed = true;
+            }
+
+            if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+            {
+                ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
+                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
+                NodeSchema element = runtime.GetSystemSchema(arraySchema.Element) 
+                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
+                {
+                    field.SetProperty(property);
+                    changed = true;
+                }
             }
         }
         if (!changed) yield break;

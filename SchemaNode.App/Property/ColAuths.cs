@@ -1,15 +1,25 @@
+using System.Text.Json.Serialization;
+using SchemaNode.Attribute;
+using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using static SchemaNode.Utility.AppConstant;
+using static SchemaNode.Utility.Constant;
+
 namespace SchemaNode.Property.Common;
 
-public class ColAuths
-{
-    
-}
+[Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(RowAuths)}")]
+[Relation<Valid>($"${nameof(RowAuths)}.{nameof(RowPolicy.Filter)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"${nameof(AppFieldSchema.Type)}", true)]
+public class ColAuths : Property<ColPolicy[]>;
 
 
 /// <summary>
 /// The column policy item
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.col")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.policy.col")]
 public sealed class ColPolicy
 {
     /// <summary>
@@ -25,7 +35,7 @@ public sealed class ColPolicy
     /// <summary>
     /// The function type of the evaluator
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     [JsonIgnore]
     public FunctionType[] Functions { get; set; } = [];
 }

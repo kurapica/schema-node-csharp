@@ -262,8 +262,8 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
             NodeSchema? mainSchema = null;
             foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
-                 ? kindGenerators.Where(g => 
-                         ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
+                 ? kindGenerators
+                     .Where(g => ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
                      .Select(g => g.Value)
                  : schemaGenerators)
             {
