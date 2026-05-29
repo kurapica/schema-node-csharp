@@ -88,7 +88,7 @@ public static class SystemReflect
         {
             var nodeType = !string.IsNullOrWhiteSpace(func) ? await context.GetNodeTypeAsync<FunctionType>(func) : null;
             var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
-            return nodeType?.ReturnNode != null && returnType != null && (nodeType.ReturnNode.IsAssignableTo(returnType) || matchArrayElement && returnType is Runtime.ArrayType { Element: not null } arr && nodeType.ReturnNode.IsAssignableTo(arr.Element)));
+            return nodeType?.ReturnNode != null && returnType != null && (nodeType.ReturnNode.IsAssignableTo(returnType) || matchArrayElement && returnType is Runtime.ArrayType { Element: not null } arr && nodeType.ReturnNode.IsAssignableTo(arr.Element));
         }
 
         /// <summary>

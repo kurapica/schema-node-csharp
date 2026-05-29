@@ -94,7 +94,7 @@ public interface IRelationProcessBuilder
 /// <summary>
 /// The relation property for data schemas
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY)]
+[Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY, SCHEMA_KIND_PROPERTY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
 public class Relations: Property<RelationSchema[]>;
@@ -153,7 +153,7 @@ public class RelationCall : IRelationProcess, INodeReferences, INodeError
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.call")]
 public class RelationCallBuilder: IRelationProcessBuilder
-{
+{ 
     /// <summary>
     /// The function to be used
     /// </summary>
@@ -220,7 +220,7 @@ public static class RelationExtension
             if (!relation.Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
             IProperty? prop = relation.GetProperty(propType);
             if (prop is not { HasValue: true }) continue;
-            if (prop.GetValue<IRelationProcess>(true) is {}  process)return process;
+            if (prop.GetValue<IRelationProcess>(true) is {}  process) return process;
             if (prop.GetValue<IRelationProcessBuilder>(true) is {} processBuilder)
                 return await processBuilder.BuildAsync(context, valueType, relation);
         }

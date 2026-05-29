@@ -13,6 +13,8 @@ using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Property.Common;
 using SchemaNode.Function;
+using SchemaNode.Property.Constraint;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -73,11 +75,6 @@ public sealed class AppFieldSchema: ExtensibleSchema
     #endregion
 
     #region Auth
-
-    /// <summary>
-    /// The authentication policy
-    /// </summary>
-    public PolicyItem[]? Auths { get; set; }
 
     /// <summary>
     /// Row filter policy
@@ -253,63 +250,6 @@ public enum AppFieldFlags
     Readonly = 1 << 2,
     IncrUpdate = 1 << 3,
     AllowClear = 1 << 4,
-}
-
-/// <summary>
-/// The row policy item
-/// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.row")]
-public sealed class RowPolicy
-{
-    /// <summary>
-    /// The policy evaluatorm, if true will use the filter
-    /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR)]
-    public required string Evaluator { get; set; }
-
-    /// <summary>
-    /// The row filter function
-    /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE)]
-    public string? Filter { get; set; }
-
-    /// <summary>
-    /// The function type of the evaluator
-    /// </summary>
-    [NotMapped]
-    [JsonIgnore]
-    public FunctionType? EvaluatorFunc { get; set; }
-
-    /// <summary>
-    /// The function type of the filter
-    /// </summary>
-    [NotMapped]
-    [JsonIgnore]
-    public FunctionType? FilterFunc { get; set; }
-}
-
-/// <summary>
-/// The column policy item
-/// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.col")]
-public sealed class ColPolicy
-{
-    /// <summary>
-    /// The struct field name
-    /// </summary>
-    public required string Name { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The column access evaluators
-    /// </summary>
-    public string[] Evaluators { get; set; } = [];
-
-    /// <summary>
-    /// The function type of the evaluator
-    /// </summary>
-    [NotMapped]
-    [JsonIgnore]
-    public FunctionType[] Functions { get; set; } = [];
 }
 
 /// <summary>

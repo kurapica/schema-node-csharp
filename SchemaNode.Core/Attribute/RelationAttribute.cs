@@ -12,6 +12,11 @@ namespace SchemaNode.Attribute;
 public interface IRelationAttribute
 {
     /// <summary>
+    /// The target
+    /// </summary>
+    string? Target { get; }
+    
+    /// <summary>
     /// The relation process kind
     /// </summary>
     string Kind { get; }
@@ -31,10 +36,40 @@ public interface IRelationAttribute
 /// The default relation using call process
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class RelationAttribute<T>(string func, params object[] args): System.Attribute, IRelationAttribute where T: IProperty
+public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute where T: IProperty
 {
+    /// <summary>
+    /// The call relation with target specified
+    /// </summary>
+    public RelationAttribute(string target, string func, params object[] args)
+    {
+        if (target.StartsWith('$') && !target.StartsWith("$$"))
+        {
+            Target = target.Equals(NODE_SELF) || target.Equals(ARRAY_PREVIOUS) || target.Equals(ARRAY_ELEMENT) ? target : target[1..].ToCamelCase();
+            Func = func;
+            Args = args;
+        }
+        else
+        {
+            Func = target;
+            Args = args.Prepend(func).ToArray();
+        }
+    }
+    
+    /// <summary>
+    /// The call relation with target specified
+    /// </summary>
+    public RelationAttribute(string func, params object[] args)
+    {
+        Func = func;
+        Args = args;
+    }
+
     /// <inheritdoc/>
     public string Kind { get; } = "call";
+
+    /// <inheritdoc/>
+    public string? Target { get; }
     
     /// <inheritdoc/>
     public Type Property { get; } = typeof(T);
@@ -42,12 +77,12 @@ public sealed class RelationAttribute<T>(string func, params object[] args): Sys
     /// <summary>
     /// The function
     /// </summary>
-    string Func { get; } = func;
+    string Func { get; }
     
     /// <summary>
     /// The call arguments
     /// </summary>
-    object[] Args { get; } = args;
+    object[] Args { get; }
     
     /// <inheritdoc/>
     public IRelationProcessBuilder GetRelationProcess()

@@ -214,7 +214,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
     {
         RelationSchema relationSchema = new()
         {
-            Target = fieldName,
+            Target = relation.Target ?? fieldName,
             Property = relation.Property.GetPropertyName(),
             Kind = relation.Kind
         };
