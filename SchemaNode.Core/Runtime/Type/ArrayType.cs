@@ -87,7 +87,7 @@ public sealed class ArrayType: ValueType
                 Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
                 if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
                 
-                IRelationProcess? process = await context.GetRelationProcessAsync(this, relation);
+                IRelationProcess? process = await context.LoadRelationProcessAsync(this, relation);
                 switch (process)
                 {
                     case null:

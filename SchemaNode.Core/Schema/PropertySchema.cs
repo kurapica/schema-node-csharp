@@ -20,6 +20,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
+[Meta<NodeType>(typeof(Runtime.PropertyType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
 public class PropertySchema: ExtensibleSchema
 {

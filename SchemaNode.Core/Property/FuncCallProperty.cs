@@ -1,4 +1,6 @@
 using System.Text.Json.Nodes;
+using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -16,7 +18,7 @@ internal interface IFuncCallProperty : IProperty
 /// <summary>
 /// The function call properties
 /// </summary>
-public abstract class FuncCallProperty<T> : Property<T>, IFuncCallProperty, ITypeRefProperty where T : IFuncCall, new()
+public abstract class FuncCallProperty<T> : Property<T>, IFuncCallProperty, ITypeRefProperty where T : FuncCall, new()
 {
     public IEnumerable<string> GetRefTypes()
     {
@@ -45,15 +47,16 @@ public abstract class FuncCallProperty<T> : Property<T>, IFuncCallProperty, ITyp
 /// <summary>
 /// The function call 
 /// </summary>
-public interface IFuncCall
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(FuncCall)}")]
+public class FuncCall
 {
     /// <summary>
     /// The function name
     /// </summary>
-    string Func { get; set; }
+    public string Func { get; set; } = string.Empty;
 
     /// <summary>
     /// The call arguments
     /// </summary>
-    CallArg[] Args { get; set; }
+    public CallArg[] Args { get; set; } = [];
 }

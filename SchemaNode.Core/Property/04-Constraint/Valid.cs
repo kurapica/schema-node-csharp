@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
 [Meta<Stackable>]
-public class Valid : FuncCallProperty<ValidateFuncCall>, IConstraintProperty
+public class Valid : FuncCallProperty<FuncCall>, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)
     {
@@ -38,7 +38,7 @@ public class Valid : FuncCallProperty<ValidateFuncCall>, IConstraintProperty
             {
                 DataNode? value = node.GetAccessValue(arg.Source);
                 args[i] = value;
-                if (value is ArrayNode && argInfo?.ValueType is not ArrayType)
+                if (value is ArrayNode && argInfo.ValueType is not ArrayType)
                 {
                     if (arrayIndex == -1) 
                         arrayIndex = i;
@@ -77,18 +77,4 @@ public class Valid : FuncCallProperty<ValidateFuncCall>, IConstraintProperty
             return null;
         }
     }
-}
-
-/// <summary>
-/// The validation func call
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(ValidateFuncCall)}")]
-public class ValidateFuncCall : IFuncCall
-{
-    /// <inheritdoc/>
-    [Meta<SchemaType>(typeof(ValidFuncType))]
-    public string Func { get; set; } = null!;
-    
-    /// <inheritdoc/>
-    public CallArg[] Args { get; set; } = [];
 }

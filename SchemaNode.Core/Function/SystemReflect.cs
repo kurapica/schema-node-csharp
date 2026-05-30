@@ -9,6 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Schema.ArrayType;
+using PropertyType = SchemaNode.Runtime.PropertyType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
 
@@ -32,6 +33,16 @@ public static class SystemReflect
         var ns = await context.GetNodeTypeAsync<Runtime.NamespaceType>(name ?? string.Empty);
         if (ns == null) return [];
         return ns.GetNodeSchemas().Select(s => new Entry<string> { Value = s.FullName, Label = s.GetProperty<Display>()?.Value, HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE }).ToArray();
+    }
+
+    /// <summary>
+    /// Gets the property value type
+    /// </summary>
+    public static async Task<string?> getproptype(SchemaContext context,
+        [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
+    {
+        PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(name);
+        return prop?.ValueType?.Name;
     }
 
     /// <summary>

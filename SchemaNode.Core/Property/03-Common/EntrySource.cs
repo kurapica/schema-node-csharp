@@ -10,3 +10,17 @@ namespace SchemaNode.Property.Common;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.entrysource")]
 [Meta<PropertyValueType>(typeof(FuncType))]
 public class EntrySource : Property<string>;
+
+/// <summary>
+/// The entry source func call
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(EntrySourceFuncCall)}")]
+public class EntrySourceFuncCall : FuncCall
+{
+    /// <inheritdoc/>
+    [Meta<SchemaType>(typeof(ValidFuncType))]
+    public string Func { get; set; } = null!;
+    
+    /// <inheritdoc/>
+    public CallArg[] Args { get; set; } = [];
+}
