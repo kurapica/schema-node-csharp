@@ -116,9 +116,12 @@ public interface IPropertyOwner
     /// <summary>
     /// Gets the property by type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
     T? GetProperty<T>() where T : IProperty, new();
+
+    /// <summary>
+    /// Gets the properties by type
+    /// </summary>
+    IEnumerable<T> GetProperties<T>() where T : IProperty, new();
 
     /// <summary>
     /// Sets the property and return itself

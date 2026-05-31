@@ -40,6 +40,11 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
                         : new CallArg { Value = a.ToJsonNode() }).ToArray()
                 });
                 break;
+
+            // For other cases, try to convert to FuncCall directly
+            default:
+                base.SetValue(value);
+                break;
         }
     }
 }
