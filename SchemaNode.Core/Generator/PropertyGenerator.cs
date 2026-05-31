@@ -57,7 +57,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
             propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Build property schema
-        schema.SetProperty<PropProperty, PropertySchema>(propSchema);
+        schema.SetProperty<Schema.Property, PropertySchema>(propSchema);
         
         yield return schema;
     }

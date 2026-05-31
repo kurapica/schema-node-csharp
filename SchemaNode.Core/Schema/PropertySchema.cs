@@ -8,7 +8,6 @@ using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
-using String = SchemaNode.Scalar.String;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -22,10 +21,11 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<NodeType>(typeof(Runtime.PropertyType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
+[Meta<Append>(typeof(Relations))]
 public class PropertySchema: ExtensibleSchema
 {
     /// <summary>
-    /// The property name, such as "uplimit", "lowlimit", "pattern", etc.
+    /// The property name, such as "upLimit", "lowLimit", "pattern", etc.
     /// </summary>
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Property { get; internal set; } = string.Empty;
@@ -37,6 +37,22 @@ public class PropertySchema: ExtensibleSchema
     public string Type { get; internal set; } = string.Empty;
 
     /// <summary>
+    /// The schema kinds that this property applies to
+    /// </summary>
+    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA}.kind>")]
+    public string[] ForSchemas { get; set; } = [];
+    
+    /// <summary>
+    /// Whether the property shouldn't be changed by relations
+    /// </summary>
+    public bool? Static { get; set; }
+
+    /// <summary>
+    /// The property is stackable, which means it can be applied multiple times and their effect is stackable not overridable
+    /// </summary>
+    public bool? Stackable { get; set; }
+    
+    /// <summary>
     /// The required property names that this depends on
     /// </summary>
     public string[]? Depends { get; set; }
@@ -45,22 +61,6 @@ public class PropertySchema: ExtensibleSchema
     /// The other properties be overridden by this property
     /// </summary>
     public string[]? Overrides { get; set; }
-
-    /// <summary>
-    /// The schema kinds that this property applies to
-    /// </summary>
-    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA}.kind>")]
-    public string[] ForSchemas { get; set; } = [];
-    
-    /// <summary>
-    /// Whether the property can't be changed by relations
-    /// </summary>
-    public bool? Static { get; set; }
-
-    /// <summary>
-    /// The property is stackable
-    /// </summary>
-    public bool? Stackable { get; set; }
 }
 
 /// <summary>
@@ -71,12 +71,6 @@ public class PropertySchema: ExtensibleSchema
 public class PropertyType: AnyType;
 
 /// <summary>
-/// Represents the property name
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.name")]
-public class PropertyName : String;
-
-/// <summary>
 /// Declare the "property" property for node schema
 /// </summary>
 [Meta<Alias>("property")]
@@ -84,4 +78,4 @@ public class PropertyName : String;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
-public sealed class PropProperty: Property<PropertySchema>;
+public sealed class Property: Property<PropertySchema>;

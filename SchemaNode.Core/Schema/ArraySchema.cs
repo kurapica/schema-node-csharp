@@ -20,6 +20,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeType>(typeof(ArrayType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
+[Meta<Append>(typeof(Relations))]
 public sealed class ArraySchema: ExtensibleSchema
 {
     /// <summary>

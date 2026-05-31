@@ -10,9 +10,9 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Runtime;
 
 /// <summary>
-/// The relation type
+/// The relation type, they are not node types, only runtime-types controlled by the node types use them
 /// </summary>
-public class RelationType (RelationSchema relation, ValueType owner) : INodeReferences, INodeError
+public class RelationType(RelationSchema relation, ValueType owner) : INodeReferences, INodeError
 {
     /// <summary>
     /// The target of the relation

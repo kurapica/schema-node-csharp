@@ -5,9 +5,9 @@ using SchemaNode.Property.Core;
 namespace SchemaNode.Attribute;
 
 /// <summary>
-/// The interface for property attributes
+/// The interface for meta property attributes
 /// </summary>
-interface IPropertyAttribute 
+public interface IMetaPropertyAttribute 
 {
     IProperty Property { get; }
 }
@@ -16,7 +16,7 @@ interface IPropertyAttribute
 /// Declare schema properties, like [SchemaProp(nameof(UnitProperty), "The unit of the value")], which can be used in schema extensions
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class MetaAttribute<TP, TV>: System.Attribute, IPropertyAttribute where TP: Property<TV>, new()
+public sealed class MetaAttribute<TP, TV>: System.Attribute, IMetaPropertyAttribute where TP: Property<TV>, new()
 {
     public MetaAttribute(TV value) => Property.SetValue(value);
 
@@ -27,7 +27,7 @@ public sealed class MetaAttribute<TP, TV>: System.Attribute, IPropertyAttribute 
 }
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute where TP : IProperty, new()
+public sealed class MetaAttribute<TP> : System.Attribute, IMetaPropertyAttribute where TP : IProperty, new()
 {
     #region Constructor
 
@@ -36,49 +36,8 @@ public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute whe
     /// </summary>
     public MetaAttribute()
     {
-        object? defaultValue = GetType().GetMetaProperty<Default>()?.Value;
-        if (defaultValue != null) Property.SetValue(defaultValue);
-    }
-
-    /// <summary>
-    /// The meta attribute for order properties, which will set the order value and the default value if it exists
-    /// </summary>
-    public MetaAttribute(int order)
-    {
-        if (Property is IOrderProperty p)
-        {
-            object? defaultValue = GetType().GetMetaProperty<Default>()?.Value;
-            if (defaultValue != null) Property.SetValue(defaultValue);
-            p.Order = order;
-        }
-        else
-        {
-            Property.SetValue(order);
-        }
-    }
-
-    /// <summary>
-    /// The meta attribute for order properties
-    /// </summary>
-    public MetaAttribute(object value, int order)
-    {
-        switch (Property)
-        {
-            case IOrderProperty p:
-                p.Order = order;
-                p.SetValue(value);
-                break;
-            case IFuncCallProperty f:
-            {
-                if (value is string s)
-                    f.TrySetFuncCall(s, [order]);
-
-                break;
-            }  
-            default:
-                Property.SetValue(new []{value, order});
-                break;
-        }
+        if (GetType().GetMetaProperty<Default>()?.Value is {} defaultValue) 
+            Property.SetValue(defaultValue);
     }
     
     /// <summary>
@@ -91,16 +50,7 @@ public sealed class MetaAttribute<TP> : System.Attribute, IPropertyAttribute whe
     /// The meta attribute for properties with array value
     /// </summary>
     /// <param name="values"></param>
-    public MetaAttribute(params object[] values)
-    {
-        if (Property is IFuncCallProperty f)
-        {
-            if (values.Length > 0 && values[0] is string s)
-                f.TrySetFuncCall(s, values.Skip(1).ToArray());
-            return;
-        }
-        Property.SetValue(values);
-    }
+    public MetaAttribute(params object[] values) => Property.SetValue(values);
 
     #endregion
     
@@ -117,7 +67,7 @@ public static class MetaExtension
 {
     #region Utility
     
-    static IEnumerable<T> FilterBy<T>(IEnumerable<IPropertyAttribute> attributes) where T : class, IProperty
+    static IEnumerable<T> FilterBy<T>(IEnumerable<IMetaPropertyAttribute> attributes) where T : class, IProperty
     {
         foreach (var attr in attributes)
             if (attr.Property is T p) yield return p;
@@ -135,52 +85,52 @@ public static class MetaExtension
     /// <summary>
     /// Gets the meta attributes of the type
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this Type type) => type.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this Type type) => type.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the member
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.MemberInfo member) => member.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.MemberInfo member) => member.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the parameter
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.ParameterInfo parameter) => parameter.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.ParameterInfo parameter) => parameter.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the assembly
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.Assembly assembly) => assembly.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.Assembly assembly) => assembly.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the module
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.Module module) => module.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.Module module) => module.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the event
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.EventInfo eventInfo) => eventInfo.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.EventInfo eventInfo) => eventInfo.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the field
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.FieldInfo fieldInfo) => fieldInfo.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.FieldInfo fieldInfo) => fieldInfo.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the constructor
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.ConstructorInfo constructorInfo) => constructorInfo.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.ConstructorInfo constructorInfo) => constructorInfo.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the method
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.MethodInfo methodInfo) => methodInfo.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.MethodInfo methodInfo) => methodInfo.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
 
     /// <summary>
     /// Gets the meta attributes of the property
     /// </summary>
-    static IEnumerable<IPropertyAttribute> GetMetaProperties(this System.Reflection.PropertyInfo propertyInfo) => propertyInfo.GetCustomAttributes(false).OfType<IPropertyAttribute>();
+    static IEnumerable<IMetaPropertyAttribute> GetMetaProperties(this System.Reflection.PropertyInfo propertyInfo) => propertyInfo.GetCustomAttributes(false).OfType<IMetaPropertyAttribute>();
     
     #endregion
     

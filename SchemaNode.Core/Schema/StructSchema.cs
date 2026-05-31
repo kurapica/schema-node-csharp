@@ -23,6 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(StructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
+[Meta<Append>(typeof(Relations))]
 public sealed class StructSchema : ExtensibleSchema
 {
     /// <summary>

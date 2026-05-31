@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
-[Meta<Property.Core.NodeType>(typeof(FunctionType))]
+[Meta<SchemaNode.Property.Core.NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 public sealed class FunctionSchema: ExtensibleSchema

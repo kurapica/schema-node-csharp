@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
 using SchemaNode.Property;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -29,7 +31,26 @@ public interface IRelationAttribute
     /// <summary>
     /// Generate the relation schema data
     /// </summary>
-    IRelationProcessBuilder GetRelationProcess();
+    IRelationProcess GetRelationProcess();
+
+    /// <summary>
+    /// Gets the relation schema
+    /// </summary>
+    public RelationSchema GetRelationSchema(SchemaRuntime runtime, string defaultTarget, Func<Type, string, Type[]?, string?> typeResolver)
+    {
+        RelationSchema relationSchema = new()
+        {
+            Target = Target ?? defaultTarget,
+            Property = typeResolver(Property, NS_SYSTEM_SCHEMA_PROPERTY, null) ?? throw new InvalidOperationException($"Cannot resolve property type {Property.FullName}"),
+            Kind = Kind
+        };
+
+        IRelationProcess process = GetRelationProcess();
+        Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
+                        ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
+        relationSchema.SetProperty(propType, process);
+        return relationSchema;
+    }
 }
 
 /// <summary>
@@ -85,9 +106,9 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
     object[] Args { get; }
     
     /// <inheritdoc/>
-    public IRelationProcessBuilder GetRelationProcess()
+    public IRelationProcess GetRelationProcess()
     {
-        return new RelationCallBuilder
+        return new Relation.Call
         {
             Func = Func,
             Args = Args.Select(a => a is string str
@@ -98,5 +119,42 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
                     : new CallArg{ Value = JsonValue.Create(str) }
                 : new CallArg { Value = a.ToJsonNode() }).ToArray()
         };
+    }
+}
+
+/// <summary>
+/// The assignment relation
+/// </summary>
+public sealed class RelationAssign<T> : System.Attribute, IRelationAttribute where T: IProperty
+{
+    object? Value { get; }
+
+    public RelationAssign(string target, object value)
+    {
+        Target = target;
+        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
+        if (prop == null) return;
+        prop.SetValue(value);
+        Value = prop.GetValue<object>();
+    }
+
+    public RelationAssign(string target, params object[] values)
+    {
+        Target = target;
+        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
+        if (prop == null) return;
+        prop.SetValue(values);
+        Value = prop.GetValue<object>();
+    }
+
+    public string Kind { get; } = "assign";
+
+    public string Target { get; }
+    
+    public Type Property { get; } = typeof(T);
+
+    public IRelationProcess GetRelationProcess()
+    {
+        return new Relation.Assign { Value = Value };
     }
 }

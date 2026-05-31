@@ -16,7 +16,7 @@ public class PropertyType : NodeType
     /// <inheritdoc/>
     public override async Task LoadAsync(SchemaContext context)
     {
-        _property = GetProperty<PropProperty>()?.Value;
+        _property = GetProperty<Schema.Property>()?.Value;
         ValueType = !string.IsNullOrWhiteSpace(_property?.Type) 
             ? await context.GetNodeTypeAsync<ValueType>(_property.Type)
             : null;

@@ -8,39 +8,39 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property;
 
 /// <summary>
-/// The function call property
-/// </summary>
-internal interface IFuncCallProperty : IProperty
-{
-    void TrySetFuncCall(string func, object[] args);
-}
-
-/// <summary>
 /// The function call properties
 /// </summary>
-public abstract class FuncCallProperty<T> : Property<T>, IFuncCallProperty, ITypeRefProperty where T : FuncCall, new()
+public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
 {
+    /// <inheritdoc/>
     public IEnumerable<string> GetRefTypes()
     {
         if (Value?.Func is not null)
             yield return Value.Func;
     }
 
-    public void TrySetFuncCall(string func, object[] args)
+    /// <inheritdoc/>
+    public override void SetValue<TValue>(TValue value)
     {
-        if (string.IsNullOrEmpty(func)) return;
-        var call = new T
+        switch (value)
         {
-            Func = func,
-            Args = args.Select(a => a is string str
-                ? str.StartsWith('$')
-                    ? str.StartsWith("$$")
-                        ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
-                    : new CallArg{ Value = JsonValue.Create(str) }
-                : new CallArg { Value = a.ToJsonNode() }).ToArray()
-        };
-        SetValue(call);
+            case string func when !string.IsNullOrEmpty(func):
+                base.SetValue(new  FuncCall { Func = func });
+                break;
+            case object[] { Length: > 0 } args when args[0] is string f && !string.IsNullOrEmpty(f):
+                base.SetValue(new FuncCall
+                {
+                    Func = f,
+                    Args = args.Skip(1).Select(a => a is string str
+                        ? str.StartsWith('$')
+                            ? str.StartsWith("$$")
+                                ? new CallArg { Value = JsonValue.Create(str[1..]) }
+                                : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
+                            : new CallArg{ Value = JsonValue.Create(str) }
+                        : new CallArg { Value = a.ToJsonNode() }).ToArray()
+                });
+                break;
+        }
     }
 }
 

@@ -73,7 +73,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
             // Do not inspect Property-type relations here; those are dynamically assembled later.
             foreach (IRelationAttribute relation in p.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-                relations.Add(BuildRelation(runtime, fieldName, relation));
+                relations.Add(relation.GetRelationSchema(runtime, fieldName, typeResolver));
 
             // [Meta<PrimaryIndex>] → array primary keys
             foreach (PrimaryIndex idx in p.GetMetaProperties<PrimaryIndex>())
@@ -224,22 +224,6 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         }
 
         return dataIndexes.Count > 0 ? dataIndexes.ToArray() : null;
-    }
-
-    private static RelationSchema BuildRelation(ISchemaRuntime runtime, string fieldName, IRelationAttribute relation)
-    {
-        RelationSchema relationSchema = new()
-        {
-            Target = relation.Target ?? fieldName,
-            Property = relation.Property.GetPropertyName(),
-            Kind = relation.Kind
-        };
-
-        IRelationProcessBuilder process = relation.GetRelationProcess();
-        Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
-            ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
-        relationSchema.SetProperty(propType, process);
-        return relationSchema;
     }
 
     private sealed class PendingIndex(string name, bool isUnique)
