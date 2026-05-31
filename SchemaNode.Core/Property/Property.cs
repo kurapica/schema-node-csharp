@@ -15,7 +15,7 @@ public interface IProperty
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _depends = [];
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _overrides = [];
-    private static readonly ConcurrentDictionary<Type, bool> _stackables = [];
+    private static readonly ConcurrentDictionary<Type, bool> _stackable = [];
 
     private static ImmutableArray<string> GetOverrides(Type propertyType)
         => _overrides.GetOrAdd(propertyType, static t => t.GetMetaProperty<Override>()?.Value?.SelectMany(v => GetOverrides(v).Concat([v.GetPropertyName()])).ToImmutableArray() ?? []);
@@ -41,7 +41,7 @@ public interface IProperty
     /// if stackable, all the constraints will be checked, the data isn't valid if any constraint check falied, 
     /// if not stackable, the constraints result will override the previous
     /// </summary>
-    public bool Stackable => _stackables.GetOrAdd(GetType(), static t => t.GetMetaProperty<Stackable>()?.Value ?? false);
+    public bool Stackable => _stackable.GetOrAdd(GetType(), static t => t.GetMetaProperty<Stackable>()?.Value ?? false);
 
     /// <summary>
     /// The property has value
@@ -62,7 +62,6 @@ public interface IProperty
     /// The property value type
     /// </summary>
     Type Type { get; }
-
 }
 
 /// <summary>
@@ -94,8 +93,6 @@ public abstract class Property<T> : IProperty
     /// The property value type
     /// </summary>
     public Type Type => typeof(T);
-
-    public virtual bool Stack => false;
 }
 
 /// <summary>
@@ -109,19 +106,19 @@ public interface IPropertyOwner
     IProperty? GetProperty(Type type);
     
     /// <summary>
-    /// Remove the property
+    /// Gets the properties by type, normally for stackable properties
     /// </summary>
-    void RemoveProperty(Type type);
+    IEnumerable<IProperty> GetProperties(Type type);
+
+    /// <summary>
+    /// Gets the property by type
+    /// </summary>
+    public T? GetProperty<T>() where T : class, IProperty => GetProperty(typeof(T)) as T;
     
     /// <summary>
     /// Gets the property by type
     /// </summary>
-    T? GetProperty<T>() where T : IProperty, new();
-
-    /// <summary>
-    /// Gets the properties by type
-    /// </summary>
-    IEnumerable<T> GetProperties<T>() where T : IProperty, new();
+    public IEnumerable<T> GetProperties<T>() where T : class, IProperty => GetProperties(typeof(T)).Cast<T>();
 
     /// <summary>
     /// Sets the property and return itself
@@ -131,15 +128,37 @@ public interface IPropertyOwner
     /// <summary>
     /// Set the property with type and return itself
     /// </summary>
-    void SetProperty<TK, TV>(TV value) where TK : Property<TV>, new();
+    public void SetProperty<TK, TV>(TV value) where TK : Property<TV>, new()
+    {
+        IProperty property = Activator.CreateInstance<TK>();
+        property.SetValue(value);
+        SetProperty(property);
+    }
 
     /// <summary>
     /// Sets the property with the given property type and value
     /// </summary>
-    void SetProperty<T>(Type type, T value);
-
+    public void SetProperty<T>(Type type, T value)
+    {
+        if (Activator.CreateInstance(type) is not IProperty prop) return;
+        prop.SetValue(value);
+        SetProperty(prop);
+    }
+    
     /// <summary>
-    /// Remove a property
+    /// Gets properties from the given types. The properties will be returned in the order of the given types. If there are duplicate properties, the properties from the later types will overwrite the previous ones. If a property has dependencies, it will only be returned when all its dependencies are satisfied. If a property has overrides, it will override the properties with the same name from the previous types.
     /// </summary>
-    void RemoveProperty<T>() where T: IProperty;
+    public List<IProperty> GetProperties(IEnumerable<Type> types)
+    {
+        List<IProperty> props = [];
+        foreach (Type type in types)
+        {
+            IProperty? prop = GetProperty(type);
+            if (prop is not { HasValue: true }) continue;
+            if (prop.Depends is { Length: > 0 } depends && depends.Any(d => props.All(p => !p.Name.Equals(d, StringComparison.OrdinalIgnoreCase)))) continue;
+            if (prop.Overrides is { Length: > 0 } overrides) props = props.Where(p => !overrides.Any(o => o.Equals(p.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+            props.Add(prop);
+        }
+        return props;
+    }
 }

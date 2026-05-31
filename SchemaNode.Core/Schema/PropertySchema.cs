@@ -28,13 +28,13 @@ public class PropertySchema: ExtensibleSchema
     /// The property name, such as "upLimit", "lowLimit", "pattern", etc.
     /// </summary>
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
-    public string Property { get; internal set; } = string.Empty;
+    public string Property { get; set; } = string.Empty;
 
     /// <summary>
     /// The value type, null means use the target node type
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
-    public string Type { get; internal set; } = string.Empty;
+    public string Type { get; set; } = string.Empty;
 
     /// <summary>
     /// The schema kinds that this property applies to

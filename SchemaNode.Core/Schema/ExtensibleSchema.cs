@@ -133,66 +133,77 @@ public abstract class ExtensibleSchema : IPropertyOwner
     {
         if (Extensions == null || !Extensions.TryGetValue(type.GetPropertyName(), out JsonNode? node)) return null;
         IProperty? prop = Activator.CreateInstance(type) as IProperty;
-        prop?.SetValue(node);
+        if (prop == null) return null;
+        if (prop.Stackable && node is JsonArray array)
+            prop.SetValue(array.FirstOrDefault()); // for stackable property, we only return the first value, and the rest values can be get by GetProperties method
+        else
+            prop.SetValue(node);
         return prop;
     }
 
-    /// <inheritdoc/>
-    public void RemoveProperty(Type type) => Extensions?.Remove(type.GetPropertyName());
-
-    /// <inheritdoc/>
-    public void RemoveProperty<T>() where T : IProperty => RemoveProperty(typeof(T));
-
-    /// <inheritdoc/>
-    public T? GetProperty<T>() where T : IProperty, new()
-    {
-        if (Extensions == null || !Extensions.TryGetValue(typeof(T).GetPropertyName(), out JsonNode? node)) return default(T?);
-        IProperty prop = Activator.CreateInstance<T>();
-        prop.SetValue(node);
-        return (T?)prop;
-    }
-    
     /// <inheritdoc/>
     public void SetProperty(IProperty property)
     {
         Extensions ??= [];
         JsonNode? node = property.GetValue<JsonNode>();
-        if (node != null)
-            Extensions[property.GetType().GetPropertyName()] = node;
-    }
-
-    /// <inheritdoc/>
-    public void SetProperty<TK, TV>(TV? value) where TK : Property<TV>, new()
-    {
-        TK prop = Activator.CreateInstance<TK>();
-        prop.SetValue(value);
-        SetProperty(prop);
-    }
-
-    /// <inheritdoc/>
-    public void SetProperty<T>(Type type, T value)
-    {
-        IProperty? prop = Activator.CreateInstance(type) as IProperty;
-        if (prop == null) return;
-        prop.SetValue(value);
-        SetProperty(prop);
-    }
-
-    /// <summary>
-    /// Gets properties from the given types. The properties will be returned in the order of the given types. If there are duplicate properties, the properties from the later types will overwrite the previous ones. If a property has dependencies, it will only be returned when all its dependencies are satisfied. If a property has overrides, it will override the properties with the same name from the previous types.
-    /// </summary>
-    public List<IProperty> GetProperties(IEnumerable<Type> types)
-    {
-        List<IProperty> props = [];
-        foreach (Type type in types)
+        if (node == null) return;
+        
+        // Just keep in mind the stackable property not use array value types, maybe we will allow that in the future
+        if (property.Stackable && Extensions.TryGetValue(property.Name, out JsonNode? existNode) && !existNode.IsEmpty())
         {
-            IProperty? prop = GetProperty(type);
-            if (prop is not { HasValue: true }) continue;
-            if (prop.Depends is { Length: > 0 } depends && depends.Any(d => props.All(p => !p.Name.Equals(d, StringComparison.OrdinalIgnoreCase)))) continue;
-            if (prop.Overrides is { Length: > 0 } overrides) props = props.Where(p => !overrides.Any(o => o.Equals(p.Name, StringComparison.OrdinalIgnoreCase))).ToList();
-            props.Add(prop);
+            if (existNode is JsonArray existArray)
+            {
+                existArray.Add(node.DeepClone());
+            }
+            else
+            {
+                JsonArray newArray =
+                [
+                    existNode.DeepClone(),
+                    node.DeepClone()
+                ];
+                Extensions[property.Name] = newArray;
+            }
         }
-        return props;
+        else
+        {
+            Extensions[property.Name] = node;
+        }
+    }
+    
+    /// <inheritdoc/>
+    public IEnumerable<IProperty> GetProperties(Type type)
+    {
+        if (Extensions == null || !Extensions.TryGetValue(type.GetPropertyName(), out JsonNode? node)) yield break;
+        IProperty? prop = Activator.CreateInstance(type) as IProperty;
+        if (prop == null) yield break;
+        
+        if (prop.Stackable)
+        {
+            if (node is JsonArray array)
+            {
+                foreach (JsonNode? child in array)
+                {
+                    if (child == null || child.IsEmpty()) continue;
+                    IProperty p = (Activator.CreateInstance(type) as IProperty)!;
+                    p.SetValue(child);
+                    if (p.HasValue)
+                        yield return p;
+                }
+            }
+            else
+            {
+                prop.SetValue(node);
+                if (prop.HasValue)
+                    yield return prop;
+            }
+        }
+        else
+        {
+            prop.SetValue(node);
+            if (prop.HasValue)
+                yield return prop;
+        }
     }
 
     #endregion
