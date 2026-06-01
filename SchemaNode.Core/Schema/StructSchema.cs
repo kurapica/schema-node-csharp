@@ -101,7 +101,7 @@ public sealed class StructProperty: Property<StructSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_STRUCT)]
-public class StructType: AnyType;
+public class StructType: ValueType;
 
 /// <summary>
 /// The struct field schema

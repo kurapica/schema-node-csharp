@@ -40,6 +40,9 @@ public sealed class NodeSchema: ExtensibleSchema
     [Meta<SchemaType>(typeof(Identifier))]
     public string Name { get; set; } = null!;
     
+    /// <summary>
+    /// The full namespace name
+    /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
     public string FullName => $"{Namespace}.{Name}".Trim('.');

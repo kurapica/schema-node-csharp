@@ -58,13 +58,13 @@ public sealed class EnumProperty: Property<EnumSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_ENUM)]
-public class EnumType: AnyType;
+public class EnumType: ValueType;
 
 /// <summary>
 /// The enum value info
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]
-[Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]                                                            
+[Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]                                                    
 public sealed class EnumValueSchema: ExtensibleSchema
 {
     /// <summary>

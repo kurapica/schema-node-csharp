@@ -36,4 +36,4 @@ public sealed class DateProperty : Property<DateSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_DATE)]
-public class DateType : AnyType;
+public class DateType : ValueType;

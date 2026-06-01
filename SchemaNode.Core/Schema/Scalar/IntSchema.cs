@@ -36,4 +36,4 @@ public sealed class IntProperty : Property<IntSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_INT}.int")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_INT)]
-public class IntType : AnyType;
+public class IntType : ValueType;

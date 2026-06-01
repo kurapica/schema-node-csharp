@@ -61,7 +61,8 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// <summary>
     /// The calculate function
     /// </summary>
-    [Meta<SchemaType>(typeof(OneArgFuncType))]
+    [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, NS_SYSTEM_OBJECT)]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
     public string? Func { get; set; }
 

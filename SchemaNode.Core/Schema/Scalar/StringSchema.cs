@@ -36,4 +36,4 @@ public sealed class StringProperty : Property<StringSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRING}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_STRING)]
-public class StringType : AnyType;
+public class StringType : ValueType;

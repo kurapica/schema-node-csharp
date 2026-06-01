@@ -18,4 +18,4 @@ public sealed class BoolSchema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_BOOL)]
-public class BoolType : AnyType;
+public class BoolType : ValueType;

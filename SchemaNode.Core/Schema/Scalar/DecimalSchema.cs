@@ -36,4 +36,4 @@ public sealed class DecimalProperty : Property<DecimalSchema>;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_DECIMAL)]
-public class DecimalType : AnyType;
+public class DecimalType : ValueType;
