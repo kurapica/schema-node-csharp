@@ -27,18 +27,18 @@ namespace SchemaNode.Schema;
 public sealed class NodeSchema: ExtensibleSchema
 {
     /// <summary>
-    /// The schema name
-    /// </summary>
-    [Meta<PrimaryIndex>(1)]
-    [Meta<SchemaType>(typeof(Identifier))]
-    public string Name { get; set; } = null!;
-    
-    /// <summary>
     /// The namespace which includes the schema
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(NamespaceType))]
     public string? Namespace { get; set; }
+    
+    /// <summary>
+    /// The schema name
+    /// </summary>
+    [Meta<PrimaryIndex>(1)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    public string Name { get; set; } = null!;
     
     [SchemaIgnore]
     [JsonIgnore]

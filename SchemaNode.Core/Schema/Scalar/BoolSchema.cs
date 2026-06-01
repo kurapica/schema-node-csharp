@@ -11,7 +11,6 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_BOOL, SCHEMA_KIND_ORDER_BOOL)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_BOOL, SCHEMA_KIND_ORDER_BOOL)]
 [Meta<NodeType>(typeof(Runtime.BoolType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.schema")]
 public sealed class BoolSchema;
 
 /// <summary>

@@ -58,51 +58,81 @@ public abstract class ExtensibleSchema : IPropertyOwner
         {
             foreach (Type propType in runtime.GetSchemaKindProperties(kind))
             {
-                IProperty? otherProp = other.GetProperty(propType);
-                if (otherProp is not { HasValue: true }) continue;
+                IProperty[] otherProps = other.GetProperties(propType).ToArray();
+                if (otherProps.Length == 0) continue;
                 
-                IProperty? existProp = GetProperty(propType);
-                if (existProp is { HasValue: true })
+                IProperty otherProp = otherProps.First();
+                if (otherProp.Stackable)
                 {
-                    if (otherProp.GetValue<ExtensibleSchema>(true) is { } innerSchema)
+                    // keep using the latest
+                    OverrideProperties(otherProps);
+                }
+                else
+                {
+                    IProperty? existProp = GetProperty(propType);
+                    if (existProp is { HasValue: true })
                     {
-                        ExtensibleSchema? existSchema = existProp.GetValue<ExtensibleSchema>(true);
-                        if (existSchema == null)
+                        if (otherProp.GetValue<ExtensibleSchema>(true) is { } innerSchema)
                         {
-                            SetProperty(otherProp);
+                            ExtensibleSchema? existSchema = existProp.GetValue<ExtensibleSchema>(true);
+                            if (existSchema == null)
+                            {
+                                OverrideProperty(otherProp);
+                                continue;
+                            }
+                            
+                            existSchema.CombineExtensions(innerSchema, runtime);
+                            existProp.SetValue(existSchema);
+                            OverrideProperty(existProp);
                             continue;
                         }
-                        
-                        existSchema.CombineExtensions(innerSchema, runtime);
-                        existProp.SetValue(existSchema);
-                        SetProperty(existProp);
-                        continue;
-                    }
-                    else if (otherProp.GetValue<IEnumerable<ExtensibleSchema>>(true) is { } innerEnumerable)
-                    {
-                        if (existProp.GetValue<IEnumerable<ExtensibleSchema>>() is not { } existEnumerable)
+                        else if (otherProp.GetValue<IEnumerable<ExtensibleSchema>>(true) is { } innerEnumerable)
                         {
-                            SetProperty(otherProp);
-                            continue;
-                        }
-                        
-                        List<ExtensibleSchema> resultList = existEnumerable.ToList();
-                        foreach (ExtensibleSchema combine in innerEnumerable.ToList())
-                        {
-                            ExtensibleSchema? match = resultList.FirstOrDefault(e => e.Equals(combine));
-                            if (match != null)
-                                match.CombineExtensions(combine, runtime);
-                            else
-                                resultList.Add(combine);
-                        }
+                            if (existProp.GetValue<IEnumerable<ExtensibleSchema>>() is not { } existEnumerable)
+                            {
+                                SetProperty(otherProp);
+                                continue;
+                            }
+                            
+                            List<ExtensibleSchema> resultList = existEnumerable.ToList();
+                            foreach (ExtensibleSchema combine in innerEnumerable.ToList())
+                            {
+                                ExtensibleSchema? match = resultList.FirstOrDefault(e => e.Equals(combine));
+                                if (match != null)
+                                    match.CombineExtensions(combine, runtime);
+                                else
+                                    resultList.Add(combine);
+                            }
 
-                        existProp.SetValue(resultList.ToArray());
-                        SetProperty(existProp);
-                        continue;
+                            existProp.SetValue(resultList.ToArray());
+                            SetProperty(existProp);
+                            continue;
+                        }
                     }
                 }
+
                 
-                SetProperty(otherProp);
+                OverrideProperty(otherProp);
+            }
+        }
+
+        void OverrideProperty(IProperty prop)
+        {
+            Extensions?.Remove(prop.Name);
+            SetProperty(prop);
+        }
+        
+        void OverrideProperties(IEnumerable<IProperty> props)
+        {
+            bool first = true;
+            foreach (IProperty prop in props)
+            {
+                if (first)
+                {
+                    Extensions?.Remove(prop.Name);
+                    first = false;
+                }
+                SetProperty(prop);
             }
         }
 
@@ -175,35 +205,26 @@ public abstract class ExtensibleSchema : IPropertyOwner
     public IEnumerable<IProperty> GetProperties(Type type)
     {
         if (Extensions == null || !Extensions.TryGetValue(type.GetPropertyName(), out JsonNode? node)) yield break;
-        IProperty? prop = Activator.CreateInstance(type) as IProperty;
-        if (prop == null) yield break;
+        if (Activator.CreateInstance(type) is not IProperty prop) yield break;
         
-        if (prop.Stackable)
+        if (prop.Stackable && node is JsonArray array)
         {
-            if (node is JsonArray array)
+            foreach (JsonNode? child in array)
             {
-                foreach (JsonNode? child in array)
-                {
-                    if (child == null || child.IsEmpty()) continue;
-                    IProperty p = (Activator.CreateInstance(type) as IProperty)!;
-                    p.SetValue(child);
-                    if (p.HasValue)
-                        yield return p;
-                }
+                if (child == null || child.IsEmpty()) continue;
+                IProperty p = (Activator.CreateInstance(type) as IProperty)!;
+                p.SetValue(child);
+                if (p.HasValue)
+                    yield return p;
             }
-            else
-            {
-                prop.SetValue(node);
-                if (prop.HasValue)
-                    yield return prop;
-            }
+
+            yield break;
         }
-        else
-        {
-            prop.SetValue(node);
-            if (prop.HasValue)
-                yield return prop;
-        }
+        
+        // default
+        prop.SetValue(node);
+        if (prop.HasValue)
+            yield return prop;
     }
 
     #endregion

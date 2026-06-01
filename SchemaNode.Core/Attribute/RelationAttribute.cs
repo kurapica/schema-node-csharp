@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text.Json.Nodes;
 using SchemaNode.Property;
 using SchemaNode.Runtime;
