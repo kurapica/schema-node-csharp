@@ -65,5 +65,19 @@ public abstract class ScalarType : ValueType
         => BaseNode?.ValidateValueAsync(context, node) ?? Task.CompletedTask;
 
     #endregion
+
+    #region Methods
+
+    /// <summary>
+    /// Gets the property with given type
+    /// </summary>
+    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>();
+    
+    /// <summary>
+    /// Gets the property by property name
+    /// </summary>
+    public new IProperty? GetProperty(string propertyName) => base.GetProperty(propertyName) ?? BaseNode?.GetProperty(propertyName);
+
+    #endregion
 }
 

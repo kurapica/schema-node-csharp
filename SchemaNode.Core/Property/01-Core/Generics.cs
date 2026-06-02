@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using static SchemaNode.Utility.Constant;
@@ -14,21 +15,7 @@ public sealed class Generics: Property<GenericParameter[]>;
 /// <summary>
 /// The generic parameter declaration for node schema
 /// </summary>
+/// <param name="Name">The generic parameter name, e.g. "T"</param>
+/// <param name="Compatibles">The compatible types for the generic parameter, nil allow all</param>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(GenericParameter)}")]
-public sealed class GenericParameter
-{
-    /// <summary>
-    /// The generic parameter name, e.g. "T"
-    /// </summary>
-    public string Name { get; set; } = "T";
-    
-    /// <summary>
-    /// The compatible types for the generic parameter, nil allow all
-    /// </summary>
-    public string[]? Compatibles { get; set; }
-    
-    /// <summary>
-    /// Create generic parameter from name implicitly, e.g. "T" => new GenericParameter { Name = "T" }
-    /// </summary>
-    public static implicit operator GenericParameter(string name) => new() { Name = name };
-}
+public sealed record GenericParameter(string Name, ImmutableArray<string>? Compatibles = null);

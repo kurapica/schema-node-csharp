@@ -10,7 +10,6 @@ namespace SchemaNode.Scalar;
 /// Represents the number scalar value type (root of the decimal type family)
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_NUMBER)]
-[Meta<OfSchema>(SCHEMA_KIND_DECIMAL)]
 public class Number : IScalarType<decimal>;
 
 /// <summary>

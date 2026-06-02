@@ -18,9 +18,9 @@ namespace SchemaNode.Schema;
 /**
  * The application schema
  */
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
-[Meta<Append>(typeof(Display))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
+[Meta<Append>(typeof(Display), typeof(Relations))]
 public sealed class AppSchema: ExtensibleSchema
 {
     /// <summary>

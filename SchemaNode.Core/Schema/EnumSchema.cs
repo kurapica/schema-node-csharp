@@ -9,10 +9,10 @@ using SchemaNode.Struct;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using NodeType = SchemaNode.Property.Core.NodeType;
-using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
-using SchemaType = SchemaNode.Property.Core.SchemaType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
+using NodeType = SchemaNode.Property.Core.NodeType;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

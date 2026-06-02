@@ -10,6 +10,7 @@ using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Schema.ArrayType;
 using PropertyType = SchemaNode.Runtime.PropertyType;
+using StructType = SchemaNode.Schema.StructType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
 
@@ -41,8 +42,22 @@ public static class SystemReflect
     public static async Task<string?> getproptype(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
     {
-        PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(name);
+        PropertyType? prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<PropertyType>(name) : null;
         return prop?.ValueType?.Name;
+    }
+
+    /// <summary>
+    /// Gets the struct fields
+    /// </summary>
+    public static async Task<Entry<string>[]> getstructfields(SchemaContext context,
+        [Meta<SchemaType>(typeof(ValueType))] string name)
+    {
+        var type = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name)  : null;
+        if (type is Runtime.ArrayType arr)
+            type = arr.Element;
+        return type is not Runtime.StructType structType 
+            ? [] 
+            : structType.GetFields().Select(f => new Entry<string> { Value = f.Name, Label = f.GetProperty<Display>()?.Value }).ToArray();
     }
 
     /// <summary>

@@ -95,12 +95,10 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         // Generics
         if (genericArgs.Length > 0)
             funcSchema.SetProperty<Generics, GenericParameter[]>(
-                genInfos.Select(g => 
-                    new GenericParameter
-                    {
-                        Name = typeResolver(g.CoreType, @namespace, genericArgs)!,
-                        Compatibles = g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
-                    }
+                genInfos.Select(g => new GenericParameter (
+                        typeResolver(g.CoreType, @namespace, genericArgs)!,
+                        g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
+                    )
                 ).ToArray());
 
         // Parameter types

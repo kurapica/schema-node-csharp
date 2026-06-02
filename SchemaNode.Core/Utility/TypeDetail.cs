@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Numerics;
 using System.Reflection;
 using System.Text.Json.Nodes;
@@ -330,7 +331,7 @@ internal static class TypeDetailExtensions
                 }
             
                 // IList<T>, List<T>
-                else if (genType == typeof(IList<>) || genType == typeof(List<>))
+                else if (genType == typeof(IList<>) || genType == typeof(List<>) || genType == typeof(ImmutableArray<>) || genType == typeof(ImmutableList<>))
                 {
                     result = args[0];
                     result.Kind |= TypeDetail.ParameterTypeKind.List;

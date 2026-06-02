@@ -32,14 +32,14 @@ public sealed class ArrayType: ValueType
     /// <summary>
     /// The relations between the fields
     /// </summary>
-    private List<(IRelationProcess, Type)>? _relations;
+    private List<RelationType>? _relations;
 
     #endregion
 
     #region Implementation
 
     /// <inheritdoc />
-    public override Type? GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
+    public override Type GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -87,18 +87,11 @@ public sealed class ArrayType: ValueType
                 Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
                 if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
                 
-                IRelationProcess? process = await context.LoadRelationProcessAsync(this, relation);
-                switch (process)
-                {
-                    case null:
-                        continue;
-                    case INodeError error when !string.IsNullOrWhiteSpace(error.Error):
-                        Error ??= error.Error;
-                        break;
-                }
-
+                RelationType relationType = await relation.LoadAsync(context, this);
+                Error ??= relationType.Error;
+                
                 _relations ??= [];
-                _relations.Add((process, propType));
+                _relations.Add(relationType);
             }
         }
     }
@@ -113,7 +106,7 @@ public sealed class ArrayType: ValueType
             yield return Element;
         
         if (_relations != null)
-            foreach (NodeType node in _relations.Select(r => r.Item1).Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+            foreach (NodeType node in _relations.Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
         
         foreach (NodeType nodeType in base.GetReferenceTypes())
@@ -150,22 +143,16 @@ public sealed class ArrayType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            foreach ((IRelationProcess process, Type propType) in _relations)
+            foreach (RelationType relationType in _relations)
             {
-                if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
-
                 for (int i = 1; i < result.Count; i++)
                 {
                     ArrayNode spanNode = new ArrayNode(result, i);
-
-                    DataNode? propValue = await process.ProcessAsync(context, spanNode);
-                    if (propValue == null) continue;
-
-                    // build the constraint property
-                    prop.SetValue(propValue);
+                    IConstraintProperty? prop = await relationType.ProcessAsync(context, spanNode) as IConstraintProperty;
+                    if (prop is not { HasValue: true }) continue;
 
                     // apply constraint on target
-                    SpanReader spans = process.Target;
+                    SpanReader spans = relationType.Target;
                     List<DataNode> currNodes = [spanNode];
                     while (spans.NextPath())
                     {

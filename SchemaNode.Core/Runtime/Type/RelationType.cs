@@ -70,6 +70,11 @@ public class RelationType(RelationSchema relation, ValueType owner) : INodeRefer
     }
 
     /// <summary>
+    /// Whether the relation is used for the given property
+    /// </summary>
+    public bool ForProperty<T>() where T : IProperty => _prop is not null && _prop.GetCsharpType() == typeof(T);
+
+    /// <summary>
     /// Load the relation type
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
@@ -93,5 +98,18 @@ public class RelationType(RelationSchema relation, ValueType owner) : INodeRefer
             if (_process is INodeError error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
+    }
+}
+
+public static class RelationTypeExtensions
+{
+    /// <summary>
+    /// Load the relation schema as relation runtime type
+    /// </summary>
+    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, ValueType owner)
+    {
+        RelationType type = new(relation, owner);
+        await type.LoadAsync(context);
+        return type;
     }
 }

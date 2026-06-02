@@ -39,7 +39,7 @@ public class PropertySchema: ExtensibleSchema
     /// <summary>
     /// The schema kinds that this property applies to
     /// </summary>
-    [Meta<SchemaType>($"{NS_SYSTEM_LIST}<{NS_SYSTEM_SCHEMA}.kind>")]
+    [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.kind")]
     public string[] ForSchemas { get; set; } = [];
     
     /// <summary>
@@ -64,13 +64,6 @@ public class PropertySchema: ExtensibleSchema
 }
 
 /// <summary>
-/// Represents the property type
-/// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_PROPERTY)]
-public class PropertyType: AnyType;
-
-/// <summary>
 /// Declare the "property" property for node schema
 /// </summary>
 [Meta<Alias>("property")]
@@ -79,3 +72,10 @@ public class PropertyType: AnyType;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class Property: Property<PropertySchema>;
+
+/// <summary>
+/// Represents the property type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_PROPERTY)]
+public class PropertyType: AnyType;

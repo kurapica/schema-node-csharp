@@ -95,7 +95,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         {
             NodeSchema schema = NodeSchema.Create(nameof(ArraySchema), NS_SYSTEM_LIST, typeof(List<>));
             ArraySchema arraySchema = new ArraySchema{ Element = NS_GENERIC_TYPE };
-            arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter{ Name = NS_GENERIC_TYPE }]);
+            arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter(NS_GENERIC_TYPE)]);
             schema.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
             runtime.SaveSystemSchema(schema);
         }

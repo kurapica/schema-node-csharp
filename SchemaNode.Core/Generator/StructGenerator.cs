@@ -102,11 +102,10 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             structSchema.SetProperty<Generics, GenericParameter[]>(genericArgs
                 .Select(g => g.GetTypeDetail())
                 .Select(g=>
-                new GenericParameter
-                {
-                    Name = typeResolver(g.CoreType, @namespace, genericArgs)!,
-                    Compatibles = g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-                }).ToArray());
+                new GenericParameter (
+                    typeResolver(g.CoreType, @namespace, genericArgs)!,
+                    g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                )).ToArray());
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         

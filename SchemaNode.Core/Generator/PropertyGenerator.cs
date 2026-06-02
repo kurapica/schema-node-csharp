@@ -52,7 +52,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
         // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
         // Do not inspect Property-type relations here; those are dynamically assembled later.
         foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-            relations.Add(BuildRelation(runtime, propSchema.Property, relation));
+            relations.Add(relation.GetRelationSchema(runtime, propSchema.Property, typeResolver));
         if (relations.Count > 0)
             propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
@@ -60,22 +60,5 @@ internal class PropertyGenerator : INodeSchemaGenerator
         schema.SetProperty<Schema.Property, PropertySchema>(propSchema);
         
         yield return schema;
-    }
-    
-    
-    private static RelationSchema BuildRelation(ISchemaRuntime runtime, string fieldName, IRelationAttribute relation)
-    {
-        RelationSchema relationSchema = new()
-        {
-            Target = relation.Target ?? fieldName,
-            Property = relation.Property.GetPropertyName(),
-            Kind = relation.Kind
-        };
-
-        IRelationProcessBuilder process = relation.GetRelationProcess();
-        Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
-                        ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
-        relationSchema.SetProperty(propType, process);
-        return relationSchema;
     }
 }

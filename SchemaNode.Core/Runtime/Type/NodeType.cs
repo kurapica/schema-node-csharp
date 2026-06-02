@@ -19,10 +19,15 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     #region Properties
 
     /// <summary>
+    /// The node schema
+    /// </summary>
+    protected NodeSchema? Schema { get; private set; }
+    
+    /// <summary>
     /// The namespace
     /// </summary>
     public string Name => Schema != null 
-        ? GenericParams != null 
+        ? GenericParams is { Count: > 0 }
             ? $"{Schema.FullName}<{string.Join(", ", GenericParams.Select(g => g.Name))}>" 
             : Schema.FullName 
         : string.Empty;
@@ -32,11 +37,6 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// </summary>
     public string Kind => Schema?.Kind ?? SCHEMA_KIND_NODE;
 
-    /// <summary>
-    /// The node schema
-    /// </summary>
-    internal NodeSchema? Schema { get; private set; }
-    
     /// <summary>
     /// The schema node error code
     /// </summary>
@@ -50,12 +50,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The type is loaded
     /// </summary>
-    internal bool Loaded { get; set; }
+    public bool Loaded { get; internal set; }
 
     /// <summary>
     /// The load state
     /// </summary>
-    internal SchemaLoadState LoadState { get; set; } = SchemaLoadState.Service;
+    public SchemaLoadState LoadState { get; internal set; } = SchemaLoadState.Service;
 
     /// <summary>
     /// Whether the node is used
@@ -69,7 +69,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The generics
     /// </summary>
-    internal GenericParameter[]? Generics { get; private set; }
+    public GenericParameter[]? Generics { get; private set; }
 
     /// <summary>
     /// The generic parameters
@@ -79,7 +79,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The node type is generic template
     /// </summary>
-    public bool IsGeneric => GenericParams == null && Generics is { Length: > 0 };
+    public bool IsGeneric => GenericParams is not { Count: > 0 } && Generics is { Length: > 0 };
 
     #endregion
     
@@ -236,6 +236,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         foreach (NodeType g in _genericMap.Values)
             yield return g;
     }
+    
+    /// <summary>
+    /// Gets the node schema
+    /// </summary>
+    public NodeSchema? GetNodeSchema(ISchemaRuntime? runtime = null) => Schema?.Clone(runtime);
 
     /// <summary>
     /// Gets all node schemas used by the node schema

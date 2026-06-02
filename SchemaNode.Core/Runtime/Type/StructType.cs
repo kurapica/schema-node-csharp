@@ -34,7 +34,7 @@ public sealed class StructType: ValueType
     /// <summary>
     /// The relations between the fields
     /// </summary>
-    private List<(IRelationProcess, Type)>? _relations;
+    private List<RelationType>? _relations;
     
     #endregion
         
@@ -88,22 +88,15 @@ public sealed class StructType: ValueType
                 }
                 if (currentType == null) continue;
                 
-                // Only check constraint properties
+                // Only work for constraint properties
                 Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
                 if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
                 
-                IRelationProcess? process = await context.LoadRelationProcessAsync(this, relation);
-                switch (process)
-                {
-                    case null:
-                        continue;
-                    case INodeError error when !string.IsNullOrWhiteSpace(error.Error):
-                        Error ??= error.Error;
-                        break;
-                }
+                var relationType = await relation.LoadAsync(context, this);
+                Error ??= relationType.Error;
 
                 _relations ??= [];
-                _relations.Add((process, propType));
+                _relations.Add(relationType);
             }
         }
         
@@ -148,7 +141,7 @@ public sealed class StructType: ValueType
             yield return node;
 
         if (_relations != null)
-            foreach (NodeType node in _relations.Select(r => r.Item1).Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+            foreach (NodeType node in _relations.Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
 
         if (_unionValids != null)
@@ -234,14 +227,9 @@ public sealed class StructType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            foreach ((IRelationProcess process, Type propType) in _relations)
+            foreach (RelationType process in _relations)
             {
-                DataNode? propValue = await process.ProcessAsync(context, result);
-                if (propValue == null) continue;
-                
-                // build the constraint property
-                if (Activator.CreateInstance(propType) is not IConstraintProperty prop) continue;
-                prop.SetValue(propValue);
+                if (await process.ProcessAsync(context, result) is not IConstraintProperty prop) continue;
                 
                 // apply constraint on target
                 SpanReader spans = process.Target;
@@ -359,13 +347,12 @@ public sealed class StructType: ValueType
         if (!value.IsEmpty || fieldType.DisplayOnly != true) return value;
         
         // check relations
-        (IRelationProcess, Type)? r = _relations?.FirstOrDefault(rel 
-            => rel.Item1.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.Item2 == typeof(Default));
+        RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
         if (r == null) return value;
         
         // process relations
-        DataNode? def = await r.Value.Item1.ProcessAsync(context, node);
-        value.TrySetValue(def);
+        IProperty? def = await r.ProcessAsync(context, node);
+        value.TrySetValue(def?.GetValue<object>());
         return value;
     }
     

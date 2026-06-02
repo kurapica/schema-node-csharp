@@ -15,8 +15,8 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The relation schemas
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
 public class RelationSchema : ExtensibleSchema
 {
     /// <summary>

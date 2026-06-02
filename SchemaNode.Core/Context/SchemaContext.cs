@@ -199,7 +199,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         LogError("Generic type {schemaName} load failed", fullName);
                         return null;
                     }
-                    await genType.LoadTypeAsync(this, node.Schema!.Clone(schemaRuntime), genParams.ToArray());
+                    await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray());
                     node.SetGenericType(key, genType);
                     return genType;
                 }
