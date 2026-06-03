@@ -22,12 +22,14 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(WorkflowType))]
 [Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
+[Meta<Attach>(SCHEMA_KIND_WORKFLOW)]
 public sealed class WorkflowSchema: ExtensibleSchema
 {
     /// <summary>
-    /// The workflow mode
+    /// The workflow kind
     /// </summary>
-    public WorkflowMode Mode { get; set;  }
+    [Meta<SchemaType>(typeof(WorkflowKind))]
+    public string Kind { get; set; } = null!;
     
     /// <summary>
     /// The workflow return type
@@ -57,6 +59,8 @@ public sealed class WorkflowSchema: ExtensibleSchema
 /// Declare event property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.workflow")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_WORKFLOW)]
 public sealed class WorkflowProperty: Property<WorkflowSchema>;
 

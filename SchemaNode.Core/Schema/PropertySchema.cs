@@ -21,6 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<NodeType>(typeof(Runtime.PropertyType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
+[Meta<Attach>(SCHEMA_KIND_PROPERTY)]
 [Meta<Append>(typeof(Relations))]
 public class PropertySchema: ExtensibleSchema
 {

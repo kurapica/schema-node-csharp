@@ -677,7 +677,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         #endregion
-        }
+    }
 
     /// <summary>
     /// Visit schema expression with all visitors

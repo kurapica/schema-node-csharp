@@ -7,14 +7,14 @@ using SchemaNode.Schema;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.App;
 
 /// <summary>
 /// The row auths
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(RowAuths)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(RowAuths)}")]
 [Relation<Valid>($"${nameof(RowAuths)}.{nameof(RowPolicy.Filter)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"${nameof(AppFieldSchema.Type)}", true)]
 public class RowAuths : Property<RowPolicy[]>;
 

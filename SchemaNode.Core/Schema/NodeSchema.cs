@@ -22,8 +22,9 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The schema container node, which can contain other nodes, such as scalar, struct, enum, array, etc.
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
+[Meta<Attach>(SCHEMA_KIND_NODE)]
 public sealed class NodeSchema: ExtensibleSchema
 {
     /// <summary>

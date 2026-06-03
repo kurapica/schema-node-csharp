@@ -11,7 +11,7 @@ using DecimalType = SchemaNode.Runtime.DecimalType;
 using LogicType = SchemaNode.Enum.LogicType;
 using StructType = SchemaNode.Runtime.StructType;
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.App;
 
 /// <summary>
 /// The data combine rules

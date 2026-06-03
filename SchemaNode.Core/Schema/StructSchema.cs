@@ -23,6 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(StructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
+[Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<Append>(typeof(Relations))]
 [Relation<EntrySource>($"${nameof(UnionValids)}.{nameof(StructUnionValidation.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public sealed class StructSchema : ExtensibleSchema
@@ -109,6 +110,7 @@ public class StructType: ValueType;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
 public sealed class StructFieldSchema : ExtensibleSchema
 {
     /// <summary>

@@ -27,6 +27,7 @@ public sealed class DecimalSchema : ScalarSchema
 /// Declare decimal property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.decimal")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_DECIMAL)]
 public sealed class DecimalProperty : Property<DecimalSchema>;

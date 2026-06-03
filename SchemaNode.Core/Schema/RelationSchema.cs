@@ -18,6 +18,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
+[Meta<Attach>(SCHEMA_KIND_RELATION)]
 public class RelationSchema : ExtensibleSchema
 {
     /// <summary>

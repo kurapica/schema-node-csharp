@@ -9,14 +9,14 @@ using static SchemaNode.Utility.AppConstant;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.App;
 
 /// <summary>
 /// The auths property, used for declaring the auth policies for the node, the value is an array of policy items which will be evaluated at runtime to determine if the access is allowed or not. It supports multiple policies with different scopes and combine methods, and the evaluation result will be combined based on the combine method.
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Auths)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(Auths)}")]
 public class Auths : Property<PolicyItem[]>;
 
 /// <summary>

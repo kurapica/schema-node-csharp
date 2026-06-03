@@ -21,6 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(ArrayType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Append>(typeof(Relations))]
+[Meta<Attach>(SCHEMA_KIND_ARRAY)]
 public sealed class ArraySchema: ExtensibleSchema
 {
     /// <summary>
@@ -34,6 +35,7 @@ public sealed class ArraySchema: ExtensibleSchema
 /// Declare array property for node schema
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.array")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 public sealed class ArrayProperty: Property<ArraySchema>;

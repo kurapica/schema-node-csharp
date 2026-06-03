@@ -8,11 +8,11 @@ using SchemaNode.Schema;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.App;
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(RowAuths)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(RowAuths)}")]
 [Relation<StringEntries>($"${nameof(ColAuths)}.{nameof(ColPolicy.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}", $"${nameof(AppFieldSchema.Type)}")]
 public class ColAuths : Property<ColPolicy[]>;
 

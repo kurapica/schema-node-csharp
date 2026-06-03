@@ -1,13 +1,16 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Enum;
 
+
 /// <summary>
 /// Workflow type
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_WORKFLOW}.mode")]
-public enum WorkflowMode
+[Schema($"{NS_SYSTEM_SCHEMA_WORKFLOW}.kind")]
+[Meta<Record>(typeof(SchemaNode.Property.Record.WorkflowKind))]
+public enum WorkflowKind
 {
     /// <summary>
     /// Use arguments for controlling

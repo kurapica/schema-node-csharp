@@ -13,7 +13,8 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
-using NodeType = SchemaNode.Runtime.NodeType;
+using NodeType = SchemaNode.Property.Core.NodeType;
+using RuntimeNodeType = SchemaNode.Runtime.NodeType;
 using Object = SchemaNode.Scalar.Object;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 
@@ -24,9 +25,10 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
-[Meta<SchemaNode.Property.Core.NodeType>(typeof(FunctionType))]
+[Meta<NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
+[Meta<Attach>(SCHEMA_KIND_FUNCTION)]
 public sealed class FunctionSchema: ExtensibleSchema
 {
     /// <summary>
@@ -119,7 +121,7 @@ public sealed class FuncArg
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public NodeType? NodeType  { get; set; }
+    public RuntimeNodeType? NodeType  { get; set; }
 }
 
 /// <summary>
