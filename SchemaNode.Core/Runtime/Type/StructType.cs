@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 
@@ -312,7 +313,17 @@ public sealed class StructType: ValueType
             }
         }
     }
-    
+
+    public override IEnumerable<Entry<string>> GetSubEntries()
+    {
+        return GetFields().Select(field => new Entry<string>
+        {
+            Value = field.Name,
+            Label = field.GetProperty<Display>()?.Value,
+            HasChildren = field.Type?.HasSubEntries  ?? false
+        });
+    }
+
     #endregion
 
     #region Methods

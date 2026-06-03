@@ -7,10 +7,9 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ArrayType = SchemaNode.Schema.ArrayType;
 using PropertyType = SchemaNode.Runtime.PropertyType;
-using StructType = SchemaNode.Schema.StructType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
 
@@ -47,17 +46,22 @@ public static class SystemReflect
     }
 
     /// <summary>
-    /// Gets the struct fields
+    /// Gets the sub entries of the value type
     /// </summary>
-    public static async Task<Entry<string>[]> getstructfields(SchemaContext context,
-        [Meta<SchemaType>(typeof(ValueType))] string name)
+    public static async Task<Entry<string>[]> getsubentries(SchemaContext context,
+        [Meta<SchemaType>(typeof(ValueType))] string name,
+        string? path = null)
     {
-        var type = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name)  : null;
-        if (type is Runtime.ArrayType arr)
-            type = arr.Element;
-        return type is not Runtime.StructType structType 
-            ? [] 
-            : structType.GetFields().Select(f => new Entry<string> { Value = f.Name, Label = f.GetProperty<Display>()?.Value }).ToArray();
+        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
+        if (valueType == null) return [];
+        
+        SpanReader reader = new(path ?? string.Empty);
+        while (reader.NextPath())
+        {
+            valueType = valueType.GetAccessValueType(reader.Current);
+            if  (valueType == null) return [];
+        }
+        return valueType.GetSubEntries().ToArray();
     }
 
     /// <summary>
@@ -87,9 +91,6 @@ public static class SystemReflect
     /// <summary>
     /// Checks if the schema kind of the schema node with the given name is a value schema kind and not array schema kind
     /// </summary>
-    /// <param name="context"></param>
-    /// <param name="name"></param>
-    /// <returns></returns>
     public static async Task<bool> isarrayele(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);

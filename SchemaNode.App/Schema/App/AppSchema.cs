@@ -109,7 +109,7 @@ public sealed class AppSchema: ExtensibleSchema
 /// The application type, used for the parent app reference and app type definition, it's a string with format of {appnamespace}.{appname}
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.type")]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getapps)}")]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getapps)}", NODE_SELF)]
 public sealed class AppType : String;
 
 /// <summary>

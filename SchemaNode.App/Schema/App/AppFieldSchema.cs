@@ -67,7 +67,7 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// The input field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(AppFieldSchema.App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
     public string? Arg { get; set; }
 
     #endregion

@@ -3,6 +3,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -60,6 +61,7 @@ public class RelationSchema : ExtensibleSchema
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
+[Relation<EntrySource>($"${nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public class Relations: Property<RelationSchema[]>;
 
 /// <summary>

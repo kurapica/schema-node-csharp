@@ -1,6 +1,6 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Common;
@@ -8,5 +8,5 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.entrysource")]
-[Meta<PropertyValueType>(typeof(FuncType))]
-public class EntrySource : Property<string>;
+[RelationAssign<Valid>($"{nameof(EntrySource)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_ENTRY, true)]
+public class EntrySource : FuncCallProperty;

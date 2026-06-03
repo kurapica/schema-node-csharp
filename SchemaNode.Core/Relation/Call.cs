@@ -79,4 +79,5 @@ public class Call : IRelationProcess, INodeReferences, INodeError
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.call")]
 [Meta<SchemaNode.Property.Record.RelationKind>("call", 1)]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
+[Relation<EntrySource>($"$call.{nameof(Call.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public class CallProperty : Property<Call>;

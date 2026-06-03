@@ -6,6 +6,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.Core;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -546,6 +547,19 @@ public abstract class ValueType : NodeType
     /// </summary>
     public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty || path.SequenceEqual(NODE_SELF) ? this : null;
 
+    /// <summary>
+    /// Gets sub entries
+    /// </summary>
+    public virtual IEnumerable<Entry<string>> GetSubEntries()
+    {
+        yield break;
+    }
+
+    /// <summary>
+    /// Has sub entries
+    /// </summary>
+    public virtual bool HasSubEntries => false;
+    
     /// <summary>
     /// The value type is assignable to other value type
     /// </summary>

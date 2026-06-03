@@ -5,6 +5,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;
 
@@ -119,6 +120,30 @@ public sealed class ArrayType: ValueType
         if (path.IsEmpty || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
         return path.SequenceEqual(ARRAY_ELEMENT) ? Element : Element?.GetAccessValueType(path);
     }
+
+    /// <inheritdoc />
+    public override IEnumerable<Entry<string>> GetSubEntries()
+    {
+        // previous
+        yield return new Entry<string>
+        {
+            Value = ARRAY_PREVIOUS
+        };
+
+        if (Element == null) yield break;
+        
+        // element
+        yield return new Entry<string>
+        {
+            Value = ARRAY_ELEMENT,
+        };
+
+        foreach (Entry<string> entry in Element.GetSubEntries())
+            yield return entry;
+    }
+
+    /// <inheritdoc />
+    public override bool HasSubEntries => Element?.HasSubEntries ?? false;
 
     /// <inheritdoc />
     public override bool IsAssignableTo(ValueType other)
