@@ -58,6 +58,7 @@ public class FuncCall
     /// <summary>
     /// The function name
     /// </summary>
+    [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

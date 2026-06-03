@@ -56,33 +56,20 @@ public sealed class AppFieldSchema: ExtensibleSchema
     #region Push Rule
 
     /// <summary>
-    /// The calculate function
+    /// The push function
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, NS_SYSTEM_OBJECT)]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
-    public string? Func { get; set; }
+    public string? Push { get; set; }
 
     /// <summary>
     /// The input field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Relation<Visible>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"${nameof(Push)}")]
     public string? Arg { get; set; }
-
-    #endregion
-
-    #region Auth
-
-    /// <summary>
-    /// Row filter policy
-    /// </summary>
-    public RowPolicy[]? RowAuths { get; set; }
-
-    /// <summary>
-    /// The column access policy
-    /// </summary>
-    public ColPolicy[]? ColAuths { get; set; }
 
     #endregion
 

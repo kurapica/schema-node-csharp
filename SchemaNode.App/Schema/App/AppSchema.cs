@@ -3,7 +3,6 @@ using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -24,19 +23,19 @@ namespace SchemaNode.Schema;
 public sealed class AppSchema: ExtensibleSchema
 {
     /// <summary>
-    /// The application name
-    /// </summary>
-    [Meta<PrimaryIndex>(1)]
-    [Meta<SchemaType>(typeof(Identifier))]
-    public string Name { get; set; } = default!;
-
-    /// <summary>
     /// The parent app name
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
     public string? Parent { get; set; }
     
+    /// <summary>
+    /// The application name
+    /// </summary>
+    [Meta<PrimaryIndex>(1)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    public string Name { get; set; } = default!;
+
     /// <summary>
     /// The full name of the app
     /// </summary>
@@ -54,42 +53,43 @@ public sealed class AppSchema: ExtensibleSchema
     /// <summary>
     /// Whether it has sub-applications
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public bool? HasApps { get; set; }
     
     /// <summary>
     /// Whether it has fields
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public bool? HasFields { get; set; }
 
     /// <summary>
     /// The sub applications
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public AppSchema[]? Apps { get; set; }
     
     /// <summary>
     /// The application fields
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public AppFieldSchema[]? Fields { get; set; }
     
     /// <summary>
     /// The application workflows
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public AppWorkflowSchema[]? Workflows { get; set; }
-    
+
     /// <summary>
     /// The application field relations
     /// </summary>
+    [SchemaIgnore]
     public RelationSchema[]? Relations { get; set; }
-    
+
     /// <summary>
     /// The types related to the application
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public NodeSchema[]? NodeSchemas { get; set; }
 
     #endregion
@@ -99,7 +99,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// <summary>
     /// The load state
     /// </summary>
-    [NotMapped]
+    [SchemaIgnore]
     public SchemaLoadState? LoadState { get; set; }
     
     #endregion

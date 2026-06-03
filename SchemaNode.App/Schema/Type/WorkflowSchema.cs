@@ -52,7 +52,7 @@ public sealed class WorkflowSchema: ExtensibleSchema
     /// <summary>
     /// The workflow arguments fetch from workflow context
     /// </summary>
-    public FuncArg[]? Args { get; set; } = [];
+    public CallArg[]? Args { get; set; } = [];
 }
 
 /// <summary>
