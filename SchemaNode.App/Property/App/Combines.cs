@@ -6,28 +6,28 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using DecimalType = SchemaNode.Runtime.DecimalType;
 using LogicType = SchemaNode.Enum.LogicType;
 using StructType = SchemaNode.Runtime.StructType;
 
-namespace SchemaNode.Property.App;
+namespace SchemaNode.Property.Common;
 
 /// <summary>
 /// The data combine rules
 /// </summary>
 [Meta<Static>]
-[Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
+[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Combines)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.{nameof(Combines)}")]
 public class Combines : Property<DataCombine[]>;
 
 /// <summary>
 /// The data combine settings
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.combine")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.combine")]
 public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Newest);
-
 
 /// <summary>
 /// Combine the data nodes

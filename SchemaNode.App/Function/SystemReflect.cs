@@ -1,6 +1,7 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Core;
+using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
@@ -25,5 +26,14 @@ public static class SystemAppReflect
     {
         await Task.Yield();
         return [];
+    }
+    
+    public static async Task<string?> getappfieldtype(SchemaContext context,
+        [Meta<SchemaType>(typeof(AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
+        bool elementType = false)
+    {
+        await Task.Yield();
+        return null;
     }
 }

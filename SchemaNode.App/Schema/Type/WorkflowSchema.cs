@@ -32,7 +32,7 @@ public sealed class WorkflowSchema: ExtensibleSchema
     public string Kind { get; set; } = null!;
     
     /// <summary>
-    /// The workflow return type
+    /// The workflow result type
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string? Payload { get; set; }
@@ -50,9 +50,9 @@ public sealed class WorkflowSchema: ExtensibleSchema
     public string? Session { get; set; }
     
     /// <summary>
-    /// The workflow arguments fetch from workflow context
+    /// The workflow arguments
     /// </summary>
-    public CallArg[]? Args { get; set; } = [];
+    public FuncArg[]? Args { get; set; } = [];
 }
 
 /// <summary>

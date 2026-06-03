@@ -7,7 +7,7 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// Workflow type
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_WORKFLOW}.kind")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.kind")]
 [Meta<Record>(typeof(Property.Record.WorkflowKind))]
 public enum WorkflowKind;
 /*{

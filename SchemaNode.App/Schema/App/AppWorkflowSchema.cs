@@ -1,15 +1,15 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaKind = SchemaNode.Property.Record.SchemaKind;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -17,40 +17,30 @@ namespace SchemaNode.Schema;
 /// <summary>
 /// The application workflow
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW, SCHEMA_KIND_ORDER_APP_WORKFLOW)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
 [Meta<Append>(typeof(Display))]
 public sealed class AppWorkflowSchema: ExtensibleSchema
 {
     /// <summary>
     /// the application name
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>(0)]
+    [Meta<SchemaType>(typeof(AppType))]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
     /// The work flow name
     /// </summary>
-    [Index]
-    [StringLength(32)]
+    [Meta<PrimaryIndex>(1)]
+    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
     
-    /// <summary>
-    /// The authentication policy
-    /// </summary>
-    public PolicyItem[]? Auths { get; set; }
-
     /// <summary>
     /// The seqno
     /// </summary>
     public int Seqno { get; set; }
     
-    /// <summary>
-    /// The workflow display name
-    /// </summary>
-    public LocaleString? Display { get; set; }
-        
     /// <summary>
     /// Active the workflow
     /// </summary>
@@ -60,24 +50,18 @@ public sealed class AppWorkflowSchema: ExtensibleSchema
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
-
-    /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>
 /// The application workflow node
 /// </summary>
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.node")]
-public sealed class AppWorkflowNodeSchema: ISchemaExtensions
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.node")]
+public sealed class AppWorkflowNodeSchema: ExtensibleSchema
 {
     /// <summary>
     /// The node name
     /// </summary>
-    [Required]
+    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
@@ -99,7 +83,7 @@ public sealed class AppWorkflowNodeSchema: ISchemaExtensions
     /// <summary>
     /// The workflow arguments
     /// </summary>
-    public FuncCallArg[]? Args { get; set; }
+    public CallArg[]? Args { get; set; }
     
     /// <summary>
     /// THe previous nodes
@@ -114,7 +98,7 @@ public sealed class AppWorkflowNodeSchema: ISchemaExtensions
     /// <summary>
     /// The function call arguments
     /// </summary>
-    public FuncCallArg[]? FuncArgs { get; set; }
+    public CallArg[]? FuncArgs { get; set; }
     
     /// <summary>
     /// The event name if type is Event
@@ -153,21 +137,9 @@ public sealed class AppWorkflowNodeSchema: ISchemaExtensions
     public bool? PayloadSave { get; set; }
 
     /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; set; }
-
-    /// <summary>
     /// The resolved payload schema type
     /// </summary>
     [JsonIgnore]
-    [NotMapped]
-    public AnySchemaType? PayloadSchemaType { get; set; }
-
-    /// <summary>
-    /// The schema node status
-    /// </summary>
-    [NotMapped]
-    public SchemaNodeStatus? Status { get; set; }
+    [SchemaIgnore]
+    public ValueType? PayloadSchemaType { get; set; }
 }
