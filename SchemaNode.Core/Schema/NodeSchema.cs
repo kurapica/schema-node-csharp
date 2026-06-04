@@ -1,4 +1,5 @@
 ﻿using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property;
@@ -158,3 +159,18 @@ public class ValueType : AnyType;
 /// <param name="To">The compatible type</param>
 /// <param name="Convert">The convert function</param>
 public sealed record CompatibleSchema(string To, string Convert);
+
+public static class NodeSchemaExtensions
+{
+    /// <summary>
+    /// Loading properties for node schemas
+    /// </summary>
+    public static async Task<(IProperty[] Properties, Runtime.NodeType[] RefTypes, string? Error)>
+        LoadNodeSchemaProperties(this ExtensibleSchema schema, SchemaContext context, string? kind = null)
+    {
+        kind ??= schema.GetType().GetMetaProperty<SchemaKind>()?.Value;
+        if (string.IsNullOrWhiteSpace(kind)) return (Array.Empty<IProperty>(), Array.Empty<Runtime.NodeType>(), ErrorCodes.NO_DEFINITION);
+
+        var properties = schema.GetProperties(context.Runtime.GetSchemaKindProperties(kind));
+    }
+}

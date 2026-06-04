@@ -31,13 +31,12 @@ public sealed class AppType
     // The application workflows
     private ConcurrentDictionary<string, AppWorkflowType>? _workflows;
 
-    /// <summary>
-    /// The relations between the fields
-    /// </summary>
+    //  The relations
     private List<RelationType>? _relations;
     
     // properties
     private IProperty[]? _props;
+    private NodeType[]? _refTypes;
     
     #endregion
     
@@ -102,10 +101,41 @@ public sealed class AppType
         // data
         _schema  = schema;
         _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
-        
-        
+
+        // Loading schema properties after loading, to avoid cycle ref
+        List<NodeType> refTypes = [];
+        foreach (ITypeRefProperty prop in _props.Cast<ITypeRefProperty>())
+        {
+            foreach (string name in prop.GetRefTypes())
+            {
+                NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                if (node != null)
+                {
+                    refTypes.Add(node);
+                }
+                else
+                {
+                    Error = ErrorCodes.WRONG_REF_TYPE;
+                    context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in app schema '{Name}'");
+                }
+            }
+        }
+
+        // Update the properties
+        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+
         // Load the application fields
-        _fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
+        _fields = new ConcurrentDictionary<string, AppFieldType>(StringComparer.OrdinalIgnoreCase);
+        foreach(var field in schema.Fields ?? [])
+        {
+            var fieldType = new AppFieldType(this, field);
+            await fieldType.LoadAsync(context);
+            if (!_fields.TryAdd(fieldType.Name, fieldType))
+                Error ??= AppErrorCodes.APP_DUMPLICATE_FIELD;
+            else
+                Error ??= fieldType.Error;
+        }
+
         Relations = null;
         
         // Reload Apps
