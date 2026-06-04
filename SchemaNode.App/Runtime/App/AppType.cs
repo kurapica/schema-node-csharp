@@ -1,17 +1,13 @@
-using Microsoft.AspNetCore.Http.Features;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
-using System.Data;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -21,27 +17,41 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class AppType
 {
-    #region Properties
+    #region Fields
+    
+    // The application schema
+    private AppSchema? _schema;
+    
+    // The sub application node
+    private ConcurrentDictionary<string, AppType>? _subApps;
 
+    // The application field nodes
+    private ConcurrentDictionary<string, AppFieldType>? _fields;
+    
+    // The application workflows
+    private ConcurrentDictionary<string, AppWorkflowType>? _workflows;
+
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    private List<RelationType>? _relations;
+    
+    // properties
+    private IProperty[]? _props;
+    
+    #endregion
+    
+    #region Properties
+    
     /// <summary>
     /// The application name
     /// </summary>
-    public required string Name { get; init; }
-
-    /// <summary>
-    /// The display name
-    /// </summary>
-    public LocaleString? Display { get; private set; }
-
-    /// <summary>
-    /// The description
-    /// </summary>
-    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
+    public string Name => _schema?.FullName ?? string.Empty;
 
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
     /// </summary>
-    public AppScopePolicy? ScopePolicy { get; private set; }
+    public AppScopePolicy? ScopePolicy => _schema?.ScopePolicy;
 
     /// <summary>
     /// The target scope type, default to business target if no scope policy defined
@@ -49,60 +59,28 @@ public sealed class AppType
     public AppScopeType ScopeType => ScopePolicy?.Type ?? AppScopeType.BusinessTarget;
     
     /// <summary>
-    /// The authentication policy type
+    /// The root application
     /// </summary>
-    public PolicyType? Auth { get; private set; }
-    
-    /// <summary>
-    /// The data authentication policy type
-    /// </summary>
-    public PolicyItem[]? Auths { get; private set; }
-
-    /// <summary>
-    /// The application field relations
-    /// </summary>
-    public List<AppRelationSchema>? Relations { get; private set; }
+    public AppType? Container { get; init; }
 
     /// <summary>
     /// The sub applications
     /// </summary>
     public AppSchema[]? Apps { get; internal set; }
 
-    /// <summary>
-    /// The properties
-    /// </summary>
-    public IProperty[]? Properties { get; private set; }
-
-    /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; internal set; }
-    
-    /// <summary>
-    /// The root application
-    /// </summary>
-    public AppType? RootApp { get; init; }
-
     #endregion
 
     #region State
 
     /// <summary>
-    /// The application node status
+    /// The schema node error code
     /// </summary>
-    public SchemaNodeStatus Status => Fields is { Count: > 0 } && Fields.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
-        ? SchemaNodeStatus.ApplicationInvalidField
-        : Auths != null && Auths.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
-            ? SchemaNodeStatus.ApplicationDataAuthWrongFunc
-            : Relations != null && Relations.Any(r => r.Status != SchemaNodeStatus.Ready)
-                ? SchemaNodeStatus.ApplicationRelationWrongFunc
-                : SchemaNodeStatus.Ready;
-
+    public string? Error { get; private set; }
+    
     /// <summary>
     /// The application is used
     /// </summary>
-    public bool IsUsed => Fields is { Count: > 0 } || Apps is { Length: > 0 };
+    public bool IsUsed => _fields is { Count: > 0 } || Apps is { Length: > 0 };
     
     /// <summary>
     /// Already loaded
@@ -111,67 +89,42 @@ public sealed class AppType
 
     #endregion
 
-    #region Relationship
-
-    /// <summary>
-    /// The sub application node
-    /// </summary>
-    public ConcurrentDictionary<string, AppType>? SubAppList { get; set; }
-
-    /// <summary>
-    /// The application field nodes
-    /// </summary>
-    public List<AppFieldType>? Fields { get; set; }
-    
-    /// <summary>
-    /// The application workflows
-    /// </summary>
-    public List<AppWorkflowType>? Workflows { get; set; }
-
-    #endregion
-
     #region Methods
 
     /// <summary>
     /// Load the data
     /// </summary>
-    public async Task LoadAsync(SchemaContext context, AppSchema schema, bool preLoad = false)
+    internal async Task LoadAsync(SchemaContext context, AppSchema schema)
     {
         // Release old usages
         Release();
 
         // data
-        Display = schema.Display;
-        ScopePolicy = schema.ScopePolicy;
-        Auth = !string.IsNullOrEmpty(schema.Auth)
-            ? await context.GetSchemaTypeAsync(schema.Auth) as PolicyType
-            : null;
-        Auths = schema.Auths;
-        Apps = schema.Apps;
-        Extensions = schema.Extensions;
-        Properties = Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.App, Extensions)?.ToArray() : null;
-
+        _schema  = schema;
+        _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
+        
+        
         // Load the application fields
-        Fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
+        _fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
         Relations = null;
         
         // Reload Apps
         List<AppType>? reloadApps = null;
 
-        if (Fields is { Count: > 0 })
+        if (_fields is { Count: > 0 })
         {
             // load field type first to avoid circular reference
-            foreach (AppFieldType field in Fields)
+            foreach (AppFieldType field in _fields)
             {
                 field.App = Name;
                 field.Application = this;
-                field.Status = null;
+                field.Error = null;
                 field.Properties = field.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppField, field.Extensions)?.ToArray() : null;
 
                 // valid the type
                 AnySchemaType? node = await context.GetSchemaTypeAsync(field.Type);
                 if (node == null)
-                    field.Status = SchemaNodeStatus.ApplicationFieldWrongType;
+                    field.Error = SchemaNodeStatus.ApplicationFieldWrongType;
                 else
                 {
                     node.AddRef(field);
@@ -180,12 +133,12 @@ public sealed class AppType
             }
 
             // load field details
-            foreach (AppFieldType field in Fields)
+            foreach (AppFieldType field in _fields)
             {
                 // valid the push function
-                if (!string.IsNullOrWhiteSpace(field.Func))
+                if (!string.IsNullOrWhiteSpace(field.Push))
                 {
-                    AnySchemaType? node = await context.GetSchemaTypeAsync(field.Func);
+                    AnySchemaType? node = await context.GetSchemaTypeAsync(field.Push);
                     if (node is FunctionType { Args.Length: 1 } funcNode)
                     {
                         field.FuncNode = funcNode;
@@ -193,19 +146,19 @@ public sealed class AppType
                     }
                     else
                     {
-                        field.Status = SchemaNodeStatus.ApplicationFieldWrongFunc;
+                        field.Error = SchemaNodeStatus.ApplicationFieldWrongFunc;
                         break;
                     }
 
                     // Checks the call Arguments
-                    if (!string.IsNullOrWhiteSpace(field.Arg))
+                    if (!string.IsNullOrWhiteSpace(field.Source))
                     {
-                        AppFieldType? pushSource = GetField(field.Arg);
+                        AppFieldType? pushSource = GetField(field.Source);
                         if (pushSource is not { SchemaType: ArrayType { ElementSchemaType: not null, Primary: { Length: > 0}} array } ||
                             funcNode.Args[0].SchemaType != null && funcNode.Args[0].SchemaType is not GenericType && 
                             !array.ElementSchemaType.CanBeUseAs(funcNode.Args[0].SchemaType!))
                         {
-                            field.Status = SchemaNodeStatus.ApplicationFieldWrongFuncField;
+                            field.Error = SchemaNodeStatus.ApplicationFieldWrongFuncField;
                         }
                         else
                         {
@@ -230,12 +183,12 @@ public sealed class AppType
                             }
                             catch(FunctionVisitException fv)
                             {
-                                field.Status = fv.Status;
+                                field.Error = fv.Status;
                             }
                             catch(Exception ex)
                             {
                                 context.LogError(ex,$"AppType.LoadAsync: push function compile error for app {Name} field {field.Name}");
-                                field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
+                                field.Error = SchemaNodeStatus.ApplicationPushDataWrongFunc;
                             }
                         }
                     }
@@ -255,7 +208,7 @@ public sealed class AppType
                         }
                         else
                         {
-                            field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                            field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
                         }
                     }
                 }
@@ -274,7 +227,7 @@ public sealed class AppType
                             }
                             else
                             {
-                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
                             }
                         }
                         // valid filter
@@ -286,7 +239,7 @@ public sealed class AppType
                             }
                             else
                             {
-                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
                             }
                         }
                     }
@@ -304,7 +257,7 @@ public sealed class AppType
                             StructFieldSchema? structField = structType.GetField(colPolicy.Name);
                             if (structField == null)
                             {
-                                field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
+                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
                                 continue;
                             }
                             List<FunctionType> funcs = [];
@@ -319,7 +272,7 @@ public sealed class AppType
                                 }
                                 else
                                 {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
+                                    field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
                                 }
                             }
                             colPolicy.Functions = funcs.ToArray();
@@ -337,7 +290,7 @@ public sealed class AppType
                                     funcType.Args[0].SchemaType == null ||
                                     !funcType.Args[0].SchemaType!.CanBeUseAs(structType))
                                 {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    field.Error = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
                                     break;
                                 }
                             }
@@ -345,7 +298,7 @@ public sealed class AppType
                             {
                                 if (structType.GetField(filter.Filter) == null)
                                 {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    field.Error = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
                                     break;
                                 }
                             }
@@ -365,7 +318,7 @@ public sealed class AppType
                             structType == null || 
                             structType.GetField(foreign.Field) == null)
                         {
-                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                            field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                             break;
                         }
                         reloadApps ??= [];
@@ -384,7 +337,7 @@ public sealed class AppType
                         sourceField.Foreigns.All(f => !f.App.Equals(Name, StringComparison.OrdinalIgnoreCase)) ||
                         !string.IsNullOrWhiteSpace(field.View.Map) && structType.GetField(field.View.Map) == null)
                     {
-                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                        field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                     }
                     else
                     {
@@ -395,7 +348,7 @@ public sealed class AppType
 
                         if (sourceFieldType is not StructType sourceStruct)
                         {
-                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                            field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                         }
                         else
                         {
@@ -404,7 +357,7 @@ public sealed class AppType
                             {
                                 if (f.SchemaType == null)
                                 {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                    field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                                     break;
                                 }
 
@@ -422,7 +375,7 @@ public sealed class AppType
                                     if (relation == null || DynamicTableSchema.IsReferenceFunc(relation.Func) &&
                                         !sourceApp.Name.Equals(relation.Args.FirstOrDefault()?.Value?.ToValue<string>(), StringComparison.OrdinalIgnoreCase))
                                     {
-                                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                        field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                                         break;
                                     }
                                 }
@@ -430,13 +383,13 @@ public sealed class AppType
                                 {
                                     if (!sourceFieldMatch.SchemaType.CanBeUseAs(f.SchemaType))
                                     {
-                                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                        field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                                         break;
                                     }
                                 }
                                 else
                                 {
-                                    field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                    field.Error = SchemaNodeStatus.ApplicationFieldWrongRef;
                                     break;
                                 }
                             }
@@ -464,7 +417,7 @@ public sealed class AppType
 
                 foreach (AppRelationSchema relation in Relations)
                 {
-                    AppFieldType? field = Fields?.FirstOrDefault(f => f.Name.Equals(relation.AppField, StringComparison.OrdinalIgnoreCase));
+                    AppFieldType? field = _fields?.FirstOrDefault(f => f.Name.Equals(relation.AppField, StringComparison.OrdinalIgnoreCase));
                     if (field == null) {
                         relation.Status = SchemaNodeStatus.ApplicationRelationWrongTarget;
                         continue;
@@ -485,7 +438,7 @@ public sealed class AppType
                         }
                         else
                         {
-                            field.Status = SchemaNodeStatus.StructRelationshipWrongFunc;
+                            field.Error = SchemaNodeStatus.StructRelationshipWrongFunc;
                         }
                     }
                 }
@@ -513,8 +466,8 @@ public sealed class AppType
         }
         
         // load workflows
-        List<AppWorkflowType>? oldWorkflows = Workflows;
-        Workflows = schema.Workflows?.Select(w =>
+        List<AppWorkflowType>? oldWorkflows = _workflows;
+        _workflows = schema.Workflows?.Select(w =>
         {
             // if the workflow is activated, keep the old instance to avoid breaking the running workflow, otherwise create a new instance
             AppWorkflowType wft = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
@@ -523,7 +476,7 @@ public sealed class AppType
             wft.Properties = wft.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppWorkflow, wft.Extensions)?.ToArray() : null;
             return wft;
         }).ToList();
-        foreach(var wf in Workflows ?? [])
+        foreach(var wf in _workflows ?? [])
         {
             if (Injection.WorkflowTypes != null)
                 Injection.WorkflowTypes.Add(wf);
@@ -554,7 +507,7 @@ public sealed class AppType
     public void Release()
     {
         // Release the old field relationships
-        Fields?.ForEach(p =>
+        _fields?.ForEach(p =>
         {
             p.SchemaType?.RemoveRef(p);
             p.FuncNode?.RemoveRef(p);
@@ -564,7 +517,7 @@ public sealed class AppType
             if (r.FieldNode != null)
                 r.FuncNode?.RemoveRef(r.FieldNode);
         });
-        Workflows?.ForEach(w => w.Release());
+        _workflows?.ForEach(w => w.Release());
     }
 
     /// <summary>
@@ -573,9 +526,9 @@ public sealed class AppType
     public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
     {
         // use system for root
-        if (RootApp == null)
+        if (Container == null)
         {
-            if (SubAppList?.TryGetValue(NS_SYSTEM, out AppType? system) == true)
+            if (_subApps?.TryGetValue(NS_SYSTEM, out AppType? system) == true)
             {
                 foreach (var item in system.GetAuthPolicies(scope))
                     yield return item;
@@ -584,7 +537,7 @@ public sealed class AppType
         // system won't inherit auth from root app
         else if (!Name.Equals(NS_SYSTEM))
         {
-            foreach (var item in RootApp.GetAuthPolicies(scope))
+            foreach (var item in Container.GetAuthPolicies(scope))
                 yield return item;
         }
 
@@ -604,22 +557,12 @@ public sealed class AppType
     /// <summary>
     /// Gets the app field by name
     /// </summary>
-    public AppFieldType? GetField(string? name)
-    {
-        return !string.IsNullOrWhiteSpace(name)
-            ? Fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            : null;
-    }
+    public AppFieldType? GetField(string name) => _fields?.GetValueOrDefault(name);
 
     /// <summary>
     /// Gets the workflow by name
     /// </summary>
-    public AppWorkflowType? GetWorkflow(string? name)
-    {
-        return !string.IsNullOrWhiteSpace(name)
-            ? Workflows?.FirstOrDefault(w => w.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
-            : null;
-    }
+    public AppWorkflowType? GetWorkflow(string name) => _workflows?.GetValueOrDefault(name);
     
     /// <summary>
     /// Gets all node schemas used by the application
@@ -650,9 +593,9 @@ public sealed class AppType
             }
         }
 
-        if (Fields is { Count: > 0 })
+        if (_fields is { Count: > 0 })
         {
-            foreach (AppFieldType fieldNode in Fields)
+            foreach (AppFieldType fieldNode in _fields)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 
@@ -718,9 +661,9 @@ public sealed class AppType
         }
 
         // Workflow node schema types
-        if (Workflows is { Count: > 0 })
+        if (_workflows is { Count: > 0 })
         {
-            foreach (AppWorkflowType workflow in Workflows)
+            foreach (AppWorkflowType workflow in _workflows)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 

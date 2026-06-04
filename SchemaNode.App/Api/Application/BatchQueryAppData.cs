@@ -79,9 +79,9 @@ public static class BatchQueryExtension
             
             // filter input/output fields
             if (query.OnlyInput == true)
-                fields = fields.Where(f => string.IsNullOrEmpty(f.Func));
+                fields = fields.Where(f => string.IsNullOrEmpty(f.Push));
             else if (query.OnlyOutput == true)
-                fields = fields.Where(f => !string.IsNullOrEmpty(f.Func));
+                fields = fields.Where(f => !string.IsNullOrEmpty(f.Push));
 
             // result
             Dictionary<string, JsonNode> fieldResults = [];

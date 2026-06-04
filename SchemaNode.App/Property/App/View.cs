@@ -38,5 +38,5 @@ public sealed class FieldView
     public string Map { get; set; } = string.Empty;
 
     [NotMapped]
-    public AppType? AppType { get; set; }
+    public Runtime.AppType? AppType { get; set; }
 }

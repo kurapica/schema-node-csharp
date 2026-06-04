@@ -17,6 +17,22 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public abstract class NodeType: INodeReferences, IDisposable, INodeError
 {
+    #region Fields
+    
+    // generic
+    private ConcurrentDictionary<string, NodeType>? _genericMap;
+    private ConcurrentDictionary<string, NodeType>.AlternateLookup<ReadOnlySpan<char>>? _genericMapLookup;
+
+    // properties
+    private IProperty[]? _props;
+    private NodeType[]? _refTypes;
+
+    // used by
+    private ConcurrentDictionary<NodeType, bool>? _usedBy;
+    private ConcurrentDictionary<Type, ConcurrentDictionary<object, bool>>? _usedByOther;
+
+    #endregion
+
     #region Properties
 
     /// <summary>
@@ -84,22 +100,6 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
 
     #endregion
     
-    #region Fields
-    
-    // generic
-    private ConcurrentDictionary<string, NodeType>? _genericMap;
-    private ConcurrentDictionary<string, NodeType>.AlternateLookup<ReadOnlySpan<char>>? _genericMapLookup;
-
-    // properties
-    private IProperty[]? _props;
-    private NodeType[]? _refTypes;
-
-    // used by
-    private ConcurrentDictionary<NodeType, bool>? _usedBy;
-    private ConcurrentDictionary<Type, ConcurrentDictionary<object, bool>>? _usedByOther;
-
-    #endregion
-
     #region Abstract
 
     /// <summary>

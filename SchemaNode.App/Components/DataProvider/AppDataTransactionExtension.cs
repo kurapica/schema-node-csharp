@@ -32,7 +32,7 @@ public static class AppDataTransactionExtension
         if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
         // Not allow the direct data update
-        if (!innerCall && !string.IsNullOrWhiteSpace(field.Func)) return false;
+        if (!innerCall && !string.IsNullOrWhiteSpace(field.Push)) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare

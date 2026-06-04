@@ -6,10 +6,12 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using SchemaNode.Property.App;
+using SchemaNode.Property.Constraint;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -20,47 +22,60 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class AppFieldType
 {
+    #region Constructors
+
+    internal AppFieldType(AppType app, AppFieldSchema schema)
+    {
+        Application = app;
+        _appFieldSchema = schema;
+    }
+
+    #endregion
+    
+    #region Fields
+
+    private readonly AppFieldSchema _appFieldSchema;
+    private IProperty[]? _props;
+    private NodeType[]? _refTypes;
+    
+    #endregion
+    
     #region Properties
+
+    /// <summary>
+    /// The application node
+    /// </summary>
+    public AppType Application { get; }
 
     /// <summary>
     /// The application name
     /// </summary>
-    public string App { get; internal set; } = string.Empty;
+    public string App => Application.Name;
     
     /// <summary>
     /// The seqno
     /// </summary>
-    public int Seqno { get; private init; }
+    public int Seqno => _appFieldSchema?.Seqno ?? 0;
 
     /// <summary>
     /// The field name.
     /// </summary>
-    public required string Name { get; init; }
+    public string Name => _appFieldSchema?.Name ?? string.Empty;
 
     /// <summary>
     /// The field type.
     /// </summary>
-    public string Type { get; init; } = null!;
-
-    /// <summary>
-    /// The field chinese name.
-    /// </summary>
-    public LocaleString? Display { get; init; }
-
-    /// <summary>
-    /// The description of the field.
-    /// </summary>
-    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
+    public string Type => _appFieldSchema?.Type ?? string.Empty;
 
     /// <summary>
     /// The push function
     /// </summary>
-    public string? Func { get; init; }
+    public string? Push => _appFieldSchema?.Push ?? string.Empty;
 
     /// <summary>
     /// The push source field
     /// </summary>
-    public string? Arg { get; init; }
+    public string? Source => _appFieldSchema?.Source ?? string.Empty;
 
     /// <summary>
     /// The authentication policy, normally row policy
@@ -113,11 +128,6 @@ public sealed class AppFieldType
     public bool? IncrUpdate { get; private init; }
 
     /// <summary>
-    /// The field is front-end only, no data storage
-    /// </summary>
-    public bool? Frontend { get; private init; }
-
-    /// <summary>
     /// The field is disabled
     /// </summary>
     public bool? Disable { get; private init; }
@@ -128,16 +138,6 @@ public sealed class AppFieldType
     public bool? Readonly { get; private init; }
     
     /// <summary>
-    /// The dynamic table is maintained by system, means the schema don't create or update the table
-    /// </summary>
-    public bool? SystemMaintain { get; set; }
-
-    /// <summary>
-    /// The combine rule for scalar/enum type
-    /// </summary>
-    public DataCombineType? Combine { get; private init; }
-
-    /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
     public DataCombine[]? Combines { get; private init; }
@@ -147,29 +147,19 @@ public sealed class AppFieldType
     /// </summary>
     public FieldFilter[]? Filters { get; private init; }
 
-    /// <summary>
-    /// The properties
-    /// </summary>
-    public IProperty[]? Properties { get; internal set; }
-
-    /// <summary>
-    /// The extensions
-    /// </summary>
-    public Dictionary<string, JsonElement>? Extensions { get; private init; }
-
     #endregion
 
     #region States
 
     /// <summary>
-    /// The application field node status
+    /// The application field error
     /// </summary>
-    public SchemaNodeStatus? Status { get; internal set; }
+    public string? Error { get; internal set; }
 
     /// <summary>
     /// Enable dynamic table
     /// </summary>
-    public bool EnableDynamicTable => !(Frontend ?? false) && !(Disable ?? false);
+    public bool EnableDynamicTable => Readonly != true && Disable != true;
 
     /// <summary>
     /// Whether the field is a view for foreign view, only readable
@@ -186,14 +176,9 @@ public sealed class AppFieldType
     #region Relationship
 
     /// <summary>
-    /// The application node
-    /// </summary>
-    public AppType Application { get; internal set; } = null!;
-    
-    /// <summary>
     /// The field type node
     /// </summary>
-    public AnySchemaType? SchemaType { get; internal set; }
+    public ValueType? SchemaType { get; internal set; }
 
     /// <summary>
     /// The field function node
@@ -238,7 +223,80 @@ public sealed class AppFieldType
     #endregion
     
     #region Method
+
+    /// <summary>
+    /// Load the app field schema
+    /// </summary>
+    public async Task LoadAsync(SchemaContext context)
+    {
+        _props = _appFieldSchema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP_FIELD)).ToArray();
+        
+        // Loading schema properties after loading, to avoid cycle ref
+        List<NodeType> refTypes = [];
+        foreach (ITypeRefProperty prop in _props.Cast<ITypeRefProperty>())
+        {
+            foreach (string name in prop.GetRefTypes())
+            {
+                NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                if (node != null)
+                {
+                    refTypes.Add(node);
+                }
+                else
+                {
+                    Error = ErrorCodes.WRONG_REF_TYPE;
+                    context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in app schema '{Name}'");
+                }
+            }
+        }
+
+        // Update the properties
+        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+
+        return new AppFieldType
+        {
+            Name = entity.Name,
+            Type = entity.Type,
+            Seqno = entity.Seqno,
+            Display = entity.Display,
+            Topology = entity.Topology,
+            TableName = entity.TableName,
+            AttrTableName = entity.AttrTableName,
+            AllowClear =  entity.AllowClear,
+            Push = entity.Push,
+            Source = entity.Source,
+            Auths = entity.Auths,
+            RowAuths = entity.RowAuths,
+            ColAuths = entity.ColAuths,
+            Foreigns = entity.Foreigns,
+            View = entity.View,
+            IncrUpdate = entity.IncrUpdate,
+            Frontend = entity.Frontend,
+            Disable = entity.Disable,
+            Readonly = entity.Readonly,
+            SystemMaintain =  entity.SystemMaintain,
+            Combine = entity.Combine,
+            Combines = entity.Combines,
+            Filters = entity.Filters,
+            Extensions = entity.Extensions,
+        };
+    }
     
+    /// <summary>
+    /// Gets the property with given type
+    /// </summary>
+    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+
+    /// <summary>
+    /// Gets the constraints
+    /// </summary>
+    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    
+    /// <summary>
+    /// Gets the property by property name
+    /// </summary>
+    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>
     /// Add observer
     /// </summary>
@@ -274,80 +332,6 @@ public sealed class AppFieldType
             yield return evaluator;
     }
     
-    #endregion
-
-    #region Conversions
-
-    /// <summary>
-    /// Gets the field node from entity
-    /// </summary>
-    public static implicit operator AppFieldType(AppFieldSchema entity)
-    {
-        return new AppFieldType
-        {
-            Name = entity.Name,
-            Type = entity.Type,
-            Seqno = entity.Seqno,
-            Display = entity.Display,
-            Topology = entity.Topology,
-            TableName = entity.TableName,
-            AttrTableName = entity.AttrTableName,
-            AllowClear =  entity.AllowClear,
-            Func = entity.Push,
-            Arg = entity.Source,
-            Auths = entity.Auths,
-            RowAuths = entity.RowAuths,
-            ColAuths = entity.ColAuths,
-            Foreigns = entity.Foreigns,
-            View = entity.View,
-            IncrUpdate = entity.IncrUpdate,
-            Frontend = entity.Frontend,
-            Disable = entity.Disable,
-            Readonly = entity.Readonly,
-            SystemMaintain =  entity.SystemMaintain,
-            Combine = entity.Combine,
-            Combines = entity.Combines,
-            Filters = entity.Filters,
-            Extensions = entity.Extensions,
-        };
-    }
-
-    /// <summary>
-    /// Convert the node to schema
-    /// </summary>
-    public static implicit operator AppFieldSchema(AppFieldType entity)
-    {
-        return new AppFieldSchema
-        {
-            App = entity.App,
-            Name = entity.Name,
-            Type = entity.Type,
-            Seqno = entity.Seqno,
-            Display = entity.Display,
-            Status = entity.Status,
-            Topology = entity.Topology,
-            TableName = entity.TableName,
-            AttrTableName = entity.AttrTableName,
-            AllowClear = entity.AllowClear,
-            Push = entity.Func,
-            Source = entity.Arg,
-            Auths = entity.Auths,
-            RowAuths = entity.RowAuths,
-            ColAuths = entity.ColAuths,
-            Foreigns = entity.Foreigns,
-            View = entity.View,
-            IncrUpdate = entity.IncrUpdate,
-            Frontend = entity.Frontend,
-            Disable = entity.Disable,
-            Readonly = entity.Readonly,
-            SystemMaintain =  entity.SystemMaintain,
-            Combine = entity.Combine,
-            Combines = entity.Combines,
-            Filters = entity.Filters,
-            Extensions = entity.Extensions,
-        };
-    }
-
     #endregion
 
     #region Dynamic table
@@ -926,7 +910,7 @@ public sealed class AppFieldType
 /// <summary>
 /// The field data change info
 /// </summary>
-internal record FieldDataChangeData(TransactionChangeOperation Operation, AnySchemaNode? Value, AnySchemaNode? Origin);
+internal record FieldDataChangeData(TransactionChangeOperation Operation, DataNode? Value, DataNode? Origin);
 
 // The transaction change data
 internal class TransactionChangeData
@@ -961,12 +945,12 @@ internal struct FieldDataPushArg
     /// <summary>
     /// The value
     /// </summary>
-    public AnySchemaNode? Value { get; set; }
+    public DataNode? Value { get; set; }
 
     /// <summary>
     /// The origin value
     /// </summary>
-    public AnySchemaNode? Origin { get; set; }
+    public DataNode? Origin { get; set; }
 
     /// <summary>
     /// Whether is array data
@@ -976,7 +960,7 @@ internal struct FieldDataPushArg
     /// <summary>
     /// The value type
     /// </summary>
-    public AnySchemaType Type { get; set; }
+    public ValueType Type { get; set; }
 
     /// <summary>
     /// Whether is full data
