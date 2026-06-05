@@ -1,12 +1,17 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Function;
 using SchemaNode.Property.Constraints;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using StructType = SchemaNode.Runtime.StructType;
+// ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 
 namespace SchemaNode.Property.App;
 
@@ -14,7 +19,40 @@ namespace SchemaNode.Property.App;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(RowAuths)}")]
 [Relation<StringEntries>($"${nameof(ColAuths)}.{nameof(ColPolicy.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}", $"${nameof(AppFieldSchema.Type)}")]
-public class ColAuths : Property<ColPolicy[]>;
+public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, INodeError
+{
+    public string? Error { get; set; }
+    
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    {
+        if (Value == null) return;
+        if (ownerType is ArrayType arr) ownerType = arr.Element;
+        foreach (ColPolicy item in Value)
+        {
+            if (ownerType != null)
+            {
+                if ((ownerType as StructType)?.GetField(item.Name)?.Type == null)
+                {
+                    Error ??= AppErrorCodes.APP_COL_AUTH_FIELD_NOT_FOUND;
+                    continue;
+                }
+            }
+            
+            List<FunctionType> evaluators = [];
+            foreach (string eva in item.Evaluators)
+            {
+                FunctionType? func = await context.GetNodeTypeAsync<FunctionType>(eva);
+                if (func == null)
+                {
+                    Error ??= AppErrorCodes.APP_COL_AUTH_EVALUATOR_NOT_VALID;
+                    break;
+                }
+                evaluators.Add(func);
+            }
+            item.Functions = evaluators.ToArray();
+        }
+    }
+}
 
 /// <summary>
 /// The column policy item

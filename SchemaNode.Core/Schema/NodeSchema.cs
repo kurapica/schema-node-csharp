@@ -11,6 +11,7 @@ using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Serialization;
+using SchemaNode.Property.Constraints;
 using static SchemaNode.Utility.Constant;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
@@ -104,7 +105,7 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// Gets the clone
     /// </summary>
-    public NodeSchema Clone(ISchemaRuntime? runtime = null)
+    internal NodeSchema Clone(ISchemaRuntime? runtime = null)
     {
         var nodeSchema = new NodeSchema()
         {
@@ -160,17 +161,43 @@ public class ValueType : AnyType;
 /// <param name="Convert">The convert function</param>
 public sealed record CompatibleSchema(string To, string Convert);
 
-public static class NodeSchemaExtensions
+internal static class NodeSchemaExtensions
 {
     /// <summary>
     /// Loading properties for node schemas
     /// </summary>
-    public static async Task<(IProperty[] Properties, Runtime.NodeType[] RefTypes, string? Error)>
-        LoadNodeSchemaProperties(this ExtensibleSchema schema, SchemaContext context, string? kind = null)
+    internal static async Task<(Runtime.NodeType[] RefTypes, string? Error)>
+        LoadPropertiesAsync(this ExtensibleSchema schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
     {
-        kind ??= schema.GetType().GetMetaProperty<SchemaKind>()?.Value;
-        if (string.IsNullOrWhiteSpace(kind)) return (Array.Empty<IProperty>(), Array.Empty<Runtime.NodeType>(), ErrorCodes.NO_DEFINITION);
+        List<Runtime.NodeType> refTypes = [];
+        string? error = null;
+        
+        foreach (IProperty prop in properties)
+        {
+            if (prop is ILoadableProperty loadableProp)
+            {
+                await loadableProp.LoadAsync(context, ownerType);
+                if (prop is INodeError err)
+                    error ??= err.Error;
+            }
 
-        var properties = schema.GetProperties(context.Runtime.GetSchemaKindProperties(kind));
+            if (prop is ITypeRefProperty refProp)
+            {
+                foreach (string name in refProp.GetRefTypes())
+                {
+                    var node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
+                    if (node != null)
+                    {
+                        refTypes.Add(node);
+                    }
+                    else
+                    {
+                        error ??= ErrorCodes.WRONG_REF_TYPE;
+                    }
+                }
+            }
+        }
+        
+        return (refTypes.ToArray(), error);
     }
 }

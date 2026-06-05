@@ -9,6 +9,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The app relation schema
 /// </summary>
+[Obsolete]
 public sealed class AppRelationSchema
 {
     /// <summary>

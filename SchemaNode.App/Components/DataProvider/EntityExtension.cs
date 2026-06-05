@@ -181,7 +181,7 @@ public static class EntityExtension
 
         using var _ = context.StackAccess(appFieldType.App, target);
         
-        ArrayTypeNode array = new ArrayTypeNode(appFieldType.SchemaType!);
+        ArrayTypeNode array = new ArrayTypeNode(appFieldType.ValueType!);
         foreach (T valueItem in value)
         {
             var node = await context.GetSchemaNodeAsync(valueItem) ??
@@ -224,7 +224,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(field.App, target);
-        ArrayTypeNode array = new ArrayTypeNode(field.SchemaType!);
+        ArrayTypeNode array = new ArrayTypeNode(field.ValueType!);
         foreach (T valueItem in value)
         {
             var node = await context.GetSchemaNodeAsync(valueItem) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
@@ -261,7 +261,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var stack = context.StackAccess(appFieldType.App, target);
-        return await context.SaveFieldDataAsync(appFieldType, appFieldType.SchemaType!.CreateNode(value));
+        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.CreateNode(value));
     }
 
     /// <summary>
@@ -275,7 +275,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        return await context.SaveFieldDataAsync(appFieldType, appFieldType.SchemaType!.CreateNode(values));
+        return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.CreateNode(values));
     }
 
     /// <summary>
@@ -288,7 +288,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(field.App, target);
-        return context.SaveFieldDataAsync(field, field.SchemaType!.CreateNode(value));
+        return context.SaveFieldDataAsync(field, field.ValueType!.CreateNode(value));
     }
 
     /// <summary>
@@ -301,7 +301,7 @@ public static class EntityExtension
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(field.App, target);
-        return context.SaveFieldDataAsync(field, field.SchemaType!.CreateNode(values));
+        return context.SaveFieldDataAsync(field, field.ValueType!.CreateNode(values));
     }
 
     #endregion

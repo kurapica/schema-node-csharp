@@ -69,7 +69,7 @@ public static class AppDataTableExtension
 
         AppFieldType appFieldType = (await context.GetAppTypeAsync(app.Value.app))?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
 
-        if (appFieldType.SchemaType is ArrayType arrType && arrType.ElementSchemaType is StructType @struct)
+        if (appFieldType.ValueType is ArrayType arrType && arrType.ElementSchemaType is StructType @struct)
         {
             IReadOnlyList<PropertyInfo> primarys = @struct.GetCSharpProperties(true) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
             return (appFieldType, primarys);
@@ -85,7 +85,7 @@ public static class AppDataTableExtension
     /// </summary>
     internal static void AssertType<T>(this SchemaContext context, AppFieldType field)
     {
-        AnySchemaType? type = field.SchemaType;
+        AnySchemaType? type = field.ValueType;
         if (type is ArrayType arr) type = arr.ElementSchemaType;
         Type? ctype = type?.ToCSharpType();
         if (ctype == null || !ctype.IsAssignableFrom(typeof(T)))

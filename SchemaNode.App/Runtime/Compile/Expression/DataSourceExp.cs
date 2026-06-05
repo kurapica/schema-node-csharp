@@ -49,7 +49,7 @@ public class DataSourceExpVisitor : IExpVisitor
         // App & Field must be valid
         AppType? appType = await context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
-        AnySchemaType? schemaType = appField?.SchemaType;
+        AnySchemaType? schemaType = appField?.ValueType;
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
             schemaType = await context.GetSchemaTypeAsync(appField.Type);
         return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }

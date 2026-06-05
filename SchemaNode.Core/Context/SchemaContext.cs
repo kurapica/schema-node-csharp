@@ -141,19 +141,19 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             return new GenericType{ Name = generic.Name };
         
         // registered type
-        SchemaRuntime schemaRuntime = Runtime as  SchemaRuntime ?? throw new InvalidOperationException();
+        SchemaRuntime schemaRuntime = Runtime as SchemaRuntime ?? throw new InvalidOperationException();
         SpanReader spans = fullName;
-        NodeType? node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace);
+        NodeType? node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
         while (node != null && spans.NextNamespace())
-            node = await LoadNodeTypeAsync(node);
+            node = await LoadNodeTypeAsync(node, spans);
 
         return node;
 
-        async Task<NodeType?> LoadNodeTypeAsync(NodeType node)
+        async Task<NodeType?> LoadNodeTypeAsync(NodeType node, SpanReader spans)
         {
             // Convert <T1, T2> to [T1, T2]
             ReadOnlySpan<char> next = spans.Current;
-            NamespaceType? parent = node as  NamespaceType;
+            NamespaceType? parent = node as NamespaceType;
             NodeType? result = node;
             if (!next.IsEmpty)
             {

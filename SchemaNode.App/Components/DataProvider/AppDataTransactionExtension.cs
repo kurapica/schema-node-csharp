@@ -20,7 +20,7 @@ public static class AppDataTransactionExtension
     /// Save field data
     /// </summary>
     public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
-        => context.SaveFieldDataAsync(field, field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException());
+        => context.SaveFieldDataAsync(field, field.ValueType!.CreateNode(value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
@@ -181,7 +181,7 @@ public static class AppDataTransactionExtension
                             {
                                 // Raise create event
                                 AnySchemaNode? newValue = change.Value;
-                                if (newValue is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 })
+                                if (newValue is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 })
                                 {
                                     foreach (AnySchemaNode item in arr)
                                         context.RaiseEvent(new AppFieldDataCreateEvent(field, target), item);
@@ -197,7 +197,7 @@ public static class AppDataTransactionExtension
                             {
                                 AnySchemaNode? changeValues = change.Value;
                                 AnySchemaNode? originValues = change.Origin;
-                                if (changeValues is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 } type)
+                                if (changeValues is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 } type)
                                 {
                                     Dictionary<string, AnySchemaNode> originMap = [];
                                     if (originValues is ArrayTypeNode oldArr)
@@ -251,7 +251,7 @@ public static class AppDataTransactionExtension
                         case TransactionChangeOperation.DropAll:
                             {
                                 AnySchemaNode? origin = change.Origin;
-                                if (origin is ArrayTypeNode arr && field.SchemaType is ArrayType { Primary.Length: > 0 })
+                                if (origin is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 })
                                 {
                                     foreach (AnySchemaNode item in arr)
                                         context.RaiseEvent(new AppFieldDataDeleteEvent(field, target), item);
@@ -536,10 +536,10 @@ public static class AppDataTransactionExtension
                 // Calc data push
                 async Task<ArrayTypeNode> CalcPushData(List<AnySchemaNode?[]> pushData)
                 {
-                    ArrayTypeNode result = new ArrayTypeNode(field.SchemaType!);
+                    ArrayTypeNode result = new ArrayTypeNode(field.ValueType!);
                     foreach (object?[] args in pushData)
                     {
-                        AnySchemaNode? ret = await field.FuncNode!.CallAsync<AnySchemaNode, DataPushCompileContext>(context, args);
+                        AnySchemaNode? ret = await field.PushFunc!.CallAsync<AnySchemaNode, DataPushCompileContext>(context, args);
                         if (ret is ArrayTypeNode arr)
                             result.AddRange(arr);
                         else if(ret is not null)
@@ -605,7 +605,7 @@ public static class AppDataTransactionExtension
                         if (loadingMap.Count != 0)
                         {
                             AppSchemaDataFilter? filter = null;
-                            string[] primaries = (thirdAppField.SchemaType as ArrayType)!.Primary!;
+                            string[] primaries = (thirdAppField.ValueType as ArrayType)!.Primary!;
                             
                             // Use contains
                             if (loadingMap.Count > MAX_COMBINE_CASE_COUNT)
@@ -845,7 +845,7 @@ public static class AppDataTransactionExtension
     {
         // Join the result
         AnySchemaNode? result = null;
-        switch (field.SchemaType)
+        switch (field.ValueType)
         {
             case EnumType:
                 {
@@ -895,7 +895,7 @@ public static class AppDataTransactionExtension
                         case DataCombineType.Sum:
                         case DataCombineType.Count:
                             {
-                                result = field.SchemaType.CreateNode(
+                                result = field.ValueType.CreateNode(
                                     (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
                                     (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
                                     (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
@@ -1147,7 +1147,7 @@ public static class AppDataTransactionExtension
                     });
 
                     // Save to result
-                    result = field.SchemaType.CreateNode(joinObjs);
+                    result = field.ValueType.CreateNode(joinObjs);
                     break;
                 }
         }

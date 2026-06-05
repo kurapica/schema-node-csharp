@@ -107,7 +107,7 @@ public class SchemaRuntime : ISchemaRuntime
             string part = reader.Current.ToString();
             fullPath = !string.IsNullOrWhiteSpace(fullPath) ? $"{fullPath}.{part}" : part;
 
-            NodeSchema? node = root.Schemas?.FirstOrDefault(x => x.Name == fullPath);
+            NodeSchema? node = root.Schemas?.FirstOrDefault(x => x.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
             if (node == null)
             {
                 if (schemaName == fullPath)
@@ -159,7 +159,7 @@ public class SchemaRuntime : ISchemaRuntime
     /// <summary>
     /// Gets a system-defined node schema by name
     /// </summary>
-    public NodeSchema? GetSystemSchema(string schemaName)
+    internal NodeSchema? GetSystemSchema(string schemaName)
     {
         NodeSchema? node = _rootSchema;
         SpanReader reader = schemaName;

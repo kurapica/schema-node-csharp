@@ -153,30 +153,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         Loaded = true;
         await LoadAsync(context);
         
+        (_refTypes, string? error) = await schema.LoadPropertiesAsync(context, props, this as ValueType);
+        Error ??= error;
+        
         // Loading schema properties after loading, to avoid cycle ref
-        List<NodeType> refTypes = [];
-        if (GenericParams == null)
-        {
-            foreach (ITypeRefProperty prop in props.Cast<ITypeRefProperty>())
-            {
-                foreach (string name in prop.GetRefTypes())
-                {
-                    NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
-                    if (node != null)
-                    {
-                        refTypes.Add(node);
-                    }
-                    else
-                    {
-                        Error = ErrorCodes.WRONG_REF_TYPE;
-                        context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in schema '{Name}'");
-                    }
-                }
-            }
-        }
-
-        // Update the properties
-        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+        _refTypes = GenericParams == null ? _refTypes : null;
         
         // Register UsedBy
         foreach (NodeType referenceType in GenericParams ?? GetReferenceTypes())
@@ -427,11 +408,11 @@ public abstract class ValueType : NodeType
             // check compatibles, rare but important
             case FunctionType { Args.Length: 1, Converter: true } func 
                 when func.Args[0].ValueType == this && 
-                     !IsAssignableTo(func.ReturnNode) && 
+                     !IsAssignableTo(func.Return) && 
                      func.GetProperty<Converter>() != null:
                 // Means this type can be converted to func.ReturnNode via func
                 _isAssignableTo ??= [];
-                _isAssignableTo.TryAdd(func.ReturnNode, func);
+                _isAssignableTo.TryAdd(func.Return, func);
                 break;
             case ArrayType arr when Name.Equals(arr.Element?.Name, StringComparison.OrdinalIgnoreCase):
                 ArrayType ??= arr;
@@ -447,9 +428,9 @@ public abstract class ValueType : NodeType
     {
         if (usedBy is FunctionType func 
             && _isAssignableTo != null
-            && _isAssignableTo.TryGetValue(func.ReturnNode, out var f) && f == func)
+            && _isAssignableTo.TryGetValue(func.Return, out var f) && f == func)
         {
-            _isAssignableTo.TryRemove(func.ReturnNode, out _);
+            _isAssignableTo.TryRemove(func.Return, out _);
         }
 
         if (usedBy != null && usedBy.Equals(ArrayType)) ArrayType = null;

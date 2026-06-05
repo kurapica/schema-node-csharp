@@ -478,34 +478,15 @@ public class StructFieldType : INodeReferences
         // Properties
         List<IProperty> props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD));
         IConstraintProperty[] constraints = props.Cast<IConstraintProperty>().ToArray();
-        ITypeRefProperty[] typeRefs = props.Cast<ITypeRefProperty>().ToArray();
         
-        // ref types
-        List<NodeType>? refTypes = null;
-        foreach (ITypeRefProperty prop in typeRefs)
-        {
-            foreach (string name in prop.GetRefTypes())
-            {
-                NodeType? refType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
-                if (refType != null)
-                {
-                    refTypes ??= [];
-                    refTypes.Add(refType);
-                }
-                else
-                {
-                    field.Error = ErrorCodes.WRONG_REF_TYPE;
-                    context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in struct field '{field.Name}'");
-                }
-            }
-        }
+        (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
+        field.Error ??= error;
         
         // init
         Name = field.Name;
         Type = valueType;
         Properties = props.ToArray();
         Constraints = constraints;
-        RefTypes = refTypes?.ToArray();
 
         // Useful properties
         Require = GetProperty<Require>()?.Value;

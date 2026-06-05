@@ -65,7 +65,7 @@ public static class AppDataQueryExtension
         {
             AnySchemaNode? result = null;
 
-            if (field.SchemaType is ArrayType { Primary: { Length: > 0 } } arrType)
+            if (field.ValueType is ArrayType { Primary: { Length: > 0 } } arrType)
             {
                 if (nodes is StructTypeNode @struct)
                 {
@@ -126,7 +126,7 @@ public static class AppDataQueryExtension
         {
             AnySchemaNode? result = null;
 
-            if (field.SchemaType is ArrayType { Primary: { Length: > 0 } })
+            if (field.ValueType is ArrayType { Primary: { Length: > 0 } })
                 result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
 
             // Generate display only fields
@@ -174,8 +174,8 @@ public static class AppDataQueryExtension
             AppSchemaDataResult.Exist => SchemaContext.SystemBool.CreateNode(false),
             AppSchemaDataResult.First => null,
             AppSchemaDataResult.Last => null,
-            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!),
-            _ => new ArrayTypeNode(appField.SchemaType!)
+            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.ValueType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!),
+            _ => new ArrayTypeNode(appField.ValueType!)
         };
         
         using var stack = context.StackAccess(app, target);

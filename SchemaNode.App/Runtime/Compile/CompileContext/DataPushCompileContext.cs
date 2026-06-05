@@ -40,9 +40,9 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
         
         // No third app field involved
         AppFieldType? to = _appType?.Fields?.FirstOrDefault(f =>
-            f.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType == Function.ReturnNode);
+            f.SchemaType is ArrayType arrayType && arrayType.ElementSchemaType == Function.Return);
         
-        if (to?.SchemaType is ArrayType { Primary.Length: > 0 } array && _thirdFields.Count > 0)
+        if (to?.ValueType is ArrayType { Primary.Length: > 0 } array && _thirdFields.Count > 0)
         {
             // Add third app field arguments
             ArgumentExp[] args = new ArgumentExp[_thirdFields.Count + 1];
@@ -158,7 +158,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             _appType ??= await Context.GetAppTypeAsync(appExp.Value.ToValue<string>()!);
                             if (_appType == null || _appType.Name != appExp.Value.ToValue<string>()) break;
                             var thirdField = _appType.GetField(fieldExp.Value.ToValue<string>());
-                            if (thirdField?.SchemaType is not ArrayType { ElementSchemaType: StructType arrayStruct, Primary: { Length: > 0 } } arrayType) break;
+                            if (thirdField?.ValueType is not ArrayType { ElementSchemaType: StructType arrayStruct, Primary: { Length: > 0 } } arrayType) break;
                             var dataField = arrayStruct.GetField(dataFieldExp.Value.ToValue<string>()!);
                             if (dataField == null) break;
                             
@@ -230,7 +230,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             _appType ??= await Context.GetAppTypeAsync(appExp.Value.ToValue<string>()!);
                             if (_appType == null || _appType.Name != appExp.Value.ToValue<string>()) break;
                             var thirdField = _appType.GetField(fieldExp.Value.ToValue<string>());
-                            if (thirdField?.SchemaType is not ArrayType { ElementSchemaType: StructType arrayStruct, Primary: { Length: > 0 } } arrayType) break;
+                            if (thirdField?.ValueType is not ArrayType { ElementSchemaType: StructType arrayStruct, Primary: { Length: > 0 } } arrayType) break;
                             
                             DataPushThirdFieldInfo? thirdFieldInfo =
                                 _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);

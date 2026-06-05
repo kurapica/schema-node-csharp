@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -74,4 +75,66 @@ public sealed class AppFieldSchema: ExtensibleSchema
     public string? Push { get; set; }
     
     #endregion
+    
+    #region Foreign & View
+    
+    /// <summary>
+    /// The foreign key settings
+    /// </summary>
+    public Foreign[]? Foreigns { get; set; }
+
+    /// <summary>
+    /// The field view settings
+    /// </summary>
+    public FieldView? View { get; set; }
+
+    #endregion
 }
+
+#region Help Types
+
+/// <summary>
+/// The foreign settings
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.foreign")]
+public sealed class Foreign
+{
+    /// <summary>
+    /// The foreign app name
+    /// </summary>
+    [Meta<SchemaType>(typeof(AppType))]
+    public string App { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The field refer to the other app target
+    /// </summary>
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    public string Field { get; set; } = string.Empty;
+}
+
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.view")]
+public sealed class FieldView
+{
+    /// <summary>
+    /// The source application
+    /// </summary>
+    [Meta<SchemaType>(typeof(AppType))]
+    public string App { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The source field
+    /// </summary>
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    public string Field { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The target map field
+    /// </summary>
+    public string Map { get; set; } = string.Empty;
+
+    [SchemaIgnore]
+    [JsonIgnore]
+    public AppType? AppType { get; set; }
+}
+
+#endregion

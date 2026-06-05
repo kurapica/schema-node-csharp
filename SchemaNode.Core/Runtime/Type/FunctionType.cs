@@ -30,7 +30,7 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// The return type node
     /// </summary>
-    internal ValueType ReturnNode { get; private set; } = null!;
+    internal ValueType Return { get; private set; } = null!;
 
     /// <summary>
     /// The function arguments
@@ -116,7 +116,7 @@ public sealed class FunctionType : NodeType
             Error = ErrorCodes.FUNC_WRONG_RETURN;
             return;
         }
-        ReturnNode = retType;
+        Return = retType;
         
         // Data
         Args = func.Args.Select(a => (FunctionNodeArgument)a).ToArray();
@@ -178,8 +178,8 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
-        if (ReturnNode is not GenericType)
-            yield return ReturnNode;
+        if (Return is not GenericType)
+            yield return Return;
 
         foreach (FunctionNodeArgument arg in Args)
         {
@@ -342,7 +342,7 @@ public sealed class FunctionType : NodeType
                 if (a.Nullable ?? false) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
-            Return = ReturnNode.GetNodeTypeDetails()
+            Return = Return.GetNodeTypeDetails()
         };
 
         // Remote call, no dynamic function required

@@ -120,7 +120,7 @@ public static class BatchQueryExtension
                     if (allowRead)
                     {
                         // row access check
-                        if (field is { SchemaType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
+                        if (field is { ValueType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                         {
                             bool authorized = true;
                             foreach (RowPolicy policy in field.RowAuths)
@@ -166,7 +166,7 @@ public static class BatchQueryExtension
                             // Combine filters
                             if (q?.Filter != null)
                             {
-                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.SchemaType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
+                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
                                 filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                             }
                             
@@ -261,7 +261,7 @@ public static class BatchQueryExtension
                         
                         // scan enum access
                         if (!(query.NoSchema ?? false))
-                            await ScanEnumAccess(context, root, field.SchemaType!, enumsKeys, result);
+                            await ScanEnumAccess(context, root, field.ValueType!, enumsKeys, result);
                     }
                 }
             }

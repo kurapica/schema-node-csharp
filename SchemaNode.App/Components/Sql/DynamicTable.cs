@@ -341,11 +341,11 @@ public class DynamicTableSchema
                         if (appField == null) continue; // app field not exist
 
                         // primary & struct
-                        string[] primary = (appField.SchemaType as ArrayType)?.Primary ?? [];
+                        string[] primary = (appField.ValueType as ArrayType)?.Primary ?? [];
                         StructType? structType =
-                            (appField.SchemaType is ArrayType arr
+                            (appField.ValueType is ArrayType arr
                                 ? arr.ElementSchemaType
-                                : appField.SchemaType) as StructType;
+                                : appField.ValueType) as StructType;
                         if (structType == null || structType.Fields.Length == 0) continue;
                         if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
 

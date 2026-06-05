@@ -143,9 +143,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #region Struct Result Build
         
         // struct build
-        if (!results.Last().ValueType.IsAssignableTo(Function.ReturnNode))
+        if (!results.Last().ValueType.IsAssignableTo(Function.Return))
         {
-            if (Function.ReturnNode is StructType @struct)
+            if (Function.Return is StructType @struct)
             {
                 List<StructFieldExp> fields = [];
                 foreach (var f in @struct.GetFields().Where(f => f.DisplayOnly != true))
@@ -217,7 +217,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
 
         // Done
-        return Function.SetRuntimeFuncCache(GetType(), new FunctionTypeSchema(argExps, final.ToArray(), Function.ReturnNode.GetCsharpType()!))!;
+        return Function.SetRuntimeFuncCache(GetType(), new FunctionTypeSchema(argExps, final.ToArray(), Function.Return.GetCsharpType()!))!;
 
         #region Helper
         
@@ -445,7 +445,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Parse generic return type
-            ParseGenericType(expFuncInfo.Return, expFuncType.ReturnNode, funcRetType);
+            ParseGenericType(expFuncInfo.Return, expFuncType.Return, funcRetType);
 
             #endregion
 

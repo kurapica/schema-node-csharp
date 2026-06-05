@@ -45,7 +45,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType is not { EnableDynamicTable: true }) return default;
 
-        ArrayType? arrType = fieldType.SchemaType as ArrayType;
+        ArrayType? arrType = fieldType.ValueType as ArrayType;
         string[] keys = arrType?.Primary ?? [];
 
         // full primary key contains
@@ -159,9 +159,9 @@ public static class SystemData
             : null;
 
         AppFieldType? fieldType = appType?.GetField(field);
-        if (fieldType?.SchemaType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
-        if (fieldType.SchemaType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
-        return new ArrayTypeNode(fieldType.SchemaType);
+        if (fieldType?.ValueType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
+        if (fieldType.ValueType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
+        return new ArrayTypeNode(fieldType.ValueType);
     }
 
     #endregion
@@ -194,13 +194,13 @@ public static class SystemData
 
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null 
-            || fieldType.SchemaType is EnumType 
-            || fieldType.SchemaType is ScalarType { IsNumber: false } 
-            || fieldType.SchemaType is StructType s && !s.Fields.Any(f => f.SchemaType is ScalarType {  IsNumber: true })
-            || fieldType.SchemaType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
+            || fieldType.ValueType is EnumType 
+            || fieldType.ValueType is ScalarType { IsNumber: false } 
+            || fieldType.ValueType is StructType s && !s.Fields.Any(f => f.SchemaType is ScalarType {  IsNumber: true })
+            || fieldType.ValueType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
             ) return null;
 
-        AnySchemaNode? dataNode = fieldType.SchemaType?.CreateNode(data);
+        AnySchemaNode? dataNode = fieldType.ValueType?.CreateNode(data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         using var stack = context.StackAccess(appType!.Name, target);
@@ -208,12 +208,12 @@ public static class SystemData
         AnySchemaNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
 
-        switch (fieldType.SchemaType)
+        switch (fieldType.ValueType)
         {
             case ScalarType:
                 {
                     if (dataNode is not ScalarTypeNode) goto ROLLBACK;
-                    origin = fieldType.SchemaType.CreateNode(
+                    origin = fieldType.ValueType.CreateNode(
                         (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
                         (dataNode is { IsEmpty: false } ? dataNode.ToValue<decimal>() : 0m)
                     );
@@ -372,7 +372,7 @@ public static class SystemData
         using var stack = context.StackAccess(app, target);
 
         await context.BeginTransactionAsync();
-        if (fieldType.SchemaType is ArrayType { Primary: {  Length: > 0 }})
+        if (fieldType.ValueType is ArrayType { Primary: {  Length: > 0 }})
             await context.DeleteFieldListDataAsync(fieldType, dataNode);
         else
             await context.SaveFieldDataAsync(fieldType, null);

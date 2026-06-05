@@ -73,8 +73,8 @@ public static class AppDataProviderExtension
         if (schema.Single) return null; // not supported for single record tables
         
         StructTypeNode[] queryNodes = nodes.ToArray();
-        ArrayType arrType = schema.AppFieldType.SchemaType as ArrayType ?? throw new InvalidOperationException("Invalid array type in schema");
-        StructType structType = ((schema.AppFieldType.SchemaType as ArrayType)!.ElementSchemaType as StructType)
+        ArrayType arrType = schema.AppFieldType.ValueType as ArrayType ?? throw new InvalidOperationException("Invalid array type in schema");
+        StructType structType = ((schema.AppFieldType.ValueType as ArrayType)!.ElementSchemaType as StructType)
                                 ?? throw new InvalidOperationException("Invalid struct type in array type");
 
         if (queryNodes.Length > MAX_COMBINE_CASE_COUNT)
@@ -149,7 +149,7 @@ public static class AppDataProviderExtension
         if (schema.Single)
             return await dataProvider.ClearDynamicTableDataAsync(schema);
 
-        var arrayType = schema.AppFieldType.SchemaType as ArrayType ?? throw new InvalidOperationException("Invalid array schema");
+        var arrayType = schema.AppFieldType.ValueType as ArrayType ?? throw new InvalidOperationException("Invalid array schema");
         
         if (node is StructTypeNode structNode)
         {

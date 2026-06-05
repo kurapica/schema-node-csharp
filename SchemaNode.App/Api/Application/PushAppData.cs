@@ -82,7 +82,7 @@ public static class PushDataExtenstion
 
                 // row access check
                 FunctionType? rowChecker = null;
-                if (appField is {  SchemaType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
+                if (appField is {  ValueType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                 {
                     bool authorized = true;
                     foreach (RowPolicy policy in appField.RowAuths)

@@ -1,9 +1,11 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Context;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
@@ -17,7 +19,21 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(Auths)}")]
-public class Auths : Property<PolicyItem[]>;
+public class Auths : Property<PolicyItem[]>, ILoadableProperty, INodeError
+{
+    public string? Error { get; set; }
+    
+    public async Task LoadAsync(SchemaContext context, Runtime.ValueType? ownerType = null)
+    {
+        if (Value == null) return;
+        foreach (PolicyItem item in Value)
+        {
+            item.Function = await context.GetNodeTypeAsync<FunctionType>(item.Evaluator);
+            if (item.Function is { Args.Length: 0 } && item.Function.Return.IsAssignableTo(context.System.Bool)) continue;
+            Error ??= AppErrorCodes.APP_POLICY_EVALUATOR_NOT_VALID;
+        }
+    }
+}
 
 /// <summary>
 /// Represents the policy validation function type
@@ -123,10 +139,4 @@ public sealed class PolicyItem
     [SchemaIgnore]
     [JsonIgnore]
     public FunctionType? Function { get; set; }
-    
-    /// <summary>
-    /// The status
-    /// </summary>
-    [SchemaIgnore]
-    public string? Error { get; set; }
 }

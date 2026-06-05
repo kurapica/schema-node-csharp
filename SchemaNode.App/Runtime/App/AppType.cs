@@ -6,6 +6,7 @@ using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -24,12 +25,15 @@ public sealed class AppType
     
     // The sub application node
     private ConcurrentDictionary<string, AppType>? _subApps;
+    private ConcurrentDictionary<string, AppType>.AlternateLookup<ReadOnlySpan<char>>? _appLookup;
+    private ConcurrentDictionary<string, AppSchema>? _schemas;
+    private ConcurrentDictionary<string, AppSchema>.AlternateLookup<ReadOnlySpan<char>>? _schemaLookup;
 
     // The application field nodes
-    private ConcurrentDictionary<string, AppFieldType>? _fields;
+    private List<AppFieldType>? _fields;
     
     // The application workflows
-    private ConcurrentDictionary<string, AppWorkflowType>? _workflows;
+    private List<AppWorkflowType>? _workflows;
 
     //  The relations
     private List<RelationType>? _relations;
@@ -88,6 +92,49 @@ public sealed class AppType
 
     #endregion
 
+    #region Container Methods
+
+    /// <summary>
+    /// Gets the sub application type
+    /// </summary>
+    public AppType? GetAppType(ReadOnlySpan<char> name)
+    {
+        if (_subApps == null) return null;
+        _appLookup ??= _subApps.GetAlternateLookup<ReadOnlySpan<char>>();
+        return _appLookup.Value.TryGetValue(name, out AppType? app) ? app : null;
+    }
+
+    /// <summary>
+    /// Saves the app type by segment name
+    /// </summary>
+    internal void SaveAppType(ReadOnlySpan<char> name, AppType app)
+    {
+        _subApps ??= [];
+        _subApps[name.ToString()] = app;
+    }
+
+    /// <summary>
+    /// Gets the app schema
+    /// </summary>
+    internal AppSchema? GetAppSchema(ReadOnlySpan<char> name)
+    {
+        if (_schemas == null) return null;
+        _schemaLookup ??= _schemas.GetAlternateLookup<ReadOnlySpan<char>>();
+        return _schemaLookup.Value.TryGetValue(name, out AppSchema? schema) ? schema : null;
+    }
+
+    /// <summary>
+    /// Saves the app schema
+    /// </summary>
+    internal void SaveAppSchema(AppSchema schema)
+    {
+        _schemas ??= [];
+        _schemas[schema.Name] = schema;
+    }
+    
+    
+    #endregion
+    
     #region Methods
 
     /// <summary>
@@ -102,39 +149,17 @@ public sealed class AppType
         _schema  = schema;
         _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
 
-        // Loading schema properties after loading, to avoid cycle ref
-        List<NodeType> refTypes = [];
-        foreach (ITypeRefProperty prop in _props.Cast<ITypeRefProperty>())
-        {
-            foreach (string name in prop.GetRefTypes())
-            {
-                NodeType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync(name) : null;
-                if (node != null)
-                {
-                    refTypes.Add(node);
-                }
-                else
-                {
-                    Error = ErrorCodes.WRONG_REF_TYPE;
-                    context.LogWarning($"Failed to load ref type '{name}' for property '{prop.Name}' in app schema '{Name}'");
-                }
-            }
-        }
-
-        // Update the properties
-        _refTypes = refTypes.Count > 0 ? refTypes.ToArray() : null;
+        (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props);
 
         // Load the application fields
-        _fields = new ConcurrentDictionary<string, AppFieldType>(StringComparer.OrdinalIgnoreCase);
-        foreach(var field in schema.Fields ?? [])
+        _fields = schema.Fields?.Select(f => new AppFieldType(this, f)).ToList() ?? [];
+
+        foreach (AppFieldType appFieldType in _fields)
         {
-            var fieldType = new AppFieldType(this, field);
-            await fieldType.LoadAsync(context);
-            if (!_fields.TryAdd(fieldType.Name, fieldType))
-                Error ??= AppErrorCodes.APP_DUMPLICATE_FIELD;
-            else
-                Error ??= fieldType.Error;
+            await appFieldType.LoadAsync(context);
+            Error ??= appFieldType.Error;
         }
+        
 
         Relations = null;
         
@@ -158,184 +183,13 @@ public sealed class AppType
                 else
                 {
                     node.AddRef(field);
-                    field.SchemaType = node;
+                    field.ValueType = node;
                 }
             }
 
             // load field details
             foreach (AppFieldType field in _fields)
             {
-                // valid the push function
-                if (!string.IsNullOrWhiteSpace(field.Push))
-                {
-                    AnySchemaType? node = await context.GetSchemaTypeAsync(field.Push);
-                    if (node is FunctionType { Args.Length: 1 } funcNode)
-                    {
-                        field.FuncNode = funcNode;
-                        funcNode.AddRef(field);
-                    }
-                    else
-                    {
-                        field.Error = SchemaNodeStatus.ApplicationFieldWrongFunc;
-                        break;
-                    }
-
-                    // Checks the call Arguments
-                    if (!string.IsNullOrWhiteSpace(field.Source))
-                    {
-                        AppFieldType? pushSource = GetField(field.Source);
-                        if (pushSource is not { SchemaType: ArrayType { ElementSchemaType: not null, Primary: { Length: > 0}} array } ||
-                            funcNode.Args[0].SchemaType != null && funcNode.Args[0].SchemaType is not GenericType && 
-                            !array.ElementSchemaType.CanBeUseAs(funcNode.Args[0].SchemaType!))
-                        {
-                            field.Error = SchemaNodeStatus.ApplicationFieldWrongFuncField;
-                        }
-                        else
-                        {
-                            // Register to observers
-                            pushSource.AddObserver(field);
-                            field.PushSource = pushSource;
-                    
-                            // Compile with data push compile context
-                            funcNode.ClearRuntimeFuncCache<DataPushCompileContext>(); // must reset the field reference
-                            DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
-                            try
-                            {
-                                FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
-                                DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
-                                if (pushField.Length > 0)
-                                {
-                                    field.ThirdPushFields = compileContext.ThirdFields;
-                                    foreach (DataPushThirdFieldInfo push in pushField)
-                                        GetField(push.Field)?.AddObserver(field);
-                                }
-                                field.PushFuncSchema = pushSchema;
-                            }
-                            catch(FunctionVisitException fv)
-                            {
-                                field.Error = fv.Status;
-                            }
-                            catch(Exception ex)
-                            {
-                                context.LogError(ex,$"AppType.LoadAsync: push function compile error for app {Name} field {field.Name}");
-                                field.Error = SchemaNodeStatus.ApplicationPushDataWrongFunc;
-                            }
-                        }
-                    }
-                }
-                                
-                // valid the auths
-                if (field.Auths != null)
-                {
-                    foreach (PolicyItem item in field.Auths)
-                    {
-                        FunctionType? funcType = !string.IsNullOrEmpty(item.Evaluator)
-                            ? await context.GetSchemaTypeAsync(item.Evaluator) as FunctionType
-                            : null;
-                        if (funcType != null)
-                        {
-                            item.Function = funcType;
-                        }
-                        else
-                        {
-                            field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
-                        }
-                    }
-                }
-
-                // valid the row policy
-                if (field.RowAuths != null)
-                {
-                    foreach(RowPolicy row in field.RowAuths)
-                    {
-                        // valid evaluator
-                        if (!string.IsNullOrEmpty(row.Evaluator))
-                        {
-                            if (await context.GetSchemaTypeAsync(row.Evaluator) is FunctionType funcType)
-                            {
-                                row.EvaluatorFunc = funcType;
-                            }
-                            else
-                            {
-                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
-                            }
-                        }
-                        // valid filter
-                        if (!string.IsNullOrEmpty(row.Filter))
-                        {
-                            if (await context.GetSchemaTypeAsync(row.Filter) is FunctionType funcType)
-                            {
-                                row.FilterFunc = funcType;
-                            }
-                            else
-                            {
-                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
-                            }
-                        }
-                    }
-                }
-
-                // valid the column policy | filter
-                StructType? structType = field.SchemaType as StructType
-                    ?? (field.SchemaType is ArrayType { ElementSchemaType: StructType st } ? st : null);
-                if (structType != null)
-                {
-                    if (field.ColAuths != null)
-                    {
-                        foreach(ColPolicy colPolicy in field.ColAuths)
-                        {
-                            StructFieldSchema? structField = structType.GetField(colPolicy.Name);
-                            if (structField == null)
-                            {
-                                field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
-                                continue;
-                            }
-                            List<FunctionType> funcs = [];
-                            foreach (string item in colPolicy.Evaluators)
-                            {
-                                FunctionType? funcType = !string.IsNullOrEmpty(item)
-                                    ? await context.GetSchemaTypeAsync(item) as FunctionType
-                                    : null;
-                                if (funcType != null)
-                                {
-                                    funcs.Add(funcType);
-                                }
-                                else
-                                {
-                                    field.Error = SchemaNodeStatus.ApplicationFieldDataAuthWrongFunc;
-                                }
-                            }
-                            colPolicy.Functions = funcs.ToArray();
-                        }
-                    }
-
-                    if (field.Filters is { Length: > 0 })
-                    {
-                        foreach (FieldFilter filter in field.Filters)
-                        {
-                            if (filter.Mode == FieldFilterMode.Filter)
-                            {
-                                if (await context.GetSchemaTypeAsync(filter.Filter) is not FunctionType funcType ||
-                                    funcType.Args.Length < 2 ||
-                                    funcType.Args[0].SchemaType == null ||
-                                    !funcType.Args[0].SchemaType!.CanBeUseAs(structType))
-                                {
-                                    field.Error = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                if (structType.GetField(filter.Filter) == null)
-                                {
-                                    field.Error = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-
                 // valid the foreign key reference
                 if (field.Foreigns is { Length: > 0})
                 {
@@ -372,7 +226,7 @@ public sealed class AppType
                     else
                     {
                         field.View.AppType = sourceApp;
-                        AnySchemaType? sourceFieldType = sourceField.SchemaType;
+                        AnySchemaType? sourceFieldType = sourceField.ValueType;
                         if (sourceFieldType is ArrayType arrType)
                             sourceFieldType = arrType.ElementSchemaType;
 
@@ -629,11 +483,11 @@ public sealed class AppType
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 
-                if (fieldNode.SchemaType != null)
-                    await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                if (fieldNode.ValueType != null)
+                    await fieldNode.ValueType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
 
-                if (fieldNode.FuncNode != null)
-                    await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                if (fieldNode.PushFunc != null)
+                    await fieldNode.PushFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
 
                 if (fieldNode.Filters is { Length: > 0 })
                 {
@@ -749,7 +603,7 @@ public sealed class AppType
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    public IEnumerable<(string item, AnySchemaType type, bool isTarget)> GetScopeContextItems()
+    public IEnumerable<(string item, ValueType type, bool isTarget)> GetScopeContextItems()
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;
@@ -785,7 +639,7 @@ public sealed class AppType
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    public IEnumerable<(string item, AnySchemaNode? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
+    public IEnumerable<(string item, DataNode? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;

@@ -9,6 +9,8 @@ using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
 using SchemaNode.Function;
+using SchemaNode.Runtime;
+using SchemaNode.Service;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -66,7 +68,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// The sub applications
     /// </summary>
     [SchemaIgnore]
-    public AppSchema[]? Apps { get; set; }
+    public AppSchema[]? Apps { get; internal set; }
     
     /// <summary>
     /// The application fields
@@ -95,6 +97,11 @@ public sealed class AppSchema: ExtensibleSchema
     #endregion
 
     #region Status
+    
+    /// <summary>
+    /// The app schema provider
+    /// </summary>
+    public Type? Provider { get; internal set; }
 
     /// <summary>
     /// The load state
