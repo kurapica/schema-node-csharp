@@ -78,3 +78,18 @@ public sealed class ColPolicy
     [JsonIgnore]
     public FunctionType[] Functions { get; set; } = [];
 }
+
+public static class ColAuthsExtensions
+{
+    /// <summary>
+    /// Gets the field authentication policies with the scope
+    /// </summary>
+    public static IEnumerable<string> GetColPolicies(this AppFieldType appFieldType, string fieldName)
+    {
+        ColPolicy[]? colPolicies = appFieldType.GetProperty<ColAuths>()?.Value;
+        ColPolicy? item = colPolicies?.FirstOrDefault(i => i.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase));
+        if (item == null || item.Evaluators.Length == 0) yield break;
+        foreach (var evaluator in item.Evaluators)
+            yield return evaluator;
+    }
+}

@@ -380,6 +380,17 @@ public sealed class StructType: ValueType
         return -1;
     }
     
+    /// <summary>
+    /// Gets relations
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+    
+    /// <summary>
+    /// Gets relations for the given field name
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations(string fieldName)
+        => _relations?.Where(r => fieldName.Equals(r.Target, StringComparison.OrdinalIgnoreCase)) ?? [];
+    
     #endregion
 }
 

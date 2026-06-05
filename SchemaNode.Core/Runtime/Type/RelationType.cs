@@ -43,6 +43,11 @@ public class RelationType(RelationSchema relation, ValueType owner) : INodeRefer
     public string? Error { get; private set; }
     
     /// <summary>
+    /// The process
+    /// </summary>
+    public IRelationProcess? Process => _process;
+    
+    /// <summary>
     /// The relation process
     /// </summary>
     private IRelationProcess? _process;

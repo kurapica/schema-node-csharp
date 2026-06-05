@@ -8,6 +8,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using AppType = SchemaNode.Runtime.AppType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -139,4 +140,50 @@ public sealed class PolicyItem
     [SchemaIgnore]
     [JsonIgnore]
     public FunctionType? Function { get; set; }
+}
+
+public static class PolicyExtensions
+{
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public static IEnumerable<PolicyItem> GetAuthPolicies(this AppType appType, PolicyScope scope)
+    {
+        // use system for root
+        if (appType.Container == null)
+        {
+            if (appType.GetAppType(NS_SYSTEM) is {} system)
+            {
+                foreach (var item in system.GetAuthPolicies(scope))
+                    yield return item;
+            }
+        }
+        // system won't inherit auth from root app
+        else if (!appType.Name.Equals(NS_SYSTEM))
+        {
+            foreach (var item in appType.Container.GetAuthPolicies(scope))
+                yield return item;
+        }
+
+        PolicyItem[]? auths = appType.GetProperty<Auths>()?.Value;
+        if (auths == null) yield break;
+        foreach (var item in auths.Where(p => p.Scope == scope))
+            yield return item;
+    }
+
+    /// <summary>
+    /// Gets the authentication policies with the scope
+    /// </summary>
+    public static IEnumerable<PolicyItem> GetAuthPolicies(this AppFieldType appFieldType, PolicyScope scope)
+    {
+        // Application policy first
+        foreach (var i in appFieldType.Application.GetAuthPolicies(scope)) yield return i;
+
+        // self policies
+        PolicyItem[]? auths = appFieldType.GetProperty<Auths>()?.Value;
+        if (auths == null) yield break;
+        foreach (var i in auths.Where(p => p.Scope == scope))
+            yield return i;
+    }
+
 }

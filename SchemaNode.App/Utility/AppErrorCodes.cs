@@ -31,4 +31,10 @@ internal static class AppErrorCodes
     
     [Meta<ErrorCode>(APP_FIELD_FILTER_NOT_VALID)]
     public const string APP_FIELD_FILTER_NOT_VALID = "app_field_filter_not_valid";
+    
+    [Meta<ErrorCode>(APP_FIELD_FOREIGN_NOT_VALID)]
+    public const string APP_FIELD_FOREIGN_NOT_VALID = "app_field_foreign_not_valid";
+    
+    [Meta<ErrorCode>(APP_FIELD_VIEW_NOT_VALID)]
+    public const string APP_FIELD_VIEW_NOT_VALID = "app_field_view_not_valid";
 }

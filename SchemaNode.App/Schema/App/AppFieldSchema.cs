@@ -8,6 +8,7 @@ using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
 using SchemaNode.Function;
 using SchemaNode.Property.Constraint;
+using SchemaNode.Runtime;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -110,6 +111,10 @@ public sealed class Foreign
     /// </summary>
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
     public string Field { get; set; } = string.Empty;
+    
+    [JsonIgnore]
+    [SchemaIgnore]
+    public Runtime.AppType? AppType { get; set; }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.view")]
@@ -134,7 +139,7 @@ public sealed class FieldView
 
     [SchemaIgnore]
     [JsonIgnore]
-    public AppType? AppType { get; set; }
+    public Runtime.AppType? AppType { get; set; }
 }
 
 #endregion
