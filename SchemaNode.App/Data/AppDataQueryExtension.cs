@@ -9,7 +9,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 public static class AppDataQueryExtension
 {

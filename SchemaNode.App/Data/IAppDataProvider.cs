@@ -3,7 +3,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 /// <summary>
 /// The application data storage provider

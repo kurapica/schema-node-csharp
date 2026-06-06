@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ExpressionType = SchemaNode.Enum.ExpType;
@@ -9,38 +10,6 @@ using ExpressionType = SchemaNode.Enum.ExpType;
 namespace SchemaNode.Runtime;
 
 #region Arithmetic Exp Types
-
-/// <summary>
-/// The Arithmetic exp type
-/// </summary>
-public enum ArithmeticType
-{
-    // Math
-    Add,
-    Subtract,
-    Divide,
-    Modulo,
-    Multiply,
-    Min,
-    Max,
-
-    // Bit
-    BitUnary,
-    BitAnd,
-    BitLeftShift,
-    BitOr,
-    BitRightShift,
-    BitXor,
-
-    // Conv
-    ToDecimal,
-    ToDouble,
-    ToSingle,
-    ToInt,
-    
-    // Others
-    Transform
-}
 
 /// <summary>
 /// The Arithmetic exp type

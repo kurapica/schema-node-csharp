@@ -10,7 +10,7 @@ using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
 // ReSharper disable InconsistentNaming
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 public static class AppDataTransactionExtension
 {

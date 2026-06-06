@@ -7,7 +7,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 /// <summary>
 /// The entity data operations

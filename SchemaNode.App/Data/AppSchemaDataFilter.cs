@@ -9,7 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 public abstract record AppSchemaDataFilter;
 
@@ -353,7 +353,7 @@ public static class AppSchemaDataFilterExtensions
                 foreach (DynamicTableField field in  tableSchema.GetDynamicTableFields(access.Field))
                 {
                     // Works for locale string key
-                    if (field is { Complex: not null, SchemaType: not ScalarType }) continue;
+                    if (field is { Complex: not null, ValueType: not ScalarType }) continue;
                     fieldName = field.Name;
                     break;
                 }

@@ -6,7 +6,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using ExpressionType = System.Linq.Expressions.ExpressionType;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 /// <summary>
 /// The visitor that converts expression trees into AppSchemaDataFilter objects.

@@ -3,7 +3,7 @@ using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 /// <summary>
 /// The in memory app schema data provider, for unit test only
@@ -69,9 +69,9 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                 AppSchemaDataResult.Exist => (SchemaContext.SystemBool.CreateNode(total > 0), total),
                 AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
                 AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
-                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!, 
+                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.ValueType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!, 
                     origins.Select(o => o is StructTypeNode sn ? sn.GetField(dataField!) : null).Where(x => x != null && !x.IsEmpty).Select(x => x!).ToArray()), total),
-                _ => (new ArrayTypeNode(schema.SchemaType, origins), total)
+                _ => (new ArrayTypeNode(schema.ValueType, origins), total)
             };
         }
         else
@@ -122,7 +122,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                             throw new UnauthorizedAccessException();
                         }
                     }
-                    return (true, new ArrayTypeNode(schema.SchemaType, updates), new ArrayTypeNode(schema.SchemaType, origins));
+                    return (true, new ArrayTypeNode(schema.ValueType, updates), new ArrayTypeNode(schema.ValueType, origins));
                 }
                 case StructTypeNode structTypeNode:
                 {
@@ -133,12 +133,12 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                         if (onlyAdd) return (false, null, null); // no update
                         AnySchemaNode origin = list[index];
                         list[index] = structTypeNode;
-                        return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), new ArrayTypeNode(schema.SchemaType, origin));
+                        return (true, new ArrayTypeNode(schema.ValueType, structTypeNode), new ArrayTypeNode(schema.ValueType, origin));
                     }
                     else if (canAdd)
                     {
                         list.Add(structTypeNode);
-                        return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), null);
+                        return (true, new ArrayTypeNode(schema.ValueType, structTypeNode), null);
                     }
                     else
                     {
@@ -168,7 +168,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
         if (table.TryRemove(compositeKey, out List<AnySchemaNode>? list))
         {
-            return (true, new ArrayTypeNode(schema.SchemaType, list));
+            return (true, new ArrayTypeNode(schema.ValueType, list));
         }
 
         return (false, null);
@@ -195,7 +195,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
             }
 
             table[compositeKey] = remains;
-            return (true, new ArrayTypeNode(schema.SchemaType, origins));
+            return (true, new ArrayTypeNode(schema.ValueType, origins));
         }
         else
         {

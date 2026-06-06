@@ -1,4 +1,4 @@
-﻿namespace SchemaNode.Components;
+﻿namespace SchemaNode.Data;
 
 /// <summary>
 /// The dynamic table field type

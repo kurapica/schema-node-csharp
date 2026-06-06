@@ -5,7 +5,7 @@ using SchemaNode.Utility;
 using System.Reflection;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 public static class AppDataTableExtension
 {

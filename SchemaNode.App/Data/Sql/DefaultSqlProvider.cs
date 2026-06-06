@@ -1,6 +1,6 @@
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data.Sql;
 
 /// <summary>
 /// The default implementation of ISqlProvider, which uses minimal SQL syntax.

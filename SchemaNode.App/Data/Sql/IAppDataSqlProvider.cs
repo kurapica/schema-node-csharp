@@ -1,4 +1,4 @@
-namespace SchemaNode.Components;
+namespace SchemaNode.Data.Sql;
 
 /// <summary>
 /// The application data provider for SQL-based databases.

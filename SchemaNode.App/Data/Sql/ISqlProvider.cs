@@ -1,6 +1,6 @@
-using SchemaNode.Runtime;
+using SchemaNode.Enum;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data.Sql;
 
 /// <summary>
 /// SQL provider abstraction. Each database (MySQL, SQLServer, PostgreSQL, Oracle, SQLite)

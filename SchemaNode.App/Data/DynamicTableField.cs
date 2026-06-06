@@ -3,9 +3,11 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Data.Common;
 using System.Text.Json.Nodes;
+using ValueType = SchemaNode.Runtime.ValueType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Data;
 
 /// <summary>
 /// The dynamic table field info
@@ -60,17 +62,17 @@ public class DynamicTableField
     /// <summary>
     /// The data dict type
     /// </summary>
-    public required AnySchemaType SchemaType { get; init; }
+    public required ValueType ValueType { get; init; }
     
     /// <summary>
     /// Whether the field is used as attribute table for dynamic type
     /// </summary>
-    public AppRelationSchema? RelationType { get; init; }
+    public RelationType? RelationType { get; init; }
     
     /// <summary>
     /// The struct field relation for struct type
     /// </summary>
-    public StructRelationSchema? StructRelation { get; init; }
+    public RelationType? StructRelation { get; init; }
     
     /// <summary>
     /// The relation type, either RelationType or StructRelation
@@ -95,7 +97,7 @@ public class DynamicTableField
     /// <summary>
     /// Get JToken from reader
     /// </summary>
-    public AnySchemaNode? FromReader(DbDataReader reader, int col = 0)
+    public DataNode? FromReader(DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
         object? data;
@@ -132,21 +134,21 @@ public class DynamicTableField
             });
         }
 
-        return SchemaType.CreateNode(data);
+        return ValueType.From(data);
     }
 
     /// <summary>
     /// Gets the string of the JToken value
     /// </summary>
-    public string? ToString(AnySchemaNode? value)
+    public string? ToString(DataNode? value)
     {
         if (value == null || value.IsEmpty) return null;
 
         return Type switch
         {
-            DynamicTableFieldType.Bool => value.ToValue<bool>() ? "1" : "0",
-            DynamicTableFieldType.DateTime => value.ToValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => value.ToString()
+            DynamicTableFieldType.Bool => value.GetValue<bool>() ? "1" : "0",
+            DynamicTableFieldType.DateTime => value.GetValue<DateTimeOffset>().ToString("yyyy-MM-dd HH:mm:ss"),
+            _ => value.GetValue<object>()?.ToString()
         };
     }
 }

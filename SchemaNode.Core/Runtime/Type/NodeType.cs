@@ -503,7 +503,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    public DataNode From(object value)
+    public DataNode From(object? value)
     {
         var node = Create();
         node.TrySetValue(value);
