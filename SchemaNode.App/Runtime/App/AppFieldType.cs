@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
@@ -7,11 +6,8 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using SchemaNode.Function;
-using SchemaNode.Property.App;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -72,24 +68,18 @@ public sealed class AppFieldType
     public string Type => _appFieldSchema.Type;
 
     /// <summary>
-    /// The field is using increase update, no full data push allowed
-    /// </summary>
-    public bool? IncrUpdate { get; private set; }
-
-    /// <summary>
     /// The field is disabled
     /// </summary>
     public bool? Disable { get; private set; }
     
     /// <summary>
-    /// The field is readonly
-    /// </summary>
-    public bool? Readonly { get; private set; }
-    
-    /// <summary>
     /// The field type node
     /// </summary>
     public ValueType? ValueType { get; private set; }
+    
+    #endregion
+    
+    #region Foreign & View
     
     /// <summary>
     /// The foreign key settings
@@ -132,6 +122,53 @@ public sealed class AppFieldType
 
     #endregion
     
+    #region Storage
+
+    /// <summary>
+    /// Enable the backend storage
+    /// </summary>
+    public bool EnableStorage => _appFieldSchema.EnableStorage;
+    
+    /// <summary>
+    /// The app field storage topology
+    /// </summary>
+    public FieldStorageTopology? Topology => _appFieldSchema.Topology;
+    /// <summary>
+    /// The storage table name
+    /// </summary>
+    public string? TableName => _appFieldSchema.TableName;
+    
+    /// <summary>
+    /// The entity attribute value table name
+    /// </summary>
+    public string? AttrTableName => _appFieldSchema.AttrTableName;
+    
+    /// <summary>
+    /// The app field is using increase update mode, no full data push allowed, always using page query
+    /// </summary>
+    public bool? IncrUpdate =>  _appFieldSchema.IncrUpdate;
+    
+    /// <summary>
+    /// Enable the all clear option for the field
+    /// </summary>
+    public bool? AllowClear =>  _appFieldSchema.AllowClear;
+    
+    #endregion
+    
+    #region The data combine rules
+
+    /// <summary>
+    /// The combine rule for scalar/enum type
+    /// </summary>
+    public DataCombineType? Combine => _appFieldSchema.Combine;
+    
+    /// <summary>
+    /// The combine rule for struct or struct-array type
+    /// </summary>
+    public DataCombine[]? Combines => _appFieldSchema.Combines;
+
+    #endregion
+    
     #region States
 
     /// <summary>
@@ -142,7 +179,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Enable dynamic table
     /// </summary>
-    public bool EnableDynamicTable => Readonly != true && Disable != true;
+    public bool EnableDynamicTable => Disable != true && EnableStorage;
 
     /// <summary>
     /// Has observers
@@ -181,13 +218,9 @@ public sealed class AppFieldType
         (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType);
 
         _appFieldSchema.Error = Error;
-
-        IncrUpdate = GetProperty<IncrUpdate>()?.Value;
-        Readonly = GetProperty<ReadOnly>()?.Value;
-        Disable = GetProperty<Disable>()?.Value;
-
         Foreigns = _appFieldSchema.Foreigns;
         View = _appFieldSchema.View;
+        Disable = GetProperty<Disable>()?.Value;
         
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
 
@@ -392,8 +425,8 @@ public sealed class AppFieldType
     public string DynamicTableName => 
         IsForeignView 
         ? View!.AppType?.GetField(View.Field)?.DynamicTableName ?? throw new Exception($"Foreign view app {View.App} or field {View.Field} not exist")
-        : GetProperty<TableName>()?.Value is { } tableName && !string.IsNullOrWhiteSpace(tableName)
-            ? tableName 
+        : !string.IsNullOrWhiteSpace(TableName)
+            ? TableName 
             : $"{DYNAMIC_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}";
     
     /// <summary>
@@ -402,11 +435,11 @@ public sealed class AppFieldType
     public string AttributeTableName => 
         IsForeignView
         ? View!.AppType?.GetField(View.Field)?.AttributeTableName ?? throw new Exception($"Foreign view app {View.App} or field {View.Field} not exist")
-        : GetProperty<Topology>()?.Value == FieldStorageTopology.AttributeBased
-            ? (GetProperty<AttrTableName>()?.Value is { } attrName && !string.IsNullOrWhiteSpace(attrName) 
-                ? attrName 
-                : GetProperty<TableName>()?.Value is { } tableName && !string.IsNullOrWhiteSpace(tableName) 
-                    ? $"{EAV_TABLE_PREFIX}_{tableName}" 
+        : Topology== FieldStorageTopology.AttributeBased
+            ? (!string.IsNullOrWhiteSpace(AttrTableName) 
+                ? AttrTableName 
+                : !string.IsNullOrWhiteSpace(TableName) 
+                    ? $"{EAV_TABLE_PREFIX}_{TableName}" 
                     : $"{EAV_TABLE_PREFIX}_{Regex.Replace(App, @"\W+", "_")}_{Name}")
             : string.Empty;
 

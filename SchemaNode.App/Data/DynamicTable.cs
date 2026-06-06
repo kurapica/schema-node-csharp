@@ -14,6 +14,8 @@ using SchemaNode.Property.App;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Constraints;
 using static SchemaNode.Utility.Constant;
+using AppType = SchemaNode.Runtime.AppType;
+using StringType = SchemaNode.Runtime.StringType;
 using ValueType = SchemaNode.Runtime.ValueType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -30,31 +32,32 @@ public class DynamicTableSchema
     
     internal DynamicTableSchema(AppFieldType  appFieldType)
     {
+        AppField  = appFieldType;
+        ValueType = appFieldType.ValueType ?? throw new Exception($"The App {appFieldType.App}'s field {appFieldType.Name} has no value type");
+
+        // no storage
+        if (!appFieldType.EnableStorage)
+        {
+            Single = true;
+            Fields = [];
+            return;
+        }
+        
         // Generate the fields
-        AnySchemaType node = ValueType!;
+        ValueType node = ValueType;
         List<DynamicTableField> fields = [];
         List<DynamicTableJoin>? joins = null;
         DataIndex[]? indexes = null;
         bool single = true;
 
-        if (Frontend ?? false)
-        {
-            return new DynamicTableSchema
-            {
-                ValueType = node,
-                Single = true,
-                Fields = fields,
-            };
-        }
-
         // The target app type, cover the field view
-        bool isView = IsForeignView;
-        AppType targetApp = !isView ? MediaTypeNames.Application: (View?.AppType ?? throw new Exception($"Foreign view app {View?.App} not exist"));
+        bool isView = appFieldType.IsForeignView;
+        AppType targetApp = !isView ? appFieldType.Application: (appFieldType.View?.AppType ?? throw new Exception($"Foreign view app {appFieldType.View?.App} not exist"));
 
         // context item isolation scope
-        foreach ((string item, AnySchemaType type, bool isTarget) in targetApp.GetScopeContextItems())
+        foreach ((string item, ValueType type, bool isTarget) in targetApp.GetScopeContextItems())
         {
-            DataTypeInfo info = GetDataTypeInfo(type, null, type is ScalarType { IsString: true } ? ENTITY_PRIMARY_KEY_MAX_LEN : null);
+            DataTypeInfo info = GetDataTypeInfo(type, null, type is StringType ? ENTITY_PRIMARY_KEY_MAX_LEN : null);
 
             // Add scope-target field
             fields.Add(new DynamicTableField
@@ -71,9 +74,9 @@ public class DynamicTableSchema
         // value fields
         switch (node.Type)
         {
-            case SchemaNode.Enum.SchemaType.Scalar:
-            case SchemaNode.Enum.SchemaType.Enum:
-            case SchemaNode.Enum.SchemaType.Json:
+            case Enum.SchemaType.Scalar:
+            case Enum.SchemaType.Enum:
+            case Enum.SchemaType.Json:
             {
                 DataTypeInfo info = GetDataTypeInfo(node);
                 fields.Add(new DynamicTableField
@@ -419,7 +422,7 @@ public class DynamicTableSchema
 
         return new DynamicTableSchema
         {
-            AppFieldType = this,
+            AppField = this,
             ValueType = node,
             Single = single,
             Fields = fields,
@@ -436,7 +439,7 @@ public class DynamicTableSchema
     /// <summary>
     /// the app field type of the dynamic table
     /// </summary>
-    public AppFieldType AppFieldType { get; init; } = null!;
+    public AppFieldType AppField { get; init; } = null!;
     
     /// <summary>
     /// Whether the table is single row
@@ -567,7 +570,7 @@ public class DynamicTableSchema
     /// </summary>
     public IEnumerable<string> GetScopeItems()
     {
-        foreach (var (item, value, isTarget) in AppFieldType.Application.GetScopeContextItems())
+        foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems())
             yield return item;
     }
 
@@ -576,14 +579,14 @@ public class DynamicTableSchema
     /// </summary>
     public IEnumerable<(string item, AnySchemaNode? value)> GetScopeItems(IServiceProvider provider)
     {
-        bool isview = AppFieldType.IsForeignView;
-        foreach (var (item, value, isTarget) in AppFieldType.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>()))
+        bool isview = AppField.IsForeignView;
+        foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>()))
         {
             if (isview && isTarget)
             {
                 // change the view target to the foreign field
-                AppFieldType sourceField = AppFieldType.View?.AppType?.GetField(AppFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppFieldType.View?.App}.{AppFieldType.View?.Field}");
-                Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppFieldType.View?.App}.{AppFieldType.View?.Field}");
+                AppFieldType sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
+                Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
                 yield return (foreign.Field, value);
             }
             else
@@ -632,9 +635,9 @@ public class DynamicTableSchema
             if (field.Target)
             {
                 // set the map
-                if (AppFieldType.IsForeignView)
+                if (AppField.IsForeignView)
                 {
-                    string? map = AppFieldType.View?.Map;
+                    string? map = AppField.View?.Map;
                     if (!string.IsNullOrWhiteSpace(map))
                         result.SetField(map, val);
                 }
@@ -963,7 +966,7 @@ public class DynamicTableSchema
     }
 
     // Get scalar type mapping info
-    static DataTypeInfo GetDataTypeInfo(AnySchemaType node, StructFieldSchema? field = null, decimal? upLimit = null, decimal? lowLimit = null)
+    static DataTypeInfo GetDataTypeInfo(ValueType node, StructFieldSchema? field = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
         if (node is ScalarType scalar)
         {
@@ -1226,3 +1229,17 @@ public class DataFieldComplexInfo
 
 
 #endregion
+
+public static class DynamicTableExtnsion
+{
+    /// <summary>
+    /// Gets the dynamic table schema of the app field type
+    /// </summary>
+    public static DynamicTableSchema GetDynamicTableSchema(this AppFieldType appFieldType)
+    {
+        if (appFieldType.GetItem<DynamicTableSchema>() is { } schema) return schema;
+        schema = new DynamicTableSchema(appFieldType);
+        appFieldType.SetItem(schema);
+        return schema;
+    }
+}

@@ -22,7 +22,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
@@ -85,7 +85,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
@@ -165,7 +165,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         if (table.TryRemove(compositeKey, out List<AnySchemaNode>? list))
         {
             return (true, new ArrayTypeNode(schema.ValueType, list));
@@ -178,7 +178,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     {
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
-        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
@@ -208,7 +208,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     public async Task DropDynamicTableAsync(DynamicTableSchema schema)
     {
         await Task.Yield();
-        _dynamicTables.TryRemove(schema.AppFieldType.DynamicTableName, out _);
+        _dynamicTables.TryRemove(schema.AppField.DynamicTableName, out _);
     }
 
     public Task BeginTransactionAsync()

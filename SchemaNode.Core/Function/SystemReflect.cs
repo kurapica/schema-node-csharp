@@ -9,6 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
 using PropertyType = SchemaNode.Runtime.PropertyType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
@@ -69,10 +70,13 @@ public static class SystemReflect
     /// </summary>
     public static async Task<bool> isschemakind(SchemaContext context, 
         [Meta<SchemaType>(typeof(AnyType))] string name, 
-        [Meta<SchemaType>(typeof(SchemaKind))] string kind)
+        [Meta<SchemaType>(typeof(SchemaKind))] string kind,
+        bool matchArrayElement = false)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
-        return nodeType?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ?? false;
+        if (nodeType == null) return false;
+        if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)) return true;
+        return matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     /// <summary>

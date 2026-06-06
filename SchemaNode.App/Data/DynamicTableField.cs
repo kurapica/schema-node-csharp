@@ -1,6 +1,5 @@
 ﻿using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.Data.Common;
 using System.Text.Json.Nodes;
 using ValueType = SchemaNode.Runtime.ValueType;
