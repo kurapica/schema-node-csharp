@@ -26,5 +26,5 @@ public class FormInteractionPayload: InteractionPayload
     /// The event data
     /// </summary>
     [Schema(NS_GENERIC_TYPE)]
-    public AnySchemaNode? Data { get; set; }
+    public DataNode? Data { get; set; }
 }

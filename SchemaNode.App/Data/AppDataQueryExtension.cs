@@ -2,12 +2,7 @@
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Text.Json.Nodes;
 using SchemaNode.Enum;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Data;
 
@@ -16,7 +11,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<(AnySchemaNode? value, int total)> GetAppFieldDataAsync(this SchemaContext context,
+    public static async Task<(DataNode? value, int total)> GetAppFieldDataAsync(this SchemaContext context,
         AppFieldType field, AppSchemaDataResult type, AppSchemaDataFilter? filter = null,
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, 
         bool forUpdate = false, bool genDisplayOnly = false)
@@ -31,7 +26,7 @@ public static class AppDataQueryExtension
 
         try
         {
-            (AnySchemaNode? result, int total) = await dataProvider
+            (DataNode? result, int total) = await dataProvider
                 .QueryDynamicTableAsync(schema, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
 
             // Generate display only fields
@@ -50,8 +45,8 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<AnySchemaNode?> GetAppFieldDataAsync(this SchemaContext context,
-        AppFieldType field, AnySchemaNode nodes, bool forUpdate = false, bool genDisplayOnly = false)
+    public static async Task<DataNode?> GetAppFieldDataAsync(this SchemaContext context,
+        AppFieldType field, DataNode nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
         if (!field.EnableDynamicTable) return null;
@@ -63,11 +58,11 @@ public static class AppDataQueryExtension
 
         try
         {
-            AnySchemaNode? result = null;
+            DataNode? result = null;
 
             if (field.ValueType is ArrayType { Primary: { Length: > 0 } } arrType)
             {
-                if (nodes is StructTypeNode @struct)
+                if (nodes is StructNode @struct)
                 {
                     AppSchemaDataFilter? filter = null;
                     foreach (string s in arrType.Primary)
@@ -85,7 +80,7 @@ public static class AppDataQueryExtension
                 }
                 else if (nodes is ArrayTypeNode { Count: > 0 } arrNodes)
                 {
-                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.Cast<StructTypeNode>(),
+                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.Cast<StructNode>(),
                         forUpdate);
                 }
             }
@@ -111,8 +106,8 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<AnySchemaNode?> GetAppFieldDataAsync(this SchemaContext context,
-        AppFieldType field, IEnumerable<StructTypeNode> nodes, bool forUpdate = false, bool genDisplayOnly = false)
+    public static async Task<DataNode?> GetAppFieldDataAsync(this SchemaContext context,
+        AppFieldType field, IEnumerable<StructNode> nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
         if (!field.EnableDynamicTable) return null;
@@ -124,7 +119,7 @@ public static class AppDataQueryExtension
 
         try
         {
-            AnySchemaNode? result = null;
+            DataNode? result = null;
 
             if (field.ValueType is ArrayType { Primary: { Length: > 0 } })
                 result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
@@ -145,7 +140,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the filter field data for data source compile expression
     /// </summary>
-    public static async Task<AnySchemaNode?> GetSchemaDataAsync(
+    public static async Task<DataNode?> GetSchemaDataAsync(
         this SchemaContext context, string app, string field, string? target, AppSchemaDataResult type, AppSchemaDataFilter? filter = null, 
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
@@ -179,7 +174,7 @@ public static class AppDataQueryExtension
         };
         
         using var stack = context.StackAccess(app, target);
-        (AnySchemaNode? res, _) = await context.GetAppFieldDataAsync(appField, type, filter, skip, take, desc, orderBy, dataField);
+        (DataNode? res, _) = await context.GetAppFieldDataAsync(appField, type, filter, skip, take, desc, orderBy, dataField);
         return res;
     }
 }

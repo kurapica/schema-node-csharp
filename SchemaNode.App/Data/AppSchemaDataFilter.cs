@@ -1,13 +1,18 @@
 using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
+using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property.App;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using EnumType = SchemaNode.Runtime.EnumType;
+using StructType = SchemaNode.Runtime.StructType;
+using ValueType = SchemaNode.Runtime.ValueType;
+// ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
 
 namespace SchemaNode.Data;
 
@@ -77,11 +82,10 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.NotEmpty:
                         if (!unary.Operand.Transform(out AppSchemaDataFilter? transformedOperand) ||
                             transformedOperand is not AppSchemaDataFilterField) return false;
-                        result = new AppSchemaDataFilterUnary(unary.Type, transformedOperand!);
+                        result = new AppSchemaDataFilterUnary(unary.Type, transformedOperand);
                         return true;
-                    default:
-                        return false;
                 }
+                break;
             case AppSchemaDataFilterBinary binary:
                 if (!binary.Left.Transform(out AppSchemaDataFilter? leftTransformed)) return false;
                 if (!binary.Right.Transform(out AppSchemaDataFilter? rightTransformed)) return false;
@@ -95,8 +99,8 @@ public static class AppSchemaDataFilterExtensions
                         {
                             switch (leftVal.Value)
                             {
-                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
-                                    result = scalar.ToValue<bool>() ? rightTransformed : leftVal;
+                                case BoolNode scalar:
+                                    result = scalar.GetValue<bool>() ? rightTransformed : leftVal;
                                     return true; // Don't return false, maybe OrElse on the root
                                 case bool left:
                                     result = left ? rightTransformed : leftVal;
@@ -111,8 +115,8 @@ public static class AppSchemaDataFilterExtensions
                         {
                             switch (rightVal.Value)
                             {
-                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
-                                    result = scalar.ToValue<bool>() ? leftTransformed : rightVal;
+                                case BoolNode scalar:
+                                    result = scalar.GetValue<bool>() ? leftTransformed : rightVal;
                                     return true; // Don't return false, maybe OrElse on the root
                                 case bool right:
                                     result = right ? leftTransformed : rightVal;
@@ -132,8 +136,8 @@ public static class AppSchemaDataFilterExtensions
                         {
                             switch (leftVal.Value)
                             {
-                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
-                                    result = scalar.ToValue<bool>() ? leftVal : rightTransformed;
+                                case BoolNode scalar:
+                                    result = scalar.GetValue<bool>() ? leftVal : rightTransformed;
                                     return true;
                                 case bool left:
                                     result = left ? leftVal : rightTransformed;
@@ -148,8 +152,8 @@ public static class AppSchemaDataFilterExtensions
                         {
                             switch (rightVal.Value)
                             {
-                                case ScalarTypeNode { SchemaType: ScalarType { IsBool: true } } scalar:
-                                    result = scalar.ToValue<bool>() ? rightVal : leftTransformed;
+                                case BoolNode scalar:
+                                    result = scalar.GetValue<bool>() ? rightVal : leftTransformed;
                                     return true; // Don't return false, maybe OrElse on the root
                                 case bool right:
                                     result = right ? rightVal : leftTransformed;
@@ -168,7 +172,7 @@ public static class AppSchemaDataFilterExtensions
                 // if a OP null, should use isnull(a) instead, so return false here
                 if (leftTransformed is AppSchemaDataFilterValue leftOp)
                 {
-                    if (leftOp.Value is null || (leftOp.Value is AnySchemaNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
+                    if (leftOp.Value is null || (leftOp.Value is DataNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
                         ? SystemCollection.length(leftOp.Value) == 0
                         : string.IsNullOrWhiteSpace(leftOp.Value.ToString())))
                     {
@@ -179,7 +183,7 @@ public static class AppSchemaDataFilterExtensions
                 if (rightTransformed is AppSchemaDataFilterValue rightOp)
                 {
                     if (rightOp.Value is null || 
-                        (rightOp.Value is AnySchemaNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
+                        (rightOp.Value is DataNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
                             ? SystemCollection.length(rightOp.Value) == 0
                             : string.IsNullOrWhiteSpace(rightOp.Value.ToString())))
                     {
@@ -209,9 +213,8 @@ public static class AppSchemaDataFilterExtensions
                         result = new AppSchemaDataFilterBinary(binary.Type, leftTransformed!, rightTransformed!);
                         return true;
                     }
-                    default:
-                        return false;
                 }
+                break;
             case AppSchemaDataFilterArith arith:
                 if (!arith.Left.Transform(out AppSchemaDataFilter? leftArith)) return false;
                 if (!arith.Right.Transform(out AppSchemaDataFilter? rightArith)) return false;
@@ -238,7 +241,7 @@ public static class AppSchemaDataFilterExtensions
             if (filterMode == FieldFilterMode.Filter)
             {
                 // get the function
-                FunctionType? funcType = await context.GetSchemaTypeAsync<FunctionType>(key);
+                FunctionType? funcType = await context.GetNodeTypeAsync<FunctionType>(key);
                 if (funcType != null && value is JsonArray { Count: > 0 } arr)
                 {
                     // Call filter func with policy filter compile context
@@ -254,17 +257,17 @@ public static class AppSchemaDataFilterExtensions
             }
             
             // get the field
-            StructFieldSchema? field = structType.GetField(key);
+            var field = structType.GetField(key);
             
             // only support scalar or locale string type
-            if (field is not { SchemaType: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.SchemaType?.Name)) continue;
+            if (field is not { Type: ScalarType or EnumType } && !NS_SYSTEM_LOCALE_STRING.Equals(field?.Type?.Name)) continue;
 
-            AnySchemaType valueType = field.SchemaType is StructType ? SchemaContext.SystemString : field.SchemaType;
+            var valueType = field.Type is StructType ? context.System.String : field.Type;
             
             var filterExp = value switch
             {
                 JsonArray arr => new AppSchemaDataFilterBinary(LogicType.Contains,
-                        new AppSchemaDataFilterValue(new ArrayTypeNode(field.SchemaType, arr)),
+                        new AppSchemaDataFilterValue(new ArrayNode(field.Type, arr)),
                         new AppSchemaDataFilterField(key)),
                 JsonValue val => new AppSchemaDataFilterBinary(filterMode switch
                         {
@@ -275,7 +278,7 @@ public static class AppSchemaDataFilterExtensions
                             _ => LogicType.Equal
                         }, 
                         new AppSchemaDataFilterField(key),
-                        new AppSchemaDataFilterValue(valueType.CreateNode(val)!)),
+                        new AppSchemaDataFilterValue(valueType.From(val))),
                 _ => null
             };
             
@@ -322,7 +325,7 @@ public static class AppSchemaDataFilterExtensions
                     [accessNode.Field] = valueAccess.Value.ToString()
                 };
             case LogicType.Contains:
-                if (valueAccess.Value is ArrayTypeNode { Count: 1 } arrayNode)
+                if (valueAccess.Value is ArrayNode { Count: 1 } arrayNode)
                 {
                     return new JsonObject
                     {
@@ -398,33 +401,33 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.StartsWith:
                         return sqlProvider.LikeStartsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
                                 ?? throw new NotSupportedException("The startsWith right value must be string"))!);
                     case LogicType.NotStartsWith:
                         return sqlProvider.NotLikeStartsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The notStartsWith right value must be string"))!);
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
+                                                           ?? throw new NotSupportedException("The notStartsWith right value must be string"))!);
                     case LogicType.EndsWith:
                         return sqlProvider.LikeEndsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The endsWith right value must be string"))!);
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
+                                                           ?? throw new NotSupportedException("The endsWith right value must be string"))!);
                     case LogicType.NotEndsWith:
                         return sqlProvider.NotLikeEndsWith(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The notEndsWith right value must be string"))!);
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
+                                                           ?? throw new NotSupportedException("The notEndsWith right value must be string"))!);
                     case LogicType.Match:
                         return sqlProvider.LikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The contains right value must be string"))!);
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
+                                                           ?? throw new NotSupportedException("The contains right value must be string"))!);
                     case LogicType.NotMatch:
                         return sqlProvider.NotLikeContains(
                             ToSql(sqlProvider, binary.Left, tableSchema, prefix, fieldMaps),
-                            (string)typeof(string).TryConvert((binary.Right as AppSchemaDataFilterValue)?.Value
-                                ?? throw new NotSupportedException("The notMatch right value must be string"))!);
+                            (string)typeof(string).Convert((binary.Right as AppSchemaDataFilterValue)?.Value
+                                                           ?? throw new NotSupportedException("The notMatch right value must be string"))!);
                     default:
                         throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
                 }
@@ -442,26 +445,26 @@ public static class AppSchemaDataFilterExtensions
     /// <summary>
     /// Check if the struct node contains the filter
     /// </summary>
-    public static AnySchemaNode Test(this AppSchemaDataFilter filter, StructTypeNode structNode, AnySchemaType? expectType = null)
+    public static DataNode Test(this AppSchemaDataFilter filter, SchemaContext context, StructNode structNode, ValueType? expectType = null)
     {
         switch (filter)
         {
             case AppSchemaDataFilterField access:
             {
                 // Check if the field is complex field
-                return structNode.GetValueByPaths(access.Field) ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
+                return structNode.GetAccessValue(access.Field) ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
             }
             case AppSchemaDataFilterUnary unary:
             {
-                AnySchemaNode result = unary.Operand.Test(structNode);
+                DataNode result = unary.Operand.Test(context, structNode);
                 switch (unary.Type)
                 {
                     case LogicType.IsNull:
                     case LogicType.IsEmpty:
-                        return SchemaContext.SystemBool.CreateNode(result.IsEmpty)!;
+                        return context.System.Bool.From(result.IsEmpty);
                     case LogicType.NotNull:
                     case LogicType.NotEmpty:
-                        return SchemaContext.SystemBool.CreateNode(!result.IsEmpty)!;
+                        return context.System.Bool.From(!result.IsEmpty);
                     default:
                         throw new NotSupportedException($"The unary expression type not supported: {unary.Type}");
                 }
@@ -474,12 +477,12 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.AndAlso:
                     case LogicType.OrElse:
                     {
-                        AnySchemaNode left = binary.Left.Test(structNode, SchemaContext.SystemBool);
-                        AnySchemaNode right = binary.Right.Test(structNode, SchemaContext.SystemBool);
+                        DataNode left = binary.Left.Test(context, structNode, context.System.Bool);
+                        DataNode right = binary.Right.Test(context, structNode, context.System.Bool);
                         return binary.Type switch
                         {
-                            LogicType.AndAlso => SchemaContext.SystemBool.CreateNode(left.ToValue<bool>() && right.ToValue<bool>())!,
-                            _ => SchemaContext.SystemBool.CreateNode(left.ToValue<bool>() || right.ToValue<bool>())!
+                            LogicType.AndAlso => context.System.Bool.From(left.GetValue<bool>() && right.GetValue<bool>()),
+                            _ => context.System.Bool.From(left.GetValue<bool>() || right.GetValue<bool>())
                         };
                     }
 
@@ -491,50 +494,43 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.LessThan:
                     case LogicType.LessEqual:
                     {
-                        AnySchemaNode? left = null;
-                        AnySchemaNode? right = null;
+                        DataNode? left;
+                        DataNode? right;
 
                         if (binary.Right is not AppSchemaDataFilterValue)
                         {
-                            right = binary.Right.Test(structNode);
-                            left = binary.Left.Test(structNode, right.SchemaType);
+                            right = binary.Right.Test(context, structNode);
+                            left = binary.Left.Test(context, structNode, right.Type);
                         }
                         else
                         {
-                            left = binary.Left.Test(structNode, SchemaContext.SystemInt); // use int as default
-                            right = binary.Right.Test(structNode, left.SchemaType);
+                            left = binary.Left.Test(context, structNode, context.System.Int); // use int as default
+                            right = binary.Right.Test(context, structNode, left.Type);
                         }
-                        switch (left.SchemaType)
+
+                        return context.System.Bool.From(left.Type switch
                         {
-                            case ScalarType { IsInt: true }:
-                                return Compare<int>(binary.Type, left, right);
-                            case ScalarType { IsSingle: true }:
-                                return Compare<float>(binary.Type, left, right);
-                            case ScalarType { IsDouble: true }:
-                                return Compare<double>(binary.Type, left, right);
-                            case ScalarType { IsNumber: true }:
-                                return Compare<decimal>(binary.Type, left, right);
-                            case ScalarType { IsString: true } :
-                                return Compare<string>(binary.Type, left, right);
-                            case ScalarType { IsDate: true }:
-                                return Compare<DateTime>(binary.Type, left, right);
-                        }
-                        break;
+                            IntType => Compare<long>(binary.Type, left, right),
+                            DecimalType => Compare<decimal>(binary.Type, left, right),
+                            StringType => Compare<string>(binary.Type, left, right),
+                            DateType => Compare<DateTimeOffset>(binary.Type, left, right),
+                            _ => throw new NotSupportedException($"The binary expression type not supported: {binary.Type}")
+                        });
                     }
 
                     // collection
                     case LogicType.Contains:
                     case LogicType.NotContains:
                     {
-                        AnySchemaNode val = binary.Right.Test(structNode);
+                        DataNode val = binary.Right.Test(context, structNode);
                         AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
-                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || val is not ScalarTypeNode) return SchemaContext.SystemBool.CreateNode(false)!;
+                        if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsSubclassOfGenericType(typeof(ScalarNode<>))) return context.System.Bool.From(false);
                         
                         bool exist = enums.Any(e => e.ToString() == val.ToString());
                         return binary.Type switch
                         {
-                            LogicType.Contains => SchemaContext.SystemBool.CreateNode(exist)!,
-                            _ => SchemaContext.SystemBool.CreateNode(!exist)!,
+                            LogicType.Contains => context.System.Bool.From(exist),
+                            _ => context.System.Bool.From(!exist),
                         };
                     }
 
@@ -546,11 +542,11 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.Match:
                     case LogicType.NotMatch:
                     {
-                        string? left = binary.Left.Test(structNode, SchemaContext.SystemString).ToValue<string>();
-                        string? right = binary.Right.Test(structNode, SchemaContext.SystemString).ToValue<string>();
+                        string? left = binary.Left.Test(context, structNode, context.System.String).GetValue<string>();
+                        string? right = binary.Right.Test(context, structNode, context.System.String).GetValue<string>();
 
-                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return SchemaContext.SystemBool.CreateNode(false)!;
-                        return SchemaContext.SystemBool.CreateNode(binary.Type switch
+                        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return context.System.Bool.From(false);
+                        return context.System.Bool.From(binary.Type switch
                         {
                             LogicType.StartsWith => left.StartsWith(right),
                             LogicType.NotStartsWith => !left.StartsWith(right),
@@ -559,40 +555,34 @@ public static class AppSchemaDataFilterExtensions
                             LogicType.Match => left.Contains(right),
                             LogicType.NotMatch => !left.Contains(right),
                             _ => throw new NotSupportedException($"The logic type {binary.Type} can't be used as string compare")
-                        })!;
+                        });
                     }
 
                     default:
                         throw new NotSupportedException($"The binary expression type not supported: {binary.Type}");
                 }
-
-                break;
             }
             case AppSchemaDataFilterArith arith:
             {
-                AnySchemaNode? left = null;
-                AnySchemaNode? right = null;
+                DataNode? left;
+                DataNode? right;
                 
                 if(arith.Right is not AppSchemaDataFilterValue)
                 {
-                    right = arith.Right.Test(structNode);
-                    left = arith.Left.Test(structNode, right.SchemaType);
+                    right = arith.Right.Test(context, structNode);
+                    left = arith.Left.Test(context, structNode, right.Type);
                 }
                 else
                 {
-                    left = arith.Left.Test(structNode, SchemaContext.SystemInt); // use int as default
-                    right = arith.Right.Test(structNode, left.SchemaType);
+                    left = arith.Left.Test(context, structNode, context.System.Int); // use int as default
+                    right = arith.Right.Test(context, structNode, left.Type);
                 }
 
-                switch (left.SchemaType)
+                switch (left.Type)
                 {
-                    case ScalarType { IsInt: true }:
-                        return CalcArith<int>(arith.Type, left, right);
-                    case ScalarType { IsSingle: true }:
-                        return CalcArith<float>(arith.Type, left, right);
-                    case ScalarType { IsDouble: true }:
-                        return CalcArith<double>(arith.Type, left, right);
-                    case ScalarType { IsNumber: true }:
+                    case IntType:
+                        return CalcArith<long>(arith.Type, left, right);
+                    case DecimalType:
                         return CalcArith<decimal>(arith.Type, left, right);
                 }
                 break;
@@ -600,33 +590,33 @@ public static class AppSchemaDataFilterExtensions
 
             case AppSchemaDataFilterValue value:
             {
-                if (value.Value is AnySchemaNode n) return n;
-                if (expectType != null) return expectType.CreateNode(value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
-                return SchemaContext.SystemString.CreateNode(value.Value.ToString() ?? "")!;
+                if (value.Value is DataNode n) return n;
+                if (expectType != null) return expectType.From(value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
+                return context.System.String.From(value.Value.ToString() ?? "");
             }
         }
 
         throw new NotSupportedException("The expression type not supported");
     }
 
-    static AnySchemaNode CalcArith<T>(ArithmeticType type, AnySchemaNode left, AnySchemaNode right) where T : INumber<T>
+    static DataNode CalcArith<T>(ArithmeticType type, DataNode left, DataNode right) where T : INumber<T>
     {
-        T leftVal = (left.IsEmpty ? default : left.ToValue<T>())!;
-        T rightVal = (right.IsEmpty ? default : right.ToValue<T>())!;
-        return left.SchemaType.CreateNode(type switch
+        T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
+        T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;
+        return left.Type.From(type switch
         {
             ArithmeticType.Add => leftVal + rightVal,
             ArithmeticType.Subtract => leftVal - rightVal,
             ArithmeticType.Multiply => leftVal * rightVal,
             _ => throw new NotSupportedException($"The arithmetic type {type} not supported")
-        })!;
+        });
     }
 
-    static AnySchemaNode Compare<T>(LogicType type, AnySchemaNode left, AnySchemaNode right) where T : IComparable<T>
+    static bool Compare<T>(LogicType type, DataNode left, DataNode right) where T : IComparable<T>
     {
-        T leftVal = (left.IsEmpty ? default : left.ToValue<T>())!;
-        T rightVal = (right.IsEmpty ? default : right.ToValue<T>())!;
-        return SchemaContext.SystemBool.CreateNode(type switch
+        T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
+        T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;
+        return type switch
         {
             LogicType.Equal => leftVal.CompareTo(rightVal) == 0,
             LogicType.NotEqual => leftVal.CompareTo(rightVal) != 0,
@@ -635,6 +625,6 @@ public static class AppSchemaDataFilterExtensions
             LogicType.LessThan => leftVal.CompareTo(rightVal) < 0,
             LogicType.LessEqual => leftVal.CompareTo(rightVal) <= 0,
             _ => throw new NotSupportedException($"The logic type {type} can't be used as value compare")
-        })!;
+        };
     }
 }

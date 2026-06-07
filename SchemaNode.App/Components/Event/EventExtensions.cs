@@ -60,7 +60,7 @@ public static class EventExtensions
         // Convert the payload to any schema node
         if (payLoad != null)
         {
-            if (payLoad is AnySchemaNode node)
+            if (payLoad is DataNode node)
             {
                 @event.Payload = node;
             }

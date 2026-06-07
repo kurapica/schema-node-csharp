@@ -30,7 +30,7 @@ public abstract class Event
     /// <summary>
     /// The generic payload data
     /// </summary>
-    public AnySchemaNode? Payload { get; set; }
+    public DataNode? Payload { get; set; }
 
     /// <summary>
     /// Match the topic with wildcard support

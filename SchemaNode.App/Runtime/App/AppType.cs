@@ -321,6 +321,17 @@ public sealed class AppType
     public AppWorkflowType? GetWorkflow(string name) => _workflows?.GetValueOrDefault(name);
     
     /// <summary>
+    /// Gets relations
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+    
+    /// <summary>
+    /// Gets relations for the given field name
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations(string fieldName)
+        => _relations?.Where(r => fieldName.Equals(r.Target, StringComparison.OrdinalIgnoreCase)) ?? [];
+
+    /// <summary>
     /// Gets all node schemas used by the application
     /// </summary>
     /// <returns></returns>
@@ -475,7 +486,7 @@ public sealed class AppType
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    public IEnumerable<(string item, ValueType type, bool isTarget)> GetScopeContextItems()
+    internal IEnumerable<(string item, ValueType type, bool isTarget)> GetScopeContextItems()
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;

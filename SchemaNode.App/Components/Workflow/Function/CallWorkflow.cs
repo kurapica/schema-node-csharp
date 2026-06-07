@@ -38,7 +38,7 @@ public class CallWorkflow: FunctionWorkflow,
                     }
                     else
                     {
-                        AnySchemaNode? payload = context.GetWorkflowPayload(callArg.Name);
+                        DataNode? payload = context.GetWorkflowPayload(callArg.Name);
                         args.Add(payload?.ToJson());
                     }
                 }

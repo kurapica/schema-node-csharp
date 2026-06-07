@@ -208,7 +208,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Gets the payload by name
     /// </summary>
-    public AnySchemaNode? GetWorkflowPayload(string name)
+    public DataNode? GetWorkflowPayload(string name)
     {
         if (!name.Contains('.'))
             return _states.TryGetValue(name, out WorkflowState? state)
@@ -217,13 +217,13 @@ public class WorkflowContext: SchemaContext
         
         // check nested payload
         string[] paths = name.Split(".", StringSplitOptions.RemoveEmptyEntries);
-        return (GetWorkflowPayload(paths[0]) as StructTypeNode)?.GetValueByPaths(paths.Skip(1));
+        return (GetWorkflowPayload(paths[0]) as StructNode)?.GetValueByPaths(paths.Skip(1));
     }
 
     /// <summary>
     /// Gets the payload by workflow
     /// </summary>
-    public AnySchemaNode? GetWorkflowPayload(Workflow workflow) => GetWorkflowPayload(workflow.Name);
+    public DataNode? GetWorkflowPayload(Workflow workflow) => GetWorkflowPayload(workflow.Name);
     
     /// <summary>
     /// Gets the current workflow status
@@ -296,7 +296,7 @@ public class WorkflowContext: SchemaContext
     /// The workflow node is done with payload
     /// <returns>The fork workflow context if created</returns>
     /// </summary>
-    public WorkflowContext? Done(string name, AnySchemaNode? payload = null, bool init = false, Access? access = null)
+    public WorkflowContext? Done(string name, DataNode? payload = null, bool init = false, Access? access = null)
     {
         Workflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
@@ -324,7 +324,7 @@ public class WorkflowContext: SchemaContext
                     string[] keys = new  string[workflow.ForkKey.Length];
                     for (int i = 0; i < workflow.ForkKey.Length; i++)
                     {
-                        AnySchemaNode? forkKeyNode = (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey[i]);
+                        DataNode? forkKeyNode = (payload as StructNode)?.GetValueByPaths(workflow.ForkKey[i]);
                         if (forkKeyNode == null) return null; // skip fork if any fork key not provided
                         keys[i] = forkKeyNode.ToString();
                     }
@@ -340,19 +340,19 @@ public class WorkflowContext: SchemaContext
                 {
                     if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
                     {
-                        AnySchemaNode? forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
+                        DataNode? forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
                         if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString().Equals(forkKey)) continue; 
                     }
                     else
                     {
-                        var forkPayload = workflowContext.GetWorkflowPayload(workflow.Name) as StructTypeNode;
+                        var forkPayload = workflowContext.GetWorkflowPayload(workflow.Name) as StructNode;
                         if (forkPayload == null) continue; // cover case but won't happen
 
                         string[] keys = new string[workflow.ForkKey!.Length];
                         for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
-                            AnySchemaNode? forkKeyNode =
-                                (payload as StructTypeNode)?.GetValueByPaths(workflow.ForkKey[i]);
+                            DataNode? forkKeyNode =
+                                (payload as StructNode)?.GetValueByPaths(workflow.ForkKey[i]);
                             if (forkKeyNode == null) break;
                             keys[i] = forkKeyNode.ToString();
                         }
@@ -402,7 +402,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(Workflow workflow, AnySchemaNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
+    public void Done(Workflow workflow, DataNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
     
     /// <summary>
     /// The workflow node has error
@@ -704,7 +704,7 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// The workflow payload
         /// </summary>
-        public AnySchemaNode? Payload { get; set; }
+        public DataNode? Payload { get; set; }
         
         /// <summary>
         /// The workflow error
@@ -741,7 +741,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
+                        DataNode? payload = context.GetWorkflowPayload(arg.Name);
                         args[i + 1] = arg.SchemeType?.CreateNode(payload)?.ToTypeValue(arg.SchemeType.ToCSharpType());
                     }
                 }
@@ -787,7 +787,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        AnySchemaNode? payload = context.GetWorkflowPayload(arg.Name);
+                        DataNode? payload = context.GetWorkflowPayload(arg.Name);
                         args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
                     }
                 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Collections.Immutable;
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -6,16 +7,23 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
-using System.Net.Mime;
-using System.Text.Json.Nodes;
 using SchemaNode.Components;
 using SchemaNode.Node;
-using SchemaNode.Property.App;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Constraints;
+using SchemaNode.Property.Core;
+using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 using AppType = SchemaNode.Runtime.AppType;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using BoolType = SchemaNode.Runtime.BoolType;
+using DateType = SchemaNode.Runtime.DateType;
+using DecimalType = SchemaNode.Runtime.DecimalType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using IntType = SchemaNode.Runtime.IntType;
 using StringType = SchemaNode.Runtime.StringType;
+using StructType = SchemaNode.Runtime.StructType;
 using ValueType = SchemaNode.Runtime.ValueType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -36,7 +44,7 @@ public class DynamicTableSchema
         ValueType = appFieldType.ValueType ?? throw new Exception($"The App {appFieldType.App}'s field {appFieldType.Name} has no value type");
 
         // no storage
-        if (!appFieldType.EnableStorage)
+        if (appFieldType is { EnableStorage: false, IsForeignView: false })
         {
             Single = true;
             Fields = [];
@@ -72,56 +80,43 @@ public class DynamicTableSchema
         }
 
         // value fields
-        switch (node.Type)
+        switch (node)
         {
-            case Enum.SchemaType.Scalar:
-            case Enum.SchemaType.Enum:
-            case Enum.SchemaType.Json:
+            case StructType structNode:
             {
-                DataTypeInfo info = GetDataTypeInfo(node);
-                fields.Add(new DynamicTableField
-                {
-                    Name = DYNAMIC_TABLE_VALUE_FIELD,
-                    Type = info.Type,
-                    MaxLength = info.MaxLength,
-                    ValueType = node
-                });
-                break;
-            }
-            case SchemaNode.Enum.SchemaType.Struct:
-            {
-                StructType structNode = (StructType)node;
-                foreach (var sField in structNode.Fields)
+                foreach (StructFieldType sField in structNode.GetFields())
                 {
                     // Check if join the other field for display only
                     if (sField.DisplayOnly ?? false)
                     {
-                        StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r =>
-                            r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) &&
-                            r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
-                            DynamicTableSchema.IsReferenceFunc(r.Func));
+                        var relation = structNode.GetRelations(sField.Name)
+                            .FirstOrDefault(r => 
+                                r.ForProperty<Default>() &&
+                                r.Process is Call call &&
+                                IsReferenceFunc(call.Func));
                         if (relation == null) continue;
 
+                        Call call = (relation.Process as Call)!;
+
                         // app
-                        string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                        string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(app) || !targetApp.Name.Equals(app, StringComparison.OrdinalIgnoreCase)) continue; // the same app
 
                         // app field
-                        string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                        string? field = call.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(field)) continue; // no app field
                         AppFieldType? appField = targetApp.GetField(field);
                         if (appField == null) continue; // app field not exist
 
                         // primary & struct
-                        string[] primary = (appField.ValueType as ArrayType)?.Primary ?? [];
-                        StructType? structType = (appField.ValueType is ArrayType arr ? arr.ElementSchemaType : appField.ValueType) as StructType;
-                        if (structType == null || structType.Fields.Length == 0) continue;
-                        if (primary.Length + 3 != relation.Args.Length) continue; // primary fields not contains
+                        ImmutableList<string> primary = (appField.ValueType as ArrayType)?.Primary ?? [];
+                        if ((appField.ValueType is ArrayType arr ? arr.Element : appField.ValueType) is not StructType structType || !structType.GetFields().Any()) continue;
+                        if (primary.Count + 3 != call.Args.Length) continue; // primary fields not contains
 
                         // data field
-                        string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
-                        if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
-                        StructFieldSchema? dataFieldType = structType.GetField(dataField);
+                        string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                        if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
+                        var dataFieldType = structType.GetField(dataField);
                         if (dataFieldType == null) continue; // data field not exist
 
                         // Check joins
@@ -131,23 +126,23 @@ public class DynamicTableSchema
                             Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                             // build primary key
-                            for (int i = 3; i < relation.Args.Length - 1; i++)
+                            for (int i = 3; i < call.Args.Length - 1; i++)
                             {
-                                keyMap[primary[i - 3]] = !string.IsNullOrEmpty(relation.Args[i].Name)
-                                    ? new AppSchemaDataFilterField(relation.Args[i].Name!)
-                                    : new AppSchemaDataFilterValue(relation.Args[i].Value?.ToValue<string>() ?? string.Empty);
+                                keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
+                                    ? new AppSchemaDataFilterField(call.Args[i].Source!)
+                                    : new AppSchemaDataFilterValue(call.Args[i].Value?.ToValue<string>() ?? string.Empty);
                             }
 
                             joins ??= [];
                             joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
                         }
 
-                        if (dataFieldType.SchemaType is StructType @struct)
+                        if (dataFieldType.Type is StructType @struct)
                         {
                             // As complex fields
-                            foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            foreach (StructFieldType ifield in @struct.GetFields().Where(p => p.Type != null && !(p.DisplayOnly ?? false)))
                             {
-                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
+                                DataTypeInfo info = GetDataTypeInfo(ifield.Type!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -158,7 +153,7 @@ public class DynamicTableSchema
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    ValueType = ifield.SchemaType!,
+                                    ValueType = ifield.Type!,
                                     JoinAppField = field,
                                     JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
                                 });
@@ -167,26 +162,25 @@ public class DynamicTableSchema
                         else
                         {
                             // As normal field
-                            DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemaType!, dataFieldType);
+                            DataTypeInfo info = GetDataTypeInfo(dataFieldType.Type!, dataFieldType);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                ValueType = dataFieldType.SchemaType!,
+                                ValueType = dataFieldType.Type!,
                                 JoinAppField = field,
                                 JoinDataField = dataField
                             });
                         }
                     }
 
-                    else if (sField.SchemaType?.Type == SchemaNode.Enum.SchemaType.Struct) // Check if the sfield use a struct type
+                    else if (sField.Type is StructType subStructNode) // Check if the sfield use a struct type
                     {
                         // As complex fields
-                        StructType subStructNode = (StructType)sField.SchemaType;
-                        foreach (var iField in subStructNode.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                        foreach (var iField in subStructNode.GetFields().Where(p => p.Type != null && !(p.DisplayOnly ?? false)))
                         {
-                            DataTypeInfo info = GetDataTypeInfo(iField.SchemaType!, iField);
+                            DataTypeInfo info = GetDataTypeInfo(iField.Type!, iField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = $"{sField.Name}{COMPLEX_SEP}{iField.Name}",
@@ -197,81 +191,81 @@ public class DynamicTableSchema
                                 },
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                ValueType = iField.SchemaType!
+                                ValueType = iField.Type!
                             });
                         }
                     }
                     else
                     {
-                        DataTypeInfo info = GetDataTypeInfo(sField.SchemaType!, sField);
+                        DataTypeInfo info = GetDataTypeInfo(sField.Type!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             MaxLength = info.MaxLength,
-                            ValueType = sField.SchemaType!
+                            ValueType = sField.Type!
                         });
                     }
                 }
                 break;
             }
-            case SchemaNode.Enum.SchemaType.Array:
+            case ArrayType arrayNode:
             {
-                ArrayType arrayNode = (ArrayType)node;
-                node = arrayNode.ElementSchemaType!; // Record the base node for array
-                indexes = arrayNode.Indexes;
-                if (node is StructType structNode && arrayNode.Primary is { Length: > 0 })
+                node = arrayNode.Element!; // Record the base node for array
+                indexes = arrayNode.GetProperty<Indexes>()?.Value;
+                if (node is StructType structNode && arrayNode.Primary is { Count: > 0 })
                 {
                     single = false;
-                    var enableAttrTable = Topology == FieldStorageTopology.AttributeBased;
+                    var enableAttrTable = appFieldType.Topology == FieldStorageTopology.AttributeBased;
 
                     // Add primary fields
                     foreach (string n in arrayNode.Primary)
                     {
-                        var sField = structNode.Fields.First(p => p.Name == n);
-                        DataTypeInfo info = GetDataTypeInfo(sField.SchemaType!, sField);
+                        var sField = structNode.GetField(n)!;
+                        DataTypeInfo info = GetDataTypeInfo(sField.Type!, sField);
                         fields.Add(new DynamicTableField
                         {
                             Name = sField.Name,
                             Type = info.Type,
                             Primary = true,
                             MaxLength = info.MaxLength,
-                            ValueType = sField.SchemaType!
+                            ValueType = sField.Type!
                         });
                     }
                     
                     // Add normal fields
-                    foreach (var sField in structNode.Fields.Where(p => !arrayNode.Primary.Contains(p.Name)))
+                    foreach (var sField in structNode.GetFields().Where(p => !arrayNode.Primary.Contains(p.Name)))
                     {
                         // Check if join the other field for display only
                         if (sField.DisplayOnly ?? false)
                         {
-                            StructRelationSchema? relation = structNode.Relations?.FirstOrDefault(r => 
-                                r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase) && 
-                                r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
-                                DynamicTableSchema.IsReferenceFunc(r.Func));
+                            var relation = structNode.GetRelations(sField.Name).FirstOrDefault(r => 
+                                r.ForProperty<Default>() &&
+                                r.Process is Call call &&
+                                IsReferenceFunc(call.Func));
                             if (relation == null) continue;
 
+                            Call call = (relation.Process as Call)!;
+
                             // app
-                            string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
-                            if (string.IsNullOrWhiteSpace(app) || !App.Equals(app, StringComparison.OrdinalIgnoreCase)) continue; // the same app
+                            string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                            if (string.IsNullOrWhiteSpace(app) || !appFieldType.App.Equals(app, StringComparison.OrdinalIgnoreCase)) continue; // the same app
 
                             // app field
-                            string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                            string? field = call.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
                             if (string.IsNullOrWhiteSpace(field)) continue; // no app field
-                            AppFieldType? appField = MediaTypeNames.Application.GetField(field);
+                            AppFieldType? appField = appFieldType.Application.GetField(field);
                             if (appField == null) continue; // app field not exist
 
                             // primary & struct
-                            string[] primary = (appField.ValueType as ArrayType)?.Primary ?? [];
-                            StructType? structType = (appField.ValueType is ArrayType arr ? arr.ElementSchemaType : appField.ValueType) as StructType;
-                            if (structType == null || structType.Fields.Length == 0) continue;
-                            if (primary.Length + 3 != relation.Args.Length) continue; // primary fields not contains
+                            ImmutableList<string> primary = (appField.ValueType as ArrayType)?.Primary ?? [];
+                            if ((appField.ValueType is ArrayType arr ? arr.Element : appField.ValueType) is not StructType structType || !structType.GetFields().Any()) continue;
+                            if (primary.Count + 3 != call.Args.Length) continue; // primary fields not contains
 
                             // data field
-                            string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
-                            if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
-                            StructFieldSchema? dataFieldType = structType.GetField(dataField);
+                            string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                            if (string.IsNullOrWhiteSpace(dataField) || dataField.Equals(appFieldType.Name, StringComparison.OrdinalIgnoreCase)) continue; // no data field
+                            var dataFieldType = structType.GetField(dataField);
                             if (dataFieldType == null) continue; // data field not exist
 
                             // Check joins
@@ -281,23 +275,23 @@ public class DynamicTableSchema
                                 Dictionary<string, AppSchemaDataFilter> keyMap = new();
 
                                 // build primary key
-                                for (int i = 3; i < relation.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length - 1; i++)
                                 {
-                                    keyMap[primary[i - 3]] = !string.IsNullOrEmpty(relation.Args[i].Name)
-                                        ? new AppSchemaDataFilterField(relation.Args[i].Name!)
-                                        : new AppSchemaDataFilterValue(relation.Args[i].Value?.ToValue<string>() ?? string.Empty);
+                                    keyMap[primary[i - 3]] = !string.IsNullOrEmpty(call.Args[i].Source)
+                                        ? new AppSchemaDataFilterField(call.Args[i].Source!)
+                                        : new AppSchemaDataFilterValue(call.Args[i].Value?.ToValue<string>() ?? string.Empty);
                                 }
 
                                 joins ??= [];
                                 joins.Add(new DynamicTableJoin { Field = field, Matches = keyMap });
                             }
 
-                            if (dataFieldType.SchemaType is StructType @struct)
+                            if (dataFieldType.Type is StructType @struct)
                             {
                                 // As complex fields
-                                foreach (var ifield in @struct.Fields.Where(p => !(p.DisplayOnly ?? false)))
+                                foreach (var ifield in @struct.GetFields().Where(p => p.Type != null && !(p.DisplayOnly ?? false)))
                                 {
-                                    DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
+                                    DataTypeInfo info = GetDataTypeInfo(ifield.Type!, ifield);
                                     fields.Add(new DynamicTableField
                                     {
                                         Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -308,7 +302,7 @@ public class DynamicTableSchema
                                         },
                                         Type = info.Type,
                                         MaxLength = info.MaxLength,
-                                        ValueType = ifield.SchemaType!,
+                                        ValueType = ifield.Type!,
                                         JoinAppField = field,
                                         JoinDataField = $"{dataField}{COMPLEX_SEP}{ifield.Name}"
                                     });
@@ -317,13 +311,13 @@ public class DynamicTableSchema
                             else
                             {
                                 // As normal field
-                                DataTypeInfo info = GetDataTypeInfo(dataFieldType.SchemaType!, dataFieldType);
+                                DataTypeInfo info = GetDataTypeInfo(dataFieldType.Type!, dataFieldType);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = sField.Name,
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    ValueType = dataFieldType.SchemaType!,
+                                    ValueType = dataFieldType.Type!,
                                     JoinAppField = field,
                                     JoinDataField = dataField
                                 });
@@ -331,12 +325,12 @@ public class DynamicTableSchema
                         }
 
                         // Check if the s-field use a struct type
-                        else  if (sField.SchemaType!.Type == SchemaNode.Enum.SchemaType.Struct)
+                        else  if (sField.Type is StructType type)
                         {
                             // As complex fields
-                            foreach (var ifield in ((StructType)sField.SchemaType).Fields.Where(p => !(p.DisplayOnly ?? false)))
+                            foreach (var ifield in type.GetFields().Where(p => p.Type != null && !(p.DisplayOnly ?? false)))
                             {
-                                DataTypeInfo info = GetDataTypeInfo(ifield.SchemaType!, ifield);
+                                DataTypeInfo info = GetDataTypeInfo(ifield.Type!, ifield);
                                 fields.Add(new DynamicTableField
                                 {
                                     Name = $"{sField.Name}{COMPLEX_SEP}{ifield.Name}",
@@ -347,40 +341,36 @@ public class DynamicTableSchema
                                     },
                                     Type = info.Type,
                                     MaxLength = info.MaxLength,
-                                    ValueType = ifield.SchemaType!
+                                    ValueType = ifield.Type!
                                 });
                             }
                         }
                         // Check if the field is a dynamic JSON field with attribute-based topology, which need to be stored in separated attribute table
-                        else if (sField.SchemaType is JsonType && enableAttrTable)
+                        else if (sField.Type is ObjectType && enableAttrTable)
                         {
-                            AppRelationSchema? typeRelation = MediaTypeNames.Application.Relations?.FirstOrDefault(r =>
-                                r.Prop.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
-                                r.FieldNode == this && sField.Name.Equals(r.DataField, StringComparison.OrdinalIgnoreCase));
-                            var fieldRelation = structNode.Relations?.FirstOrDefault(r => 
-                                r.Prop.Equals(PROPERTY_TYPE, StringComparison.OrdinalIgnoreCase) &&
-                                r.Field.Equals(sField.Name, StringComparison.OrdinalIgnoreCase));
+                            var typeRelation = appFieldType.Application.GetRelations($"{appFieldType.Name}.{sField.Name}").FirstOrDefault(r => r.ForProperty<OverrideType>());
+                            var fieldRelation = structNode.GetRelations(sField.Name).FirstOrDefault(r => r.ForProperty<OverrideType>());
 
-                            DataTypeInfo info = GetDataTypeInfo(sField.SchemaType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.Type, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                ValueType = sField.SchemaType!,
+                                ValueType = sField.Type!,
                                 RelationType = typeRelation,
                                 StructRelation = fieldRelation
                             });
                         }
                         else
                         {
-                            DataTypeInfo info = GetDataTypeInfo(sField.SchemaType, sField);
+                            DataTypeInfo info = GetDataTypeInfo(sField.Type!, sField);
                             fields.Add(new DynamicTableField
                             {
                                 Name = sField.Name,
                                 Type = info.Type,
                                 MaxLength = info.MaxLength,
-                                ValueType = sField.SchemaType!
+                                ValueType = sField.Type!
                             });
                         }
                     }
@@ -397,39 +387,44 @@ public class DynamicTableSchema
                 break;
             }
             default:
-                throw new ArgumentOutOfRangeException();
+            {
+                DataTypeInfo info = GetDataTypeInfo(node);
+                fields.Add(new DynamicTableField
+                {
+                    Name = DYNAMIC_TABLE_VALUE_FIELD,
+                    Type = info.Type,
+                    MaxLength = info.MaxLength,
+                    ValueType = node
+                });
+                break;
+            }
         }
 
         // Add the foreign key field if not added for query
         if (isView)
         {
-            AppFieldType sourceField = View?.AppType?.GetField(View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
-            Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
+            AppFieldType sourceField = appFieldType.View?.AppType?.GetField(appFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
+            Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(appFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
             if (!fields.Any(f => f.Name.Equals(foreign.Field, StringComparison.OrdinalIgnoreCase)))
             {
-                StructType eleType = (sourceField.ValueType is ArrayType arr ? arr.ElementSchemaType : sourceField.ValueType) as StructType ?? throw new Exception($"The {Name} field can't be used as view");
-                StructFieldSchema fieldInfo = eleType.GetField(foreign.Field) ?? throw new Exception($"Invalid view source field: {View?.App}.{View?.Field}");
-                DataTypeInfo info = GetDataTypeInfo(fieldInfo.SchemaType!, fieldInfo);
+                StructType eleType = (sourceField.ValueType is ArrayType arr ? arr.Element : sourceField.ValueType) as StructType ?? throw new Exception($"The {appFieldType.Name} field can't be used as view");
+                var fieldInfo = eleType.GetField(foreign.Field) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
+                DataTypeInfo info = GetDataTypeInfo(fieldInfo.Type!, fieldInfo);
                 fields.Add(new DynamicTableField
                 {
                     Name = fieldInfo.Name,
                     Type = info.Type,
                     MaxLength = info.MaxLength,
-                    ValueType = fieldInfo.SchemaType!
+                    ValueType = fieldInfo.Type!
                 });
             }
         }
 
-        return new DynamicTableSchema
-        {
-            AppField = this,
-            ValueType = node,
-            Single = single,
-            Fields = fields,
-            Indexes = indexes,
-            IncrUpdate = IncrUpdate ?? false,
-            Joins = joins?.ToArray()
-        };
+        Single = single;
+        Fields  = fields;
+        Indexes = indexes;
+        IncrUpdate = appFieldType.IncrUpdate ?? false;
+        Joins = joins?.ToArray();
     }
     
     #endregion
@@ -439,8 +434,13 @@ public class DynamicTableSchema
     /// <summary>
     /// the app field type of the dynamic table
     /// </summary>
-    public AppFieldType AppField { get; init; } = null!;
+    public AppFieldType AppField { get; init; }
     
+    /// <summary>
+    /// The data type node
+    /// </summary>
+    public ValueType ValueType { get; init; }
+
     /// <summary>
     /// Whether the table is single row
     /// </summary>
@@ -454,7 +454,7 @@ public class DynamicTableSchema
     /// <summary>
     /// The dynamic table fields
     /// </summary>
-    public IReadOnlyList<DynamicTableField> Fields { get; init; } = [];
+    public IReadOnlyList<DynamicTableField> Fields { get; init; }
     
     /// <summary>
     /// The scope target fields
@@ -494,23 +494,18 @@ public class DynamicTableSchema
     /// <summary>
     /// The dynamic table indexes
     /// </summary>
-    public DataIndex[]? Indexes { get; init; } = [];
+    public DataIndex[]? Indexes { get; init; }
     
     /// <summary>
     /// The dynamic table joins
     /// </summary>
-    public DynamicTableJoin[]? Joins { get; init; } = [];
+    public DynamicTableJoin[]? Joins { get; init; } 
 
-    /// <summary>
-    /// The data type node
-    /// </summary>
-    public required ValueType ValueType { get; init; }
-    
     #endregion
 
     #region Methods
     
-    public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
+    public IEnumerable<(string field, DataNode? value)> GetFieldValues(StructNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
         IEnumerable<DynamicTableField> fields = NonScopeFields;
         if (primaryOnly) fields = fields.Where(p => p.Primary);
@@ -519,7 +514,7 @@ public class DynamicTableSchema
         {
             if (field.Complex == null)
             {
-                AnySchemaNode? fieldNode = pack.GetField(field.Name);
+                DataNode? fieldNode = pack.GetAccessValue(field.Name);
                 if (fieldNode is { IsEmpty: false })
                 {
                     yield return (field.Name, fieldNode);
@@ -531,8 +526,8 @@ public class DynamicTableSchema
             }
             else
             {
-                AnySchemaNode? complex = pack.GetField(field.Complex.Main);
-                if (complex is StructTypeNode sPack && sPack.GetField(field.Complex.Field) is { IsEmpty: false } part)
+                DataNode? complex = pack.GetAccessValue(field.Complex.Main);
+                if (complex is StructNode sPack && sPack.GetAccessValue(field.Complex.Field) is { IsEmpty: false } part)
                 {
                     yield return (field.Name, part);
                 }
@@ -570,14 +565,14 @@ public class DynamicTableSchema
     /// </summary>
     public IEnumerable<string> GetScopeItems()
     {
-        foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems())
+        foreach (var (item, _, _) in AppField.Application.GetScopeContextItems())
             yield return item;
     }
 
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<(string item, AnySchemaNode? value)> GetScopeItems(IServiceProvider provider)
+    public IEnumerable<(string item, DataNode? value)> GetScopeItems(IServiceProvider provider)
     {
         bool isview = AppField.IsForeignView;
         foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>()))
@@ -597,13 +592,13 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the primary token from the data
     /// </summary>
-    public string? GetPrimaryKey(StructTypeNode pack)
+    public string? GetPrimaryKey(StructNode pack)
     {
         List<string> keys = [];
-        foreach ((string _, AnySchemaNode? node) in GetFieldValues(pack, true))
+        foreach ((string _, DataNode? node) in GetFieldValues(pack, true))
         {
             if (node == null || node.IsEmpty) return null;
-            keys.Add(node.ToString());
+            keys.Add(node.GetValue<string>()!);
         }
         return string.Join(":", keys);
     }
@@ -611,13 +606,13 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the primary token from the key nodes
     /// </summary>
-    public string? GetPrimaryKey(params AnySchemaNode?[] keyNodes)
+    public string? GetPrimaryKey(params DataNode?[] keyNodes)
     {
         string[] keys = new string[keyNodes.Length];
         for (int i = 0; i < keyNodes.Length; i++)
         {
             if (keyNodes[i] == null || keyNodes[i] is { IsEmpty: true }) return null;
-            keys[i] = keyNodes[i]!.ToString();
+            keys[i] = keyNodes[i]!.GetValue<string>()!;
         }
         return string.Join(":", keys);
     }
@@ -625,12 +620,12 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
+    public DataNode GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
     {
-        StructTypeNode result = new StructTypeNode((StructType)(ValueType is ArrayType arr ? arr.ElementSchemaType : ValueType)!);
+        StructNode result = new StructNode((StructType)(ValueType is ArrayType arr ? arr.Element : ValueType)!);
         foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
-            AnySchemaNode? val = field.FromReader(reader, offset++);
+            DataNode? val = field.FromReader(reader, offset++);
 
             if (field.Target)
             {
@@ -639,31 +634,31 @@ public class DynamicTableSchema
                 {
                     string? map = AppField.View?.Map;
                     if (!string.IsNullOrWhiteSpace(map))
-                        result.SetField(map, val);
+                        result.SetFieldValue(map, val);
                 }
                 continue;
             }
 
             if (val == null)
             {
-                if (field is { IsJoinField: true, ValueType: ScalarType { IsNumber: true }})
-                    val = field.ValueType.CreateNode(0);
+                if (field is { IsJoinField: true, ValueType: DecimalType or IntType})
+                    val = field.ValueType.From(0);
                 else
                     continue;
             }
             if (field.Complex == null)
             {
-                result.SetField(field.Name, val);
+                result.SetFieldValue(field.Name, val);
             }
             else
             {
-                AnySchemaNode? main = result.GetField(field.Complex.Main);
+                DataNode? main = result.GetAccessValue(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructTypeNode((StructType)((StructType)ValueType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
-                    result.SetField(field.Complex.Main, main);
+                    main = new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                    result.SetFieldValue(field.Complex.Main, main);
                 }
-                (main as StructTypeNode)![field.Complex.Field] = val;
+                (main as StructNode)![field.Complex.Field] = val;
             }
         }
 
@@ -673,10 +668,10 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
+    public DataNode? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
     {
         int offset = 0;
-        StructTypeNode? complexResult = null;
+        StructNode? complexResult = null;
         foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
@@ -685,10 +680,10 @@ public class DynamicTableSchema
             }
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                complexResult ??= new StructTypeNode((StructType)((StructType)ValueType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
-                AnySchemaNode? val = field.FromReader(reader, offset);
+                complexResult ??= new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
+                DataNode? val = field.FromReader(reader, offset);
                 if (val != null)
-                    complexResult.SetField(field.Complex.Field, val);
+                    complexResult.SetFieldValue(field.Complex.Field, val);
             }
 
             offset++;
@@ -720,7 +715,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Generate display only fields
     /// </summary>
-    public Task GenerateDisplayOnlyFields(SchemaContext context, AnySchemaNode? pack)
+    public Task GenerateDisplayOnlyFields(SchemaContext context, DataNode? pack)
     {
         // Generate the display only fields
         return ValueType is StructType @struct 
@@ -735,74 +730,75 @@ public class DynamicTableSchema
     internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
-    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
+    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, DataNode? node, bool joinHandled = false)
     {
-        if (type.Fields.Length == 0) return;
         switch (node)
         {
-            case ArrayTypeNode array:
+            case ArrayNode array:
             {
                 // batch process for join functions
-                if (type.Relations != null)
+                if (type.GetRelations().Any())
                 {
-                    foreach (StructRelationSchema relation in (type.Relations.Where(r =>
-                                 r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
-                                 IsReferenceFunc(r.Func) &&
-                                 type.GetField(r.Field) != null && 
-                                 (type.GetField(r.Field)?.DisplayOnly ?? false))))
+                    foreach (var relation in (type.GetRelations().Where(r =>
+                                 r.ForProperty<Default>() &&
+                                 r.Process is Call call &&
+                                 IsReferenceFunc(call.Func) &&
+                                 type.GetField(r.Target) != null && 
+                                 (type.GetField(r.Target)?.DisplayOnly ?? false))))
                     {
+                        // call
+                        Call call = (relation.Process as Call)!;
+                        
                         // app
-                        string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
+                        string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(app)) continue; // no app
                         AppType? appType = await context.GetAppTypeAsync(app);
                         if (appType == null) continue; // app not exist
 
                         // app field
-                        string? field = relation.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
+                        string? field = call.Args.ElementAtOrDefault(1)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(field)) continue; // no app field
                         AppFieldType? appField = appType.GetField(field);
                         if (appField == null) continue; // app field not exist
 
                         // primary & struct
-                        string[] primary = (appField.ValueType as ArrayType)?.Primary ?? [];
-                        StructType? structType =
-                            (appField.ValueType is ArrayType arr
-                                ? arr.ElementSchemaType
-                                : appField.ValueType) as StructType;
-                        if (structType == null || structType.Fields.Length == 0) continue;
-                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
+                        ImmutableList<string> primary = (appField.ValueType as ArrayType)?.Primary ?? [];
+                        if ((appField.ValueType is ArrayType arr
+                                ? arr.Element
+                                : appField.ValueType) is not StructType structType || !structType.GetFields().Any()) continue;
+                        if (primary.Count + 4 != call.Args.Length) continue; // primary fields not contains
 
                         // data field
-                        string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
+                        string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
-                        StructFieldSchema? dataFieldType = structType.GetField(dataField);
+                        var dataFieldType = structType.GetField(dataField);
                         if (dataFieldType == null) continue; // data field not exist
 
                         // target
-                        var targetArg = relation.Args.Last();
+                        var targetArg = call.Args.Last();
                         string? target = targetArg.Value?.ToValue<string>() ??
                                          context.GetSchemaContextItem<Access>()?.Target;
                         if (string.IsNullOrWhiteSpace(target)) continue; // no app target
 
                         // collect keys
-                        Dictionary<string, List<AnySchemaNode>> keyMap = new();
+                        Dictionary<string, List<DataNode>> keyMap = new();
                         AppSchemaDataFilter? filter = null;
-                        if (primary.Length > 0)
+                        if (primary.Count > 0)
                         {
-                            foreach (AnySchemaNode row in array)
+                            foreach (DataNode row in array)
                             {
-                                if (row is not StructTypeNode pack || 
-                                    pack.GetField(relation.Field) is null ||
-                                    !pack.GetField(relation.Field)!.IsEmpty) continue;
+                                if (row is not StructNode pack || 
+                                    pack.GetAccessValue(relation.Target) is null ||
+                                    !pack.GetAccessValue(relation.Target)!.IsEmpty) continue;
 
                                 // build primary key
                                 List<string> keys = [];
                                 AppSchemaDataFilter? rowFilter = null;
-                                for (int i = 3; i < relation.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length - 1; i++)
                                 {
-                                    string? key = !string.IsNullOrEmpty(relation.Args[i].Name)
-                                        ? pack.GetValueByPaths(relation.Args[i].Name!)?.ToString()
-                                        : relation.Args[i].Value?.ToValue<string>();
+                                    string? key = !string.IsNullOrEmpty(call.Args[i].Source)
+                                        ? pack.GetAccessValue(call.Args[i].Source!)?.ToString()
+                                        : call.Args[i].Value?.ToValue<string>();
                                     
                                     if (string.IsNullOrEmpty(key))
                                     {
@@ -832,67 +828,67 @@ public class DynamicTableSchema
                         if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
+                        (DataNode? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
 
                         // set the display only field value
-                        switch (primary.Length)
+                        switch (primary.Count)
                         {
-                            case > 0 when value is ArrayTypeNode resultArray:
+                            case > 0 when value is ArrayNode resultArray:
                             {
-                                foreach (AnySchemaNode resultRow in resultArray)
+                                foreach (DataNode resultRow in resultArray)
                                 {
-                                    if (resultRow is not StructTypeNode resultStruct) continue;
+                                    if (resultRow is not StructNode resultStruct) continue;
 
                                     // build primary key
                                     List<string> keys = [];
                                     foreach (string path in primary)
                                     {
-                                        AnySchemaNode? n = resultStruct.GetValueByPaths(path);
+                                        DataNode? n = resultStruct.GetAccessValue(path);
                                         if (n == null || n.IsEmpty)
                                         {
                                             keys.Clear();
                                             break;
                                         }
 
-                                        keys.Add(n.ToString());
+                                        keys.Add(n.GetValue<string>()!);
                                     }
 
                                     if (keys.Count == 0) continue; // no valid primary key
                                     string pkey = string.Join(":", keys);
 
                                     // get data node
-                                    AnySchemaNode? dataNode = resultStruct.GetValueByPaths(dataField);
+                                    DataNode? dataNode = resultStruct.GetAccessValue(dataField);
                                     if (dataNode == null || dataNode.IsEmpty) continue;
 
                                     // set value
-                                    if (!keyMap.TryGetValue(pkey, out List<AnySchemaNode>? packs)) continue;
-                                    foreach (AnySchemaNode row in packs)
+                                    if (!keyMap.TryGetValue(pkey, out List<DataNode>? packs)) continue;
+                                    foreach (DataNode row in packs)
                                     {
-                                        if (row is not StructTypeNode pack) continue;
-                                        AnySchemaNode? fld = pack.GetField(relation.Field);
+                                        if (row is not StructNode pack) continue;
+                                        DataNode? fld = pack.GetAccessValue(relation.Target);
                                         if (fld is not { IsEmpty: true }) continue;
 
                                         // set value
-                                        fld.Value = dataNode;
+                                        fld.TrySetValue(dataNode);
                                     }
                                 }
 
                                 break;
                             }
-                            case 0 when value is StructTypeNode resultStruct:
+                            case 0 when value is StructNode resultStruct:
                             {
                                 // single key
-                                AnySchemaNode? dataNode = resultStruct.GetValueByPaths(dataField);
+                                DataNode? dataNode = resultStruct.GetAccessValue(dataField);
                                 if (dataNode == null || dataNode.IsEmpty) continue;
 
-                                foreach (AnySchemaNode row in array)
+                                foreach (DataNode row in array)
                                 {
-                                    if (row is not StructTypeNode pack) continue;
-                                    AnySchemaNode? fld = pack.GetField(relation.Field);
+                                    if (row is not StructNode pack) continue;
+                                    DataNode? fld = pack.GetAccessValue(relation.Target);
                                     if (fld is not { IsEmpty: true }) continue;
 
                                     // set value
-                                    fld.Value = dataNode;
+                                    fld.TrySetValue(dataNode);
                                 }
 
                                 break;
@@ -902,16 +898,16 @@ public class DynamicTableSchema
                 }
                 
                 // generate for each row
-                foreach (AnySchemaNode row in array)
+                foreach (DataNode row in array)
                     await GenerateDisplayOnlyFields(context, type, row, true);
                 break;
             }
-            case StructTypeNode pack:
+            case StructNode pack:
             {
-                foreach (var field in type.Fields)
+                foreach (var field in type.GetFields())
                 {
                     // Gets the field node
-                    AnySchemaNode? fld = pack.GetField(field.Name);
+                    DataNode? fld = pack.GetAccessValue(field.Name);
                     if (fld == null) continue; // impossible
                     
                     if (field.DisplayOnly ?? false)
@@ -919,43 +915,35 @@ public class DynamicTableSchema
                         if (!fld.IsEmpty) continue; // already set value
                 
                         // default for display only
-                        var relation = type.Relations?.FirstOrDefault(f =>
-                            f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && 
-                            f.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
+                        var relation = type.GetRelations(field.Name).FirstOrDefault(r => r.ForProperty<Default>());
                         if (relation == null) continue;
                         
                         // handled by array node
-                        if (joinHandled && IsReferenceFunc(relation.Func)) continue; 
+                        if (joinHandled && relation.Process is Call call && IsReferenceFunc(call.Func)) continue; 
 
                         // call function to get value
-                        JsonArray args = [];
-                        foreach (var arg in relation.Args)
-                            args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
                         try
                         {
-                            JsonNode? result =
-                                await context.CallFunctionAsync(relation.Func, args, fld.SchemaType.Name);
-                            if (!result.IsEmpty()) fld.Value = result;
+                            if (await relation.ProcessAsync(context, pack) is Default { HasValue: true } result)
+                                fld.TrySetValue(result.Value);
                         }
                         catch
                         {
                             // ignore errors
                         }
                     }
-                    else switch (field.SchemaType)
+                    else switch (field.Type)
                     {
                         case StructType @struct:
                             await GenerateDisplayOnlyFields(context, @struct, fld);
                             break;
-                        case ArrayType { ElementSchemaType: StructType arrayStruct }:
+                        case ArrayType { Element: StructType arrayStruct }:
                             await GenerateDisplayOnlyFields(context, arrayStruct, fld);
                             break;
                         // Fill empty field with default value
                         default:
-                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && field.Default is { IsEmpty: false })
-                            {
-                                fld.Value = field.Default;
-                            }
+                            if (fld.IsEmpty && field.Default is { IsEmpty: false })
+                                fld.TrySetValue(field.Default);
                             break;
                     }
                 }
@@ -966,130 +954,122 @@ public class DynamicTableSchema
     }
 
     // Get scalar type mapping info
-    static DataTypeInfo GetDataTypeInfo(ValueType node, StructFieldSchema? field = null, decimal? upLimit = null, decimal? lowLimit = null)
+    static DataTypeInfo GetDataTypeInfo(ValueType node, StructFieldType? field = null, decimal? upLimit = null, decimal? lowLimit = null)
     {
-        if (node is ScalarType scalar)
+        switch (node)
         {
-            // Get base scalar data type info
-            DataTypeInfo info = JsonDataType;
-            if (scalar.IsNumber)
+            case IntType intType:
             {
-                upLimit ??= field?.GetUplimit<decimal>() ?? scalar.GetUplimit<decimal>();
-                lowLimit ??= field?.GetLowlimit<decimal>() ?? scalar.GetLowlimit<decimal>();
-
-                // Check Number value
-                if (scalar.IsInt)
+                upLimit ??= field?.GetProperty<UplimitInt>()?.Value ?? intType.GetProperty<UplimitInt>()?.Value;
+                lowLimit ??= field?.GetProperty<LowLimitInt>()?.Value ?? intType.GetProperty<LowLimitInt>()?.Value;
+                
+                // No Limit
+                if (!upLimit.HasValue || !lowLimit.HasValue)
                 {
-                    // No Limit
-                    if (!upLimit.HasValue || !lowLimit.HasValue)
+                    return new DataTypeInfo
                     {
-                        info = new DataTypeInfo
-                        {
-                            Type = DynamicTableFieldType.BigInt
-                        };
-                    }
-                    // Check Range
-                    else if (lowLimit >= 0)
-                    {
-                        // Unsigned
-                        decimal maxVal = upLimit.Value;
-                        info = new DataTypeInfo
-                        {
-                            Type = maxVal switch
-                            {
-                                <= 0xffff => DynamicTableFieldType.USmallint,
-                                <= 0xffffff => DynamicTableFieldType.UMediumint,
-                                <= 0xffffffff => DynamicTableFieldType.UInt,
-                                _ => DynamicTableFieldType.UBigInt
-                            }
-                        };
-                    }
-                    else
-                    {
-                        // Signed
-                        decimal maxVal = Math.Max(Math.Abs(lowLimit.Value), Math.Abs(upLimit.Value));
-                        info = new DataTypeInfo
-                        {
-                            Type = maxVal switch
-                            {
-                                <= 0x7fff => DynamicTableFieldType.Smallint,
-                                <= 0x7fffff => DynamicTableFieldType.Mediumint,
-                                <= 0x7fffffff => DynamicTableFieldType.Int,
-                                _ => DynamicTableFieldType.BigInt
-                            }
-                        };
-                    }
+                        Type = DynamicTableFieldType.BigInt
+                    };
                 }
-                else if (scalar.IsSingle)
+                // Check Range
+                else if (lowLimit >= 0)
                 {
-                    info = new DataTypeInfo
+                    // Unsigned
+                    decimal maxVal = upLimit.Value;
+                    return new DataTypeInfo
                     {
-                        Type = DynamicTableFieldType.Float
+                        Type = maxVal switch
+                        {
+                            <= 0xffff => DynamicTableFieldType.USmallint,
+                            <= 0xffffff => DynamicTableFieldType.UMediumint,
+                            <= 0xffffffff => DynamicTableFieldType.UInt,
+                            _ => DynamicTableFieldType.UBigInt
+                        }
                     };
                 }
                 else
                 {
-                    info = new DataTypeInfo
+                    // Signed
+                    decimal maxVal = Math.Max(Math.Abs(lowLimit.Value), Math.Abs(upLimit.Value));
+                    return new DataTypeInfo
                     {
-                        Type = DynamicTableFieldType.Double
+                        Type = maxVal switch
+                        {
+                            <= 0x7fff => DynamicTableFieldType.Smallint,
+                            <= 0x7fffff => DynamicTableFieldType.Mediumint,
+                            <= 0x7fffffff => DynamicTableFieldType.Int,
+                            _ => DynamicTableFieldType.BigInt
+                        }
                     };
                 }
             }
-            else if (scalar.IsBool)
+            case DecimalType:
             {
-                info = new DataTypeInfo
+                return new DataTypeInfo
+                {
+                    Type = DynamicTableFieldType.Double
+                };
+            }
+            case StringType stringType:
+            {
+                upLimit ??= field?.GetProperty<UplimitString>()?.Value ?? stringType.GetProperty<UplimitString>()?.Value;
+                
+                if (upLimit == 1)
+                {
+                    // char
+                    return new DataTypeInfo
+                    {
+                        Type = DynamicTableFieldType.Char,
+                        MaxLength = null
+                    };
+                }
+                else
+                {
+                    return new DataTypeInfo
+                    {
+                        Type = upLimit.HasValue ? upLimit.Value switch
+                        {
+                            <= 0xffff => DynamicTableFieldType.VarChar,
+                            <= 0xffffff => DynamicTableFieldType.MediumText,
+                            _ => DynamicTableFieldType.LongText
+                        } : DynamicTableFieldType.LongText,
+                        MaxLength = upLimit < 0xffff ? (int)upLimit.Value : null
+                    };
+                }
+            }
+            case BoolType:
+            {
+                return new DataTypeInfo
                 {
                     Type = DynamicTableFieldType.Bool
                 };
             }
-            else if (scalar.IsChar)
+            case DateType:
             {
-                info = new DataTypeInfo
-                {
-                    Type = DynamicTableFieldType.Char,
-                    MaxLength = null
-                };
-            }
-            else if (scalar.IsString)
-            {
-                upLimit ??= field?.GetUplimit<decimal>() ?? scalar.GetUplimit<decimal>();
-                info = new DataTypeInfo
-                {
-                    Type = upLimit.HasValue ? upLimit.Value switch
-                    {
-                        <= 0xffff => DynamicTableFieldType.VarChar,
-                        <= 0xffffff => DynamicTableFieldType.MediumText,
-                        _ => DynamicTableFieldType.LongText
-                    } : DynamicTableFieldType.LongText,
-                    MaxLength = upLimit < 0xffff ? (int)upLimit.Value : null
-                };
-            }
-            else if (scalar.IsDate)
-            {
-                info = new DataTypeInfo
+                return new DataTypeInfo
                 {
                     Type = DynamicTableFieldType.DateTime
                 };
             }
-            return info;
-        }
-        else if (node is EnumType @enum)
-        {
-            return new DataTypeInfo
+            case EnumType enumType:
             {
-                Type = @enum.ValueType switch
+                return  new DataTypeInfo
                 {
-                    EnumValueType.String => DynamicTableFieldType.VarChar,
-                    EnumValueType.Int => DynamicTableFieldType.BigInt,
-                    EnumValueType.Flags => DynamicTableFieldType.UInt,
-                    _ => throw new ArgumentOutOfRangeException()
-                },
-                MaxLength = @enum.ValueType == EnumValueType.String ? ENTITY_PRIMARY_KEY_MAX_LEN : null
-            };
+                    Type = enumType.Type switch
+                    {
+                        EnumValueType.String => DynamicTableFieldType.VarChar,
+                        EnumValueType.Int => DynamicTableFieldType.BigInt,
+                        EnumValueType.Flags => DynamicTableFieldType.UInt,
+                        _ => throw new ArgumentOutOfRangeException()
+                    },
+                    MaxLength = enumType.Type == EnumValueType.String ? ENTITY_PRIMARY_KEY_MAX_LEN : null
+                };
+            }
+            default:
+            {
+                return JsonDataType;
+            }
         }
-
-        // Use Json for all others
-        return JsonDataType;
     }
 
     static readonly DataTypeInfo JsonDataType = new()
@@ -1230,7 +1210,7 @@ public class DataFieldComplexInfo
 
 #endregion
 
-public static class DynamicTableExtnsion
+public static class DynamicTableExtension
 {
     /// <summary>
     /// Gets the dynamic table schema of the app field type

@@ -23,7 +23,7 @@ public static class SystemData
     /// Gets the context item
     /// </summary>
     [Schema]
-    public static AnySchemaNode? getcontext(SchemaContext context, string item) 
+    public static DataNode? getcontext(SchemaContext context, string item) 
         => context.GetSchemaContextItem(item);
 
     #endregion
@@ -58,11 +58,11 @@ public static class SystemData
 
         // get the key type
         AppSchemaDataFilter? filter = null;
-        List<AnySchemaNode>[] keyValues = new List<AnySchemaNode>[keys.Length];
+        List<DataNode>[] keyValues = new List<DataNode>[keys.Length];
         for (int i = 0; i < keys.Length; i++)
         {
             AnySchemaType? keyType = (arrType!.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemaType;
-            AnySchemaNode? valueNode = keyType?.CreateNode(args[i]);
+            DataNode? valueNode = keyType?.CreateNode(args[i]);
             if (valueNode == null || valueNode.IsEmpty) return default;
 
             if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
@@ -95,14 +95,14 @@ public static class SystemData
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
 
-        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Length == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
-        AnySchemaNode? result = value;
+        (DataNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Length == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
+        DataNode? result = value;
         if (keys.Length > 0)
         {
             if (value is not ArrayTypeNode { Count: > 0 } arr) return default;
 
             // find the contains item
-            StructTypeNode[] items = arr.Cast<StructTypeNode>().ToArray();
+            StructNode[] items = arr.Cast<StructNode>().ToArray();
             for (int i = 0; i < keyValues.Length; i++)
             {
                 if (keyValues[i].Count == 1) continue;
@@ -110,7 +110,7 @@ public static class SystemData
                 // contains the last
                 for (int j = keyValues[i].Count - 1; j >= 0; j--)
                 {
-                    AnySchemaNode key = keyValues[i][j];
+                    DataNode key = keyValues[i][j];
                     if (!items.Any(n => n.GetField(keys[i]) is { } f && key.Equals(f))) continue;
                     items = items.Where(n => n.GetField(keys[i]) is { } f && key.Equals(f)).ToArray();
                     break;
@@ -136,8 +136,8 @@ public static class SystemData
         string dataField,
         params object?[] args) where T : struct
     {
-        AnySchemaNode? result = await get<AnySchemaNode>(context, app, field, args);
-        AnySchemaNode? f = (result as StructTypeNode)?.GetField(dataField);
+        DataNode? result = await get<DataNode>(context, app, field, args);
+        DataNode? f = (result as StructNode)?.GetField(dataField);
         return f != null ? f.ToValue<T>() : null;
     }
     
@@ -200,12 +200,12 @@ public static class SystemData
             || fieldType.ValueType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
             ) return null;
 
-        AnySchemaNode? dataNode = fieldType.ValueType?.CreateNode(data);
+        DataNode? dataNode = fieldType.ValueType?.CreateNode(data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         using var stack = context.StackAccess(appType!.Name, target);
         await context.BeginTransactionAsync();
-        AnySchemaNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
+        DataNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
 
         switch (fieldType.ValueType)
@@ -221,11 +221,11 @@ public static class SystemData
                 }
             case StructType @struct:
                 {
-                    if (dataNode is not StructTypeNode structData || origin is not StructTypeNode originStruct) goto ROLLBACK;
+                    if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
                     foreach (var fld in @struct.Fields)
                     {
-                        AnySchemaNode? orgFld = originStruct.GetField(fld.Name);
-                        AnySchemaNode? dataFld = structData.GetField(fld.Name);
+                        DataNode? orgFld = originStruct.GetField(fld.Name);
+                        DataNode? dataFld = structData.GetField(fld.Name);
 
                         if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
                         {
@@ -239,10 +239,10 @@ public static class SystemData
             case ArrayType arrType:
                 {
                     if (dataNode is not ArrayTypeNode arrayData || origin is not ArrayTypeNode originArray) goto ROLLBACK;
-                    Dictionary<string, StructTypeNode> arrDict = new();
+                    Dictionary<string, StructNode> arrDict = new();
                     foreach(var i in arrayData)
                     {
-                        var ditem = (StructTypeNode)i;
+                        var ditem = (StructNode)i;
                         string? pkey = arrType.GetPrimaryKey(ditem);
                         if (pkey != null)
                         {
@@ -253,14 +253,14 @@ public static class SystemData
                         ?? throw new InvalidOperationException("Array element type is not struct type.");
                     foreach (var i in originArray)
                     {
-                        var oitem = (StructTypeNode)i;
+                        var oitem = (StructNode)i;
                         string? pkey = arrType.GetPrimaryKey(oitem);
-                        if (pkey != null && arrDict.TryGetValue(pkey, out StructTypeNode? ditem))
+                        if (pkey != null && arrDict.TryGetValue(pkey, out StructNode? ditem))
                         {
                             foreach (var fld in arrStruct.Fields)
                             {
-                                AnySchemaNode? orgFld = oitem.GetField(fld.Name);
-                                AnySchemaNode? dataFld = ditem.GetField(fld.Name);
+                                DataNode? orgFld = oitem.GetField(fld.Name);
+                                DataNode? dataFld = ditem.GetField(fld.Name);
 
                                 if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
                                 {
@@ -322,7 +322,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType == null) return false;
         
-        (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
+        (_, DataNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
         if (error != null || dataNode == null || dataNode.IsEmpty) return false;
         
         using var stack = context.StackAccess(app, target);
@@ -366,7 +366,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType == null) return false;
 
-        (_, AnySchemaNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
+        (_, DataNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
         if (error != null || dataNode == null || dataNode.IsEmpty) return false;
 
         using var stack = context.StackAccess(app, target);

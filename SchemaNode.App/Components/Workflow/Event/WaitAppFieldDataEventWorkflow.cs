@@ -100,11 +100,11 @@ public class WaitAppFieldDataEventWorkflowPayload
     /// The event data
     /// </summary>
     [Schema(NS_GENERIC_TYPE)]
-    public AnySchemaNode? Data { get; set; }
+    public DataNode? Data { get; set; }
     
     /// <summary>
     /// The origin data
     /// </summary>
     [Schema(NS_GENERIC_TYPE)]
-    public AnySchemaNode? Origin { get; set; }
+    public DataNode? Origin { get; set; }
 }

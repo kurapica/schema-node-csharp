@@ -1,8 +1,8 @@
 ﻿using System.Collections;
 using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using ExpressionType = System.Linq.Expressions.ExpressionType;
 
@@ -234,12 +234,12 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
     }
 
     // Negates the given filter.
-    static bool IsEnumerable(object? value) => value is ArrayTypeNode or IEnumerable and not string;
+    static bool IsEnumerable(object? value) => value is ArrayNode or IEnumerable and not string;
 
     // Negates the given filter.
     static AppSchemaDataFilterValue EnsureEnumerable(AppSchemaDataFilterValue value)
     {
-        if (value.Value is ArrayTypeNode)
+        if (value.Value is ArrayNode)
             return value;
 
         if (value.Value is IEnumerable enumerable && value.Value is not string)

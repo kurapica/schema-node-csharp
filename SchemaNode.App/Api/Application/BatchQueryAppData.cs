@@ -92,7 +92,7 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldType field in fields)
                 {
-                    AnySchemaNode? result = null;
+                    DataNode? result = null;
                     int total = 0;
 
                     // prepare field query
@@ -212,7 +212,7 @@ public static class BatchQueryExtension
                         var @struct = result switch
                         {
                             ArrayTypeNode arr => arr.ElementType as StructType,
-                            StructTypeNode st => st.SchemaType as StructType,
+                            StructNode st => st.SchemaType as StructType,
                             _ => null
                         };
                         if (@struct != null)
@@ -317,7 +317,7 @@ public static class BatchQueryExtension
                         togglable = true;
                         foreach (WorkflowContext forkContext in wf.RootWorkflowContext.GetForkedWorkflowContexts(firstNode))
                         {
-                            StructTypeNode? payload = forkContext.GetWorkflowPayload(firstNode) as StructTypeNode;
+                            StructNode? payload = forkContext.GetWorkflowPayload(firstNode) as StructNode;
                             string? target = payload?.GetField(nameof(InteractionPayload.Target))?.ToValue<string>();
                             if (target != null && target.Equals(query.Target, StringComparison.OrdinalIgnoreCase))
                             {
@@ -345,7 +345,7 @@ public static class BatchQueryExtension
         return (results.ToArray(), root.Schemas);
     }
 
-    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaType type, HashSet<string> enumsKeys, AnySchemaNode? value)
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaType type, HashSet<string> enumsKeys, DataNode? value)
     {
         switch (type)
         {
@@ -383,11 +383,11 @@ public static class BatchQueryExtension
                 }
                 break;
             case StructType @struct:
-                if (value is StructTypeNode obj)
+                if (value is StructNode obj)
                 {
                     foreach (StructFieldSchema f in @struct.Fields)
                     {
-                        AnySchemaNode? v = obj.GetField(f.Name);
+                        DataNode? v = obj.GetField(f.Name);
                         if (v is { IsEmpty: false })
                             await ScanEnumAccess(context, root, f.SchemaType!, enumsKeys, v);
                     }
@@ -401,9 +401,9 @@ public static class BatchQueryExtension
                 {
                     case StructType eleStruct:
                     {
-                        foreach (AnySchemaNode v in arr)
+                        foreach (DataNode v in arr)
                         {
-                            if (v is StructTypeNode)
+                            if (v is StructNode)
                                 await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
                         }
 
@@ -411,7 +411,7 @@ public static class BatchQueryExtension
                     }
                     case EnumType eleEnum:
                     {
-                        foreach (AnySchemaNode v in arr)
+                        foreach (DataNode v in arr)
                         {
                             if (v is EnumTypeNode)
                                 await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);

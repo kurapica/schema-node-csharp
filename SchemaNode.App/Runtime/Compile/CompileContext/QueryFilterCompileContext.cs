@@ -102,7 +102,7 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                                 else
                                 {
-                                    AnySchemaNode valueNode = await Context.GetSchemaNodeAsync(a.SchemeType ?? relation.FuncNode.Args[j].SchemaType, a.Value)
+                                    DataNode valueNode = await Context.GetSchemaNodeAsync(a.SchemeType ?? relation.FuncNode.Args[j].SchemaType, a.Value)
                                         ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionCantBeUsedAsPolicyFilter);
                                     replaceArgs[j] = new ConstantExp(valueNode);
                                 }

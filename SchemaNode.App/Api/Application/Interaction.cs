@@ -55,7 +55,7 @@ public static class InteractionExtensions
             ?? throw new Exception(WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
-        StructTypeNode payload = (node.PayloadType as StructType)?.CreateNode() as StructTypeNode
+        StructNode payload = (node.PayloadType as StructType)?.CreateNode() as StructNode
                                  ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
         payload[nameof(InteractionPayload.App)] = request.App;
         payload[nameof(InteractionPayload.Target)] = request.Target;

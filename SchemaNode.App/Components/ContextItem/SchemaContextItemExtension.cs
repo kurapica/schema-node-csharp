@@ -14,7 +14,7 @@ public static class SchemaContextItemExtension
     /// <summary>
     /// Gets the context item by field name, like @user.name
     /// </summary>
-    public static AnySchemaNode? GetSchemaContextItem(this SchemaContext context, string field)
+    public static DataNode? GetSchemaContextItem(this SchemaContext context, string field)
     {
         string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
@@ -27,12 +27,12 @@ public static class SchemaContextItemExtension
         // Check context item first
         if (context.TryGetContextItem(set.providerType, out object? setItem))
         {
-            AnySchemaNode? node = setItem is AnySchemaNode n 
+            DataNode? node = setItem is DataNode n 
                 ? n
                 : type.CreateNode(setItem!);
             if (paths.Length > 1)
             {
-                return node is StructTypeNode @struct
+                return node is StructNode @struct
                     ? @struct.GetValueByPaths(paths.Skip(1))
                     : null;
             }
@@ -43,10 +43,10 @@ public static class SchemaContextItemExtension
         if (context.GetService(set.providerType) is ISchemaContextItemProvider { HasItem: true } providerInstance
             && providerInstance.TryGetItem(out object? item))
         {
-            AnySchemaNode? node = type.CreateNode(item);
+            DataNode? node = type.CreateNode(item);
             if (paths.Length > 1)
             {
-                return node is StructTypeNode @struct
+                return node is StructNode @struct
                     ? @struct.GetValueByPaths(paths.Skip(1))
                     : null;
             }
@@ -69,7 +69,7 @@ public static class SchemaContextItemExtension
         // Check context item first
         if (context.TryGetContextItem(set.providerType, out object? setItem))
         {
-            return setItem is AnySchemaNode n
+            return setItem is DataNode n
                 ? n.ToValue<T>()
                 : setItem as T;
         }
