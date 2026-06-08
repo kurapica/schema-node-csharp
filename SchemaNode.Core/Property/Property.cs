@@ -13,28 +13,13 @@ namespace SchemaNode.Property;
 public interface IProperty
 {
     private static readonly ConcurrentDictionary<Type, string> _names = [];
-    private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _depends = [];
-    private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> _overrides = [];
     private static readonly ConcurrentDictionary<Type, bool> _stackable = [];
 
-    private static ImmutableArray<string> GetOverrides(Type propertyType)
-        => _overrides.GetOrAdd(propertyType, static t => t.GetMetaProperty<Override>()?.Value?.SelectMany(v => GetOverrides(v).Concat([v.GetPropertyName()])).ToImmutableArray() ?? []);
-    
     /// <summary>
     /// Gets the property name
     /// </summary>
     public string Name => _names.GetOrAdd(GetType(), static t => t.GetPropertyName());
     
-    /// <summary>
-    /// Gets the depend properties
-    /// </summary>
-    public ImmutableArray<string> Depends => _depends.GetOrAdd(GetType(), static t => t.GetMetaProperty<Depend>()?.Value?.Select(v => v.GetPropertyName()).ToImmutableArray() ?? []);
-    
-    /// <summary>
-    /// Gets the override properties
-    /// </summary>
-    public ImmutableArray<string> Overrides => GetOverrides(GetType());
-
     /// <summary>
     /// Whether the property is stackable, which means the property from different sources can be used together.
     /// For example, for the same name constraint property, 

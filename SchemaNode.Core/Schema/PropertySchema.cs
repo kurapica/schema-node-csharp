@@ -52,16 +52,6 @@ public class PropertySchema: ExtensibleSchema
     /// The property is stackable, which means it can be applied multiple times and their effect is stackable not overridable
     /// </summary>
     public bool? Stackable { get; set; }
-    
-    /// <summary>
-    /// The required property names that this depends on
-    /// </summary>
-    public string[]? Depends { get; set; }
-
-    /// <summary>
-    /// The other properties be overridden by this property
-    /// </summary>
-    public string[]? Overrides { get; set; }
 }
 
 /// <summary>

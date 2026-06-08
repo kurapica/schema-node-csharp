@@ -30,12 +30,6 @@ internal class PropertyGenerator : INodeSchemaGenerator
             Type = type.GetMetaProperty<PropertyValueType>()?.Value ?? typeResolver(valueType, @namespace, null) ??
                 throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
 
-            // Depends
-            Depends = type.GetMetaProperty<Depend>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),
-
-            // Override
-            Overrides = type.GetMetaProperty<Override>()?.Value?.Select(t => t.GetPropertyName()).ToArray(),
-
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ??
                          throw new ArgumentException($"Type '{type}' is not a valid as property type."),

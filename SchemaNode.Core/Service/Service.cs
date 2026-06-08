@@ -191,39 +191,8 @@ public static partial class SchemaNodeExtensions
         // sort property types with depends & option depends
         Type[] SortProperties(List<Type> types)
         {
-            List<Type> sorted = [];
-            foreach (Type type in types)
-                InsertPropertyType(type);
-
-            bool InsertPropertyType(Type type)
-            {
-                if (sorted.Contains(type)) return true;
-                
-                if (type.GetMetaProperty<Depend>()?.GetValue<Depend>()?.GetValue<Type[]>() is { Length: > 0 } depends)
-                {
-                    foreach (Type depend in depends)
-                    {
-                        if (types.Contains(depend) && InsertPropertyType(depend)) continue;
-                        logger.LogError("Failed to insert property type '{type}' due to missing or circular dependency on '{depend}'", type.FullName, depend.FullName);
-                        return false;
-                    }
-                }
-
-                if (type.GetMetaProperty<Override>()?.GetValue<Override>()?.GetValue<Type[]>() is { Length: > 0 } overrides)
-                {
-                    foreach (Type @override in overrides)
-                    {
-                        if (types.Contains(@override) && InsertPropertyType(@override)) continue;
-                        logger.LogError("Failed to insert property type '{type}' due to missing or circular dependency on '{@override}'", type.FullName, @override.FullName);
-                        return false;
-                    }
-                }
-                
-                sorted.Add(type);
-                return true;
-            }
-            
-            return sorted.ToArray();
+            // Maybe use relation as sort, but in backend it's not requried to sort properties, so just return as is for now
+            return types.ToArray();
         }
     }
 
