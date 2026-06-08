@@ -37,6 +37,18 @@ public interface INodeSchemaGenerator
 /// </summary>
 internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 {
+    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services)
+    {
+        #region Expression
+
+        services.AddSingleton<IExpVisitor, IntrinsicExpVisitor>();
+        services.AddSingleton<IExpVisitor, ArithmeticExpVisitor>();
+        services.AddSingleton<IExpVisitor, LogicExpVisitor>();
+        services.AddSingleton<IExpVisitor, CollectionExpVisitor>();
+
+        #endregion
+    }
+
     /// <inheritdoc />
     public async Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)
     {
@@ -154,7 +166,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         
-        // Loading all system functions
+        // Loading all system node types
         await LoadAllNodeTypes(string.Empty);
         
         #endregion
@@ -280,7 +292,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             {
                 if (genericArgs is { Length: > 0 })
                     schemaName = $"{schemaName}<{string.Join(",", genericArgs)}>";
-                return isArray ? runtime.GetSystemArraySchema(schemaName) : schemaName;
+                return isArray ? runtime.GetSystemArraySchema(schemaName)! : schemaName;
             }
         }
 

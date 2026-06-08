@@ -627,4 +627,20 @@ public static class AppSchemaDataFilterExtensions
             _ => throw new NotSupportedException($"The logic type {type} can't be used as value compare")
         };
     }
+    
+    internal static AppSchemaDataFilter? GetQueryFilter(this StructNode node, ArrayType array)
+    {
+        if (array.Primary is not { Count: > 0 }) return null;
+        AppSchemaDataFilter? filter = null;
+        foreach (string primary in array.Primary)
+        {
+            if (node.GetAccessValue(primary) is not { IsEmpty: false } val) return null;
+            var keyFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
+                new AppSchemaDataFilterField(primary.ToCamelCase()),
+                new AppSchemaDataFilterValue(val));
+            filter = filter == null ? keyFilter : filter.AndAlso(keyFilter);
+        }
+        return filter;
+
+    }
 }

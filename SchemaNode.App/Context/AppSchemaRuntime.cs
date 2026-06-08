@@ -43,6 +43,8 @@ public class AppSchemaRuntime : SchemaRuntime
                 }
                 else
                 {
+                    if (root.Fields is { Length: > 0 }) throw new Exception($"System app {root.FullName} can't be used as app container");
+                    
                     // Intermediate namespace: create it
                     node = new AppSchema
                     {
@@ -50,6 +52,7 @@ public class AppSchemaRuntime : SchemaRuntime
                         Parent = container
                     };
                     node.SetProperty<Display, LocaleString>(node.FullName);
+                    
                     root.Apps = root.Apps != null ? root.Apps.Concat([node]).ToArray() : [node];
                     root = node;
                     root.Apps ??= [];
@@ -67,11 +70,30 @@ public class AppSchemaRuntime : SchemaRuntime
             }
         }
     }
+
+    /// <summary>
+    /// Save system app field schema
+    /// </summary>
+    /// <param name="schema"></param>
+    internal void SaveSystemAppFieldSchema(AppFieldSchema schema)
+    {
+        AppSchema app = GetSystemAppSchema(schema.App, true)!;
+        if (app.Apps is { Length: > 0 })
+            throw new InvalidOperationException($"System app {app.FullName} is used as app container, can't have fields");
+        app.Fields ??= [];
+        var index = Array.FindIndex(app.Fields, f => f.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase));
+        if (index >= 0)
+        {
+            app.Fields[index] = schema;
+        }
+        else
+            app.Fields = app.Fields is { Length: > 0 } ? app.Fields.Concat([schema]).ToArray() : [schema];
+    }
     
     /// <summary>
     /// Gets system app schema
     /// </summary>
-    internal AppSchema? GetSystemAppSchema(string name)
+    internal AppSchema? GetSystemAppSchema(string name, bool createIfNotExists = false)
     {
         AppSchema? node = _rootAppSchema;
         SpanReader reader = name;
@@ -87,6 +109,17 @@ public class AppSchemaRuntime : SchemaRuntime
                     curr = schema;
                     break;
                 }
+            }
+
+            if (curr == null && createIfNotExists)
+            {
+                curr = new AppSchema
+                {
+                    Name = part.ToString(),
+                    Parent = node.FullName
+                };
+                curr.SetProperty<Display, LocaleString>(curr.FullName);
+                node.Apps = node.Apps != null ? node.Apps.Concat([curr]).ToArray() : [curr];
             }
             node = curr;
         }

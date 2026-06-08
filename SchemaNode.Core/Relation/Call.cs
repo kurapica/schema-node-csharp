@@ -37,7 +37,7 @@ public class Call : IRelationProcess, INodeReferences, INodeError
     private FunctionType? _funType;
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, Runtime.ValueType valueType)
+    public async Task LoadAsync(SchemaContext context, IValueTypeAccess owner)
     {
         _funType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
         Error = _funType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
@@ -45,13 +45,13 @@ public class Call : IRelationProcess, INodeReferences, INodeError
         // check args
         foreach (var arg in Args)
         {
-            if (!string.IsNullOrWhiteSpace(arg.Source) && valueType.GetAccessValueType(arg.Source) == null)
+            if (!string.IsNullOrWhiteSpace(arg.Source) && owner.GetAccessValueType(arg.Source) == null)
                 Error ??= ErrorCodes.STRUCT_RELATION_WRONG_ARGS;
         }
     }
     
     /// <inheritdoc/>
-    public async Task<object?> ProcessAsync(SchemaContext context, DataNode owner)
+    public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner)
     {
         if (_funType == null) return null;
         return await _funType.CallAsync<object?>(context, Args.Select<CallArg, object?>(a =>

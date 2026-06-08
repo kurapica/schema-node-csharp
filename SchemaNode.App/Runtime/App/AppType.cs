@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public sealed class AppType
+public sealed class AppType : IValueTypeAccess
 {
     #region Fields
     
@@ -144,6 +144,7 @@ public sealed class AppType
     {
         // Release old usages
         Release();
+        _relations = null;
 
         // data
         _schema  = schema;
@@ -160,83 +161,27 @@ public sealed class AppType
             Error ??= appFieldType.Error;
         }
         
-
-        Relations = null;
-        
         // Reload Apps
         List<AppType>? reloadApps = null;
 
-        if (_fields is { Count: > 0 })
+        // Check the relations
+        if (schema.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
-            // load field details
-            foreach (AppFieldType field in _fields)
+            foreach (RelationSchema relation in relations)
             {
-            }
+                // Gets the target type
+                ValueType? currentType = GetAccessValueType(relation.Target);
+                if (currentType == null) continue;
+                
+                // Only work for constraint properties
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
+                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                
+                var relationType = await relation.LoadAsync(context, this);
+                Error ??= relationType.Error;
 
-            // Check the relations
-            if (schema.Relations is { Length: > 0 })
-            {
-                Relations = schema.Relations.Select(r => new AppRelationSchema
-                {
-                    AppField = r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty,
-                    DataField = r.Field.Contains('.') ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
-                    Prop = r.Prop,
-                    Func = r.Func,
-                    Args = r.Args.Select(a => new AppArgSchema
-                    {
-                        AppField = a.Name?.Split(".", 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty,
-                        DataField = a.Name != null && a.Name.Contains(".") ? a.Name.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
-                        Value = a.Value,
-                    }).ToArray(),
-                }).ToList();
-
-                foreach (AppRelationSchema relation in Relations)
-                {
-                    AppFieldType? field = _fields?.FirstOrDefault(f => f.Name.Equals(relation.AppField, StringComparison.OrdinalIgnoreCase));
-                    if (field == null) {
-                        relation.Status = SchemaNodeStatus.ApplicationRelationWrongTarget;
-                        continue;
-                    }
-                    relation.FieldNode = field;
-
-                    if (string.IsNullOrWhiteSpace(relation.Func))
-                    {
-                        relation.Status = SchemaNodeStatus.ApplicationRelationWrongFunc;
-                    }
-                    else
-                    {
-                        AnySchemaType? relationFunc = await context.GetSchemaTypeAsync(relation.Func);
-                        if (relationFunc is FunctionType funcNode)
-                        {
-                            funcNode.AddRef(field);
-                            relation.FuncNode = funcNode;
-                        }
-                        else
-                        {
-                            field.Error = SchemaNodeStatus.StructRelationshipWrongFunc;
-                        }
-                    }
-                }
-            }
-        }
-
-        // load data auths
-        if (Auths != null)
-        {
-            foreach (var item in Auths)
-            {
-                AnySchemaType? node = !string.IsNullOrEmpty(item.Evaluator)
-                    ? await context.GetSchemaTypeAsync(item.Evaluator)
-                    : null;
-                if (node is FunctionType funcNode)
-                {
-                    item.Function = funcNode;
-                    item.Status = SchemaNodeStatus.Ready;
-                }
-                else
-                {
-                    item.Status = SchemaNodeStatus.PolicyWrongFunc;
-                }
+                _relations ??= [];
+                _relations.Add(relationType);
             }
         }
         
@@ -313,12 +258,12 @@ public sealed class AppType
     /// <summary>
     /// Gets the app field by name
     /// </summary>
-    public AppFieldType? GetField(string name) => _fields?.GetValueOrDefault(name);
+    public AppFieldType? GetField(string name) => _fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Gets the workflow by name
     /// </summary>
-    public AppWorkflowType? GetWorkflow(string name) => _workflows?.GetValueOrDefault(name);
+    public AppWorkflowType? GetWorkflow(string name) => _workflows?.FirstOrDefault(w => w.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
     
     /// <summary>
     /// Gets relations
@@ -330,6 +275,27 @@ public sealed class AppType
     /// </summary>
     public IEnumerable<RelationType> GetRelations(string fieldName)
         => _relations?.Where(r => fieldName.Equals(r.Target, StringComparison.OrdinalIgnoreCase)) ?? [];
+    
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public ValueType? GetAccessValueType(string path)
+    {
+        if (_fields == null || _fields.Count == 0) return null;
+        ReadOnlySpan<char> remain = null;
+        int index = path.IndexOf('.');
+        if (index > 0)
+        {
+            remain = path.AsSpan()[(index + 1)..];
+            path = path[..index];
+        }
+        foreach (AppFieldType field in _fields)
+        {
+            if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
+                return remain.IsEmpty ? field.ValueType : field.ValueType?.GetAccessValueType(remain.ToString());
+        }
+        return null;
+    }
 
     /// <summary>
     /// Gets all node schemas used by the application
@@ -559,5 +525,6 @@ public sealed class AppType
     const string TargetAccess = $"{nameof(Access)}.{nameof(Access.Target)}";
 
     #endregion
+
 } 
 

@@ -83,12 +83,6 @@ public sealed class AppSchema: ExtensibleSchema
     public AppWorkflowSchema[]? Workflows { get; set; }
 
     /// <summary>
-    /// The application field relations
-    /// </summary>
-    [SchemaIgnore]
-    public RelationSchema[]? Relations { get; set; }
-
-    /// <summary>
     /// The types related to the application
     /// </summary>
     [SchemaIgnore]

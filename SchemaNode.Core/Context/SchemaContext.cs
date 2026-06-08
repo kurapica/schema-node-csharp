@@ -342,7 +342,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <param name="elementType"></param>
     /// <returns></returns>
     public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
-        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)));
+        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
     
     #endregion
     

@@ -76,17 +76,7 @@ public sealed class StructType: ValueType
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                SpanReader paths = relation.Target;
-                ValueType? currentType = this;
-                while (currentType != null && paths.NextPath())
-                {
-                    currentType = currentType switch
-                    {
-                        StructType s => s.GetField(paths.Current)?.Type,
-                        ArrayType { Element: StructType s } => s.GetField(paths.Current)?.Type,
-                        _ => null
-                    };
-                }
+                ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Only work for constraint properties
@@ -155,21 +145,21 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
+    public override ValueType? GetAccessValueType(string path)
     {
-        if (path.IsEmpty || path.SequenceEqual(NODE_SELF)) return this;
+        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF)) return this;
         
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
         if (index > 0)
         {
-            remain = path[(index + 1)..];
+            remain = path.AsSpan()[(index + 1)..];
             path = path[..index];
         }
         foreach (StructFieldType field in _fields)
         {
             if (path.Equals(field.Name, StringComparison.OrdinalIgnoreCase))
-                return remain.IsEmpty ? field.Type : field.Type?.GetAccessValueType(remain);
+                return remain.IsEmpty ? field.Type : field.Type?.GetAccessValueType(remain.ToString());
         }
         return null;
     }

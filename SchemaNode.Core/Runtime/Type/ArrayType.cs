@@ -71,17 +71,7 @@ public sealed class ArrayType: ValueType
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                SpanReader paths = relation.Target;
-                ValueType? currentType = this;
-                while (currentType != null && paths.NextPath())
-                {
-                    currentType = currentType switch
-                    {
-                        StructType s => s.GetField(paths.Current)?.Type,
-                        ArrayType { Element: StructType s } => s.GetField(paths.Current)?.Type,
-                        _ => null
-                    };
-                }
+                ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Only check constraint properties
@@ -115,9 +105,9 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(ReadOnlySpan<char> path)
+    public override ValueType? GetAccessValueType(string path)
     {
-        if (path.IsEmpty || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
+        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
         return path.SequenceEqual(ARRAY_ELEMENT) ? Element : Element?.GetAccessValueType(path);
     }
 
@@ -242,6 +232,33 @@ public sealed class ArrayType: ValueType
             }
         }
         return keys;
+    }
+
+    /// <summary>
+    /// Gets the unique key for the object with separator, returns null if any of the primary keys is missing or empty
+    /// </summary>
+    public string? GetPrimaryKey<T>(IDictionary<string, T> obj, string sep = "|")
+    {
+        if (Primary == null || Primary.Count == 0 || Element is not StructType @struct)
+            return null;
+
+        string[] keys = new string[Primary.Count];
+        for (var index = 0; index < Primary.Count; index++)
+        {
+            var p = Primary[index];
+            StructFieldType? fld = @struct.GetField(p);
+            if (fld == null) return null;
+
+            if (obj.TryGetValue(p, out T? objValue) && objValue?.ToString() is { } str && !string.IsNullOrWhiteSpace(str))
+            {
+                keys[index] = str;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return string.Join(sep, keys);
     }
 
     #endregion

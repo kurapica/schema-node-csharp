@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 
 namespace SchemaNode.Service;
@@ -9,6 +10,9 @@ namespace SchemaNode.Service;
 /// </summary>
 public interface IRuntimeStageHandler
 {
+    /// <summary> Register service to the service collections </summary>
+    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services) {}
+    
     /// <summary>Called while system schemas are being loaded.</summary>
     public Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)=> Task.CompletedTask;
 

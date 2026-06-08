@@ -56,13 +56,9 @@ public static class SystemReflect
         var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
         if (valueType == null) return [];
         
-        SpanReader reader = new(path ?? string.Empty);
-        while (reader.NextPath())
-        {
-            valueType = valueType.GetAccessValueType(reader.Current);
-            if  (valueType == null) return [];
-        }
-        return valueType.GetSubEntries().ToArray();
+        if (!string.IsNullOrWhiteSpace(path))
+            valueType = valueType.GetAccessValueType(path);
+        return valueType?.GetSubEntries().ToArray() ?? [];
     }
 
     /// <summary>

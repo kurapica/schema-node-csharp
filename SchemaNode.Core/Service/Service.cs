@@ -73,6 +73,12 @@ public static partial class SchemaNodeExtensions
                 Assemblies = orderAssemblies.ToArray(),
             });
         
+        // init with service collections
+        using var provider = services.BuildServiceProvider();
+        IRuntimeStageHandler[] handlers = provider.GetServices<IRuntimeStageHandler>().ToArray();
+        foreach (IRuntimeStageHandler handler in handlers)
+            handler.OnServiceInitialization(provider, services);
+        
         // Gets all stage handlers
         return services;
         
@@ -114,8 +120,7 @@ public static partial class SchemaNodeExtensions
                 foreach (SchemaKind asSchemaKind in type.GetMetaProperties<SchemaKind>())
                 {
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
-                        throw new Exception(
-                            $"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
+                        throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
 
                     foreach (Append append in type.GetMetaProperties<Append>())
                     {

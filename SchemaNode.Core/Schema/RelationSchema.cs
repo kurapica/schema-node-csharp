@@ -1,7 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -70,10 +69,10 @@ public class Relations: Property<RelationSchema[]>;
 /// </summary>
 public interface IRelationProcess
 {
-    Task LoadAsync(SchemaContext context, Runtime.ValueType valueType);
+    Task LoadAsync(SchemaContext context, IValueTypeAccess owner);
     
     /// <summary>
     /// Process the relation and return the new property value
     /// </summary>
-    Task<object?> ProcessAsync(SchemaContext context, DataNode owner);
+    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner);
 }

@@ -8,6 +8,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.RegularExpressions;
 using SchemaNode.Function;
+using SchemaNode.Property.App;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -127,31 +128,26 @@ public sealed class AppFieldType
     /// <summary>
     /// Enable the backend storage
     /// </summary>
-    public bool EnableStorage => _appFieldSchema.EnableStorage;
+    public bool EnableStorage { get; private set; }
     
     /// <summary>
     /// The app field storage topology
     /// </summary>
-    public FieldStorageTopology? Topology => _appFieldSchema.Topology;
+    public FieldStorageTopology? Topology { get; private set; }
     /// <summary>
     /// The storage table name
     /// </summary>
-    public string? TableName => _appFieldSchema.TableName;
+    public string? TableName { get; private set; }
     
     /// <summary>
     /// The entity attribute value table name
     /// </summary>
-    public string? AttrTableName => _appFieldSchema.AttrTableName;
+    public string? AttrTableName { get; private set; }
     
     /// <summary>
     /// The app field is using increase update mode, no full data push allowed, always using page query
     /// </summary>
-    public bool? IncrUpdate =>  _appFieldSchema.IncrUpdate;
-    
-    /// <summary>
-    /// Enable the all clear option for the field
-    /// </summary>
-    public bool? AllowClear =>  _appFieldSchema.AllowClear;
+    public bool? IncrUpdate { get; private set; }
     
     #endregion
     
@@ -220,8 +216,16 @@ public sealed class AppFieldType
         _appFieldSchema.Error = Error;
         Foreigns = _appFieldSchema.Foreigns;
         View = _appFieldSchema.View;
-        Disable = GetProperty<Disable>()?.Value;
         
+        // Cache
+        Disable = GetProperty<Disable>()?.Value;
+        EnableStorage = GetProperty<EnableStorage>()?.Value ?? false;
+        Topology = GetProperty<Topology>()?.Value;
+        TableName = GetProperty<TableName>()?.Value;
+        AttrTableName = GetProperty<AttrTableName>()?.Value;
+        IncrUpdate = GetProperty<IncrUpdate>()?.Value;
+        
+        // loading
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
 
         // Loading source & push

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -20,7 +20,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return (null, 0);
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException("The data provider is not configured");
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
@@ -37,7 +37,7 @@ public static class AppDataQueryExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
     }
@@ -52,7 +52,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException("The data provider is not configured");
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
@@ -60,14 +60,14 @@ public static class AppDataQueryExtension
         {
             DataNode? result = null;
 
-            if (field.ValueType is ArrayType { Primary: { Length: > 0 } } arrType)
+            if (field.ValueType is ArrayType { Primary: { Count: > 0 } } arrType)
             {
                 if (nodes is StructNode @struct)
                 {
                     AppSchemaDataFilter? filter = null;
                     foreach (string s in arrType.Primary)
                     {
-                        var fieldNode = @struct.GetField(s);
+                        var fieldNode = @struct.GetAccessValue(s);
                         if (fieldNode == null) return null;
                         var caseFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
                             new AppSchemaDataFilterField(s),
@@ -78,7 +78,7 @@ public static class AppDataQueryExtension
                     (result, _) = await dataProvider.QueryDynamicTableAsync(schema, AppSchemaDataResult.First, filter,
                         forUpdate: forUpdate);
                 }
-                else if (nodes is ArrayTypeNode { Count: > 0 } arrNodes)
+                else if (nodes is ArrayNode { Count: > 0 } arrNodes)
                 {
                     result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.Cast<StructNode>(),
                         forUpdate);
@@ -98,7 +98,7 @@ public static class AppDataQueryExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
     }
@@ -113,7 +113,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException("The data provider is not configured");
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
@@ -121,7 +121,7 @@ public static class AppDataQueryExtension
         {
             DataNode? result = null;
 
-            if (field.ValueType is ArrayType { Primary: { Length: > 0 } })
+            if (field.ValueType is ArrayType { Primary: { Count: > 0 } })
                 result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
 
             // Generate display only fields
@@ -132,7 +132,7 @@ public static class AppDataQueryExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
     }
@@ -161,16 +161,16 @@ public static class AppDataQueryExtension
         }
 
         if (string.IsNullOrEmpty(target))
-            target = context.GetSchemaContextItem<Access>()?.Target ?? string.Empty;
+            target = context.GetContextItem<Access>()?.Target ?? string.Empty;
         
         if (!isValidFilter || string.IsNullOrEmpty(target) && appType?.ScopeType != AppScopeType.SystemLevel) return type switch
         {
-            AppSchemaDataResult.Count => SchemaContext.SystemInt.CreateNode(0),
-            AppSchemaDataResult.Exist => SchemaContext.SystemBool.CreateNode(false),
+            AppSchemaDataResult.Count => context.System.Int.From(0),
+            AppSchemaDataResult.Exist => context.System.Bool.From(false),
             AppSchemaDataResult.First => null,
             AppSchemaDataResult.Last => null,
-            AppSchemaDataResult.Field => new ArrayTypeNode(((appField.ValueType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!),
-            _ => new ArrayTypeNode(appField.ValueType!)
+            AppSchemaDataResult.Field => new ArrayNode(((appField.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!),
+            _ => new ArrayNode(appField.ValueType!)
         };
         
         using var stack = context.StackAccess(app, target);

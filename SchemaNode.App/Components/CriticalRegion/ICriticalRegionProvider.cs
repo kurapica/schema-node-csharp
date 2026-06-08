@@ -16,6 +16,4 @@ public interface ICriticalRegionProvider
     Task<ICriticalRegion> AcquireAsync(string name, TimeSpan? timeout = null);
 }
 
-public interface ICriticalRegion: IDisposable
-{
-}
+public interface ICriticalRegion: IDisposable;

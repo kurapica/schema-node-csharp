@@ -1,10 +1,10 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Function;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
@@ -23,10 +23,10 @@ public class Assign : IRelationProcess
     public object? Value { get; set; }
 
     /// <inheritdoc/> 
-    public Task LoadAsync(SchemaContext context, Runtime.ValueType valueType) => Task.CompletedTask;
+    public Task LoadAsync(SchemaContext context, IValueTypeAccess owner) => Task.CompletedTask;
 
     /// <inheritdoc/> 
-    public Task<object?> ProcessAsync(SchemaContext context, DataNode owner) => Task.FromResult(Value);
+    public Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner) => Task.FromResult(Value);
 }
 
 /// <summary>

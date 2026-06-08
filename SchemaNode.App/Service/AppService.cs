@@ -16,6 +16,9 @@ public static class AppService
         // default run-time
         services.TryAddSingleton<ISchemaRuntime, AppSchemaRuntime>();
         
+        // The schema runtime builder
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, AppRuntimeStageHandler>());
+        
         services.AddSchemaAssemblies(assemblies);
         
         return services;

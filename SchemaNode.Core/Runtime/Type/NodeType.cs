@@ -367,7 +367,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
 /// <summary>
 /// Represents the value schema type
 /// </summary>
-public abstract class ValueType : NodeType
+public abstract class ValueType : NodeType, IValueTypeAccess
 {
     #region Fields
     
@@ -526,7 +526,7 @@ public abstract class ValueType : NodeType
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetAccessValueType(ReadOnlySpan<char> path) => path.IsEmpty || path.SequenceEqual(NODE_SELF) ? this : null;
+    public virtual ValueType? GetAccessValueType(string path) => string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) ? this : null;
 
     /// <summary>
     /// Gets sub entries

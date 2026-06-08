@@ -1,3 +1,4 @@
+using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.AppConstant;
@@ -80,7 +81,7 @@ public static class AppDataProviderExtension
         {
             // 1. Collect keys and prepare IN lists
             HashSet<string> keys = [];
-            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayTypeNode(structType.GetField(k)!.SchemaType!));
+            Dictionary<string, ArrayNode> keyData = arrType.Primary!.ToDictionary(k => k, k => new ArrayNode(structType.GetField(k)!.Type!));
 
             foreach (StructNode node in queryNodes)
             {
@@ -88,13 +89,13 @@ public static class AppDataProviderExtension
                 if (string.IsNullOrEmpty(key) || !keys.Add(key)) continue;
 
                 foreach (string pk in arrType.Primary!)
-                    keyData[pk].Add(node.GetField(pk)!);
+                    keyData[pk].Add(node.GetAccessValue(pk)!);
             }
             if (keys.Count == 0) return null;
 
             // 2. Build filter (PK1 in (...) AND PK2 in (...))
             AppSchemaDataFilter? filter = null;
-            foreach ((string pk, ArrayTypeNode list) in keyData)
+            foreach ((string pk, ArrayNode list) in keyData)
             {
                 var subFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
                     new AppSchemaDataFilterValue(list),
@@ -156,13 +157,13 @@ public static class AppDataProviderExtension
             if (filter == null) return (false, null);
             return await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
         }
-        else if (node is ArrayTypeNode arrNode)
+        else if (node is ArrayNode arrNode)
         {
-            if (arrNode.ElementType != arrayType.ElementSchemaType)
+            if (arrNode.ElementType != arrayType.Element)
                 throw new InvalidOperationException("Invalid element type in array node for deletion");
 
             var count = 0;
-            var origin = new ArrayTypeNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
+            var origin = new ArrayNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
             for (int i = 0; i < arrNode.Count; i += MAX_COMBINE_CASE_COUNT)
             {
                 StructNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).Cast<StructNode>().ToArray();
@@ -177,7 +178,7 @@ public static class AppDataProviderExtension
                 if (filter != null)
                 {
                     var (result, deleted) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
-                    if (result && deleted is ArrayTypeNode deletedArray)
+                    if (result && deleted is ArrayNode deletedArray)
                     {
                          count += deletedArray.Count;
                          origin.AddRange(deletedArray);

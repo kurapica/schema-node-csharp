@@ -1,7 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -12,7 +11,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The relation type, they are not node types, only runtime-types controlled by the node types use them
 /// </summary>
-public class RelationType(RelationSchema relation, ValueType owner) : INodeReferences, INodeError
+public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, INodeError
 {
     /// <summary>
     /// The target of the relation
@@ -22,7 +21,7 @@ public class RelationType(RelationSchema relation, ValueType owner) : INodeRefer
     /// <summary>
     /// The relation owner type
     /// </summary>
-    public ValueType Owner { get; } = owner;
+    public IValueTypeAccess Owner { get; } = owner;
 
     /// <summary>
     /// The property type the relation applied to
@@ -57,7 +56,7 @@ public class RelationType(RelationSchema relation, ValueType owner) : INodeRefer
     /// <summary>
     /// Process the relation and return the property with the result
     /// </summary>
-    public async Task<IProperty?> ProcessAsync(SchemaContext context, DataNode owner)
+    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner)
     {
         var propType = _prop?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
@@ -111,7 +110,7 @@ public static class RelationTypeExtensions
     /// <summary>
     /// Load the relation schema as relation runtime type
     /// </summary>
-    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, ValueType owner)
+    public static async Task<RelationType> LoadAsync(this RelationSchema relation, SchemaContext context, IValueTypeAccess owner)
     {
         RelationType type = new(relation, owner);
         await type.LoadAsync(context);

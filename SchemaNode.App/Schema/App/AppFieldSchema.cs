@@ -79,6 +79,18 @@ public sealed class AppFieldSchema: ExtensibleSchema
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
     public string? Push { get; set; }
     
+    /// <summary>
+    /// The combine rule for scalar/enum type
+    /// </summary>
+    [Relation<InVisible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    public DataCombineType? Combine { get; set; }
+    
+    /// <summary>
+    /// The combine rule for struct or struct-array type
+    /// </summary>
+    [Relation<Visible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    public DataCombine[]? Combines { get; set; }
+
     #endregion
     
     #region Foreign & View
@@ -92,61 +104,6 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// The field view settings
     /// </summary>
     public FieldView? View { get; set; }
-
-    #endregion
-    
-    #region Storage
-    
-    /// <summary>
-    /// Enable the backend storage
-    /// </summary>
-    public bool EnableStorage { get; set; }
-    
-    /// <summary>
-    /// The app field storage topology
-    /// </summary>
-    [Relation<Visible>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"${nameof(EnableStorage)}")]
-    public FieldStorageTopology? Topology { get; set; }
-    
-    /// <summary>
-    /// The storage table name
-    /// </summary>
-    [Relation<Visible>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"${nameof(EnableStorage)}")]
-    public string? TableName { get; set; }
-    
-    /// <summary>
-    /// The entity attribute value table name
-    /// </summary>
-    [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(Topology)}", FieldStorageTopology.AttributeBased)]
-    public string? AttrTableName { get; set; }
-    
-    /// <summary>
-    /// The app field is using increase update mode, no full data push allowed, always using page query
-    /// </summary>
-    [Relation<Visible>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"${nameof(EnableStorage)}")]
-    public bool? IncrUpdate { get; set; }
-    
-    /// <summary>
-    /// Enable the all clear option for the field
-    /// </summary>
-    [Relation<Visible>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"${nameof(EnableStorage)}")]
-    public bool? AllowClear { get; set; }
-    
-    #endregion
-    
-    #region The data combine rules
-
-    /// <summary>
-    /// The combine rule for scalar/enum type
-    /// </summary>
-    [Relation<InVisible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
-    public DataCombineType? Combine { get; set; }
-    
-    /// <summary>
-    /// The combine rule for struct or struct-array type
-    /// </summary>
-    [Relation<Visible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
-    public DataCombine[]? Combines { get; set; }
 
     #endregion
 }
@@ -318,7 +275,7 @@ internal static class DataCombineTypeExtensions
             case StructNode { IsEmpty: false } o:
                 {
                     // Check the primary key
-                    string key = string.Join("|", type.GetPrimaryKeys(o) ?? []);
+                    string? key = type.GetPrimaryKey(o);
                     if (string.IsNullOrWhiteSpace(key)) return new Dictionary<string, StructNode>();
 
                     // Return single element array
@@ -334,7 +291,7 @@ internal static class DataCombineTypeExtensions
                         if (token is not StructNode obj) continue;
 
                         // Gets the key
-                        string key = string.Join("|", type.GetPrimaryKeys(obj) ?? []);
+                        string? key = type.GetPrimaryKey(obj);
                         if (string.IsNullOrWhiteSpace(key)) continue;
                         if (keyMap.TryGetValue(key, out StructNode? total))
                         {

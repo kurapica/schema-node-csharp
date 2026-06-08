@@ -185,8 +185,8 @@ public class SchemaRuntime : ISchemaRuntime
     /// <summary>
     /// Try gets the array schema for the given element type. The element type should be the full name of the type, e.g. "system.string" for string array.
     /// </summary>
-    public string GetSystemArraySchema(string elementType) => 
-        _arrayCache.GetValueOrDefault(elementType) ?? $"{NS_SYSTEM_LIST}<{elementType.ToLowerInvariant()}>";
+    public string? GetSystemArraySchema(string elementType, bool noGeneric = false) => 
+        _arrayCache.GetValueOrDefault(elementType) ?? (!noGeneric ? $"{NS_SYSTEM_LIST}<{elementType.ToLowerInvariant()}>"  : null);
     
     #endregion
 

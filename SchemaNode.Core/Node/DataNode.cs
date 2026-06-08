@@ -4,6 +4,8 @@ using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
+using SchemaNode.Runtime;
+
 // ReSharper disable InconsistentNaming
 // ReSharper disable VirtualMemberCallInConstructor
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
@@ -13,7 +15,7 @@ namespace SchemaNode.Node;
 /// <summary>
 /// The data node interface, which represents a node in the data structure. It can be a value node, an array node, or a struct node.
 /// </summary>
-public abstract class DataNode
+public abstract class DataNode : IValueAccess
 {
     #region Properties
 

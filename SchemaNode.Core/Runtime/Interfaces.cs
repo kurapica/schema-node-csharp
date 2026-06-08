@@ -1,4 +1,5 @@
 using SchemaNode.Context;
+using SchemaNode.Node;
 
 namespace SchemaNode.Runtime;
 
@@ -22,4 +23,17 @@ public interface INodeError
     /// Gets the runtime node error
     /// </summary>
     string? Error { get; }
+}
+
+public interface IValueTypeAccess
+{
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    ValueType? GetAccessValueType(string path);
+}
+
+public interface IValueAccess
+{
+    DataNode? GetAccessValue(string path);
 }
