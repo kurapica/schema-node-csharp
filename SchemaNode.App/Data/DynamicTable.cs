@@ -7,7 +7,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
-using SchemaNode.Components;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
@@ -776,8 +775,7 @@ public class DynamicTableSchema
 
                         // target
                         var targetArg = call.Args.Last();
-                        string? target = targetArg.Value?.ToValue<string>() ??
-                                         context.GetSchemaContextItem<Access>()?.Target;
+                        string? target = targetArg.Value?.ToValue<string>() ?? context.GetContextItem<Access>()?.Target;
                         if (string.IsNullOrWhiteSpace(target)) continue; // no app target
 
                         // collect keys

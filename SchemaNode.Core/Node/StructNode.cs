@@ -130,7 +130,7 @@ public class StructNode : DataNode, IDictionary<string, object>
     public bool IsReadOnly => throw new NotImplementedException();
 
     /// <inheritdoc/>
-    public override bool TrySetValue<T>(T? value) where T : default
+    public sealed override bool TrySetValue<T>(T? value) where T : default
     {
         _csharpObject = null;
         if (value == null)

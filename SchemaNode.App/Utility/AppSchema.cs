@@ -10,15 +10,6 @@ internal static class App
     #region Methods
 
     /// <summary>
-    /// Gets the type's system app and field
-    /// </summary>
-    internal static (string app, string field)? GetSystemAppField(this Type type)
-    {
-        if (TypeAppFieldMap.TryGetValue(type, out var result)) return result;
-        return null;
-    }
-
-    /// <summary>
     /// Gets the system app
     /// </summary>
     internal static AppSchema? GetSystemApp(string appName)

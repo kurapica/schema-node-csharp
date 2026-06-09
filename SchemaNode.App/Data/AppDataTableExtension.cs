@@ -1,7 +1,5 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
-using System.Reflection;
 using SchemaNode.Components;
 using ValueType = SchemaNode.Runtime.ValueType;
 
@@ -59,22 +57,11 @@ public static class AppDataTableExtension
         }
     }
     
-    internal static async Task<(AppFieldType appField, IReadOnlyList<PropertyInfo>? primarys)> AssertAppField<T>(this SchemaContext context)
+    internal static async Task<AppFieldType> AssertAppField<T>(this SchemaContext context)
     {
-        (string app, string field)? app = typeof(T).GetSystemAppField();
+        (string app, string field)? app = (context.Runtime as AppSchemaRuntime)?.GetSystemAppField<T>();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        AppFieldType appFieldType = (await context.GetAppTypeAsync(app.Value.app))?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-
-        if (appFieldType.ValueType is ArrayType arrType && arrType.Element is StructType @struct)
-        {
-            IReadOnlyList<PropertyInfo> primarys = @struct.GetCSharpProperties(true) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-            return (appFieldType, primarys);
-        }
-        else
-        {
-            return (appFieldType, null);
-        }
+        return (await context.GetAppTypeAsync(app.Value.app))?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
     }
 
     /// <summary>

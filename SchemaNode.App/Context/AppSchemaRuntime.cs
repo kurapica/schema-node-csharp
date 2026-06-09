@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using SchemaNode.Http;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
@@ -16,6 +18,8 @@ public class AppSchemaRuntime : SchemaRuntime
     #region System App schema
 
     private readonly AppSchema _rootAppSchema = new();
+    private readonly ConcurrentDictionary<string, Type> _appFieldTypes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<Type, (string App, string Field)> _typeAppFields = new();
 
     /// <summary>
     /// Save system app schema
@@ -75,7 +79,7 @@ public class AppSchemaRuntime : SchemaRuntime
     /// Save system app field schema
     /// </summary>
     /// <param name="schema"></param>
-    internal void SaveSystemAppFieldSchema(AppFieldSchema schema)
+    internal void SaveSystemAppFieldSchema(AppFieldSchema schema, Type? matchType)
     {
         AppSchema app = GetSystemAppSchema(schema.App, true)!;
         if (app.Apps is { Length: > 0 })
@@ -88,6 +92,12 @@ public class AppSchemaRuntime : SchemaRuntime
         }
         else
             app.Fields = app.Fields is { Length: > 0 } ? app.Fields.Concat([schema]).ToArray() : [schema];
+
+        if (matchType != null)
+        {
+            _appFieldTypes[$"{schema.App}.{schema.Name}"] = matchType;
+            _typeAppFields[matchType] = (schema.App, schema.Name);
+        }
     }
     
     /// <summary>
@@ -126,6 +136,32 @@ public class AppSchemaRuntime : SchemaRuntime
         return node;
     }
 
+    /// <summary>
+    /// Gets the application field type
+    /// </summary>
+    internal Type? GetSystemAppFieldType(string appName, string fieldName)
+    {
+        _appFieldTypes.TryGetValue($"{appName}.{fieldName}", out Type? type);
+        return type;
+    }
+
+    /// <summary>
+    /// Gets the app & field of the given type
+    /// </summary>
+    internal (string App, string Field)? GetSystemAppField(Type fieldType)
+    {
+        return _typeAppFields.GetValueOrDefault(fieldType);
+    }
+    
+    /// <summary>
+    /// Gets the app & field of the given type
+    /// </summary>
+    internal (string App, string Field)? GetSystemAppField<T>()
+    {
+        return _typeAppFields.GetValueOrDefault(typeof(T));
+    }
+
+    
     #endregion
     
     #region App Types

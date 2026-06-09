@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
@@ -38,6 +39,7 @@ public sealed class AppFieldType
     private IProperty[]? _props;
     private NodeType[]? _refTypes;
     private ConcurrentDictionary<Type, object>? _items;
+    private List<PropertyInfo> _primarys;
     
     #endregion
     
@@ -227,6 +229,17 @@ public sealed class AppFieldType
         
         // loading
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
+        
+        // primary property info
+        if (ValueType is Runtime.ArrayType arr && arr.Primary is { Count: > 0} && structType != null && structType.GetCsharpType() is { } ctype)
+        {
+            _primarys = [];
+            foreach (string primary in arr.Primary)
+            {
+                _primarys.Add(ctype.GetProperty(primary, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+                    ?? throw new Exception($"Primary property {primary} not found in type {ctype.FullName} for app {App} field {Name}"));
+            }
+        }
 
         // Loading source & push
         if (!string.IsNullOrWhiteSpace(_appFieldSchema.Source))
@@ -384,6 +397,11 @@ public sealed class AppFieldType
     /// </summary>
     public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Gets the primary properties for the struct array type, return empty if the field is not struct array or no primary defined
+    /// </summary>
+    public IEnumerable<PropertyInfo> GetPrimaryProperties() => _primarys ?? [];
+    
     /// <summary>
     /// Add observer
     /// </summary>

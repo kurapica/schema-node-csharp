@@ -19,7 +19,7 @@ public static class PolicyExtension
         bool authorized = true;
 
         // cache the evaluation result in context
-        PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
+        PolicyEvaluatorResult cache = context.GetOrAddContextItem<PolicyEvaluatorResult>();
 
         // check policies in order
         foreach (PolicyItem item in items)
@@ -58,7 +58,7 @@ public static class PolicyExtension
     public static async Task<bool> AuthorizeAsync(this SchemaContext context, string evaluator, bool silent = false)
     {
         // cache the evaluation result in context
-        PolicyEvaluatorResult cache = context.GetOrCreateContextItem<PolicyEvaluatorResult>();
+        PolicyEvaluatorResult cache = context.GetOrAddContextItem<PolicyEvaluatorResult>();
 
         // The result should be the same for the same evaluator in one context
         if (!cache.Result.TryGetValue(evaluator, out var authorized))

@@ -156,7 +156,7 @@ public static class AppDataTransactionExtension
     public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
-        var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
 
         // Process data field push
         foreach (string target in transChangedData.Keys.ToArray())
@@ -1159,7 +1159,7 @@ public static class AppDataTransactionExtension
     // Record the changed fields with changed values
     static void OnFieldDataChanged(SchemaContext context,  AppFieldType field, TransactionChangeOperation operation, DataNode? value = null, DataNode? origin = null)
     {
-        var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
         var access = context.GetSchemaContextItem<Access>();
         string target = access!.Target ?? Guid.Empty.ToString();
         if (!transChangedData.TryGetValue(target, out TransactionChangeData? changeData))

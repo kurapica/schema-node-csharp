@@ -80,7 +80,7 @@ public sealed class AccessScope(SchemaContext context) : IDisposable
     {
         var access = context.GetRequiredService<Access>();
         if (access.Unstack())
-            context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+            context.GetOrAddContextItem<PolicyEvaluatorResult>().Result.Clear();
     }
 }
 
@@ -92,7 +92,7 @@ public static class AccessContextItemProviderExtensions
     public static void SetAccess(this SchemaContext context, Access access)
     {
         // Clear the policy evaluation cache
-        context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+        context.GetOrAddContextItem<PolicyEvaluatorResult>().Result.Clear();
         
         // Gets the shared access
         var sharedAccess = context.GetRequiredService<Access>();
@@ -105,7 +105,7 @@ public static class AccessContextItemProviderExtensions
     public static void SetAccess(this SchemaContext context, string? app = null, string? target = null)
     {
         // Clear the policy evaluation cache
-        context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+        context.GetOrAddContextItem<PolicyEvaluatorResult>().Result.Clear();
         
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
@@ -125,7 +125,7 @@ public static class AccessContextItemProviderExtensions
         
         // Clear the policy evaluation cache if changed
         if(access.Stack(app, target))
-            context.GetOrCreateContextItem<PolicyEvaluatorResult>().Result.Clear();
+            context.GetOrAddContextItem<PolicyEvaluatorResult>().Result.Clear();
             
         return new AccessScope(context);
     }

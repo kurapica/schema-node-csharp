@@ -18,18 +18,6 @@ namespace SchemaNode.Function;
 [Meta<SchemaType>(NS_SYSTEM_DATA)]
 public static class SystemData
 {
-    #region Context Item
-
-    /// <summary>
-    /// Gets the context item
-    /// </summary>
-    public static DataNode? getcontext(SchemaContext context, string item)
-    {
-        
-    }
-
-    #endregion
-
     #region Get single Application Data
 
     /// <summary>

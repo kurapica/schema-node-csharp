@@ -403,25 +403,30 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     public void CopySchemaContextItem(SchemaContext source)
     {
-        foreach ((string SchemaType, Type ProviderType, Type ItemType) info in GetRequiredService<SchemaContextItemProvider>().GetProviderTypes)
-        {
-            object? node = source.GetContextItem(info.ProviderType);
-            if (node == null) continue;
-            SetContextItem(info.ItemType, node);
-        }
+        // save direct context items
         foreach (var pair in source._contextItems)
             SetContextItem(pair.Key, pair.Value);
+        
+        // save context items for providers
+        foreach ((string SchemaType, Type ProviderType, Type ItemType) info in GetRequiredService<SchemaContextItemProvider>().GetProviderTypes)
+        {
+            if (source.GetService(info.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item))
+            {
+                if (item != null)
+                    (GetService(info.ProviderType) as ISchemaContextItemProvider)?.TrySetItem(item);
+            }
+        }
     }
 
     /// <summary>
     /// Gets or creates the context item
     /// </summary>
-    public T GetOrCreateContextItem<T>(Func<T> factory) where T : class => (T)_contextItems.GetOrAdd(typeof(T), _ => factory());
+    public T GetOrAddContextItem<T>(Func<T> factory) where T : class => (T)_contextItems.GetOrAdd(typeof(T), _ => factory());
 
     /// <summary>
     /// Gets or creates the context item
     /// </summary>
-    public T GetOrCreateContextItem<T>() where T : class, new() => (T)_contextItems.GetOrAdd(typeof(T), _ => new T());
+    public T GetOrAddContextItem<T>() where T : class, new() => (T)_contextItems.GetOrAdd(typeof(T), _ => new T());
 
     #endregion
 

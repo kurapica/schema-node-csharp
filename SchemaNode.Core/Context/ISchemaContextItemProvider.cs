@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using SchemaNode.Property.Constraints;
 
 namespace SchemaNode.Context;
 
@@ -22,6 +21,11 @@ public interface ISchemaContextItemProvider
     /// Try to get the item
     /// </summary>
     bool TryGetItem(out object? item);
+    
+    /// <summary>
+    /// Try set the item if accept override value
+    /// </summary>
+    bool TrySetItem(object? item);
 }
 
 /// <summary>
@@ -51,6 +55,8 @@ public interface ISchemaContextItemProvider<T>: ISchemaContextItemProvider
             return false;
         }
     }
+    
+    public virtual bool TrySetItem(T item) => false;
 
     #region Implementation
 
@@ -62,7 +68,13 @@ public interface ISchemaContextItemProvider<T>: ISchemaContextItemProvider
         item = typedItem;
         return result;
     }
-
+    
+    bool ISchemaContextItemProvider.TrySetItem(object? item)
+    {
+        if (item is T typedItem) return TrySetItem(typedItem);
+        return false;
+    }
+    
     #endregion
 }
 
