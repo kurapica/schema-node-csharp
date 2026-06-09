@@ -7,7 +7,14 @@ using System.Text.Json.Nodes;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Utility;
 using SchemaNode.Event;
+using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
+using DateType = SchemaNode.Runtime.DateType;
+using DecimalType = SchemaNode.Runtime.DecimalType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using IntType = SchemaNode.Runtime.IntType;
+using StructType = SchemaNode.Runtime.StructType;
+
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Data;
@@ -219,8 +226,7 @@ public static class AppDataTransactionExtension
 
                                             if (originMap.Remove(key, out DataNode? o))
                                             {
-                                                structNode.Origin = o;
-                                                context.RaiseEvent(new AppFieldDataUpdateEvent(field, target), structNode);
+                                                context.RaiseEvent(new AppFieldDataUpdateEvent(field, target), new AppFieldDataUpdatePayload<DataNode>(structNode, o));
                                             }
                                             else
                                             {
@@ -237,11 +243,10 @@ public static class AppDataTransactionExtension
                                 }
                                 else if (changeValues != null)
                                 {
-                                    changeValues.Origin = originValues;
                                     if (originValues == null)
                                         context.RaiseEvent(new AppFieldDataCreateEvent(field, target), changeValues);
                                     else
-                                        context.RaiseEvent(new AppFieldDataUpdateEvent(field, target), changeValues);
+                                        context.RaiseEvent(new AppFieldDataUpdateEvent(field, target), new AppFieldDataUpdatePayload<DataNode>(changeValues, originValues));
                                 }
                                 break;
                             }
@@ -290,10 +295,10 @@ public static class AppDataTransactionExtension
             foreach (string app in changeData.Changes.Keys.Select(p => p.App).Distinct())
             {
                 AppType? appNode = await context.GetAppTypeAsync(app);
-                if (appNode?.Fields != null)
+                if (appNode != null && appNode.GetFields().Any())
                 {
                     // Add all the base fields with observers and no function
-                    baseFields.AddRange(appNode.Fields.Where(f => f.FuncNode == null && f.HasObserver));
+                    baseFields.AddRange(appNode.GetFields().Where(f => f.PushSource == null && f.HasObserver));
                 }
             }
         }
@@ -320,7 +325,7 @@ public static class AppDataTransactionExtension
             // Check fields
             foreach (AppFieldType node in baseFields.Where(p => p.HasObserver)
                          .SelectMany(p => p.Observers!).Distinct()
-                         .Where(n => !(n.Disable ?? false) && !(n.Frontend ?? false)))
+                         .Where(n => n is { EnableDynamicTable: true, IsForeignView: false }))
             {
                 if (!updateFieldsLvlMap.TryGetValue(node, out FieldDataPushLevel? value))
                 {
@@ -409,7 +414,7 @@ public static class AppDataTransactionExtension
                             // Use contains, normal case
                             case 1:
                             {
-                                ArrayTypeNode? keysNode = CombineField(changeInfos, item.First().Key);
+                                ArrayNode? keysNode = CombineField(changeInfos, item.First().Key);
                                 if (keysNode == null || keysNode.Count == 0) continue;
 
                                 filter = new AppSchemaDataFilterBinary(LogicType.Contains,
@@ -435,7 +440,7 @@ public static class AppDataTransactionExtension
                                         int keyIdx = 0;
                                         foreach (DataPushPrimaryFieldAccess map in item)
                                         {
-                                            DataNode? keyNode = node.GetField(map.Key);
+                                            DataNode? keyNode = node.GetAccessValue(map.Key);
                                             if (keyNode == null || keyNode.IsEmpty) // cover case, impossible
                                             {
                                                 caseFilter = null;
@@ -448,7 +453,7 @@ public static class AppDataTransactionExtension
                                             caseFilter = caseFilter != null
                                                 ? new AppSchemaDataFilterBinary(LogicType.AndAlso, caseFilter, kFilter)
                                                 : kFilter;
-                                            keys[keyIdx++] = keyNode.ToString();
+                                            keys[keyIdx++] = keyNode.GetValue<string>()!;
                                         }
 
                                         if (caseFilter == null || !existedKeys.Add(string.Join(':', keys))) continue;
@@ -479,7 +484,7 @@ public static class AppDataTransactionExtension
                                     filter = null;
                                     foreach (DataPushPrimaryFieldAccess map in item)
                                     {
-                                        ArrayTypeNode? keysNode = CombineField(changeInfos, map.Key);
+                                        ArrayNode? keysNode = CombineField(changeInfos, map.Key);
                                         if (keysNode == null || keysNode.Count == 0) continue;
 
                                         AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
@@ -496,12 +501,12 @@ public static class AppDataTransactionExtension
                         if (filter == null || !fieldChangeInfos.TryGetValue(fromField, out var tarChangeInfo)) continue;
                         
                         // Fill unchange data
-                        ArrayTypeNode? fetchData = await context.GetSchemaDataAsync(thirdAppField.App, fromField.Name,
-                            target, AppSchemaDataResult.List, filter) as ArrayTypeNode;
+                        ArrayNode? fetchData = await context.GetSchemaDataAsync(thirdAppField.App, fromField.Name,
+                            target, AppSchemaDataResult.List, filter) as ArrayNode;
                         if (fetchData == null) continue;
                         
                         // Fill unchange data
-                        DynamicTableSchema schema = fromField.Schema ?? fromField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = fromField.GetDynamicTableSchema(context);
                         foreach (DataNode node in fetchData)
                         {
                             if (node is not StructNode structNode) continue;
@@ -522,8 +527,8 @@ public static class AppDataTransactionExtension
                 await FillPushData(updatesPush);
 
                 // Calc the origin and new push data
-                ArrayTypeNode oldResult = await CalcPushData(originsPush);
-                ArrayTypeNode newResult = await CalcPushData(updatesPush);
+                ArrayNode oldResult = await CalcPushData(originsPush);
+                ArrayNode newResult = await CalcPushData(updatesPush);
                 if (oldResult.IsEmpty && newResult.IsEmpty) continue;
                 
                 // Save the incremental data
@@ -532,13 +537,13 @@ public static class AppDataTransactionExtension
                 continue;
 
                 // Calc data push
-                async Task<ArrayTypeNode> CalcPushData(List<DataNode?[]> pushData)
+                async Task<ArrayNode> CalcPushData(List<DataNode?[]> pushData)
                 {
-                    ArrayTypeNode result = new ArrayTypeNode(field.ValueType!);
+                    ArrayNode result = new ArrayNode(field.ValueType!);
                     foreach (object?[] args in pushData)
                     {
                         DataNode? ret = await field.PushFunc!.CallAsync<DataNode, DataPushCompileContext>(context, args);
-                        if (ret is ArrayTypeNode arr)
+                        if (ret is ArrayNode arr)
                             result.AddRange(arr);
                         else if(ret is not null)
                             result.Add(ret);
@@ -554,7 +559,7 @@ public static class AppDataTransactionExtension
                         DataPushThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
                         AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
                         if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var thirdChangeInfos)) continue;
-                        DynamicTableSchema schema = thirdAppField.Schema ?? thirdAppField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = thirdAppField.GetDynamicTableSchema(context);
                         
                         // Fill data
                         Dictionary<string, (DataNode[], List<DataNode?[]>)> loadingMap = [];
@@ -567,7 +572,7 @@ public static class AppDataTransactionExtension
                                 {
                                     case DataPushPrimaryFieldAccess access:
                                         StructNode? owner = pushItem.ElementAtOrDefault(access.ArgIndex) as StructNode;
-                                        keysNodes[k] = owner?.GetField(access.DataField);
+                                        keysNodes[k] = owner?.GetAccessValue(access.DataField);
                                         break;
                                     
                                     case DataPushPrimaryConstant constant:
@@ -603,17 +608,17 @@ public static class AppDataTransactionExtension
                         if (loadingMap.Count != 0)
                         {
                             AppSchemaDataFilter? filter = null;
-                            string[] primaries = (thirdAppField.ValueType as ArrayType)!.Primary!;
+                            var primaries = (thirdAppField.ValueType as ArrayType)!.Primary!;
                             
                             // Use contains
                             if (loadingMap.Count > MAX_COMBINE_CASE_COUNT)
                             {
-                                for (int k = 0; k < primaries.Length; k++)
+                                for (int k = 0; k < primaries.Count; k++)
                                 {
-                                    ArrayTypeNode? keysNode = null;
+                                    ArrayNode? keysNode = null;
                                     foreach (var item in loadingMap.Values)
                                     {
-                                        keysNode ??= new ArrayTypeNode(item.Item1[k].SchemaType);
+                                        keysNode ??= new ArrayNode(item.Item1[k].Type);
                                         keysNode.Add(item.Item1[k]);
                                     }
                                     if (keysNode == null) continue;
@@ -631,7 +636,7 @@ public static class AppDataTransactionExtension
                                 {
                                     AppSchemaDataFilter? caseFilter = null;
                                     
-                                    for (int k = 0; k < primaries.Length; k++)
+                                    for (int k = 0; k < primaries.Count; k++)
                                     {
                                         AppSchemaDataFilter kMatch = new AppSchemaDataFilterBinary(LogicType.Equal,
                                             new AppSchemaDataFilterField(primaries[k]),
@@ -651,7 +656,7 @@ public static class AppDataTransactionExtension
 
                             // Fetch and fill unchange data
                             if (filter != null && await context.GetSchemaDataAsync(thirdAppField.App, thirdAppField.Name,
-                                    target, AppSchemaDataResult.List, filter) is ArrayTypeNode fetchData)
+                                    target, AppSchemaDataResult.List, filter) is ArrayNode fetchData)
                             {
                                 foreach (DataNode node in fetchData)
                                 {
@@ -690,22 +695,22 @@ public static class AppDataTransactionExtension
                     return pushData;
                 }
 
-                ArrayTypeNode? CombineField((DataPushThirdFieldInfo? ThirdInfo,
+                ArrayNode? CombineField((DataPushThirdFieldInfo? ThirdInfo,
                     Dictionary<string, StructNode> Origins,
                     Dictionary<string, StructNode> Updates,
                     Dictionary<string, StructNode> UnChanged) changeInfo, string keyField)
                 {
                     HashSet<string> keys = [];
-                    ArrayTypeNode? keysNode = null;
+                    ArrayNode? keysNode = null;
                     void AddKeys(IEnumerable<StructNode> nodes)
                     {
-                        foreach (DataNode? key in nodes.Select(node => node.GetField(keyField)))
+                        foreach (DataNode? key in nodes.Select(node => node.GetAccessValue(keyField)))
                         {
                             if (key is not { IsEmpty: false }) continue;
-                            var keyStr = key.ToValue<string>() ?? string.Empty;
+                            var keyStr = key.GetValue<string>() ?? string.Empty;
                             if (!string.IsNullOrEmpty(keyStr) && keys.Add(keyStr))
                             {
-                                keysNode ??= new ArrayTypeNode(key.SchemaType);
+                                keysNode ??= new ArrayNode(key.Type);
                                 keysNode.Add(key);
                             }
                         }
@@ -722,7 +727,7 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructNode> UnChanged) GatherFieldChangeInfos(AppFieldType appField, DataPushThirdFieldInfo? thirdInfo = null)
                 {
                     List<FieldDataChangeData>? changes = changeData.Changes.GetValueOrDefault(appField);
-                    DynamicTableSchema schema = appField.Schema ?? appField.GenDynamicTableSchema();
+                    DynamicTableSchema schema = appField.GetDynamicTableSchema(context);
 
                     Dictionary<string, StructNode> origins = [];
                     Dictionary<string, StructNode> updates = [];
@@ -734,9 +739,9 @@ public static class AppDataTransactionExtension
                             // for origin
                             switch (change.Origin)
                             {
-                                case ArrayTypeNode arrayTypeNode:
+                                case ArrayNode ArrayNode:
                                 {
-                                    foreach (DataNode node in arrayTypeNode)
+                                    foreach (DataNode node in ArrayNode)
                                     {
                                         if (node is not StructNode StructNode) continue;
                                         string? key = schema.GetPrimaryKey(StructNode);
@@ -758,9 +763,9 @@ public static class AppDataTransactionExtension
                             // For new
                             switch (change.Value)
                             {
-                                case ArrayTypeNode arrayTypeNode:
+                                case ArrayNode ArrayNode:
                                 {
-                                    foreach (DataNode node in arrayTypeNode)
+                                    foreach (DataNode node in ArrayNode)
                                     {
                                         if (node is not StructNode StructNode) continue;
                                         string? key = schema.GetPrimaryKey(StructNode);
@@ -775,8 +780,8 @@ public static class AppDataTransactionExtension
                                             bool isEqual = true;
                                             foreach (string pushKey in thirdInfo.PushKeys)
                                             {
-                                                DataNode? oVal = origin.GetField(pushKey);
-                                                DataNode? nVal = StructNode.GetField(pushKey);
+                                                DataNode? oVal = origin.GetAccessValue(pushKey);
+                                                DataNode? nVal = StructNode.GetAccessValue(pushKey);
                                                 if (oVal is { IsEmpty: false } || nVal is { IsEmpty: false })
                                                 {
                                                     if (oVal == null || oVal.IsEmpty || nVal == null || nVal.IsEmpty)
@@ -811,8 +816,8 @@ public static class AppDataTransactionExtension
 
                                     // check push key changes
                                     if (origin == null || thirdInfo == null || (from pushKey in thirdInfo.PushKeys
-                                            let oVal = origin.GetField(pushKey)
-                                            let nVal = StructNode.GetField(pushKey)
+                                            let oVal = origin.GetAccessValue(pushKey)
+                                            let nVal = StructNode.GetAccessValue(pushKey)
                                             where oVal is { IsEmpty: false } || nVal is { IsEmpty: false }
                                             where oVal == null || nVal == null || !oVal.Equals(nVal)
                                             select oVal).Any())
@@ -849,7 +854,7 @@ public static class AppDataTransactionExtension
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Newest;
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? now = GroupJoin(newResult, method);
+                    DataNode? now = DataCombineTypeExtensions.GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -870,12 +875,12 @@ public static class AppDataTransactionExtension
             case ScalarType scalar:
                 {
                     // Gets the join method
-                    DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Newest);
+                    DataCombineType method = field.Combine ?? (scalar is IntType or DecimalType ? DataCombineType.Sum : DataCombineType.Newest);
 
                     // Part
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? old = GroupJoin(scalar, oldResult, method);
-                    DataNode? now = GroupJoin(scalar, newResult, method);
+                    DataNode? old = scalar.GroupJoin(oldResult, method);
+                    DataNode? now = scalar.GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -893,10 +898,10 @@ public static class AppDataTransactionExtension
                         case DataCombineType.Sum:
                         case DataCombineType.Count:
                             {
-                                result = field.ValueType.CreateNode(
-                                    (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
-                                    (now is { IsEmpty: false } ? now.ToValue<decimal>() : 0m) -
-                                    (old is { IsEmpty: false } ? old.ToValue<decimal>() : 0m)
+                                result = field.ValueType.From(
+                                    (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
+                                    (now is { IsEmpty: false } ? now.GetValue<decimal>() : 0m) -
+                                    (old is { IsEmpty: false } ? old.GetValue<decimal>() : 0m)
                                 );
                             }
                             break;
@@ -905,23 +910,23 @@ public static class AppDataTransactionExtension
                     }
                     break;
                 }
-            case StructType { Fields.Length: > 0 } @struct:
+            case StructType @struct:
                 {
                     // Gets the join method map
                     Dictionary<string, DataCombineType> joinMethodMap = new();
 
                     // Default join
-                    foreach (StructFieldSchema f in @struct.Fields)
+                    foreach (var f in @struct.GetFields())
                     {
-                        if (f.SchemaType is ScalarType s)
+                        if (f.Type is ScalarType s)
                             joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type
-                                ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Newest);
+                                ?? (s is IntType or DecimalType ? DataCombineType.Sum : DataCombineType.Newest);
                     }
 
                     // Gets the result
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
-                    DataNode? now = GroupJoin(@struct, newResult, joinMethodMap);
+                    DataNode? old = @struct.GroupJoin(oldResult, joinMethodMap);
+                    DataNode? now = @struct.GroupJoin(newResult, joinMethodMap);
 
                     // Update with join method
                     if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
@@ -931,11 +936,11 @@ public static class AppDataTransactionExtension
                     else
                     {
                         StructNode final = new StructNode(@struct);
-                        foreach (StructFieldSchema nodeField in @struct.Fields)
+                        foreach (var nodeField in @struct.GetFields())
                         {
-                            DataNode? originFld = origin is StructNode os ? os.GetField(nodeField.Name) : null;
-                            DataNode? oldFld = old is StructNode ols ? ols.GetField(nodeField.Name) : null;
-                            DataNode? nowFld = now is StructNode ns ? ns.GetField(nodeField.Name) : null;
+                            DataNode? originFld = origin is StructNode os ? os.GetAccessValue(nodeField.Name) : null;
+                            DataNode? oldFld = old is StructNode ols ? ols.GetAccessValue(nodeField.Name) : null;
+                            DataNode? nowFld = now is StructNode ns ? ns.GetAccessValue(nodeField.Name) : null;
 
                             switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Newest))
                             {
@@ -949,13 +954,13 @@ public static class AppDataTransactionExtension
                                         final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
                                         break;
                                     }
-                                case DataCombineType.Sum when nodeField.SchemaType is ScalarType { IsNumber: true }:
-                                case DataCombineType.Count when nodeField.SchemaType is ScalarType { IsNumber: true }:
+                                case DataCombineType.Sum when nodeField.Type is IntType or  DecimalType:
+                                case DataCombineType.Count when nodeField.Type is IntType:
                                     {
-                                        final[nodeField.Name] = nodeField.SchemaType.CreateNode(
-                                            (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
+                                        final[nodeField.Name] = nodeField.Type.From(
+                                            (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
+                                            (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m)
                                         );
                                         break;
                                     }
@@ -968,42 +973,34 @@ public static class AppDataTransactionExtension
 
                     break;
                 }
-            case ArrayType { ElementSchemaType: EnumType or ScalarType }:
+            case ArrayType { Element: EnumType or ScalarType }:
                 {
                     result = newResult;
                     break;
                 }
-            case ArrayType { ElementSchemaType: StructType { Fields: { Length: > 0 } } structNode, Primary: { Length: > 0 } } array:
+            case ArrayType { Element: StructType structNode, Primary: { Count: > 0 } } array:
                 {
                     // Gets the join method map
                     Dictionary<string, DataCombineType> joinMethodMap = new();
 
                     // Gets the value fields
                     List<string> valueFields = new();
-                    Dictionary<string, AnySchemaType> primaryNodes = new();
-                    foreach (StructFieldSchema fieldType in structNode.Fields)
+                    Dictionary<string, Runtime.ValueType> primaryNodes = new();
+                    foreach (var fieldType in structNode.GetFields())
                     {
                         if (!array.Primary.Contains(fieldType.Name))
                         {
                             valueFields.Add(fieldType.Name);
 
-                            if (fieldType.SchemaType is ScalarType s)
+                            if (fieldType.Type is ScalarType s)
                             {
-                                joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Newest;
+                                joinMethodMap[fieldType.Name] = s is IntType or DecimalType ? DataCombineType.Sum : DataCombineType.Newest;
                             }
                         }
                         else
-                            primaryNodes.Add(fieldType.Name, fieldType.SchemaType!);
+                            primaryNodes.Add(fieldType.Name, fieldType.Type!);
                     }
 
-                    // Based on array join methods
-                    if (array.Combines != null)
-                    {
-                        foreach (DataCombine combine in array.Combines)
-                        {
-                            joinMethodMap[combine.Field] = combine.Type;
-                        }
-                    }
                     // Based on field join methods
                     if (field.Combines != null)
                     {
@@ -1016,19 +1013,19 @@ public static class AppDataTransactionExtension
                     // Generate result map
                     
                     // filter old & new result with primary keys
-                    oldResult = oldResult is ArrayTypeNode oldArr ? oldArr.FilterByPrimaryKeys(array.Primary) : oldResult;
-                    newResult = newResult is ArrayTypeNode newArr ? newArr.FilterByPrimaryKeys(array.Primary) : newResult;
+                    oldResult = oldResult is ArrayNode oldArr ? oldArr.FilterByPrimaryKeys(array.Primary) : oldResult;
+                    newResult = newResult is ArrayNode newArr ? newArr.FilterByPrimaryKeys(array.Primary) : newResult;
                     
                     // Group join the old & now data
-                    Dictionary<string, StructNode> oldMap = GroupJoinObjectMap(array, oldResult, joinMethodMap);
-                    Dictionary<string, StructNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
+                    Dictionary<string, StructNode> oldMap = DataCombineTypeExtensions.GroupJoinObjectMap(array, oldResult, joinMethodMap);
+                    Dictionary<string, StructNode> nowMap = DataCombineTypeExtensions.GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
                     var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values));
                     
                     // Gets the original data
                     Dictionary<string, StructNode> resultMap = new Dictionary<string, StructNode>();
-                    if (origins is ArrayTypeNode arr)
+                    if (origins is ArrayNode arr)
                     {
                         foreach (DataNode token in arr)
                         {
@@ -1049,9 +1046,9 @@ public static class AppDataTransactionExtension
                             nowMap.TryGetValue(key, out StructNode? now);
                             foreach (string s in valueFields)
                             {
-                                DataNode? originFld = res1.GetField(s);
-                                DataNode? oldFld = old?.GetField(s);
-                                DataNode? nowFld = now?.GetField(s);
+                                DataNode? originFld = res1.GetAccessValue(s);
+                                DataNode? oldFld = old?.GetAccessValue(s);
+                                DataNode? nowFld = now?.GetAccessValue(s);
 
                                 switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {
@@ -1065,9 +1062,9 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
-                                            (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
+                                            (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -1082,8 +1079,8 @@ public static class AppDataTransactionExtension
                             // Shouldn't be but still handle it
                             foreach (string s in valueFields)
                             {
-                                DataNode? oldFld = old?.GetField(s);
-                                DataNode? nowFld = res?.GetField(s);
+                                DataNode? oldFld = old?.GetAccessValue(s);
+                                DataNode? nowFld = res?.GetAccessValue(s);
 
                                 switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {
@@ -1097,8 +1094,8 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m);
+                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
+                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -1115,22 +1112,30 @@ public static class AppDataTransactionExtension
                         {
                             switch (primaryNodes[s])
                             {
-                                case ScalarType { IsDate: true }:
-                                    {
-                                        DateTime ad = a.GetField(s)!.ToValue<DateTime>();
-                                        DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                        if (!bd.Equals(ad))
-                                            return ad.CompareTo(bd);
-                                        break;
-                                    }
-                                case ScalarType { IsNumber: true }:
-                                    {
-                                        decimal ad = a.GetField(s)!.ToValue<decimal>();
-                                        decimal bd = b.GetField(s)!.ToValue<decimal>();
-                                        if (ad != bd)
-                                            return ad < bd ? -1 : 1;
-                                        break;
-                                    }
+                                case DateType:
+                                {
+                                    DateTime ad = a.GetAccessValue(s)!.GetValue<DateTime>();
+                                    DateTime bd = b.GetAccessValue(s)!.GetValue<DateTime>();
+                                    if (!bd.Equals(ad))
+                                        return ad.CompareTo(bd);
+                                    break;
+                                }
+                                case DecimalType:
+                                {
+                                    decimal ad = a.GetAccessValue(s)!.GetValue<decimal>();
+                                    decimal bd = b.GetAccessValue(s)!.GetValue<decimal>();
+                                    if (ad != bd)
+                                        return ad < bd ? -1 : 1;
+                                    break;
+                                }
+                                case IntType:
+                                {
+                                    decimal ad = a.GetAccessValue(s)!.GetValue<long>();
+                                    decimal bd = b.GetAccessValue(s)!.GetValue<long>();
+                                    if (ad != bd)
+                                        return ad < bd ? -1 : 1;
+                                    break;
+                                }
                                 default:
                                     {
                                         string ad = a[s]?.ToString() ?? "";

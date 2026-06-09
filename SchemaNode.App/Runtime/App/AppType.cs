@@ -1,13 +1,10 @@
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using SchemaNode.Node;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -39,7 +36,7 @@ public sealed class AppType : IValueTypeAccess
     private List<RelationType>? _relations;
     
     // properties
-    private IProperty[]? _props;
+    private IProperty[]? _props;                                                                                                                                       
     private NodeType[]? _refTypes;
     
     #endregion
@@ -256,9 +253,19 @@ public sealed class AppType : IValueTypeAccess
     public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
+    /// Gets the app fields
+    /// </summary>
+    public IEnumerable<AppFieldType> GetFields() => _fields ?? [];
+    
+    /// <summary>
     /// Gets the app field by name
     /// </summary>
     public AppFieldType? GetField(string name) => _fields?.FirstOrDefault(f => f.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+    
+    /// <summary>
+    /// Gets the app workflows
+    /// </summary>
+    public IEnumerable<AppWorkflowType>  GetWorkflows() => _workflows ?? [];
 
     /// <summary>
     /// Gets the workflow by name
@@ -452,26 +459,26 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    internal IEnumerable<(string item, ValueType type, bool isTarget)> GetScopeContextItems()
+    internal IEnumerable<(string item, ValueType type, bool isTarget)> GetScopeContextItemTypes(SchemaContext ctx)
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;
 
         bool tarCovered = false;
-        StructType contextType = SchemaContext.SystemContext;
+        StructType contextType = ctx.System.Context;
         if (ScopePolicy is { ContextMaps.Length: > 0 })
         {
             foreach (var map in ScopePolicy.ContextMaps)
             {
-                AnySchemaType? mapType = contextType;
+                ValueType? mapType = contextType;
                 string last = map.ContextItem;
                 bool isTarget = map.ContextItem.Equals(TargetAccess, StringComparison.OrdinalIgnoreCase);
                 if (isTarget) tarCovered = true;
 
                 foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
-                    mapType = field?.SchemaType;
+                    var field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.Type;
                     last = field?.Name ?? string.Empty;
                 }
 
@@ -482,7 +489,7 @@ public sealed class AppType : IValueTypeAccess
             }
         }
         if (!tarCovered)
-            yield return (DefaultTarget, SchemaContext.SystemString, true);
+            yield return (DefaultTarget, ctx.System.String, true);
     }
     
     /// <summary>
@@ -494,34 +501,34 @@ public sealed class AppType : IValueTypeAccess
             yield break;
 
         bool tarCovered = false;
-        StructType contextType = SchemaContext.SystemContext;
+        ValueType contextType = ctx.System.Context;
         if (ScopePolicy is { ContextMaps.Length: > 0 })
         {
             foreach (var map in ScopePolicy.ContextMaps)
             {
-                AnySchemaType? mapType = contextType;
+                var mapType = contextType;
                 string last = map.ContextItem;
                 bool isTarget = map.ContextItem.Equals(TargetAccess, StringComparison.OrdinalIgnoreCase);
                 if (isTarget) tarCovered = true;
 
                 foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
-                    mapType = field?.SchemaType;
+                    var field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.Type;
                     last = field?.Name ?? string.Empty;
                 }
 
                 if (mapType == null)
                     throw new Exception($"Invalid context item {map.ContextItem} in app {Name} scope policy");
                 
-                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", ctx.GetSchemaContextItem(map.ContextItem), isTarget);
+                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", ctx.GetContextItem(map.ContextItem), isTarget);
             }
         }
         if (!tarCovered)
-            yield return (DefaultTarget, ctx.GetSchemaContextItem(TargetAccess), true);
+            yield return (DefaultTarget, ctx.GetContextItem(TargetAccess), true);
     }
 
-    static string DefaultTarget = $"_{nameof(Access.Target).ToCamelCase()}";
+    private static readonly string DefaultTarget = $"_{nameof(Access.Target).ToCamelCase()}";
     const string TargetAccess = $"{nameof(Access)}.{nameof(Access.Target)}";
 
     #endregion

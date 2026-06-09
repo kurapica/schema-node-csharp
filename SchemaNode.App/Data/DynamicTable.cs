@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
@@ -37,7 +36,7 @@ public class DynamicTableSchema
 {
     #region Construtor
     
-    internal DynamicTableSchema(AppFieldType  appFieldType)
+    internal DynamicTableSchema(AppFieldType appFieldType, SchemaContext context)
     {
         AppField  = appFieldType;
         ValueType = appFieldType.ValueType ?? throw new Exception($"The App {appFieldType.App}'s field {appFieldType.Name} has no value type");
@@ -62,7 +61,7 @@ public class DynamicTableSchema
         AppType targetApp = !isView ? appFieldType.Application: (appFieldType.View?.AppType ?? throw new Exception($"Foreign view app {appFieldType.View?.App} not exist"));
 
         // context item isolation scope
-        foreach ((string item, ValueType type, bool isTarget) in targetApp.GetScopeContextItems())
+        foreach ((string item, ValueType type, bool isTarget) in targetApp.GetScopeContextItemTypes(context))
         {
             DataTypeInfo info = GetDataTypeInfo(type, null, type is StringType ? ENTITY_PRIMARY_KEY_MAX_LEN : null);
 
@@ -562,19 +561,20 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<string> GetScopeItems()
+    public IEnumerable<string> GetScopeItems(SchemaContext context)
     {
-        foreach (var (item, _, _) in AppField.Application.GetScopeContextItems())
+        foreach (var (item, _, _) in AppField.Application.GetScopeContextItemTypes(context))
             yield return item;
     }
 
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<(string item, DataNode? value)> GetScopeItems(IServiceProvider provider)
+    public IEnumerable<(string item, DataNode? value)> GetScopeItems(ISchemaContext context)
     {
+        if (context is not SchemaContext schemaContext) yield break;
         bool isview = AppField.IsForeignView;
-        foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>()))
+        foreach (var (item, value, isTarget) in AppField.Application.GetScopeContextItems(schemaContext))
         {
             if (isview && isTarget)
             {
@@ -1213,10 +1213,10 @@ public static class DynamicTableExtension
     /// <summary>
     /// Gets the dynamic table schema of the app field type
     /// </summary>
-    public static DynamicTableSchema GetDynamicTableSchema(this AppFieldType appFieldType)
+    public static DynamicTableSchema GetDynamicTableSchema(this AppFieldType appFieldType, SchemaContext ctx)
     {
         if (appFieldType.GetItem<DynamicTableSchema>() is { } schema) return schema;
-        schema = new DynamicTableSchema(appFieldType);
+        schema = new DynamicTableSchema(appFieldType, ctx);
         appFieldType.SetItem(schema);
         return schema;
     }

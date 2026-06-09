@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
-[assembly: Schema(NS_SYSTEM_SCHEMA, "System Types")]
-[assembly: SchemaApp(NS_SYSTEM_SCHEMA,  display: "System Apps")]
-[assembly: SchemaAppScope(SchemaNode.Enum.AppScopeType.SystemLevel)]
+[assembly: Meta<SchemaType>(NS_SYSTEM_SCHEMA)]

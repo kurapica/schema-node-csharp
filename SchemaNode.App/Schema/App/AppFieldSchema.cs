@@ -260,7 +260,7 @@ internal static class DataCombineTypeExtensions
     /// <summary>
     /// Join to array
     /// </summary>
-    static Dictionary<string, StructNode> GroupJoinObjectMap(Runtime.ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static Dictionary<string, StructNode> GroupJoinObjectMap(Runtime.ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (value == null || value.IsEmpty) return new Dictionary<string, StructNode>();
 

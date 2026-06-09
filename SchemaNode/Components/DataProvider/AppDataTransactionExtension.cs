@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -33,7 +32,7 @@ public static class AppDataTransactionExtension
 
         // Not allow the direct data update
         if (!innerCall && !string.IsNullOrWhiteSpace(field.Func)) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -57,7 +56,7 @@ public static class AppDataTransactionExtension
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
         if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -86,7 +85,7 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -115,7 +114,7 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -145,7 +144,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task BeginTransactionAsync(this SchemaContext context)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         await dataProvider.BeginTransactionAsync();
         context.SetContextItem(new Dictionary<string, TransactionChangeData>()); // keep track
     }
@@ -155,7 +154,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
 
         // Process data field push
@@ -273,7 +272,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task RollbackTransactionAsync(this SchemaContext context)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         await dataProvider.RollbackTransactionAsync();
         context.SetContextItem<Dictionary<string, TransactionChangeData>>(null);
     }

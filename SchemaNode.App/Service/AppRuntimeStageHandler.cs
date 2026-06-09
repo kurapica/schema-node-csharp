@@ -105,7 +105,7 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
                         field.SetProperty(property);
                     
-                    runtime.SaveSystemAppFieldSchema(field);
+                    runtime.SaveSystemAppFieldSchema(field, type);
                 }
             }
         }

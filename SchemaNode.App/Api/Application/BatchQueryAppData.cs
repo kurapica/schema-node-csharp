@@ -211,7 +211,7 @@ public static class BatchQueryExtension
                         // column access check
                         var @struct = result switch
                         {
-                            ArrayTypeNode arr => arr.ElementType as StructType,
+                            ArrayNode arr => arr.ElementType as StructType,
                             StructNode st => st.SchemaType as StructType,
                             _ => null
                         };
@@ -395,7 +395,7 @@ public static class BatchQueryExtension
                 break;
 
             case ArrayType array:
-                if (value is not ArrayTypeNode arr) return;
+                if (value is not ArrayNode arr) return;
 
                 switch (array.ElementSchemaType)
                 {

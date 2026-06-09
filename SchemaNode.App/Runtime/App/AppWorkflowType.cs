@@ -135,6 +135,21 @@ public sealed class AppWorkflowType: IDisposable
     }
 
     /// <summary>
+    /// Gets the property with given type
+    /// </summary>
+    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+
+    /// <summary>
+    /// Gets the constraints
+    /// </summary>
+    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    
+    /// <summary>
+    /// Gets the property by property name
+    /// </summary>
+    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Gets the authentication policies with the scope
     /// </summary>
     public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)

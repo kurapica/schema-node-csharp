@@ -13,7 +13,7 @@ public static class AppDataTableExtension
    internal static async Task<DynamicTableSchema> PrepareFieldDataAsync(this SchemaContext context, AppFieldType field)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return field.GetDynamicTableSchema();
+        if (!field.EnableDynamicTable) return field.GetDynamicTableSchema(context);
 
         // Return the data
         DynamicTableSchema? schema = field.GetItem<DynamicTableSchema>();
@@ -26,7 +26,7 @@ public static class AppDataTableExtension
             schema = field.GetItem<DynamicTableSchema>();
             if (schema != null) return schema;
 
-            schema = field.GetDynamicTableSchema();
+            schema = field.GetDynamicTableSchema(context);
             
             // Makes sure the source field is prepared
             if (field.IsForeignView)

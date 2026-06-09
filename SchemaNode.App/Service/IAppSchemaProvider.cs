@@ -10,7 +10,7 @@ public interface IAppSchemaProvider : INodeSchemaProvider
     /// <summary>
     /// Load the app schema information
     /// </summary>
-    /// <param name="names">The application names</param>
-    /// <returns>The app schemas</returns>
-    Task<AppSchema[]> LoadAppSchemaAsync(string[] names);
+    /// <param name="name">The application name</param>
+    /// <returns>The app schema</returns>
+    Task<AppSchema?> LoadAppSchemaAsync(string name);
 }

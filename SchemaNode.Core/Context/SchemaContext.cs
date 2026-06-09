@@ -397,6 +397,21 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// Gets the context item as data node
     /// </summary>
     public DataNode? GetContextItem(Type type) => GetContextItemResult(type, true) as DataNode;
+
+    /// <summary>
+    /// Gets the context item
+    /// </summary>
+    internal DataNode? GetContextItem(string contextItem)
+    {
+        string[] split = contextItem.Split('.', 2);
+        if (split.Length == 0) return null;
+        (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(split[0]);
+        if (info == null) return null;
+        DataNode? result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
+            ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(item)
+            : null;
+        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) : result;
+    }
     
     /// <summary>
     /// Copys the schema context item from source to target

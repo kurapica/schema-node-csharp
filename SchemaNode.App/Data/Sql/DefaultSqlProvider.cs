@@ -1,4 +1,4 @@
-using SchemaNode.Runtime;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Data.Sql;
 

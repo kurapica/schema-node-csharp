@@ -39,9 +39,4 @@
     </None>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Components\ContextItem\" />
-    <Folder Include="Workflow\" />
-  </ItemGroup>
-
 </Project>

@@ -21,6 +21,8 @@ public static class AppConstant
     internal const int SCHEMA_KIND_ORDER_EVENT = 23;
     internal const int SCHEMA_KIND_ORDER_WORKFLOW = 24;
 
+    internal const string NS_SYSTEM_EVENT = "system.event";
+    
     internal const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     internal const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
     internal const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";

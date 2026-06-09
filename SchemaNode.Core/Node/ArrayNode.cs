@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
@@ -239,7 +240,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <summary>
     /// Clear elements without primary keys
     /// </summary>
-    public ArrayNode FilterByPrimaryKeys(string[] primaryKeys)
+    public ArrayNode FilterByPrimaryKeys(ImmutableList<string> primaryKeys)
     {
         if (ElementType is not StructType @struct) return this;
 
@@ -248,7 +249,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
             .OfType<StructFieldType>()
             .ToArray();
 
-        if (fields.Length != primaryKeys.Length) return this;
+        if (fields.Length != primaryKeys.Count) return this;
 
         return new ArrayNode(@struct)
         {

@@ -1,12 +1,23 @@
 using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
+using SchemaNode.Data;
+using SchemaNode.Enum;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Function;
+using SchemaNode.Scalar;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using AppType = SchemaNode.Runtime.AppType;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using DecimalType = SchemaNode.Runtime.DecimalType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using IntType = SchemaNode.Runtime.IntType;
+using StructType = SchemaNode.Runtime.StructType;
+
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
 
@@ -23,11 +34,10 @@ public static class SystemData
     /// <summary>
     /// Gets the app data with full primary keys
     /// </summary>
-    [Schema]
     public static async Task<T?> get<T>(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
         params object?[] args)
     {
         // get the app field type
@@ -36,35 +46,35 @@ public static class SystemData
         if (fieldType is not { EnableDynamicTable: true }) return default;
 
         ArrayType? arrType = fieldType.ValueType as ArrayType;
-        string[] keys = arrType?.Primary ?? [];
+        var keys = arrType?.Primary ?? [];
 
         // full primary key contains
-        if (keys.Length != args.Length) return default;
+        if (keys.Count != args.Length) return default;
 
-        // Check the app access is contains, only allow access in the same app or system depth app
-        Access? access = context.GetSchemaContextItem<Access>();
-        if ((access == null || !app.Equals(access.App)) && appType!.ScopeType != Enum.AppScopeType.SystemLevel)
+        // Check the app access is contained, only allow access in the same app or system depth app
+        Access? access = context.GetContextItem<Access>();
+        if ((access == null || !app.Equals(access.App)) && appType!.ScopeType != AppScopeType.SystemLevel)
             return default;
 
         // get the key type
         AppSchemaDataFilter? filter = null;
-        List<DataNode>[] keyValues = new List<DataNode>[keys.Length];
-        for (int i = 0; i < keys.Length; i++)
+        List<DataNode>[] keyValues = new List<DataNode>[keys.Count];
+        for (int i = 0; i < keys.Count; i++)
         {
-            AnySchemaType? keyType = (arrType!.ElementSchemaType as StructType)?.GetField(keys[i])?.SchemaType;
-            DataNode? valueNode = keyType?.CreateNode(args[i]);
+            var keyType = (arrType!.Element as StructType)?.GetField(keys[i])?.Type;
+            DataNode? valueNode = keyType?.From(args[i]);
             if (valueNode == null || valueNode.IsEmpty) return default;
 
             if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
                 fieldType.Filters != null &&
                 fieldType.Filters.Any(f =>
                     f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
-                    f.Resolve == Enum.FieldFilterResolve.CascadeParent))
+                    f.Resolve == FieldFilterResolve.CascadeParent))
             {
-                EnumValueAccess[] enumAccess = await enumType.LoadEnumAccessListAsync(context, valueNode.ToString(),
+                EnumValueAccess[] enumAccess = await enumType.LoadEnumAccessListAsync(context, valueNode.GetValue<string>()!,
                     noSubList: true, withSubList: false);
                 if (enumAccess.Length == 0) return default;
-                keyValues[i] = enumAccess.Select(a => keyType.CreateNode(a.Value)!).ToList();
+                keyValues[i] = enumAccess.Select(a => keyType.From(a.Value)).ToList();
             }
             else
             {
@@ -85,11 +95,11 @@ public static class SystemData
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
 
-        (DataNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Length == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
+        (DataNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Count == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
         DataNode? result = value;
-        if (keys.Length > 0)
+        if (keys.Count > 0)
         {
-            if (value is not ArrayTypeNode { Count: > 0 } arr) return default;
+            if (value is not ArrayNode { Count: > 0 } arr) return default;
 
             // find the contains item
             StructNode[] items = arr.Cast<StructNode>().ToArray();
@@ -101,14 +111,14 @@ public static class SystemData
                 for (int j = keyValues[i].Count - 1; j >= 0; j--)
                 {
                     DataNode key = keyValues[i][j];
-                    if (!items.Any(n => n.GetField(keys[i]) is { } f && key.Equals(f))) continue;
-                    items = items.Where(n => n.GetField(keys[i]) is { } f && key.Equals(f)).ToArray();
+                    if (!items.Any(n => n.GetAccessValue(keys[i]) is { } f && key.Equals(f))) continue;
+                    items = items.Where(n => n.GetAccessValue(keys[i]) is { } f && key.Equals(f)).ToArray();
                     break;
                 }
             }
             result = items.Length > 0 ? items[0] : null;
         }
-        return result != null && !result.IsEmpty ? result.ToValue<T>() : default;
+        return result is { IsEmpty: false } ? result.GetValue<T>() : default;
     }
     
     #endregion
@@ -118,17 +128,16 @@ public static class SystemData
     /// <summary>
     /// Gets the application data for field if single value
     /// </summary>
-    [Schema]
     public static async Task<T?> getfield<T>(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
         string dataField,
         params object?[] args) where T : struct
     {
         DataNode? result = await get<DataNode>(context, app, field, args);
-        DataNode? f = (result as StructNode)?.GetField(dataField);
-        return f != null ? f.ToValue<T>() : null;
+        DataNode? f = (result as StructNode)?.GetAccessValue(dataField);
+        return f != null ? f.GetValue<T>() : null;
     }
     
     #endregion
@@ -138,11 +147,10 @@ public static class SystemData
     /// <summary>
     /// Generate a data source for the app field, waiting for query, the codes won't be execution unless use it in wrong way
     /// </summary>
-    [Schema]
-    public static async Task<ArrayTypeNode> getdatasource(
+    public static async Task<ArrayNode> getdatasource(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field)
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field)
     {
         AppType? appType = !string.IsNullOrEmpty(app)
             ? await context.GetAppTypeAsync(app)
@@ -151,7 +159,7 @@ public static class SystemData
         AppFieldType? fieldType = appType?.GetField(field);
         if (fieldType?.ValueType == null) throw new InvalidOperationException($"The field {field} not found in the app {app}.");
         if (fieldType.ValueType is not ArrayType) throw new InvalidOperationException($"The field {field} type is not array type in the app {app}.");
-        return new ArrayTypeNode(fieldType.ValueType);
+        return new ArrayNode(fieldType.ValueType);
     }
 
     #endregion
@@ -161,39 +169,38 @@ public static class SystemData
     /// <summary>
     /// Incr the app field data
     /// </summary>
-    [Schema]
-    [SideEffect]
-    [WorkflowOnly]
-    public static async Task<JsonNode?> incr(
+    [Meta<SideEffect>(true)]
+    [Meta<WorkflowOnly>(true)]
+    public static async Task<JsonNode?> incr<T>(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
-        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
+        T data,
         bool raiseEvent = false
     )
     {
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         if (appType == null) return null;
 
-        Access? access = context.GetSchemaContextItem<Access>();
+        Access? access = context.GetContextItem<Access>();
         string? target = access?.Target;
 
-        // Check the app access is contains, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
-        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return null;
+        // Check the app access is contained, only allow access in the same app or system depth app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return null;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return null;
 
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null 
             || fieldType.ValueType is EnumType 
-            || fieldType.ValueType is ScalarType { IsNumber: false } 
-            || fieldType.ValueType is StructType s && !s.Fields.Any(f => f.SchemaType is ScalarType {  IsNumber: true })
-            || fieldType.ValueType is ArrayType a && (a.ElementSchemaType is not StructType || a.Primary == null || a.Primary.Length == 0)
+            || fieldType.ValueType is ScalarType and not IntType and not DecimalType 
+            || fieldType.ValueType is StructType s && !s.GetFields().Any(f => f.Type is IntType or DecimalType)
+            || fieldType.ValueType is ArrayType a && (a.Element is not StructType || a.Primary == null || a.Primary.Count == 0)
             ) return null;
 
-        DataNode? dataNode = fieldType.ValueType?.CreateNode(data);
+        DataNode? dataNode = fieldType.ValueType?.From(data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
-        using var stack = context.StackAccess(appType!.Name, target);
+        using var stack = context.StackAccess(appType.Name, target);
         await context.BeginTransactionAsync();
         DataNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
@@ -202,33 +209,47 @@ public static class SystemData
         {
             case ScalarType:
                 {
-                    if (dataNode is not ScalarTypeNode) goto ROLLBACK;
-                    origin = fieldType.ValueType.CreateNode(
-                        (origin is { IsEmpty: false } ? origin.ToValue<decimal>() : 0m) +
-                        (dataNode is { IsEmpty: false } ? dataNode.ToValue<decimal>() : 0m)
-                    );
+                    if (dataNode is not IntNode and not NumericNode) goto ROLLBACK;
+                    if (dataNode is IntNode)
+                        origin = fieldType.ValueType.From(
+                            (origin is { IsEmpty: false } ? origin.GetValue<long>() : 0m) +
+                            (dataNode is { IsEmpty: false } ? dataNode.GetValue<long>() : 0m)
+                        );
+                    else if (dataNode is NumericNode)
+                        origin = fieldType.ValueType.From(
+                            (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
+                            (dataNode is { IsEmpty: false } ? dataNode.GetValue<decimal>() : 0m)
+                        );
+                    else
+                        goto ROLLBACK;
                     break;
                 }
             case StructType @struct:
                 {
                     if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
-                    foreach (var fld in @struct.Fields)
+                    foreach (var fld in @struct.GetFields())
                     {
-                        DataNode? orgFld = originStruct.GetField(fld.Name);
-                        DataNode? dataFld = structData.GetField(fld.Name);
+                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name);
+                        DataNode? dataFld = structData.GetAccessValue(fld.Name);
 
-                        if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
+                        if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                         {
-                            decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
-                            decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                            originStruct.SetField(fld.Name, fld.SchemaType?.CreateNode(orgVal + dataVal));
+                            decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
+                            decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
+                            originStruct.SetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                        }
+                        else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
+                        {
+                            long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
+                            long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
+                            originStruct.SetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
                         }
                     }
                     break;
                 }
             case ArrayType arrType:
                 {
-                    if (dataNode is not ArrayTypeNode arrayData || origin is not ArrayTypeNode originArray) goto ROLLBACK;
+                    if (dataNode is not ArrayNode arrayData || origin is not ArrayNode originArray) goto ROLLBACK;
                     Dictionary<string, StructNode> arrDict = new();
                     foreach(var i in arrayData)
                     {
@@ -239,7 +260,7 @@ public static class SystemData
                             arrDict[pkey] = ditem;
                         }
                     }
-                    StructType arrStruct = arrType.ElementSchemaType as StructType 
+                    StructType arrStruct = arrType.Element as StructType 
                         ?? throw new InvalidOperationException("Array element type is not struct type.");
                     foreach (var i in originArray)
                     {
@@ -247,16 +268,22 @@ public static class SystemData
                         string? pkey = arrType.GetPrimaryKey(oitem);
                         if (pkey != null && arrDict.TryGetValue(pkey, out StructNode? ditem))
                         {
-                            foreach (var fld in arrStruct.Fields)
+                            foreach (var fld in arrStruct.GetFields())
                             {
-                                DataNode? orgFld = oitem.GetField(fld.Name);
-                                DataNode? dataFld = ditem.GetField(fld.Name);
+                                DataNode? orgFld = oitem.GetAccessValue(fld.Name);
+                                DataNode? dataFld = ditem.GetAccessValue(fld.Name);
 
-                                if (orgFld?.SchemaType is ScalarType { IsNumber: true } && dataFld?.SchemaType is ScalarType { IsNumber: true })
+                                if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                                 {
-                                    decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.ToValue<decimal>() : 0m;
-                                    decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.ToValue<decimal>() : 0m;
-                                    oitem.SetField(fld.Name, fld.SchemaType?.CreateNode(orgVal + dataVal));
+                                    decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
+                                    decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
+                                    oitem.SetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                                }
+                                else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
+                                {
+                                    long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
+                                    long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
+                                    oitem.SetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
                                 }
                             }
                         }
@@ -265,9 +292,9 @@ public static class SystemData
                 }
         }
 
-        await context.SaveFieldDataAsync(fieldType, origin?.ToJson());
+        await context.SaveFieldDataAsync(fieldType, origin.ToJson());
         await context.CommitTransactionAsync(!raiseEvent);
-        return (origin is ArrayTypeNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
+        return (origin is ArrayNode { Count: < 2 } arrayNode ? arrayNode.FirstOrDefault() : origin)?.ToJson();
 
     ROLLBACK:
         await context.RollbackTransactionAsync();
@@ -282,18 +309,16 @@ public static class SystemData
     /// <param name="field">The field</param>
     /// <param name="data">The data</param>
     /// <param name="onlyAdd">Only add no update</param>
-    /// <param name="target">The target</param>
     /// <param name="raiseEvent">Whether raise event</param>
     /// <param name="overrides">Override existed columns</param>
     /// <returns></returns>
-    [Schema]
-    [SideEffect]
-    [WorkflowOnly]
-    public static async Task<bool> save(
+    [Meta<SideEffect>(true)]
+    [Meta<WorkflowOnly>(true)]
+    public static async Task<bool> save<T>(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
-        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
+        T data,
         bool onlyAdd,
         bool raiseEvent = false,
         params string[] overrides
@@ -302,18 +327,18 @@ public static class SystemData
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app): null;
         if (appType == null) return false;
 
-        Access? access = context.GetSchemaContextItem<Access>();
+        Access? access = context.GetContextItem<Access>();
         string? target = access?.Target;
 
-        // Check the app access is contains, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
-        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
+        // Check the app access is contained, only allow access in the same app or system depth app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return false;
 
-        AppFieldType? fieldType = appType?.GetField(field);
+        AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
         
-        (_, DataNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
-        if (error != null || dataNode == null || dataNode.IsEmpty) return false;
+        DataNode? dataNode = await fieldType.ValidateDataAsync(context, data);
+        if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
         
         using var stack = context.StackAccess(app, target);
 
@@ -332,37 +357,36 @@ public static class SystemData
     /// <param name="data"></param>
     /// <param name="raiseEvent"></param>
     /// <returns></returns>
-    [Schema]
-    [SideEffect]
-    [WorkflowOnly]
-    public static async Task<bool> delete(
+    [Meta<SideEffect>(true)]
+    [Meta<WorkflowOnly>(true)]
+    public static async Task<bool> delete<T>(
         SchemaContext context,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_APP)] string app,
-        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field,
-        [Schema(NS_GENERIC_TYPE)] JsonNode data,
+        [Meta<SchemaType>(typeof(Schema.AppType))] string app,
+        [Meta<SchemaType>(typeof(Identifier))] string field,
+        T data,
         bool raiseEvent = false
     )
     {
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         if (appType == null) return false;
 
-        Access? access = context.GetSchemaContextItem<Access>();
+        Access? access = context.GetContextItem<Access>();
         string? target = access?.Target;
 
-        // Check the app access is contains, only allow access in the same app or system depth app
-        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
-        if (string.IsNullOrEmpty(target) && appType.ScopeType != Enum.AppScopeType.SystemLevel) return false;
+        // Check the app access is contained, only allow access in the same app or system depth app
+        if ((access == null || !app.Equals(access.App)) && appType.ScopeType != AppScopeType.SystemLevel) return false;
+        if (string.IsNullOrEmpty(target) && appType.ScopeType != AppScopeType.SystemLevel) return false;
 
-        AppFieldType? fieldType = appType?.GetField(field);
+        AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
 
-        (_, DataNode? dataNode, JsonNode? error) = await fieldType.ValidateDataAsync(context, data);
-        if (error != null || dataNode == null || dataNode.IsEmpty) return false;
+        DataNode? dataNode = await fieldType.ValidateDataAsync(context, data);
+        if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
 
         using var stack = context.StackAccess(app, target);
 
         await context.BeginTransactionAsync();
-        if (fieldType.ValueType is ArrayType { Primary: {  Length: > 0 }})
+        if (fieldType.ValueType is ArrayType { Primary: { Count: > 0 }})
             await context.DeleteFieldListDataAsync(fieldType, dataNode);
         else
             await context.SaveFieldDataAsync(fieldType, null);

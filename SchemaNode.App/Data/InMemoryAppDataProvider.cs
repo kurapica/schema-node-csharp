@@ -8,7 +8,7 @@ namespace SchemaNode.Data;
 /// <summary>
 /// The in memory app schema data provider, for unit test only
 /// </summary>
-public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppDataProvider
+public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
 {
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
@@ -20,6 +20,8 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
         string? dataField = null, bool forUpdate = false)
     {
+        SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
+        
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
@@ -37,7 +39,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
             {
                 foreach (StructNode t in list.Cast<StructNode>())
                 {
-                    if (filter.Test(t).ToValue<bool>())
+                    if (filter.Test(schemaContext, t).GetValue<bool>())
                         origins.Add(t);
                 }
             }
@@ -55,8 +57,8 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                 {
                     origins.Sort((a, b) =>
                     {
-                        string aKey = (a is StructNode sa ? sa.GetField(t.Field)?.ToString() : null) ?? string.Empty;
-                        string bKey = (b is StructNode sb ? sb.GetField(t.Field)?.ToString() : null) ?? string.Empty;
+                        string aKey = (a is StructNode sa ? sa.GetAccessValue(t.Field)?.ToString() : null) ?? string.Empty;
+                        string bKey = (b is StructNode sb ? sb.GetAccessValue(t.Field)?.ToString() : null) ?? string.Empty;
                         int result = String.Compare(aKey, bKey, StringComparison.Ordinal);
                         return t.Desc ? -1 * result : result;
                     });
@@ -65,13 +67,13 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
 
             return type switch
             {
-                AppSchemaDataResult.Count => (SchemaContext.SystemInt.CreateNode(total), total),
-                AppSchemaDataResult.Exist => (SchemaContext.SystemBool.CreateNode(total > 0), total),
+                AppSchemaDataResult.Count => (schemaContext.System.Int.From(total), total),
+                AppSchemaDataResult.Exist => (schemaContext.System.Bool.From(total > 0), total),
                 AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
                 AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
-                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.ValueType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!, 
-                    origins.Select(o => o is StructNode sn ? sn.GetField(dataField!) : null).Where(x => x != null && !x.IsEmpty).Select(x => x!).ToArray()), total),
-                _ => (new ArrayTypeNode(schema.ValueType, origins), total)
+                AppSchemaDataResult.Field => (new ArrayNode(((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 
+                    origins.Select(o => o is StructNode sn ? sn.GetAccessValue(dataField!) : null).Where(x => x is { IsEmpty: false }).Select(x => x!).ToArray()), total),
+                _ => (new ArrayNode(schema.ValueType, origins), total)
             };
         }
         else
@@ -96,11 +98,11 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
             
             switch (data)
             {
-                case ArrayTypeNode arrayTypeNode:
+                case ArrayNode arrayNode:
                 {
                     List<DataNode> origins = [];
                     List<DataNode> updates = [];
-                    foreach (DataNode item in arrayTypeNode)
+                    foreach (DataNode item in arrayNode)
                     {
                         string? key = schema.GetPrimaryKey((StructNode)item);
                         if (string.IsNullOrEmpty(key)) continue;
@@ -122,23 +124,23 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
                             throw new UnauthorizedAccessException();
                         }
                     }
-                    return (true, new ArrayTypeNode(schema.ValueType, updates), new ArrayTypeNode(schema.ValueType, origins));
+                    return (true, new ArrayNode(schema.ValueType, updates), new ArrayNode(schema.ValueType, origins));
                 }
-                case StructNode StructNode:
+                case StructNode structNode:
                 {
-                    string? key = schema.GetPrimaryKey(StructNode);
+                    string? key = schema.GetPrimaryKey(structNode);
                     if (string.IsNullOrEmpty(key)) return (false, null, null);
                     if (dict.TryGetValue(key, out int index))
                     {
                         if (onlyAdd) return (false, null, null); // no update
                         DataNode origin = list[index];
-                        list[index] = StructNode;
-                        return (true, new ArrayTypeNode(schema.ValueType, StructNode), new ArrayTypeNode(schema.ValueType, origin));
+                        list[index] = structNode;
+                        return (true, new ArrayNode(schema.ValueType, structNode), new ArrayNode(schema.ValueType, origin));
                     }
                     else if (canAdd)
                     {
-                        list.Add(StructNode);
-                        return (true, new ArrayTypeNode(schema.ValueType, StructNode), null);
+                        list.Add(structNode);
+                        return (true, new ArrayNode(schema.ValueType, structNode), null);
                     }
                     else
                     {
@@ -168,7 +170,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
         if (table.TryRemove(compositeKey, out List<DataNode>? list))
         {
-            return (true, new ArrayTypeNode(schema.ValueType, list));
+            return (true, new ArrayNode(schema.ValueType, list));
         }
 
         return (false, null);
@@ -176,6 +178,8 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
     
     public async Task<(bool result, DataNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
     {
+        SchemaContext schemaContext = context as  SchemaContext ?? throw new ArgumentNullException(nameof(context));
+        
         await Task.Yield();
         string compositeKey = PrepareKey(schema);
         ConcurrentDictionary<string, List<DataNode>> table = _dynamicTables.GetOrAdd(schema.AppField.DynamicTableName, _ => []);
@@ -188,14 +192,14 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
 
             foreach (StructNode t in list.Cast<StructNode>())
             {
-                if (filter == null || filter.Test(t).ToValue<bool>())
+                if (filter == null || filter.Test(schemaContext, t).GetValue<bool>())
                     origins.Add(t);
                 else
                     remains.Add(t);
             }
 
             table[compositeKey] = remains;
-            return (true, new ArrayTypeNode(schema.ValueType, origins));
+            return (true, new ArrayNode(schema.ValueType, origins));
         }
         else
         {
@@ -243,7 +247,7 @@ public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppData
         List<string> keyParts = [];
         
         // Add scope items
-        foreach ((string item, DataNode? value) in schema.GetScopeItems(serviceProvider))
+        foreach ((string item, DataNode? value) in schema.GetScopeItems(context))
         {
             if (value == null || value.IsEmpty)
                 throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");

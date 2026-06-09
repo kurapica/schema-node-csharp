@@ -34,6 +34,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     #endregion
 
     #region Properties
+    
+    /// <summary>
+    /// The parent
+    /// </summary>
+    public NamespaceType? Namespace { get; private set; }
 
     /// <summary>
     /// The node schema
@@ -136,6 +141,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         Error = null;
         
         // load basic info
+        Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
         Schema = schema;
         GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
 

@@ -1,7 +1,5 @@
-using System.Collections.Concurrent;
 using SchemaNode.Schema;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using AppType = SchemaNode.Runtime.AppType;
@@ -73,9 +71,9 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema[] loadSchemas = await provider.LoadAppSchemaAsync([schemaName]);
-                        if (loadSchemas.Length == 0) continue;
-                        AppSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider.GetType())!;
+                        AppSchema? loadAppSchema = await provider.LoadAppSchemaAsync(schemaName);
+                        if (loadAppSchema == null) continue;
+                        AppSchema loadSchema = SetSchemaState(loadAppSchema, SchemaLoadState.Service, provider.GetType())!;
 
                         // check && combine
                         if (schema == null)

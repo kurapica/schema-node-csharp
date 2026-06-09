@@ -166,6 +166,15 @@ public sealed class AppFieldType
     public DataCombine[]? Combines => _appFieldSchema.Combines;
 
     #endregion
+
+    #region Field Filter
+
+    /// <summary>
+    /// The field filters
+    /// </summary>
+    public FieldFilter[]? Filters { get; private set; }
+
+    #endregion
     
     #region States
 
@@ -226,12 +235,13 @@ public sealed class AppFieldType
         TableName = GetProperty<TableName>()?.Value;
         AttrTableName = GetProperty<AttrTableName>()?.Value;
         IncrUpdate = GetProperty<IncrUpdate>()?.Value;
+        Filters = GetProperty<Filters>()?.Value;
         
         // loading
         StructType? structType = ((ValueType as ArrayType)?.Element ?? ValueType) as StructType;
         
         // primary property info
-        if (ValueType is Runtime.ArrayType arr && arr.Primary is { Count: > 0} && structType != null && structType.GetCsharpType() is { } ctype)
+        if (ValueType is ArrayType arr && arr.Primary is { Count: > 0} && structType != null && structType.GetCsharpType() is { } ctype)
         {
             _primarys = [];
             foreach (string primary in arr.Primary)

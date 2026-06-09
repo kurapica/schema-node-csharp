@@ -20,21 +20,7 @@ public static class SystemData
     /// <summary>
     /// Gets the context item
     /// </summary>
-    public static DataNode? getcontext(SchemaContext context, string access)
-    {
-        if (string.IsNullOrWhiteSpace(access)) return null;
-        string[] parts = access.Split('.', 2);
-        if (parts.Length == 0) return null;
-        string field = parts[0].Trim();
-        if (string.IsNullOrWhiteSpace(field)) return null;
-
-        SchemaContextItemProvider provider = context.GetRequiredService<SchemaContextItemProvider>();
-        var info = provider.GetProviderType(field);
-        if (info == null) return null;
-        
-        DataNode? result = context.GetContextItem(info.Value.ItemType);
-        return parts.Length > 1 ? result?.GetAccessValue(parts[1]) : result;
-    }
+    public static DataNode? getcontext(SchemaContext context, string access) => context.GetContextItem(access);
     
     [Meta<SchemaType>($"{NS_SYSTEM_DATA}.enum")]
     public static class EnumOper
