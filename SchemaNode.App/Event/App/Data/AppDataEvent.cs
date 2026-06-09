@@ -1,4 +1,4 @@
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The application data event, normally for target app data access

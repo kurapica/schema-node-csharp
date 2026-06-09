@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// Fired when query the target data in the application

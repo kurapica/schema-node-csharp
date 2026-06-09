@@ -1,12 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 using System.Collections.Concurrent;
 // ReSharper disable AccessToModifiedClosure
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The event extensions
@@ -16,7 +14,7 @@ public static class EventExtensions
     #region Utility
 
     static readonly ConcurrentDictionary<Type, IEventDispatcher> EventDispatchers = [];
-    static readonly ConcurrentDictionary<Type, AnySchemaType> EventPayloads = [];
+    static readonly ConcurrentDictionary<Type, Runtime.ValueType> EventPayloads = [];
 
     // Gets the event dispatcher by type
     static IEventDispatcher? GetEventDispatcher(SchemaContext context, Type type)
@@ -67,16 +65,16 @@ public static class EventExtensions
             else
             {
                 Type payLoadType = payLoad.GetType();
-                if (!EventPayloads.TryGetValue(payLoadType, out AnySchemaType? eventPayload))
+                if (!EventPayloads.TryGetValue(payLoadType, out Runtime.ValueType? eventPayload))
                 {
-                    string? schemaType = payLoad.GetType().GetSchemaType(true);
-                    eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetSchemaTypeAsync(schemaType).GetAwaiter().GetResult() : null;
+                    string? schemaType = (context.Runtime as SchemaRuntime)?.GetTypeSchema(payLoad.GetType());
+                    eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetNodeTypeAsync<Runtime.ValueType>(schemaType).GetAwaiter().GetResult() : null;
                     if (eventPayload != null)
                     {
                         EventPayloads[payLoadType] = eventPayload;
                     }
                 }
-                @event.Payload = eventPayload?.CreateNode(payLoad);
+                @event.Payload = eventPayload?.From(payLoad);
             }
         }
 
@@ -120,7 +118,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeTopicEvent error: {Exception}", ex);
+                context.LogError("SubscribeTopicEvent error: {Exception}", ex);
             }
         }
     }
@@ -146,7 +144,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+                context.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }
@@ -172,7 +170,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+                context.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }
@@ -186,7 +184,7 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeEvent<TE>(this SchemaContext context, EventType eventType, Action<TE> onEvent) where TE : Event
     {
-        Type type = eventType.ToCSharpType();
+        Type type = eventType.GetCsharpType()!;
         return GetEventDispatcher(context, type)?.SubscribeEvent(type, onEvent);
     }
 
@@ -195,7 +193,7 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeTopicEvent<TE>(this SchemaContext context, EventType eventType, string topic, Action<TE> onEvent) where TE : Event
     {
-        Type type = eventType.ToCSharpType();
+        Type type = eventType.GetCsharpType()!;
         return GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<TE>)Handler);
 
         void Handler(TE @event)
@@ -207,7 +205,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeTopicEvent error: {Exception}", ex);
+                context.LogError("SubscribeTopicEvent error: {Exception}", ex);
             }
         }
     }
@@ -232,7 +230,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+                context.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }
@@ -243,7 +241,7 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeTopicEventOnce<TE>(this SchemaContext context, EventType eventType, string topic, Action<TE> onEvent) where TE : Event
     {
-        Type type = eventType.ToCSharpType();
+        Type type = eventType.GetCsharpType();
 
         IDisposable? subscription = null;
         subscription = GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<TE>)Handler);
@@ -261,7 +259,7 @@ public static class EventExtensions
             }
             catch (Exception ex)
             {
-                context.Logger.LogError("SubscribeEventOnce error: {Exception}", ex);
+                context.LogError("SubscribeEventOnce error: {Exception}", ex);
             }
         }
     }

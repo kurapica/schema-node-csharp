@@ -1,4 +1,4 @@
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The schema event

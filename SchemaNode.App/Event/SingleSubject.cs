@@ -1,7 +1,7 @@
 using System.Reactive.Disposables;
 using System.Reactive.Subjects;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// A subject that resets observers after each OnNext, OnError.

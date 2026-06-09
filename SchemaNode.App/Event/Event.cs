@@ -1,10 +1,10 @@
 using SchemaNode.Node;
-using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable AccessToModifiedClosure
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable UnusedTypeParameter
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The base event

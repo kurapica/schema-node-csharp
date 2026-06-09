@@ -22,7 +22,7 @@ public static class AppDataTableExtension
         DynamicTableSchema? schema = field.Schema;
         if (schema != null) return schema;
 
-        IAppDataProvider dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        IAppDataProvider dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         using ICriticalRegion locker = await context.GetLockAsync($"SCHEMA_CONTEXT_DYN_TABLE_CREATION:{field.DynamicTableName}");
         try
         {

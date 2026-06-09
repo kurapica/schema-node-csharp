@@ -1,4 +1,4 @@
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The application field data event, normally for specific field data update

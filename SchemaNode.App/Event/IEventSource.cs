@@ -1,6 +1,6 @@
 ﻿using SchemaNode.Context;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// External event source (Kafka / MQTT / RabbitMQ)

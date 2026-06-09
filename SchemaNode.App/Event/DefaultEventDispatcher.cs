@@ -3,7 +3,7 @@ using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 
 /// <summary>

@@ -400,7 +400,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Gets the primary properties for the struct array type, return empty if the field is not struct array or no primary defined
     /// </summary>
-    public IEnumerable<PropertyInfo> GetPrimaryProperties() => _primarys ?? [];
+    public IReadOnlyList<PropertyInfo> GetPrimaryProperties() => _primarys ?? [];
     
     /// <summary>
     /// Add observer

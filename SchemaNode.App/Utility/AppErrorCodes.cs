@@ -37,4 +37,6 @@ internal static class AppErrorCodes
     
     [Meta<ErrorCode>(APP_FIELD_VIEW_NOT_VALID)]
     public const string APP_FIELD_VIEW_NOT_VALID = "app_field_view_not_valid";
+
+    public const string APP_DATA_PROVIDER_NOT_EXIST = "AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST";
 }

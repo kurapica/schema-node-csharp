@@ -2,7 +2,7 @@
 using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The workflow event

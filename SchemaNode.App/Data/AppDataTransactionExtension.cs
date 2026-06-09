@@ -1,13 +1,13 @@
-﻿using Microsoft.Extensions.Logging;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
-using static SchemaNode.Utility.Constant;
-using static SchemaNode.Utility.Schema;
+using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Utility;
+using SchemaNode.Event;
+using ArrayType = SchemaNode.Runtime.ArrayType;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Data;
@@ -20,7 +20,7 @@ public static class AppDataTransactionExtension
     /// Save field data
     /// </summary>
     public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
-        => context.SaveFieldDataAsync(field, field.ValueType!.CreateNode(value) ?? throw new NotSupportedException());
+        => context.SaveFieldDataAsync(field, field.ValueType!.From(value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
@@ -29,11 +29,9 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
+        if (field.PushSource != null && !innerCall) return false; // push field can't be update directly
 
-        // Not allow the direct data update
-        if (!innerCall && !string.IsNullOrWhiteSpace(field.Push)) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -46,7 +44,7 @@ public static class AppDataTransactionExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
     }
@@ -55,9 +53,9 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
+        if (field.PushSource != null && !innerCall) return false; // push field can't be update directly
 
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -70,7 +68,7 @@ public static class AppDataTransactionExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
     }
@@ -86,7 +84,7 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -95,13 +93,13 @@ public static class AppDataTransactionExtension
         if (schema.Single) return false;
         try
         {
-            if (nodes is ArrayTypeNode { Count: 0 }) return false; // pass if no node to delete
+            if (nodes is ArrayNode { Count: 0 }) return false; // pass if no node to delete
             (bool result, DataNode? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, nodes);
             if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
 
@@ -115,7 +113,7 @@ public static class AppDataTransactionExtension
     {
         // no front only & enable & no source ref
         if (!field.EnableDynamicTable || field.IsForeignView) return false;
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
@@ -129,7 +127,7 @@ public static class AppDataTransactionExtension
         }
         catch (Exception ex)
         {
-            context.Logger.LogError(ex.Message);
+            context.LogError(ex.Message);
             throw;
         }
 
@@ -145,7 +143,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task BeginTransactionAsync(this SchemaContext context)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         await dataProvider.BeginTransactionAsync();
         context.SetContextItem(new Dictionary<string, TransactionChangeData>()); // keep track
     }
@@ -155,7 +153,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
 
         // Process data field push
@@ -181,7 +179,7 @@ public static class AppDataTransactionExtension
                             {
                                 // Raise create event
                                 DataNode? newValue = change.Value;
-                                if (newValue is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 })
+                                if (newValue is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (DataNode item in arr)
                                         context.RaiseEvent(new AppFieldDataCreateEvent(field, target), item);
@@ -197,10 +195,10 @@ public static class AppDataTransactionExtension
                             {
                                 DataNode? changeValues = change.Value;
                                 DataNode? originValues = change.Origin;
-                                if (changeValues is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 } type)
+                                if (changeValues is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 } type)
                                 {
                                     Dictionary<string, DataNode> originMap = [];
-                                    if (originValues is ArrayTypeNode oldArr)
+                                    if (originValues is ArrayNode oldArr)
                                     {
                                         foreach (DataNode node in oldArr)
                                         {
@@ -251,7 +249,7 @@ public static class AppDataTransactionExtension
                         case TransactionChangeOperation.DropAll:
                             {
                                 DataNode? origin = change.Origin;
-                                if (origin is ArrayTypeNode arr && field.ValueType is ArrayType { Primary.Length: > 0 })
+                                if (origin is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (DataNode item in arr)
                                         context.RaiseEvent(new AppFieldDataDeleteEvent(field, target), item);
@@ -273,7 +271,7 @@ public static class AppDataTransactionExtension
     /// </summary>
     public static async Task RollbackTransactionAsync(this SchemaContext context)
     {
-        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
         await dataProvider.RollbackTransactionAsync();
         context.SetContextItem<Dictionary<string, TransactionChangeData>>(null);
     }
@@ -1147,7 +1145,7 @@ public static class AppDataTransactionExtension
                     });
 
                     // Save to result
-                    result = field.ValueType.CreateNode(joinObjs);
+                    result = field.ValueType.From(joinObjs);
                     break;
                 }
         }
@@ -1160,7 +1158,7 @@ public static class AppDataTransactionExtension
     static void OnFieldDataChanged(SchemaContext context,  AppFieldType field, TransactionChangeOperation operation, DataNode? value = null, DataNode? origin = null)
     {
         var transChangedData = context.GetOrAddContextItem<Dictionary<string, TransactionChangeData>>();
-        var access = context.GetSchemaContextItem<Access>();
+        var access = context.GetContextItem<Access>();
         string target = access!.Target ?? Guid.Empty.ToString();
         if (!transChangedData.TryGetValue(target, out TransactionChangeData? changeData))
         {

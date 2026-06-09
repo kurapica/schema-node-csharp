@@ -25,7 +25,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return (null, 0);
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
@@ -57,7 +57,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
@@ -118,7 +118,7 @@ public static class AppDataQueryExtension
         if (!field.EnableDynamicTable) return null;
 
         var dataProvider = context.GetService<IAppDataProvider>();
-        if (dataProvider == null) throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+        if (dataProvider == null) throw new InvalidOperationException(AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST);
 
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
