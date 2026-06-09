@@ -83,8 +83,6 @@ public static class Constant
     public const string NS_SYSTEM_OBJECT = "system.object"; // any value
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
     public const string NS_SYSTEM_LIST = "system.list"; // generic array type
-    public const string NS_SYSTEM_STRUCT = "system.struct"; // any struct
-    public const string NS_SYSTEM_JSON = "system.json"; // any value, used by entity
     public const string NS_SYSTEM_BOOL = "system.bool";
     public const string NS_SYSTEM_DATE = "system.date";
     public const string NS_SYSTEM_NUMBER = "system.number";
@@ -103,7 +101,7 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
     public const string NS_SYSTEM_IDENTIFIER = "system.identifier";
-    public const string NS_SYSTEM_PROPERTY = "system.property";
+    public const string NS_SYSTEM_CONTEXT  = "system.context";
 
     // language x translate x entry
     public const string NS_SYSTEM_LANGUAGE = "system.language";

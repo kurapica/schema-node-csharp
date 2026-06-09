@@ -76,8 +76,14 @@ public static partial class SchemaNodeExtensions
         // init with service collections
         using var provider = services.BuildServiceProvider();
         IRuntimeStageHandler[] handlers = provider.GetServices<IRuntimeStageHandler>().ToArray();
+        
+        // Register for services
         foreach (IRuntimeStageHandler handler in handlers)
             handler.OnServiceInitialization(provider, services);
+        
+        // Done with all registered services
+        foreach (IRuntimeStageHandler handler in handlers)
+            handler.OnServiceInitialized(provider, services);
         
         // Gets all stage handlers
         return services;

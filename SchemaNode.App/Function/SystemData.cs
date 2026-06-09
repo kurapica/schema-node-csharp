@@ -5,6 +5,7 @@ using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
+using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
@@ -14,7 +15,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// The system.data api
 /// </summary>
-[Schema(NS_SYSTEM_DATA)]
+[Meta<SchemaType>(NS_SYSTEM_DATA)]
 public static class SystemData
 {
     #region Context Item
@@ -22,9 +23,10 @@ public static class SystemData
     /// <summary>
     /// Gets the context item
     /// </summary>
-    [Schema]
-    public static DataNode? getcontext(SchemaContext context, string item) 
-        => context.GetSchemaContextItem(item);
+    public static DataNode? getcontext(SchemaContext context, string item)
+    {
+        
+    }
 
     #endregion
 

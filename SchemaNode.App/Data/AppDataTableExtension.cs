@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using SchemaNode.Context;
+﻿using SchemaNode.Context;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Reflection;
@@ -59,6 +58,7 @@ public static class AppDataTableExtension
             throw;
         }
     }
+    
     internal static async Task<(AppFieldType appField, IReadOnlyList<PropertyInfo>? primarys)> AssertAppField<T>(this SchemaContext context)
     {
         (string app, string field)? app = typeof(T).GetSystemAppField();

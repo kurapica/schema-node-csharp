@@ -477,7 +477,7 @@ public class StructFieldType : INodeReferences
         Type = valueType;
 
         // Properties
-        List<IProperty> props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD));
+        IProperty[] props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)).ToArray();
         IConstraintProperty[] constraints = props.Cast<IConstraintProperty>().ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
@@ -486,7 +486,7 @@ public class StructFieldType : INodeReferences
         // init
         Name = field.Name;
         Type = valueType;
-        Properties = props.ToArray();
+        Properties = props;
         Constraints = constraints;
 
         // Useful properties

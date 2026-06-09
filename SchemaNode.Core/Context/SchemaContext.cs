@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
+using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -351,82 +352,76 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Sets the context item
     /// </summary>
-    public void SetContextItem<T>(T? value)
+    public void SetContextItem(Type type, object? value)
     {
-        if (value == null)
+        if (_contextItems.ContainsKey(type))
         {
-            if (_contextItems.TryRemove(typeof(T), out object? org))
+            if (_contextItems[type] == value) return;
+            if (_contextItems.TryRemove(type, out object? org) && org != value)
                 (org as IDisposable)?.Dispose();
         }
-        else
-        {
-            _contextItems[typeof(T)] = value;
-        }
+        if(value != null)
+            _contextItems[type] = value;
     }
 
     /// <summary>
     /// Sets the context item
     /// </summary>
-    public void SetContextItem(Type type, object? value)
+    public void SetContextItem<T>(T? value) => SetContextItem(typeof(T), value);
+
+    /// <summary>
+    /// Gets context item result, try to get from context item provider if not exist in context items
+    /// </summary>
+    object? GetContextItemResult(Type type, bool asDataNode = false)
     {
-        if (value == null)
-        {
-            if (_contextItems.TryRemove(type, out object? org))
-                (org as IDisposable)?.Dispose();
-        }
-        else
-        {
-            _contextItems[type] = value;
-        }
+        if (_contextItems.TryGetValue(type, out object? result)) return result;
+        
+        // try with context item provider
+        (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(type);
+        if (info == null) return null;
+        return GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
+            ? asDataNode ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(item) : item
+            : null;
     }
     
     /// <summary>
-    /// Gets the context item
+    /// Gets the context item with the given type
     /// </summary>
-    public T? GetContextItem<T>() where T : class => _contextItems.TryGetValue(typeof(T), out object? value) ? value as T : null;
-    
-    /// <summary>
-    /// Gets the context item
-    /// </summary>
-    public object? GetContextItem(Type type) => _contextItems.TryGetValue(type, out object? value) ? value : null;
-    
-    /// <summary>
-    /// Try gets the context item
-    /// </summary>
-    public bool TryGetContextItem<T>(out T? value) where T : class
+    public T? GetContextItem<T>() where T: class
     {
-        if (_contextItems.TryGetValue(typeof(T), out object? obj) && obj is T t)
-        {
-            value = t;
-            return true;
-        }
-        value = null;
-        return false;
+        object? result = GetContextItemResult(typeof(T));
+        return result as T;
     }
     
     /// <summary>
-    /// Try gets the context item
+    /// Gets the context item as data node
     /// </summary>
-    public bool TryGetContextItem(Type type, out object? value)
+    public DataNode? GetContextItem(Type type) => GetContextItemResult(type, true) as DataNode;
+    
+    /// <summary>
+    /// Copys the schema context item from source to target
+    /// </summary>
+    public void CopySchemaContextItem(SchemaContext source)
     {
-        return _contextItems.TryGetValue(type, out value);
+        foreach ((string SchemaType, Type ProviderType, Type ItemType) info in GetRequiredService<SchemaContextItemProvider>().GetProviderTypes)
+        {
+            object? node = source.GetContextItem(info.ProviderType);
+            if (node == null) continue;
+            SetContextItem(info.ItemType, node);
+        }
+        foreach (var pair in source._contextItems)
+            SetContextItem(pair.Key, pair.Value);
     }
 
     /// <summary>
     /// Gets or creates the context item
     /// </summary>
-    public T GetOrCreateContextItem<T>(Func<T> factory) where T : class
-    {
-        return (T)_contextItems.GetOrAdd(typeof(T), _ => factory());
-    }
+    public T GetOrCreateContextItem<T>(Func<T> factory) where T : class => (T)_contextItems.GetOrAdd(typeof(T), _ => factory());
 
     /// <summary>
     /// Gets or creates the context item
     /// </summary>
-    public T GetOrCreateContextItem<T>() where T : class, new()
-    {
-        return (T)_contextItems.GetOrAdd(typeof(T), _ => new T());
-    }
+    public T GetOrCreateContextItem<T>() where T : class, new() => (T)_contextItems.GetOrAdd(typeof(T), _ => new T());
 
     #endregion
 
@@ -470,4 +465,9 @@ public class SystemAccess
     /// The date type
     /// </summary>
     public Runtime.DateType Date { get; internal set; } = null!;
+
+    /// <summary>
+    /// The context type
+    /// </summary>
+    public Runtime.StructType Context { get; internal set; } = null!;
 }

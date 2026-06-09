@@ -140,10 +140,11 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
 
         // load properties
-        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE));
-        foreach (IProperty prop in props.ToArray())
+        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE)).ToList();
+        int max = props.Count;
+        for(int i = 0; i < max; i++)
         {
-            if (prop.GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
+            if (props[i].GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
             props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
         }
 

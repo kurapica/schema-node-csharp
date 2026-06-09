@@ -1,18 +1,13 @@
-using Microsoft.AspNetCore.Antiforgery;
-using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
-using SchemaNode.Runtime;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
+using SchemaNode.Components;
+using SchemaNode.Struct;
 using TimeZoneConverter;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Context;
 
 /// <summary>
 /// The access context item provider
@@ -20,6 +15,7 @@ namespace SchemaNode.Components;
 public class AccessContextItemProvider(Access access): ISchemaContextItemProvider<Access>
 {
     public bool HasItem => true;
+    
     public Access GetItem() => access;
 }
 
@@ -39,29 +35,8 @@ public class Access
     public string? Target { get; set; }
 
     /// <summary>
-    /// The locale information
-    /// </summary>
-    [NotMapped]
-    public string Locale { get; set; } = "enUS";
-
-    /// <summary>
-    /// The time zone information
-    /// </summary>
-    [NotMapped]
-    public TimeZoneInfo TimeZone { get; set; } = TimeZoneInfo.Local;
-
-    /// <summary>
-    /// The date time format information
-    /// </summary>
-    [NotMapped]
-    public DateFormatMode DateFormatMode { get; set; } = DateFormatMode.Iso8601;
-
-    /// <summary>
     /// Sets the access information, and will clear the stack and reset to the new state
     /// </summary>
-    /// <param name="app"></param>
-    /// <param name="target"></param>
-    /// <param name="locale"></param>
     internal void SetAccess(string? app = null, string? target = null)
     {
         App = app;

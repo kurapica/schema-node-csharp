@@ -3,10 +3,12 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
@@ -37,6 +39,7 @@ public interface INodeSchemaGenerator
 /// </summary>
 internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 {
+    /// <inheritdoc />
     public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services)
     {
         #region Expression
@@ -47,6 +50,22 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         services.AddSingleton<IExpVisitor, CollectionExpVisitor>();
 
         #endregion
+    }
+
+    /// <inheritdoc />
+    public void OnServiceInitialized(IServiceProvider provider, IServiceCollection services)
+    {
+        // context item scan
+        List<Type> itemProviders = [];
+        foreach(ServiceDescriptor desc in services)
+        {
+            Type providerType = desc.ServiceType;
+            if (providerType.GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>))) is not null)
+                itemProviders.Add(providerType);
+        }
+        
+        // register for later consume
+        services.AddSingleton(new SchemaContextItemProvider(itemProviders.ToArray()));
     }
 
     /// <inheritdoc />
@@ -115,7 +134,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         #endregion
         
         #region Auto Scan
-        
+
         // Scan and register system schemas
         foreach (Assembly assembly in assemblies)
         {
@@ -150,6 +169,41 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         }
         
         #endregion
+        
+        #region System Context Items
+
+        // system.context
+        List<StructFieldSchema> fieldTypes = [];
+        SchemaContextItemProvider provider = schemaContext.GetRequiredService<SchemaContextItemProvider>();
+        foreach (Type providerType in provider.Providers)
+        {
+            Type? itemType = providerType.GetInterfaces()
+                .FirstOrDefault(i =>  i.IsSubclassOfGenericType(typeof(ISchemaContextItemProvider<>)))?
+                .GetGenericArguments().FirstOrDefault();
+            if (itemType is null) continue;
+            Assembly assembly = providerType.Assembly;
+            string? schemaType = ResolveOtherSchema(itemType, assembly.GetMetaProperty<SchemaType>()?.Value 
+                                                              ?? assembly.GetName().Name?.ToLowerInvariant() 
+                                                              ?? throw new Exception($"Failed to get default namespace for assembly '{assembly.FullName}'"));
+            if (string.IsNullOrEmpty(schemaType)) continue;
+
+            // use the last part as field name
+            StructFieldSchema field = new StructFieldSchema
+            {
+                Name = schemaType.GetSchemaName(),
+                Type = schemaType
+            };
+            field.SetProperty<Display, LocaleString>($"{{@{schemaType}}}");
+            fieldTypes.Add(field);
+            
+            // cache
+            provider.BindSchemaContextItemProvider(field.Name, schemaType, providerType, itemType);
+        }
+        NodeSchema contextSchema = NodeSchema.Create(SCHEMA_KIND_STRUCT, NS_SYSTEM_CONTEXT);
+        contextSchema.SetProperty<StructProperty, StructSchema>(new StructSchema { Fields = fieldTypes.ToArray() });
+        runtime.SaveSystemSchema(contextSchema);
+        
+        #endregion
 
         #endregion
         
@@ -165,6 +219,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Decimal = (await schemaContext.GetNodeTypeAsync<Runtime.DecimalType>(NS_SYSTEM_NUMBER))!;
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
+        access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
         
         // Loading all system node types
         await LoadAllNodeTypes(string.Empty);

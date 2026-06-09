@@ -86,14 +86,25 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                 {
                     // Try using array type if primary index specified
                     schemaType = runtime.GetSystemArraySchema(schemaType, true) ?? schemaType;
+                    NodeSchema? typeSchema = runtime.GetSystemSchema(schemaType);
+                    if (typeSchema == null)
+                        throw new Exception($"The schema type for {type.FullName} is not registered in runtime");
+                    
                     AppFieldSchema field = new AppFieldSchema
                     {
                         App = app.Value!.ToLowerInvariant(),
                         Name = type.Name.ToLowerInvariant(),
                         Type = schemaType,
                     };
+                    
+                    // app field property
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP_FIELD))
                         field.SetProperty(property);
+                    
+                    // schema type property
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
+                        field.SetProperty(property);
+                    
                     runtime.SaveSystemAppFieldSchema(field);
                 }
             }
