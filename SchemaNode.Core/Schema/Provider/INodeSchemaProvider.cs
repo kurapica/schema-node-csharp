@@ -1,6 +1,4 @@
-using SchemaNode.Schema;
-
-namespace SchemaNode.Service;
+namespace SchemaNode.Schema.Provider;
 
 /// <summary>
 /// Provider interface for loading node schemas from external sources (database, file, etc.)

@@ -44,7 +44,7 @@ public class SaveEnumSubListRequest : SchemaApiRequest
     /// <summary>
     /// The sub enum values
     /// </summary>
-    public EnumValueInfo[] Values { get; set; } = [];
+    public EnumValueSchema[] Values { get; set; } = [];
     
     /// <summary>
     /// Append not override

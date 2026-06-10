@@ -113,7 +113,7 @@ public sealed class AppWorkflowType: IDisposable
         {
             if (!string.IsNullOrWhiteSpace(node.Payload))
             {
-                node.PayloadSchemaType = await context.GetSchemaTypeAsync(node.Payload);
+                node.PayloadSchemaType = await context.GetNodeTypeAsync(node.Payload);
                 node.PayloadSchemaType?.AddRef(this);
             }
         }
@@ -177,7 +177,7 @@ public sealed class AppWorkflowType: IDisposable
 
         foreach (var node in Nodes)
         {
-            var workflowType = await context.GetSchemaTypeAsync(node.Type) as WorkflowType;
+            var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
             Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"Workflow type {node.Type} not found");
 
             // All constructors parameters goto state, init directly
@@ -197,7 +197,7 @@ public sealed class AppWorkflowType: IDisposable
             // state
             if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
             {
-                var stateSchemaType = await context.GetSchemaTypeAsync(workflowType.State);
+                var stateSchemaType = await context.GetNodeTypeAsync(workflowType.State);
                 var stateType = stateSchemaType?.ToCSharpType();
                 if (stateType != null)
                     csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
@@ -209,7 +209,7 @@ public sealed class AppWorkflowType: IDisposable
             {
                 case FunctionWorkflow funcWorkflow:
                     funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
-                                                ? await context.GetSchemaTypeAsync(node.Func) as FunctionType
+                                                ? await context.GetNodeTypeAsync(node.Func) as FunctionType
                                                 : null)
                         ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
                     funcWorkflow.FuncArgs = node.FuncArgs?.Select(n => new FuncCallArg
@@ -221,7 +221,7 @@ public sealed class AppWorkflowType: IDisposable
 
                 case EventWorkflow evWorkflow:
                     evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
-                                           ? await context.GetSchemaTypeAsync(node.Event) as EventType
+                                           ? await context.GetNodeTypeAsync(node.Event) as EventType
                                            : null)
                         ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
                     break;
@@ -244,7 +244,7 @@ public sealed class AppWorkflowType: IDisposable
                     {
                         Name = argNode.Name,
                         Value = argNode.Value,
-                        SchemeType = await context.GetSchemaTypeAsync(argDef.Type),
+                        SchemeType = await context.GetNodeTypeAsync(argDef.Type),
                     };
                 }
             }

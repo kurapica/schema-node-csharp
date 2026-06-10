@@ -30,7 +30,7 @@ public class QueryFilterCompileContext : CompileContext
     /// <summary>
     /// The field query access expression
     /// </summary>
-    record QueryFieldAccessExpression(string FieldName, AnySchemaType SchemaType) : SchemaExp(SchemaType);
+    record QueryFieldAccessExpression(string FieldName, NodeType SchemaType) : SchemaExp(SchemaType);
 
     /// <summary>
     /// Transform the last logic expression to filter expression

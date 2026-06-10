@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The data source
 /// </summary>
-public record DataSource(string App, string Field, AnySchemaType SchemaType);
+public record DataSource(string App, string Field, NodeType SchemaType);
 
 /// <summary>
 /// The data source expression
@@ -49,9 +49,9 @@ public class DataSourceExpVisitor : IExpVisitor
         // App & Field must be valid
         AppType? appType = await context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
-        AnySchemaType? schemaType = appField?.ValueType;
+        NodeType? schemaType = appField?.ValueType;
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
-            schemaType = await context.GetSchemaTypeAsync(appField.Type);
+            schemaType = await context.GetNodeTypeAsync(appField.Type);
         return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
             ? new DataSourceExp(new DataSource(app, field, schemaType))
             : null; // call directly

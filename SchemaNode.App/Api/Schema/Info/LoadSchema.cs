@@ -30,7 +30,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(t);
+            NodeType? node = await SchemaContext.GetNodeTypeAsync(t);
             await GetNodeSchemas(node, true);
         }
 
@@ -39,7 +39,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             Schemas = root.Schemas
         };
 
-        async Task GetNodeSchemas(AnySchemaType? node, bool first = false)
+        async Task GetNodeSchemas(NodeType? node, bool first = false)
         {
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
@@ -47,7 +47,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 
             if (node is TypeNamespace ns && (first || request.Full == true))
-                foreach (KeyValuePair<string, AnySchemaType> pair in ns.SchemaNodes)
+                foreach (KeyValuePair<string, NodeType> pair in ns.SchemaNodes)
                     await GetNodeSchemas(pair.Value);
         }
     }

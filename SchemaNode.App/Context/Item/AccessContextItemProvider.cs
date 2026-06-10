@@ -2,6 +2,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
 using SchemaNode.Components;
+using SchemaNode.Property.App;
 using SchemaNode.Struct;
 using TimeZoneConverter;
 
@@ -205,7 +206,7 @@ public static class AccessContextItemProviderExtensions
         {
             key = Regex.Replace(key, @"\{\@([a-zA-Z0-9_.\-]+)\}", m =>
             {
-                AnySchemaType? systemValue = context.GetSchemaTypeAsync(m.Groups[1].Value).GetAwaiter().GetResult();
+                NodeType? systemValue = context.GetNodeTypeAsync(m.Groups[1].Value).GetAwaiter().GetResult();
                 if (systemValue != null)
                     return context.GetLocaleString(systemValue.Display, locale) ?? systemValue.Name ?? string.Empty;
                 return m.Value;

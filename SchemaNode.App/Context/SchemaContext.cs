@@ -1,5 +1,6 @@
 using SchemaNode.Schema;
 using SchemaNode.Enum;
+using SchemaNode.Schema.Provider;
 using SchemaNode.Service;
 using SchemaNode.Utility;
 using AppType = SchemaNode.Runtime.AppType;

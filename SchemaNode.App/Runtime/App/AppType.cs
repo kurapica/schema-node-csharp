@@ -349,7 +349,7 @@ public sealed class AppType : IValueTypeAccess
                 {
                     foreach (FieldFilter filter in fieldNode.Filters.Where(f => f.Mode == FieldFilterMode.Filter))
                     {
-                        AnySchemaType? filterType = await ctx.GetSchemaTypeAsync(filter.Filter);
+                        NodeType? filterType = await ctx.GetNodeTypeAsync(filter.Filter);
                         if (filterType != null)
                             await filterType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
                     }
@@ -424,28 +424,28 @@ public sealed class AppType : IValueTypeAccess
 
                     if (!string.IsNullOrWhiteSpace(node.Type))
                     {
-                        AnySchemaType? wfType = await ctx.GetSchemaTypeAsync(node.Type);
+                        NodeType? wfType = await ctx.GetNodeTypeAsync(node.Type);
                         if (wfType != null)
                             await wfType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
                     }
 
                     if (!string.IsNullOrWhiteSpace(node.Func))
                     {
-                        AnySchemaType? funcType = await ctx.GetSchemaTypeAsync(node.Func);
+                        NodeType? funcType = await ctx.GetNodeTypeAsync(node.Func);
                         if (funcType != null)
                             await funcType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
                     }
 
                     if (!string.IsNullOrWhiteSpace(node.Event))
                     {
-                        AnySchemaType? eventType = await ctx.GetSchemaTypeAsync(node.Event);
+                        NodeType? eventType = await ctx.GetNodeTypeAsync(node.Event);
                         if (eventType != null)
                             await eventType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
                     }
 
                     if (!string.IsNullOrWhiteSpace(node.Payload))
                     {
-                        AnySchemaType? payloadType = await ctx.GetSchemaTypeAsync(node.Payload);
+                        NodeType? payloadType = await ctx.GetNodeTypeAsync(node.Payload);
                         if (payloadType != null)
                             await payloadType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
                     }

@@ -23,7 +23,7 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
         // schema
         if (!string.IsNullOrEmpty(request.Name))
         {
-            AnySchemaType schema = await SchemaContext.GetSchemaTypeAsync(request.Name)
+            NodeType schema = await SchemaContext.GetNodeTypeAsync(request.Name)
                 ?? throw new Exception(TYPE_NOT_EXIST);
             
             return new AuthorizeResponse

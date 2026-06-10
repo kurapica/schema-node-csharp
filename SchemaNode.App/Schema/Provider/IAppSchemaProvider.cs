@@ -1,11 +1,9 @@
-using SchemaNode.Schema;
-
-namespace SchemaNode.Service;
+namespace SchemaNode.Schema.Provider;
 
 /// <summary>
 /// Provider interface for loading app schemas from external sources
 /// </summary>
-public interface IAppSchemaProvider : INodeSchemaProvider
+public interface IAppSchemaProvider : INodeSchemaProvider, IEnumSchemaProvider, IFunctionSchemaProvider
 {
     /// <summary>
     /// Load the app schema information

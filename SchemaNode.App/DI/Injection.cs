@@ -324,9 +324,9 @@ public static class Injection
     /// Register the schema storage provider
     /// </summary>
     public static IServiceCollection AddSchemaStorageProvider<T>(this IServiceCollection services)
-        where T : class, ISchemaStorageProvider
+        where T : class, IAppSchemaStorageProvider
     {
-        services.TryAddScoped<ISchemaStorageProvider, T>();
+        services.TryAddScoped<IAppSchemaStorageProvider, T>();
         return services.AddScoped<ISchemaProvider, T>().AddScoped<T>();
     }
 
@@ -340,8 +340,8 @@ public static class Injection
         where T : class, IAppDataProvider
     {
         services.TryAddScoped<IAppDataProvider, T>();
-        if (typeof(ISchemaStorageProvider).IsAssignableFrom(typeof(T)))
-            services.TryAdd(new ServiceDescriptor(typeof(ISchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
+        if (typeof(IAppSchemaStorageProvider).IsAssignableFrom(typeof(T)))
+            services.TryAdd(new ServiceDescriptor(typeof(IAppSchemaStorageProvider), typeof(T), ServiceLifetime.Scoped));
         
         // sql provider check
         Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
@@ -370,7 +370,7 @@ public static class Injection
                 // preload schema and app types·
                 context.LogInformation("[Preload] Loading schema ...");
                 context.ResetTypeNamespace();
-                await context.GetSchemaTypeAsync("", preload: true);
+                await context.GetNodeTypeAsync("", preload: true);
             
                 context.LogInformation("[Preload] Loading application ...");
                 context.ResetAppContainer();
@@ -452,7 +452,7 @@ public static class Injection
         // preload schema and app types·
         context.LogInformation("[Preload] Loading schema ...");
         context.ResetTypeNamespace();
-        await context.GetSchemaTypeAsync("", preload: true);
+        await context.GetNodeTypeAsync("", preload: true);
     
         context.LogInformation("[Preload] Loading application ...");
         context.ResetAppContainer();
@@ -534,7 +534,7 @@ public static class Injection
         Assembly schemaAssembly = typeof(Injection).Assembly;
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
-        bool hasSchemaStorage = service.IsService(typeof(ISchemaStorageProvider));
+        bool hasSchemaStorage = service.IsService(typeof(IAppSchemaStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
         
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();

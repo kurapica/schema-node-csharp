@@ -52,7 +52,7 @@ public static class BatchQueryExtension
             Type = SchemaType.Namespace,
             Schemas = []
         };
-        RootEnumValueInfo.Value = new EnumValueInfo();
+        RootEnumValueSchema.Value = new EnumValueSchema();
         
         foreach (AppDataQuery query in queries)
         {
@@ -345,7 +345,7 @@ public static class BatchQueryExtension
         return (results.ToArray(), root.Schemas);
     }
 
-    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, AnySchemaType type, HashSet<string> enumsKeys, DataNode? value)
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, NodeType type, HashSet<string> enumsKeys, DataNode? value)
     {
         switch (type)
         {
@@ -374,9 +374,9 @@ public static class BatchQueryExtension
 
                             if (parent.Type == SchemaType.Enum)
                             {
-                                RootEnumValueInfo.Value!.SubList = parent.Enum!.Values;
-                                RootEnumValueInfo.Value!.CombineAccessList(access);
-                                RootEnumValueInfo.Value!.SubList = null;
+                                RootEnumValueSchema.Value!.SubList = parent.Enum!.Values;
+                                RootEnumValueSchema.Value!.CombineAccessList(access);
+                                RootEnumValueSchema.Value!.SubList = null;
                             }
                         }
                     }
@@ -424,7 +424,7 @@ public static class BatchQueryExtension
         }
     }
 
-    static readonly AsyncLocal<EnumValueInfo> RootEnumValueInfo = new();
+    static readonly AsyncLocal<EnumValueSchema> RootEnumValueSchema = new();
 }
 
 /// <summary>
