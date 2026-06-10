@@ -6,6 +6,7 @@ using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using SchemaNode.Node;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Property.App;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -51,7 +52,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
     /// </summary>
-    public AppScopePolicy? ScopePolicy => _schema?.ScopePolicy;
+    public AppScopePolicy? ScopePolicy { get; private set; }
 
     /// <summary>
     /// The target scope type, default to business target if no scope policy defined
@@ -148,6 +149,7 @@ public sealed class AppType : IValueTypeAccess
         _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
 
         (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props);
+        ScopePolicy = GetProperty<ScopePolicy>()?.Value;
 
         // Load the application fields
         _fields = schema.Fields?.Select(f => new AppFieldType(this, f)).ToList() ?? [];

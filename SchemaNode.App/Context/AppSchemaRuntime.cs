@@ -53,7 +53,7 @@ public class AppSchemaRuntime : SchemaRuntime
                     node = new AppSchema
                     {
                         Name = part,
-                        Parent = container
+                        Container = container
                     };
                     node.SetProperty<Display, LocaleString>(node.FullName);
                     
@@ -126,7 +126,7 @@ public class AppSchemaRuntime : SchemaRuntime
                 curr = new AppSchema
                 {
                     Name = part.ToString(),
-                    Parent = node.FullName
+                    Container = node.FullName
                 };
                 curr.SetProperty<Display, LocaleString>(curr.FullName);
                 node.Apps = node.Apps != null ? node.Apps.Concat([curr]).ToArray() : [curr];

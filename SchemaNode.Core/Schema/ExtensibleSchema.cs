@@ -38,7 +38,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// </summary>
     [SchemaIgnore]
     [JsonExtensionData]
-    public Dictionary<string, JsonNode>? Extensions { get; private set; }
+    public Dictionary<string, JsonNode>? Extensions { get; internal set; }
 
     /// <summary>
     /// Combine other extensible properties into this instance. If there are duplicate keys, the values from the other instance will overwrite the existing values.

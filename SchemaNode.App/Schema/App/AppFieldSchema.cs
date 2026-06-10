@@ -45,6 +45,7 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// <summary>
     /// The seqno
     /// </summary>
+    [SchemaIgnore]
     public int Seqno { get; set; }
 
     /// <summary>

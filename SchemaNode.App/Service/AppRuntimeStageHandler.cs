@@ -9,6 +9,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Service;
@@ -84,6 +85,22 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                 if (runtime.GetTypeSchema(type) is { } schemaType &&
                     type.GetMetaProperty<App>() is { HasValue: true } app)
                 {
+                    string appName = app.Value!.ToLowerInvariant();
+
+                    // Check application properties
+                    var appProperties = type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP).ToArray();
+                    if (appProperties.Length > 0)
+                    {
+                        AppSchema appSchema = new AppSchema
+                        {
+                            Name = appName.GetSchemaName(), // for simple
+                            Container = appName.GetNamespace(), // for 
+                        };
+                        foreach (var prop in appProperties)
+                            appSchema.SetProperty(prop);
+                        runtime.SaveSystemAppSchema(appSchema);
+                    }
+
                     // Try using array type if primary index specified
                     schemaType = runtime.GetSystemArraySchema(schemaType, true) ?? schemaType;
                     NodeSchema? typeSchema = runtime.GetSystemSchema(schemaType);
@@ -92,7 +109,7 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                     
                     AppFieldSchema field = new AppFieldSchema
                     {
-                        App = app.Value!.ToLowerInvariant(),
+                        App = appName,
                         Name = type.Name.ToLowerInvariant(),
                         Type = schemaType,
                     };

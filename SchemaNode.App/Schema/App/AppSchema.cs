@@ -25,11 +25,11 @@ namespace SchemaNode.Schema;
 public sealed class AppSchema: ExtensibleSchema
 {
     /// <summary>
-    /// The parent app name
+    /// The container app name
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
-    public string? Parent { get; set; }
+    public string? Container { get; set; }
     
     /// <summary>
     /// The application name
@@ -43,12 +43,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// </summary>
     [SchemaIgnore]
     [JsonIgnore]
-    public string FullName => $"{Parent}.{Name}".Trim('.');
-
-    /// <summary>
-    /// The target policies, can only be changeable when no app & no fields or in debug mode
-    /// </summary>
-    public AppScopePolicy? ScopePolicy { get; set; }
+    public string FullName => $"{Container}.{Name}".Trim('.');
 
     #region Details
 

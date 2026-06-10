@@ -452,11 +452,11 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
 
             // load apps
-            List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == app);
+            List<AppSchema> apps = await context.GetEntitiesAsync<AppSchema>(Target, e => e.Container == app);
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
-                subApp.HasApps = (await context.GetEntitiesAsync<AppSchema>(Target, e => e.Parent == subApp.Name, take: 1)).total != 0;
+                subApp.HasApps = (await context.GetEntitiesAsync<AppSchema>(Target, e => e.Container == subApp.Name, take: 1)).total != 0;
 
                 // check fields
                 subApp.HasFields = (await context.GetEntitiesAsync<AppFieldSchema>(Target, e => e.App == subApp.Name, take: 1)).total != 0;
@@ -503,8 +503,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         try
         {
             await context.BeginTransactionAsync();
-            app.Parent = string.Join('.', app.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
-            if (string.IsNullOrEmpty(app.Parent)) app.Parent = Root;
+            app.Container = string.Join('.', app.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
+            if (string.IsNullOrEmpty(app.Container)) app.Container = Root;
             await context.SaveEntityAsync(Target, app);
             await context.CommitTransactionAsync();
             

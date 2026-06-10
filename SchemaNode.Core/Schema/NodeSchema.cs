@@ -11,7 +11,6 @@ using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Serialization;
-using SchemaNode.Property.Constraints;
 using static SchemaNode.Utility.Constant;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;

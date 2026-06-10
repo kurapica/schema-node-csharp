@@ -16,7 +16,7 @@ namespace SchemaNode.Property.App;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.{nameof(RowAuths)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.{nameof(RowAuths)}")]
 [Relation<Valid>($"${nameof(RowAuths)}.{nameof(RowPolicy.Filter)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"${nameof(AppFieldSchema.Type)}", true)]
 public class RowAuths : Property<RowPolicy[]>, ILoadableProperty, INodeError
 {
