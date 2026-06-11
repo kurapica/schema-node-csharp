@@ -87,6 +87,12 @@ public sealed class EnumValueSchema: ExtensibleSchema
     #region Runtime info
     
     /// <summary>
+    /// The seqno
+    /// </summary>
+    [SchemaIgnore]
+    public long Seqno { get; set; }
+    
+    /// <summary>
     /// Whether the enum value has sub enum values
     /// </summary>
     [SchemaIgnore]
@@ -186,6 +192,11 @@ public sealed class EnumValueAccess
     /// The enum value of the cascade
     /// </summary>
     public string Value { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// The enum value schema
+    /// </summary>
+    public EnumValueSchema? Schema { get; set; }
     
     /// <summary>
     /// The sublist of the enum value

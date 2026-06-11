@@ -43,8 +43,9 @@ internal class NodeEntity
 
     #region Conversion
 
-    public static implicit operator NodeEntity(NodeSchema nodeSchema)
+    public static implicit operator NodeEntity?(NodeSchema? nodeSchema)
     {
+        if (nodeSchema == null) return null;
         JsonObject? extensions = null;
         if (nodeSchema.Extensions is { Count : > 0})
         {
@@ -59,13 +60,14 @@ internal class NodeEntity
         {
             Namespace = nodeSchema.Namespace,
             Name = nodeSchema.Name,
-            Kind = nodeSchema.Kind.ToString(),
+            Kind = nodeSchema.Kind,
             Extensions = extensions
         };
     }
 
-    public static implicit operator NodeSchema(NodeEntity nodeEntity)
+    public static implicit operator NodeSchema?(NodeEntity? nodeEntity)
     {
+        if (nodeEntity == null) return null;
         var nodeSchema = new NodeSchema
         {
             Namespace = nodeEntity.Namespace,
@@ -83,6 +85,6 @@ internal class NodeEntity
         }
         return nodeSchema;
     }
-
+    
     #endregion
 }

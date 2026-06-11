@@ -5,9 +5,9 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
-
 
 namespace SchemaNode.Data.Entity;
 
@@ -86,8 +86,75 @@ internal class AppFieldEntity
 
     #endregion
 
+    #region Extension
+
     /// <summary>
     /// The extension properties of the node
     /// </summary>
     public JsonObject? Extensions { get; set; }
+    
+    #endregion
+
+    #region Conversion
+
+    public static implicit operator AppFieldEntity?(AppFieldSchema? appFieldSchema)
+    {
+        if  (appFieldSchema == null) return null;
+        JsonObject? extensions = null;
+        if (appFieldSchema.Extensions is { Count : > 0})
+        {
+            extensions = new JsonObject();
+            foreach (var kvp in appFieldSchema.Extensions)
+            {
+                extensions[kvp.Key] = kvp.Value.DeepClone();
+            }
+        }
+        
+        return new AppFieldEntity
+        {
+            App = appFieldSchema.App,
+            Name = appFieldSchema.Name,
+            Seqno = appFieldSchema.Seqno,
+            Type = appFieldSchema.Type,
+            Source = appFieldSchema.Source,
+            Push = appFieldSchema.Push,
+            Combine = appFieldSchema.Combine,
+            Combines = appFieldSchema.Combines,
+            Foreigns = appFieldSchema.Foreigns,
+            View = appFieldSchema.View,
+            Extensions = extensions
+        };
+    }
+    
+    public static implicit operator AppFieldSchema?(AppFieldEntity? appFieldEntity)
+    {
+        if  (appFieldEntity == null) return null;
+        Dictionary<string, JsonNode>? extensions = null;
+        if (appFieldEntity.Extensions is { Count : > 0})
+        {
+            extensions = new Dictionary<string, JsonNode>();
+            foreach (var kvp in appFieldEntity.Extensions)
+            {
+                if (kvp.Value != null && !kvp.Value.IsEmpty())
+                    extensions[kvp.Key] = kvp.Value.DeepClone();
+            }
+        }
+        
+        return new AppFieldSchema
+        {
+            App = appFieldEntity.App,
+            Name = appFieldEntity.Name,
+            Seqno = appFieldEntity.Seqno,
+            Type = appFieldEntity.Type,
+            Source = appFieldEntity.Source,
+            Push = appFieldEntity.Push,
+            Combine = appFieldEntity.Combine,
+            Combines = appFieldEntity.Combines,
+            Foreigns = appFieldEntity.Foreigns,
+            View = appFieldEntity.View,
+            Extensions = extensions
+        };
+    }
+
+    #endregion    
 }

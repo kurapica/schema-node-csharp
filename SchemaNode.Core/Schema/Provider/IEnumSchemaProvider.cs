@@ -10,9 +10,8 @@ public interface IEnumSchemaProvider
     /// </summary>
     /// <param name="schemaName">The enum schema name</param>
     /// <param name="value">The root enum value, optional</param>
-    /// <param name="fullList">Whether load the full list</param>
     /// <returns></returns>
-    Task<EnumValueSchema[]> LoadEnumSubListAsync(string schemaName, string? value, bool? fullList = null);
+    Task<EnumValueSchema[]> LoadEnumSubListAsync(string schemaName, string? value);
     
     /// <summary>
     /// Load the enum value access list from the server

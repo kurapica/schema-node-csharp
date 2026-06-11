@@ -86,8 +86,9 @@ public sealed class EnumType: ValueType
     /// <param name="value">The root enum value, optional</param>
     /// <param name="fullList">Whether try to load the full list</param>
     /// <returns></returns>
-    public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value, bool fullList = false)
+    public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value)
     {
+        bool fullList = false;
         if (string.IsNullOrWhiteSpace(value))
             return _root.Clone(fullList ? (_enumSchema?.Cascade?.Length ?? 1) : 1).SubList ?? [];
 
@@ -109,7 +110,7 @@ public sealed class EnumType: ValueType
         // load sub list
         if (Provider != null && context.GetRequiredService(Provider) is IEnumSchemaProvider provider)
         {
-            EnumValueSchema[] subList = await provider.LoadEnumSubListAsync(Name, value, fullList);
+            EnumValueSchema[] subList = await provider.LoadEnumSubListAsync(Name, value);
             lock (_lock)
             {
                 access.SubList = subList;
@@ -141,6 +142,7 @@ public sealed class EnumType: ValueType
             {
                 Value = accesses[i + 1].Value,
                 Name = _enumSchema?.Cascade?[i],
+                Schema = noSubList == true ? accesses[i + 1].Clone() : null,
                 SubList = (noSubList ?? false) ? null : accesses[i].SubList?.Select(a => a.Clone()).ToArray()
             };
         }
