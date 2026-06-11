@@ -12,7 +12,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Data.Entity;
 
 [Meta<App>($"{NS_SYSTEM_SCHEMA}")]
-[Meta<ScopePolicy>(Enum.AppScopeType.SystemLevel)]
+[Meta<ScopePolicy>(AppScopeType.SystemLevel)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.node")]
 internal class NodeEntity
 {

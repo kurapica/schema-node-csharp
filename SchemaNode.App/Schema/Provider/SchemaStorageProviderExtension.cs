@@ -4,6 +4,8 @@ using SchemaNode.Enum;
 using SchemaNode.Event;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Schema.Provider;
 
@@ -14,23 +16,19 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveSchemaAsync(this SchemaContext context, NodeSchema schema)
     {
-        NodeType? node = await context.GetNodeTypeAsync(schema.Name);
+        NodeType? node = await context.GetNodeTypeAsync(schema.FullName);
 
         // authorize
+        NodeType? parent = null;
         if (node == null)
         {
-            string[] paths = schema.Name.SplitTypeName().SkipLast(1).ToArray();
-            NodeType? parentNode = null;
-            for (int i = paths.Length - 1; i >= 0; i--)
-            {
-                string path = string.Join('.', paths.Take(i + 1));
-                parentNode = await context.GetNodeTypeAsync(path);
-                if (parentNode != null) break;
-            }
-
-            // check parent if creation
-            parentNode ??= SchemaContext.RootNamespace;
-            await context.AuthorizeAsync(parentNode, PolicyScope.SchemaCreate);
+            string name = schema.FullName.GetNamespace();
+            while (!string.IsNullOrEmpty(name) && (parent = await context.GetNodeTypeAsync(name)) is not {})
+                name = name.GetNamespace();
+            
+            // parent if creation
+            parent ??= (context.Runtime as SchemaRuntime)?.RootNamespace ?? throw new Exception("runtime not available");
+            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate);
         }
         else
         {
@@ -47,21 +45,16 @@ public static class SchemaStorageProviderExtension
         // save runtime
         if (node == null)
         {
-            NodeType? parentNode = await context.GetNodeTypeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
-            if (parentNode is Runtime.NamespaceType ns)
-                ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
+            parent = await context.GetNodeTypeAsync(string.Join('.', schema.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
+            if (parent is Runtime.NamespaceType ns)
+                ns.SaveNodeSchema(schema);
         }
-        NodeSchema[]? subSchemas = schema.Type == SchemaType.Namespace ? schema.Schemas : null;
         await context.GetNodeTypeAsync(schema.Name, reload: true); // force reload
         
         // check sub schemas
-        if (subSchemas is { Length: > 0 })
-        {
-            foreach (var subSchema in subSchemas)
-            {
+        if (schema is { Kind: SCHEMA_KIND_NAMESPACE, Schemas.Length: > 0 })
+            foreach (var subSchema in schema.Schemas)
                 await context.SaveSchemaAsync(subSchema);
-            }
-        }
         
         // event
         context.RaiseEvent<SchemaChangeEvent>(schema.Name);
@@ -91,7 +84,7 @@ public static class SchemaStorageProviderExtension
         if (!await provider.DeleteSchemaAsync(name)) return false;
 
         // runtime remove
-        context.RemoveSchemaType(name);
+        node.Namespace?.RemoveNodeSchema(name);
 
         // event
         context.RaiseEvent<SchemaDeleteEvent>(name);
@@ -106,13 +99,14 @@ public static class SchemaStorageProviderExtension
     /// <param name="value">The enum value</param>
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
+    /// <param name="noEvent">no event raised</param>
     /// <returns>true if saved</returns>
     public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, EnumValueSchema[] values, bool append = false, bool noEvent = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return false; // for root level, please use SaveSchemaAsync to save the whole enum schema with sub list
 
         NodeType? node = await context.GetNodeTypeAsync(name);
-        if (node is not EnumType @enum || @enum.Cascade == null || @enum.Cascade.Length == 0) return false;
+        if (node is not Runtime.EnumType @enum || @enum.Cascade is not { Length: > 1 }) return false;
 
         // authorize
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
@@ -122,7 +116,7 @@ public static class SchemaStorageProviderExtension
         if (provider == null) return false;
                 
         // Need check the delete case when it has sub list, only delete the leaf node
-        values = await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
+        await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
 
         // Reload to avoid strange errors
         await context.GetNodeTypeAsync(@enum.Name, reload: true);
@@ -133,25 +127,24 @@ public static class SchemaStorageProviderExtension
         return true;
     }
 
-    static async Task<EnumValueSchema[]> SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppSchemaStorageProvider provier, EnumType @enum, string value, EnumValueSchema[] values, bool append = false)
+    static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppSchemaStorageProvider provider, Runtime.EnumType @enum, string value, EnumValueSchema[] values, bool append = false)
     {
-        EnumValueSchema? root = await @enum.LoadEnumValueSchema(context, value);
-        if (root is null || root.Level == @enum.Cascade!.Length) return values;
-
+        EnumValueAccess[] access = await @enum.LoadEnumAccessListAsync(context, value, noSubList: true, withSubList: true);
+        if (access.Length == 0 || !string.IsNullOrWhiteSpace(access.Last().Value)) return;
+        
         if (!append)
         {
-            EnumValueSchema[] existSubList = await @enum.LoadEnumSubListAsync(context, root.Value) ?? [];
+            EnumValueSchema[] existSubList = access.Last().SubList ?? [];
             EnumValueSchema[] appends = existSubList.Where(e => e.HasSubList == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
             values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
         }
 
         // Save
-        await provier.SaveEnumSubListAsync(@enum, root.Value, values.Select(v => v.Clone()).ToArray(), append);
+        await provider.SaveEnumSubListAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
 
         // Save sub list for the nodes with sub list recursively
         foreach (var node in values.Where(v => v.SubList is { Length: > 0 }))
-            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provier, @enum, node.Value, node.SubList!, append);
-        return values;
+            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, node.Value, node.SubList!, append);
     }
 
 
@@ -163,22 +156,19 @@ public static class SchemaStorageProviderExtension
     /// <returns></returns>
     public static async Task<bool> SaveAppSchemaAsync(this SchemaContext context, AppSchema app)
     {
-        AppType? node = await context.GetAppTypeAsync(app.Name);
+        Runtime.AppType? node = await context.GetAppTypeAsync(app.FullName);
 
         // authorize
+        Runtime.AppType? parent = null;
         if (node == null)
         {
-            string[] paths = app.Name.SplitTypeName().SkipLast(1).ToArray();
-            AppType? appParent = null;
-            for (int i = paths.Length - 1; i >= 0; i--)
-            {
-                string path = string.Join('.', paths.Take(i + 1));
-                appParent = await context.GetAppTypeAsync(path);
-                if (appParent != null) break;
-            }
-
-            appParent ??= SchemaContext.RootAppType;
-            await context.AuthorizeAsync(appParent, PolicyScope.SchemaCreate);
+            string name = app.FullName.GetNamespace();
+            while (!string.IsNullOrEmpty(name) && (parent = await context.GetAppTypeAsync(name)) is not {})
+                name = name.GetNamespace();
+            
+            // parent if creation
+            parent ??= (context.Runtime as AppSchemaRuntime)?.RootAppType ?? throw new Exception("runtime not available");
+            await context.AuthorizeAsync(parent, PolicyScope.SchemaCreate);
         }
         else
         {
@@ -186,20 +176,20 @@ public static class SchemaStorageProviderExtension
 
             // Check app scope policy, allow change when DEBUG
             #if !DEBUG
-            if ((node.ScopePolicy != null || app.ScopePolicy != null && 
-                (node.Apps is { Length: > 0 } || node.Fields is { Count: > 0 }) &&
-                (node.ScopePolicy == null || !node.ScopePolicy.Equals(app.ScopePolicy))))
+            if ((node.ScopePolicy != null || app.GetProperty<ScopePolicy>()?.Value is {} policy && 
+                (node.Apps is { Length: > 0 } || node.GetFields().Any()) &&
+                (node.ScopePolicy == null || !node.ScopePolicy.Equals(policy))))
             {
-                throw new Exception(APP_TARGET_POLICY_CANT_CHANGE);
+                throw new Exception(AppErrorCodes.APP_TARGET_POLICY_CANT_CHANGE);
             }
             #endif
 
             if (node.ScopePolicy?.Type == AppScopeType.IsolationContext)
             {
                 if (node.ScopePolicy.ContextMaps == null || node.ScopePolicy.ContextMaps.Length == 0)
-                    throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
+                    throw new Exception(AppErrorCodes.APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
                 
-                Array.Sort(node.ScopePolicy.ContextMaps, (a, b) =>
+                Array.Sort(node.ScopePolicy.ContextMaps, (a, _) =>
                 {
                     // put Access.Target last 
                     if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))
@@ -226,11 +216,8 @@ public static class SchemaStorageProviderExtension
         // runtime save
         if (node == null)
         {
-            AppType? parentNode = await context.GetAppTypeAsync(string.Join('.', app.Name.Split(".").Where(s => !string.IsNullOrEmpty(s)).SkipLast(1)));
-            if (parentNode != null)
-            {
-                parentNode.Apps = parentNode.Apps == null ? [app] : parentNode.Apps.Where(p => !p.Name.Equals(app.Name, StringComparison.OrdinalIgnoreCase)).Concat([app]).ToArray();
-            }
+            parent = await context.GetAppTypeAsync(app.FullName.GetNamespace());
+            parent?.SaveAppSchema(app);
         }
         await context.GetAppTypeAsync(app.Name, reload: true); // force reload
 
@@ -238,18 +225,18 @@ public static class SchemaStorageProviderExtension
         if (app.Fields is { Length: > 0 })
         {
             foreach (var field in app.Fields)
-                await context.SaveAppFieldSchemaAsync(app.Name, field);
+                await context.SaveAppFieldSchemaAsync(app.FullName, field);
         }
 
         // Save workflows if provided
         if (app.Workflows is { Length: > 0 })
         {
             foreach (var workflow in app.Workflows)
-                await context.SaveAppWorkflowSchemaAsync(app.Name, workflow);
+                await context.SaveAppWorkflowSchemaAsync(app.FullName, workflow);
         }
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app.Name);
+        context.RaiseEvent<AppSchemaChangeEvent>(app.FullName);
         return true;
     }
 
@@ -261,7 +248,7 @@ public static class SchemaStorageProviderExtension
     /// <returns></returns>
     public static async Task<bool> DeleteAppSchemaAsync(this SchemaContext context, string app)
     {
-        AppType? node = await context.GetAppTypeAsync(app);
+        var node = await context.GetAppTypeAsync(app);
         if (node == null || node.IsUsed) return false;
 
         // authorize
@@ -271,7 +258,7 @@ public static class SchemaStorageProviderExtension
         IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
-        context.RemoveAppType(app);
+        node.Container?.RemoveAppSchema(app);
 
         // event
         context.RaiseEvent<AppSchemaDeleteEvent>(app);
@@ -283,19 +270,19 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppFieldSchemaAsync(this SchemaContext context, string app, AppFieldSchema field)
     {
-        AppType? node = await context.GetAppTypeAsync(app);
+        var node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
         
         // validate by app scope policy
-        NodeType fieldType = await context.GetNodeTypeAsync(field.Type) ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
-        if (fieldType is ArrayType arrType) fieldType = arrType.ElementSchemaType ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
-        if (fieldType is StructType structType)
+        NodeType fieldType = await context.GetNodeTypeAsync(field.Type) ?? throw new Exception(AppErrorCodes.APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is Runtime.ArrayType arrType) fieldType = arrType.Element ?? throw new Exception(AppErrorCodes.APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is Runtime.StructType structType)
         {
-            if (structType.Fields.Length == 0) throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            if (!structType.GetFields().Any()) throw new Exception(AppErrorCodes.APP_FIELD_TYPE_NOT_VALID);
             if (node.ScopePolicy?.ContextMaps is { Length: > 0 })
             {
-                if (structType.Fields.Any(f => node.ScopePolicy.ContextMaps.Any(m => f.Name.Equals(m.MapKey, StringComparison.OrdinalIgnoreCase))))
-                    throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+                if (structType.GetFields().Any(f => node.ScopePolicy.ContextMaps.Any(m => f.Name.Equals(m.MapKey, StringComparison.OrdinalIgnoreCase))))
+                    throw new Exception(AppErrorCodes.APP_FIELD_TYPE_NOT_VALID);
             }
         }
 
@@ -344,7 +331,7 @@ public static class SchemaStorageProviderExtension
         if (appField.EnableDynamicTable)
         {
             var dataProvider = context.GetService<IAppDataProvider>();
-            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.Schema!);
+            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.GetDynamicTableSchema(context));
         }
 
         return true;
@@ -385,13 +372,13 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppWorkflowSchemaAsync(this SchemaContext context, string app, AppWorkflowSchema workflow, bool forActive = false)
     {
-        AppType? node = await context.GetAppTypeAsync(app);
+        Runtime.AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
 
         // authorize
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
 
-        AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow.Name, StringComparison.OrdinalIgnoreCase));
+        AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow.Name);
         if (!forActive && appWorkflowType is { Activated: true }) return false;
 
         IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
@@ -412,13 +399,13 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> DeleteAppWorkflowSchemaAsync(this SchemaContext context, string app, string workflow)
     {
-        AppType? node = await context.GetAppTypeAsync(app);
+        Runtime.AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
 
         // authorize
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
 
-        AppWorkflowType? appWorkflowType = node.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
+        AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow);
         if (appWorkflowType is { Activated: true }) return false;
 
         IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
@@ -437,8 +424,8 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> ToggleAppWorkflowSchemaAsync(this SchemaContext context, string app, string workflow, bool active)
     {
-        AppType? node = await context.GetAppTypeAsync(app);
-        AppWorkflowType? appWorkflowType = node?.Workflows?.FirstOrDefault(w => w.Name.Equals(workflow, StringComparison.OrdinalIgnoreCase));
+        Runtime.AppType? node = await context.GetAppTypeAsync(app);
+        AppWorkflowType? appWorkflowType = node?.GetWorkflow(workflow);
         if (appWorkflowType == null) return false;
 
         // authorize

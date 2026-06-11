@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
@@ -346,6 +347,25 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
         => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
     
+    /// <summary>
+    /// Try convert the value to schema node with expected type, if type is null, try to parse the type from value
+    /// </summary>
+    public async Task<DataNode?> GetSchemaNodeAsync(ValueType? type, JsonNode? value)
+    {
+        if (type != null) return type.From(value);
+
+        switch (value)
+        {
+            case JsonValue jsonValue:
+                var (v, t) = jsonValue.ParseValueAndType();
+                string? schemaType = t?.GetSchemaType();
+                return string.IsNullOrEmpty(schemaType) ? null : (await GetNodeTypeAsync<ValueType>(schemaType))?.From(v);
+
+            default:
+                return null;
+        }
+    }
+
     #endregion
     
     #region Context Items

@@ -129,6 +129,11 @@ public sealed class AppType : IValueTypeAccess
         _schemas ??= [];
         _schemas[schema.Name] = schema;
     }
+
+    internal void RemoveAppSchema(ReadOnlySpan<char> name)
+    {
+        
+    }
     
     
     #endregion

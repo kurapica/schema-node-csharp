@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
@@ -34,13 +35,18 @@ public class Call : IRelationProcess, INodeReferences, INodeError
     [SchemaIgnore]
     public string? Error { get; private set; }
 
-    private FunctionType? _funType;
+    /// <summary>
+    /// The function type
+    /// </summary>
+    [SchemaIgnore]
+    [JsonIgnore]
+    public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
     public async Task LoadAsync(SchemaContext context, IValueTypeAccess owner)
     {
-        _funType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
-        Error = _funType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
+        FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
+        Error = FuncType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
         
         // check args
         foreach (var arg in Args)
@@ -53,8 +59,8 @@ public class Call : IRelationProcess, INodeReferences, INodeError
     /// <inheritdoc/>
     public async Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner)
     {
-        if (_funType == null) return null;
-        return await _funType.CallAsync<object?>(context, Args.Select<CallArg, object?>(a =>
+        if (FuncType == null) return null;
+        return await FuncType.CallAsync<object?>(context, Args.Select<CallArg, object?>(a =>
         {
             if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
             DataNode? value = owner.GetAccessValue(a.Source);
@@ -66,8 +72,8 @@ public class Call : IRelationProcess, INodeReferences, INodeError
     /// <inheritdoc/>
     public IEnumerable<Runtime.NodeType> GetReferenceTypes()
     {
-        if (_funType is not null)
-            yield return _funType;
+        if (FuncType is not null)
+            yield return FuncType;
     }
 }
 

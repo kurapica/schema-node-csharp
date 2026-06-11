@@ -84,7 +84,6 @@ public sealed class EnumType: ValueType
     /// </summary>
     /// <param name="context">The schema context</param>
     /// <param name="value">The root enum value, optional</param>
-    /// <param name="fullList">Whether try to load the full list</param>
     /// <returns></returns>
     public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value)
     {

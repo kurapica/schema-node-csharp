@@ -60,8 +60,7 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
        
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter,
-            forUpdate: forUpdate);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate);
         return value != null ? value.GetValue<T>() : default;
     }
 
@@ -77,8 +76,7 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
         
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, 
-            filter, forUpdate: forUpdate);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter, forUpdate: forUpdate);
         return value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [];
     }
 

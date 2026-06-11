@@ -38,5 +38,18 @@ internal static class AppErrorCodes
     [Meta<ErrorCode>(APP_FIELD_VIEW_NOT_VALID)]
     public const string APP_FIELD_VIEW_NOT_VALID = "app_field_view_not_valid";
 
-    public const string APP_DATA_PROVIDER_NOT_EXIST = "AppErrorCodes.APP_DATA_PROVIDER_NOT_EXIST";
+    [Meta<ErrorCode>(APP_DATA_PROVIDER_NOT_EXIST)]
+    public const string APP_DATA_PROVIDER_NOT_EXIST = "app_data_provider_not_exist";
+    
+    [Meta<ErrorCode>(APP_TARGET_POLICY_CANT_CHANGE)]
+    public const string APP_TARGET_POLICY_CANT_CHANGE = "app_target_policy_cant_change";
+
+    [Meta<ErrorCode>(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP)]
+    public const string APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP = "app_isolation_context_policy_missing_map";
+    
+    [Meta<ErrorCode>(FUNC_IS_NOT_POLICY_FILTER)]
+    public const string FUNC_IS_NOT_POLICY_FILTER = "func_is_not_policy_filter";
+    
+    [Meta<ErrorCode>(FUNC_IS_NOT_PUSH_FUNC)]
+    public const string FUNC_IS_NOT_PUSH_FUNC = "func_is_not_push_func";
 }

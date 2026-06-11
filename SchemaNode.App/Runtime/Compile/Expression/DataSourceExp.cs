@@ -1,10 +1,11 @@
-﻿using SchemaNode.Components;
-using SchemaNode.Enum;
+﻿using SchemaNode.Enum;
 using SchemaNode.Function;
 using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Context;
+using SchemaNode.Data;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpressionType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -15,12 +16,12 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The data source
 /// </summary>
-public record DataSource(string App, string Field, NodeType SchemaType);
+public record DataSource(string App, string Field, ValueType ValueType);
 
 /// <summary>
 /// The data source expression
 /// </summary>
-public record DataSourceExp(DataSource Source) : SchemaExp(Source.SchemaType);
+public record DataSourceExp(DataSource Source) : SchemaExp(Source.ValueType);
 
 #endregion
 
@@ -35,24 +36,24 @@ public class DataSourceExpVisitor : IExpVisitor
     /// <inheritdoc />
     public async Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call } callExp) return null;
+        if (exp is not FuncCallExp { ExpType: ExpType.Call } callExp) return null;
 
         // Data source check
         if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}") return null;
-        string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExp appExp ? appExp.Value.ToValue<string>() :  null;
-        string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExp fldExp ? fldExp.Value.ToValue<string>() :  null;
+        string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExp appExp ? appExp.Value.GetValue<string>() :  null;
+        string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExp fldExp ? fldExp.Value.GetValue<string>() :  null;
 
         // App & Field must be provided
         if (string.IsNullOrEmpty(app) || string.IsNullOrEmpty(field))
-            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+            throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
 
         // App & Field must be valid
-        AppType? appType = await context.GetAppTypeAsync(app);
+        var appType = await context.Context.GetAppTypeAsync(app);
         AppFieldType? appField = appType?.GetField(field);
-        NodeType? schemaType = appField?.ValueType;
+        ValueType? schemaType = appField?.ValueType;
         if (schemaType == null && !string.IsNullOrEmpty(appField?.Type))
-            schemaType = await context.GetNodeTypeAsync(appField.Type);
-        return schemaType is ArrayType { ElementSchemaType: StructType, Primary: { Length: > 0 } }
+            schemaType = await context.Context.GetNodeTypeAsync<ValueType>(appField.Type);
+        return schemaType is ArrayType { Element: StructType, Primary: { Count: > 0 } }
             ? new DataSourceExp(new DataSource(app, field, schemaType))
             : null; // call directly
     }
@@ -191,8 +192,8 @@ public class DataSourceExpVisitor : IExpVisitor
                     if (item == null)
                     {
                         paramMap[arg] = arg.Nullable
-                            ? new ConstantExp(arg.SchemaType.CreateNode(null)!)
-                            : throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                            ? new ConstantExp(arg.ValueType.From(null))
+                            : throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                     }
                     else
                     {
@@ -220,8 +221,7 @@ public class DataSourceExpVisitor : IExpVisitor
             FieldAccessExp fieldExp => ReplaceExp(fieldExp.Owner) is CollectionItemExp 
                 ? Expression.New(typeof(AppSchemaDataFilterField).GetConstructors()[0], Expression.Constant(fieldExp.FieldName))
                 : Expression.New(typeof(AppSchemaDataFilterValue).GetConstructors()[0], 
-                    await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.SchemaType
-                    ))),
+                    await context.CompileSchemaExpAsync(new FieldAccessExp(ReplaceExp(fieldExp.Owner), fieldExp.FieldName, fieldExp.ValueType))),
             VariableExp varExp => await CompileDataSourceFilter(context, varExp.Value, expReplace),
             DefaultExp dftExp => await CompileDataSourceFilter(context, dftExp.Inner, expReplace), // unpack the default
             UnaryLogicExp unaryExp => Expression.New(typeof(AppSchemaDataFilterUnary).GetConstructors()[0], Expression.Constant(unaryExp.Type), await CompileDataSourceFilter(context, unaryExp.Inner, expReplace)),
