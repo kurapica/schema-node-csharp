@@ -1,6 +1,8 @@
 using SchemaNode.Context;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using AppType = SchemaNode.Runtime.AppType;
+using ValueType = SchemaNode.Runtime.ValueType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable InconsistentNaming
 
@@ -45,12 +47,12 @@ public abstract class Workflow
     /// <summary>
     /// The workflow arguments
     /// </summary>
-    internal FuncCallArg[]? Args { get; set; }
+    internal CallArg[]? Args { get; set; }
     
     /// <summary>
     /// The payload type
     /// </summary>
-    internal NodeType? PayloadType { get; set; }
+    internal ValueType? PayloadType { get; set; }
 
     /// <summary>
     /// Whether the node can be triggered multiple times
@@ -87,7 +89,7 @@ public abstract class Workflow
     /// Sets the payload, the workflow will be marked as done or fork a new workflow context for the next workflow
     /// </summary>
     protected void SetPayload(WorkflowContext context, object? payload = null, Access? access = null)
-        => context.Done(this, payload != null ? PayloadType?.CreateNode(payload) : null, access);
+        => context.Done(this, payload != null ? PayloadType?.From(payload) : null, access);
     
     /// <summary>
     /// Find the next workflow by name(include self)
@@ -138,14 +140,10 @@ public interface IWorkflowSession<in T>
 /// <summary>
 /// The workflow has payload interface
 /// </summary>
-public interface IWorkflowPayload
-{
-}
+public interface IWorkflowPayload;
 
 /// <summary>
 /// The workflow has typed payload interface
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public interface IWorkflowPayload<T>: IWorkflowPayload
-{
-}
+public interface IWorkflowPayload<T> : IWorkflowPayload;

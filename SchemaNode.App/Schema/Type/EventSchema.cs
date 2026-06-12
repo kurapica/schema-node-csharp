@@ -21,6 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_EVENT)]
+[Meta<Append>(typeof(Generics))]
 public sealed class EventSchema: ExtensibleSchema
 {
     /// <summary>
