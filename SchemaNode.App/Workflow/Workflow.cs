@@ -138,12 +138,7 @@ public interface IWorkflowSession<in T>
 }
 
 /// <summary>
-/// The workflow has payload interface
-/// </summary>
-public interface IWorkflowPayload;
-
-/// <summary>
 /// The workflow has typed payload interface
 /// </summary>
 /// <typeparam name="T"></typeparam>
-public interface IWorkflowPayload<T> : IWorkflowPayload;
+public interface IWorkflowPayload<T>;

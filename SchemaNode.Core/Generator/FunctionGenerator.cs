@@ -131,8 +131,9 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             }
 
             // Check dynamic type
-            arg.Type = typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, genericArgs)
-                ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
+            arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
+                        ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, genericArgs)
+                        ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
         }
 
         // Return type

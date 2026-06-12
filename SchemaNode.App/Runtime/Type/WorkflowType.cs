@@ -1,8 +1,4 @@
-using System.Reflection;
-using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 
@@ -15,57 +11,74 @@ public sealed class WorkflowType: NodeType
 {
     #region Data
 
-    /// <summary>
-    /// The workflow type
-    /// </summary>
-    public string Kind { get; set; }
+    private WorkflowSchema? _workflowSchema = null;
     
     /// <summary>
-    /// The workflow payload type
+    /// The payload type
     /// </summary>
-    public string? Payload { get; set; }
-        
-    /// <summary>
-    /// The state schema type for constructor
-    /// </summary>
-    public string? State { get; set; }
+    public ValueType? Payload  { get; private set; }
     
     /// <summary>
-    /// The session schema type
+    /// The state type
     /// </summary>
-    public string? Session { get; set; }
+    public ValueType? State  { get; private set; }
     
     /// <summary>
-    /// The workflow arguments fetch from workflow context
+    /// The session type
     /// </summary>
-    public FuncArg[]? Args { get; set; } = [];
-        
-    #endregion
-    
-    #region Status
-    
-    /// <inheritdoc />
-    public override SchemaType Type => SchemaType.Workflow;
+    public ValueType? Session { get; private set; }
     
     #endregion
     
     #region Method
 
     /// <inheritdoc />
-    public override Task LoadAsync(SchemaContext context)
+    public override async Task LoadAsync(SchemaContext context)
     {
-        WorkflowSchema? workflow = schema.Workflow;
-        
-        // Data
-        WorkflowMode = workflow?.Mode ?? WorkflowMode.Workflow;
-        Payload = workflow?.Payload;
-        State = workflow?.State;
-        Session = workflow?.Session;
-        Args = workflow?.Args;
+        _workflowSchema = GetProperty<WorkflowProperty>()?.Value;
+        if (_workflowSchema == null)
+        {
+            Error = ErrorCodes.NO_DEFINITION;
+            return;
+        }
 
-        if (workflow == null) Status = SchemaNodeStatus.NoDefinition;
+        if (_workflowSchema.Payload != null)
+        {
+            Payload = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Payload);
+            if (Payload == null)
+                Error ??= AppErrorCodes.WORKFLOW_PAYLOAD_NOT_VALID;
+        }
 
-        return Task.CompletedTask;
+        if (_workflowSchema.State != null)
+        {
+            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.State);
+            if (State == null)
+                Error ??= AppErrorCodes.WORKFLOW_STATE_NOT_VALID;
+        }
+
+        if (_workflowSchema.Session != null)
+        {
+            Session = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Session);
+            if (Session == null)
+                Error ??= AppErrorCodes.WORKFLOW_SESSION_NOT_VALID;
+        }
+    }
+
+    public override void Release()
+    {
+        Payload = null;
+        State = null;
+        Session = null;
+    }
+
+    public override IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (Payload != null)
+            yield return Payload;
+        if (State != null)
+            yield return State;
+        if (Session != null)
+            yield return Session;
     }
 
     #endregion

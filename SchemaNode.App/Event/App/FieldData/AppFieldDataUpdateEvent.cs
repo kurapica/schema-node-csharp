@@ -9,7 +9,7 @@ namespace SchemaNode.Event;
 /// Fired when update the target field data in the application
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.update")]
-public class AppFieldDataUpdateEvent(AppFieldType field, string target) : AppFieldDataEvent(field.App, target, field.Name), IEventPayload;
+public class AppFieldDataUpdateEvent<T>(AppFieldType field, string target) : AppFieldDataEvent(field.App, target, field.Name), IEventPayload<AppFieldDataUpdatePayload<T>>;
 
 /// <summary>
 /// The data update payload

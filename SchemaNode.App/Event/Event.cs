@@ -60,15 +60,6 @@ public abstract class Event
 }
 
 /// <summary>
-/// The event has generic payload, determined by usage
-/// </summary>
-public interface IEventPayload
-{
-}
-
-/// <summary>
 /// The event with given type payload
 /// </summary>
-public interface IEventPayload<T>
-{
-}
+public interface IEventPayload<T>;

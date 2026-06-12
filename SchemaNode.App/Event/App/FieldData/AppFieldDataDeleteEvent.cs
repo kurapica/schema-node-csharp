@@ -8,7 +8,7 @@ namespace SchemaNode.Event;
 /// Fired when delete the target field data in the application
 /// </summary>
 [Schema($"{NS_SYSTEM_EVENT}.app.data.delete")]
-public class AppFieldDataDeleteEvent(AppFieldType field, string target) 
-    : AppFieldDataEvent(field.App, target, field.Name), IEventPayload
+public class AppFieldDataDeleteEvent<T>(AppFieldType field, string target) 
+    : AppFieldDataEvent(field.App, target, field.Name), IEventPayload<T>
 {
 }

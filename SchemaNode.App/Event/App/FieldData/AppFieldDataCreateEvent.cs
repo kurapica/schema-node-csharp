@@ -8,7 +8,5 @@ namespace SchemaNode.Event;
 /// Fired when create the target field data in the application
 /// </summary>
 [Schema($"{NS_SYSTEM_EVENT}.app.data.create")]
-public class AppFieldDataCreateEvent(AppFieldType field, string target)
-    : AppFieldDataEvent(field.App, target, field.Name), IEventPayload
-{
-}
+public class AppFieldDataCreateEvent<T>(AppFieldType field, string target)
+    : AppFieldDataEvent(field.App, target, field.Name), IEventPayload<T>;
