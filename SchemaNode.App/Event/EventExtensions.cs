@@ -2,6 +2,8 @@
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using System.Collections.Concurrent;
+using ValueType = SchemaNode.Runtime.ValueType;
+
 // ReSharper disable AccessToModifiedClosure
 
 namespace SchemaNode.Event;
@@ -12,14 +14,22 @@ namespace SchemaNode.Event;
 public static class EventExtensions
 {
     #region Utility
-
-    static readonly ConcurrentDictionary<Type, IEventDispatcher> EventDispatchers = [];
-    static readonly ConcurrentDictionary<Type, Runtime.ValueType> EventPayloads = [];
+    
+    record EventDispatcher(ConcurrentDictionary<Type, IEventDispatcher> Dispatchers, ConcurrentDictionary<Type, ValueType> Payloads);
+    
+    static EventDispatcher GetEventDispatchers(SchemaContext context)
+    {
+        return context.Runtime is not SchemaRuntime runtime 
+            ? throw new Exception("The runtime is not a SchemaRuntime") 
+            : runtime.GetOrAddRuntimeItem(() => new EventDispatcher(new ConcurrentDictionary<Type, IEventDispatcher>(), new ConcurrentDictionary<Type, ValueType>()));
+    }
 
     // Gets the event dispatcher by type
     static IEventDispatcher? GetEventDispatcher(SchemaContext context, Type type)
     {
-        if (EventDispatchers.TryGetValue(type, out var dispatcher))
+        ConcurrentDictionary<Type, IEventDispatcher> dispatchers = GetEventDispatchers(context).Dispatchers;
+        
+        if (dispatchers.TryGetValue(type, out var dispatcher))
             return dispatcher;
 
         // Try to get from service provider
@@ -27,7 +37,7 @@ public static class EventExtensions
         dispatcher = context.GetService(dispatchType) as IEventDispatcher;
         if (dispatcher != null)
         {
-            EventDispatchers[type] = dispatcher;
+            dispatchers[type] = dispatcher;
             return dispatcher;
         }
 
@@ -38,7 +48,7 @@ public static class EventExtensions
             dispatcher = GetEventDispatcher(context, baseType);
             if (dispatcher != null)
             {
-                EventDispatchers[type] = dispatcher;
+                dispatchers[type] = dispatcher;
                 return dispatcher;
             }
         }
@@ -46,49 +56,63 @@ public static class EventExtensions
         return null;
     }
 
+    static ValueType? GetPayloadType(SchemaContext context, Type payloadType)
+    {
+        ConcurrentDictionary<Type, ValueType> payloads = GetEventDispatchers(context).Payloads;
+        
+        // Convert the payload to any schema node
+        if (!payloads.TryGetValue(payloadType, out ValueType? eventPayload))
+        {
+            string? schemaType = (context.Runtime as SchemaRuntime)?.GetTypeSchema(payloadType);
+            eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetNodeTypeAsync<ValueType>(schemaType).GetAwaiter().GetResult() : null;
+            if (eventPayload != null)
+                payloads[payloadType] = eventPayload;
+        }
+        
+        return eventPayload;
+    }
+
     #endregion
 
     #region Raise Event
 
     /// <summary>
+    /// Raise the event without payload
+    /// </summary>
+    public static void RaiseEvent<TE>(this SchemaContext context, TE @event) where TE : Event => GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
+
+    /// <summary>
     /// Raise the event
     /// </summary>
-    public static void RaiseEvent<TE>(this SchemaContext context, TE @event, object? payLoad = null) where TE : Event
+    public static void RaiseEvent<TE, TP>(this SchemaContext context, TE @event, TP payLoad) where TE : Event, IEventPayload<TP> where TP : notnull
     {
-        // Convert the payload to any schema node
-        if (payLoad != null)
-        {
-            if (payLoad is DataNode node)
-            {
-                @event.Payload = node;
-            }
-            else
-            {
-                Type payLoadType = payLoad.GetType();
-                if (!EventPayloads.TryGetValue(payLoadType, out Runtime.ValueType? eventPayload))
-                {
-                    string? schemaType = (context.Runtime as SchemaRuntime)?.GetTypeSchema(payLoad.GetType());
-                    eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetNodeTypeAsync<Runtime.ValueType>(schemaType).GetAwaiter().GetResult() : null;
-                    if (eventPayload != null)
-                    {
-                        EventPayloads[payLoadType] = eventPayload;
-                    }
-                }
-                @event.Payload = eventPayload?.From(payLoad);
-            }
-        }
+        @event.Payload = GetPayloadType(context, typeof(TP))?.From(payLoad);
 
         // Dispatch the event
         GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
     }
+    
+    /// <summary>
+    /// Raise the event
+    /// </summary>
+    public static void RaiseEvent<TE>(this SchemaContext context, TE @event, DataNode payLoad) where TE : Event
+    {
+        // Convert the payload to any schema node
+        @event.Payload = payLoad;
+
+        // Dispatch the event
+        GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
+    }
+    
+    /// <summary>
+    /// Raise the event without constructor parameters
+    /// </summary>
+    public static void RaiseEvent<TE>(this SchemaContext context) where TE : Event, new() => context.RaiseEvent(new TE());
 
     /// <summary>
     /// Raise the event without constructor parameters
     /// </summary>
-    public static void RaiseEvent<TE>(this SchemaContext context, object? payLoad = null) where TE : Event, new()
-    {
-        RaiseEvent(context, new TE(), payLoad);
-    }
+    public static void RaiseEvent<TE, TP>(this SchemaContext context, TP payLoad) where TE : Event, IEventPayload<TP>, new() => context.RaiseEvent(new TE(), payLoad);
 
     #endregion
 
@@ -241,7 +265,7 @@ public static class EventExtensions
     /// </summary>
     public static IDisposable? SubscribeTopicEventOnce<TE>(this SchemaContext context, EventType eventType, string topic, Action<TE> onEvent) where TE : Event
     {
-        Type type = eventType.GetCsharpType();
+        Type type = eventType.GetCsharpType() ?? throw new Exception($"The CSharp type of {eventType.Name} is not defined");
 
         IDisposable? subscription = null;
         subscription = GetEventDispatcher(context, type)?.SubscribeTopicEvent(type, topic, (Action<TE>)Handler);

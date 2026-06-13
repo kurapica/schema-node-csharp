@@ -198,4 +198,53 @@ public class SchemaRuntime : ISchemaRuntime
     public readonly NamespaceType RootNamespace = new ();
     
     #endregion
+    
+    #region Runtime Items
+
+    /// <summary>
+    /// The context item
+    /// </summary>
+    private readonly ConcurrentDictionary<Type, object> _runtimeItems = []; 
+    
+    /// <summary>
+    /// Sets the context item
+    /// </summary>
+    public void SetRuntimeItem(Type type, object? value)
+    {
+        if (_runtimeItems.ContainsKey(type))
+        {
+            if (_runtimeItems[type] == value) return;
+            if (_runtimeItems.TryRemove(type, out object? org) && org != value)
+                (org as IDisposable)?.Dispose();
+        }
+        if(value != null)
+            _runtimeItems[type] = value;
+    }
+
+    /// <summary>
+    /// Sets the context item
+    /// </summary>
+    public void SetRuntimeItem<T>(T? value) => SetRuntimeItem(typeof(T), value);
+    
+    /// <summary>
+    /// Gets the context item as data node
+    /// </summary>
+    public object? GetRuntimeItem(Type type) => _runtimeItems.GetValueOrDefault(type);
+
+    /// <summary>
+    /// Gets the context item with the given type
+    /// </summary>
+    public T? GetRuntimeItem<T>() where T: class => GetRuntimeItem(typeof(T)) as T;
+
+    /// <summary>
+    /// Gets or creates the context item
+    /// </summary>
+    public T GetOrAddRuntimeItem<T>(Func<T> factory) where T : class => (T)_runtimeItems.GetOrAdd(typeof(T), _ => factory());
+
+    /// <summary>
+    /// Gets or creates the context item
+    /// </summary>
+    public T GetOrAddRuntimeItem<T>() where T : class, new() => (T)_runtimeItems.GetOrAdd(typeof(T), _ => new T());
+    
+    #endregion
 }

@@ -11,7 +11,7 @@ public sealed class WorkflowType: NodeType
 {
     #region Data
 
-    private WorkflowSchema? _workflowSchema = null;
+    private WorkflowSchema? _workflowSchema;
     
     /// <summary>
     /// The payload type

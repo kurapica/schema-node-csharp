@@ -37,6 +37,7 @@ public sealed class EventSchema: ExtensibleSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.event")]
+[Meta<ReadOnly>(true)] // Only system event schema allowed
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_EVENT)]
 public sealed class EventProperty: Property<EventSchema>;
 
