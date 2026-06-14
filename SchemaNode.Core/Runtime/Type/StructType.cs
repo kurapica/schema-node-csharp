@@ -452,29 +452,16 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Load struct field schema
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? generics = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
     {
         Property = property;
-        
-        if (await context.GetNodeTypeAsync(field.Type, generics) is not ValueType valueType)
+        Type = await context.GetNodeTypeAsync<ValueType>(field.Type, generics, genericTypes);
+
+        if (Type == null)
         {
             field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
             return;
         }
-
-        // Generic type resolution
-        if (valueType is GenericType gen && genericTypes is { Count: > 0 })
-        {
-            int index = Array.FindIndex(generics ?? [], p => p.Name.Equals(gen.Name, StringComparison.OrdinalIgnoreCase));
-            if (index >= 0 && index < genericTypes.Count)
-                valueType = genericTypes[index] as ValueType ?? valueType;
-            if (valueType is GenericType)
-            {
-                field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
-                return;
-            }
-        }
-        Type = valueType;
 
         // Properties
         IProperty[] props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)).ToArray();
@@ -485,7 +472,6 @@ public class StructFieldType : INodeReferences
         
         // init
         Name = field.Name;
-        Type = valueType;
         Properties = props;
         Constraints = constraints;
 
@@ -493,7 +479,7 @@ public class StructFieldType : INodeReferences
         Require = GetProperty<Require>()?.Value;
         DisplayOnly = GetProperty<DisplayOnly>()?.Value;
         Unpack =  GetProperty<Unpack>()?.Value;
-        Default = GetProperty<Default>() is {} defProp ? await valueType.ValidateValueAsync(context, defProp.Value) : null;
+        Default = GetProperty<Default>() is {} defProp ? await Type.ValidateValueAsync(context, defProp.Value) : null;
         UpLimit = GetProperty(nameof(UpLimit))?.GetValue<object>();
         LowLimit = GetProperty(nameof(LowLimit))?.GetValue<object>();
     }

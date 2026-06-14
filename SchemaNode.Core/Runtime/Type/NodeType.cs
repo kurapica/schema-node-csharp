@@ -91,7 +91,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The generics
     /// </summary>
-    public GenericParameter[]? Generics { get; private set; }
+    public IReadOnlyList<GenericParameter>? Generics { get; private set; }
 
     /// <summary>
     /// The generic parameters
@@ -101,7 +101,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The node type is generic template
     /// </summary>
-    public bool IsGeneric => GenericParams is not { Count: > 0 } && Generics is { Length: > 0 };
+    public bool IsGeneric => GenericParams is not { Count: > 0 } && Generics is { Count: > 0 };
 
     #endregion
     
@@ -134,7 +134,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// Load the type with the schema, including properties, constraints and ref types
     /// </summary>
-    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? genericParams = null)
+    internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
         // reset
         ReleaseType();
@@ -143,7 +143,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         // load basic info
         Namespace = !string.IsNullOrWhiteSpace(schema.Namespace) ? await context.GetNodeTypeAsync<NamespaceType>(schema.Namespace) : null;
         Schema = schema;
-        GenericParams = genericParams is { Length: > 0 } ? genericParams : null;
+        GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
 
         // load properties
         List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE)).ToList();
@@ -399,7 +399,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     
     #region Override Methods
 
-    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, NodeType[]? genericParams = null)
+    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
         await base.LoadTypeAsync(context, schema, genericParams);
         _constraints = GetProperties<IConstraintProperty>().ToArray();

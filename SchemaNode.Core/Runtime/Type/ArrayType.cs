@@ -53,11 +53,8 @@ public sealed class ArrayType: ValueType
         }
         
         // load properties
-        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics) : null;
+        Element = !string.IsNullOrWhiteSpace(array.Element) ? await context.GetNodeTypeAsync<ValueType>(array.Element, Generics, GenericParams) : null;
         Primary = GetProperty<Primary>()?.Value?.ToImmutableList();
-
-        if (Element is GenericType && GenericParams is { Count: 1 })
-            Element = GenericParams[0] as ValueType;
 
         if (Element == null)
         {

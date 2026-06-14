@@ -20,8 +20,6 @@ public sealed class EventType: NodeType
     /// <inheritdoc />
     public override bool IsUsed => true;
 
-    private EventSchema? _eventSchema;
-
     #endregion
     
     #region Method
@@ -29,19 +27,35 @@ public sealed class EventType: NodeType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        _eventSchema = GetProperty<EventProperty>()?.Value;
-        if (_eventSchema == null)
+        EventSchema? eventSchema = GetProperty<EventProperty>()?.Value;
+        if (eventSchema == null)
             Error = ErrorCodes.NO_DEFINITION;
 
-        if (!string.IsNullOrWhiteSpace(_eventSchema?.Payload))
+        if (!string.IsNullOrWhiteSpace(eventSchema?.Payload))
         {
-            Payload = await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload, Generics);
+            Payload = await context.GetNodeTypeAsync<ValueType>(eventSchema.Payload, Generics, GenericParams);
             if (Payload == null)
             {
                 Error = AppErrorCodes.EVENT_POLICY_NOT_VALID;
                 return;
             }
         }
+    }
+
+    /// <inheritdoc />
+    public override void Release()
+    {
+        Payload = null;
+    }
+
+    /// <inheritdoc />
+    public override IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (Payload != null)
+            yield return Payload;
+
+        foreach (var t in base.GetReferenceTypes())
+            yield return t;
     }
 
     #endregion

@@ -15,7 +15,9 @@ public static class EventExtensions
 {
     #region Utility
     
-    record EventDispatcher(ConcurrentDictionary<Type, IEventDispatcher> Dispatchers, ConcurrentDictionary<Type, ValueType> Payloads);
+    record EventDispatcher(
+        ConcurrentDictionary<Type, IEventDispatcher> Dispatchers, 
+        ConcurrentDictionary<Type, ValueType> Payloads);
     
     static EventDispatcher GetEventDispatchers(SchemaContext context)
     {

@@ -8,7 +8,6 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
-using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
@@ -137,12 +136,18 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node type by name
     /// </summary>
-    public async Task<NodeType?> GetNodeTypeAsync(string fullName, GenericParameter[]? generics = null, bool reload = false)
+    public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false)
     {
-        // generic type
-        if (generics?.FirstOrDefault(g => g.Name.Equals(fullName, StringComparison.OrdinalIgnoreCase)) is { } generic)
-            return new GenericType{ Name = generic.Name };
-        
+        // generic type for simple
+        if (generics != null)
+        {
+            for (int i = 0; i< generics.Count; i++)
+            {
+                if (generics[i].Name.Equals(fullName, StringComparison.OrdinalIgnoreCase))
+                    return genericParams?.ElementAtOrDefault(i) ?? new GenericType { Name = generics[i].Name };
+            }
+        }
+
         // registered type
         SchemaRuntime schemaRuntime = Runtime as SchemaRuntime ?? throw new InvalidOperationException();
         SpanReader spans = fullName;
@@ -180,7 +185,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     while(genericReader.NextGenericParam())
                     {
                         ReadOnlySpan<char> genericParam = genericReader.Current;
-                        NodeType? type = !genericParam.IsEmpty ? await GetNodeTypeAsync(genericParam.ToString()) : null;
+                        NodeType? type = !genericParam.IsEmpty ? await GetNodeTypeAsync(genericParam.ToString(), generics, genParams) : null;
                         if (type == null)
                         {
                             LogError("Empty generic type parameter for {schemaName}", fullName);
@@ -189,9 +194,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         genParams.Add(type);
                     }
 
-                    if (node.Generics == null || node.Generics.Length != genParams.Count)
+                    if (node.Generics == null || node.Generics.Count != genParams.Count)
                     {
-                        LogError("Generic type count mismatch for {schemaName}, expected {expected} but got {actual}", fullName, node.Generics?.Length ?? 0, genParams.Count);
+                        LogError("Generic type count mismatch for {schemaName}, expected {expected} but got {actual}", fullName, node.Generics?.Count ?? 0, genParams.Count);
                         return null;
                     }
 
@@ -336,8 +341,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, GenericParameter[]? generics = null, bool reload = false) where T : NodeType
-        => await GetNodeTypeAsync(schemaName, generics, reload) as T;
+    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : NodeType
+        => await GetNodeTypeAsync(schemaName, generics, genericParams, reload) as T;
     
     /// <summary>
     /// Gets the value type's array type
