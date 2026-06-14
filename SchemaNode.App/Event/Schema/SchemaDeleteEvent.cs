@@ -1,9 +1,9 @@
 ﻿using SchemaNode.Attribute;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Event;
 
-[Schema($"{NS_SYSTEM_EVENT}.schema.delete")]
-public class SchemaDeleteEvent: SchemaEvent, IEventPayload<string>
-{
-}
+[Meta<OfSchema>(SCHEMA_KIND_EVENT)]
+[Meta<SchemaType>($"{NS_SYSTEM_EVENT}.schema.delete")]
+public class SchemaDeleteEvent: SchemaEvent, IEventPayload<string>;

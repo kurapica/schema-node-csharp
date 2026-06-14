@@ -112,7 +112,7 @@ public static class EventExtensions
     /// <summary>
     /// Raise the event without constructor parameters
     /// </summary>
-    public static void RaiseEvent<TE, TP>(this SchemaContext context, TP payLoad) where TE : Event, IEventPayload<TP>, new() => context.RaiseEvent(new TE(), payLoad);
+    public static void RaiseEvent<TE, TP>(this SchemaContext context, TP payLoad) where TE : Event, IEventPayload<TP>, new() where TP : notnull => context.RaiseEvent(new TE(), payLoad);
 
     #endregion
 

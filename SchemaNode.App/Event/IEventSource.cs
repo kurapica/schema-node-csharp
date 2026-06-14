@@ -8,7 +8,7 @@ namespace SchemaNode.Event;
 public interface IEventSource
 {
     /// <summary>
-    /// Called when SchemaContext is ready
+    /// Start the event consuming
     /// </summary>
     Task StartAsync(SchemaContext context, CancellationToken token);
 

@@ -16,24 +16,26 @@ public class EventGenerator: INodeSchemaGenerator
     {
         if (!type.IsAssignableTo(typeof(Event.Event))) yield break;
         
-        Type[] generics = type.GetGenericArguments();
-        
-        Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
-
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, @namespace, name, type);
         EventSchema eventSchema = new EventSchema();
-        if (generics.Length > 0)
-            eventSchema.SetProperty<Generics, GenericParameter[]>(
-                generics.Select(g => g.GetTypeDetail()).Select(g => 
-                    new GenericParameter (
-                        typeResolver(g.CoreType, @namespace, generics)!,
-                        g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
-                    )
-                ).ToArray());
         
+        Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
         if (payloadType != null)
-            eventSchema.Payload = typeResolver(payloadType, @namespace, generics);
+        {
+            Type[] generics = type.GetGenericArguments();
+
+            if (generics.Length > 0)
+                eventSchema.SetProperty<Generics, GenericParameter[]>(
+                    generics.Select(g => g.GetTypeDetail()).Select(g => 
+                        new GenericParameter (
+                            typeResolver(g.CoreType, @namespace, generics)!,
+                            g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
+                        )
+                    ).ToArray());
         
+            eventSchema.Payload = typeResolver(payloadType, @namespace, generics);
+        }
+
         schema.SetProperty<EventProperty, EventSchema>(eventSchema);
         yield return schema;
     }

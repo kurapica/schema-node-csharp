@@ -1,6 +1,7 @@
 using SchemaNode.Context;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
 
@@ -19,7 +20,7 @@ public sealed class EventType: NodeType
     /// <inheritdoc />
     public override bool IsUsed => true;
 
-    private EventSchema? _eventSchema = null;
+    private EventSchema? _eventSchema;
 
     #endregion
     
@@ -31,11 +32,16 @@ public sealed class EventType: NodeType
         _eventSchema = GetProperty<EventProperty>()?.Value;
         if (_eventSchema == null)
             Error = ErrorCodes.NO_DEFINITION;
-        
-        // Payload
-        Payload = !string.IsNullOrWhiteSpace(_eventSchema?.Payload) 
-            ? await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload)
-            : null;
+
+        if (!string.IsNullOrWhiteSpace(_eventSchema?.Payload))
+        {
+            Payload = await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload, Generics);
+            if (Payload == null)
+            {
+                Error = AppErrorCodes.EVENT_POLICY_NOT_VALID;
+                return;
+            }
+        }
     }
 
     #endregion

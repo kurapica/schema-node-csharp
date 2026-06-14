@@ -17,7 +17,7 @@ public sealed class SingleSubject<T> : ISubject<T>, IDisposable
     /// </summary>
     public void OnNext(T value)
     {
-        Subject<T>? toNotify = null;
+        Subject<T>? toNotify;
         lock (_gate)
         {
             if (_isDisposed) return;
@@ -38,7 +38,7 @@ public sealed class SingleSubject<T> : ISubject<T>, IDisposable
     /// </summary>
     public void OnError(Exception error)
     {
-        Subject<T>? toNotify = null;
+        Subject<T>? toNotify;
         lock (_gate)
         {
             if (_isDisposed) return;
@@ -53,7 +53,7 @@ public sealed class SingleSubject<T> : ISubject<T>, IDisposable
     /// </summary>
     public void OnCompleted()
     {
-        Subject<T>? toNotify = null;
+        Subject<T>? toNotify;
         lock (_gate)
         {
             if (_isDisposed) return;

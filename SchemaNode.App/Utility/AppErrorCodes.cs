@@ -53,6 +53,9 @@ internal static class AppErrorCodes
     [Meta<ErrorCode>(FUNC_IS_NOT_PUSH_FUNC)]
     public const string FUNC_IS_NOT_PUSH_FUNC = "func_is_not_push_func";
     
+    [Meta<ErrorCode>(EVENT_POLICY_NOT_VALID)]
+    public const string EVENT_POLICY_NOT_VALID = "event_policy_not_valid";
+    
     [Meta<ErrorCode>(WORKFLOW_PAYLOAD_NOT_VALID)]
     public const string WORKFLOW_PAYLOAD_NOT_VALID = "workflow_payment_not_valid";
     

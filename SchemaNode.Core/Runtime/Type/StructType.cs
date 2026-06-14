@@ -452,11 +452,11 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Load struct field schema
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? genericParams = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, GenericParameter[]? generics = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
     {
         Property = property;
         
-        if (await context.GetNodeTypeAsync(field.Type, genericParams) is not ValueType valueType)
+        if (await context.GetNodeTypeAsync(field.Type, generics) is not ValueType valueType)
         {
             field.Error = ErrorCodes.STRUCT_FIELD_WRONG_TYPE;
             return;
@@ -465,7 +465,7 @@ public class StructFieldType : INodeReferences
         // Generic type resolution
         if (valueType is GenericType gen && genericTypes is { Count: > 0 })
         {
-            int index = Array.FindIndex(genericParams ?? [], p => p.Name.Equals(gen.Name, StringComparison.OrdinalIgnoreCase));
+            int index = Array.FindIndex(generics ?? [], p => p.Name.Equals(gen.Name, StringComparison.OrdinalIgnoreCase));
             if (index >= 0 && index < genericTypes.Count)
                 valueType = genericTypes[index] as ValueType ?? valueType;
             if (valueType is GenericType)

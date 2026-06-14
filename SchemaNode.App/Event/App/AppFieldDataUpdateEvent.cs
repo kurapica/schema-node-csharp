@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.AppConstant;
+// ReSharper disable NotAccessedPositionalProperty.Global
 
 namespace SchemaNode.Event;
 

@@ -1,4 +1,5 @@
-﻿namespace SchemaNode.Event;
+﻿// ReSharper disable AccessToModifiedClosure
+namespace SchemaNode.Event;
 
 /// <summary>
 /// The event dispatcher
@@ -103,6 +104,4 @@ public interface IEventDispatcher
 /// <summary>
 /// The event dispatcher
 /// </summary>
-public interface IEventDispatcher<in T> : IEventDispatcher where T : Event
-{
-}
+public interface IEventDispatcher<in T> : IEventDispatcher where T : Event;
