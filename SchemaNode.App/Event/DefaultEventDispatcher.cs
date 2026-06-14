@@ -5,7 +5,6 @@ using System.Reactive.Subjects;
 
 namespace SchemaNode.Event;
 
-
 /// <summary>
 /// The default event dispatcher
 /// </summary>

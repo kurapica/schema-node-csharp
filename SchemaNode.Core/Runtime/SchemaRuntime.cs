@@ -85,7 +85,31 @@ public class SchemaRuntime : ISchemaRuntime
     /// </summary>
     /// <param name="type">The C# type</param>
     /// <returns></returns>
-    public string? GetTypeSchema(Type type) => _typeCache.GetValueOrDefault(type);
+    public string? GetTypeSchema(Type type)
+    {
+        if (_typeCache.GetValueOrDefault(type) is { } schemaName)
+            return schemaName;
+        
+        // Handle generic types, e.g. List<string> => system.list<system.string>
+        TypeDetail detail = type.GetTypeDetail();
+        if (detail.IsGenericParameter) return null;
+        if (detail.IsGenericType)
+        {
+            schemaName = GetTypeSchema(type.GetGenericTypeDefinition());
+            if (schemaName == null) return null;
+            Type[] args = type.GetGenericArguments();
+            string[] genericArgs = new string[args.Length];
+            for (int i = 0; i < args.Length; i++)
+            {
+                string? n = GetTypeSchema(args[i]);
+                if (n == null) return null;
+                genericArgs[i] = n;
+            }
+            schemaName = $"{schemaName}<{string.Join(", ", genericArgs)}>";
+            return detail.AnyArray ? GetSystemArraySchema(schemaName) : schemaName;
+        }
+        return null;
+    }
 
     /// <summary>
     /// Save a node schema as system-defined schema

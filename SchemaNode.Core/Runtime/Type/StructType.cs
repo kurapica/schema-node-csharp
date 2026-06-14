@@ -452,10 +452,10 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Load struct field schema
     /// </summary>
-    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericTypes = null, PropertyInfo? property = null)
+    internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, PropertyInfo? property = null)
     {
         Property = property;
-        Type = await context.GetNodeTypeAsync<ValueType>(field.Type, generics, genericTypes);
+        Type = await context.GetNodeTypeAsync<ValueType>(field.Type, generics, genericParams);
 
         if (Type == null)
         {

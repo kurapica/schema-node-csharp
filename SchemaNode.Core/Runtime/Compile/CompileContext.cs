@@ -655,7 +655,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     int idx = typeInfo.IsGenericParameter
                         ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.CoreType == g.CoreType) 
-                        : origin is GenericType go ? Array.FindIndex(expFuncType.Generics ?? [], g => g.Name == go.Name) : -1;
+                        : origin is GenericType go ? (expFuncType.Generics?.FindIndex(g => g.Name == go.Name) ?? -1) : -1;
                     if (idx < 0 || genericTypes[idx] is not GenericType && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]))
                     {
                         exp.Status = isReturn ? ErrorCodes.FUNC_WRONG_RETURN : ErrorCodes.FUNC_EXP_WRONG_ARGS;

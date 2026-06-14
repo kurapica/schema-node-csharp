@@ -79,6 +79,9 @@ public sealed class WorkflowType: NodeType
             yield return State;
         if (Session != null)
             yield return Session;
+        
+        foreach (var nodeType in base.GetReferenceTypes())
+            yield return nodeType;
     }
 
     #endregion

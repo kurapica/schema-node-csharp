@@ -35,10 +35,7 @@ public sealed class EventType: NodeType
         {
             Payload = await context.GetNodeTypeAsync<ValueType>(eventSchema.Payload, Generics, GenericParams);
             if (Payload == null)
-            {
-                Error = AppErrorCodes.EVENT_POLICY_NOT_VALID;
-                return;
-            }
+                Error ??= AppErrorCodes.EVENT_POLICY_NOT_VALID;
         }
     }
 

@@ -57,7 +57,7 @@ public static class SchemaStorageProviderExtension
                 await context.SaveSchemaAsync(subSchema);
         
         // event
-        context.RaiseEvent<SchemaChangeEvent>(schema.Name);
+        context.RaiseEvent<SchemaChangeEvent, string>(schema.Name);
 
         return true;
     }
@@ -87,7 +87,7 @@ public static class SchemaStorageProviderExtension
         node.Namespace?.RemoveNodeSchema(name);
 
         // event
-        context.RaiseEvent<SchemaDeleteEvent>(name);
+        context.RaiseEvent<SchemaDeleteEvent, string>(name);
         return true;
     }
 
@@ -123,7 +123,7 @@ public static class SchemaStorageProviderExtension
 
         // event
         if (!noEvent)
-            context.RaiseEvent<SchemaChangeEvent>(node.Name);
+            context.RaiseEvent<SchemaChangeEvent, string>(node.Name);
         return true;
     }
 
@@ -236,7 +236,7 @@ public static class SchemaStorageProviderExtension
         }
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app.FullName);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app.FullName);
         return true;
     }
 
@@ -261,7 +261,7 @@ public static class SchemaStorageProviderExtension
         node.Container?.RemoveAppSchema(app);
 
         // event
-        context.RaiseEvent<AppSchemaDeleteEvent>(app);
+        context.RaiseEvent<AppSchemaDeleteEvent, string>(app);
         return true;
     }
 
@@ -299,7 +299,7 @@ public static class SchemaStorageProviderExtension
         await context.GetAppTypeAsync(app, reload: true);
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app);
         return true;
     }
 
@@ -325,7 +325,7 @@ public static class SchemaStorageProviderExtension
         await context.GetAppTypeAsync(app, reload: true);
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app);
         
         // try drop the app field table
         if (appField.EnableDynamicTable)
@@ -363,7 +363,7 @@ public static class SchemaStorageProviderExtension
         await context.GetAppTypeAsync(app, reload: true);
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app);
         return true;
     }
 
@@ -390,7 +390,7 @@ public static class SchemaStorageProviderExtension
         await context.GetAppTypeAsync(app, reload: true);
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app);
         return true;
     }
 
@@ -415,7 +415,7 @@ public static class SchemaStorageProviderExtension
         await context.GetAppTypeAsync(app, reload: true);
 
         // event
-        context.RaiseEvent<AppSchemaChangeEvent>(app);
+        context.RaiseEvent<AppSchemaChangeEvent, string>(app);
         return true;
     }
 

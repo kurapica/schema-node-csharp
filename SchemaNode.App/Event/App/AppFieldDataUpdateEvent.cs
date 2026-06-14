@@ -15,4 +15,5 @@ public class AppFieldDataUpdateEvent<T>(AppFieldType field, string target) : App
 /// <summary>
 /// The data update payload
 /// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.updatepayload")]
 public record AppFieldDataUpdatePayload<T>(T Data, T Origin);

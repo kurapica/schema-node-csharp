@@ -139,14 +139,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false)
     {
         // generic type for simple
-        if (generics != null)
-        {
-            for (int i = 0; i< generics.Count; i++)
-            {
-                if (generics[i].Name.Equals(fullName, StringComparison.OrdinalIgnoreCase))
-                    return genericParams?.ElementAtOrDefault(i) ?? new GenericType { Name = generics[i].Name };
-            }
-        }
+        if (generics?.FindIndex(g => g.Name.Equals(fullName, StringComparison.OrdinalIgnoreCase)) is {} gIdx and >= 0)
+            return genericParams?.ElementAtOrDefault(gIdx) ?? new GenericType { Name = generics[gIdx].Name };
 
         // registered type
         SchemaRuntime schemaRuntime = Runtime as SchemaRuntime ?? throw new InvalidOperationException();

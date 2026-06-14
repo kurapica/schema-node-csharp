@@ -1,4 +1,5 @@
 ﻿// ReSharper disable AccessToModifiedClosure
+// ReSharper disable UnusedTypeParameter
 namespace SchemaNode.Event;
 
 /// <summary>
