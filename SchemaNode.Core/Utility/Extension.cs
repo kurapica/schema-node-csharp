@@ -888,6 +888,47 @@ internal static class Extension
         }
     }
 
+    extension(ConstructorInfo constructor)
+    {
+        internal string? GetSummaryFromXmlDoc()
+        {
+            const string prefix = "M:";
+            var type = constructor.DeclaringType!;
+
+            string typeName = type.FullName!.Replace('+', '.');
+            string methodName = "#ctor";
+
+            // Parameters
+            string paramList = string.Join(",", constructor.GetParameters()
+                .Select(p => GetXmlDocTypeName(p.ParameterType)));
+
+            string memberName = $"{prefix}{typeName}.{methodName}";
+            if (!string.IsNullOrEmpty(paramList))
+                memberName += $"({paramList})";
+
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName, "summary");
+        }
+        
+        internal string? GetSummaryFromXmlDoc(ParameterInfo parameter)
+        {
+            const string prefix = "M:";
+            var type = constructor.DeclaringType!;
+
+            string typeName = type.FullName!.Replace('+', '.');
+            string methodName = "#ctor";
+
+            // Parameters
+            string paramList = string.Join(",", constructor.GetParameters()
+                .Select(p => GetXmlDocTypeName(p.ParameterType)));
+
+            string memberName = $"{prefix}{typeName}.{methodName}";
+            if (!string.IsNullOrEmpty(paramList))
+                memberName += $"({paramList})";
+
+            return GetSummaryFromXmlDocInternal(type.Assembly, memberName, $"param[@name='{parameter.Name}']");
+        }
+    }
+
     /// <summary>
     /// Load XML once and query the node by name.
     /// </summary>

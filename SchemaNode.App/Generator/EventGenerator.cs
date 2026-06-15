@@ -1,5 +1,8 @@
+using System.Reflection;
+using SchemaNode.Attribute;
 using SchemaNode.Event;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -16,26 +19,64 @@ public class EventGenerator: INodeSchemaGenerator
     {
         if (!type.IsAssignableTo(typeof(Event.Event))) yield break;
         
+        if (type.GetGenericArguments() is {  Length: > 0 })
+            throw new Exception($"Event type {type.FullName} can't be generic");
+        
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, @namespace, name, type);
         EventSchema eventSchema = new EventSchema();
+       
+        // Constructor Arguments
+        ConstructorInfo[] ctors = type.GetConstructors(BindingFlags.Public)
+            .Where(c => c.GetCustomAttribute<SchemaIgnoreAttribute>() == null).ToArray();
+        if (ctors.Length > 1)
+            throw new Exception($"Event type {type.FullName} has multiple constructors, which is not allowed");
+
+        if (ctors.Length == 1)
+        {
+            ConstructorInfo ctor = ctors.First();
+            ParameterInfo[] parameters = ctor.GetParameters();
+            if (parameters.Length > 0)
+            {
+                TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail()).ToArray();
+                eventSchema.Args = new FuncArg[parameters.Length];
+                for (int i = 0; i < parameters.Length; i++)
+                {
+                    ParameterInfo p = parameters[i];
+                    TypeDetail pt = paramInfos[i];
+                    Default? defaultProp = p.GetMetaProperty<Default>();
+            
+                    FuncArg arg = new ()
+                    {
+                        Name = p.Name ?? $"arg{i}",
+                        Nullable = pt.Nullable || p.HasDefaultValue || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable ||
+                                   p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
+                                   defaultProp != null,
+                        Display = ctor.GetSummaryFromXmlDoc(p) ?? null,
+                        Default = defaultProp?.Value, // not the default value of the parameter
+                    };
+
+                    // Params
+                    if (p.IsDefined(typeof(ParamArrayAttribute), false))
+                    {
+                        arg.Params = true;
+                        arg.Nullable = true;
+                    }
+
+                    // Check dynamic type
+                    arg.Type = p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
+                               ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, null)
+                               ?? throw new Exception($"Can't resolve parameter type for constructor in {@type.FullName}");
+
+                    eventSchema.Args[i] = arg;
+                }
+            }
+        }
         
+        // Payload
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
         if (payloadType != null)
-        {
-            Type[] generics = type.GetGenericArguments();
-
-            if (generics.Length > 0)
-                eventSchema.SetProperty<Generics, GenericParameter[]>(
-                    generics.Select(g => g.GetTypeDetail()).Select(g => 
-                        new GenericParameter (
-                            typeResolver(g.CoreType, @namespace, generics)!,
-                            g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
-                        )
-                    ).ToArray());
+            eventSchema.Payload = typeResolver(payloadType, @namespace, null) ?? throw new  Exception($"Can't resolve payload type for {payloadType.FullName}");
         
-            eventSchema.Payload = typeResolver(payloadType, @namespace, generics);
-        }
-
         schema.SetProperty<EventProperty, EventSchema>(eventSchema);
         yield return schema;
     }

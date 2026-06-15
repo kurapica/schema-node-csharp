@@ -1,3 +1,4 @@
+using SchemaNode.Attribute;
 using SchemaNode.Node;
 using static SchemaNode.Utility.AppConstant;
 // ReSharper disable AccessToModifiedClosure
@@ -14,22 +15,26 @@ public abstract class Event
     /// <summary>
     /// The event identifier
     /// </summary>
+    [SchemaIgnore]
     public Guid Id { get; } = Guid.CreateVersion7();
 
     /// <summary>
     /// The event timestamp
     /// </summary>
+    [SchemaIgnore]
     public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
 
     /// <summary>
     /// The event topic name like server/topic/action/guid
     /// So they can be subscribed by wildcard topic, + for one, *,# for multi
     /// </summary>
+    [SchemaIgnore]
     public virtual string Topic => string.Empty;
 
     /// <summary>
     /// The generic payload data
     /// </summary>
+    [SchemaIgnore]
     public DataNode? Payload { get; set; }
 
     /// <summary>
@@ -60,6 +65,6 @@ public abstract class Event
 }
 
 /// <summary>
-/// The event with given type payload
+/// The event has payload
 /// </summary>
 public interface IEventPayload<T>;

@@ -88,7 +88,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
         parameters = parameters.Skip(sessionType != null ? 2 : 1).ToArray();
         if (parameters.Length > 0)
         {
-            TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail(true)).ToArray();
+            TypeDetail[] paramInfos = parameters.Select(p => p.ParameterType.GetTypeDetail()).ToArray();
             workflowSchema.Args = new FuncArg[parameters.Length];
             for (int i = 0; i < parameters.Length; i++)
             {
@@ -99,21 +99,18 @@ public class WorkflowGenerator : INodeSchemaGenerator
                 FuncArg arg = new ()
                 {
                     Name = p.Name ?? $"arg{i}",
-                    Nullable = pt.Nullable || p.HasDefaultValue || 
+                    Nullable = pt.Nullable || p.HasDefaultValue || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable ||
                                p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
                                defaultProp != null,
                     Display = processMethod.GetSummaryFromXmlDoc(p) ?? null,
                     Default = defaultProp?.Value, // not the default value of the parameter
                 };
-                if ((arg.Nullable ?? false) || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable)
-                    pt.Kind |= TypeDetail.ParameterTypeKind.Nullable;
 
                 // Params
                 if (p.IsDefined(typeof(ParamArrayAttribute), false))
                 {
                     arg.Params = true;
                     arg.Nullable = true;
-                    pt.Kind |= TypeDetail.ParameterTypeKind.Params;
                 }
 
                 // Check dynamic type

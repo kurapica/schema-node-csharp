@@ -71,6 +71,10 @@ public class FuncType: AnyType;
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class ValidFuncType: FuncType;
 
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.valuetype")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
+public class TypeFuncType : FuncType;
+
 /**
  * The function argument information
  */

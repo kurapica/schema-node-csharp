@@ -19,7 +19,7 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
 
         // topic subjects
         if (!string.IsNullOrEmpty(root)
-            && TopicEventSubjects.TryGetValue(@event.GetType(), out var topicSubjects)
+            && _topicEventSubjects.TryGetValue(@event.GetType(), out var topicSubjects)
             && topicSubjects.TryGetValue(root, out var subject))
         {
             Task.Run(async () =>
@@ -30,7 +30,7 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
         }
 
         // global subjects
-        if (GlobalEventSubjects.TryGetValue(@event.GetType(), out var globalSubject))
+        if (_globalEventSubjects.TryGetValue(@event.GetType(), out var globalSubject))
         {
             Task.Run(async () =>
             {
@@ -45,7 +45,7 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
     /// </summary>
     public IDisposable SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE : Event
     {
-        var subject = GlobalEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
+        var subject = _globalEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
 
@@ -60,11 +60,11 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
         if (string.IsNullOrEmpty(root) || root == "*" || root == "#")
             return SubscribeEvent(eventType, onEvent);
 
-        var topicSubjects = TopicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
+        var topicSubjects = _topicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
         var subject = topicSubjects.GetOrAdd(root, _ => new Subject<Event>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
 
-    static readonly ConcurrentDictionary<Type, Subject<Event>> GlobalEventSubjects = new();
-    static readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, Subject<Event>>> TopicEventSubjects = [];
+    private readonly ConcurrentDictionary<Type, Subject<Event>> _globalEventSubjects = new();
+    private readonly ConcurrentDictionary<Type, ConcurrentDictionary<string, Subject<Event>>> _topicEventSubjects = [];
 }

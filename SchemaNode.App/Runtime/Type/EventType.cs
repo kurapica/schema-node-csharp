@@ -1,4 +1,5 @@
 using SchemaNode.Context;
+using SchemaNode.Property.Event;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -16,6 +17,11 @@ public sealed class EventType: NodeType
     /// The payload type
     /// </summary>
     public ValueType? Payload { get; private set; }
+    
+    /// <summary>
+    /// The payload evaluator
+    /// </summary>
+    public FunctionType? PayloadEvaluator { get; private set; }
 
     /// <inheritdoc />
     public override bool IsUsed => true;
@@ -35,7 +41,15 @@ public sealed class EventType: NodeType
         {
             Payload = await context.GetNodeTypeAsync<ValueType>(eventSchema.Payload, Generics, GenericParams);
             if (Payload == null)
-                Error ??= AppErrorCodes.EVENT_POLICY_NOT_VALID;
+                Error ??= AppErrorCodes.EVENT_PAYLOAD_NOT_VALID;
+        }
+
+        string? payloadEvaluator = GetProperty<PayloadEvaluator>()?.Value;
+        if (!string.IsNullOrWhiteSpace(payloadEvaluator))
+        {
+            PayloadEvaluator = await context.GetNodeTypeAsync<FunctionType>(payloadEvaluator);
+            if (PayloadEvaluator == null)
+                Error ??= AppErrorCodes.EVENT_PAYLOAD_NOT_VALID;
         }
     }
 
@@ -43,6 +57,7 @@ public sealed class EventType: NodeType
     public override void Release()
     {
         Payload = null;
+        PayloadEvaluator = null;
     }
 
     /// <inheritdoc />
@@ -50,6 +65,9 @@ public sealed class EventType: NodeType
     {
         if (Payload != null)
             yield return Payload;
+        
+        if (PayloadEvaluator != null)
+            yield return PayloadEvaluator;
 
         foreach (var t in base.GetReferenceTypes())
             yield return t;
