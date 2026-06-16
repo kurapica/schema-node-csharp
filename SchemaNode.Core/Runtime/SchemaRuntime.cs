@@ -68,7 +68,7 @@ public class SchemaRuntime : ISchemaRuntime
     public Type? GetNodeType(string kind) => _nodeTypes.GetValueOrDefault(kind);
 
     #endregion
-        
+
     #region System Node Schema
 
     private readonly ConcurrentDictionary<Type, string> _typeCache = new();

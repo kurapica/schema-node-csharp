@@ -15,15 +15,15 @@ public static class EventExtensions
 {
     #region Utility
     
-    record EventRuntimeInfo(ConcurrentDictionary<Type, IEventDispatcher> Dispatchers, 
-        ConcurrentDictionary<Type, EventType> EventTypes,
-        ConcurrentDictionary<Type, ValueType> Payloads);
+    record EventRuntimeInfo(
+        ConcurrentDictionary<Type, IEventDispatcher> Dispatchers, 
+        ConcurrentDictionary<Type, EventType> EventTypes);
     
     static EventRuntimeInfo GetEventRuntimeInfo(SchemaContext context)
     {
         return context.Runtime is not SchemaRuntime runtime 
             ? throw new Exception("The runtime is not a SchemaRuntime") 
-            : runtime.GetOrAddRuntimeItem(() => new EventRuntimeInfo([],[],[]));
+            : runtime.GetOrAddRuntimeItem(() => new EventRuntimeInfo([],[]));
     }
     
     // Gets the event dispatcher by type
@@ -41,36 +41,6 @@ public static class EventExtensions
         return dispatcher;
     }
 
-    // Gets the event runtime type
-    static EventType? GetEventType(SchemaContext context, Type type)
-    {
-        EventRuntimeInfo runtimeInfo = GetEventRuntimeInfo(context);
-        if (runtimeInfo.EventTypes.TryGetValue(type, out EventType? eventType)) return eventType;
-        string? name = context.Runtime is SchemaRuntime runtime ? runtime.GetTypeSchema(type) : null;
-        if (string.IsNullOrEmpty(name)) return null;
-        eventType = context.GetNodeTypeAsync<EventType>(name).GetAwaiter().GetResult();
-        if (eventType != null) runtimeInfo.EventTypes[type] = eventType;
-        return eventType;
-    }
-
-    // Gets the payload type
-    [Obsolete]
-    static ValueType? GetPayloadType(SchemaContext context, Type payloadType)
-    {
-        ConcurrentDictionary<Type, ValueType> payloads = GetEventRuntimeInfo(context).Payloads;
-        
-        // Try to convert the payload type to schema type, also support generic type
-        // We may check with the event type payload later, just keep it simple now
-        if (!payloads.TryGetValue(payloadType, out ValueType? eventPayload))
-        {
-            string? schemaType = (context.Runtime as SchemaRuntime)?.GetTypeSchema(payloadType);
-            eventPayload = !string.IsNullOrEmpty(schemaType) ? context.GetNodeTypeAsync<ValueType>(schemaType).GetAwaiter().GetResult() : null;
-            eventPayload ??= new GenericType();
-            payloads[payloadType] = eventPayload;
-        }
-        return eventPayload is not GenericType ? eventPayload : null;
-    }
-
     #endregion
 
     #region Raise Event
@@ -84,11 +54,11 @@ public static class EventExtensions
             => GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
 
         /// <summary>
-        /// Raise the event with payload
+        /// Raise the event with payload, calc the 
         /// </summary>
         public void RaiseEvent<TE, TP>(TE @event, TP payLoad) where TE : Event, IEventPayload<TP> where TP : notnull
         {
-            @event.Payload = GetPayloadType(context, typeof(TP))?.From(payLoad);
+            @event.Payload = context.GetSchemaNodeAsync(payLoad).GetAwaiter().GetResult();
             context.RaiseEvent(@event);
         }
 
@@ -105,14 +75,12 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE>() where TE : Event, new() 
-            => context.RaiseEvent(new TE());
+        public void RaiseEvent<TE>() where TE : Event, new() => context.RaiseEvent(new TE());
 
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE, TP>(TP payLoad) where TE : Event, IEventPayload<TP>, new() where TP : notnull 
-            => context.RaiseEvent(new TE(), payLoad);
+        public void RaiseEvent<TE, TP>(TP payLoad) where TE : Event, IEventPayload<TP>, new() where TP : notnull => context.RaiseEvent(new TE(), payLoad);
     }
 
     #endregion

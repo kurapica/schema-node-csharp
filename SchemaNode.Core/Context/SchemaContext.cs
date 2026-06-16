@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -347,28 +348,68 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
     
     /// <summary>
-    /// Try convert the value to schema node with expected type, if type is null, try to parse the type from value
+    /// Gets the schema node from value
     /// </summary>
-    public async Task<DataNode?> GetSchemaNodeAsync(ValueType? type, JsonNode? value)
+    public async Task<DataNode?> GetSchemaNodeAsync(object? value, ValueType? expectedType = null, bool onlyValid = false)
     {
-        if (type != null) return type.From(value);
+        if (value == null) return expectedType != null ? expectedType.From(null) : null;
 
-        switch (value)
+        if (expectedType == null)
         {
-            case JsonValue jsonValue:
-                var (v, t) = jsonValue.ParseValueAndType();
-                string? schemaType = t?.GetSchemaType();
-                return string.IsNullOrEmpty(schemaType) ? null : (await GetNodeTypeAsync<ValueType>(schemaType))?.From(v);
-
-            default:
-                return null;
+            switch (value)
+            {
+                case JsonValue jsonValue:
+                {
+                    var (v, t) = jsonValue.ParseValueAndType();
+                    string? schemaType = t?.GetSchemaType();
+                    expectedType = !string.IsNullOrEmpty(schemaType) ? await GetNodeTypeAsync<ValueType>(schemaType) : null;
+                    break;
+                }
+                case JsonNode:
+                case JsonElement:
+                    break; // can't handle it without expected type
+                default:
+                {
+                    var cacheItem = GetSchemeCacheItem().TypeCache;
+                    Type valueType = value.GetType();
+                    if (cacheItem.TryGetValue(valueType, out ValueType? cached))
+                    {
+                        expectedType = cached;
+                    }
+                    else
+                    {
+                        string? name = (Runtime as SchemaRuntime)!.GetTypeSchema(valueType);
+                        if (!string.IsNullOrWhiteSpace(name))
+                            expectedType = await GetNodeTypeAsync<ValueType>(name);
+                        expectedType ??= new GenericType();
+                        cacheItem[valueType] = expectedType!;
+                    }
+                    break;
+                }
+            }
         }
+
+        if (expectedType != null && expectedType is not GenericType)
+        {
+            try
+            {
+                if (!onlyValid) return expectedType.From(value);
+                DataNode node = await expectedType.ValidateValueAsync(this, value);
+                return node.IsValid ? node : null;
+            }
+            catch (Exception e)
+            {
+                LogError(e, "Failed to convert value to expected type {expectedType}", expectedType.Name);
+                return null;
+            }
+        }
+        return null;
     }
 
     #endregion
-    
+
     #region Context Items
-    
+
     /// <summary>
     /// Sets the context item
     /// </summary>
@@ -472,6 +513,13 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         foreach (KeyValuePair<Type, object> item in _contextItems)
             (item.Value as IDisposable)?.Dispose();
     }
+
+    #endregion
+
+    #region Scheme Cache Item
+
+    SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, ValueType>()));
+    record class SchemeCacheItem(ConcurrentDictionary<Type, ValueType> TypeCache);
 
     #endregion
 }

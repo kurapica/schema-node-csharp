@@ -105,7 +105,7 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                                 else
                                 {
-                                    DataNode valueNode = await Context.GetSchemaNodeAsync(a.ValueType ?? call.FuncType.Args[j].ValueType, a.Value)
+                                    DataNode valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
                                         ?? throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
                                     replaceArgs[j] = new ConstantExp(valueNode);
                                 }
