@@ -30,7 +30,13 @@ public abstract class Event
     /// </summary>
     [SchemaIgnore]
     public virtual string Topic => string.Empty;
-
+    
+    /// <summary>
+    /// The matching topic based on the event argument, used for workflow subscribe event with wildcards
+    /// </summary>
+    [SchemaIgnore]
+    public virtual string MatchTopic => "#";
+    
     /// <summary>
     /// The generic payload data
     /// </summary>
@@ -40,7 +46,7 @@ public abstract class Event
     /// <summary>
     /// Match the topic with wildcard support
     /// </summary>
-    public bool MatchTopic(string topic)
+    public bool IsTopicMatch(string topic)
     {
         if (string.IsNullOrEmpty(Topic) || Topic == "*") return true; // all contains
         if (string.IsNullOrEmpty(topic)) return false;

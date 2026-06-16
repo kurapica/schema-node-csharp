@@ -126,7 +126,7 @@ public static class EventExtensions
         {
             try
             {
-                if (!@event.MatchTopic(topic)) return;
+                if (!@event.IsTopicMatch(topic)) return;
                 onEvent(@event);
             }
             catch (Exception ex)
@@ -176,7 +176,7 @@ public static class EventExtensions
             try
             {
                 if (subscription == null) return;
-                if (!@event.MatchTopic(topic)) return;
+                if (!@event.IsTopicMatch(topic)) return;
                 subscription?.Dispose();
                 subscription = null;
                 onEvent(@event);
@@ -213,7 +213,7 @@ public static class EventExtensions
         {
             try
             {
-                if (!@event.MatchTopic(topic)) return;
+                if (!@event.IsTopicMatch(topic)) return;
                 onEvent(@event);
             }
             catch (Exception ex)
@@ -265,7 +265,7 @@ public static class EventExtensions
             try
             {
                 if (subscription == null) return;
-                if (!@event.MatchTopic(topic)) return;
+                if (!@event.IsTopicMatch(topic)) return;
                 subscription?.Dispose();
                 subscription = null;
                 onEvent(@event);

@@ -8,7 +8,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Generator;
@@ -26,7 +25,7 @@ public class EventGenerator: INodeSchemaGenerator
         EventSchema eventSchema = new EventSchema();
        
         // Constructor Arguments
-        ConstructorInfo[] ctors = type.GetConstructors(BindingFlags.Public)
+        ConstructorInfo[] ctors = type.GetConstructors()
             .Where(c => c.GetCustomAttribute<SchemaIgnoreAttribute>() == null).ToArray();
         if (ctors.Length > 1)
             throw new Exception($"Event type {type.FullName} has multiple constructors, which is not allowed");
@@ -57,10 +56,7 @@ public class EventGenerator: INodeSchemaGenerator
 
                     // Params
                     if (p.IsDefined(typeof(ParamArrayAttribute), false))
-                    {
-                        arg.Params = true;
-                        arg.Nullable = true;
-                    }
+                        throw new Exception($"Param array attribute {p.Name} is not allowed");
 
                     // Check dynamic type
                     arg.Type = p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
@@ -72,7 +68,7 @@ public class EventGenerator: INodeSchemaGenerator
             }
         }
         
-        // Payload
+        // Default payload type
         Type? payloadType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEventPayload<>))?.GetGenericArguments()[0];
         if (payloadType != null)
             eventSchema.Payload = typeResolver(payloadType, @namespace, null) ?? throw new  Exception($"Can't resolve payload type for {payloadType.FullName}");
