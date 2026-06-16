@@ -73,5 +73,28 @@ public sealed class EventType: NodeType
             yield return t;
     }
 
+    /// <summary>
+    /// Gets the payload type
+    /// </summary>
+    public async Task<ValueType?> GetPayloadType(SchemaContext context, object[]? args = null)
+    {
+        // Calc the payload type with the payload evaluator if existed
+        if (PayloadEvaluator != null)
+        {
+            try
+            {
+                string? type = await PayloadEvaluator.CallAsync<string>(context, args ?? []);
+                if (type != null)
+                    return await context.GetNodeTypeAsync<ValueType>(type);
+            }
+            catch
+            {
+                context.LogError($"Failed to evaluate payload type for event {Name} with evaluator {PayloadEvaluator.Name}");
+                throw;
+            }
+        }
+        return Payload;
+    }
+
     #endregion
 }
