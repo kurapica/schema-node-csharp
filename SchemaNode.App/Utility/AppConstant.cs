@@ -29,6 +29,12 @@ public static class AppConstant
     internal const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
     internal const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
     
+    // workflow kind
+    internal const string WORKFLOW_KIND_WORKFLOW = "workflow";
+    internal const string WORKFLOW_KIND_CALL_FUNC = "call";
+    internal const string WORKFLOW_KIND_EVENT = "event";
+    internal const string WORKFLOW_KIND_INTERACTION = "interaction";
+    
     // Topic
     public const char TOPIC_SEP = '/';
     public const string TOPIC_WILDCARD_SINGLE = "+";

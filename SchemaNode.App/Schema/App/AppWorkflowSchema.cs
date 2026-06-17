@@ -91,16 +91,6 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     public string[]? Previous { get; set; }
     
     /// <summary>
-    /// The function name if type is Function
-    /// </summary>
-    public string? Func { get; set; }
-    
-    /// <summary>
-    /// The function call arguments
-    /// </summary>
-    public CallArg[]? FuncArgs { get; set; }
-    
-    /// <summary>
     /// The event name if type is Event
     /// </summary>
     public string? Event { get; set; }

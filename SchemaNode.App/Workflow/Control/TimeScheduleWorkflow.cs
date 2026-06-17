@@ -4,7 +4,7 @@ using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
 public class TimeScheduleWorkflow: Workflow,

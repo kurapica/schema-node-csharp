@@ -3,7 +3,7 @@ using SchemaNode.Context;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// Sets the access information for the workflow, which can be used by the subsequent workflow to determine the access control.

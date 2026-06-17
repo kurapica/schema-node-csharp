@@ -1,6 +1,6 @@
 using SchemaNode.Context;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The workflow context scheduler

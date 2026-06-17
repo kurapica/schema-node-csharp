@@ -2,7 +2,7 @@ using System.Threading.Channels;
 using SchemaNode.Context;
 using SchemaNode.Utility;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The default workflow scheduler

@@ -1,6 +1,6 @@
 using SchemaNode.Enum;
 
-namespace SchemaNode.Components.Context;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The interface for workflow context persistence.

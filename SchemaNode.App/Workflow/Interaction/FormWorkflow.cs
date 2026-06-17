@@ -4,7 +4,7 @@ using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The form interaction workflow

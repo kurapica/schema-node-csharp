@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 
-namespace SchemaNode.Components.Context;
+namespace SchemaNode.Workflow;
 
 public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflowContextPersistence
 {

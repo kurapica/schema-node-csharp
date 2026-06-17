@@ -6,7 +6,7 @@ using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components.Context;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The workflow context snapshot.

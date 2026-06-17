@@ -6,7 +6,7 @@ using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable InconsistentNaming
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The workflow base class

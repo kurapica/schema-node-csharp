@@ -7,10 +7,10 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_FUNC}.call")]
-public class CallWorkflow: FunctionWorkflow, 
+public class CallWorkflow: FuncCallWorkflow, 
     IWorkflowState<CallWorkflowState>,
     IWorkflowPayload
 {

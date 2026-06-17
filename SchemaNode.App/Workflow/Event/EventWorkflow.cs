@@ -1,6 +1,6 @@
 using SchemaNode.Runtime;
 
-namespace SchemaNode.Components;
+namespace SchemaNode.Workflow;
 
 /// <summary>
 /// The event workflow associated with event trigger

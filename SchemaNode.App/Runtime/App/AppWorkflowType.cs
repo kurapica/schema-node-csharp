@@ -207,7 +207,7 @@ public sealed class AppWorkflowType: IDisposable
             // details
             switch (wNode)
             {
-                case FunctionWorkflow funcWorkflow:
+                case FuncCallWorkflow funcWorkflow:
                     funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
                                                 ? await context.GetNodeTypeAsync(node.Func) as FunctionType
                                                 : null)
