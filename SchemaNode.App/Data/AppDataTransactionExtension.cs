@@ -189,11 +189,23 @@ public static class AppDataTransactionExtension
                                 if (newValue is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (DataNode item in arr)
-                                        context.RaiseEvent(new AppFieldFieldCreateEvent(field, target), item);
+                                        context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
+                                        {
+                                            App = field.App,
+                                            Field = field.Name,
+                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                            Data = item
+                                        });
                                 }
                                 else if (newValue != null)
                                 {
-                                    context.RaiseEvent(new AppFieldFieldCreateEvent(field, target), newValue);
+                                    context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
+                                    {
+                                        App = field.App,
+                                        Field = field.Name,
+                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                        Data = newValue
+                                    });
                                 }
 
                                 break;
@@ -226,11 +238,24 @@ public static class AppDataTransactionExtension
 
                                             if (originMap.Remove(key, out DataNode? o))
                                             {
-                                                context.RaiseEvent(new AppFieldFieldUpdateEvent(field, target), new AppFieldDataUpdatePayload<DataNode>(structNode, o));
+                                                context.RaiseEvent(new AppFieldDataUpdateEvent(field.App, field.Name, target), new AppFieldUpdatePayload
+                                                {
+                                                    App = field.App,
+                                                    Field = field.Name,
+                                                    Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                    Data = structNode,
+                                                    Origin = o
+                                                });
                                             }
                                             else
                                             {
-                                                context.RaiseEvent(new AppFieldFieldCreateEvent(field, target), structNode);
+                                                context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
+                                                {
+                                                    App = field.App,
+                                                    Field = field.Name,
+                                                    Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                                    Data = structNode,
+                                                });
                                             }
                                         }
                                     }
@@ -238,15 +263,34 @@ public static class AppDataTransactionExtension
                                     // Raise delete event for remaining origin
                                     foreach (DataNode node in originMap.Values)
                                     {
-                                        context.RaiseEvent(new AppFieldFieldDeleteEvent(field, target), node);
+                                        context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
+                                        {
+                                            App = field.App,
+                                            Field = field.Name,
+                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                            Data = node
+                                        });
                                     }
                                 }
                                 else if (changeValues != null)
                                 {
                                     if (originValues == null)
-                                        context.RaiseEvent(new AppFieldFieldCreateEvent(field, target), changeValues);
+                                        context.RaiseEvent(new AppFieldDataCreateEvent(field.App, field.Name, target), new AppFieldPayload
+                                        {
+                                            App = field.App,
+                                            Field = field.Name,
+                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                            Data = changeValues,
+                                        });
                                     else
-                                        context.RaiseEvent(new AppFieldFieldUpdateEvent(field, target), new AppFieldDataUpdatePayload<DataNode>(changeValues, originValues));
+                                        context.RaiseEvent(new AppFieldDataUpdateEvent(field.App, field.Name, target), new AppFieldUpdatePayload
+                                        {
+                                            App = field.App,
+                                            Field = field.Name,
+                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                            Data = changeValues,
+                                            Origin = originValues
+                                        });
                                 }
                                 break;
                             }
@@ -257,11 +301,23 @@ public static class AppDataTransactionExtension
                                 if (origin is ArrayNode arr && field.ValueType is ArrayType { Primary.Count: > 0 })
                                 {
                                     foreach (DataNode item in arr)
-                                        context.RaiseEvent(new AppFieldFieldDeleteEvent(field, target), item);
+                                        context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
+                                        {
+                                            App = field.App,
+                                            Field = field.Name,
+                                            Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                            Data = item
+                                        });
                                 }
                                 else if (origin != null)
                                 {
-                                    context.RaiseEvent(new AppFieldFieldDeleteEvent(field, target), origin);
+                                    context.RaiseEvent(new AppFieldDataDeleteEvent(field.App, field.Name, target), new AppFieldPayload
+                                    {
+                                        App = field.App,
+                                        Field = field.Name,
+                                        Target = field.Application.ScopeType != AppScopeType.SystemLevel ? target : null,
+                                        Data = origin
+                                    });
                                 }
                                 break;
                             }
@@ -1062,9 +1118,9 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
+                                        res1.TrySetFieldValue(s, (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
+                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m));
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -1094,8 +1150,8 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
+                                        res?.TrySetFieldValue(s, (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
+                                                   (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m));
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();

@@ -214,7 +214,7 @@ internal static class DataCombineTypeExtensions
                     foreach ((string field, _) in joinMethodMap.Where(p => p.Value == DataCombineType.Count))
                     {
                         if (type.GetFields().FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) is { Type: Runtime.IntType })
-                            @struct[field] = 1;
+                            @struct.TrySetFieldValue(field, 1);
                     }
                     return @struct;
                 }
@@ -239,14 +239,14 @@ internal static class DataCombineTypeExtensions
                                     break;
                                 }
                             case DataCombineType.Sum:
-                                result[field.Name] = field.Type is Runtime.DecimalType 
-                                    ? array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<decimal>(out var f) == true ? f : 0) 
-                                    : field.Type is Runtime.IntType
-                                        ? array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<long>(out var l) == true ? l : 0L)
-                                        : null;
+                                if (field.Type is Runtime.DecimalType)
+                                    result.TrySetFieldValue(field.Name, array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<decimal>(out var f) == true ? f : 0));
+                                else if (field.Type is Runtime.IntType)
+                                    result.TrySetFieldValue(field.Name, array.Sum(p => p is StructNode obj && obj.GetAccessValue(field.Name)?.TryGetValue<long>(out var l) == true ? l : 0L));
                                 break;
                             case DataCombineType.Count:
-                                result[field.Name] = field.Type is Runtime.IntType ? array.Count : null;
+                                if (field.Type is Runtime.IntType)
+                                    result.TrySetFieldValue(field.Name, array.Count);
                                 break;
                             default:
                                 throw new ArgumentOutOfRangeException();
@@ -315,12 +315,12 @@ internal static class DataCombineTypeExtensions
                                         break;
 
                                     case DataCombineType.Sum:
-                                        total[s] = (total[s] is DataNode { IsEmpty: false } t ? t.GetValue<decimal>() : 0) +
-                                                   (obj[s] is DataNode { IsEmpty: false } n ? n.GetValue<decimal>() : 0);
+                                        total.TrySetFieldValue(s, (total[s] is DataNode { IsEmpty: false } t ? t.GetValue<decimal>() : 0) +
+                                                              (obj[s] is DataNode { IsEmpty: false } n ? n.GetValue<decimal>() : 0));
                                         break;
 
                                     case DataCombineType.Count:
-                                        total[s] = (total[s] is DataNode { IsEmpty: false } d ? d.GetValue<int>() : 0) + 1;
+                                        total.TrySetFieldValue(s, (total[s] is DataNode { IsEmpty: false } d ? d.GetValue<int>() : 0) + 1);
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -336,7 +336,7 @@ internal static class DataCombineTypeExtensions
                             // Init Count
                             foreach ((string s, DataCombineType m) in joinMethodMap)
                                 if (m == DataCombineType.Count)
-                                    obj[s] = 1;
+                                    obj.TrySetFieldValue(s, 1);
                         }
                     }
 

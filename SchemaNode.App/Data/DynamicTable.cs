@@ -633,7 +633,7 @@ public class DynamicTableSchema
                 {
                     string? map = AppField.View?.Map;
                     if (!string.IsNullOrWhiteSpace(map))
-                        result.SetFieldValue(map, val);
+                        result.TrySetFieldValue(map, val);
                 }
                 continue;
             }
@@ -647,7 +647,7 @@ public class DynamicTableSchema
             }
             if (field.Complex == null)
             {
-                result.SetFieldValue(field.Name, val);
+                result.TrySetFieldValue(field.Name, val);
             }
             else
             {
@@ -655,7 +655,7 @@ public class DynamicTableSchema
                 if (main == null)
                 {
                     main = new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
-                    result.SetFieldValue(field.Complex.Main, main);
+                    result.TrySetFieldValue(field.Complex.Main, main);
                 }
                 (main as StructNode)![field.Complex.Field] = val;
             }
@@ -682,7 +682,7 @@ public class DynamicTableSchema
                 complexResult ??= new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
                 DataNode? val = field.FromReader(reader, offset);
                 if (val != null)
-                    complexResult.SetFieldValue(field.Complex.Field, val);
+                    complexResult.TrySetFieldValue(field.Complex.Field, val);
             }
 
             offset++;

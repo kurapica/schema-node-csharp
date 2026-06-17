@@ -43,22 +43,23 @@ public class DefaultEventDispatcher : IEventDispatcher<Event>
     /// <summary>
     /// Subscribe to the application event
     /// </summary>
-    public IDisposable SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE : Event
+    public IDisposable SubscribeEvent<TE>(Action<TE> onEvent) where TE : Event
     {
-        var subject = _globalEventSubjects.GetOrAdd(eventType, _ => new Subject<Event>());
+        var subject = _globalEventSubjects.GetOrAdd(typeof(TE), _ => new Subject<Event>());
         return subject.SubscribeOn(Scheduler.Default).Subscribe(e => onEvent((TE)e));
     }
 
     /// <summary>
     /// Subscribe topic event
     /// </summary>
-    public IDisposable SubscribeTopicEvent<TE>(Type eventType, string topic, Action<TE> onEvent) where TE : Event
+    public IDisposable SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : Event
     {
+        Type eventType = typeof(TE);
         string? root = !string.IsNullOrEmpty(topic) ? topic.Split(['/', '.'])[0] : null;
 
         // global subscribe
         if (string.IsNullOrEmpty(root) || root == "*" || root == "#")
-            return SubscribeEvent(eventType, onEvent);
+            return SubscribeEvent(onEvent);
 
         var topicSubjects = _topicEventSubjects.GetOrAdd(eventType, _ => new ConcurrentDictionary<string, Subject<Event>>());
         var subject = topicSubjects.GetOrAdd(root, _ => new Subject<Event>());

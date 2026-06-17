@@ -352,7 +352,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     public async Task<DataNode?> GetSchemaNodeAsync(object? value, ValueType? expectedType = null, bool onlyValid = false)
     {
-        if (value == null) return expectedType != null ? expectedType.From(null) : null;
+        if (value == null) return expectedType?.From(null);
 
         if (expectedType == null)
         {

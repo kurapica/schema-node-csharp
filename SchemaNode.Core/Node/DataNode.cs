@@ -159,6 +159,9 @@ public abstract class DataNode : IValueAccess
     /// Equals check
     /// </summary>
     public virtual bool Equals(DataNode? other) => other != null && (ReferenceEquals(this, other) || IsEmpty ? other.IsEmpty : TryGetValue(out object? thisValue) && other.TryGetValue(out object? otherValue) && Equals(thisValue, otherValue));
+
+    /// <inheritdoc/>
+    public override string? ToString() => GetValue<string>();
     
     #endregion
 }

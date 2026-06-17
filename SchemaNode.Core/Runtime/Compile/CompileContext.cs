@@ -840,7 +840,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 List<Expression> blockExps = [
                     Expression.Assign(resultVar, Expression.New(typeof(StructNode).GetConstructors()[0], Expression.Constant(structExp.ValueType), Expression.Constant(null)))
                 ];
-                MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.SetFieldValue))!;
+                MethodInfo objectAdd = typeof(StructNode).GetMethod(nameof(StructNode.TrySetFieldValue))!;
                 foreach (var fieldExp in structExp.Fields)
                     blockExps.Add(Expression.Call(resultVar, objectAdd, Expression.Constant(fieldExp.Name, typeof(string)), ConvertExp(typeof(Object), await CompileSchemaExpAsync(fieldExp.Expression))));
                 blockExps.Add(resultVar); // as the result

@@ -13,8 +13,8 @@ internal sealed class GenericType: ValueType
     /// </summary>
     public new string Name { get; set; } = null!;
 
-    public override DataNode Create()
-    {
-        throw new NotImplementedException();
-    }
+    /// <summary>
+    /// Use any node directly
+    /// </summary>
+    public override DataNode Create() => new AnyNode{ Type = this };
 }
