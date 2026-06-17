@@ -1,6 +1,7 @@
 using SchemaNode.Context;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Runtime;
 
@@ -27,6 +28,11 @@ public sealed class WorkflowType: NodeType
     /// The session type
     /// </summary>
     public ValueType? Session { get; private set; }
+
+    /// <summary>
+    /// The workflow kind
+    /// </summary>
+    public string WorkflowKind => _workflowSchema?.Kind ?? WORKFLOW_KIND_WORKFLOW;
     
     #endregion
     

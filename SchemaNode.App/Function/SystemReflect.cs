@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Event;
 using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
@@ -63,6 +64,21 @@ public static class SystemAppReflect
             var item = await getappfieldtype(context, app!, field!, true);
             if (string.IsNullOrWhiteSpace(item)) return string.Empty;
             return typeof(AppFieldUpdatePayload).GetSchemaType()! + $"<{item}>";
+        }
+    }
+    
+    [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_REFLECT}.workflow")]
+    public static class Workflow
+    {
+        /// <summary>
+        /// Checks the given workflow is of the given kind
+        /// </summary>
+        public static async Task<bool> iskind(SchemaContext context,
+            [Meta<SchemaType>(typeof(WorkflowType))] string workflow,
+            [Meta<SchemaType>(typeof(WorkflowKind))] string kind)
+        {
+            var workflowType = await context.GetNodeTypeAsync<Runtime.WorkflowType>(workflow);
+            return kind.Equals(workflowType?.WorkflowKind, StringComparison.OrdinalIgnoreCase);
         }
     }
 }

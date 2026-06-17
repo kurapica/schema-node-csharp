@@ -1,5 +1,5 @@
-using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
+using SchemaNode.Data;
 using SchemaNode.Enum;
 
 namespace SchemaNode.Workflow;
@@ -21,7 +21,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         }
         catch (Exception e)
         {
-            context.Logger.LogError(e, "Failed to save workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
+            context.LogError(e, "Failed to save workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
                 snapshot.Id, snapshot.Workflow, snapshot.App);
         }
     }
@@ -39,7 +39,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         }
         catch (Exception e)
         {
-            context.Logger.LogError(e, "Failed to remove workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
+            context.LogError(e, "Failed to remove workflow context snapshot {SnapshotId} for workflow {BaseWorkflow} in app {App}",
                 snapshot.Id, snapshot.Workflow, snapshot.App);
         }
     }
@@ -72,7 +72,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
         }
         catch (Exception e)
         {
-            context.Logger.LogError(e, "Failed to list workflow context snapshots for workflow {BaseWorkflow} in app {App}",
+            context.LogError(e, "Failed to list workflow context snapshots for workflow {BaseWorkflow} in app {App}",
                 workflow, app);
             throw;
         }

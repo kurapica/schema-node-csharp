@@ -11,19 +11,20 @@ public static class AppConstant
     public const string SCHEMA_KIND_APP = "app";
     public const string SCHEMA_KIND_APP_FIELD = "appfield";
     public const string SCHEMA_KIND_APP_WORKFLOW = "appworkflow";
+    public const string SCHEMA_KIND_APP_WORKFLOW_NODE = "appworkflownode";
     
     public const string SCHEMA_KIND_EVENT = "event";
     public const string SCHEMA_KIND_WORKFLOW = "workflow";
 
-    internal const int SCHEMA_KIND_ORDER_APP = 20;
-    internal const int SCHEMA_KIND_ORDER_APP_FIELD = 21;
-    internal const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 22;
-    internal const int SCHEMA_KIND_ORDER_EVENT = 23;
-    internal const int SCHEMA_KIND_ORDER_WORKFLOW = 24;
+    internal const int SCHEMA_KIND_ORDER_EVENT = 20;
+    internal const int SCHEMA_KIND_ORDER_WORKFLOW = 21;
+    internal const int SCHEMA_KIND_ORDER_APP = 30;
+    internal const int SCHEMA_KIND_ORDER_APP_FIELD = 31;
+    internal const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 32;
+    internal const int SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE = 33;
 
     internal const string NS_SYSTEM_EVENT = "system.event";
     internal const string NS_SYSTEM_WORKFLOW = "system.workflow";
-
 
     internal const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     internal const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";

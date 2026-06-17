@@ -55,7 +55,9 @@ public sealed class AppWorkflowSchema: ExtensibleSchema
 /// <summary>
 /// The application workflow node
 /// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW_NODE, SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.node")]
+[Meta<Append>(typeof(Display))]
 public sealed class AppWorkflowNodeSchema: ExtensibleSchema
 {
     /// <summary>
@@ -65,14 +67,9 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
-    /// The workflow display name
-    /// </summary>
-    public LocaleString? Display { get; set; }
-    
-    /// <summary>
     /// The work flow node type
     /// </summary>
-    [Required]
+    [Meta<SchemaType>(typeof(WorkflowType))]
     public string Type { get; set; } = string.Empty;
     
     /// <summary>

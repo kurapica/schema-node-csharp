@@ -1,9 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
-using SchemaNode.Components.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -31,11 +28,11 @@ public class WorkflowContext: SchemaContext
     
     #region Constructors
 
-    public WorkflowContext(IServiceScopeFactory scopeFactory, IWorkflowScheduler scheduler): this(scopeFactory.CreateScope(), scheduler)
+    public WorkflowContext(IServiceScopeFactory scopeFactory, IWorkflowScheduler scheduler, ISchemaRuntime runtime): this(scopeFactory.CreateScope(), scheduler, runtime)
     {
     }
     
-    private WorkflowContext(IServiceScope scope, IWorkflowScheduler scheduler) : base(scope.ServiceProvider)
+    private WorkflowContext(IServiceScope scope, IWorkflowScheduler scheduler, ISchemaRuntime runtime) : base(scope.ServiceProvider,  runtime)
     {
         _scope = scope;
         _scheduler = scheduler;
@@ -160,8 +157,7 @@ public class WorkflowContext: SchemaContext
                 
                 WorkflowState state = GetOrCreateWorkflowState(startNode.Name);
                 
-                WorkflowContext forkContext = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), 
-                    _scheduler);
+                WorkflowContext forkContext = new WorkflowContext(_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler, Runtime);
                 forkContext.Initialize(WorkflowType!, startNode, this, forkSnapshot);
                 
                 state.ForkContexts ??= new ConcurrentDictionary<Guid, WorkflowContext>();
@@ -211,20 +207,20 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     public DataNode? GetWorkflowPayload(string name)
     {
-        if (!name.Contains('.'))
-            return _states.TryGetValue(name, out WorkflowState? state)
-                ? state.Payload
-                : _root?.GetWorkflowPayload(name);
+        string[] paths = name.Split(".", 2, StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length == 0) return null;
+        var data = _states.TryGetValue(paths[0], out WorkflowState? state)
+            ? state.Payload
+            : _root?.GetWorkflowPayload(paths[0]);
         
         // check nested payload
-        string[] paths = name.Split(".", StringSplitOptions.RemoveEmptyEntries);
-        return (GetWorkflowPayload(paths[0]) as StructNode)?.GetValueByPaths(paths.Skip(1));
+        return paths.Length > 1 ? data?.GetAccessValue(paths[2]) : data;
     }
 
     /// <summary>
     /// Gets the payload by workflow
     /// </summary>
-    public DataNode? GetWorkflowPayload(Workflow workflow) => GetWorkflowPayload(workflow.Name);
+    public DataNode? GetWorkflowPayload(BaseWorkflow workflow) => GetWorkflowPayload(workflow.Name);
     
     /// <summary>
     /// Gets the current workflow status
@@ -251,7 +247,7 @@ public class WorkflowContext: SchemaContext
         
         foreach ((string name, WorkflowState value) in _states)
         {
-            Workflow? workflow = _workflow?.FindByName(name);
+            BaseWorkflow? workflow = _workflow?.FindByName(name);
             if (workflow == null) continue;
             if (value.ForkContexts == null) continue;
             if (value.ForkContexts.TryGetValue(id, out WorkflowContext? ctx)) return ctx;
@@ -282,7 +278,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Gets the forked workflow contexts by workflow
     /// </summary>
-    public IEnumerable<WorkflowContext> GetForkedWorkflowContexts(Workflow workflow)
+    public IEnumerable<WorkflowContext> GetForkedWorkflowContexts(BaseWorkflow workflow)
     {
         foreach (WorkflowContext ctx in GetForkedWorkflowContexts(workflow.Name))
             yield return ctx;
@@ -291,7 +287,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Gets teh workflow status by workflow
     /// </summary>
-    public WorkflowStatus GetWorkflowStatus(Workflow workflow) => GetWorkflowStatus(workflow.Name);
+    public WorkflowStatus GetWorkflowStatus(BaseWorkflow workflow) => GetWorkflowStatus(workflow.Name);
     
     /// <summary>
     /// The workflow node is done with payload
@@ -299,10 +295,10 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     public WorkflowContext? Done(string name, DataNode? payload = null, bool init = false, Access? access = null)
     {
-        Workflow workflow = _workflow?.FindByName(name)
+        BaseWorkflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
 
-        Logger.LogInformation($"[WorkflowContext]{Id} Done [BaseWorkflow] {name}");
+        LogInformation($"[WorkflowContext]{Id} Done [BaseWorkflow] {name}");
         
         // get or create the workflow state
         WorkflowState state = GetOrCreateWorkflowState(name);
@@ -318,16 +314,16 @@ public class WorkflowContext: SchemaContext
                 if (workflow.ForkKey.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
                 {
                     if (payload == null || payload.IsEmpty) return null;
-                    forkKey = payload.ToString();
+                    forkKey = payload.ToString()!;
                 }
                 else
                 {
                     string[] keys = new  string[workflow.ForkKey.Length];
                     for (int i = 0; i < workflow.ForkKey.Length; i++)
                     {
-                        DataNode? forkKeyNode = (payload as StructNode)?.GetValueByPaths(workflow.ForkKey[i]);
-                        if (forkKeyNode == null) return null; // skip fork if any fork key not provided
-                        keys[i] = forkKeyNode.ToString();
+                        DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
+                        if (forkKeyNode == null || forkKeyNode.IsEmpty) return null; // skip fork if any fork key not provided
+                        keys[i] = forkKeyNode.ToString()!;
                     }
                     forkKey = string.Join('/', keys);
                 }
@@ -342,7 +338,7 @@ public class WorkflowContext: SchemaContext
                     if (workflow.ForkKey!.Length == 1 && workflow.ForkKey[0].Equals(NodeSelf))
                     {
                         DataNode? forkPayload = workflowContext.GetWorkflowPayload(workflow.Name);
-                        if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString().Equals(forkKey)) continue; 
+                        if (forkPayload == null || forkPayload.IsEmpty || !forkPayload.ToString()!.Equals(forkKey)) continue; 
                     }
                     else
                     {
@@ -353,9 +349,9 @@ public class WorkflowContext: SchemaContext
                         for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
                             DataNode? forkKeyNode =
-                                (payload as StructNode)?.GetValueByPaths(workflow.ForkKey[i]);
-                            if (forkKeyNode == null) break;
-                            keys[i] = forkKeyNode.ToString();
+                                (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
+                            if (forkKeyNode == null || forkKeyNode.IsEmpty) break;
+                            keys[i] = forkKeyNode.ToString()!;
                         }
 
                         if (keys.Any(string.IsNullOrEmpty) || !string.Join('/', keys).Equals(forkKey)) continue;
@@ -368,7 +364,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [BaseWorkflow] {Name} [ForkKey] {Key}",
+                        LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [BaseWorkflow] {Name} [ForkKey] {Key}",
                             Id, name, forkKey);
                         return null; // skip fork
                     }
@@ -376,7 +372,7 @@ public class WorkflowContext: SchemaContext
             }
             
             // Fork a new workflow context for next nodes
-            WorkflowContext context = new (_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler);
+            WorkflowContext context = new (_scope.ServiceProvider.GetRequiredService<IServiceScopeFactory>(), _scheduler, Runtime);
             context.Initialize(WorkflowType!, workflow, this);
             if (access != null) context.SetAccess(access); // switch the access
             context.Done(workflow.Name, payload, true);
@@ -403,7 +399,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node is done with payload
     /// </summary>
-    public void Done(Workflow workflow, DataNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
+    public void Done(BaseWorkflow workflow, DataNode? payload = null, Access? access = null) => Done(workflow.Name, payload, false, access);
     
     /// <summary>
     /// The workflow node has error
@@ -414,7 +410,7 @@ public class WorkflowContext: SchemaContext
         state.Status = WorkflowStatus.Error;
         state.Error = exception;
         
-        Logger.LogError($"[WorkflowContext]{Id} Error [BaseWorkflow] {name} [Exception] {exception}");
+        LogError($"[WorkflowContext]{Id} Error [BaseWorkflow] {name} [Exception] {exception}");
         
         // save
         Persistence();
@@ -428,20 +424,20 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The workflow node has error
     /// </summary>
-    public void Error(Workflow workflow, string exception) => Error(workflow.Name, exception);
+    public void Error(BaseWorkflow workflow, string exception) => Error(workflow.Name, exception);
 
     /// <summary>
     /// The workflow node has error
     /// </summary>
-    public void Error(Workflow workflow, Exception exception) => Error(workflow.Name, exception.GetInnermostException().Message);
+    public void Error(BaseWorkflow workflow, Exception exception) => Error(workflow.Name, exception.GetInnermostException().Message);
 
     /// <summary>
     /// Goto the workflow node by name
     /// </summary>
     public void Goto(string name, string? newName = null)
     {
-        Workflow _ = _workflow?.FindByName(name) ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
-        Workflow? newWorkflow = newName != null 
+        BaseWorkflow _ = _workflow?.FindByName(name) ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
+        BaseWorkflow? newWorkflow = newName != null 
             ? _workflow?.FindByName(newName) 
                 ?? throw new InvalidOperationException($"BaseWorkflow node {newName} not found in the context")
                 : null;
@@ -452,7 +448,7 @@ public class WorkflowContext: SchemaContext
         if (newWorkflow != null)
         {
             // reset the workflow states from the target node
-            void ResetWorkflowState(Workflow wf)
+            void ResetWorkflowState(BaseWorkflow wf)
             {
                 if (_states.TryGetValue(wf.Name, out WorkflowState? s))
                 {
@@ -478,7 +474,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Goto the workflow node
     /// </summary>
-    public void Goto(Workflow workflow, string? newName = null) => Goto(workflow.Name, newName);
+    public void Goto(BaseWorkflow workflow, string? newName = null) => Goto(workflow.Name, newName);
 
     /// <summary>
     /// Terminate the workflow branch by name
@@ -488,8 +484,8 @@ public class WorkflowContext: SchemaContext
     /// <exception cref="InvalidOperationException"></exception>
     public void Terminate(string name, bool inner = false)
     {
-        Workflow workflow = _workflow?.FindByName(name)
-            ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
+        BaseWorkflow workflow = _workflow?.FindByName(name)
+                                ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
         var state = GetOrCreateWorkflowState(name);
         state.Status = WorkflowStatus.Terminated;
         
@@ -504,7 +500,7 @@ public class WorkflowContext: SchemaContext
         // Recursion call return
         if (inner) return;
         
-        Logger.LogInformation("[WorkflowContext]{Guid} Terminate Branch [BaseWorkflow] {Name}", Id, name);
+        LogInformation("[WorkflowContext]{Guid} Terminate Branch [BaseWorkflow] {Name}", Id, name);
 
         // schedule the workflow context for processing
         _scheduler.Schedule(this);
@@ -517,12 +513,12 @@ public class WorkflowContext: SchemaContext
     /// Terminate the workflow branch
     /// </summary>
     /// <param name="workflow"></param>
-    public void Terminate(Workflow workflow) => Terminate(workflow.Name);
+    public void Terminate(BaseWorkflow workflow) => Terminate(workflow.Name);
     
     /// <summary>
     /// Whether the workflow is un-cancelled
     /// </summary>
-    bool IsUnCancellable(Workflow? workflow = null)
+    bool IsUnCancellable(BaseWorkflow? workflow = null)
     {
         workflow ??= _workflow;
         if (workflow == null) return false;
@@ -557,11 +553,11 @@ public class WorkflowContext: SchemaContext
                 return;
             }
 
-            Workflow workflow = next.Value.Item1;
+            BaseWorkflow workflow = next.Value.Item1;
             WorkflowState state = next.Value.Item2;
             try
             {
-                Logger.LogInformation($"[WorkflowContext]{Id} Processing [BaseWorkflow] {workflow.Name}");
+                LogInformation($"[WorkflowContext]{Id} Processing [BaseWorkflow] {workflow.Name}");
 
                 // Process the workflow
                 state.Status = WorkflowStatus.Running;
@@ -599,7 +595,7 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     public async Task TerminateAsync()
     {
-        Logger.LogInformation($"[WorkflowContext]{Id} Terminated");
+        LogInformation($"[WorkflowContext]{Id} Terminated");
         
         foreach ((string name, WorkflowState value) in _states)
         {
@@ -700,7 +696,7 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// save payload flag
         /// </summary>
-        public bool PayloadSave { get; set; } = false;
+        public bool PayloadSave { get; set; }
 
         /// <summary>
         /// The workflow payload
@@ -725,9 +721,10 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// Process the workflow without session
         /// </summary>
-        public virtual async Task ProcessAsync(WorkflowContext context, Workflow workflow)
+        public virtual async Task ProcessAsync(WorkflowContext context, BaseWorkflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(BaseWorkflow.WORKFLOW_PROCESS_METHOD)!;
+            ParameterInfo[] parameters = processMethod.GetParameters();
             object?[] args = [context];
             if (workflow.Args is { Length: > 0 })
             {
@@ -736,14 +733,14 @@ public class WorkflowContext: SchemaContext
                 for (int i = 0; i < workflow.Args.Length; i++)
                 {
                     var arg = workflow.Args[i];
-                    if (string.IsNullOrEmpty(arg.Name))
+                    if (string.IsNullOrEmpty(arg.Source))
                     {
-                        args[i + 1] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 1] = (arg.ValueType?.GetCsharpType() ?? parameters[i + 1].ParameterType).TryConvert(arg.Value, out object? res)  ? res : null;
                     }
                     else
                     {
-                        DataNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 1] = arg.SchemeType?.CreateNode(payload)?.ToTypeValue(arg.SchemeType.ToCSharpType());
+                        DataNode? payload = context.GetWorkflowPayload(arg.Source);
+                        args[i + 1] = payload?.GetValue(arg.ValueType?.GetCsharpType() ?? parameters[i + 1].ParameterType);
                     }
                 }
             }
@@ -754,7 +751,7 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// Release the workflow state
         /// </summary>
-        public virtual Task ReleaseAsync(WorkflowContext context, Workflow workflow)
+        public virtual Task ReleaseAsync(WorkflowContext context, BaseWorkflow workflow)
         {
             return Task.CompletedTask;
         }
@@ -770,9 +767,10 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// Process the workflow with session
         /// </summary>
-        public override async Task ProcessAsync(WorkflowContext context, Workflow workflow)
+        public override async Task ProcessAsync(WorkflowContext context, BaseWorkflow workflow)
         {
-            MethodInfo processMethod = workflow.GetType().GetMethod(Workflow.WORKFLOW_PROCESS_METHOD)!;
+            MethodInfo processMethod = workflow.GetType().GetMethod(BaseWorkflow.WORKFLOW_PROCESS_METHOD)!;
+            ParameterInfo[] parameters = processMethod.GetParameters();
             object?[] args = [context, Session];
             if (workflow.Args is { Length: > 0 })
             {
@@ -782,14 +780,14 @@ public class WorkflowContext: SchemaContext
                 for (int i = 0; i < workflow.Args.Length; i++)
                 {
                     var arg = workflow.Args[i];
-                    if (string.IsNullOrEmpty(arg.Name))
+                    if (string.IsNullOrEmpty(arg.Source))
                     {
-                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(arg.Value);
+                        args[i + 2] = (arg.ValueType?.GetCsharpType() ?? parameters[i + 2].ParameterType).TryConvert(arg.Value, out object? res)  ? res : null;
                     }
                     else
                     {
-                        DataNode? payload = context.GetWorkflowPayload(arg.Name);
-                        args[i + 2] = arg.SchemeType?.ToCSharpType().TryConvert(payload);
+                        DataNode? payload = context.GetWorkflowPayload(arg.Source);
+                        args[i + 2] = payload?.GetValue(arg.ValueType?.GetCsharpType() ?? parameters[i + 2].ParameterType);
                     }
                 }
             }
@@ -800,7 +798,7 @@ public class WorkflowContext: SchemaContext
         /// <summary>
         /// Release the workflow state
         /// </summary>
-        public override async Task ReleaseAsync(WorkflowContext context, Workflow workflow)
+        public override async Task ReleaseAsync(WorkflowContext context, BaseWorkflow workflow)
         {
             await ((IWorkflowSession<T>)workflow).ReleaseSessionAsync(context, Session);
             Session = default;
@@ -820,7 +818,7 @@ public class WorkflowContext: SchemaContext
     /// Gets the next workflow to process
     /// </summary>
     /// <returns></returns>
-    (Workflow, WorkflowState)? GetNextWorkflowToProcess(Workflow workflow)
+    (BaseWorkflow, WorkflowState)? GetNextWorkflowToProcess(BaseWorkflow workflow)
     {
         WorkflowState state = GetOrCreateWorkflowState(workflow.Name);
         if (state.Status == WorkflowStatus.Waiting)
@@ -852,7 +850,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Check if the workflow is terminatable
     /// </summary>
-    bool IsWorkflowTerminatable(Workflow workflow)
+    bool IsWorkflowTerminatable(BaseWorkflow workflow)
     {
         if (_states.TryGetValue(workflow.Name, out WorkflowState? state))
         {
@@ -877,7 +875,7 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     WorkflowState GetOrCreateWorkflowState(string name)
     {
-        Workflow workflow = _workflow?.FindByName(name)
+        BaseWorkflow workflow = _workflow?.FindByName(name)
             ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
         var state = _states.GetOrAdd(workflow.Name, (_) =>
         {
@@ -895,9 +893,9 @@ public class WorkflowContext: SchemaContext
         return state;
     }
     
-    WorkflowState GetOrCreateWorkflowState(Workflow workflow) => GetOrCreateWorkflowState(workflow.Name);
-    
-    SemaphoreSlim _processLock = new(1,1);
+    WorkflowState GetOrCreateWorkflowState(BaseWorkflow workflow) => GetOrCreateWorkflowState(workflow.Name);
+
+    private readonly SemaphoreSlim _processLock = new(1,1);
     
     #endregion
 }

@@ -2,6 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Schema;
 using AppType = SchemaNode.Runtime.AppType;
 using ValueType = SchemaNode.Runtime.ValueType;
+// ReSharper disable CollectionNeverQueried.Global
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable InconsistentNaming
@@ -108,10 +109,15 @@ public abstract class BaseWorkflow
 
     #region Abstract
 
+    /// <summary>
+    /// Loading the workflow node with application workflow node schema
+    /// </summary>
+    public virtual Task LoadAsync(SchemaContext context, AppWorkflowNodeSchema schema) => Task.CompletedTask;
+
     // Process the workflow
-    //abstract Task ProcessAsync(WorkflowContext context, arg1, arg2, ...);
-    //abstract Task<Session> ProcessAsync<Session>(WorkflowContext context, Session, arg1, arg2, ...);
-    
+    //public abstract Task ProcessAsync(WorkflowContext context, arg1, arg2, ...);
+    //public abstract Task<Session> ProcessAsync<Session>(WorkflowContext context, Session, arg1, arg2, ...);
+
     #endregion
 }
 

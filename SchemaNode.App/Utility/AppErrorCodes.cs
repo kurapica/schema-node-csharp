@@ -67,4 +67,7 @@ internal static class AppErrorCodes
     
     [Meta<ErrorCode>(WORKFLOW_SESSION_NOT_VALID)]
     public const string WORKFLOW_SESSION_NOT_VALID = "workflow_session_not_valid";
+    
+    [Meta<ErrorCode>(WORKFLOW_CALL_FUNC_NOT_VALID)]
+    public const string WORKFLOW_CALL_FUNC_NOT_VALID = "workflow_call_func_not_valid";
 }

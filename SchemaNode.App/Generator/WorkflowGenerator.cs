@@ -9,7 +9,6 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Service;
 using SchemaNode.Utility;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Workflow;
 
@@ -35,7 +34,8 @@ public class WorkflowGenerator : INodeSchemaGenerator
             }
             current = current.BaseType;
         }
-        workflowSchema.Kind ??= WORKFLOW_KIND_WORKFLOW;
+        if (string.IsNullOrWhiteSpace(workflowSchema.Kind))
+            workflowSchema.Kind = WORKFLOW_KIND_WORKFLOW;
 
         if (type.GetGenericArguments().Length > 0)
             throw new Exception($"Workflow type {type.FullName} can't be generic");
