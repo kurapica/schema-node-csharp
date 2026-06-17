@@ -49,9 +49,9 @@ public sealed class WorkflowType: NodeType
                 Error ??= AppErrorCodes.WORKFLOW_PAYLOAD_NOT_VALID;
         }
 
-        if (_workflowSchema.State != null)
+        if (_workflowSchema.Settings != null)
         {
-            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.State);
+            State = await context.GetNodeTypeAsync<ValueType>(_workflowSchema.Settings);
             if (State == null)
                 Error ??= AppErrorCodes.WORKFLOW_STATE_NOT_VALID;
         }

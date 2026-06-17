@@ -16,10 +16,10 @@ public class EventGenerator: INodeSchemaGenerator
 {
     public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
-        if (!type.IsAssignableTo(typeof(Event.Event))) yield break;
+        if (!type.IsAssignableTo(typeof(Event.BaseEvent))) yield break;
         
         if (type.GetGenericArguments() is {  Length: > 0 })
-            throw new Exception($"Event type {type.FullName} can't be generic");
+            throw new Exception($"BaseEvent type {type.FullName} can't be generic");
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, @namespace, name, type);
         EventSchema eventSchema = new EventSchema();
@@ -28,7 +28,7 @@ public class EventGenerator: INodeSchemaGenerator
         ConstructorInfo[] ctors = type.GetConstructors()
             .Where(c => c.GetCustomAttribute<SchemaIgnoreAttribute>() == null).ToArray();
         if (ctors.Length > 1)
-            throw new Exception($"Event type {type.FullName} has multiple constructors, which is not allowed");
+            throw new Exception($"BaseEvent type {type.FullName} has multiple constructors, which is not allowed");
 
         if (ctors.Length == 1)
         {

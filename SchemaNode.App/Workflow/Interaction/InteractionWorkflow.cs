@@ -8,7 +8,7 @@ namespace SchemaNode.Workflow;
 /// <summary>
 /// The interaction workflow
 /// </summary>
-public abstract class InteractionWorkflow: Workflow
+public abstract class InteractionWorkflow: BaseWorkflow
 {
     /// <summary>
     /// Do nothing until the user provides

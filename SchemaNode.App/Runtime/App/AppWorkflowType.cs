@@ -1,12 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
-using SchemaNode.Components.Context;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using SchemaNode.Workflow;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -172,16 +171,16 @@ public sealed class AppWorkflowType: IDisposable
         if (Interlocked.CompareExchange(ref _activated, 1, 0) != 0) return;
         
         // init the workflow nodes
-        List<Workflow> topNodes = [];
-        Dictionary<string, Workflow> workflows = [];
+        List<BaseWorkflow> topNodes = [];
+        Dictionary<string, BaseWorkflow> workflows = [];
 
         foreach (var node in Nodes)
         {
             var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
-            Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"Workflow type {node.Type} not found");
+            Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
 
             // All constructors parameters goto state, init directly
-            Workflow wNode = (Workflow)Activator.CreateInstance(csharpType)!;
+            BaseWorkflow wNode = (BaseWorkflow)Activator.CreateInstance(csharpType)!;
             wNode.Application = Application;
             wNode.Name = node.Name;
             wNode.Fork = node.Fork ?? false;
@@ -223,7 +222,7 @@ public sealed class AppWorkflowType: IDisposable
                     evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
                                            ? await context.GetNodeTypeAsync(node.Event) as EventType
                                            : null)
-                        ?? throw new InvalidOperationException($"Event name is required for event workflow node {node.Name}");
+                        ?? throw new InvalidOperationException($"BaseEvent name is required for event workflow node {node.Name}");
                     break;
                 
                 case InteractionWorkflow:
@@ -235,7 +234,7 @@ public sealed class AppWorkflowType: IDisposable
             {
                 wNode.Args = new FuncCallArg[workflowType.Args.Length];
                 if (node.Args == null || node.Args.Length != workflowType.Args.Length)
-                    throw new InvalidOperationException($"Workflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
+                    throw new InvalidOperationException($"BaseWorkflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
                 for (int i = 0; i < workflowType.Args.Length; i++)
                 {
                     var argDef = workflowType.Args[i];
@@ -272,7 +271,7 @@ public sealed class AppWorkflowType: IDisposable
         
         // should have only one entry node
         if (topNodes.Count != 1)
-            throw new InvalidOperationException($"Workflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
+            throw new InvalidOperationException($"BaseWorkflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
         _workflowContext?.Dispose();
         _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider);

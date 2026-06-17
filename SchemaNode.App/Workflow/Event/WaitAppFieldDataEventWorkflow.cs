@@ -16,7 +16,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
         string? target = null)
     {
         await Task.Yield();
-        if (Event == null) throw new Exception("Event is null");
+        if (Event == null) throw new Exception("BaseEvent is null");
         
         string topic = Application.Name.ToLower().Replace('.', '_');
         if (!string.IsNullOrEmpty(target))

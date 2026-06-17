@@ -1,6 +1,5 @@
 using System.Reflection;
 using SchemaNode.Attribute;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
@@ -12,6 +11,7 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Workflow;
 
 namespace SchemaNode.Generator;
 
@@ -19,11 +19,12 @@ public class WorkflowGenerator : INodeSchemaGenerator
 {
     public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
     {
-        if (!type.IsAssignableTo(typeof(Workflow))) yield break;
+        if (!type.IsAssignableTo(typeof(BaseWorkflow))) yield break;
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_WORKFLOW, @namespace, name, type);
         WorkflowSchema workflowSchema = new WorkflowSchema();
-        
+
+        // kind
         Type? current = type;
         while (current != null)
         {
@@ -34,25 +35,14 @@ public class WorkflowGenerator : INodeSchemaGenerator
             }
             current = current.BaseType;
         }
-        
-        // no kind no workflow
-        if (string.IsNullOrWhiteSpace(workflowSchema.Kind))
-            throw new Exception($"Invalid workflow type {type.FullName} without workflow kind");
-        
-        // generic types
-        Type[] generics = type.GetGenericArguments();
-        if (generics.Length > 0)
-            workflowSchema.SetProperty<Generics, GenericParameter[]>(
-                generics.Select(g => g.GetTypeDetail()).Select(g => 
-                    new GenericParameter (
-                        typeResolver(g.CoreType, @namespace, generics)!,
-                        g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
-                    )
-                ).ToArray());
+        workflowSchema.Kind ??= WORKFLOW_KIND_WORKFLOW;
 
-        // State
-        Type? stateType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowState<>))?.GetGenericArguments()[0];
-        workflowSchema.State = stateType != null ? typeResolver(stateType, @namespace, generics) : null;
+        if (type.GetGenericArguments().Length > 0)
+            throw new Exception($"Workflow type {type.FullName} can't be generic");
+
+        // Settings
+        Type? settingsType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSettings<>))?.GetGenericArguments()[0];
+        workflowSchema.Settings = settingsType != null ? typeResolver(settingsType, @namespace, null) : null;
         
         // Session
         Type? sessionType = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IWorkflowSession<>))?.GetGenericArguments()[0];
@@ -63,7 +53,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
         workflowSchema.Payload = payloadType != null ? typeResolver(payloadType, @namespace, null)  : null;
         
         // Process args
-        MethodInfo processMethod = type.GetMethod(Workflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance) 
+        MethodInfo processMethod = type.GetMethod(BaseWorkflow.WORKFLOW_PROCESS_METHOD, BindingFlags.Public | BindingFlags.Instance) 
                                    ?? throw new Exception($"Can't find method ProcessAsync in {type.Name}");
     
         // must be async method, the first parameter is WorkflowContext
@@ -115,7 +105,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
 
                 // Check dynamic type
                 arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
-                            ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, generics)
+                            ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, null)
                             ?? throw new Exception($"Can't resolve parameter type for method {processMethod.Name} in {@type.FullName}");
 
                 workflowSchema.Args[i] = arg;

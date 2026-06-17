@@ -8,6 +8,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using SchemaNode.Workflow;
 
 namespace SchemaNode.Context;
 
@@ -19,7 +20,7 @@ public class WorkflowContext: SchemaContext
     #region Private Fields
     
     private WorkflowContext? _root;
-    private Workflow? _workflow;
+    private BaseWorkflow? _workflow;
     private readonly IServiceScope _scope;
     private readonly IWorkflowScheduler _scheduler;
     private readonly ConcurrentDictionary<string, WorkflowState> _states = [];
@@ -67,7 +68,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// The entry workflow node
     /// </summary>
-    public Workflow? EntryWorkflow => _workflow;
+    public BaseWorkflow? EntryWorkflow => _workflow;
     
     #endregion
 
@@ -122,13 +123,13 @@ public class WorkflowContext: SchemaContext
         // restore states
         foreach (var nodeSnapshot in snapshot.Nodes)
         {
-            Workflow? node = _workflow?.FindByName(nodeSnapshot.Name);
+            BaseWorkflow? node = _workflow?.FindByName(nodeSnapshot.Name);
             if (node == null) continue;
             
             WorkflowState state = GetOrCreateWorkflowState(nodeSnapshot.Name);
             state.Status = nodeSnapshot.Status;
             state.Error = nodeSnapshot.Error;
-            state.Payload = node.PayloadType?.CreateNode(nodeSnapshot.Payload);
+            state.Payload = node.PayloadType?.From(nodeSnapshot.Payload);
             if (state.HasSession && nodeSnapshot.Session != null)
             {
                 try
@@ -154,7 +155,7 @@ public class WorkflowContext: SchemaContext
         {
             foreach (var forkSnapshot in snapshot.Forks)
             {
-                Workflow? startNode = _workflow?.FindByName(forkSnapshot.Start);
+                BaseWorkflow? startNode = _workflow?.FindByName(forkSnapshot.Start);
                 if (startNode == null) continue;
                 
                 WorkflowState state = GetOrCreateWorkflowState(startNode.Name);
@@ -179,7 +180,7 @@ public class WorkflowContext: SchemaContext
     /// <summary>
     /// Init the workflow context with app workflow node schemas
     /// </summary>
-    internal void Initialize(AppWorkflowType workflowType, Workflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
+    internal void Initialize(AppWorkflowType workflowType, BaseWorkflow workflow, WorkflowContext? root = null, WorkflowContextSnapshot? snapshot = null)
     {
         // init the workflow context
         WorkflowType = workflowType;
@@ -299,9 +300,9 @@ public class WorkflowContext: SchemaContext
     public WorkflowContext? Done(string name, DataNode? payload = null, bool init = false, Access? access = null)
     {
         Workflow workflow = _workflow?.FindByName(name)
-            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+            ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
 
-        Logger.LogInformation($"[WorkflowContext]{Id} Done [Workflow] {name}");
+        Logger.LogInformation($"[WorkflowContext]{Id} Done [BaseWorkflow] {name}");
         
         // get or create the workflow state
         WorkflowState state = GetOrCreateWorkflowState(name);
@@ -367,7 +368,7 @@ public class WorkflowContext: SchemaContext
                     }
                     else
                     {
-                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [Workflow] {Name} [ForkKey] {Key}",
+                        Logger.LogDebug("[WorkflowContext]{Guid} Fork skipped for existing fork key [BaseWorkflow] {Name} [ForkKey] {Key}",
                             Id, name, forkKey);
                         return null; // skip fork
                     }
@@ -413,7 +414,7 @@ public class WorkflowContext: SchemaContext
         state.Status = WorkflowStatus.Error;
         state.Error = exception;
         
-        Logger.LogError($"[WorkflowContext]{Id} Error [Workflow] {name} [Exception] {exception}");
+        Logger.LogError($"[WorkflowContext]{Id} Error [BaseWorkflow] {name} [Exception] {exception}");
         
         // save
         Persistence();
@@ -439,10 +440,10 @@ public class WorkflowContext: SchemaContext
     /// </summary>
     public void Goto(string name, string? newName = null)
     {
-        Workflow _ = _workflow?.FindByName(name) ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+        Workflow _ = _workflow?.FindByName(name) ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
         Workflow? newWorkflow = newName != null 
             ? _workflow?.FindByName(newName) 
-                ?? throw new InvalidOperationException($"Workflow node {newName} not found in the context")
+                ?? throw new InvalidOperationException($"BaseWorkflow node {newName} not found in the context")
                 : null;
         
         var state = GetOrCreateWorkflowState(name);
@@ -488,7 +489,7 @@ public class WorkflowContext: SchemaContext
     public void Terminate(string name, bool inner = false)
     {
         Workflow workflow = _workflow?.FindByName(name)
-            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+            ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
         var state = GetOrCreateWorkflowState(name);
         state.Status = WorkflowStatus.Terminated;
         
@@ -503,7 +504,7 @@ public class WorkflowContext: SchemaContext
         // Recursion call return
         if (inner) return;
         
-        Logger.LogInformation("[WorkflowContext]{Guid} Terminate Branch [Workflow] {Name}", Id, name);
+        Logger.LogInformation("[WorkflowContext]{Guid} Terminate Branch [BaseWorkflow] {Name}", Id, name);
 
         // schedule the workflow context for processing
         _scheduler.Schedule(this);
@@ -560,7 +561,7 @@ public class WorkflowContext: SchemaContext
             WorkflowState state = next.Value.Item2;
             try
             {
-                Logger.LogInformation($"[WorkflowContext]{Id} Processing [Workflow] {workflow.Name}");
+                Logger.LogInformation($"[WorkflowContext]{Id} Processing [BaseWorkflow] {workflow.Name}");
 
                 // Process the workflow
                 state.Status = WorkflowStatus.Running;
@@ -603,7 +604,7 @@ public class WorkflowContext: SchemaContext
         foreach ((string name, WorkflowState value) in _states)
         {
             // release workflow state
-            Workflow? workflow = _workflow?.FindByName(name);
+            BaseWorkflow? workflow = _workflow?.FindByName(name);
             if (workflow != null) await value.ReleaseAsync(this, workflow);
             if (value.Status is WorkflowStatus.Running or WorkflowStatus.Waiting)
                 value.Status = WorkflowStatus.Terminated;
@@ -877,7 +878,7 @@ public class WorkflowContext: SchemaContext
     WorkflowState GetOrCreateWorkflowState(string name)
     {
         Workflow workflow = _workflow?.FindByName(name)
-            ?? throw new InvalidOperationException($"Workflow node {name} not found in the context");
+            ?? throw new InvalidOperationException($"BaseWorkflow node {name} not found in the context");
         var state = _states.GetOrAdd(workflow.Name, (_) =>
         {
             Type workflowType = workflow.GetType();

@@ -173,7 +173,7 @@ public static class AppDataTransactionExtension
         // No data event
         if (noEvent) return;
 
-        // Event after commit
+        // BaseEvent after commit
         foreach (var (target, value) in transChangedData)
         {
             foreach (var (field, changes) in value.Changes)

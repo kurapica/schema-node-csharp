@@ -6,7 +6,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.goto")]
-public class GotoWorkflow: Workflow
+public class GotoWorkflow: BaseWorkflow
 {
     public async Task ProcessAsync(WorkflowContext context, bool flag, 
         [Schema(NS_SYSTEM_WORKFLOW_NODE)] string? trueNode, 

@@ -10,7 +10,7 @@ namespace SchemaNode.Event;
 /// <summary>
 /// The base event
 /// </summary>
-public abstract class Event
+public abstract class BaseEvent
 {
     /// <summary>
     /// The event identifier

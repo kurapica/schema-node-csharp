@@ -6,7 +6,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.exit")]
-public class ExitWorkflow: Workflow
+public class ExitWorkflow: BaseWorkflow
 {
     public async Task ProcessAsync(WorkflowContext context, bool cond)
     {

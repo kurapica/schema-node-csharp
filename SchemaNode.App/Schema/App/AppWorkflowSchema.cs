@@ -91,7 +91,7 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     public string[]? Previous { get; set; }
     
     /// <summary>
-    /// The event name if type is Event
+    /// The event name if type is BaseEvent
     /// </summary>
     public string? Event { get; set; }
     

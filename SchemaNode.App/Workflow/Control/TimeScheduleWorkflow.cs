@@ -7,7 +7,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
-public class TimeScheduleWorkflow: Workflow,
+public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>
 {
     public async Task<JobKey?> ProcessAsync(WorkflowContext context, JobKey? jobKey, TimeSchedule schedule)

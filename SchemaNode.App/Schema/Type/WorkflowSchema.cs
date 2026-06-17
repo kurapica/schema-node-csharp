@@ -42,7 +42,7 @@ public sealed class WorkflowSchema: ExtensibleSchema
     /// The state schema type for creation
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
-    public string? State { get; set; }
+    public string? Settings { get; set; }
     
     /// <summary>
     /// The session schema type for processing

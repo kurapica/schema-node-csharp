@@ -6,10 +6,10 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Workflow;
 
 /// <summary>
-/// Break Branch Workflow
+/// Break Branch BaseWorkflow
 /// </summary>
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.break")]
-public class BreakWorkflow: Workflow
+public class BreakWorkflow: BaseWorkflow
 {
     public Task ProcessAsync(WorkflowContext context, bool cond)
     {

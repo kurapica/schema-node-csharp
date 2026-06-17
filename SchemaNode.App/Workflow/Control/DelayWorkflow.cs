@@ -6,7 +6,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Workflow;
 
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.delay")]
-public class DelayWorkflow: Workflow
+public class DelayWorkflow: BaseWorkflow
 {
     public Task ProcessAsync(WorkflowContext context, long duration)
     {

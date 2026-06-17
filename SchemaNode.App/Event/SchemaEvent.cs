@@ -7,7 +7,7 @@ namespace SchemaNode.Event;
 /// <summary>
 /// The schema event
 /// </summary>
-public abstract class SchemaEvent : Event, IEventPayload<string>;
+public abstract class SchemaEvent : BaseEvent, IEventPayload<string>;
 
 /// <summary>
 /// The node schema create event

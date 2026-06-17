@@ -11,7 +11,7 @@ namespace SchemaNode.Workflow;
 /// <summary>
 /// The workflow base class
 /// </summary>
-public abstract class Workflow
+public abstract class BaseWorkflow
 {
     /// <summary>
     /// The abstract method name for workflow processing
@@ -37,12 +37,12 @@ public abstract class Workflow
     /// <summary>
     /// The previous workflows
     /// </summary>
-    internal Workflow[]? Previous { get; set; }
+    internal BaseWorkflow[]? Previous { get; set; }
 
     /// <summary>
     /// The next workflows
     /// </summary>
-    internal Workflow[]? Next { get; set; }
+    internal BaseWorkflow[]? Next { get; set; }
     
     /// <summary>
     /// The workflow arguments
@@ -94,10 +94,10 @@ public abstract class Workflow
     /// <summary>
     /// Find the next workflow by name(include self)
     /// </summary>
-    internal Workflow? FindByName(string name)
+    internal BaseWorkflow? FindByName(string name)
         => Name.Equals(name, StringComparison.OrdinalIgnoreCase)
             ? this
-            : Next?.Select(next => next.FindByName(name)).OfType<Workflow>().FirstOrDefault();
+            : Next?.Select(next => next.FindByName(name)).OfType<BaseWorkflow>().FirstOrDefault();
     
     /// <summary>
     /// Whether it has forks in next nodes
@@ -116,14 +116,14 @@ public abstract class Workflow
 }
 
 /// <summary>
-/// The workflow state interface
+/// The workflow settings interface
 /// </summary>
-public interface IWorkflowState<T>
+public interface IWorkflowSettings<T>
 {
     /// <summary>
-    /// The workflow state
+    /// The workflow settings
     /// </summary>
-    T? State { get; set; }
+    T? Settings { get; set; }
 }
 
 /// <summary>

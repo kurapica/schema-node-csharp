@@ -22,7 +22,9 @@ public static class AppConstant
     internal const int SCHEMA_KIND_ORDER_WORKFLOW = 24;
 
     internal const string NS_SYSTEM_EVENT = "system.event";
-    
+    internal const string NS_SYSTEM_WORKFLOW = "system.workflow";
+
+
     internal const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     internal const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
     internal const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";
@@ -31,7 +33,7 @@ public static class AppConstant
     
     // workflow kind
     internal const string WORKFLOW_KIND_WORKFLOW = "workflow";
-    internal const string WORKFLOW_KIND_CALL_FUNC = "call";
+    internal const string WORKFLOW_KIND_CALL = "call";
     internal const string WORKFLOW_KIND_EVENT = "event";
     internal const string WORKFLOW_KIND_INTERACTION = "interaction";
     

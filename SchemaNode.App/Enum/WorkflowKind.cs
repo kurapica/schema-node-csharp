@@ -5,7 +5,7 @@ using static SchemaNode.Utility.AppConstant;
 namespace SchemaNode.Enum;
 
 /// <summary>
-/// Workflow type
+/// BaseWorkflow type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.kind")]
 [Meta<Record>(typeof(Property.Record.WorkflowKind))]
@@ -14,7 +14,7 @@ public enum WorkflowKind;
     /// <summary>
     /// Use arguments for controlling
     /// </summary>
-    Workflow = 1,
+    BaseWorkflow = 1,
     
     /// <summary>
     /// Use function with arguments for calling
@@ -24,7 +24,7 @@ public enum WorkflowKind;
     /// <summary>
     /// Use event with arguments for waiting
     /// </summary>
-    Event,
+    BaseEvent,
     
     /// <summary>
     /// Use interaction for user interaction

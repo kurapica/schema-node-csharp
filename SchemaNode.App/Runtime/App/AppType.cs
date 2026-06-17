@@ -407,14 +407,14 @@ public sealed class AppType : IValueTypeAccess
             }
         }
 
-        // Workflow node schema types
+        // BaseWorkflow node schema types
         if (_workflows is { Count: > 0 })
         {
             foreach (AppWorkflowType workflow in _workflows)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
 
-                // Workflow-level auth functions
+                // BaseWorkflow-level auth functions
                 if (workflow.Auths != null)
                 {
                     foreach (PolicyItem item in workflow.Auths)
@@ -424,7 +424,7 @@ public sealed class AppType : IValueTypeAccess
                     }
                 }
 
-                // Workflow node referenced types
+                // BaseWorkflow node referenced types
                 foreach (AppWorkflowNodeSchema node in workflow.Nodes)
                 {
                     cancellationToken?.ThrowIfCancellationRequested();

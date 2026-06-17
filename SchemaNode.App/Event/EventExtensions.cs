@@ -45,13 +45,13 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event without payload
         /// </summary>
-        public void RaiseEvent<TE>(TE @event) where TE : Event 
+        public void RaiseEvent<TE>(TE @event) where TE : BaseEvent 
             => GetEventDispatcher(context, @event.GetType())?.DispatchEvent(@event);
 
         /// <summary>
         /// Raise the event with payload, calc the 
         /// </summary>
-        public void RaiseEvent<TE, TP>(TE @event, TP payLoad) where TE : Event, IEventPayload<TP> where TP : notnull
+        public void RaiseEvent<TE, TP>(TE @event, TP payLoad) where TE : BaseEvent, IEventPayload<TP> where TP : notnull
         {
             @event.Payload = context.GetSchemaNodeAsync(payLoad).GetAwaiter().GetResult();
             context.RaiseEvent(@event);
@@ -60,7 +60,7 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event with data node, no check for the payload type
         /// </summary>
-        public void RaiseEvent<TE>(TE @event, DataNode payLoad) where TE : Event
+        public void RaiseEvent<TE>(TE @event, DataNode payLoad) where TE : BaseEvent
         {
             // Use directly
             @event.Payload = payLoad;
@@ -70,18 +70,18 @@ public static class EventExtensions
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE>() where TE : Event, new() => context.RaiseEvent(new TE());
+        public void RaiseEvent<TE>() where TE : BaseEvent, new() => context.RaiseEvent(new TE());
 
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE, TP>(TP payLoad) where TE : Event, IEventPayload<TP>, new() where TP : notnull 
+        public void RaiseEvent<TE, TP>(TP payLoad) where TE : BaseEvent, IEventPayload<TP>, new() where TP : notnull 
             => context.RaiseEvent(new TE(), payLoad);
         
         /// <summary>
         /// Raise the event without constructor parameters
         /// </summary>
-        public void RaiseEvent<TE>(DataNode payLoad) where TE : Event, new()
+        public void RaiseEvent<TE>(DataNode payLoad) where TE : BaseEvent, new()
             => context.RaiseEvent(new TE(), payLoad);
         
         #endregion
@@ -91,7 +91,7 @@ public static class EventExtensions
         /// <summary>
         /// Subscribe an event
         /// </summary>
-        public IDisposable? SubscribeEvent<TE>(Action<TE> onEvent) where TE : Event
+        public IDisposable? SubscribeEvent<TE>(Action<TE> onEvent) where TE : BaseEvent
         {
             return GetEventDispatcher(context, typeof(TE))?.SubscribeEvent(onEvent);
         }
@@ -99,7 +99,7 @@ public static class EventExtensions
         /// <summary>
         /// Subscribe an event by topic
         /// </summary>
-        public IDisposable? SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : Event
+        public IDisposable? SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent
         {
             return GetEventDispatcher(context, typeof(TE))?.SubscribeTopicEvent(topic, (Action<TE>)Handler);
 
@@ -120,7 +120,7 @@ public static class EventExtensions
         /// <summary>
         /// Subscribe an event once
         /// </summary>
-        public IDisposable? SubscribeEventOnce<TE>(Action<TE> onEvent) where TE : Event
+        public IDisposable? SubscribeEventOnce<TE>(Action<TE> onEvent) where TE : BaseEvent
         {
             IDisposable? subscription = null;
 
@@ -146,7 +146,7 @@ public static class EventExtensions
         /// <summary>
         /// Subscribe an event once
         /// </summary>
-        public IDisposable? SubscribeTopicEventOnce<TE>(string topic, Action<TE> onEvent) where TE : Event
+        public IDisposable? SubscribeTopicEventOnce<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent
         {
             IDisposable? subscription = null;
             subscription = context.SubscribeTopicEvent(topic, (Action<TE>)Handler);

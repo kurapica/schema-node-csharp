@@ -13,7 +13,7 @@ public class WaitAppEventWorkflow : EventWorkflow,
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null)
     {
         await Task.Yield();
-        if (Event == null) throw new Exception("Event is null");
+        if (Event == null) throw new Exception("BaseEvent is null");
         
         string topic = Application.Name.ToLower().Replace('.', '_');
         

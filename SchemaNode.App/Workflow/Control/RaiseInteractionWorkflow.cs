@@ -10,7 +10,7 @@ namespace SchemaNode.Workflow;
 /// Raise an interaction workflow
 /// </summary>
 [Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.interaction")]
-public class RaiseInteractionWorkflow: Workflow
+public class RaiseInteractionWorkflow: BaseWorkflow
 {
     /// <summary>
     /// Start the interaction workflow

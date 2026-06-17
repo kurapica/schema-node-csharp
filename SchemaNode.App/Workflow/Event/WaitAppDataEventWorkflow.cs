@@ -14,7 +14,7 @@ public class WaitAppDataEventWorkflow : EventWorkflow,
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null, string? target = null)
     {
         await Task.Yield();
-        if (Event == null) throw new Exception("Event is null");
+        if (Event == null) throw new Exception("BaseEvent is null");
         
         string topic = Application.Name.ToLower().Replace('.', '_');
         topic = !string.IsNullOrEmpty(target) ? $"{topic}/{target}" : $"{topic}/#";

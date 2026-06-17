@@ -12,5 +12,5 @@ namespace SchemaNode.Property.Event;
 [Meta<ForSchema>(SCHEMA_KIND_EVENT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<PropertyValueType>(typeof(TypeFuncType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.{nameof(PayloadEvaluator)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.event.{nameof(PayloadEvaluator)}")]
 public class PayloadEvaluator : Property<string>;

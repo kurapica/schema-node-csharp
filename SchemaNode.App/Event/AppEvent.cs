@@ -11,7 +11,7 @@ namespace SchemaNode.Event;
 /// <summary>
 /// The application scope event
 /// </summary>
-public abstract class AppEvent(string app): Event
+public abstract class AppEvent(string app): BaseEvent
 {
     /// <summary>
     /// The topic
