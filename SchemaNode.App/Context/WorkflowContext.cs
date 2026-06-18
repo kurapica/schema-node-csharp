@@ -214,7 +214,7 @@ public class WorkflowContext: SchemaContext
             : _root?.GetWorkflowPayload(paths[0]);
         
         // check nested payload
-        return paths.Length > 1 ? data?.GetAccessValue(paths[2]) : data;
+        return paths.Length > 1 ? data?.GetAccessValue(paths[1]) : data;
     }
 
     /// <summary>

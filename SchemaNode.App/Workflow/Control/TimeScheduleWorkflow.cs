@@ -1,12 +1,13 @@
 using Quartz;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Workflow;
 
-[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
 public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>
 {
@@ -116,7 +117,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
 /// <summary>
 /// The time schedule definition
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.control.schedule")]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.schedule")]
 public class TimeSchedule
 {
     /// <summary>
@@ -132,6 +133,13 @@ public class TimeSchedule
     /// <summary>
     /// The cron expression
     /// </summary>
-    [Schema(NS_SYSTEM_WORKFLOW_CRON)]
+    [Meta<SchemaType>(typeof(Cron))]
     public string Cron { get; set; } = string.Empty;
 }
+
+
+/// <summary>
+/// Represents the cron expression type for time scheduling.
+/// </summary>
+[Meta<SchemaType>(NS_SYSTEM_WORKFLOW_CRON)]
+public class Cron : Scalar.String;

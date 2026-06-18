@@ -8,6 +8,7 @@ using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
+using Microsoft.AspNetCore.Http.Features;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -192,15 +193,15 @@ public sealed class AppType : IValueTypeAccess
         
         // load workflows
         List<AppWorkflowType>? oldWorkflows = _workflows;
-        _workflows = schema.Workflows?.Select(w =>
+        _workflows = [];
+        if (schema.Workflows is { Length: > 0 })
         {
-            // if the workflow is activated, keep the old instance to avoid breaking the running workflow, otherwise create a new instance
-            AppWorkflowType wft = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
-                ? old : w;
-            wft.Application = this;
-            wft.Properties = wft.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppWorkflow, wft.Extensions)?.ToArray() : null;
-            return wft;
-        }).ToList();
+            foreach (AppWorkflowSchema w in schema.Workflows)
+            {
+                _workflows.Add(oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
+                    ? old : new AppWorkflowType(this, w));
+            }
+        }
         foreach(var wf in _workflows ?? [])
         {
             if (Injection.WorkflowTypes != null)
@@ -208,41 +209,42 @@ public sealed class AppType : IValueTypeAccess
             else
                 await wf.LoadAsync(context);
         }
-        
-        // preload sub applications
-        if (preLoad && Apps is { Length: > 0 })
-        {
-            // Load all the sub application list
-            foreach (string name in Apps.Select(p => p.Name))
-                await context.GetAppTypeAsync(name, preload: true);
-        }
 
-        // reload the foreign if changes
-        if (!preLoad && reloadApps is {  Count: > 0 })
-        {
-            // reload the reference applications to update the observers
-            foreach (AppType app in reloadApps)
-                await context.GetAppTypeAsync(app.Name, reload: true);
-        }
+        // Add referenced by for fields, workflows and relations
+        foreach (NodeType t in GetReferenceTypes())
+            t.AddUsedBy(this);
     }
-    
+
     /// <summary>
     /// Release usages
     /// </summary>
     public void Release()
     {
-        // Release the old field relationships
-        _fields?.ForEach(p =>
-        {
-            p.SchemaType?.RemoveRef(p);
-            p.FuncNode?.RemoveRef(p);
-        });
-        Relations?.ForEach(r =>
-        {
-            if (r.FieldNode != null)
-                r.FuncNode?.RemoveRef(r.FieldNode);
-        });
-        _workflows?.ForEach(w => w.Release());
+        foreach (NodeType t in GetReferenceTypes())
+            t.RemoveUsedBy(this);
+    }
+
+    public IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (_fields != null)
+            foreach (AppFieldType f in _fields)
+                foreach (NodeType t in f.GetReferenceTypes())
+                    yield return t;
+
+        if (_workflows != null)
+            foreach (AppWorkflowType w in _workflows)
+                foreach (NodeType t in w.GetReferenceTypes())
+                    yield return t;
+        
+        
+        if (_relations != null)
+            foreach (RelationType r in _relations)
+                foreach (NodeType t in r.GetReferenceTypes())
+                    yield return t;
+
+        if (_refTypes != null)
+            foreach (NodeType t in _refTypes)
+                yield return t;
     }
 
     /// <summary>
@@ -326,137 +328,11 @@ public sealed class AppType : IValueTypeAccess
             Schemas = []
         };
 
-        // App-level data auth functions
-        if (Auths != null)
+        foreach (NodeType t in GetReferenceTypes())
         {
-            foreach (PolicyItem item in Auths)
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-                if (item.Function != null)
-                    await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-            }
+            cancellationToken?.ThrowIfCancellationRequested();
+            await t.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
         }
-
-        if (_fields is { Count: > 0 })
-        {
-            foreach (AppFieldType fieldNode in _fields)
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-
-                if (fieldNode.ValueType != null)
-                    await fieldNode.ValueType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-
-                if (fieldNode.PushFunc != null)
-                    await fieldNode.PushFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-
-                if (fieldNode.Filters is { Length: > 0 })
-                {
-                    foreach (FieldFilter filter in fieldNode.Filters.Where(f => f.Mode == FieldFilterMode.Filter))
-                    {
-                        NodeType? filterType = await ctx.GetNodeTypeAsync(filter.Filter);
-                        if (filterType != null)
-                            await filterType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-
-                // Field-level data auth functions
-                if (fieldNode.Auths != null)
-                {
-                    foreach (PolicyItem item in fieldNode.Auths)
-                    {
-                        if (item.Function != null)
-                            await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-
-                // Row policy functions
-                if (fieldNode.RowAuths != null)
-                {
-                    foreach (RowPolicy row in fieldNode.RowAuths)
-                    {
-                        if (row.EvaluatorFunc != null)
-                            await row.EvaluatorFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                        if (row.FilterFunc != null)
-                            await row.FilterFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-
-                // Column policy functions
-                if (fieldNode.ColAuths != null)
-                {
-                    foreach (ColPolicy colPolicy in fieldNode.ColAuths)
-                    {
-                        foreach (FunctionType func in colPolicy.Functions)
-                            await func.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-            }
-        }
-
-        if (Relations is { Count: > 0 })
-        {
-            foreach (AppRelationSchema relation in Relations)
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-
-                if (relation.FuncNode != null)
-                    await relation.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-            }
-        }
-
-        // BaseWorkflow node schema types
-        if (_workflows is { Count: > 0 })
-        {
-            foreach (AppWorkflowType workflow in _workflows)
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-
-                // BaseWorkflow-level auth functions
-                if (workflow.Auths != null)
-                {
-                    foreach (PolicyItem item in workflow.Auths)
-                    {
-                        if (item.Function != null)
-                            await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-
-                // BaseWorkflow node referenced types
-                foreach (AppWorkflowNodeSchema node in workflow.Nodes)
-                {
-                    cancellationToken?.ThrowIfCancellationRequested();
-
-                    if (!string.IsNullOrWhiteSpace(node.Type))
-                    {
-                        NodeType? wfType = await ctx.GetNodeTypeAsync(node.Type);
-                        if (wfType != null)
-                            await wfType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(node.Func))
-                    {
-                        NodeType? funcType = await ctx.GetNodeTypeAsync(node.Func);
-                        if (funcType != null)
-                            await funcType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(node.Event))
-                    {
-                        NodeType? eventType = await ctx.GetNodeTypeAsync(node.Event);
-                        if (eventType != null)
-                            await eventType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(node.Payload))
-                    {
-                        NodeType? payloadType = await ctx.GetNodeTypeAsync(node.Payload);
-                        if (payloadType != null)
-                            await payloadType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-                    }
-                }
-            }
-        }
-
         return root.Schemas!;
     }
 

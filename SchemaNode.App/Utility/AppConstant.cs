@@ -25,6 +25,8 @@ public static class AppConstant
 
     internal const string NS_SYSTEM_EVENT = "system.event";
     internal const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    internal const string NS_SYSTEM_WORKFLOW_CRON = $"{NS_SYSTEM_WORKFLOW}.cron";
+    internal const string NS_SYSTEM_WORKFLOW_CONTROL = $"{NS_SYSTEM_WORKFLOW}.control";
 
     internal const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
     internal const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
