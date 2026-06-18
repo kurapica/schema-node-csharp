@@ -3,7 +3,15 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
+using SchemaNode.Scalar;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
+using Guid = System.Guid;
+using Index = SchemaNode.Property.Core.Index;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Workflow;
@@ -11,29 +19,31 @@ namespace SchemaNode.Workflow;
 /// <summary>
 /// The workflow context snapshot.
 /// </summary>
-[SchemaApp]
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.snapshot")]
+[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.snapshot")]
 public class WorkflowContextSnapshot
 {
     /// <summary>
     /// The application
     /// </summary>
-    [NotMapped]
+    [Meta<PrimaryIndex>(0)]
+    [Meta<SchemaType>(typeof(AppType))]
+    [Meta<Index>("IX_ROOT",0)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
     /// The workflow name
     /// </summary>
-    [Index]
-    [Index("IX_ROOT")]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>(1)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<Index>("IX_ROOT",1)]
     public string Workflow { get; set; } = string.Empty;
     
     /// <summary>
     /// The unique identifier of the workflow context snapshot.
     /// </summary>
-    [Index]
-    [Index("IX_ROOT", 3)]
+    [Meta<PrimaryIndex>(2)]
+    [Meta<Index>("IX_ROOT",4)]
     public Guid Id { get; set; }
     
     /// <summary>
@@ -54,13 +64,13 @@ public class WorkflowContextSnapshot
     /// <summary>
     /// The root id
     /// </summary>
-    [Index("IX_ROOT", 1)]
+    [Meta<Index>("IX_ROOT",2)]
     public Guid RootId { get; set; }
     
     /// <summary>
     /// The work flow status
     /// </summary>
-    [Index("IX_ROOT", 2)]
+    [Meta<Index>("IX_ROOT",3)]
     public WorkflowStatus Status { get; set; }
     
     /// <summary>
@@ -75,13 +85,13 @@ public class WorkflowContextSnapshot
     public WorkflowContextSnapshot[]? Forks { get; set; }
 }
 
-[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.nodesnapshot")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.nodesnapshot")]
 public class WorkflowNodeSnapshot
 {
     /// <summary>
     /// The node name
     /// </summary>
-    [Index]
+    [Meta<PrimaryIndex>(0)]
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
     

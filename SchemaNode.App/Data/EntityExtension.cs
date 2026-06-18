@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Reflection;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -50,7 +51,7 @@ public static class EntityExtension
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string? target, Expression<Func<T, bool>> cond, bool forUpdate = false)
+    public static async Task<T?> GetEntityAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
@@ -63,11 +64,17 @@ public static class EntityExtension
         var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate);
         return value != null ? value.GetValue<T>() : default;
     }
+    
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static Task<T?> GetEntityAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond, bool forUpdate = false) 
+        => context.GetEntityAsync(string.Empty, cond, forUpdate);
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string? target, Expression<Func<T, bool>> cond, bool forUpdate = false)
+    public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
@@ -79,11 +86,17 @@ public static class EntityExtension
         var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter, forUpdate: forUpdate);
         return value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [];
     }
+    
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context,  Expression<Func<T, bool>> cond, bool forUpdate = false)
+        => context.GetEntitiesAsync(string.Empty, cond, forUpdate);
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, string? target, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public static async Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
@@ -96,11 +109,17 @@ public static class EntityExtension
             skip, take, desc, orderBy, forUpdate: forUpdate);
         return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
     }
+    
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+        => context.GetEntitiesAsync(string.Empty, cond, take, skip, desc, orderBy, forUpdate);
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string? target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public static async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         context.AssertType<T>(field);
         if (field.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
@@ -114,6 +133,12 @@ public static class EntityExtension
             desc, orderBy, forUpdate: forUpdate);
         return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
     }
+    
+    /// <summary>
+    /// Gets the entity data by full primary keys
+    /// </summary>
+    public static Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+        => context.GetFieldEntitiesAsync(field, string.Empty, cond, skip, take, desc, orderBy, forUpdate);
 
     #endregion
 
@@ -122,7 +147,7 @@ public static class EntityExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string? target, T value)
+    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
@@ -134,19 +159,24 @@ public static class EntityExtension
         var node = (appFieldType.ValueType as ArrayType)?.Element?.From(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
         return await context.DeleteFieldListDataAsync(appFieldType, node);
     }
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteEntityAsync<T>(this SchemaContext context, T value)
+        => context.DeleteEntityAsync(string.Empty, new List<T> { value });
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string? target, params object[] keys)
+    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
             throw new ArgumentException($"The target is required for app field of type {typeof(T).FullName}");
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        var primaries = appFieldType.GetPrimaryProperties();
-        if (primaries == null || primaries.Count == 0)
+        IReadOnlyList<PropertyInfo> primaries = appFieldType.GetPrimaryProperties();
+        if (primaries.Count == 0)
             return await context.SaveFieldDataAsync(appFieldType, null);
 
         if (keys.Length != primaries.Count)
@@ -166,11 +196,17 @@ public static class EntityExtension
         if (filter == null) throw new ArgumentException($"The type {typeof(T).FullName} primary key is invalid");
         return await context.DeleteFieldListDataAsync(appFieldType, filter);
     }
+    
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteEntityAsync<T>(this SchemaContext context, params object[] keys)
+        => DeleteEntityAsync(context, string.Empty, keys);
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string? target, List<T> value)
+    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         var primaries = appFieldType.GetPrimaryProperties();
@@ -189,15 +225,24 @@ public static class EntityExtension
 
         return await context.DeleteFieldListDataAsync(appFieldType, array);
     }
+    
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, List<T> value)
+        => context.DeleteEntitiesAsync(string.Empty, value);
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string? target, Expression<Func<T, bool>> cond)
-    {
-        AppFieldType appFieldType = await context.AssertAppField<T>();
-        return await context.DeleteFieldEntityAsync(appFieldType, target, cond);
-    }
+    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
+        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>(), target, cond);
+    
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond)
+        => await context.DeleteFieldEntityAsync(await context.AssertAppField<T>(), string.Empty, cond);
 
     /// <summary>
     /// Delete entity data
@@ -211,6 +256,12 @@ public static class EntityExtension
         var node = (field.ValueType as ArrayType)?.Element?.From(value) ?? throw new ArgumentException($"The value of type {typeof(T).FullName} is invalid for delete");
         return await context.DeleteFieldListDataAsync(field, node);
     }
+    
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, T value)
+        => context.DeleteFieldEntityAsync(field, string.Empty, value);
 
     /// <summary>
     /// Delete entity data
@@ -230,11 +281,16 @@ public static class EntityExtension
         }
         return await context.DeleteFieldListDataAsync(field, array);
     }
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, List<T> value)
+        => context.DeleteFieldEntityAsync(field, string.Empty, value);
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string? target, Expression<Func<T, bool>> cond)
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
     {
         context.AssertType<T>(field);
         if (field.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
@@ -244,6 +300,12 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
         return context.DeleteFieldListDataAsync(field, filter);
     }
+    
+    /// <summary>
+    /// Delete entity data
+    /// </summary>
+    public static Task<bool> DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, Expression<Func<T, bool>> cond)
+        => context.DeleteFieldEntityAsync(field, string.Empty, cond);
 
     #endregion
     
@@ -252,7 +314,7 @@ public static class EntityExtension
     /// <summary>
     /// Save entity data
     /// </summary>
-    public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string? target, T value)
+    public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string target, T value)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
@@ -261,11 +323,17 @@ public static class EntityExtension
         using var stack = context.StackAccess(appFieldType.App, target);
         return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.From(value));
     }
+    
+    /// <summary>
+    /// Save entity data
+    /// </summary>
+    public static Task<bool> SaveEntityAsync<T>(this SchemaContext context, T value)
+        => context.SaveEntityAsync(string.Empty, value);
 
     /// <summary>
     /// Save entity list data
     /// </summary>
-    public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string? target, List<T> values)
+    public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string target, List<T> values)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         var primaries = appFieldType.GetPrimaryProperties();
@@ -276,6 +344,12 @@ public static class EntityExtension
         using var _ = context.StackAccess(appFieldType.App, target);
         return await context.SaveFieldDataAsync(appFieldType, appFieldType.ValueType!.From(values));
     }
+    
+    /// <summary>
+    /// Save entity list data
+    /// </summary>
+    public static Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, List<T> values)
+        => context.SaveEntitiesAsync(string.Empty, values);
 
     /// <summary>
     /// Save entity data
@@ -289,6 +363,12 @@ public static class EntityExtension
         using var _ = context.StackAccess(field.App, target);
         return context.SaveFieldDataAsync(field, field.ValueType!.From(value));
     }
+    
+    /// <summary>
+    /// Save entity data
+    /// </summary>
+    public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, T value)
+        => context.SaveFieldEntityAsync(field, string.Empty, value);
 
     /// <summary>
     /// Save entity list data
@@ -302,6 +382,12 @@ public static class EntityExtension
         using var _ = context.StackAccess(field.App, target);
         return context.SaveFieldDataAsync(field, field.ValueType!.From(values));
     }
+    
+    /// <summary>
+    /// Save entity list data
+    /// </summary>
+    public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, List<T> values)
+        => context.SaveFieldEntitiesAsync(field, string.Empty, values);
 
     #endregion
 }
