@@ -1,7 +1,12 @@
+using System.Data;
+using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Schema;
 using AppType = SchemaNode.Runtime.AppType;
 using ValueType = SchemaNode.Runtime.ValueType;
+using static SchemaNode.Utility.AppConstant;
+using SchemaType = SchemaNode.Property.Core.SchemaType;
+
 // ReSharper disable CollectionNeverQueried.Global
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -148,3 +153,10 @@ public interface IWorkflowSession<in T>
 /// </summary>
 /// <typeparam name="T"></typeparam>
 public interface IWorkflowPayload<T>;
+
+
+/// <summary>
+/// Represents the node name in the current workspace
+/// </summary>
+[Meta<SchemaType>(NS_SYSTEM_WORKFLOW_NODE)]
+public class NodeName : Scalar.String;

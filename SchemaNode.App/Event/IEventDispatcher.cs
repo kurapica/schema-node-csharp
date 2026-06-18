@@ -15,12 +15,12 @@ public interface IEventDispatcher
     /// <summary>
     /// Subscribe an event
     /// </summary>
-    IDisposable SubscribeEvent<TE>(Action<TE> onEvent) where TE : BaseEvent;
+    IDisposable SubscribeEvent<TE>(Type eventType,Action<TE> onEvent) where TE : BaseEvent;
 
     /// <summary>
     /// Subscribe an event by topic
     /// </summary>
-    IDisposable SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent;
+    IDisposable SubscribeTopicEvent<TE>(Type eventType,string topic, Action<TE> onEvent) where TE : BaseEvent;
 }
 
 /// <summary>

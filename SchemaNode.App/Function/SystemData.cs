@@ -236,13 +236,13 @@ public static class SystemData
                         {
                             decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
                             decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
-                            originStruct.TrySetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                            originStruct[fld.Name] = fld.Type?.From(orgVal + dataVal);
                         }
                         else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
                         {
                             long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
                             long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
-                            originStruct.TrySetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                            originStruct[fld.Name] = fld.Type?.From(orgVal + dataVal);
                         }
                     }
                     break;
@@ -277,13 +277,13 @@ public static class SystemData
                                 {
                                     decimal orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<decimal>() : 0m;
                                     decimal dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<decimal>() : 0m;
-                                    oitem.TrySetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                                    oitem[fld.Name] = fld.Type?.From(orgVal + dataVal);
                                 }
                                 else if (orgFld?.Type is IntType && dataFld?.Type is IntType)
                                 {
                                     long orgVal = orgFld is { IsEmpty: false } ? orgFld.GetValue<long>() : 0L;
                                     long dataVal = dataFld is { IsEmpty: false } ? dataFld.GetValue<long>() : 0L;
-                                    oitem.TrySetFieldValue(fld.Name, fld.Type?.From(orgVal + dataVal));
+                                    oitem[fld.Name] = fld.Type?.From(orgVal + dataVal);
                                 }
                             }
                         }

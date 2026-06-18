@@ -119,13 +119,6 @@ public sealed class FuncArg
     /// </summary>
     [SchemaIgnore]
     public string? Error { get; set; }
-    
-    /// <summary>
-    /// The argument schema type
-    /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
-    public RuntimeNodeType? NodeType  { get; set; }
 }
 
 /// <summary>

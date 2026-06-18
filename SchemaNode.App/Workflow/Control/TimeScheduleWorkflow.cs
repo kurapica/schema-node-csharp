@@ -7,6 +7,9 @@ using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Workflow;
 
+/// <summary>
+/// The time schedule workflow node
+/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
 public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>
@@ -24,7 +27,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
             // ignore
         }
         
-        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
         
         if (schedule.Start is not null && schedule.Start > now.DateTime)
         {

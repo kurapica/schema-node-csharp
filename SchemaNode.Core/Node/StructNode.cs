@@ -1,15 +1,13 @@
-﻿using System.Collections;
-using SchemaNode.Utility;
+﻿using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
-using System.Diagnostics.CodeAnalysis;
 
 namespace SchemaNode.Node;
 
-public class StructNode : DataNode, IDictionary<string, DataNode>
+public class StructNode : DataNode
 {
     private readonly DataNode[] _fields;
     private object? _csharpObject;
@@ -35,7 +33,7 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
     #region Indexer
 
     // struct[field] access
-    public DataNode? this[string name]
+    public object? this[string name]
     {
         get => GetAccessValue(name);
         set
@@ -45,12 +43,6 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
             _csharpObject = null;
             field.TrySetValue(value);
         }
-    }
-
-    DataNode IDictionary<string, DataNode>.this[string key]
-    {
-        get => GetAccessValue(key) ?? throw new KeyNotFoundException(key);
-        set => this[key] = value;
     }
 
     #endregion
@@ -299,60 +291,6 @@ public class StructNode : DataNode, IDictionary<string, DataNode>
         foreach (DataNode field in _fields)
             field.ClearValue();
     }
-
-    #region IDictionary implementation
-    
-    public ICollection<string> Keys => (Type as StructType)?.GetFields().Select(f => f.Name).ToArray() ?? [];
-
-    public ICollection<DataNode> Values => _fields;
-
-    public int Count =>_fields.Length;
-
-    public bool IsReadOnly => false;
-
-    public void Add(string key, DataNode value) => throw new NotSupportedException();
-
-    public bool ContainsKey(string key) => (Type as StructType)?.GetField(key) != null;
-
-    public bool Remove(string key) => throw new NotSupportedException();
-
-    public bool TryGetValue(string key, [MaybeNullWhen(false)] out DataNode value)
-    {
-        var field = GetAccessValue(key);
-        if (field != null && !field.IsEmpty)
-        {
-            value = field;
-            return true;
-        }
-        value = null!;
-        return false;
-    }
-
-    public void Add(KeyValuePair<string, DataNode> item) => throw new NotSupportedException();
-
-    public void Clear() => throw new NotSupportedException();
-
-    public bool Contains(KeyValuePair<string, DataNode> item)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void CopyTo(KeyValuePair<string, DataNode>[] array, int arrayIndex) => throw new NotSupportedException();
-
-    public bool Remove(KeyValuePair<string, DataNode> item) => throw new NotSupportedException();
-
-    public IEnumerator<KeyValuePair<string, DataNode>> GetEnumerator()
-    {
-        foreach ((StructFieldType field, DataNode value) in GetFields())
-        {
-            if (value.IsEmpty) continue;
-            yield return new KeyValuePair<string, DataNode>(field.Name, value);
-        }
-    }
-
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    
-    #endregion
 
     #endregion
 }

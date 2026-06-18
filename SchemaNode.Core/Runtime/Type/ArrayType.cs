@@ -230,6 +230,30 @@ public sealed class ArrayType: ValueType
         }
         return keys;
     }
+    
+    public string[]? GetPrimaryKeys(IValueAccess obj)
+    {
+        if (Primary == null || Primary.Count == 0 || Element is not StructType @struct)
+            return null;
+
+        string[] keys = new string[Primary.Count];
+        for (var index = 0; index < Primary.Count; index++)
+        {
+            var p = Primary[index];
+            StructFieldType? fld = @struct.GetField(p);
+            if (fld == null) return null;
+
+            if (obj.GetAccessValue(p) is {} objValue && objValue.ToString() is { } str && !string.IsNullOrWhiteSpace(str))
+            {
+                keys[index] = str;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return keys;
+    }
 
     /// <summary>
     /// Gets the unique key for the object with separator, returns null if any of the primary keys is missing or empty
@@ -247,6 +271,30 @@ public sealed class ArrayType: ValueType
             if (fld == null) return null;
 
             if (obj.TryGetValue(p, out T? objValue) && objValue?.ToString() is { } str && !string.IsNullOrWhiteSpace(str))
+            {
+                keys[index] = str;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        return string.Join(sep, keys);
+    }
+    
+    public string? GetPrimaryKey(IValueAccess obj, string sep = "|")
+    {
+        if (Primary == null || Primary.Count == 0 || Element is not StructType @struct)
+            return null;
+
+        string[] keys = new string[Primary.Count];
+        for (var index = 0; index < Primary.Count; index++)
+        {
+            var p = Primary[index];
+            StructFieldType? fld = @struct.GetField(p);
+            if (fld == null) return null;
+
+            if (obj.GetAccessValue(p) is {} objValue && objValue.ToString() is { } str && !string.IsNullOrWhiteSpace(str))
             {
                 keys[index] = str;
             }

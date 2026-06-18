@@ -1,13 +1,14 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
+using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using SchemaNode.Workflow;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -49,13 +50,13 @@ public static class InteractionExtensions
             await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
         
         // Find the contains node
-        Workflow node = (string.IsNullOrEmpty(request.Node) 
+        BaseWorkflow node = (string.IsNullOrEmpty(request.Node) 
             ? workflowType.RootWorkflowContext.EntryWorkflow
             : workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node))
             ?? throw new Exception(WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
-        StructNode payload = (node.PayloadType as StructType)?.CreateNode() as StructNode
+        StructNode payload = (node.PayloadType as StructType)?.From(null) as StructNode
                                  ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
         payload[nameof(InteractionPayload.App)] = request.App;
         payload[nameof(InteractionPayload.Target)] = request.Target;

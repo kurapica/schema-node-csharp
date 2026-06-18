@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
@@ -11,8 +10,11 @@ using Microsoft.OpenApi;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using TimeZoneConverter;
+
 // ReSharper disable CollectionNeverQueried.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -110,10 +112,17 @@ public interface ISchemaApiProtocol
         try
         {
             request = ReadRequest<TRequest>(context, requestBody);
-            context.SetRequestInfo(request.Locale, request.TimeZone, request.DateFormat); // Set the request info
-
-            if (request.DateFormat != null && request.DateFormat != DateFormatMode.Iso8601)
+            
+            // time zone
+            if (!string.IsNullOrWhiteSpace(request.TimeZone) && TZConvert.TryGetTimeZoneInfo(request.TimeZone, out var tz))
+                context.SetContextItem(tz);
+            
+            // date format
+            if (request.DateFormat.HasValue && request.DateFormat != DateFormatMode.Iso8601)
+            {
+                context.SetContextItem(request.DateFormat.Value);
                 request = ReadRequest<TRequest>(context, requestBody); // re-read the request with the correct date format
+            }
         }
         catch (Exception ex)
         {
@@ -162,9 +171,8 @@ public interface ISchemaApiProtocol
 
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
-        response!.TimeZone = context.GetTimeZone()?.Id;
+        response.TimeZone = context.GetTimeZone().Id;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
-        var timeZone = provider.GetRequiredService<SchemaContext>().GetTimeZone();
         
         // Stream
         if (response.Output?.Stream != null)
@@ -239,7 +247,7 @@ public interface ISchemaApiProtocol
             {
                 if (value == innerSchema)
                 {
-                    reqMeta.Wrap = key!;
+                    reqMeta.Wrap = key;
                 }
                 else
                 {
@@ -256,7 +264,7 @@ public interface ISchemaApiProtocol
             {
                 if (value == innerSchema)
                 {
-                    resMeta.Unwrap = key!;
+                    resMeta.Unwrap = key;
                 }
                 else
                 {
@@ -280,7 +288,7 @@ public interface ISchemaApiProtocol
             JsonObject obj = new();
             foreach (var (key, value) in schema.Properties)
             {
-                obj[key!] = GenerateJsonDesc(value);
+                obj[key] = GenerateJsonDesc(value);
             }
             return obj;
         }

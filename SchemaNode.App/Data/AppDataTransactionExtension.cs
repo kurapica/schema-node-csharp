@@ -1118,9 +1118,9 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res1.TrySetFieldValue(s, (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
+                                        res1[s] = (originFld is { IsEmpty: false } ? originFld.GetValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
-                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m));
+                                            (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -1150,8 +1150,8 @@ public static class AppDataTransactionExtension
                                         break;
                                     case DataCombineType.Sum:
                                     case DataCombineType.Count:
-                                        res?.TrySetFieldValue(s, (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
-                                                   (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m));
+                                        res![s] = (nowFld is { IsEmpty: false } ? nowFld.GetValue<decimal>() : 0m) -
+                                                   (oldFld is { IsEmpty: false } ? oldFld.GetValue<decimal>() : 0m);
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();

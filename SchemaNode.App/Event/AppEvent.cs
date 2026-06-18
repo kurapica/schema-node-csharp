@@ -11,8 +11,18 @@ namespace SchemaNode.Event;
 /// <summary>
 /// The application scope event
 /// </summary>
-public abstract class AppEvent(string app): BaseEvent
+public abstract class AppEvent(string app, string? target = null): BaseEvent
 {
+    /// <summary>
+    /// The application
+    /// </summary>
+    public string App => app;
+    
+    /// <summary>
+    /// The application target
+    /// </summary>
+    public string? Target => target;
+    
     /// <summary>
     /// The topic
     /// </summary>
@@ -24,17 +34,17 @@ public abstract class AppEvent(string app): BaseEvent
 /// </summary>
 /// <param name="app"></param>
 /// <param name="target"></param>
-public abstract class AppFieldEvent(string app, string field, string? target = null): AppEvent(app)
+public abstract class AppFieldEvent(string app, string field, string? target = null): AppEvent(app, target)
 {
     /// <summary>
     /// The topic
     /// </summary>
-    public override string Topic => target != null ? $"{base.Topic}/{@field}/{target}"  : $"{base.Topic}/{@field}";
+    public override string Topic => Target != null ? $"{base.Topic}/{@field}/{Target}"  : $"{base.Topic}/{@field}";
 
     /// <summary>
     /// The match topic
     /// </summary>
-    public override string MatchTopic => target != null ? $"{base.Topic}/{@field}/{target}" : $"{base.Topic}/{@field}/*";
+    public override string MatchTopic => Target != null ? $"{base.Topic}/{@field}/{Target}" : $"{base.Topic}/{@field}/*";
 }
 
 /// <summary>

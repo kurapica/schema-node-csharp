@@ -1,11 +1,12 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Workflow;
 
-[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.delay")]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.delay")]
 public class DelayWorkflow: BaseWorkflow
 {
     public Task ProcessAsync(WorkflowContext context, long duration)

@@ -35,7 +35,7 @@ public class Call: BaseWorkflow,
             return;
         }
         _function = await context.GetNodeTypeAsync<FunctionType>(call.Func);
-        if (_function == null || call.Args.Length != _function.Args.Length)
+        if (_function == null)
         {
             schema.Error ??= AppErrorCodes.WORKFLOW_CALL_FUNC_NOT_VALID;
             return;

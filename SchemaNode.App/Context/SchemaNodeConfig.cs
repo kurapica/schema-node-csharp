@@ -1,4 +1,5 @@
 using SchemaNode.Components;
+using SchemaNode.Function;
 
 namespace SchemaNode.Context;
 
@@ -33,6 +34,6 @@ public class SchemaNodeConfig
         Current = options;
 
         if (!string.IsNullOrWhiteSpace(options.TimeZone))
-            AccessContextItemProviderExtensions.SetDefaultTimeZone(options.TimeZone);
+            SystemCalendar.SetDefaultTimeZone(options.TimeZone);
     }
 }

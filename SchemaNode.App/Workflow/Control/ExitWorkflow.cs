@@ -1,11 +1,12 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Workflow;
 
-[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.exit")]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.exit")]
 public class ExitWorkflow: BaseWorkflow
 {
     public async Task ProcessAsync(WorkflowContext context, bool cond)

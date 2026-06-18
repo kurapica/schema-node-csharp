@@ -89,19 +89,24 @@ public static class EventExtensions
         #region Subscribe event by handler
 
         /// <summary>
-        /// Subscribe an event
+        /// Subscribe the event
         /// </summary>
-        public IDisposable? SubscribeEvent<TE>(Action<TE> onEvent) where TE : BaseEvent
+        public IDisposable? SubscribeEvent<TE>(Type eventType, Action<TE> onEvent) where TE : BaseEvent
         {
-            return GetEventDispatcher(context, typeof(TE))?.SubscribeEvent(onEvent);
+            return GetEventDispatcher(context, typeof(TE))?.SubscribeEvent(eventType, onEvent);
         }
+        
+        /// <summary>
+        /// Subscribe the event
+        /// </summary>
+        public IDisposable? SubscribeEvent<TE>(Action<TE> onEvent) where TE : BaseEvent => context.SubscribeEvent(typeof(TE), onEvent);
 
         /// <summary>
         /// Subscribe an event by topic
         /// </summary>
-        public IDisposable? SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent
+        public IDisposable? SubscribeTopicEvent<TE>(Type eventType, string topic, Action<TE> onEvent) where TE : BaseEvent
         {
-            return GetEventDispatcher(context, typeof(TE))?.SubscribeTopicEvent(topic, (Action<TE>)Handler);
+            return GetEventDispatcher(context, typeof(TE))?.SubscribeTopicEvent(eventType, topic, (Action<TE>)Handler);
 
             void Handler(TE @event)
             {
@@ -116,15 +121,20 @@ public static class EventExtensions
                 }
             }
         }
+        
+        /// <summary>
+        /// Subscribe an event by topic
+        /// </summary>
+        public IDisposable? SubscribeTopicEvent<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent => context.SubscribeTopicEvent(typeof(TE), topic, onEvent);
 
         /// <summary>
         /// Subscribe an event once
         /// </summary>
-        public IDisposable? SubscribeEventOnce<TE>(Action<TE> onEvent) where TE : BaseEvent
+        public IDisposable? SubscribeEventOnce<TE>(Type eventType, Action<TE> onEvent) where TE : BaseEvent
         {
             IDisposable? subscription = null;
 
-            subscription = SubscribeEvent<TE>(context, Handler);
+            subscription = context.SubscribeEvent<TE>(eventType, Handler);
             return subscription;
 
             void Handler(TE @event)
@@ -142,14 +152,19 @@ public static class EventExtensions
                 }
             }
         }
+        
+        /// <summary>
+        /// Subscribe an event once
+        /// </summary>
+        public IDisposable? SubscribeEventOnce<TE>(Action<TE> onEvent) where TE : BaseEvent => context.SubscribeEventOnce(typeof(TE), onEvent);
 
         /// <summary>
         /// Subscribe an event once
         /// </summary>
-        public IDisposable? SubscribeTopicEventOnce<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent
+        public IDisposable? SubscribeTopicEventOnce<TE>(Type eventType, string topic, Action<TE> onEvent) where TE : BaseEvent
         {
             IDisposable? subscription = null;
-            subscription = context.SubscribeTopicEvent(topic, (Action<TE>)Handler);
+            subscription = context.SubscribeTopicEvent(eventType, topic, (Action<TE>)Handler);
             return subscription;
 
             void Handler(TE @event)
@@ -168,6 +183,10 @@ public static class EventExtensions
                 }
             }
         }
+        /// <summary>
+        /// Subscribe an event once
+        /// </summary>
+        public IDisposable? SubscribeTopicEventOnce<TE>(string topic, Action<TE> onEvent) where TE : BaseEvent => context.SubscribeTopicEventOnce(typeof(TE), topic, onEvent);
         
         #endregion
     }

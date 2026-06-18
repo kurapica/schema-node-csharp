@@ -4,6 +4,8 @@ using System.Globalization;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
+using TimeZoneConverter;
+
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -14,6 +16,25 @@ namespace SchemaNode.Function;
 [Meta<SchemaType>(NS_SYSTEM_CALENDAR)]
 public static class SystemCalendar
 {
+    #region DefaultTimeZone
+
+    internal static TimeZoneInfo DefaultTimeZone = TimeZoneInfo.Local;
+    
+    /// <summary>
+    /// Sets the default time zone
+    /// </summary>
+    [SchemaIgnore]
+    public static void SetDefaultTimeZone(TimeZoneInfo timeZone) => DefaultTimeZone = timeZone;
+
+    /// <summary>
+    /// Sets the default time zone
+    /// </summary>
+    [SchemaIgnore]
+    public static void SetDefaultTimeZone(string? timeZone) 
+        => DefaultTimeZone = !string.IsNullOrEmpty(timeZone) && TZConvert.TryGetTimeZoneInfo(timeZone, out var tz) ? tz : TimeZoneInfo.Local;
+    
+    #endregion
+    
     #region Now
     [Meta<NoCache>(true)]
     public static DateTimeOffset now() => DateTimeOffset.UtcNow;
@@ -31,6 +52,7 @@ public static class SystemCalendar
     #endregion
 
     #region Locale Info
+    
     public static long getsecond(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Second;
     public static long getminute(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Minute;
     public static long getday(SchemaContext context, DateTimeOffset dt) => ToLocal(dt, context.GetTimeZone()).Day;
@@ -346,5 +368,5 @@ public static class SystemCalendarExtension
     /// <summary>
     /// Gets the timezone
     /// </summary>
-    public static TimeZoneInfo GetTimeZone(this SchemaContext context) => context.GetService<TimeZoneInfo>() ?? TimeZoneInfo.Local;
+    public static TimeZoneInfo GetTimeZone(this SchemaContext context) => context.GetContextItem<TimeZoneInfo>() ?? SystemCalendar.DefaultTimeZone;
 }

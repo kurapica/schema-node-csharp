@@ -1,5 +1,7 @@
 using SchemaNode.Context;
+using SchemaNode.Event;
 using SchemaNode.Property.Event;
+using SchemaNode.Relation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -11,6 +13,12 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class EventType: NodeType
 {
+    #region Fields
+
+    private EventSchema? _eventSchema;
+
+    #endregion
+    
     #region Properties
     
     /// <summary>
@@ -22,6 +30,11 @@ public sealed class EventType: NodeType
     /// The payload evaluator
     /// </summary>
     public FunctionType? PayloadEvaluator { get; private set; }
+    
+    /// <summary>
+    /// The event argument
+    /// </summary>
+    internal FuncArg[]? Args => _eventSchema?.Args;
 
     /// <inheritdoc />
     public override bool IsUsed => true;
@@ -33,13 +46,13 @@ public sealed class EventType: NodeType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        EventSchema? eventSchema = GetProperty<EventProperty>()?.Value;
-        if (eventSchema == null)
+        _eventSchema = GetProperty<EventProperty>()?.Value;
+        if (_eventSchema == null)
             Error = ErrorCodes.NO_DEFINITION;
 
-        if (!string.IsNullOrWhiteSpace(eventSchema?.Payload))
+        if (!string.IsNullOrWhiteSpace(_eventSchema?.Payload))
         {
-            Payload = await context.GetNodeTypeAsync<ValueType>(eventSchema.Payload, Generics, GenericParams);
+            Payload = await context.GetNodeTypeAsync<ValueType>(_eventSchema.Payload, Generics, GenericParams);
             if (Payload == null)
                 Error ??= AppErrorCodes.EVENT_PAYLOAD_NOT_VALID;
         }
@@ -71,6 +84,26 @@ public sealed class EventType: NodeType
 
         foreach (var t in base.GetReferenceTypes())
             yield return t;
+    }
+    
+    /// <summary>
+    /// Gets the event instance with arguments
+    /// </summary>
+    public async Task<BaseEvent?> GetEventInstance(SchemaContext context, object?[]? args = null)
+    {
+        var type = GetCsharpType();
+        if (type == null) return null;
+        if (Args == null || Args.Length == 0) return Activator.CreateInstance(type) as BaseEvent;
+        
+        object?[] genArgs = new object?[Args.Length];
+        for (int i = 0; i < Args.Length; i++)
+        {
+            var arg = Args[i];
+            var argType = (await context.GetNodeTypeAsync<ValueType>(arg.Type))?.GetCsharpType();
+            if (argType == null) return null; // keep simple
+            genArgs[i] = argType.TryConvert(args?.ElementAtOrDefault(i), out var result)  ? result : null;
+        }
+        return Activator.CreateInstance(type, genArgs) as BaseEvent;
     }
 
     /// <summary>

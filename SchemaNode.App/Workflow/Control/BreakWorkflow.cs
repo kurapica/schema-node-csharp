@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Workflow;
@@ -8,7 +9,7 @@ namespace SchemaNode.Workflow;
 /// <summary>
 /// Break Branch BaseWorkflow
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW_CONTROL}.break")]
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.break")]
 public class BreakWorkflow: BaseWorkflow
 {
     public Task ProcessAsync(WorkflowContext context, bool cond)
