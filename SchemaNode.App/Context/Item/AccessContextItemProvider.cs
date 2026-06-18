@@ -1,7 +1,5 @@
 using SchemaNode.Enum;
-using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
-using SchemaNode.Components;
 using SchemaNode.Property.App;
 using SchemaNode.Struct;
 using TimeZoneConverter;

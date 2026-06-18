@@ -70,4 +70,7 @@ internal static class AppErrorCodes
     
     [Meta<ErrorCode>(WORKFLOW_CALL_FUNC_NOT_VALID)]
     public const string WORKFLOW_CALL_FUNC_NOT_VALID = "workflow_call_func_not_valid";
+    
+    [Meta<ErrorCode>(WORKFLOW_NODE_VALUE_TYPE_NOT_VALID)]
+    public const string WORKFLOW_NODE_VALUE_TYPE_NOT_VALID = "workflow_node_type_value_type_not_valid";
 }

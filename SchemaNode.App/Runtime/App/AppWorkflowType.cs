@@ -2,14 +2,11 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Workflow;
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using static SchemaNode.Function.SystemStr;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Runtime;
 
@@ -18,8 +15,31 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class AppWorkflowType: IDisposable
 {
+    #region Constructors
+
+    internal AppWorkflowType(AppType app, AppWorkflowSchema schema)
+    {
+        Application = app;
+        _appWorkflowSchema = schema;
+    }
+
+    #endregion
+    
+    #region Fields
+
+    private readonly AppWorkflowSchema _appWorkflowSchema;
+    private IProperty[]? _props;
+    private NodeType[]? _refTypes;
+    
+    #endregion
+    
     #region Properties
 
+    /// <summary>
+    /// The application node
+    /// </summary>
+    public AppType Application { get; }
+    
     /// <summary>
     /// The application name
     /// </summary>
@@ -28,28 +48,13 @@ public sealed class AppWorkflowType: IDisposable
     /// <summary>
     /// The seqNo
     /// </summary>
-    public int Seqno { get; internal set; }
+    public int Seqno => _appWorkflowSchema.Seqno;
 
     /// <summary>
     /// The workflow name
     /// </summary>
-    public required string Name { get; init; }
+    public string Name => _appWorkflowSchema.Name;
     
-    /// <summary>
-    /// The workflow display name
-    /// </summary>
-    public LocaleString? Display { get; private set; }
-    
-    /// <summary>
-    /// The workflow description
-    /// </summary>
-    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
-
-    /// <summary>
-    /// The authentication policy, normally row policy
-    /// </summary>
-    public PolicyItem[]? Auths { get; private init; }
-
     /// <summary>
     /// Active the workflow
     /// </summary>
@@ -59,17 +64,6 @@ public sealed class AppWorkflowType: IDisposable
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; internal set; } = [];
-
-    /// <summary>
-    /// The properties
-    /// </summary>
-    public IProperty[]? Properties { get; internal set; }
-
-    /// <summary>
-    /// The extensions
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Extensions { get; internal set; }
     
     #endregion
     
@@ -77,7 +71,10 @@ public sealed class AppWorkflowType: IDisposable
 
     private int _activated;
 
-    public SchemaNodeStatus Status { get;internal set; } = SchemaNodeStatus.Ready;
+    /// <summary>
+    /// The application field error
+    /// </summary>
+    public string? Error { get; private set; }
 
     /// <summary>
     /// Whether the workflow is activated
@@ -91,15 +88,6 @@ public sealed class AppWorkflowType: IDisposable
     
     #endregion
 
-    #region Relationship
-
-    /// <summary>
-    /// The application
-    /// </summary>
-    public AppType Application { get; internal set; } = null!;
-
-    #endregion
-
     #region Methods
 
     /// <summary>
@@ -107,14 +95,16 @@ public sealed class AppWorkflowType: IDisposable
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
+        _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
+        (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props);
+
         // Resolve payload types for all nodes
         foreach (var node in Nodes)
         {
-            if (!string.IsNullOrWhiteSpace(node.Payload))
-            {
-                node.PayloadSchemaType = await context.GetNodeTypeAsync(node.Payload);
-                node.PayloadSchemaType?.AddRef(this);
-            }
+            if (string.IsNullOrWhiteSpace(node.Payload)) continue;
+            node.PayloadValueType = await context.GetNodeTypeAsync<ValueType>(node.Payload);
+            if (node.PayloadValueType == null)
+                Error ??= AppErrorCodes.WORKFLOW_NODE_VALUE_TYPE_NOT_VALID;
         }
 
         // Init the entry workflow context
@@ -123,14 +113,18 @@ public sealed class AppWorkflowType: IDisposable
     }
 
     /// <summary>
-    /// Release usages
+    /// Gets the reference types
     /// </summary>
-    public void Release()
+    public IEnumerable<NodeType> GetReferenceTypes()
     {
         foreach (var node in Nodes)
         {
-            node.PayloadSchemaType?.RemoveRef(this);
+            if (node.PayloadValueType != null)
+                yield return node.PayloadValueType;
         }
+        if (_refTypes != null)
+            foreach (var node in _refTypes)
+                yield return node;
     }
 
     /// <summary>
@@ -149,20 +143,6 @@ public sealed class AppWorkflowType: IDisposable
     public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// Gets the authentication policies with the scope
-    /// </summary>
-    public IEnumerable<PolicyItem> GetAuthPolicies(PolicyScope scope)
-    {
-        // Application policy first
-        foreach (var i in Application.GetAuthPolicies(scope)) yield return i;
-        
-        // self policies
-        if (Auths == null) yield break;
-        foreach (var i in Auths.Where(p => p.Scope == scope))
-            yield return i;
-    }
-
-    /// <summary>
     /// Active the workflow
     /// </summary>
     public async Task ActiveAsync(SchemaContext context)
@@ -177,7 +157,7 @@ public sealed class AppWorkflowType: IDisposable
         foreach (var node in Nodes)
         {
             var workflowType = await context.GetNodeTypeAsync(node.Type) as WorkflowType;
-            Type csharpType = workflowType?.ToCSharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
+            Type csharpType = workflowType?.GetCsharpType() ?? throw new InvalidOperationException($"BaseWorkflow type {node.Type} not found");
 
             // All constructors parameters goto state, init directly
             BaseWorkflow wNode = (BaseWorkflow)Activator.CreateInstance(csharpType)!;
@@ -190,60 +170,37 @@ public sealed class AppWorkflowType: IDisposable
             wNode.PayloadSave = node.PayloadSave ?? false;
 
             // payload type
-            if (node.PayloadSchemaType != null)
-                wNode.PayloadType = node.PayloadSchemaType;
+            if (node.PayloadValueType != null)
+                wNode.PayloadType = node.PayloadValueType;
 
             // state
-            if (!string.IsNullOrEmpty(workflowType.State) && node.State != null && !node.State.IsEmpty())
+            if (workflowType.State != null && node.State != null && !node.State.IsEmpty())
             {
-                var stateSchemaType = await context.GetNodeTypeAsync(workflowType.State);
-                var stateType = stateSchemaType?.ToCSharpType();
+                var stateType = workflowType.State?.GetCsharpType();
                 if (stateType != null)
                     csharpType.GetProperty(nameof(WorkflowType.State), BindingFlags.Public | BindingFlags.Instance)
-                        ?.SetValue(wNode, stateType.TryConvert(node.State));
+                        ?.SetValue(wNode, stateType.TryConvert(node.State, out var result) ? result : null);
             }
 
             // details
-            switch (wNode)
-            {
-                case FuncCallWorkflow funcWorkflow:
-                    funcWorkflow.Function = (!string.IsNullOrWhiteSpace(node.Func)
-                                                ? await context.GetNodeTypeAsync(node.Func) as FunctionType
-                                                : null)
-                        ?? throw new InvalidOperationException($"Function name is required for function workflow node {node.Name}");
-                    funcWorkflow.FuncArgs = node.FuncArgs?.Select(n => new FuncCallArg
-                    {
-                        Name = n.Name,
-                        Value = n.Value,
-                    }).ToArray() ?? [];
-                    break;
-
-                case EventWorkflow evWorkflow:
-                    evWorkflow.Event = (!string.IsNullOrWhiteSpace(node.Event)
-                                           ? await context.GetNodeTypeAsync(node.Event) as EventType
-                                           : null)
-                        ?? throw new InvalidOperationException($"BaseEvent name is required for event workflow node {node.Name}");
-                    break;
-                
-                case InteractionWorkflow:
-                    break;
-            }
+            await wNode.LoadAsync(context, node);
+            Error ??= node.Error;
 
             // args
             if (workflowType.Args is { Length: > 0 })
             {
-                wNode.Args = new FuncCallArg[workflowType.Args.Length];
+                wNode.Args = new CallArg[workflowType.Args.Length];
                 if (node.Args == null || node.Args.Length != workflowType.Args.Length)
                     throw new InvalidOperationException($"BaseWorkflow node {node.Name} arguments count mismatch, expected {workflowType.Args.Length} but got {node.Args?.Length ?? 0}");
                 for (int i = 0; i < workflowType.Args.Length; i++)
                 {
                     var argDef = workflowType.Args[i];
                     var argNode = node.Args[i];
-                    wNode.Args[i] = new FuncCallArg
+                    wNode.Args[i] = new CallArg
                     {
-                        Name = argNode.Name,
+                        Source = argNode.Source,
                         Value = argNode.Value,
-                        SchemeType = await context.GetNodeTypeAsync(argDef.Type),
+                        ValueType = await context.GetNodeTypeAsync<ValueType>(argDef.Type),
                     };
                 }
             }
@@ -253,7 +210,7 @@ public sealed class AppWorkflowType: IDisposable
             // Relations
             if (node.Previous is { Length: > 0 })
             {
-                wNode.Previous = new Workflow[node.Previous.Length];
+                wNode.Previous = new BaseWorkflow[node.Previous.Length];
                 for (int j = 0; j < node.Previous.Length; j++)
                 {
                     var prevNode = workflows[node.Previous[j]] 
@@ -274,12 +231,12 @@ public sealed class AppWorkflowType: IDisposable
             throw new InvalidOperationException($"BaseWorkflow schema {Name} should have exactly one entry node, but found {topNodes.Count}");
 
         _workflowContext?.Dispose();
-        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.ServiceProvider);
+        _workflowContext = ActivatorUtilities.CreateInstance<WorkflowContext>(context.Services);
         _workflowContext.CopySchemaContextItem(context); // copy context items
         
         // restore
-        Workflow first = topNodes.First();
-        IWorkflowContextPersistence? persistence = context.ServiceProvider.GetService<IWorkflowContextPersistence>();
+        BaseWorkflow first = topNodes.First();
+        IWorkflowContextPersistence? persistence = context.GetService<IWorkflowContextPersistence>();
         if (persistence != null)
         {
             var result = await persistence.ListAsync(App, Name, null, WorkflowStatus.Running);
@@ -315,38 +272,5 @@ public sealed class AppWorkflowType: IDisposable
 
     private WorkflowContext? _workflowContext;
 
-    #endregion
-
-    #region Conversions
-
-    public static implicit operator AppWorkflowType(AppWorkflowSchema schema)
-    {
-        return new AppWorkflowType
-        {
-            Name = schema.Name,
-            Seqno = schema.Seqno,
-            Display = schema.Display,
-            Auths = schema.Auths,
-            Active = schema.Active,
-            Nodes = schema.Nodes.ToArray(),
-            Extensions = schema.Extensions,
-        };
-    }
-
-    public static implicit operator AppWorkflowSchema(AppWorkflowType type)
-    {
-        return new AppWorkflowSchema
-        {
-            App = type.App,
-            Name = type.Name,
-            Display = type.Display,
-            Auths = type.Auths,
-            Seqno = type.Seqno,
-            Active = type.Activated,
-            Nodes = type.Nodes.ToArray(),
-            Extensions = type.Extensions
-        };
-    }
-    
     #endregion
 }

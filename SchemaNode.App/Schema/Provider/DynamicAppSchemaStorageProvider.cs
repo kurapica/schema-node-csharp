@@ -543,7 +543,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             var appNode = await context.GetAppTypeAsync(app);
             if (appNode == null) return false;
             
-            var exist = appNode.GetWorkflow(workflow.Name);
+            AppWorkflowType? exist = appNode.GetWorkflow(workflow.Name);
             workflow.App = appNode.Name;
             if (exist == null)
             {

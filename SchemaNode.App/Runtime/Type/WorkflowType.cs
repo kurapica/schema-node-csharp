@@ -28,6 +28,11 @@ public sealed class WorkflowType: NodeType
     /// The session type
     /// </summary>
     public ValueType? Session { get; private set; }
+    
+    /// <summary>
+    /// The workflow arguments fetch from workflow context
+    /// </summary>
+    public FuncArg[]? Args => _workflowSchema?.Args;
 
     /// <summary>
     /// The workflow kind

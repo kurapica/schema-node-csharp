@@ -5,6 +5,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
 using SchemaNode.Node;
+using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -321,13 +322,9 @@ public sealed class AppType : IValueTypeAccess
         root ??= new NodeSchema
         {
             Name = "",
-            Type = Enum.SchemaType.Namespace,
+            Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
-
-        // App-level auth policy type
-        if (Auth != null)
-            await Auth.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
 
         // App-level data auth functions
         if (Auths != null)
@@ -539,6 +536,5 @@ public sealed class AppType : IValueTypeAccess
     const string TargetAccess = $"{nameof(Access)}.{nameof(Access.Target)}";
 
     #endregion
-
 } 
 

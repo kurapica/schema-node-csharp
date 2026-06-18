@@ -39,7 +39,7 @@ public sealed class AppFieldType
     private IProperty[]? _props;
     private NodeType[]? _refTypes;
     private ConcurrentDictionary<Type, object>? _items;
-    private List<PropertyInfo> _primarys;
+    private List<PropertyInfo>? _primarys;
     
     #endregion
     
@@ -390,6 +390,19 @@ public sealed class AppFieldType
                 }
             }
         }
+    }
+    
+    /// <summary>
+    /// Gets the reference types
+    /// </summary>
+    public IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (ValueType != null)
+            yield return ValueType;
+        
+        if (_refTypes != null)
+            foreach (var node in _refTypes)
+                yield return node;
     }
     
     /// <summary>

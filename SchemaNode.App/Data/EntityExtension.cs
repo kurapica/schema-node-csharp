@@ -162,13 +162,12 @@ public static class EntityExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteEntityAsync<T>(this SchemaContext context, T value)
-        => context.DeleteEntityAsync(string.Empty, new List<T> { value });
+    public static Task<bool> DeleteEntityAsync<T>(this SchemaContext context, T value) => context.DeleteEntityAsync(string.Empty, value);
 
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
+    public static async Task<bool> DeleteEntityAsync<T>(this SchemaContext context, string? target, params object[] keys)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
@@ -200,12 +199,6 @@ public static class EntityExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteEntityAsync<T>(this SchemaContext context, params object[] keys)
-        => DeleteEntityAsync(context, string.Empty, keys);
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
     public static async Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
@@ -229,8 +222,7 @@ public static class EntityExtension
     /// <summary>
     /// Delete entity data
     /// </summary>
-    public static Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, List<T> value)
-        => context.DeleteEntitiesAsync(string.Empty, value);
+    public static Task<bool> DeleteEntitiesAsync<T>(this SchemaContext context, List<T> value) => context.DeleteEntitiesAsync(string.Empty, value);
 
     /// <summary>
     /// Delete entity data
@@ -327,8 +319,7 @@ public static class EntityExtension
     /// <summary>
     /// Save entity data
     /// </summary>
-    public static Task<bool> SaveEntityAsync<T>(this SchemaContext context, T value)
-        => context.SaveEntityAsync(string.Empty, value);
+    public static Task<bool> SaveEntityAsync<T>(this SchemaContext context, T value) => context.SaveEntityAsync(string.Empty, value);
 
     /// <summary>
     /// Save entity list data
@@ -348,8 +339,7 @@ public static class EntityExtension
     /// <summary>
     /// Save entity list data
     /// </summary>
-    public static Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, List<T> values)
-        => context.SaveEntitiesAsync(string.Empty, values);
+    public static Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, List<T> values) => context.SaveEntitiesAsync(string.Empty, values);
 
     /// <summary>
     /// Save entity data
@@ -367,8 +357,7 @@ public static class EntityExtension
     /// <summary>
     /// Save entity data
     /// </summary>
-    public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, T value)
-        => context.SaveFieldEntityAsync(field, string.Empty, value);
+    public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, T value) => context.SaveFieldEntityAsync(field, string.Empty, value);
 
     /// <summary>
     /// Save entity list data
@@ -386,8 +375,7 @@ public static class EntityExtension
     /// <summary>
     /// Save entity list data
     /// </summary>
-    public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, List<T> values)
-        => context.SaveFieldEntitiesAsync(field, string.Empty, values);
+    public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, List<T> values) => context.SaveFieldEntitiesAsync(field, string.Empty, values);
 
     #endregion
 }

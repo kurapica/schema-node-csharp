@@ -128,5 +128,5 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     /// </summary>
     [JsonIgnore]
     [SchemaIgnore]
-    public ValueType? PayloadSchemaType { get; set; }
+    public Runtime.ValueType? PayloadValueType { get; set; }
 }

@@ -1,7 +1,7 @@
 // ReSharper disable InconsistentNaming
 namespace SchemaNode;
 
-public static class Locales
+internal static class Locales
 {
     public const string AF_ZA = "afZA"; // Afrikaans
     public const string AR_SA = "arSA"; // العربية
