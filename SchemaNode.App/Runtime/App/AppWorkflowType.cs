@@ -65,6 +65,11 @@ public sealed class AppWorkflowType: IDisposable
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; internal set; } = [];
     
+    /// <summary>
+    /// The app workflow schema
+    /// </summary>
+    internal AppWorkflowSchema Schema => _appWorkflowSchema;
+    
     #endregion
     
     #region States
