@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
-using SchemaNode.Enum;
+using SchemaNode.Context;
 using SchemaNode.Http;
+using SchemaNode.Property.App;
+using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -22,7 +23,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
 
         // get function node
         NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name);
-        if (node is not FunctionType func || func.WorkflowOnly == true)  return new  CallFunctionResponse { Result = null };
+        if (node is not FunctionType func || func.HasFlag<WorkflowOnly>() == true) return new CallFunctionResponse { Result = null };
 
         // set target
         if (!string.IsNullOrWhiteSpace(request.Target))

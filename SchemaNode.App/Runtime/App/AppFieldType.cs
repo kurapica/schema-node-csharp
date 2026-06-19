@@ -404,6 +404,37 @@ public sealed class AppFieldType
             foreach (var node in _refTypes)
                 yield return node;
     }
+
+    /// <summary>
+    /// Get the application field schema
+    /// </summary>
+    public AppFieldSchema GetSchema()
+    {
+        AppFieldSchema schema = new AppFieldSchema
+        {
+            App = _appFieldSchema.App,
+            Name = _appFieldSchema.Name,
+            Seqno = _appFieldSchema.Seqno,
+            Type = _appFieldSchema.Type,
+            Source = _appFieldSchema.Source,
+            Push =  _appFieldSchema.Push,
+            Combine = _appFieldSchema.Combine,
+            Combines = _appFieldSchema.Combines?.ToArray(),
+            Foreigns = _appFieldSchema.Foreigns?.Select(f => new Foreign
+            {
+                App = f.App,
+                Field = f.Field,
+            }).ToArray(),
+            View = _appFieldSchema.View != null ? new FieldView
+            {
+                App = _appFieldSchema.View.App,
+                Field = _appFieldSchema.View.Field,
+                Map = _appFieldSchema.View.Map,
+            } : null,
+        };
+        schema.CombineExtensions(_appFieldSchema);
+        return schema;
+    }
     
     /// <summary>
     /// Gets the property with given type

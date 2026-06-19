@@ -1,9 +1,8 @@
 using System.Text.Json.Nodes;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Utility;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -21,8 +20,8 @@ public class ProtocolApi : SchemaApi<ProtocolRequest, ProtocolResponse>
 
         await Task.Yield();
 
-        ISchemaApiProtocol apiProtocol = SchemaContext.ServiceProvider.GetRequiredService<ISchemaApiProtocol>();
-        var protocolMeta = apiProtocol.GetProtocolMeta(SchemaContext.ServiceProvider);
+        ISchemaApiProtocol apiProtocol = SchemaContext.GetRequiredService<ISchemaApiProtocol>();
+        var protocolMeta = apiProtocol.GetProtocolMeta(SchemaContext.Services);
         
         return new ProtocolResponse
         {

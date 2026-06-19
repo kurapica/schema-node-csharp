@@ -133,6 +133,46 @@ public sealed class AppWorkflowType: IDisposable
     }
 
     /// <summary>
+    /// Get the application workflow schema
+    /// </summary>
+    /// <returns></returns>
+    public AppWorkflowSchema GetSchema()
+    {
+        AppWorkflowSchema schema = new AppWorkflowSchema
+        {
+            App = _appWorkflowSchema.App,
+            Name = _appWorkflowSchema.Name,
+            Seqno = _appWorkflowSchema.Seqno,
+            Active = _appWorkflowSchema.Active,
+            Nodes = _appWorkflowSchema.Nodes.Select(n =>
+            {
+                AppWorkflowNodeSchema s = new AppWorkflowNodeSchema
+                {
+                    Name = n.Name,
+                    Type = n.Type,
+                    Payload = n.Payload,
+                    Args = n.Args?.Select(n => new CallArg
+                    {
+                        Source = n.Source,
+                        Value = n.Value,
+                    }).ToArray(),
+                    Previous = n.Previous,
+                    State = n.State,
+                    Fork = n.Fork,
+                    ForkKey = n.ForkKey,
+                    UnCancelable = n.UnCancelable,
+                    CancelPre = n.CancelPre,
+                    PayloadSave = n.PayloadSave,
+                };
+                s.CombineExtensions(n);
+                return s;
+            }).ToArray()
+        };
+        schema.CombineExtensions(_appWorkflowSchema);
+        return schema;
+    }
+
+    /// <summary>
     /// Gets the property with given type
     /// </summary>
     public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();

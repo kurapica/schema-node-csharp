@@ -29,7 +29,7 @@ public interface ISchemaFormatProvider
     public static ISchemaFormatProvider? GetSchemaFormatProvider(string format)
     {
         format = format.ToLower();
-        if (formatProviders.TryGetValue(format, out Type? providerType))
+        if (FormatProviders.TryGetValue(format, out Type? providerType))
         {
             return Activator.CreateInstance(providerType) as ISchemaFormatProvider;
         }
@@ -39,7 +39,7 @@ public interface ISchemaFormatProvider
     /// <summary>
     /// Gets the supported formats
     /// </summary>
-    public static IEnumerable<string> GetSupportedFormats() => formatProviders.Keys;
+    public static IEnumerable<string> GetSupportedFormats() => FormatProviders.Keys;
 
     /// <summary>
     /// Add schema format provider
@@ -50,11 +50,11 @@ public interface ISchemaFormatProvider
         foreach (var attr in type.GetCustomAttributes<SchemaFormatAttribute>())
         {
             if (string.IsNullOrWhiteSpace(attr.Format)) continue;
-            formatProviders.TryAdd(attr.Format.ToLower(), type);
+            FormatProviders.TryAdd(attr.Format.ToLower(), type);
         }
     }
 
-    static ConcurrentDictionary<string, Type> formatProviders = [];
+    static readonly ConcurrentDictionary<string, Type> FormatProviders = [];
 
     #endregion
 }

@@ -8,6 +8,9 @@ namespace SchemaNode.Utility;
 /// </summary>
 public static class ErrorCodes
 {
+    [Meta<ErrorCode>(TYPE_NOT_FOUND)]
+    public const string TYPE_NOT_FOUND = "type_not_found";
+    
     [Meta<ErrorCode>(NO_DEFINITION)]
     public const string NO_DEFINITION = "no_definition";
     

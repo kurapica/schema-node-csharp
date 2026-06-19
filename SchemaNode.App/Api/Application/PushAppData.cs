@@ -1,14 +1,18 @@
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+using SchemaNode.Data;
+using SchemaNode.Property.App;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using StructType = SchemaNode.Runtime.StructType;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
@@ -46,15 +50,15 @@ public static class PushDataExtenstion
     public static async Task<(bool Result, JsonNode? Error)> PushAppDataAsync(this SchemaContext context, string app, string? target,
         Dictionary<string, AppDataFieldPushQuery>? data)
     {
-        if (string.IsNullOrWhiteSpace(app)) return (false, APP_NOT_FOUND);
-        if (data == null || data.Count == 0) return (false, APP_PUSH_DATA_REQUIRED);
+        if (string.IsNullOrWhiteSpace(app)) return (false, AppErrorCodes.APP_NOT_FOUND);
+        if (data == null || data.Count == 0) return (false, AppErrorCodes.APP_PUSH_DATA_REQUIRED);
 
-        AppType? appNode = await context.GetAppTypeAsync(app);
-        if (appNode == null) return (false, APP_NOT_FOUND);
+        Runtime.AppType? appNode = await context.GetAppTypeAsync(app);
+        if (appNode == null) return (false, AppErrorCodes.APP_NOT_FOUND);
 
         // target is required for non-system-level apps
         if (appNode.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
-            return (false, APP_TARGET_REQUIRED);
+            return (false, AppErrorCodes.APP_TARGET_REQUIRED);
 
         // set access
         context.SetAccess(appNode.Name, target);
@@ -64,7 +68,7 @@ public static class PushDataExtenstion
         {
             foreach((string field, AppDataFieldPushQuery push) in data)
             {
-                AppFieldType? appField = appNode.Fields?.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase));
+                AppFieldType? appField = appNode.GetField(field);
                 if (appField == null) continue;
             
                 // authorize
@@ -77,15 +81,15 @@ public static class PushDataExtenstion
                     throw new UnauthorizedAccessException();
                 
                 // Check clear all
-                if (push.ClearAll == true && (!canDel || appField.AllowClear != true))
+                if (push.ClearAll == true && (!canDel || appField.GetProperty<AllowClear>() is not { Value: true }))
                     throw new UnauthorizedAccessException();
 
                 // row access check
                 FunctionType? rowChecker = null;
-                if (appField is {  ValueType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
+                if (appField is {  ValueType: ArrayType {  Element: StructType structType } } && appField.GetProperty<RowAuths>() is { Value: { Length: > 0}} rowAuths)
                 {
                     bool authorized = true;
-                    foreach (RowPolicy policy in appField.RowAuths)
+                    foreach (RowPolicy policy in rowAuths.Value)
                     {
                         try
                         {
@@ -96,8 +100,8 @@ public static class PushDataExtenstion
 
                             // check type
                             if (policy.FilterFunc.Args.Length != 1
-                                || policy.FilterFunc.Args[0].SchemaType == null
-                                || !policy.FilterFunc.Args[0].SchemaType!.CanBeUseAs(structType))
+                                || policy.FilterFunc.Args[0].ValueType == null
+                                || !policy.FilterFunc.Args[0].ValueType!.IsAssignableTo(structType))
                             {
                                 authorized = false;
                                 continue;
@@ -109,7 +113,7 @@ public static class PushDataExtenstion
                         }
                         catch (Exception e)
                         {
-                            context.Logger.LogError(e, $"PushAppDataAsync row access check error for func ${policy.Evaluator}");
+                            context.LogError(e, $"PushAppDataAsync row access check error for func ${policy.Evaluator}");
                             rowChecker = null;
                         }
                     }
@@ -153,25 +157,24 @@ public static class PushDataExtenstion
                 // validate and save data
                 if (push.Data != null)
                 {
-                    (_, DataNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
-                    if (error != null)
+                    DataNode? result = await appField.ValidateDataAsync(context, push.Data);
+                    if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();
-                        return (false, error);
+                        return (false, result?.ToJsonNode());
                     }
                     await context.SaveFieldDataAsync(appField, result, canAdd: canAdd);
                 }
 
                 if (push.Deletes is { Count: > 0 })
                 {
-                    (_, DataNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Deletes);
-                    if (error != null)
+                    DataNode? result = await appField.ValidateDataAsync(context, push.Deletes);
+                    if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();
-                        return (false, error);
+                        return (false, result?.ToJsonNode());
                     }
-                    if (result != null)
-                        await context.DeleteFieldListDataAsync(appField, result);
+                    await context.DeleteFieldListDataAsync(appField, result);
                 }
             }
 

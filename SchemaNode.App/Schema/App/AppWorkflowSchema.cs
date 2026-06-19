@@ -88,11 +88,6 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     public string[]? Previous { get; set; }
     
     /// <summary>
-    /// The event name if type is BaseEvent
-    /// </summary>
-    public string? Event { get; set; }
-    
-    /// <summary>
     /// The workflow state data
     /// </summary>
     public JsonNode? State { get; set; }

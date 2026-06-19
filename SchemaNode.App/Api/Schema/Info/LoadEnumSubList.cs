@@ -1,8 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
-using SchemaNode.Enum;
 using SchemaNode.Http;
+using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 
@@ -20,14 +19,14 @@ public class LoadEnumSubListApi : SchemaApi<LoadEnumSubListRequest, LoadEnumSubL
         Logger.LogDebug("[Api]LoadEnumSubList [Request]{request}", request);
 
         NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name);
-        if (node is not EnumType @enum) return new LoadEnumSubListResponse{ Values = [] };
+        if (node is not Runtime.EnumType @enum) return new LoadEnumSubListResponse{ Values = [] };
         
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
 
         return new LoadEnumSubListResponse
         {
-            Values = await @enum.LoadEnumSubListAsync(SchemaContext, request.Value, request.FullList ?? false)
+            Values = await @enum.LoadEnumSubListAsync(SchemaContext, request.Value)
         };
     }
 }
@@ -47,11 +46,6 @@ public class LoadEnumSubListRequest : SchemaApiRequest
     /// The enum value to be queried
     /// </summary>
     public string? Value { get; set; }
-    
-    /// <summary>
-    /// Whether load full list
-    /// </summary>
-    public bool? FullList { get; set; }
 }
 
 /// <summary>

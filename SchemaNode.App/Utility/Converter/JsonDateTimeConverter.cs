@@ -3,7 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SchemaNode.Enum;
 
-namespace SchemaNode.Converter;
+namespace SchemaNode.Utility;
 
 #region Serializer
 

@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
-using SchemaNode.Enum;
 using SchemaNode.Http;
+using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using static SchemaNode.Utility.Constant;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -22,7 +24,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
         NodeSchema root = new NodeSchema
         {
             Name = "",
-            Type = SchemaType.Namespace,
+            Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
         HashSet<string> types = new();
@@ -46,9 +48,17 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
 
             await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 
-            if (node is TypeNamespace ns && (first || request.Full == true))
-                foreach (KeyValuePair<string, NodeType> pair in ns.SchemaNodes)
-                    await GetNodeSchemas(pair.Value);
+            if (node is NamespaceType ns && (first || request.Full == true))
+                foreach (var pair in ns.GetNodeSchemas())
+                {
+                    var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);
+                    if (nodeType != null)
+                        await GetNodeSchemas(nodeType);
+                    else
+                    {
+                        // TODO: no runtime schema
+                    }
+                }
         }
     }
 }

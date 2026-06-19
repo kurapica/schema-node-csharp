@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
@@ -8,6 +7,15 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
+using SchemaNode.Data;
+using SchemaNode.Property;
+using SchemaNode.Property.App;
+using SchemaNode.Utility;
+using SchemaNode.Workflow;
+using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using StructType = SchemaNode.Runtime.StructType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -49,7 +57,7 @@ public static class BatchQueryExtension
         NodeSchema root = new NodeSchema
         {
             Name = "",
-            Type = SchemaType.Namespace,
+            Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
         RootEnumValueSchema.Value = new EnumValueSchema();
@@ -59,7 +67,7 @@ public static class BatchQueryExtension
             cancellationToken?.ThrowIfCancellationRequested();
             
             if (string.IsNullOrWhiteSpace(query.App)) continue;
-            AppType? node = await context.GetAppTypeAsync(query.App);
+            Runtime.AppType? node = await context.GetAppTypeAsync(query.App);
             if (node == null) continue;
             
             // check scope, if not system level scope, target is required
@@ -72,16 +80,16 @@ public static class BatchQueryExtension
             if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
 
             // query fields
-            IEnumerable<AppFieldType> fields = node.Fields?.Where(f => f.EnableDynamicTable) ?? [];
+            IEnumerable<AppFieldType> fields = node.GetFields().Where(f => f.EnableDynamicTable);
             fields = query.Fields is { Length: > 0 }
                 ? fields.Where(f => query.Fields.Any(qf => qf.Equals(f.Name, StringComparison.OrdinalIgnoreCase)))
                 : fields;
             
             // filter input/output fields
             if (query.OnlyInput == true)
-                fields = fields.Where(f => string.IsNullOrEmpty(f.Push));
+                fields = fields.Where(f => f.PushSource == null);
             else if (query.OnlyOutput == true)
-                fields = fields.Where(f => !string.IsNullOrEmpty(f.Push));
+                fields = fields.Where(f => f.PushSource != null);
 
             // result
             Dictionary<string, JsonNode> fieldResults = [];
@@ -120,10 +128,10 @@ public static class BatchQueryExtension
                     if (allowRead)
                     {
                         // row access check
-                        if (field is { ValueType: ArrayType { ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
+                        if (field is { ValueType: ArrayType { Element: StructType structType } } && field.GetProperty<RowAuths>() is { Value.Length: > 0 } rowAuths)
                         {
                             bool authorized = true;
-                            foreach (RowPolicy policy in field.RowAuths)
+                            foreach (RowPolicy policy in rowAuths.Value)
                             {
                                 try
                                 {
@@ -134,8 +142,8 @@ public static class BatchQueryExtension
 
                                     // check type
                                     if (policy.FilterFunc.Args.Length != 1
-                                        || policy.FilterFunc.Args[0].SchemaType == null
-                                        || !policy.FilterFunc.Args[0].SchemaType!.CanBeUseAs(structType))
+                                        || policy.FilterFunc.Args[0].ValueType == null
+                                        || !policy.FilterFunc.Args[0].ValueType!.IsAssignableTo(structType))
                                     {
                                         authorized = false;
                                         continue;
@@ -154,7 +162,7 @@ public static class BatchQueryExtension
                                 }
                                 catch (Exception e)
                                 {
-                                    context.Logger.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${policy.Evaluator}");
+                                    context.LogError(e, $"BatchQueryAppDataAsync row access check error for func ${policy.Evaluator}");
                                     authorized = false;
                                 }
                             }
@@ -166,7 +174,7 @@ public static class BatchQueryExtension
                             // Combine filters
                             if (q?.Filter != null)
                             {
-                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.ElementSchemaType as StructType)!, field.Filters);
+                                var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);
                                 filter = filter != null && qFilter != null ? filter.AndAlso(qFilter) : (filter ?? qFilter);
                             }
                             
@@ -206,19 +214,19 @@ public static class BatchQueryExtension
                     // cover result
                     if (result != null)
                     {
-                        fieldResults[field.Name] =  result.ToJson()!;
+                        fieldResults[field.Name] =  result.ToJson();
                         
                         // column access check
                         var @struct = result switch
                         {
                             ArrayNode arr => arr.ElementType as StructType,
-                            StructNode st => st.SchemaType as StructType,
+                            StructNode st => st.Type as StructType,
                             _ => null
                         };
                         if (@struct != null)
                         {
                             List<string>? ignoreFields = null;
-                            foreach (StructFieldSchema f in @struct.Fields)
+                            foreach (StructFieldType f in @struct.GetFields())
                             {
                                 // Authorize with order
                                 bool authorized = true;
@@ -272,38 +280,18 @@ public static class BatchQueryExtension
                 Target = query.Target,
                 Results = fieldResults,
                 Infos = fieldInfos,
-                Schema = !(query.NoSchema ?? false) ? new AppSchema
-                {
-                    Name = node.Name,
-                    Display = node.Display,
-                    ScopePolicy = node.ScopePolicy,
-                    HasFields = node.Fields is { Count: > 0 },
-                    Fields = node.Fields!.Select(p => (AppFieldSchema)p).ToArray(),
-                    Relations = node.Relations?.Select(r => new StructRelationSchema
-                    {
-                        Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                        Prop = r.Prop,
-                        Func = r.Func,
-                        Args = r.Args.Select(a => new FuncCallArg
-                        {
-                            Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
-                            Value = a.Value,
-                        }).ToArray()
-                    }).ToArray(),
-                    Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
-                    Extensions = node.Extensions,
-                } : null
+                Schema = !(query.NoSchema ?? false) ? node.GetSchema(): null
             };
             
             // workflow states
-            if (query.Workflow == true && node.Workflows is { Count: > 0 })
+            if (query.Workflow == true)
             {
                 List<AppWorkflowState> workflows = [];
-                foreach (AppWorkflowType wf in node.Workflows)
+                foreach (AppWorkflowType wf in node.GetWorkflows())
                 {
                     if (wf.Nodes.Length == 0 || wf.RootWorkflowContext?.EntryWorkflow == null ||
                         !await context.AuthorizeAsync(wf, PolicyScope.FuncExecute, true)) continue;
-                    Workflow firstNode = wf.RootWorkflowContext.EntryWorkflow;
+                    BaseWorkflow firstNode = wf.RootWorkflowContext.EntryWorkflow;
                     
                     // Only show activated interaction workflow
                     if (firstNode is not InteractionWorkflow interWorkflow) continue;
@@ -337,9 +325,6 @@ public static class BatchQueryExtension
             }
             
             results.Add(appResult);
-
-            // raise event
-            context.RaiseEvent(new AppDataReadEvent(node.Name, query.Target));
         }
 
         return (results.ToArray(), root.Schemas);
@@ -350,12 +335,12 @@ public static class BatchQueryExtension
         switch (type)
         {
             case EnumType enumNode:
-                if (value is EnumTypeNode val)
+                if (value is EnumNode val)
                 {
-                    string key = $"{enumNode.Name}:{val.ToValue<string>()}";
+                    string key = $"{enumNode.Name}:{val.GetValue<string>()}";
                     if (enumsKeys.Add(key))
                     {
-                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.ToValue<string>()!);
+                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.GetValue<string>()!);
 
                         if (access.Length > 0)
                         {
@@ -372,9 +357,9 @@ public static class BatchQueryExtension
                                 parent = sub;
                             }
 
-                            if (parent.Type == SchemaType.Enum)
+                            if (parent.Kind == SCHEMA_KIND_ENUM)
                             {
-                                RootEnumValueSchema.Value!.SubList = parent.Enum!.Values;
+                                RootEnumValueSchema.Value!.SubList = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
                                 RootEnumValueSchema.Value!.CombineAccessList(access);
                                 RootEnumValueSchema.Value!.SubList = null;
                             }
@@ -385,11 +370,11 @@ public static class BatchQueryExtension
             case StructType @struct:
                 if (value is StructNode obj)
                 {
-                    foreach (StructFieldSchema f in @struct.Fields)
+                    foreach (StructFieldType f in @struct.GetFields())
                     {
-                        DataNode? v = obj.GetField(f.Name);
+                        DataNode? v = obj.GetAccessValue(f.Name);
                         if (v is { IsEmpty: false })
-                            await ScanEnumAccess(context, root, f.SchemaType!, enumsKeys, v);
+                            await ScanEnumAccess(context, root, f.Type!, enumsKeys, v);
                     }
                 }
                 break;
@@ -397,7 +382,7 @@ public static class BatchQueryExtension
             case ArrayType array:
                 if (value is not ArrayNode arr) return;
 
-                switch (array.ElementSchemaType)
+                switch (array.Element)
                 {
                     case StructType eleStruct:
                     {
@@ -413,7 +398,7 @@ public static class BatchQueryExtension
                     {
                         foreach (DataNode v in arr)
                         {
-                            if (v is EnumTypeNode)
+                            if (v is EnumNode)
                                 await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);
                         }
 

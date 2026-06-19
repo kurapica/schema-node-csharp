@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Enum;
 
-namespace SchemaNode.Converter;
+namespace SchemaNode.Utility;
 
 public class JsonNodeDateFormatConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<JsonNode>
 {

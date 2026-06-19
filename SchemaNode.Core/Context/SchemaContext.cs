@@ -448,10 +448,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the context item with the given type
     /// </summary>
-    public T? GetContextItem<T>() where T: class
+    public T? GetContextItem<T>()
     {
         object? result = GetContextItemResult(typeof(T));
-        return result as T;
+        return (T?)result ?? default(T?);
     }
     
     /// <summary>

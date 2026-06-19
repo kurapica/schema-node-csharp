@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Enum;
+using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
@@ -23,22 +23,24 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
 
         return new DiagnoseResponse
         {
-            Namespace = DiagnoseNamespaceAsync(await SchemaContext.GetNodeTypeAsync("")),
+            Namespace = await DiagnoseNamespaceAsync(await SchemaContext.GetNodeTypeAsync("")),
             App = DiagnoseAppAsync(await SchemaContext.GetAppTypeAsync("")),
         };
     }
 
-    private static JsonNode? DiagnoseNamespaceAsync(NodeType? schema)
+    private async Task<JsonNode?> DiagnoseNamespaceAsync(NodeType? schema)
     {
         switch (schema)
         {
             case null:
                 return null;
-            case TypeNamespace ns:
+            case NamespaceType ns:
                 JsonObject? res = null;
-                foreach ((_, NodeType s) in ns.SchemaNodes)
+                foreach (var s in ns.GetNodeSchemas())
                 {
-                    var r = DiagnoseNamespaceAsync(s);
+                    var n = await SchemaContext.GetNodeTypeAsync(s.FullName);
+                    if (n == null) continue;
+                    var r = await DiagnoseNamespaceAsync(n);
                     if (r == null || r.IsEmpty()) continue;
                     res ??= new JsonObject();
                     res[s.Name] = r;
@@ -46,19 +48,27 @@ public class DiagnoseApi : SchemaApi<DiagnoseRequest, DiagnoseResponse>
 
                 return res;
             default:
-                return schema.Status != SchemaNodeStatus.Ready ? schema.Status.ToString() : null;
+                return !string.IsNullOrWhiteSpace(schema.Error) ? schema.Error : null;
         }
     }
 
     private static JsonNode? DiagnoseAppAsync(AppType? app)
     {
         if (app == null) return null;
-        
-        if (app.Fields is { Count: > 0 }) return app.Status != SchemaNodeStatus.Ready ? app.Status.ToString() : null;
-        if (app.SubAppList == null || app.SubAppList.IsEmpty) return null;
+        if (!string.IsNullOrWhiteSpace(app.Error)) return app.Error;
+
+        foreach (AppFieldType field in app.GetFields())   
+        {
+            if (!string.IsNullOrWhiteSpace(field.Error)) return field.Error;
+        }
+
+        foreach (AppWorkflowType workflow in app.GetWorkflows())
+        {
+            if (!string.IsNullOrWhiteSpace(workflow.Error)) return workflow.Error;
+        }
         
         JsonObject? res = null;
-        foreach ((_, AppType a) in app.SubAppList)
+        foreach (AppType a in app.GetSubApps())
         {
             var r = DiagnoseAppAsync(a);
             if (r == null || r.IsEmpty()) continue;

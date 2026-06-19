@@ -11,10 +11,10 @@ namespace SchemaNode.Service;
 public interface IRuntimeStageHandler
 {
     /// <summary> Register service to the service collections </summary>
-    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services) {}
+    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services, IEnumerable<Assembly> assemblies) {}
     
     /// <summary> Handles service collections when all initialized</summary>
-    public void OnServiceInitialized(IServiceProvider provider, IServiceCollection services) {}
+    public void OnServiceInitialized(IServiceProvider provider, IServiceCollection services,IEnumerable<Assembly> assemblies) {}
     
     /// <summary>Called while system schemas are being loaded.</summary>
     public Task OnSystemSchemaLoading(ISchemaContext context, IEnumerable<Assembly> assemblies)=> Task.CompletedTask;

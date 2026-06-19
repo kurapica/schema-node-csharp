@@ -3,9 +3,9 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
-using SchemaNode.Components;
 using SchemaNode.Enum;
-using static SchemaNode.Utility.Constant;
+using SchemaNode.Property.App;
+using SchemaNode.Utility;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
@@ -39,9 +39,9 @@ public static class WorkflowInfoExtensions
     public static async Task<WorkflowStatus?> GetWorkflowInfo(this SchemaContext context, WorkflowInfoRequest request)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
-        AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
-        if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
+        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
+        if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
         // set access
         context.SetAccess(app.Name);

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SchemaNode.Context;
 using SchemaNode.Data;
+using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 
@@ -75,4 +76,24 @@ public static class AppService
     /// </summary>
     public static IServiceCollection AddAppSchemaAssembly<T>(this IServiceCollection services) where T: class 
         => services.AddAppSchemaAssemblies(typeof(T).Assembly);
+
+    /// <summary>
+    /// Set the schema configs
+    /// </summary>
+    public static IServiceCollection WithSchemaConfig(this IServiceCollection services, Action<SchemaNodeConfig> config)
+    {
+        var options = new SchemaNodeConfig();
+        config.Invoke(options);
+        services.AddSingleton(options);
+        return services;
+    }
+    
+    /// <summary>
+    /// Sets the api protocol
+    /// </summary>
+    public static IServiceCollection WithSchemaApiProtocol<T>(this IServiceCollection services) where T: class, ISchemaApiProtocol
+    {
+        services.AddTransient<ISchemaApiProtocol, T>();
+        return services;
+    }
 }

@@ -4,6 +4,8 @@ using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
@@ -23,7 +25,7 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
         if (!string.IsNullOrEmpty(request.Name))
         {
             NodeType schema = await SchemaContext.GetNodeTypeAsync(request.Name)
-                ?? throw new Exception(TYPE_NOT_EXIST);
+                ?? throw new Exception(ErrorCodes.TYPE_NOT_FOUND);
             
             return new AuthorizeResponse
             {
@@ -32,13 +34,13 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
         }
         
         // app
-        if (string.IsNullOrEmpty(request.App)) throw new Exception(APP_NOT_FOUND);
-        AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
+        if (string.IsNullOrEmpty(request.App)) throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppType app = await SchemaContext.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
 
         // field
         if (!string.IsNullOrEmpty(request.Field))
         {
-            var field = app.GetField(request.Field) ?? throw new Exception(APP_FIELD_NOT_FOUND);
+            var field = app.GetField(request.Field) ?? throw new Exception(AppErrorCodes.APP_FIELD_NOT_FOUND);
             return new AuthorizeResponse
             {
                 Result = await SchemaContext.AuthorizeAsync(field, request.Scope, true)
@@ -48,7 +50,7 @@ public class AuthorizeApi : SchemaApi<AuthorizeRequest, AuthorizeResponse>
         // workflow
         if (!string.IsNullOrEmpty(request.Workflow))
         {
-            var workflow = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
+            var workflow = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
             return new AuthorizeResponse
             {
                 Result = await SchemaContext.AuthorizeAsync(workflow, request.Scope, true)

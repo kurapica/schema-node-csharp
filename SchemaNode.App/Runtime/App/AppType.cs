@@ -8,7 +8,6 @@ using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
-using Microsoft.AspNetCore.Http.Features;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -134,9 +133,10 @@ public sealed class AppType : IValueTypeAccess
 
     internal void RemoveAppSchema(ReadOnlySpan<char> name)
     {
-        
+        _schemas?.TryRemove(name.ToString(), out _);
     }
     
+    public IEnumerable<AppType> GetSubApps() => _subApps?.Values ?? [];
     
     #endregion
     
@@ -167,9 +167,6 @@ public sealed class AppType : IValueTypeAccess
             Error ??= appFieldType.Error;
         }
         
-        // Reload Apps
-        List<AppType>? reloadApps = null;
-
         // Check the relations
         if (schema.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
         {
@@ -247,6 +244,23 @@ public sealed class AppType : IValueTypeAccess
                 yield return t;
     }
 
+    /// <summary>
+    /// Gets the schema of the application
+    /// </summary>
+    public AppSchema GetSchema()
+    {
+        if (_schema == null) return new  AppSchema();
+        AppSchema schema = new AppSchema
+        {
+            Name = Name,
+            Container = _schema.Container,
+            Fields = _fields?.Select(f => f.GetSchema()).ToArray(),
+            Workflows = _workflows?.Select(w => w.GetSchema()).ToArray(),
+        };
+        schema.CombineExtensions(_schema);
+        return schema;
+    }
+    
     /// <summary>
     /// Gets the property with given type
     /// </summary>

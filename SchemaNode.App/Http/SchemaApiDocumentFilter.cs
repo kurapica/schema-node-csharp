@@ -7,18 +7,11 @@ namespace SchemaNode.Http;
 /// <summary>
 /// The schema api document filter
 /// </summary>
-public class SchemaApiDocumentFilter : IDocumentFilter
+public class SchemaApiDocumentFilter(IServiceProvider services) : IDocumentFilter
 {
-    private readonly IServiceProvider _services;
-
-    public SchemaApiDocumentFilter(IServiceProvider services)
-    {
-        _services = services;
-    }
-
     public void Apply(OpenApiDocument swaggerDoc, DocumentFilterContext context)
     {
-        ISchemaApiProtocol? protocol = _services.GetService<ISchemaApiProtocol>();
+        ISchemaApiProtocol? protocol = services.GetService<ISchemaApiProtocol>();
 
         foreach (var ((type, request, response, useDefaultProtocol), url) in Injection.GetSchemaApis())
         {

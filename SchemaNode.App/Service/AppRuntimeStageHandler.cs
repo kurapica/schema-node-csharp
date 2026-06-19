@@ -5,11 +5,16 @@ using Quartz;
 using SchemaNode.Attribute;
 using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Event;
+using SchemaNode.Http;
+using SchemaNode.Http.JsonRpc;
 using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using SchemaNode.Workflow;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Service;
@@ -19,7 +24,7 @@ namespace SchemaNode.Service;
 /// </summary>
 public class AppRuntimeStageHandler: IRuntimeStageHandler
 {
-    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services)
+    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services, IEnumerable<Assembly> assemblies)
     {
         #region Config
         
@@ -66,6 +71,46 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
         #region Expression
 
         services.AddSingleton<IExpVisitor, DataSourceExpVisitor>();
+
+        #endregion
+        
+        #region Api Protocol
+        
+        services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
+        services.TryAddTransient<ISchemaApiProtocol, DefaultSchemaApiProtocol>();
+        
+        #endregion
+        
+        #region Api Types
+        
+        // schema api
+        foreach (Type type in assemblies.SelectMany(a => a.GetTypes())
+                     .Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
+        {
+            // Schema api
+            Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
+            Type requestType = apiBaseType.GetGenericArguments()[0];
+            Type responseType = apiBaseType.GetGenericArguments()[1];
+
+            ApiTypes.Add(new SchemaApiType(type, requestType, responseType,
+                type.GetCustomAttribute<NoProtocolAttribute>() != null));
+            services.AddTransient(type);
+        }
+        
+        #endregion
+        
+        #region Workflow
+        
+        services.TryAddSingleton<IEventDispatcher<BaseEvent>, DefaultEventDispatcher>();
+        services.TryAddSingleton<IWorkflowScheduler, DefaultWorkflowScheduler>();
+        services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
+        
+        #endregion
+        
+        #region Context Items
+
+        services.AddScoped<Access>();
+        services.AddScoped<AccessContextItemProvider>();
 
         #endregion
     }
@@ -124,7 +169,16 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                     
                     runtime.SaveSystemAppFieldSchema(field, type);
                 }
+                
+                // schema format provider
+                else if (type.IsAssignableTo(typeof(ISchemaFormatProvider)))
+                {
+                    ISchemaFormatProvider.AddSchemaFormatProvider(type);
+                }
             }
         }
     }
+    
+    static readonly List<SchemaApiType> ApiTypes = new();
+    record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
 }

@@ -1,9 +1,10 @@
 using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
-using SchemaNode.Enum;
+using SchemaNode.Context;
 using SchemaNode.Http;
-using SchemaNode.Runtime;
+using SchemaNode.Property.App;
 using SchemaNode.Schema;
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Info;
 
@@ -18,7 +19,7 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
     {
         Logger.LogDebug("[Api]LoadAppSchemaApi [Request]{request}", request);
 
-        AppType? node = await SchemaContext.GetAppTypeAsync(request.Name);
+        Runtime.AppType? node = await SchemaContext.GetAppTypeAsync(request.Name);
         if (node == null) return new LoadAppSchemaResponse();
         
         // authorize
@@ -42,52 +43,14 @@ public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaRes
         }
 
         // Generate schema
-        AppSchema schema = new()
-        {
-            Name = node.Name,
-            Display = node.Display,
-            ScopePolicy = node.ScopePolicy,
-            Auth = node.Auth?.Name,
-            Auths = node.Auths,
-            Error = node.Status,
-            HasApps = node.Apps is { Length: > 0 },
-            HasFields = node.Fields is { Count: > 0 },
-            Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
-            Extensions = node.Extensions,
-            Apps = node.Apps?.Select(a => {
-                AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
-                return new AppSchema
-                {
-                    Name = a.Name,
-                    Display = a.Display,
-                    ScopePolicy = a.ScopePolicy,
-                    Auth = a.Auth,
-                    Auths = a.Auths,
-                    Extensions = a.Extensions,
-                    Error = node.Status,
-                    HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
-                    HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
-                };
-            }).ToArray(),
-        };
+        AppSchema schema = node.GetSchema();
+        
+        if(request.IncludeTypes)
+            schema.NodeSchemas = await node.GetNodeSchemas(SchemaContext, includeUsedBy: true, cancellationToken: cancellationToken);
 
-        if (node.Fields is { Count: > 0 })
+        if (schema.Fields is not { Length: > 0 })
         {
-            schema.Fields = node.Fields.Select(p => (AppFieldSchema)p).ToArray();
-            schema.Relations = node.Relations?.Select(r => new StructRelationSchema
-            {
-                Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                Prop = r.Prop,
-                Func = r.Func,
-                Args = r.Args.Select(a => new FuncCallArg
-                {
-                    Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
-                    Value = a.Value,
-                }).ToArray()
-            }).ToArray();
-
-            if(request.IncludeTypes)
-                schema.NodeSchemas = await node.GetNodeSchemas(SchemaContext, includeUsedBy: true, cancellationToken: cancellationToken);
+            schema.Apps = node.GetSubApps().Select(a => a.GetSchema()).ToArray();
         }
 
         return new LoadAppSchemaResponse

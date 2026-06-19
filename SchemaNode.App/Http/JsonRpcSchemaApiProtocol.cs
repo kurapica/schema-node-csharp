@@ -56,7 +56,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     /// <inheritdoc />
     public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
     {
-        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJson<JsonRpcRequestMessage<TRequest>>(requestBody) 
+        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJsonRequest<JsonRpcRequestMessage<TRequest>>(requestBody) 
                 ?? throw new Exception("Failed to parse the request body.");
         if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
             throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");

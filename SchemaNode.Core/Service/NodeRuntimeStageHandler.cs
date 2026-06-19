@@ -40,7 +40,7 @@ public interface INodeSchemaGenerator
 internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 {
     /// <inheritdoc />
-    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services)
+    public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services, IEnumerable<Assembly> assemblies)
     {
         #region Expression
 
@@ -53,7 +53,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
     }
 
     /// <inheritdoc />
-    public void OnServiceInitialized(IServiceProvider provider, IServiceCollection services)
+    public void OnServiceInitialized(IServiceProvider provider, IServiceCollection services, IEnumerable<Assembly> assemblies)
     {
         // context item scan
         List<Type> itemProviders = [];

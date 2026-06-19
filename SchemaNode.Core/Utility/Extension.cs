@@ -132,11 +132,6 @@ internal static class Extension
         internal string ToCamelCase() => value.Length > 0 ? string.Concat(value[..1].ToLowerInvariant(), value.AsSpan(1)) : value;
 
         /// <summary>
-        /// Gets the base type
-        /// </summary>
-        internal string GetBaseType() => value.Contains('<') ? value[..value.IndexOf('<')] : value;
-
-        /// <summary>
         /// Gets the namespace
         /// </summary>
         internal string GetNamespace()
@@ -164,22 +159,15 @@ internal static class Extension
         internal string RemoveEnding(string ending) => value.EndsWith(ending, StringComparison.OrdinalIgnoreCase) ? value[..^ending.Length] : value;
 
         /// <summary>
-        /// Remove the start part if existed
-        /// </summary>
-        /// <param name="start"></param>
-        /// <returns></returns>
-        internal string RemoveStart(string start) => value.StartsWith(start, StringComparison.OrdinalIgnoreCase) ? value[start.Length..] : value;
-
-        /// <summary>
         /// Deserializes a JSON string to a .NET value.
         /// </summary>
         /// <typeparam name="T">The type of the value.</typeparam>
-        internal T? FromJson<T>() => (T?)value.FromJson(typeof(T));
+        internal T? FromJson<T>(JsonSerializerOptions? options = null) => (T?)value.FromJson(typeof(T), options);
 
         /// <summary>
         /// Deserializes a JSON string to a .NET value.
         /// </summary>
-        internal object? FromJson(Type type)
+        internal object? FromJson(Type type, JsonSerializerOptions? options = null)
         {
             if (type == typeof(string))
                 return value;
@@ -187,8 +175,7 @@ internal static class Extension
                 return DateTimeOffset.Parse(value);
             if (type == typeof(DateTime))
                 return DateTime.Parse(value);
-
-            return JsonSerializer.Deserialize(value, type, DefaultJsonOptions);
+            return JsonSerializer.Deserialize(value, type, options ?? DefaultJsonOptions);
         }
     }
 
@@ -201,9 +188,9 @@ internal static class Extension
         /// <summary>
         /// Convert the JsonNode to the given type
         /// </summary>
-        internal T? FromJson<T>() => (T?)value.FromJson(typeof(T));
+        internal T? FromJson<T>(JsonSerializerOptions? options = null) => (T?)value.FromJson(typeof(T), options);
 
-        internal object? FromJson(Type type)
+        internal object? FromJson(Type type, JsonSerializerOptions? options = null)
         {
             if (type == typeof(JsonObject))
             {
@@ -221,7 +208,7 @@ internal static class Extension
             {
                 return value;
             }
-            return value.Deserialize(type, DefaultJsonOptions);
+            return value.Deserialize(type, options ?? DefaultJsonOptions);
         }
        
         internal T? ToValue<T>() => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);

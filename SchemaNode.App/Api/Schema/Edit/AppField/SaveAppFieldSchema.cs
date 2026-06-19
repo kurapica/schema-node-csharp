@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Schema;
+using SchemaNode.Schema.Provider;
 
 namespace SchemaNode.Api.Schema.Edit;
 

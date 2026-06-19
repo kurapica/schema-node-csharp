@@ -60,7 +60,7 @@ public interface ISchemaApiProtocol
         where TResponse : SchemaApiResponse
     {
         var provider = ctx.RequestServices;
-        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
+        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger<TApi>();
         var context = provider.GetRequiredService<SchemaContext>();
 
         // Parse request.

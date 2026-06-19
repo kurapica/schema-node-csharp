@@ -9,7 +9,6 @@ using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using SchemaNode.Workflow;
-using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Api.Schema.Application;
@@ -38,9 +37,9 @@ public static class InteractionExtensions
     public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false)
     {
         // Indicate the workflow node
-        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
-        AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(WORKFLOW_NOT_FOUND);
-        if (workflowType.RootWorkflowContext == null) throw new Exception(WORKFLOW_NOT_START);
+        AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(AppErrorCodes.APP_NOT_FOUND);
+        AppWorkflowType workflowType = app.GetWorkflow(request.Workflow) ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
+        if (workflowType.RootWorkflowContext == null) throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_START);
         
         // set access
         context.SetAccess(app.Name, request.Target);
@@ -53,7 +52,7 @@ public static class InteractionExtensions
         BaseWorkflow node = (string.IsNullOrEmpty(request.Node) 
             ? workflowType.RootWorkflowContext.EntryWorkflow
             : workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node))
-            ?? throw new Exception(WORKFLOW_NODE_NOT_FOUND);
+            ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
         StructNode payload = (node.PayloadType as StructType)?.From(null) as StructNode
@@ -70,7 +69,7 @@ public static class InteractionExtensions
             if (node is FormWorkflow && (request.Data == null || request.Data.IsEmpty())) return null;
             
             if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
-                throw new Exception(WORKFLOW_NODE_NOT_FOUND);
+                throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
             return workflowType.RootWorkflowContext.Done(node.Name, payload)?.Id;
@@ -78,7 +77,7 @@ public static class InteractionExtensions
         
         // Continue an existing workflow
         WorkflowContext workContext = workflowType.RootWorkflowContext.GetForkedWorkflowContextById(request.WorkflowId.Value)
-            ?? throw new Exception(WORKFLOW_NOT_FOUND);
+            ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NOT_FOUND);
         
         // Check if still working
         if (request.Terminate == true)
@@ -88,7 +87,7 @@ public static class InteractionExtensions
         else
         {
             WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
-            if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
+            if (status != WorkflowStatus.Running) throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_RUNNING);
             workContext.Done(node.Name, payload);
         }
 

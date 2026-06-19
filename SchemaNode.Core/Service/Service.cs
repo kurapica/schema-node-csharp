@@ -34,6 +34,7 @@ public static partial class SchemaNodeExtensions
         
         // Default Schema context
         services.TryAddScoped<ISchemaContext, SchemaContext>();
+        services.AddScoped<SchemaContext>();
         
         // The schema runtime builder
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, NodeRuntimeStageHandler>());
@@ -79,11 +80,11 @@ public static partial class SchemaNodeExtensions
         
         // Register for services
         foreach (IRuntimeStageHandler handler in handlers)
-            handler.OnServiceInitialization(provider, services);
+            handler.OnServiceInitialization(provider, services, assemblies);
         
         // Done with all registered services
         foreach (IRuntimeStageHandler handler in handlers)
-            handler.OnServiceInitialized(provider, services);
+            handler.OnServiceInitialized(provider, services, assemblies);
         
         // Gets all stage handlers
         return services;

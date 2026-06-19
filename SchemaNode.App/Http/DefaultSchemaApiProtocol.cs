@@ -20,7 +20,7 @@ public class DefaultSchemaApiProtocol: ISchemaApiProtocol
     /// <inheritdoc />
     public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
     {
-        return context.FromJson<TRequest>(requestBody) ?? throw new InvalidOperationException("Failed to parse request body.");
+        return context.FromJsonRequest<TRequest>(requestBody) ?? throw new InvalidOperationException("Failed to parse request body.");
     }
 
     /// <inheritdoc />

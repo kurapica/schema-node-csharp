@@ -5,6 +5,24 @@ namespace SchemaNode.Utility;
 
 internal static class AppErrorCodes
 {
+    [Meta<ErrorCode>(APP_NOT_FOUND)]
+    public const string APP_NOT_FOUND = "app_not_found";
+    
+    [Meta<ErrorCode>(APP_FIELD_NOT_FOUND)]
+    public const string APP_FIELD_NOT_FOUND = "app_field_not_found";
+    
+    [Meta<ErrorCode>(APP_WORKFLOW_NOT_FOUND)]
+    public const string APP_WORKFLOW_NOT_FOUND = "app_workflow_not_found";
+    
+    [Meta<ErrorCode>(APP_WORKFLOW_NOT_START)]
+    public const string APP_WORKFLOW_NOT_START = "app_workflow_not_start";
+    
+    [Meta<ErrorCode>(APP_WORKFLOW_NODE_NOT_FOUND)]
+    public const string APP_WORKFLOW_NODE_NOT_FOUND  = "app_workflow_node_not_found";
+    
+    [Meta<ErrorCode>(APP_WORKFLOW_NODE_NOT_RUNNING)]
+    public const string APP_WORKFLOW_NODE_NOT_RUNNING  = "app_workflow_node_not_running";
+    
     [Meta<ErrorCode>(APP_DUMPICATE_FIELD)]
     public const string APP_DUMPICATE_FIELD = "app_duplicate_field";
     
@@ -76,4 +94,10 @@ internal static class AppErrorCodes
     
     [Meta<ErrorCode>(WORKFLOW_EVENT_NOT_VALID)]
     public const string WORKFLOW_EVENT_NOT_VALID = "workflow_event_not_valid";
+    
+    [Meta<ErrorCode>(APP_PUSH_DATA_REQUIRED)]
+    public const string APP_PUSH_DATA_REQUIRED = "app_push_data_required";
+    
+    [Meta<ErrorCode>(APP_TARGET_REQUIRED)]
+    public const string APP_TARGET_REQUIRED = "app_target_required";
 }
