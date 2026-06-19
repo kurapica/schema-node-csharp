@@ -55,24 +55,18 @@ public static class InteractionExtensions
             ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
-        StructNode payload = (node.PayloadType as StructType)?.From(null) as StructNode
-                                 ?? throw new Exception(WORKFLOW_NODE_PAYLOAD_TYPE_NOT_VALID);
-        payload[nameof(InteractionPayload.App)] = request.App;
-        payload[nameof(InteractionPayload.Target)] = request.Target;
-        payload[nameof(InteractionRequest.Data)] = request.Data; // placeholder for Data
+        DataNode payload = node.PayloadType?.From(request.Data) ?? throw new Exception(AppErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID);
         
         // Start a new workflow
         if (request.WorkflowId == null)
         {
             // If terminate requested, just return
             if (request.Terminate == true) return null;
-            if (node is FormWorkflow && (request.Data == null || request.Data.IsEmpty())) return null;
-            
             if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
                 throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
             
             // Start a new workflow
-            return workflowType.RootWorkflowContext.Done(node.Name, payload)?.Id;
+            return workflowType.RootWorkflowContext.Done(node.Name, payload, false, new Access{ App = request.App, Target = request.Target })?.Id;
         }
         
         // Continue an existing workflow

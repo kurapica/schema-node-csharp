@@ -12,7 +12,7 @@ namespace SchemaNode.Workflow;
 /// The interaction workflow
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.call")]
-public class InteractionWorkflow: BaseWorkflow,
+public class Interaction: BaseWorkflow,
     IWorkflowPayload<Object>
 {
     /// <summary>

@@ -24,7 +24,7 @@ public class SchemaRuntime : ISchemaRuntime
     /// <summary>
     /// The current stage of the schema loading and runtime activation pipeline, it will be updated by the system and can be used to determine the current stage in the pipeline.
     /// </summary>
-    public RuntimeStage Stage { get; set; } = RuntimeStage.ServiceInitialization;
+    public RuntimeStage Stage { get; set; } = RuntimeStage.SystemSchemaLoading;
 
     /// <inheritdoc/>
     public void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null)

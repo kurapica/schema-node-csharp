@@ -13,7 +13,7 @@ public class SchemaApiDocumentFilter(IServiceProvider services) : IDocumentFilte
     {
         ISchemaApiProtocol? protocol = services.GetService<ISchemaApiProtocol>();
 
-        foreach (var ((type, request, response, useDefaultProtocol), url) in Injection.GetSchemaApis())
+        foreach (var ((type, request, response, useDefaultProtocol), url) in Http.Service.GetSchemaApis())
         {
             var reqSchema = context.SchemaGenerator.GenerateSchema(request, context.SchemaRepository);
             var resSchema = context.SchemaGenerator.GenerateSchema(response, context.SchemaRepository);

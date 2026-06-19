@@ -29,7 +29,7 @@ public static class Service
         UrlSuffix = suffix;
 
         // may disable some apis in this assembly
-        Assembly schemaAssembly = typeof(Injection).Assembly;
+        Assembly schemaAssembly = typeof(Service).Assembly;
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
         bool hasSchemaStorage = service.IsService(typeof(IAppSchemaStorageProvider));
@@ -53,8 +53,8 @@ public static class Service
             }
 
             MethodInfo task = apiType.UseDefaultProtocol
-                ? typeof(Injection).GetMethod(nameof(ProcessDefaultSchemaApiAsync), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response)
-                : typeof(Injection).GetMethod(nameof(ProcessSchemaApiAsync), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response);
+                ? typeof(Service).GetMethod(nameof(ProcessDefaultSchemaApiAsync), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response)
+                : typeof(Service).GetMethod(nameof(ProcessSchemaApiAsync), BindingFlags.Static | BindingFlags.NonPublic)!.MakeGenericMethod(apiType.Api, apiType.Request, apiType.Response);
             app.MapPost(url, async (HttpContext ctx) =>
             {
                 Task<IResult> res = (Task<IResult>)task.Invoke(null, [ctx])!;

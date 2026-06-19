@@ -11,7 +11,6 @@ using SchemaNode.Data;
 using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Utility;
-using SchemaNode.Workflow;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using EnumType = SchemaNode.Runtime.EnumType;
@@ -283,7 +282,7 @@ public static class BatchQueryExtension
                 Schema = !(query.NoSchema ?? false) ? node.GetSchema(): null
             };
             
-            // workflow states
+            /*/ workflow states
             if (query.Workflow == true)
             {
                 List<AppWorkflowState> workflows = [];
@@ -294,7 +293,7 @@ public static class BatchQueryExtension
                     BaseWorkflow firstNode = wf.RootWorkflowContext.EntryWorkflow;
                     
                     // Only show activated interaction workflow
-                    if (firstNode is not InteractionWorkflow interWorkflow) continue;
+                    if (firstNode is not Interaction interWorkflow) continue;
                     
                     // Check if only allow one workflow context
                     Guid? workflowId = null;
@@ -322,7 +321,7 @@ public static class BatchQueryExtension
                     });
                 }
                 appResult.Workflows = workflows.Count > 0 ? workflows.ToArray() : null;
-            }
+            }*/
             
             results.Add(appResult);
         }
@@ -494,11 +493,6 @@ public class AppDataQuery
     /// Only query the data without schema
     /// </summary>
     public bool? NoSchema { get; set; }
-    
-    /// <summary>
-    /// Query the interaction workflow data
-    /// </summary>
-    public bool? Workflow { get; set; }
 }
 
 public class AppDataFieldQuery
@@ -555,11 +549,6 @@ public class AppDataResult
     /// The query infos
     /// </summary>
     public Dictionary<string, AppDataFieldInfo>? Infos { get; set; }
-    
-    /// <summary>
-    /// The interaction workflows states
-    /// </summary>
-    public AppWorkflowState[]? Workflows { get; set; }
 }
 
 /// <summary>

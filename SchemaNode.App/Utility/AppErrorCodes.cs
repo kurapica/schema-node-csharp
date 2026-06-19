@@ -92,6 +92,9 @@ internal static class AppErrorCodes
     [Meta<ErrorCode>(WORKFLOW_NODE_VALUE_TYPE_NOT_VALID)]
     public const string WORKFLOW_NODE_VALUE_TYPE_NOT_VALID = "workflow_node_type_value_type_not_valid";
     
+    [Meta<ErrorCode>(WORKFLOW_NODE_PAYLOAD_NOT_VALID)]
+    public const string WORKFLOW_NODE_PAYLOAD_NOT_VALID = "workflow_node_payload_not_valid";
+    
     [Meta<ErrorCode>(WORKFLOW_EVENT_NOT_VALID)]
     public const string WORKFLOW_EVENT_NOT_VALID = "workflow_event_not_valid";
     
