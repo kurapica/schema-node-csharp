@@ -22,12 +22,12 @@ namespace SchemaNode.Service;
 /// <summary>
 /// The stage handler to load app schemas into runtime
 /// </summary>
-public class AppRuntimeStageHandler: IRuntimeStageHandler
+public class AppRuntimeStageHandler : IRuntimeStageHandler
 {
     public void OnServiceInitialization(IServiceProvider provider, IServiceCollection services, IEnumerable<Assembly> assemblies)
     {
         #region Config
-        
+
         var options = provider.GetService<SchemaNodeConfig>();
         if (options is null)
         {
@@ -36,19 +36,19 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
         }
 
         #endregion
-        
+
         #region critical region
 
         services.TryAddSingleton<ICriticalRegionProvider, LocalCriticalRegionProvider>();
 
         #endregion
-        
+
         #region Quartz scheduler
-        
+
         services.AddQuartz(q =>
         {
             q.UseInMemoryStore();
-             
+
             q.UseDefaultThreadPool(tp =>
             {
                 tp.MaxConcurrency = options.MaxQuartzConcurrentThreads;
@@ -67,46 +67,40 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
         services.AddTransient<WorkflowContext>();
 
         #endregion
-        
+
         #region Expression
 
         services.AddSingleton<IExpVisitor, DataSourceExpVisitor>();
 
         #endregion
-        
+
         #region Api Protocol
-        
+
         services.PostConfigure<SwaggerGenOptions>(c => c.DocumentFilter<SchemaApiDocumentFilter>());
         services.TryAddTransient<ISchemaApiProtocol, DefaultSchemaApiProtocol>();
-        
+
         #endregion
-        
+
         #region Api Types
-        
+
         // schema api
         foreach (Type type in assemblies.SelectMany(a => a.GetTypes())
                      .Where(t => t.IsSubclassOfGenericType(typeof(SchemaApi<,>)) && !t.IsAbstract))
         {
-            // Schema api
-            Type apiBaseType = type.GetGenericBaseType(typeof(SchemaApi<,>))!;
-            Type requestType = apiBaseType.GetGenericArguments()[0];
-            Type responseType = apiBaseType.GetGenericArguments()[1];
-
-            ApiTypes.Add(new SchemaApiType(type, requestType, responseType,
-                type.GetCustomAttribute<NoProtocolAttribute>() != null));
+            Http.Service.AddApiType(type);
             services.AddTransient(type);
         }
-        
+
         #endregion
-        
+
         #region Workflow
-        
+
         services.TryAddSingleton<IEventDispatcher<BaseEvent>, DefaultEventDispatcher>();
         services.TryAddSingleton<IWorkflowScheduler, DefaultWorkflowScheduler>();
         services.TryAddScoped<IWorkflowContextPersistence, DynamicWorkflowContextPersistence>();
-        
+
         #endregion
-        
+
         #region Context Items
 
         services.AddScoped<Access>();
@@ -121,7 +115,7 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
     public async Task OnSystemSchemaLoaded(ISchemaContext context, IEnumerable<Assembly> assemblies)
     {
         if (context is not SchemaContext || context.Runtime is not AppSchemaRuntime runtime) return;
-        
+
         // auto scan
         foreach (Assembly assembly in assemblies)
         {
@@ -151,25 +145,25 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
                     NodeSchema? typeSchema = runtime.GetSystemSchema(schemaType);
                     if (typeSchema == null)
                         throw new Exception($"The schema type for {type.FullName} is not registered in runtime");
-                    
+
                     AppFieldSchema field = new AppFieldSchema
                     {
                         App = appName,
                         Name = type.Name.ToLowerInvariant(),
                         Type = schemaType,
                     };
-                    
+
                     // app field property
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP_FIELD))
                         field.SetProperty(property);
-                    
+
                     // schema type property
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
                         field.SetProperty(property);
-                    
+
                     runtime.SaveSystemAppFieldSchema(field, type);
                 }
-                
+
                 // schema format provider
                 else if (type.IsAssignableTo(typeof(ISchemaFormatProvider)))
                 {
@@ -178,7 +172,19 @@ public class AppRuntimeStageHandler: IRuntimeStageHandler
             }
         }
     }
-    
-    static readonly List<SchemaApiType> ApiTypes = new();
-    record SchemaApiType(Type Api, Type Request, Type Response, bool UseDefaultProtocol);
+
+    /// <summary>
+    /// Active the workflows
+    /// </summary>
+    public async Task OnActivatingAsync(ISchemaContext context)
+    {
+        if (context is not SchemaContext schemaContext || context.Runtime is not AppSchemaRuntime runtime) return;
+        AppWorkflowQueue? workflowQueue = runtime.GetRuntimeItem<AppWorkflowQueue>();
+        if (workflowQueue == null) return;
+        while (workflowQueue.TryDequeue(out AppWorkflowType? workflowType))
+        {
+            if (workflowType != null)
+                await workflowType.LoadAsync(schemaContext);
+        }
+    }
 }

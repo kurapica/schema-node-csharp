@@ -10,8 +10,7 @@ using SchemaNode.Schema.Provider;
 namespace SchemaNode.Service;
 
 public static class AppService
-{
-    
+{    
     /// <summary>
     /// Register the app schema provider
     /// </summary>

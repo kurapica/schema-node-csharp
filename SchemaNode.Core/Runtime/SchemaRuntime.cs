@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
@@ -19,6 +20,11 @@ public class SchemaRuntime : ISchemaRuntime
 
     private (string kind, Type schemaType, Type[]? properties)[] _schemaKinds = [];
     private readonly object _schemaKindsLock = new();
+
+    /// <summary>
+    /// The current stage of the schema loading and runtime activation pipeline, it will be updated by the system and can be used to determine the current stage in the pipeline.
+    /// </summary>
+    public RuntimeStage Stage { get; set; } = RuntimeStage.ServiceInitialization;
 
     /// <inheritdoc/>
     public void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null)

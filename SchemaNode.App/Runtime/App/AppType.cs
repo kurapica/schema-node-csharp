@@ -201,10 +201,11 @@ public sealed class AppType : IValueTypeAccess
         }
         foreach(var wf in _workflows ?? [])
         {
-            if (Injection.WorkflowTypes != null)
-                Injection.WorkflowTypes.Add(wf);
-            else
+            // Runtime already activated, need to load workflow immediately, otherwise it will be loaded in app activation
+            if (context.Runtime.Stage == RuntimeStage.Activated)
                 await wf.LoadAsync(context);
+            else
+                (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>()?.Enqueue(wf);
         }
 
         // Add referenced by for fields, workflows and relations
@@ -426,5 +427,6 @@ public sealed class AppType : IValueTypeAccess
     const string TargetAccess = $"{nameof(Access)}.{nameof(Access.Target)}";
 
     #endregion
-} 
+}
 
+internal class AppWorkflowQueue : ConcurrentQueue<AppWorkflowType>;

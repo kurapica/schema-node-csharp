@@ -39,7 +39,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// The schema runtime
     /// </summary>
     public ISchemaRuntime Runtime { get; } = runtime;
-    
+
     /// <summary>
     /// Works in system only mode
     /// </summary>

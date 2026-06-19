@@ -1,3 +1,5 @@
+using SchemaNode.Enum;
+
 namespace SchemaNode.Runtime;
 
 /// <summary>
@@ -6,6 +8,11 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public interface ISchemaRuntime
 {
+    /// <summary>
+    /// The current stage of the schema loading and runtime activation pipeline, it will be updated by the system and can be used to determine the current stage in the pipeline.
+    /// </summary>
+    RuntimeStage Stage { get; set; }
+
     /// <summary>
     /// Register the schema kind
     /// </summary>

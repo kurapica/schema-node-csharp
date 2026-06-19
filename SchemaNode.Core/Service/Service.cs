@@ -177,13 +177,19 @@ public static partial class SchemaNodeExtensions
                     ? SortProperties(propertyTypes.Values.ToList()) 
                     : null);
         }
-        
+
         // System Schema
+        runtime.Stage = Enum.RuntimeStage.SystemSchemaLoading;
         await DispatchAsync("SystemSchemaLoading", h => h.OnSystemSchemaLoading(context, assemblies));
+
+        runtime.Stage = Enum.RuntimeStage.SystemSchemaLoaded;
         await DispatchAsync("SystemSchemaLoaded",  h => h.OnSystemSchemaLoaded(context, assemblies));
         
         // Schema
+        runtime.Stage = Enum.RuntimeStage.SchemaLoading;
         await DispatchAsync("SchemaLoading", h => h.OnSchemaLoadingAsync(context));
+
+        runtime.Stage = Enum.RuntimeStage.SchemaLoaded;
         await DispatchAsync("SchemaLoaded",  h => h.OnSchemaLoadedAsync(context));
         
         return provider;
@@ -209,12 +215,16 @@ public static partial class SchemaNodeExtensions
     public static async Task<IServiceProvider> ActivateSchemaRuntimeAsync(this IServiceProvider provider)
     {
         using IServiceScope scope = provider.CreateScope();
+        ISchemaRuntime runtime = scope.ServiceProvider.GetRequiredService<ISchemaRuntime>();
         ISchemaContext context = scope.ServiceProvider.GetRequiredService<ISchemaContext>();
         ILogger logger = scope.ServiceProvider.GetRequiredService<ILogger<ISchemaRuntime>>();
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         
         // Activate
+        runtime.Stage = Enum.RuntimeStage.Activating;
         await DispatchAsync("Activating", h => h.OnActivatingAsync(context));
+
+        runtime.Stage = Enum.RuntimeStage.Activated;
         await DispatchAsync("Activated",  h => h.OnActivatedAsync(context));
 
         return provider;
@@ -234,11 +244,15 @@ public static partial class SchemaNodeExtensions
     {
         using IServiceScope scope = provider.CreateScope();
         ISchemaContext context = scope.ServiceProvider.GetRequiredService<ISchemaContext>();
+        ISchemaRuntime runtime = scope.ServiceProvider.GetRequiredService<ISchemaRuntime>();
         ILogger logger = scope.ServiceProvider.GetRequiredService<ILogger<ISchemaRuntime>>();
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         
         // Activate
+        runtime.Stage = Enum.RuntimeStage.Deactivating;
         await DispatchAsync("Deactivating", h => h.OnDeactivatingAsync(context));
+
+        runtime.Stage = Enum.RuntimeStage.Deactivated;
         await DispatchAsync("Deactivated",  h => h.OnDeactivatedAsync(context));
 
         return provider;

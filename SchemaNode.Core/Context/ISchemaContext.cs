@@ -1,3 +1,4 @@
+using SchemaNode.Enum;
 using SchemaNode.Runtime;
 
 namespace SchemaNode.Context;
