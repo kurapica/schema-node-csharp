@@ -150,7 +150,8 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                 continue;
 
             NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
-            if (fieldTypeSchema == null) throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+            if (fieldTypeSchema == null) 
+                throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
 
             var detail = p.PropertyType.GetTypeDetail();
             if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))

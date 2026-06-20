@@ -28,7 +28,7 @@ public sealed class ArraySchema: ExtensibleSchema
     /// <summary>
     /// The element type of the array.
     /// </summary>
-    [Meta<SchemaType>(nameof(ElementType))]
+    [Meta<SchemaType>(typeof(ElementType))]
     public required string Element { get; set; }
 }
 

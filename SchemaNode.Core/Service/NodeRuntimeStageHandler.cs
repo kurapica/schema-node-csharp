@@ -23,6 +23,13 @@ namespace SchemaNode.Service;
 public interface INodeSchemaGenerator
 {
     /// <summary>
+    /// Pre-generate the node schemas from type before the schema validation, 
+    /// it can be used to generate the node schemas that only depends on the type itself, without other schemas,
+    /// so it can be used by other generators to generate more complex schemas.
+    /// </summary>
+    IEnumerable<NodeSchema> PreGenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name);
+
+    /// <summary>
     /// Generate the node schemas from type
     /// </summary>
     /// <param name="runtime">The schema runtime</param>
