@@ -37,17 +37,10 @@ internal sealed class SchemaConverter<TSchema>
                 p.GetCustomAttribute<JsonIgnoreAttribute>() == null)
             .ToArray();
 
-    public override TSchema Read(
-        ref Utf8JsonReader reader,
-        Type typeToConvert,
-        JsonSerializerOptions options)
+    public override TSchema Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        JsonObject root =
-            JsonNode.Parse(ref reader)?.AsObject()
-            ?? throw new JsonException();
-
-        TSchema schema =
-            Activator.CreateInstance<TSchema>();
+        JsonObject root = JsonNode.Parse(ref reader)?.AsObject() ?? throw new JsonException();
+        TSchema schema = Activator.CreateInstance<TSchema>();
 
         JsonObject extensions = [];
 
@@ -82,10 +75,7 @@ internal sealed class SchemaConverter<TSchema>
         return schema;
     }
 
-    public override void Write(
-        Utf8JsonWriter writer,
-        TSchema value,
-        JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, TSchema value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 
@@ -101,8 +91,7 @@ internal sealed class SchemaConverter<TSchema>
                 continue;
             }
 
-            writer.WritePropertyName(
-                GetJsonName(property, options));
+            writer.WritePropertyName(GetJsonName(property, options));
 
             JsonSerializer.Serialize(
                 writer,
@@ -131,19 +120,14 @@ internal sealed class SchemaConverter<TSchema>
         writer.WriteEndObject();
     }
 
-    private static string GetJsonName(
-        PropertyInfo property,
-        JsonSerializerOptions options)
+    private static string GetJsonName(PropertyInfo property, JsonSerializerOptions options)
     {
         JsonPropertyNameAttribute? attr =
             property.GetCustomAttribute<JsonPropertyNameAttribute>();
 
         if (attr != null)
-        {
             return attr.Name;
-        }
 
-        return options.PropertyNamingPolicy?.ConvertName(property.Name)
-               ?? property.Name;
+        return options.PropertyNamingPolicy?.ConvertName(property.Name) ?? property.Name;
     }
 }
