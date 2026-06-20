@@ -36,7 +36,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
     public static SchemaFuncInfo? GetSystemFuncInfo(string name) => SystemFuncInfos.GetValueOrDefault(name);
 
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         // Only process static classes with namespace type related
         if (!type.IsAbstract || !type.IsSealed || type.GetMetaProperty<SchemaType>() is not {} schemaType) yield break;
@@ -61,10 +61,11 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         }
     }
     
-    private static NodeSchema BuildFunctionSchema(MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    private static NodeSchema BuildFunctionSchema(MethodInfo method, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         // node schema
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_FUNCTION, @namespace, name, null, method.GetSummaryFromXmlDoc());
+        if (typeResolver == null) return schema;
         
         // function info
         FunctionFlags sign = FunctionFlags.Immutable; // The system method won't be changed and already compiled

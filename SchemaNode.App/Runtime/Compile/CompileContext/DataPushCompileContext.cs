@@ -112,7 +112,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             }
             
             // Check break logic for third field push keys
-            foreach (BreakExp breakExp in schema.Exps.Where(e => e.Value is BreakExp).Select(e => e.Value).Cast<BreakExp>())
+            foreach (BreakExp breakExp in schema.Exps.Where(e => e.Value is BreakExp).Select(e => e.Value).OfType<BreakExp>())
             {
                 FromThirdField(breakExp.Cond, true);
             }

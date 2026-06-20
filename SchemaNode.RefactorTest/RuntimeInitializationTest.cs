@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.Context;
+using SchemaNode.Runtime;
 using SchemaNode.Service;
 
 namespace SchemaNode.RefactorTest;
@@ -14,5 +16,9 @@ public sealed class RuntimeInitializationTest
 
         using ServiceProvider provider = services.BuildServiceProvider();
         await provider.InitSchemaRuntimeAsync();
+        
+        SchemaContext context = provider.GetRequiredService<SchemaContext>();
+        NamespaceType? root = (context.Runtime as SchemaRuntime)?.RootNamespace;
+        Console.WriteLine($"Root namespace: {root}");
     }
 }

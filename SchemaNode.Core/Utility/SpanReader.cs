@@ -155,6 +155,11 @@ public class SpanReader(string source)
                     _currLast = _start + i;
                     _start += i;
                     return true;
+                case '<' when i == 0: // generic type parameters without namespace, e.g. <system.list<system.int>>
+                    _currStart = _start;
+                    _currLast = _last;
+                    _start = _last;
+                    return true;
             }
         }
         _currStart = _start;

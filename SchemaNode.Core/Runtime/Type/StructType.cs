@@ -132,7 +132,7 @@ public sealed class StructType: ValueType
             yield return node;
 
         if (_relations != null)
-            foreach (NodeType node in _relations.Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
 
         if (_unionValids != null)
@@ -465,7 +465,7 @@ public class StructFieldType : INodeReferences
 
         // Properties
         IProperty[] props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)).ToArray();
-        IConstraintProperty[] constraints = props.Cast<IConstraintProperty>().ToArray();
+        IConstraintProperty[] constraints = props.OfType<IConstraintProperty>().ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
         field.Error ??= error;
@@ -503,5 +503,5 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Get the property with property type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => Properties?.Cast<T>().FirstOrDefault();
+    public T? GetProperty<T>() where T : class, IProperty => Properties?.OfType<T>().FirstOrDefault();
 }

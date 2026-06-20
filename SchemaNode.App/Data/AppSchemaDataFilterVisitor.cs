@@ -242,7 +242,7 @@ public sealed class AppSchemaDataFilterVisitor : ExpressionVisitor
         if (value.Value is ArrayNode)
             return value;
 
-        if (value.Value is IEnumerable enumerable && value.Value is not string)
+        if (value.Value is IEnumerable enumerable and not string)
         {
             object?[] array = enumerable.Cast<object?>().ToArray();
             return new AppSchemaDataFilterValue(array);

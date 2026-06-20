@@ -102,7 +102,7 @@ public static class SystemAppData
             if (value is not ArrayNode { Count: > 0 } arr) return default;
 
             // find the contains item
-            StructNode[] items = arr.Cast<StructNode>().ToArray();
+            StructNode[] items = arr.OfType<StructNode>().ToArray();
             for (int i = 0; i < keyValues.Length; i++)
             {
                 if (keyValues[i].Count == 1) continue;

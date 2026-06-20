@@ -229,7 +229,7 @@ public class StructFieldSchema: ISchemaExtensions
 
             if (Properties is { Length: > 0 })
             {
-                Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
+                Constraints = Properties.OfType<IConstraintProperty>().ToArray();
                 foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty && p.HasValue).Cast<ITypeRefProperty>())
                 {
                     string? name = typeRef.GetValue<string>();

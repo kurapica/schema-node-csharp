@@ -14,7 +14,7 @@ namespace SchemaNode.Generator;
 
 public class EventGenerator: INodeSchemaGenerator
 {
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         if (!type.IsAssignableTo(typeof(Event.BaseEvent))) yield break;
         
@@ -22,6 +22,13 @@ public class EventGenerator: INodeSchemaGenerator
             throw new Exception($"BaseEvent type {type.FullName} can't be generic");
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, @namespace, name, type);
+        if (typeResolver == null)
+        {
+            yield return schema;
+            yield break;
+        }
+        
+        // Event schema
         EventSchema eventSchema = new EventSchema();
        
         // Constructor Arguments

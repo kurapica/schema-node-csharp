@@ -9,6 +9,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using Index = SchemaNode.Property.Core.Index;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using Type = System.Type;
 
@@ -24,27 +25,66 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
     /// <exception cref="ArgumentNullException"></exception>
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         // Only process non-abstract, non-enum classes and value types
         if (type.IsEnum ||
             type is { IsClass: false, IsValueType: false } ||
             type is { IsClass: true, IsAbstract: true } ||
+            type.IsSubclassOfGenericType(typeof(Property<>)) ||
             (type.IsValueType && type.IsPrimitiveLike())) yield break;
 
         // Build struct node schema
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_STRUCT, @namespace, name, type, type.GetSummaryFromXmlDoc());
+        if (typeResolver == null)
+        {
+            yield return schema;
+            
+            // for array schema
+            if (type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
+                .Any(p =>
+                    p.GetMethod?.IsPrivate != true &&
+                    p.GetCustomAttribute<SchemaIgnoreAttribute>() == null &&
+                    p is { CanRead: true, CanWrite: true } &&
+                    (p.GetMetaProperty<PrimaryIndex>() != null) || 
+                    p.GetMetaProperty<UniqueIndex>() != null ||
+                    p.GetMetaProperty<Index>() != null))
+            {
+                // Also generate a companion array schema when primary keys, indexes, or nested types are present
+                NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
+                    $"{Locale.LIST_PREFIX}{{@{schema.FullName}}}{Locale.LIST_SUFFIX}");
+                array.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema { Element = schema.FullName });
+
+                yield return array;
+            }
+            yield break;
+        }
 
         // Generate the struct fields
         List<(int Order, string FieldName)> primaries = [];
         Dictionary<string, PendingIndex> indexes = new(StringComparer.OrdinalIgnoreCase);
         List<RelationSchema> relations = [];
         List<StructFieldSchema> fieldConfigs = [];
-        Dictionary<StructFieldSchema, PropertyInfo> fields = [];
+        
+        StructSchema structSchema = new() { Fields = [] };
         
         // Check generic types
         Type[] genericArgs = type.GetGenericArguments();
         GenericParameter[]? genericDeclare = type.GetMetaProperty<Generics>()?.Value;
+        
+        // Generics
+        if (genericArgs.Length > 0 && genericDeclare is null)
+        {
+            genericDeclare = genericArgs
+                .Select(g => g.GetTypeDetail())
+                .Select(g=>
+                    new GenericParameter (
+                        typeResolver(g.CoreType, @namespace, genericArgs)!,
+                        g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
+                    )).ToArray();
+            structSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
+        }
+
         
         foreach (PropertyInfo p in type
              .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
@@ -64,9 +104,6 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             };
             field.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(p) ?? $"{schema.FullName}.{fieldName}");
             
-            // to avoid the cycle ref, resolve the field type later
-            fields.Add(field, p);
-            
             // Extension Properties
             foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_STRUCT_FIELD))
                 field.SetProperty(property);
@@ -74,6 +111,41 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Require Check
             if (!p.PropertyType.GetTypeDetail().Nullable)
                 field.SetProperty<Require, bool>(true);
+
+            // field type && property
+            if (string.IsNullOrWhiteSpace(field.Type))
+                field.Type = typeResolver(p.PropertyType, @namespace, genericArgs) ?? string.Empty;
+
+            if (genericDeclare != null && genericArgs.Length > 0 && genericDeclare.Any(g => g.Name.Equals(field.Type, StringComparison.OrdinalIgnoreCase))) 
+                continue;
+
+            NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
+            if (fieldTypeSchema == null) 
+                throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+
+            var detail = p.PropertyType.GetTypeDetail();
+            if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                field.Type = runtime.GetSystemArraySchema(field.Type) ?? throw new Exception($"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
+            
+            // Extension Properties
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
+                field.SetProperty(property);
+
+            if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+            {
+                ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
+                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
+
+                string eleName = arraySchema.Element;
+                if (arraySchema.GetProperty<Generics>()?.Value is { } generics &&
+                    generics.Any(g => g.Name.Equals(eleName, StringComparison.OrdinalIgnoreCase)))
+                    eleName = runtime.GetSystemSchemaGenericArguments(fieldTypeSchema.FullName).FirstOrDefault() ?? eleName;
+
+                NodeSchema? element = runtime.GetSystemSchema(eleName);
+                if (element != null)
+                    foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
+                        field.SetProperty(property);
+            }
 
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
             // Do not inspect Property-type relations here; those are dynamically assembled later.
@@ -89,31 +161,19 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                 AddIndex(indexes, idx.Value, fieldName, idx.Order, isUnique: true);
             
             // [Meta<Index>] -> indexes
-            foreach (Property.Core.Index idx in p.GetMetaProperties<Property.Core.Index>())
+            foreach (Index idx in p.GetMetaProperties<Index>())
                 AddIndex(indexes, idx.Value, fieldName, idx.Order, isUnique: false);
 
             fieldConfigs.Add(field);
         }
+        
+        structSchema.Fields = fieldConfigs.ToArray();
 
         string[]? primaryFields = BuildFields(primaries);
         DataIndex[]? dataIndexes = BuildIndexes(indexes.Values);
 
-        StructSchema structSchema = new() { Fields = fieldConfigs.ToArray() };
         if (relations.Count > 0)
             structSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
-        
-        // Generics
-        if (genericArgs.Length > 0 && genericDeclare is null)
-        {
-            genericDeclare = genericArgs
-                .Select(g => g.GetTypeDetail())
-                .Select(g=>
-                new GenericParameter (
-                    typeResolver(g.CoreType, @namespace, genericArgs)!,
-                    g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-                )).ToArray();
-            structSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
-        }
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         
@@ -135,52 +195,6 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 
             yield return array;
         }
-
-        bool changed = false;
-        foreach ((StructFieldSchema field, PropertyInfo p) in fields)
-        {
-            if (string.IsNullOrWhiteSpace(field.Type))
-            {
-                field.Type = typeResolver(p.PropertyType, @namespace, genericArgs) ??
-                             throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
-                changed = true;
-            }
-
-            if (genericDeclare != null && genericArgs.Length > 0 && genericDeclare.Any(g => g.Name.Equals(field.Type, StringComparison.OrdinalIgnoreCase))) 
-                continue;
-
-            NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
-            if (fieldTypeSchema == null) 
-                throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
-
-            var detail = p.PropertyType.GetTypeDetail();
-            if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
-                field.Type = runtime.GetSystemArraySchema(field.Type) ?? throw new Exception($"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
-            
-            // Extension Properties
-            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
-            {
-                field.SetProperty(property);
-                changed = true;
-            }
-
-            if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
-            {
-                ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
-                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
-                NodeSchema element = runtime.GetSystemSchema(arraySchema.Element) 
-                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
-                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
-                {
-                    field.SetProperty(property);
-                    changed = true;
-                }
-            }
-        }
-        if (!changed) yield break;
-
-        schema.SetProperty<StructProperty, StructSchema>(structSchema);
-        yield return schema;
     }
 
     private static void AddOrderedField(List<(int Order, string FieldName)> fields, int order, string fieldName)

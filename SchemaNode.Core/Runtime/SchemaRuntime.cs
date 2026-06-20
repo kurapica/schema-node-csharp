@@ -191,7 +191,7 @@ public class SchemaRuntime : ISchemaRuntime
     /// <summary>
     /// Gets a system-defined node schema by name
     /// </summary>
-    internal NodeSchema? GetSystemSchema(string schemaName)
+    public NodeSchema? GetSystemSchema(string schemaName)
     {
         NodeSchema? node = _rootSchema;
         SpanReader reader = schemaName;
@@ -199,6 +199,27 @@ public class SchemaRuntime : ISchemaRuntime
         {
             ReadOnlySpan<char> part = reader.Current;
             NodeSchema? curr = null;
+            
+             // Generic Types
+            if (part.StartsWith('<'))
+            {
+                if (!part.EndsWith('>'))
+                    throw new Exception($"Invalid generic type syntax for {schemaName}");
+                part = part[1..^1];
+
+                List<string> genParams = [];
+                SpanReader genericReader = part;
+                string key = part.ToString();
+
+                while(genericReader.NextGenericParam())
+                {
+                    ReadOnlySpan<char> genericParam = genericReader.Current;
+                    genParams.Add(genericParam.ToString());
+                }
+
+                return node?.Clone(this);
+            }
+            
             if (node.Schemas != null)
             {
                 foreach (NodeSchema schema in node.Schemas)
@@ -211,6 +232,52 @@ public class SchemaRuntime : ISchemaRuntime
             node = curr;
         }
         return node?.Clone(this);
+    }
+
+    /// <summary>
+    /// Gets the generic arguments of the system schema name
+    /// </summary>
+    public string[] GetSystemSchemaGenericArguments(string schemaName)
+    {
+        NodeSchema? node = _rootSchema;
+        SpanReader reader = schemaName;
+        while (node != null && reader.NextNamespace())
+        {
+            ReadOnlySpan<char> part = reader.Current;
+            NodeSchema? curr = null;
+            
+            // Generic Types
+            if (part.StartsWith('<'))
+            {
+                if (!part.EndsWith('>'))
+                    throw new Exception($"Invalid generic type syntax for {schemaName}");
+                part = part[1..^1];
+
+                List<string> genParams = [];
+                SpanReader genericReader = part;
+                string key = part.ToString();
+
+                while(genericReader.NextGenericParam())
+                {
+                    ReadOnlySpan<char> genericParam = genericReader.Current;
+                    genParams.Add(genericParam.ToString());
+                }
+                return genParams.ToArray();
+            }
+            
+            if (node.Schemas != null)
+            {
+                foreach (NodeSchema schema in node.Schemas)
+                {
+                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    curr = schema;
+                    break;
+                }
+            }
+            node = curr;
+        }
+
+        return [];
     }
     
     /// <summary>

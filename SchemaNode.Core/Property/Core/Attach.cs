@@ -13,4 +13,5 @@ namespace SchemaNode.Property.Core;
 [Meta<Static>]
 [Meta<PropertyValueType>(typeof(SchemaKind))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(Attach)}")]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 public class Attach : Property<string>;

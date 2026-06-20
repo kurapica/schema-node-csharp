@@ -37,7 +37,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
             }
             else
             {
-                foreach (StructNode t in list.Cast<StructNode>())
+                foreach (StructNode t in list.OfType<StructNode>())
                 {
                     if (filter.Test(schemaContext, t).GetValue<bool>())
                         origins.Add(t);
@@ -190,7 +190,7 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
             List<DataNode> origins = [];
             List<DataNode> remains = [];
 
-            foreach (StructNode t in list.Cast<StructNode>())
+            foreach (StructNode t in list.OfType<StructNode>())
             {
                 if (filter == null || filter.Test(schemaContext, t).GetValue<bool>())
                     origins.Add(t);

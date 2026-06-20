@@ -94,7 +94,7 @@ public sealed class ArrayType: ValueType
             yield return Element;
         
         if (_relations != null)
-            foreach (NodeType node in _relations.Cast<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
+            foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
         
         foreach (NodeType nodeType in base.GetReferenceTypes())

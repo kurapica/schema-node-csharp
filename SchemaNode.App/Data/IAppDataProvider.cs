@@ -111,7 +111,7 @@ public static class AppDataProviderExtension
             {
                 // Filter in memory
                 var filtered = new ArrayNode(structType);
-                foreach (StructNode node in resultArray.Cast<StructNode>())
+                foreach (StructNode node in resultArray.OfType<StructNode>())
                 {
                     string? key = arrType.GetPrimaryKey(node);
                     if (!string.IsNullOrEmpty(key) && keys.Contains(key))
@@ -167,7 +167,7 @@ public static class AppDataProviderExtension
                 var origin = new ArrayNode(arrNode.ElementType as StructType ?? throw new InvalidOperationException("Invalid element type"));
                 for (int i = 0; i < arrNode.Count; i += MAX_COMBINE_CASE_COUNT)
                 {
-                    StructNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).Cast<StructNode>().ToArray();
+                    StructNode[] batch = arrNode.Skip(i).Take(MAX_COMBINE_CASE_COUNT).OfType<StructNode>().ToArray();
                     AppSchemaDataFilter? filter = null;
                     foreach (var item in batch)
                     {

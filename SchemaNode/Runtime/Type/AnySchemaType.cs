@@ -121,8 +121,8 @@ public abstract class AnySchemaType: IDisposable
 
             if (Properties is { Length: > 0 })
             {
-                Constraints = Properties.Where(p => p is IConstraintProperty).Cast<IConstraintProperty>().ToArray();
-                foreach (var typeRef in Properties.Where(p => p is ITypeRefProperty && p.HasValue).Cast<ITypeRefProperty>())
+                Constraints = Properties.OfType<IConstraintProperty>().ToArray();
+                foreach (var typeRef in Properties.OfType<ITypeRefProperty>().Where(p => p.HasValue))
                 {
                     string? name = typeRef.GetValue<string>();
                     AnySchemaType? node = !string.IsNullOrWhiteSpace(name) ? await context.GetSchemaTypeAsync(name) : null;

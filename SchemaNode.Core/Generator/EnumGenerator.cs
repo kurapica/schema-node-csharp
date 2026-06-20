@@ -19,12 +19,17 @@ namespace SchemaNode.Service;
 internal sealed class EnumGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         if (!type.IsEnum) yield break;
 
         // Build node schema (NodeSchema.Create applies node-level meta-properties and uses XML doc as default display)
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ENUM, @namespace, name, type);
+        if (typeResolver == null)
+        {
+            yield return schema;
+            yield break;
+        }
         
         // Determine enum value type: Flags or String
         EnumValueType valueType = type.GetCustomAttribute<FlagsAttribute>() != null

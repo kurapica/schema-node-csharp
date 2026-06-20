@@ -79,7 +79,7 @@ public static class AppDataQueryExtension
                 }
                 else if (nodes is ArrayNode { Count: > 0 } arrNodes)
                 {
-                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.Cast<StructNode>(),
+                    result = await dataProvider.QueryOriginNodesAsync(schema, arrNodes.OfType<StructNode>(),
                         forUpdate);
                 }
             }

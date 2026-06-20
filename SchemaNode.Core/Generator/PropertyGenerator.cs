@@ -14,16 +14,17 @@ namespace SchemaNode.Service;
 internal class PropertyGenerator : INodeSchemaGenerator
 {
     /// <inheritdoc />
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         Type? valueType = type.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0);
         if (valueType == null) yield break;
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
-
-        string[]? forSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>();
-        if (forSchemas == null)
-            yield break; // ForSchema is optional — properties without it use the Attach mechanism
+        if (typeResolver == null)
+        {
+            yield return schema; // take place no details
+            yield break;
+        }
         
         PropertySchema propSchema = new PropertySchema
         {
@@ -35,7 +36,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
                 throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
 
             // ForSchemas
-            ForSchemas = forSchemas,
+            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
 
             // Static
             Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
@@ -44,10 +45,15 @@ internal class PropertyGenerator : INodeSchemaGenerator
             Stackable = type.GetMetaProperty<Stackable>()?.GetValue<bool>(),
         };
                 
-        // Relations — NOT processed during schema generation.
-        // Direct [Relation<T>] attributes on property types are dynamically assembled at runtime.
-        // Processing them here causes infinite recursion since resolving target types
-        // triggers further PropertyGenerator calls.
+        // Relations
+        List<RelationSchema> relations = [];
+        
+        // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
+        // Do not inspect Property-type relations here; those are dynamically assembled later.
+        foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
+            relations.Add(relation.GetRelationSchema(runtime, propSchema.Property, typeResolver));
+        if (relations.Count > 0)
+            propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Build property schema
         schema.SetProperty<Schema.Property, PropertySchema>(propSchema);

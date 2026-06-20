@@ -104,7 +104,7 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// Gets the clone
     /// </summary>
-    internal NodeSchema Clone(ISchemaRuntime? runtime = null)
+    public NodeSchema Clone(ISchemaRuntime? runtime = null)
     {
         var nodeSchema = new NodeSchema()
         {

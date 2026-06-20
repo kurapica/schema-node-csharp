@@ -21,16 +21,9 @@ namespace SchemaNode.Service;
 /// The schema generator used to convert C# features into node schemas
 /// </summary>
 public interface INodeSchemaGenerator
-{
-    /// <summary>
-    /// Pre-generate the node schemas from type before the schema validation, 
-    /// it can be used to generate the node schemas that only depends on the type itself, without other schemas,
-    /// so it can be used by other generators to generate more complex schemas.
-    /// </summary>
-    IEnumerable<NodeSchema> PreGenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name);
-
-    /// <summary>
-    /// Generate the node schemas from type
+{ /// <summary>
+    /// Generate the node schemas from type, if typeResolver not provided, that means only the current type is allowed to be resolved,
+    /// and all other dependent types should be ignored, so all system schema can be solved in the next schema generate stage.
     /// </summary>
     /// <param name="runtime">The schema runtime</param>
     /// <param name="type">The type to generate the schemas</param>
@@ -38,7 +31,7 @@ public interface INodeSchemaGenerator
     /// <param name="name">The suggest schema name</param>
     /// <param name="typeResolver">The function used to solve the schema type of the given type</param>
     /// <returns>The node schemas that generated</returns>
-    IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver);
+    IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null);
 }
 
 /// <summary>
@@ -165,21 +158,26 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 runtime.SaveSystemSchema(nsSchema);
             }
             
-            HashSet<Type> handled = [];
+            HashSet<Type> schemaTypes = [];
             
             // scalar type first because the schema type is not the type declare it
-            foreach (Type type in assembly.GetTypes().Where(t => !t.IsAbstract && !t.IsInterface && t.IsSubclassOfGenericType(typeof(IScalarType<>))))
+            foreach (Type type in assembly.GetTypes())
             {
-                handled.Add(type);
-                ResolveScalarSchema(type, defaultNs);
+                if (type.IsAbstract || type.IsInterface || type.GetMetaProperty<SchemaType>() == null) continue;
+                
+                if (type.IsSubclassOfGenericType(typeof(IScalarType<>)))
+                    ResolveScalarSchema(type, defaultNs);
+                else
+                    schemaTypes.Add(type);
             }
+            
+            // pre-generate
+            foreach (Type type in schemaTypes)
+                GenerateSchema(type, defaultNs, true);
 
-            // other types
-            foreach (Type type in assembly.GetTypes().Where(handled.Add))
-            {
-                if (type.GetMetaProperty<SchemaType>() == null) continue;
-                string _ = ResolveOtherSchema(type, defaultNs) ?? throw  new Exception($"Failed to resolve schema for type '{type}'");
-            }
+            // generate
+            foreach (Type type in schemaTypes)
+                GenerateSchema(type, defaultNs);
         }
         
         #endregion
@@ -299,6 +297,34 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             runtime.SaveSystemSchema(ExtendSchema(schema, type));
             return name;
         }
+
+        string? GenerateSchema(Type type, string defaultNs, bool preGenerate = false)
+        {
+            SchemaType? schemaType = type.GetMetaProperty<SchemaType>();
+            defaultNs = schemaType?.Value?.GetNamespace() ?? defaultNs;
+            string name = schemaType?.Value?.GetSchemaName() ?? type.Name.ToLowerInvariant();
+            
+            OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
+            NodeSchema? mainSchema = null;
+            foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
+                         ? kindGenerators
+                             .Where(g => ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
+                             .Select(g => g.Value)
+                         : schemaGenerators)
+            {
+                foreach (NodeSchema schema in generator.GenerateSchema(runtime, type, defaultNs, name, preGenerate ? null : ResolveOtherSchema))
+                {
+                    runtime.SaveSystemSchema(!preGenerate && schema.Type == type ? ExtendSchema(schema, type) : schema);
+                    if (schema.Type == type) mainSchema = schema;
+                }
+            }
+
+            // System schemas must be explicitly resolvable at startup. A type with SchemaType
+            // that no generator can handle is a configuration error that must not be ignored.
+            if (mainSchema == null && schemaType != null)
+                throw new Exception($"Failed to generate schema for type '{type.FullName}' with SchemaType '{schemaType.Value}'");
+            return mainSchema?.FullName;
+        }
         
         string? ResolveOtherSchema(Type type, string defaultNs, Type[]? genericArguments = null)
         {
@@ -306,10 +332,12 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             bool isArray = detail.AnyArray;
             string[]? genericArgs = null;
 
+            // Check the core type
+            type = detail.CoreType;
+
             if (detail.IsGenericParameter)
             {
-                return genericArguments is { Length: > 0 } &&
-                       Array.FindIndex(genericArguments, t => t == detail.CoreType) is { } index and >= 0
+                return genericArguments is { Length: > 0 } && Array.FindIndex(genericArguments, t => t == type) is { } index and >= 0
                     ? genericArguments.Length > 1 ? $"{NS_GENERIC_TYPE}{index}" : NS_GENERIC_TYPE
                     : null;
             }
@@ -330,44 +358,10 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 detail = detail.GenericDefine!;
             }
 
-            // Check the core type
-            type = detail.CoreType ?? throw new Exception($"Failed to get generic arguments for type '{type}'");
-
-            string? fullName = runtime.GetTypeSchema(type);
-            if (!string.IsNullOrWhiteSpace(fullName)) return GetResult(fullName);
-
-            SchemaType? schemaType = type.GetMetaProperty<SchemaType>();
-            defaultNs = schemaType?.Value?.GetNamespace() ?? defaultNs;
-            string name = schemaType?.Value?.GetSchemaName() ?? type.Name.ToLowerInvariant();
-            
-            OfSchema? ofSchema = type.GetMetaProperty<OfSchema>();
-            NodeSchema? mainSchema = null;
-            foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
-                 ? kindGenerators
-                     .Where(g => ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
-                     .Select(g => g.Value)
-                 : schemaGenerators)
-            {
-                foreach (NodeSchema schema in generator.GenerateSchema(runtime, type, defaultNs, name, ResolveOtherSchema))
-                {
-                    runtime.SaveSystemSchema(schema.Type == type ? ExtendSchema(schema, type) : schema);
-                    if (schema.Type == type) mainSchema = schema;
-                }
-            }
-
-            // System schemas must be explicitly resolvable at startup. A type with SchemaType
-            // that no generator can handle is a configuration error that must not be ignored.
-            if (mainSchema == null && schemaType != null)
-                throw new Exception($"Failed to generate schema for type '{type.FullName}' with SchemaType '{schemaType.Value}'");
-
-            return mainSchema != null ? GetResult(mainSchema.FullName) : null;
-
-            string GetResult(string schemaName)
-            {
-                if (genericArgs is { Length: > 0 })
-                    schemaName = $"{schemaName}<{string.Join(",", genericArgs)}>";
-                return isArray ? runtime.GetSystemArraySchema(schemaName)! : schemaName;
-            }
+            string? fullName = runtime.GetTypeSchema(type) ?? GenerateSchema(type, defaultNs);
+            if (string.IsNullOrWhiteSpace(fullName)) return null;
+            if (genericArgs is { Length: > 0 }) fullName = $"{fullName}<{string.Join(",", genericArgs)}>";
+            return isArray ? runtime.GetSystemArraySchema(fullName)! : fullName;
         }
 
         // Save properties to the schema

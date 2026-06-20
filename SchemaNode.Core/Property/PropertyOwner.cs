@@ -33,7 +33,7 @@ public static class PropertyOwnerExtensions
         /// <summary>
         /// Gets the property by type
         /// </summary>
-        public IEnumerable<T> GetProperties<T>() where T : class, IProperty => owner.GetProperties(typeof(T)).Cast<T>();
+        public IEnumerable<T> GetProperties<T>() where T : class, IProperty => owner.GetProperties(typeof(T)).OfType<T>();
 
         /// <summary>
         /// Set the property with type and return itself

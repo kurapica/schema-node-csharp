@@ -318,7 +318,7 @@ public sealed class FunctionType : NodeType
 
         _runtimeFuncCache.Clear();
         FuncInfo = null;
-        foreach (FunctionType f in GetUsedBy().Cast<FunctionType>())
+        foreach (FunctionType f in GetUsedBy().OfType<FunctionType>())
             f.ClearFunctionInfo();
     }
 

@@ -8,7 +8,6 @@ using StructFieldType = SchemaNode.Runtime.StructFieldType;
 using StructType = SchemaNode.Runtime.StructType;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
-using System.Security.Cryptography.X509Certificates;
 
 namespace SchemaNode.Node;
 

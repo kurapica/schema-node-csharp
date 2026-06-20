@@ -50,7 +50,7 @@ public class UplimitInt : Property<long>, IConstraintProperty
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitInt)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UplimitDate)}")]
 public class UplimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
     public bool? ValidateDate(SchemaContext context, DateNode node)

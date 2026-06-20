@@ -16,11 +16,18 @@ namespace SchemaNode.Generator;
 
 public class WorkflowGenerator : INodeSchemaGenerator
 {
-    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?> typeResolver)
+    public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         if (!type.IsAssignableTo(typeof(BaseWorkflow))) yield break;
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_WORKFLOW, @namespace, name, type);
+        if (typeResolver == null)
+        {
+            yield return schema;
+            yield break;
+        }
+        
+        // Workflow schema
         WorkflowSchema workflowSchema = new WorkflowSchema();
 
         // kind
