@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SchemaNode.Utility;
 
-internal class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, System.Enum
+public class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, System.Enum
 {       
     public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

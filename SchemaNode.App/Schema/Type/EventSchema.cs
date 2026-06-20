@@ -9,6 +9,7 @@ using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using RuntimeEventType = SchemaNode.Runtime.EventType;
 
 namespace SchemaNode.Schema;
 
@@ -17,7 +18,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_EVENT, SCHEMA_KIND_ORDER_EVENT)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_EVENT, SCHEMA_KIND_ORDER_EVENT)]
-[Meta<NodeType>(typeof(EventType))]
+[Meta<NodeType>(typeof(RuntimeEventType))]
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_EVENT)]

@@ -93,7 +93,7 @@ public class SchemaRuntime : ISchemaRuntime
     /// <returns></returns>
     public string? GetTypeSchema(Type type)
     {
-        if (_typeCache.GetValueOrDefault(type) is { } schemaName)
+        if (_typeCache.TryGetValue(type, out string? schemaName))
             return schemaName;
         
         // Handle generic types, e.g. List<string> => system.list<system.string>
@@ -114,6 +114,8 @@ public class SchemaRuntime : ISchemaRuntime
             schemaName = $"{schemaName}<{string.Join(", ", genericArgs)}>";
             return detail.AnyArray ? GetSystemArraySchema(schemaName) : schemaName;
         }
+        if (detail.CoreType != type && _typeCache.TryGetValue(detail.CoreType, out schemaName))
+            return detail.AnyArray  ? GetSystemArraySchema(schemaName) : schemaName;
         return null;
     }
 
@@ -208,7 +210,6 @@ public class SchemaRuntime : ISchemaRuntime
             }
             node = curr;
         }
-
         return node?.Clone(this);
     }
     

@@ -134,7 +134,7 @@ internal static class DateFormatModeSerializer
 
 #region DateTime Converter
 
-internal class JsonDateTimeConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTime>
+public class JsonDateTimeConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTime>
 {
     public override DateTime Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => DateFormatModeSerializer.ReadDateTime(ref reader, mode);
@@ -143,7 +143,7 @@ internal class JsonDateTimeConverter(DateFormatMode mode, TimeZoneInfo tz) : Jso
         => DateFormatModeSerializer.Write(writer, value, mode, tz);
 }
 
-internal class JsonDateTimeOffsetConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTimeOffset>
+public class JsonDateTimeOffsetConverter(DateFormatMode mode, TimeZoneInfo tz) : JsonConverter<DateTimeOffset>
 {
     public override DateTimeOffset Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         => DateFormatModeSerializer.ReadDateTimeOffset(ref reader, mode);

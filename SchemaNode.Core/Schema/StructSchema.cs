@@ -11,6 +11,7 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
+using RuntimeStructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Schema;
 
@@ -20,7 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<NodeType>(typeof(StructType))]
+[Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT)]

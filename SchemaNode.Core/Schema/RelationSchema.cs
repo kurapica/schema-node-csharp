@@ -8,6 +8,7 @@ using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using RelationKind = SchemaNode.Enum.RelationKind;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
+using SchemaPropertyType = SchemaNode.Schema.PropertyType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -28,7 +29,7 @@ public class RelationSchema : ExtensibleSchema
     /// <summary>
     /// The property the relation applied to
     /// </summary>
-    [Meta<SchemaType>(typeof(PropertyType))]
+    [Meta<SchemaType>(typeof(SchemaPropertyType))]
     public string Property { get; set; } = null!;
 
     /// <summary>

@@ -38,7 +38,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
     /// </summary>
     [SchemaIgnore]
     [JsonExtensionData]
-    public Dictionary<string, JsonNode>? Extensions { get; internal set; }
+    public JsonObject? Extensions { get; internal set; }
 
     /// <summary>
     /// Combine other extensible properties into this instance. If there are duplicate keys, the values from the other instance will overwrite the existing values.
@@ -52,7 +52,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
         {
             Extensions ??= [];
             foreach (var (key, value) in other.Extensions)
-                Extensions[key] = Combine(value, Extensions.GetValueOrDefault(key));
+                Extensions[key] = Combine(value, Extensions[key]);
         }
         else
         {
@@ -136,9 +136,9 @@ public abstract class ExtensibleSchema : IPropertyOwner
             }
         }
 
-        JsonNode Combine(JsonNode from, JsonNode? to)
+        JsonNode? Combine(JsonNode? from, JsonNode? to)
         {
-            if (to == null || to.IsEmpty() || to is not JsonObject toObject) return from;
+            if (to == null || to.IsEmpty() || to is not JsonObject toObject) return from?.DeepClone();
             if (from is not JsonObject fromObject) return toObject;
             foreach (var (key, value) in fromObject)
             {
@@ -189,7 +189,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
             {
                 JsonArray newArray =
                 [
-                    existNode.DeepClone(),
+                    existNode!.DeepClone(),
                     node.DeepClone()
                 ];
                 Extensions[property.Name] = newArray;

@@ -55,16 +55,6 @@ public class EnumValueEntity
     public static implicit operator EnumValueEntity?(EnumValueSchema? enumValueSchema)
     {
         if  (enumValueSchema == null) return null;
-        JsonObject? extensions = null;
-        if (enumValueSchema.Extensions is { Count : > 0})
-        {
-            extensions = new JsonObject();
-            foreach (var kvp in enumValueSchema.Extensions)
-            {
-                extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new EnumValueEntity
         {
             Enum = enumValueSchema.Parent?.Root ?? enumValueSchema.Value,
@@ -72,31 +62,20 @@ public class EnumValueEntity
             Root = enumValueSchema.Root,
             Seqno = enumValueSchema.Seqno,
             HasSubList = enumValueSchema.HasSubList ?? false,
-            Extensions = extensions
+            Extensions = enumValueSchema.Extensions?.DeepClone() as JsonObject
         };
     }
     
     public static implicit operator EnumValueSchema?(EnumValueEntity? enumValueEntity)
     {
         if (enumValueEntity == null) return null;
-        Dictionary<string, JsonNode>? extensions = null;
-        if (enumValueEntity.Extensions is { Count : > 0})
-        {
-            extensions = [];
-            foreach (var kvp in enumValueEntity.Extensions)
-            {
-                if (kvp.Value != null && !kvp.Value.IsEmpty()) 
-                    extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new EnumValueSchema
         {
             Value = enumValueEntity.Value,
             Root = enumValueEntity.Root,
             Seqno = enumValueEntity.Seqno,
             HasSubList = enumValueEntity.HasSubList,
-            Extensions = extensions
+            Extensions = enumValueEntity.Extensions?.DeepClone() as JsonObject
         };
     }
 

@@ -21,6 +21,10 @@ internal class PropertyGenerator : INodeSchemaGenerator
         
         NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
 
+        string[]? forSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>();
+        if (forSchemas == null)
+            yield break; // ForSchema is optional — properties without it use the Attach mechanism
+        
         PropertySchema propSchema = new PropertySchema
         {
             // Name
@@ -31,8 +35,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
                 throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
 
             // ForSchemas
-            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ??
-                         throw new ArgumentException($"Type '{type}' is not a valid as property type."),
+            ForSchemas = forSchemas,
 
             // Static
             Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
@@ -40,15 +43,11 @@ internal class PropertyGenerator : INodeSchemaGenerator
             // Stackable
             Stackable = type.GetMetaProperty<Stackable>()?.GetValue<bool>(),
         };
-        
-        // Relations
-        List<RelationSchema> relations = [];
-        // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
-        // Do not inspect Property-type relations here; those are dynamically assembled later.
-        foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-            relations.Add(relation.GetRelationSchema(runtime, propSchema.Property, typeResolver));
-        if (relations.Count > 0)
-            propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
+                
+        // Relations — NOT processed during schema generation.
+        // Direct [Relation<T>] attributes on property types are dynamically assembled at runtime.
+        // Processing them here causes infinite recursion since resolving target types
+        // triggers further PropertyGenerator calls.
         
         // Build property schema
         schema.SetProperty<Schema.Property, PropertySchema>(propSchema);

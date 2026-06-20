@@ -8,6 +8,7 @@ using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function;
@@ -15,7 +16,7 @@ namespace SchemaNode.Function;
 /// <summary>
 /// The system reflect
 /// </summary>
-[Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT)]
+[Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_APP)]
 public static class SystemAppReflect
 {
     public static async Task<Entry<string>[]> getapps(SchemaContext context,

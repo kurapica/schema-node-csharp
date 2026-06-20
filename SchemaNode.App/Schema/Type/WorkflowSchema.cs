@@ -11,6 +11,7 @@ using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using RuntimeWorkflowType = SchemaNode.Runtime.WorkflowType;
 
 namespace SchemaNode.Schema;
 
@@ -19,7 +20,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_WORKFLOW, SCHEMA_KIND_ORDER_WORKFLOW)]
-[Meta<NodeType>(typeof(WorkflowType))]
+[Meta<NodeType>(typeof(RuntimeWorkflowType))]
 [Meta<SchemaGenerator>(typeof(WorkflowGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
 [Meta<Attach>(SCHEMA_KIND_WORKFLOW)]

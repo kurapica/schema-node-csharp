@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace SchemaNode.Utility;
 
-internal class UniversalFlexibleEnumConverter : JsonConverterFactory
+public class UniversalFlexibleEnumConverter : JsonConverterFactory
 {
     public override bool CanConvert(Type typeToConvert) => typeToConvert.IsEnum;
 

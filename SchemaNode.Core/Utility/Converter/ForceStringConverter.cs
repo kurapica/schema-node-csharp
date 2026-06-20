@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace SchemaNode.Utility;
 
-internal class ForceStringConverter : JsonConverter<string>
+public class ForceStringConverter : JsonConverter<string>
 {
     public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

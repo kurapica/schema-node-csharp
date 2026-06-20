@@ -100,16 +100,6 @@ internal class AppFieldEntity
     public static implicit operator AppFieldEntity?(AppFieldSchema? appFieldSchema)
     {
         if  (appFieldSchema == null) return null;
-        JsonObject? extensions = null;
-        if (appFieldSchema.Extensions is { Count : > 0})
-        {
-            extensions = new JsonObject();
-            foreach (var kvp in appFieldSchema.Extensions)
-            {
-                extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new AppFieldEntity
         {
             App = appFieldSchema.App,
@@ -122,24 +112,13 @@ internal class AppFieldEntity
             Combines = appFieldSchema.Combines,
             Foreigns = appFieldSchema.Foreigns,
             View = appFieldSchema.View,
-            Extensions = extensions
+            Extensions = appFieldSchema.Extensions?.DeepClone() as JsonObject
         };
     }
     
     public static implicit operator AppFieldSchema?(AppFieldEntity? appFieldEntity)
     {
         if  (appFieldEntity == null) return null;
-        Dictionary<string, JsonNode>? extensions = null;
-        if (appFieldEntity.Extensions is { Count : > 0})
-        {
-            extensions = new Dictionary<string, JsonNode>();
-            foreach (var kvp in appFieldEntity.Extensions)
-            {
-                if (kvp.Value != null && !kvp.Value.IsEmpty())
-                    extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new AppFieldSchema
         {
             App = appFieldEntity.App,
@@ -152,7 +131,7 @@ internal class AppFieldEntity
             Combines = appFieldEntity.Combines,
             Foreigns = appFieldEntity.Foreigns,
             View = appFieldEntity.View,
-            Extensions = extensions
+            Extensions = appFieldEntity.Extensions?.DeepClone() as JsonObject
         };
     }
 

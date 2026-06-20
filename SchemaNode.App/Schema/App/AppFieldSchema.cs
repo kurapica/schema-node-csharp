@@ -13,6 +13,7 @@ using SchemaNode.Node;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
+using SchemaValueType = SchemaNode.Schema.ValueType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -51,7 +52,7 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// <summary>
     /// The field type
     /// </summary>
-    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<SchemaType>(typeof(SchemaValueType))]
     public string Type { get; set; } = default!;
     
     #endregion
@@ -65,7 +66,7 @@ public sealed class AppFieldSchema: ExtensibleSchema
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
     public string? Source { get; set; }
     
-    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<SchemaType>(typeof(SchemaValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
     [Relation<Default>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"${nameof(App)}", $"${nameof(Source)}", true)]

@@ -24,10 +24,10 @@ using StructType = SchemaNode.Runtime.StructType;
 namespace SchemaNode.Function;
 
 /// <summary>
-/// The system.data api
+/// The system.data api for application-level data operations
 /// </summary>
-[Meta<SchemaType>(NS_SYSTEM_DATA)]
-public static class SystemData
+[Meta<SchemaType>($"{NS_SYSTEM_DATA}.app")]
+public static class SystemAppData
 {
     #region Get single Application Data
 

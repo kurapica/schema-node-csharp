@@ -24,6 +24,7 @@ internal static class Extension
             new UniversalFlexibleEnumConverter(),
             new ForceStringConverter(),
             new FlexibleLongConverter(),
+            new SchemaConverterFactory(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -573,6 +574,13 @@ internal static class Extension
                 else if (value is not string && value is IEnumerable iter)
                 {
                     result = ConvertToCollection(iter.Cast<object?>(), targetType);
+                    return true;
+                }
+                // When target is an array type and value is a single element, wrap it
+                else if (targetType.IsSZArray)
+                {
+                    var items = new object?[] { value };
+                    result = ConvertToCollection(items, targetType);
                     return true;
                 }
 

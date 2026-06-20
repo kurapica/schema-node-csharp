@@ -13,6 +13,7 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
+using RuntimeEnumType = SchemaNode.Runtime.EnumType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -24,7 +25,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
-[Meta<NodeType>(typeof(EnumType))]
+[Meta<NodeType>(typeof(RuntimeEnumType))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]

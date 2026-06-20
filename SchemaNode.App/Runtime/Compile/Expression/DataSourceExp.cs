@@ -39,7 +39,7 @@ public class DataSourceExpVisitor : IExpVisitor
         if (exp is not FuncCallExp { ExpType: ExpType.Call } callExp) return null;
 
         // Data source check
-        if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}") return null;
+        if (callExp.Function.Name != $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getdatasource)}") return null;
         string? app = callExp.Args.ElementAtOrDefault(0) is ConstantExp appExp ? appExp.Value.GetValue<string>() :  null;
         string? field = callExp.Args.ElementAtOrDefault(1) is ConstantExp fldExp ? fldExp.Value.GetValue<string>() :  null;
 

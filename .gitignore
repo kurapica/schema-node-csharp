@@ -38,3 +38,5 @@ SchemaNode.Example/SchemaNode.Example.csproj.user
 /SchemaNode.Core/obj
 /SchemaNode.App/bin
 /SchemaNode.Core/bin
+/SchemaNode.RefactorTest/obj
+/SchemaNode.RefactorTest/bin

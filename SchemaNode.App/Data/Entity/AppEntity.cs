@@ -39,43 +39,22 @@ internal class AppEntity
     public static implicit operator AppEntity?(AppSchema? appSchema)
     {
         if (appSchema == null) return null;
-        JsonObject? extensions = null;
-        if (appSchema.Extensions is { Count : > 0})
-        {
-            extensions = new JsonObject();
-            foreach (var kvp in appSchema.Extensions)
-            {
-                extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new AppEntity
         {
             Container = appSchema.Container,
             Name = appSchema.Name,
-            Extensions = extensions
+            Extensions = appSchema.Extensions?.DeepClone() as JsonObject,
         };
     }
     
     public static implicit operator AppSchema?(AppEntity? appEntity)
     {
         if (appEntity == null) return null;
-        Dictionary<string, JsonNode>? extensions = null;
-        if (appEntity.Extensions is { Count : > 0})
-        {
-            extensions = new Dictionary<string, JsonNode>();
-            foreach (var kvp in appEntity.Extensions)
-            {
-                if (kvp.Value != null && !kvp.Value.IsEmpty())
-                    extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        
         return new AppSchema
         {
             Container = appEntity.Container,
             Name = appEntity.Name,
-            Extensions = extensions
+            Extensions = appEntity.Extensions?.DeepClone() as JsonObject
         };
     }
 

@@ -7,6 +7,7 @@ using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
+using RuntimeArrayType = SchemaNode.Runtime.ArrayType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -18,7 +19,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
-[Meta<NodeType>(typeof(ArrayType))]
+[Meta<NodeType>(typeof(RuntimeArrayType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Append>(typeof(Relations))]
 [Meta<Attach>(SCHEMA_KIND_ARRAY)]

@@ -3,8 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SchemaNode.Utility;
 
-
-internal class FlexibleLongConverter : JsonConverter<long>
+public class FlexibleLongConverter : JsonConverter<long>
 {
     public override long Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

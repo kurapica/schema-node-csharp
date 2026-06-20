@@ -102,7 +102,14 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 var generator = schemaGenerators.FirstOrDefault(g => g.GetType() == schemaGenerator);
                 if (generator is null)
                 {
-                    generator = ActivatorUtilities.CreateInstance<INodeSchemaGenerator>(context.Services, schemaGenerator);
+                    try
+                    {
+                        generator = (INodeSchemaGenerator)Activator.CreateInstance(schemaGenerator, nonPublic: true)!;
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException($"Failed to create generator '{schemaGenerator.FullName}' for schema kind '{kind}' (schema type: {type.FullName}). IsAbstract={schemaGenerator.IsAbstract}", ex);
+                    }
                     schemaGenerators.Add(generator);
                 }
                 kindGenerators[kind] = generator;
@@ -154,7 +161,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             HashSet<Type> handled = [];
             
             // scalar type first because the schema type is not the type declare it
-            foreach (Type type in assembly.GetTypes().Where(t => t.IsSubclassOfGenericType(typeof(IScalarType<>))))
+            foreach (Type type in assembly.GetTypes().Where(t => !t.IsAbstract && !t.IsInterface && t.IsSubclassOfGenericType(typeof(IScalarType<>))))
             {
                 handled.Add(type);
                 ResolveScalarSchema(type, defaultNs);
@@ -340,6 +347,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                     if (schema.Type == type) mainSchema = schema;
                 }
             }
+
+            // System schemas must be explicitly resolvable at startup. A type with SchemaType
+            // that no generator can handle is a configuration error that must not be ignored.
+            if (mainSchema == null && schemaType != null)
+                throw new Exception($"Failed to generate schema for type '{type.FullName}' with SchemaType '{schemaType.Value}'");
 
             return mainSchema != null ? GetResult(mainSchema.FullName) : null;
 

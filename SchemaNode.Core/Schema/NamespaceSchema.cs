@@ -4,6 +4,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
+using RuntimeNamespaceType = SchemaNode.Runtime.NamespaceType;
 
 namespace SchemaNode.Schema;
 
@@ -12,7 +13,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_NAMESPACE, SCHEMA_KIND_ORDER_NAMESPACE)]
-[Meta<NodeType>(typeof(NamespaceType))]
+[Meta<NodeType>(typeof(RuntimeNamespaceType))]
 public sealed class NamespaceSchema;
 
 /// <summary>

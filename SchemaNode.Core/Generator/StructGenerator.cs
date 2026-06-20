@@ -44,6 +44,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         
         // Check generic types
         Type[] genericArgs = type.GetGenericArguments();
+        GenericParameter[]? genericDeclare = type.GetMetaProperty<Generics>()?.Value;
         
         foreach (PropertyInfo p in type
              .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
@@ -69,6 +70,10 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Extension Properties
             foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_STRUCT_FIELD))
                 field.SetProperty(property);
+            
+            // Require Check
+            if (!p.PropertyType.GetTypeDetail().Nullable)
+                field.SetProperty<Require, bool>(true);
 
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
             // Do not inspect Property-type relations here; those are dynamically assembled later.
@@ -98,14 +103,17 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             structSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         
         // Generics
-        if (genericArgs.Length > 0)
-            structSchema.SetProperty<Generics, GenericParameter[]>(genericArgs
+        if (genericArgs.Length > 0 && genericDeclare is null)
+        {
+            genericDeclare = genericArgs
                 .Select(g => g.GetTypeDetail())
                 .Select(g=>
                 new GenericParameter (
                     typeResolver(g.CoreType, @namespace, genericArgs)!,
                     g is { AnyArray: false, Number: true } ? [NS_SYSTEM_NUMBER] : null
-                )).ToArray());
+                )).ToArray();
+            structSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
+        }
         
         schema.SetProperty<StructProperty, StructSchema>(structSchema);
         
@@ -134,10 +142,12 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             if (string.IsNullOrWhiteSpace(field.Type))
             {
                 field.Type = typeResolver(p.PropertyType, @namespace, genericArgs) ??
-                             throw new Exception(
-                                 $"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
+                             throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
                 changed = true;
             }
+
+            if (genericDeclare != null && genericArgs.Length > 0 && genericDeclare.Any(g => g.Name.Equals(field.Type, StringComparison.OrdinalIgnoreCase))) 
+                continue;
 
             NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
             if (fieldTypeSchema == null) throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
