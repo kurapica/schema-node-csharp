@@ -148,7 +148,7 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Gets the access value by part path
     /// </summary>
-    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty || source.SequenceEqual(NODE_SELF) ? this : null;
+    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty || source.SeqEquals(NODE_SELF) ? this : null;
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints

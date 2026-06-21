@@ -77,7 +77,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The load state
     /// </summary>
-    public SchemaLoadState LoadState { get; internal set; } = SchemaLoadState.Service;
+    public SchemaLoadState LoadState => Schema?.LoadState ?? SchemaLoadState.Service;
 
     /// <summary>
     /// Whether the node is used
@@ -150,7 +150,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
+            if (props[i].GetValue<ExtensibleSchema>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind)) continue;
             props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
         }
 
@@ -176,8 +176,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
 
     private void ReleaseType()
     {
-        foreach (NodeType node in GenericParams ?? GetReferenceTypes())
-            node.RemoveUsedBy(this);
+        if (GenericParams != null)
+            foreach (NodeType node in GenericParams)
+                node.RemoveUsedBy(this);
+        else
+            foreach (NodeType node in GetReferenceTypes())
+                node.RemoveUsedBy(this);
         Release();
     }
 

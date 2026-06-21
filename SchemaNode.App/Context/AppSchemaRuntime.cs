@@ -115,7 +115,7 @@ public class AppSchemaRuntime : SchemaRuntime
             {
                 foreach (var schema in node.Apps)
                 {
-                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!part.SeqEquals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
                     curr = schema;
                     break;
                 }

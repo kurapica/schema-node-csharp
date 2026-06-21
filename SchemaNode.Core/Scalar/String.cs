@@ -19,6 +19,7 @@ public class String: IScalarType<string>;
 [Meta<SchemaType>(NS_SYSTEM_CHAR)]
 [Meta<UplimitString>(1)]
 [Meta<LowLimitString>(1)]
+[Meta<ClrEquivalent>(typeof(char))]
 public class Char: String;
 
 /// <summary>

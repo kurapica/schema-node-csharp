@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
@@ -124,14 +125,14 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         // system.array
         {
-            NodeSchema schema = NodeSchema.Create(nameof(ArraySchema), NS_SYSTEM_ARRAY, typeof(List<object>));
+            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
             schema.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema{ Element = NS_SYSTEM_OBJECT });
             runtime.SaveSystemSchema(schema);
         }
 
         // system.list<T>
         {
-            NodeSchema schema = NodeSchema.Create(nameof(ArraySchema), NS_SYSTEM_LIST, typeof(List<>));
+            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
             ArraySchema arraySchema = new ArraySchema{ Element = NS_GENERIC_TYPE };
             arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter(NS_GENERIC_TYPE)]);
             schema.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
@@ -163,7 +164,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // scalar type first because the schema type is not the type declare it
             foreach (Type type in assembly.GetTypes())
             {
-                if (type.IsAbstract || type.IsInterface || type.GetMetaProperty<SchemaType>() == null) continue;
+                if (type.GetMetaProperty<SchemaType>() == null) continue;
                 
                 if (type.IsSubclassOfGenericType(typeof(IScalarType<>)))
                     ResolveScalarSchema(type, defaultNs);

@@ -104,7 +104,7 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// Gets the clone
     /// </summary>
-    public NodeSchema Clone(ISchemaRuntime? runtime = null)
+    public NodeSchema Clone(ISchemaRuntime? runtime = null, bool withNamespaces = false)
     {
         var nodeSchema = new NodeSchema()
         {
@@ -113,6 +113,9 @@ public sealed class NodeSchema: ExtensibleSchema
             Kind = Kind,
         };
         nodeSchema.CombineExtensions(this, runtime);
+
+        if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
+            nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime, false)).ToArray();
         return nodeSchema;
     }
     

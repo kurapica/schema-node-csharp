@@ -341,11 +341,13 @@ public sealed class StructType: ValueType
     /// </summary>
     public async Task<DataNode?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
     {
-        StructFieldType? fieldType = GetField(fieldName);
+        string[] paths = fieldName.Split('.', 2);
+        StructFieldType? fieldType = GetField(paths[0]);
         if (fieldType == null) return null;
-        DataNode? value = node.GetAccessValue(fieldName);
+        
+        DataNode? value = node.GetAccessValue(paths[0]);
         if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return value;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
         
         // check relations
         RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
@@ -354,7 +356,7 @@ public sealed class StructType: ValueType
         // process relations
         IProperty? def = await r.ProcessAsync(context, node);
         value.TrySetValue(def?.GetValue<object>());
-        return value;
+        return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
     }
     
     /// <summary>
@@ -364,7 +366,7 @@ public sealed class StructType: ValueType
     {
         for (int i = 0; i < _fields.Count; i++)
         {
-            if (fieldName.Equals(_fields[i].Name, StringComparison.OrdinalIgnoreCase))
+            if (fieldName.SeqEquals(_fields[i].Name, StringComparison.OrdinalIgnoreCase))
                 return i;
         }
         return -1;

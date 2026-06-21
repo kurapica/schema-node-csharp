@@ -208,14 +208,14 @@ public class SchemaRuntime : ISchemaRuntime
             {
                 foreach (NodeSchema schema in node.Schemas)
                 {
-                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!part.SeqEquals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
                     curr = schema;
                     break;
                 }
             }
             node = curr;
         }
-        return node?.Clone(this);
+        return node?.Clone(this, true);
     }
 
     /// <summary>
@@ -253,7 +253,7 @@ public class SchemaRuntime : ISchemaRuntime
             {
                 foreach (NodeSchema schema in node.Schemas)
                 {
-                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!part.SeqEquals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
                     curr = schema;
                     break;
                 }

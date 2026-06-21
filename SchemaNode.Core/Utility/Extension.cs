@@ -180,6 +180,36 @@ internal static class Extension
         }
     }
 
+    extension(ReadOnlySpan<char> value)
+    {
+        internal bool SeqEquals(ReadOnlySpan<char> other, StringComparison comparisonType = StringComparison.Ordinal)
+        {
+            if (other.Length != value.Length) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                switch (comparisonType)
+                {
+                    case StringComparison.Ordinal:
+                    case StringComparison.CurrentCulture:
+                    case StringComparison.InvariantCulture:
+                        if (value[i] != other[i]) return false;
+                        break;
+                    case StringComparison.OrdinalIgnoreCase:
+                    case StringComparison.CurrentCultureIgnoreCase:
+                    case StringComparison.InvariantCultureIgnoreCase:
+                        if (char.ToLowerInvariant(value[i]) != char.ToLowerInvariant(other[i])) return false;
+                        break;
+                    default:
+                        throw new NotSupportedException(
+                            $"Only Ordinal and OrdinalIgnoreCase are supported, but got {comparisonType}");
+                }
+            }
+            return true;
+        }
+        
+        internal bool SeqEquals(string other, StringComparison comparisonType = StringComparison.Ordinal) => value.SeqEquals(other.AsSpan(), comparisonType);
+    }
+    
     #endregion
 
     #region JSON

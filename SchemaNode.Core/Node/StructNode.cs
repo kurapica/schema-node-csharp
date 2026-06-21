@@ -107,7 +107,7 @@ public class StructNode : DataNode
     /// </summary>
     public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
     {
-        if (source.IsEmpty || source.SequenceEqual(NODE_SELF)) return this;
+        if (source.IsEmpty || source.SeqEquals(NODE_SELF)) return this;
         int index = (Type as StructType)?.GetIndex(source) ?? -1;
         DataNode? field = _fields.ElementAtOrDefault(index);
         if (field is { IsEmpty: true } && _csharpObject != null)

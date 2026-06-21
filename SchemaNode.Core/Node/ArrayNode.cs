@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructFieldType = SchemaNode.Runtime.StructFieldType;
 using StructType = SchemaNode.Runtime.StructType;
@@ -199,12 +200,11 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <inheritdoc/>
     public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
     {
-        if (source.SequenceEqual(NODE_SELF)) return this;
-        if (source.SequenceEqual(ARRAY_PREVIOUS)) return new ArrayNode(this, this.Count - 1);
+        if (source.SeqEquals(NODE_SELF)) return this;
+        if (source.SeqEquals(ARRAY_PREVIOUS)) return new ArrayNode(this, this.Count - 1);
 
         var lastEle = _elements.LastOrDefault();
-        if (source.SequenceEqual(ARRAY_ELEMENT)) return lastEle;
-        return lastEle?.GetAccessValue(source);
+        return source.SeqEquals(ARRAY_ELEMENT) ? lastEle : lastEle?.GetAccessValue(source);
     }
 
     /// <inheritdoc/>

@@ -179,6 +179,9 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (Return == null) yield break;
+        
         if (Return is not GenericType)
             yield return Return;
 

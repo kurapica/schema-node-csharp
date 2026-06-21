@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using static SchemaNode.Utility.Constant;
@@ -14,7 +15,7 @@ public sealed class Generics : Property<GenericParameter[]>
 {
     public override void SetValue<TValue>(TValue value)
     {
-        if (value is GenericParameter[])
+        if (value is GenericParameter[] or JsonArray)
             base.SetValue(value);
         else if (value is object[] arr)
         {
