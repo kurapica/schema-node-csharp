@@ -11,6 +11,7 @@ namespace SchemaNode.Workflow;
 /// The time schedule workflow node
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
+[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
 public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>
 {
@@ -40,7 +41,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
                 .Build();
             
             var waitUntilTrigger = TriggerBuilder.Create()
-                .StartAt(new DateTimeOffset(schedule.Start.Value))
+                .StartAt(schedule.Start.Value)
                 .Build();
             
             await scheduler.ScheduleJob(waitUtilJob, waitUntilTrigger);
@@ -62,7 +63,7 @@ public class TimeScheduleWorkflow: BaseWorkflow,
 
         var timeTrigger = schedule.End is not null
             ? TriggerBuilder.Create().WithCronSchedule(schedule.Cron)
-                .EndAt(new DateTimeOffset(schedule.End.Value))
+                .EndAt(schedule.End.Value)
                 .StartNow()
                 .Build()
             : TriggerBuilder.Create().WithCronSchedule(schedule.Cron)
@@ -126,12 +127,12 @@ public class TimeSchedule
     /// <summary>
     /// The start time
     /// </summary>
-    public DateTime? Start { get; set; }
+    public DateTimeOffset? Start { get; set; }
     
     /// <summary>
     /// The end time
     /// </summary>
-    public DateTime? End { get; set; }
+    public DateTimeOffset? End { get; set; }
     
     /// <summary>
     /// The cron expression

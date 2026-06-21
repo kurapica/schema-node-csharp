@@ -69,6 +69,9 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
             return valueSchema;
         }).ToArray();
 
+        for (int i = 0; i < values.Length; i++)
+            values[i].Seqno = i;
+
         // Set the EnumProperty with the value type and values
         schema.SetProperty<EnumProperty, EnumSchema>(new EnumSchema
         {

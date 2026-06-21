@@ -202,23 +202,7 @@ public class SchemaRuntime : ISchemaRuntime
             
              // Generic Types
             if (part.StartsWith('<'))
-            {
-                if (!part.EndsWith('>'))
-                    throw new Exception($"Invalid generic type syntax for {schemaName}");
-                part = part[1..^1];
-
-                List<string> genParams = [];
-                SpanReader genericReader = part;
-                string key = part.ToString();
-
-                while(genericReader.NextGenericParam())
-                {
-                    ReadOnlySpan<char> genericParam = genericReader.Current;
-                    genParams.Add(genericParam.ToString());
-                }
-
                 return node?.Clone(this);
-            }
             
             if (node.Schemas != null)
             {

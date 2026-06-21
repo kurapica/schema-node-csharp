@@ -9,7 +9,6 @@ namespace SchemaNode.Property.Core;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>(SCHEMA_KIND_PROPERTY)]
 [Meta<Visible>(false)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(OverrideType)}")]
 [Meta<PropertyValueType>(typeof(Schema.ValueType))]

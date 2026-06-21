@@ -9,6 +9,7 @@ namespace SchemaNode.Scalar;
 /// Represents the date scalar value type, without the hms
 /// </summary>
 [Meta<ClrEquivalent>(typeof(Date))]
+[Meta<ClrEquivalent>(typeof(DateTime))]
 [Meta<ClrEquivalent>(typeof(DateOnly))]
 [Meta<SchemaType>(NS_SYSTEM_DATE)]
 [Meta<OfSchema>(SCHEMA_KIND_DATE)]

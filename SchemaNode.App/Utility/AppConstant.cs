@@ -38,6 +38,8 @@ public static class AppConstant
     internal const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
     internal const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
     
+    internal const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROPERTY}.app";
+    
     // workflow kind
     internal const string WORKFLOW_KIND_WORKFLOW = "workflow";
     internal const string WORKFLOW_KIND_CALL = "call";

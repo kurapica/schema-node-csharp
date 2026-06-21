@@ -36,6 +36,8 @@ public class Float : Number, IScalarType<float>;
 [Meta<ClrEquivalent>(typeof(ushort))]
 [Meta<ClrEquivalent>(typeof(uint))]
 [Meta<ClrEquivalent>(typeof(ulong))]
+[Meta<ClrEquivalent>(typeof(Int64))]
+[Meta<ClrEquivalent>(typeof(UInt16))]
 [Meta<OfSchema>(SCHEMA_KIND_INT)]
 public class Int : Number, IScalarType<long>;
 

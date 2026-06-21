@@ -27,7 +27,7 @@ public class FlexibleEnumConverter<T> : JsonConverter<T> where T : struct, Syste
     public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
     {
         var isFlags = typeof(T).IsDefined(typeof(FlagsAttribute), false);
-        if (isFlags)
+        if (isFlags && string.IsNullOrEmpty(value.ToString()))
         {
             writer.WriteNumberValue(Convert.ToInt64(value));
         }

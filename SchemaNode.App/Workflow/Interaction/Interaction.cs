@@ -11,9 +11,9 @@ namespace SchemaNode.Workflow;
 /// <summary>
 /// The interaction workflow
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.call")]
-public class Interaction: BaseWorkflow,
-    IWorkflowPayload<Object>
+[Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.{nameof(Interaction)}")]
+[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+public class Interaction: BaseWorkflow, IWorkflowPayload<Object>
 {
     /// <summary>
     /// Do nothing until the user provides

@@ -10,6 +10,7 @@ namespace SchemaNode.Workflow;
 /// Break Branch BaseWorkflow
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.break")]
+[Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
 public class BreakWorkflow: BaseWorkflow
 {
     public Task ProcessAsync(WorkflowContext context, bool cond)

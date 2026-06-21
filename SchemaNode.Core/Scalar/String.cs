@@ -25,7 +25,7 @@ public class Char: String;
 /// Represents the GUID scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_GUID)]
-public class Guid: String, IScalarType<Guid>;
+public class Guid: String, IScalarType<System.Guid>;
 
 /// <summary>
 /// Represents the language scalar value type

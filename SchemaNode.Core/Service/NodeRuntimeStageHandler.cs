@@ -252,7 +252,10 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
             NodeSchema? schema;
             NodeSchema? baseSchema = null;
-            Type? valType = type.GetGenericBaseType(typeof(IScalarType<>))?.GetGenericArguments().ElementAtOrDefault(0);
+            Type? valType = type.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IScalarType<>))
+                .Select(i => i.GetGenericArguments().FirstOrDefault())
+                .LastOrDefault(t => t != null && runtime.GetTypeSchema(t) == null);
             
             // OfSchema marks a kind root — check it first so that types like Int (which extend Number
             // but belong to a different kind) are not incorrectly categorized by their C# base class.
@@ -280,6 +283,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             schema.Equivalents = type.GetMetaProperties<ClrEquivalent>()
                 .Where(p => p.HasValue)
                 .Select(p => p.Value!)
+                .Append(type)
                 .ToArray();
             
             // Gen scalar definitions
@@ -330,7 +334,6 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         {
             TypeDetail detail = type.GetTypeDetail();
             bool isArray = detail.AnyArray;
-            string[]? genericArgs = null;
 
             // Check the core type
             type = detail.CoreType;
@@ -348,20 +351,18 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
                 // Resolve generic arguments
                 Type[] args = type.GetGenericArguments();
-                genericArgs = new string[args.Length];
+                string[] genericArgs = new string[args.Length];
                 for (int i = 0; i < args.Length; i++)
                 {
                     string? n = ResolveOtherSchema(args[i], defaultNs, genericArguments);
                     if (string.IsNullOrWhiteSpace(n)) return null;
                     genericArgs[i] = n;
                 }
-                detail = detail.GenericDefine!;
+                return GetResult($"{genericTypeName}<{string.Join(",", genericArgs)}>");
             }
+            return GetResult(runtime.GetTypeSchema(type) ?? GenerateSchema(type, defaultNs));
 
-            string? fullName = runtime.GetTypeSchema(type) ?? GenerateSchema(type, defaultNs);
-            if (string.IsNullOrWhiteSpace(fullName)) return null;
-            if (genericArgs is { Length: > 0 }) fullName = $"{fullName}<{string.Join(",", genericArgs)}>";
-            return isArray ? runtime.GetSystemArraySchema(fullName)! : fullName;
+            string? GetResult(string? name) => isArray && !string.IsNullOrWhiteSpace(name) ? runtime.GetSystemArraySchema(name) : name;
         }
 
         // Save properties to the schema

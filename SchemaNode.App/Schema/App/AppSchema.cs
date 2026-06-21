@@ -90,6 +90,7 @@ public sealed class AppSchema: ExtensibleSchema
     /// <summary>
     /// The app schema provider
     /// </summary>
+    [SchemaIgnore]
     public Type? Provider { get; internal set; }
 
     /// <summary>

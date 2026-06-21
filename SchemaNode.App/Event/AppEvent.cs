@@ -68,13 +68,14 @@ public class AppFieldDataDeleteEvent(string app, string field, string? target = 
 /// <summary>
 /// Fired when update the target field data in the application
 /// </summary>
+[Meta<OfSchema>(SCHEMA_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.update")]
 [Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldupdatepayload)}")]
 public class AppFieldDataUpdateEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload>;
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.payload")]
-[Meta<Generics>("T")]
+[Meta<Generics>(NS_GENERIC_TYPE)]
 public class AppFieldPayload
 {
     /// <summary>
@@ -95,7 +96,7 @@ public class AppFieldPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>("T")]
+    [Meta<SchemaType>(NS_GENERIC_TYPE)]
     public DataNode? Data { get; set; }
 }
 

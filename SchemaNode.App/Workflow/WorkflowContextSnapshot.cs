@@ -27,7 +27,7 @@ public class WorkflowContextSnapshot
     /// The application
     /// </summary>
     [Meta<PrimaryIndex>(0)]
-    [Meta<SchemaType>(typeof(AppType))]
+    [Meta<SchemaType>(typeof(Schema.AppType))]
     [Meta<Index>("IX_ROOT",0)]
     public string App { get; set; } = string.Empty;
 

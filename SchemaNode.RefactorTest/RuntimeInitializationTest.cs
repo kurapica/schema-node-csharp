@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
 
 namespace SchemaNode.RefactorTest;
 
@@ -12,9 +13,9 @@ public sealed class RuntimeInitializationTest
     public async Task InitSchemaRuntime_WithCoreAndAppAssemblies_DoesNotThrow()
     {
         var services = new ServiceCollection();
-        services.AddAppSchemaAssemblies(typeof(AppService).Assembly);
+        services.AddAppSchemaAssembly<RuntimeInitializationTest>();
 
-        using ServiceProvider provider = services.BuildServiceProvider();
+        await using ServiceProvider provider = services.BuildServiceProvider();
         await provider.InitSchemaRuntimeAsync();
         
         SchemaContext context = provider.GetRequiredService<SchemaContext>();

@@ -116,35 +116,41 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             if (string.IsNullOrWhiteSpace(field.Type))
                 field.Type = typeResolver(p.PropertyType, @namespace, genericArgs) ?? string.Empty;
 
-            if (genericDeclare != null && genericArgs.Length > 0 && genericDeclare.Any(g => g.Name.Equals(field.Type, StringComparison.OrdinalIgnoreCase))) 
-                continue;
-
-            NodeSchema? fieldTypeSchema = !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
-            if (fieldTypeSchema == null) 
-                throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
-
-            var detail = p.PropertyType.GetTypeDetail();
-            if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
-                field.Type = runtime.GetSystemArraySchema(field.Type) ?? throw new Exception($"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
-            
-            // Extension Properties
-            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
-                field.SetProperty(property);
-
-            if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+            if (!(genericDeclare is { Length: > 0 } &&
+                  genericDeclare.Any(g => g.Name.Equals(field.Type, StringComparison.OrdinalIgnoreCase))))
             {
-                ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
-                    ?? throw new Exception($"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
+                NodeSchema? fieldTypeSchema =
+                    !string.IsNullOrWhiteSpace(field.Type) ? runtime.GetSystemSchema(field.Type) : null;
+                if (fieldTypeSchema == null)
+                    throw new Exception($"Failed to resolve type for field {field.Name} of struct {schema.FullName}");
 
-                string eleName = arraySchema.Element;
-                if (arraySchema.GetProperty<Generics>()?.Value is { } generics &&
-                    generics.Any(g => g.Name.Equals(eleName, StringComparison.OrdinalIgnoreCase)))
-                    eleName = runtime.GetSystemSchemaGenericArguments(fieldTypeSchema.FullName).FirstOrDefault() ?? eleName;
+                var detail = p.PropertyType.GetTypeDetail();
+                if (detail.AnyArray && !fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                    field.Type = runtime.GetSystemArraySchema(field.Type) ??
+                                 throw new Exception(
+                                     $"Failed to resolve array schema for field {field.Name} of struct {schema.FullName}");
 
-                NodeSchema? element = runtime.GetSystemSchema(eleName);
-                if (element != null)
-                    foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
-                        field.SetProperty(property);
+                // Extension Properties
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(fieldTypeSchema.Kind))
+                    field.SetProperty(property);
+
+                if (fieldTypeSchema.Kind.Equals(SCHEMA_KIND_ARRAY))
+                {
+                    ArraySchema arraySchema = fieldTypeSchema.GetProperty<ArrayProperty>()?.Value
+                                              ?? throw new Exception(
+                                                  $"Failed to get array schema for field {field.Name} of struct {schema.FullName}");
+
+                    string eleName = arraySchema.Element;
+                    if (arraySchema.GetProperty<Generics>()?.Value is { } generics &&
+                        generics.Any(g => g.Name.Equals(eleName, StringComparison.OrdinalIgnoreCase)))
+                        eleName = runtime.GetSystemSchemaGenericArguments(fieldTypeSchema.FullName).FirstOrDefault() ??
+                                  eleName;
+
+                    NodeSchema? element = runtime.GetSystemSchema(eleName);
+                    if (element != null)
+                        foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(element.Kind))
+                            field.SetProperty(property);
+                }
             }
 
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
