@@ -37,23 +37,28 @@ internal static class App
         {
             Name = app.Name,
             Display = app.Display,
-            Desc = app.Desc,
             HasApps = app.Apps is { Length: > 0 },
             HasFields = app.Fields is { Length: > 0 },
+            ScopePolicy = app.ScopePolicy,
+            Auth = app.Auth,
+            Auths = app.Auths,
             Apps = app.Apps?.Select(a => new AppSchema
             {
                 Name = a.Name,
                 Display = a.Display,
-                Desc = a.Desc,
                 HasApps = a.Apps is { Length: > 0 },
                 HasFields = a.Fields is { Length: > 0 },
+                ScopePolicy = a.ScopePolicy,
+                Extensions = a.Extensions,
             }).ToArray(),
             Fields = app.Fields,
-            Relations = app.Relations
+            Relations = app.Relations,
+            Workflows = app.Workflows,
+            Extensions = app.Extensions
         };
     }
 
-    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null, Type? type = null)
+    internal static void SaveSystemAppField(string appName, AppFieldSchema? field = null, string? display = null, Type? type = null, AppScopePolicy? policy = null)
     {
         appName = appName.ToLower();
         AppSchema app = Root;
@@ -68,7 +73,8 @@ internal static class App
                 {
                     Name = fullPath,
                     LoadState = SchemaLoadState.System,
-                    Display = fullPath == appName ? display : fullPath
+                    Display = fullPath == appName ? display : fullPath,
+                    ScopePolicy = fullPath == appName ? policy : null
                 };
                 app.Apps = app.Apps != null ? app.Apps.Concat([next]).ToArray() : [next];
             }

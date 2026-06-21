@@ -2,14 +2,14 @@
 using SchemaNode.Utility;
 using System.Collections;
 using System.Text.Json.Nodes;
-using Microsoft.VisualBasic;
+using SchemaNode.Context;
 using SchemaNode.Schema;
 
 namespace SchemaNode.Node;
 
 public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 {
-    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(type)
+    public ArrayTypeNode(AnySchemaType type, object? value = null) : base(SchemaContext.GetArraySchemaType(type)!)
     {
         ElementType = type is ArrayType arr ? arr.ElementSchemaType : type;
         Value = value;
@@ -126,6 +126,8 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         {
             foreach (var o in node)
             {
+                if (o is null) continue;
+                if (o is AnySchemaNode { IsEmpty: true }) continue;
                 _elements.Add(ElementType.CreateNode(o) ?? throw new NotSupportedException());
             }
         }
@@ -133,6 +135,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
         {
             foreach (var o in node)
             {
+                if (o is null) continue;
                 _rawElements.Add(o);
             }
         }
@@ -140,6 +143,8 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
 
     public void Add(object node)
     {
+        if (node is null) return;
+        if (node is AnySchemaNode { IsEmpty: true }) return;
         if (ElementType != null)
         {
             _elements.Add(ElementType.CreateNode(node) ?? throw new NotSupportedException());
@@ -156,7 +161,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
     internal ArrayTypeNode FilterByPrimaryKeys(string[] primaryKeys)
     {
         if (ElementType is not StructType @struct || primaryKeys.Any(k => @struct.GetField(k) == null)) return this;
-        StructFieldConfig[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
+        StructFieldSchema[] fields = primaryKeys.Select(k => @struct.GetField(k)!).ToArray();        
         return new ArrayTypeNode(@struct)
         {
             _elements = _elements.Where(e =>
@@ -251,7 +256,7 @@ public class ArrayTypeNode : AnySchemaNode, IEnumerable<AnySchemaNode>
             {
                 if (type is not StructType @struct) return null;
                 type = @struct.Fields.FirstOrDefault(f => f.Name.Equals(path, StringComparison.OrdinalIgnoreCase))
-                    ?.SchemeType;
+                    ?.SchemaType;
             }
 
             if (type == null) return null;

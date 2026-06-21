@@ -13,8 +13,11 @@ namespace SchemaNode.Schema;
  * The application schema
  */
 [SchemaApp]
-public class AppSchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.schema")]
+public sealed class AppSchema: ISchemaExtensions
 {
+    #region Info
+
     /// <summary>
     /// The parent app name
     /// </summary>
@@ -34,23 +37,41 @@ public class AppSchema
     /// The display name
     /// </summary>
     public LocaleString? Display { get; set; }
-    
+
     /// <summary>
-    /// The description
+    /// The extensions
     /// </summary>
-    public LocaleString? Desc { get; set; }
-    
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    #endregion
+
+    #region Scope Policy
+
+    /// <summary>
+    /// The target policies, can only be changeable when no app & no fields or in debug mode
+    /// </summary>
+    public AppScopePolicy? ScopePolicy { get; set; }
+
+    #endregion
+
+    #region Auth Policy
+
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_POLICY)]
     public string? Auth { get; set; }
 
     /// <summary>
     /// The app authentication policy type
     /// </summary>
     public PolicyItem[]? Auths { get; set; }
-    
+
+    #endregion
+
+    #region Details
+
     /// <summary>
     /// Whether it has sub-applications
     /// </summary>
@@ -84,7 +105,7 @@ public class AppSchema
     /// <summary>
     /// The application field relations
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
+    public StructRelationSchema[]? Relations { get; set; }
     
     /// <summary>
     /// The types related to the application
@@ -92,12 +113,10 @@ public class AppSchema
     [NotMapped]
     public NodeSchema[]? NodeSchemas { get; set; }
 
-    /// <summary>
-    /// The additional data
-    /// </summary>
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
+    #endregion
+
+    #region Status
+
     /// <summary>
     /// The load state
     /// </summary>
@@ -109,23 +128,99 @@ public class AppSchema
     /// </summary>
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
+
+    #endregion
+
+    #region Methd
+
+    /// <summary>
+    /// Combine custom app schema
+    /// </summary>
+    internal void CombineCustomSchema(AppSchema? otherSchema)
+    {
+        if (otherSchema == null) return;
+        Display = Display != null ? Display.Concat(otherSchema.Display) : otherSchema.Display;
+        Auth = string.IsNullOrWhiteSpace(Auth) ? otherSchema.Auth : Auth;
+        Auths = Auths ?? otherSchema.Auths;
+
+        this.CombineExtensions(otherSchema);
+
+        // Check fields
+        if (HasApps != true)
+        {
+            if (Fields == null || Fields.Length == 0)
+                Fields = otherSchema.Fields;
+            else if(otherSchema.Fields is { Length: > 0 })
+            {
+                foreach(var field in Fields)
+                {
+                    field.CombineCustomSchema(otherSchema.Fields.FirstOrDefault(f => f.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase)));
+                }
+                var addFields = otherSchema.Fields.Where(f => !Fields.Any(d => d.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase))).ToArray();
+                if (addFields.Length > 0)
+                    Fields = Fields.Concat(addFields).ToArray();
+            }
+        }
+
+        // For simple
+        Workflows = otherSchema.Workflows ?? Workflows;
+        Relations = otherSchema.Relations ?? Relations;
+    }
+
+    #endregion
 }
 
 /// <summary>
-/// The application ref
+/// The app target policy
 /// </summary>
-public class AppRef
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopePolicy")]
+public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
 {
     /// <summary>
-    /// The source app
+    /// The app target policy type
     /// </summary>
-    [Index]
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string App { get; set; } = string.Empty;
-
+    public AppScopeType Type { get; set; }
+    
     /// <summary>
-    /// The source target
+    /// The context maps for the context item mapping when the target policy is IsolationContext, can be used for multiple context items mapping
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    public string? Target { get; set; }
+    public AppScopeContextMap[]? ContextMaps { get; set; }
+    
+    public bool Equals(AppScopePolicy? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return Type == other.Type && 
+               ((ContextMaps == null && other.ContextMaps == null) || 
+                (ContextMaps != null && other.ContextMaps != null && 
+                 ContextMaps.SequenceEqual(other.ContextMaps)));
+    }
 }
+
+/// <summary>
+/// The application scope context map, used for the context item mapping when the target policy is IsolationContext
+/// </summary>
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP}.ScopeContextMap")]
+public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
+{
+    /// <summary>
+    /// The context item
+    /// </summary>
+    public required string ContextItem { get; set; }
+    
+    /// <summary>
+    /// The map key
+    /// </summary>
+    public string? MapKey { get; set; }
+
+    public bool Equals(AppScopeContextMap? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return ContextItem.Equals(other.ContextItem) &&
+               (string.IsNullOrWhiteSpace(MapKey) 
+                   ? string.IsNullOrWhiteSpace(other.MapKey)
+                   : MapKey.Equals(other.MapKey));
+    }
+}
+

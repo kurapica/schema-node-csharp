@@ -79,6 +79,8 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             foreach (EnumValueInfo enumValueInfo in schema.Enum.Values)
                             {
+                                enumValueInfo.IsFullyLoaded = false;
+                                enumValueInfo.SubList = null; // sub list will be loaded on demand, set to null to indicate not loaded
                                 enumValueInfo.HasSubList = (await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schema.Name && e.Root == enumValueInfo.Value, take: 1)).total != 0;
                             }
                         }
@@ -100,8 +102,11 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     case SchemaType.Policy:
                         schema.Policy = await context.GetEntityAsync<PolicySchema>(Target, name);
                         break;
+                    case SchemaType.Recognizer:
+                        schema.Recognizer = await context.GetEntityAsync<RecognizerSchema>(Target, name);
+                        break;
                 }
-                
+
                 result.Add(schema);
             }
 
@@ -151,6 +156,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         {
                             val.Root = null;
                             val.SubList = null;
+                            val.IsFullyLoaded = false;
                         }
                         await context.SaveEntityAsync(Target, schema.Enum);
                     }
@@ -183,6 +189,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                     {
                         schema.Policy.Name = schema.Name;
                         await context.SaveEntityAsync(Target, schema.Policy);
+                    }
+                    break;
+                case SchemaType.Recognizer:
+                    if (schema.Recognizer != null)
+                    {
+                        schema.Recognizer.Name = schema.Name;
+                        await context.SaveEntityAsync(Target, schema.Recognizer);
                     }
                     break;
             }
@@ -258,6 +271,13 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
                         await context.DeleteEntityAsync(Target, nodeSchema.Policy);
                     }
                     break;
+                case SchemaType.Recognizer:
+                    if (nodeSchema.Recognizer != null)
+                    {
+                        nodeSchema.Recognizer.Name = nodeSchema.Name;
+                        await context.DeleteEntityAsync(Target, nodeSchema.Recognizer);
+                    }
+                    break;
             }
             await context.CommitTransactionAsync();
             return true;
@@ -283,6 +303,7 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             // load enum values
             List<EnumValueInfo> enumValues = await context.GetEntitiesAsync<EnumValueInfo>(Target, e => e.Enum == schemaName && e.Root == value);
             enumValues.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
+            enumValues = enumValues.Select(v => v.Clone()).ToList();
 
             // sub enum list
             foreach (EnumValueInfo info in enumValues)
@@ -307,7 +328,9 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
             List<EnumValueAccess> accesses = [];
             
             NodeSchema? schema = await context.GetEntityAsync<NodeSchema>(Target, schemaName);
-            if (schema?.Type != SchemaType.Enum || schema.Enum == null) return [];
+            if (schema?.Type != SchemaType.Enum) return [];
+            schema.Enum = await context.GetEntityAsync<EnumSchema>(Target, schemaName);
+            if (schema.Enum == null) return [];
             
             string previous = "";
             while (!string.IsNullOrEmpty(value))
@@ -351,7 +374,8 @@ public class DynamicSchemaStorageProvider(SchemaContext context) : ISchemaStorag
         {
             if (string.IsNullOrEmpty(value)) return values; // should be done in save schema
             
-            EnumValueInfo? last = enumType.Root.GetEnumAccesses(value)?.Last()
+            EnumValueInfo[] cached = enumType.LoadCachedEnumValueAccessAsync(value);
+            EnumValueInfo? last = (cached.Length > 0 ? cached.Last() : null)
                 ?? await context.GetEntityAsync<EnumValueInfo>(Target, enumType.Name, value);
 
             // not existed

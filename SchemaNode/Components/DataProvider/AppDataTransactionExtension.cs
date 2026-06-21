@@ -1,13 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
-using System.Linq.Expressions;
-using System.Reflection;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.Schema;
@@ -17,70 +13,21 @@ namespace SchemaNode.Components;
 
 public static class AppDataTransactionExtension
 {
-    #region Constant
-
-    /// <summary>
-    /// The max combine case count
-    /// </summary>
-    private const int MAX_COMBINE_CASE_COUNT = 15;
-
-    #endregion
-    
     #region Save
-
-    /// <summary>
-    /// Save entity data
-    /// </summary>
-    public static async Task<bool> SaveEntityAsync<T>(this SchemaContext context, string target, T value)
-    {
-        (AppFieldType appFieldType, _) = await context.AssertAppField<T>();
-        return await SaveFieldDataAsync(context, appFieldType, target, appFieldType.SchemaType!.CreateNode(value));
-    }
-
-    /// <summary>
-    /// Save entity list data
-    /// </summary>
-    public static async Task<bool> SaveEntitiesAsync<T>(this SchemaContext context, string target, List<T> values)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of {typeof(T).FullName} only support single value");
-        return await SaveFieldDataAsync(context, appFieldType, target, appFieldType.SchemaType!.CreateNode(values));
-    }
-
-    /// <summary>
-    /// Save entity data
-    /// </summary>
-    public static Task<bool> SaveFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
-    {
-        context.AssertType<T>(field);
-        return SaveFieldDataAsync(context, field, target, field.SchemaType!.CreateNode(value));
-    }
-
-    /// <summary>
-    /// Save entity list data
-    /// </summary>
-    public static Task<bool> SaveFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> values)
-    {
-        context.AssertType<T>(field);
-        return SaveFieldDataAsync(context, field, target, field.SchemaType!.CreateNode(values));
-    }
 
     /// <summary>
     /// Save field data
     /// </summary>
-    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, JsonNode? value = null)
-    {
-        AnySchemaNode data = field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException();
-        return SaveFieldDataAsync(context, field, target, data);
-    }
+    public static Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, JsonNode? value = null)
+        => context.SaveFieldDataAsync(field, field.SchemaType!.CreateNode(value) ?? throw new NotSupportedException());
 
     /// <summary>
     /// Save the field data by data
     /// </summary>
-    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false)
+    public static async Task<bool> SaveFieldDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode? value = null, bool innerCall = false, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return false;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
 
         // Not allow the direct data update
@@ -92,8 +39,32 @@ public static class AppDataTransactionExtension
 
         try
         {
-            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, target, value, canAdd, onlyAdd);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Modify, update, origin);
+            (bool result, AnySchemaNode? update, AnySchemaNode? origin) = await dataProvider.SaveDynamicTableDataAsync(schema, value, canAdd, onlyAdd, overrides);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Modify, update, origin);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            context.Logger.LogError(ex.Message);
+            throw;
+        }
+    }
+
+    public static async Task<bool> ClearFieldDataAsync(this SchemaContext context, AppFieldType field, bool innerCall = false)
+    {
+        // no front only & enable & no source ref
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
+        if (field.Readonly == true && !innerCall) return false; // readonly can only be set by system
+
+        var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
+
+        // Prepare
+        DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
+
+        try
+        {
+            (bool result, AnySchemaNode? origin) = await dataProvider.ClearDynamicTableDataAsync(schema);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.DropAll, null, origin);
             return result;
         }
         catch (Exception ex)
@@ -108,172 +79,62 @@ public static class AppDataTransactionExtension
     #region Delete
 
     /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, T value)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-
-        if (primaries != null)
-        {
-            JsonObject query = [];
-            foreach (PropertyInfo prop in primaries)
-            {
-                query[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(value) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-            }
-            await DeleteFieldListDataAsync(context, appFieldType, target, [query]);
-        }
-        else
-        {
-            await SaveFieldDataAsync(context, appFieldType, target, null);
-        }
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task DeleteEntityAsync<T>(this SchemaContext context, string target, params object[] keys)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-        if (keys.Length != primaries.Count) throw new ArgumentException($"The type {typeof(T).FullName} primary key count not match");
-
-        JsonObject query = [];
-        for (int i = 0; i < keys.Length; i++)
-            query[primaries[i].Name.ToCamelCase()] = JsonValue.Create(keys[i]);
-
-        await DeleteFieldListDataAsync(context, appFieldType, target, [query]);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, string target, List<T> value)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-
-        JsonArray query = [];
-        foreach (T valueItem in value)
-        {
-            JsonObject q = [];
-            foreach (PropertyInfo prop in primaries)
-            {
-                q[prop.Name.ToCamelCase()] = JsonValue.Create(prop.GetValue(valueItem) ?? throw new ArgumentException($"The primary key {prop.Name} value is null"));
-            }
-            query.Add(q);
-        }
-
-        await DeleteFieldListDataAsync(context, appFieldType, target, query);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond)
-    {
-        (AppFieldType appFieldType, IReadOnlyList<PropertyInfo>? primaries) = await context.AssertAppField<T>();
-        if (primaries == null) throw new ArgumentException($"The app field of type {typeof(T).FullName} only support single value");
-
-        EntityConditionVisitor visitor = new();
-        visitor.Visit(cond);
-        JsonNode filter = visitor.Condition;
-
-        if (filter is JsonObject obj && !obj.IsEmpty())
-            await DeleteFieldListDataAsync(context, appFieldType, target, [filter]);
-        else
-            throw new ArgumentException("The condition not valid");
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static Task DeleteFieldEntityAsync<T>(this SchemaContext context, AppFieldType field, string target, T value)
-    {
-        context.AssertType<T>(field);
-        return DeleteFieldListDataAsync(context, field, target, [value.ToJsonNode()]);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static Task DeleteEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, List<T> value)
-    {
-        context.AssertType<T>(field);
-        return DeleteFieldListDataAsync(context, field, target, (JsonArray?)value.ToJsonNode() ?? []);
-    }
-
-    /// <summary>
-    /// Delete entity data
-    /// </summary>
-    public static async Task DeleteEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond)
-    {
-        context.AssertType<T>(field);
-
-        EntityConditionVisitor visitor = new();
-        visitor.Visit(cond);
-        JsonNode filter = visitor.Condition;
-
-        if (filter is JsonObject obj && !obj.IsEmpty())
-            await DeleteFieldListDataAsync(context, field, target, [filter]);
-        else
-            throw new ArgumentException("The condition not valid");
-    }
-
-    /// <summary>
     /// Delete the list from a list-struct type field data
     /// </summary>
-    public static async Task DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, string target, JsonArray query, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AnySchemaNode nodes)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
         // Only non-single schema can be used
-        if (schema.Single) return;
+        if (schema.Single) return false;
         try
         {
-            if (query.Count == 0) return;
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target, query);
-            if (result) OnFieldDataChanged(context, target, field, TransactionChangeOperation.Delete, null, origin);
+            if (nodes is ArrayTypeNode { Count: 0 }) return false; // pass if no node to delete
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteSchemaNodeAsync(schema, nodes);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
             context.Logger.LogError(ex.Message);
             throw;
         }
+
+        return true;
     }
 
     /// <summary>
-    /// Delete the target's field data
+    /// Delete the list from a list-struct type field data by filter
     /// </summary>
-    public static async Task DeleteFieldDataAsync(this SchemaContext context, AppFieldType field, string target, bool innerCall = false)
+    public static async Task<bool> DeleteFieldListDataAsync(this SchemaContext context, AppFieldType field, AppSchemaDataFilter filter)
     {
         // no front only & enable & no source ref
-        if (!field.EnableDynamicTable) return;
+        if (!field.EnableDynamicTable || field.IsForeignView) return false;
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
 
         // Prepare
         DynamicTableSchema schema = await context.PrepareFieldDataAsync(field);
 
+        // Only non-single schema can be used
+        if (schema.Single) return false;
         try
         {
-            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, target);
-            if (result)
-                OnFieldDataChanged(context, target, field,
-                    schema.Single ? TransactionChangeOperation.Delete : TransactionChangeOperation.DropAll,
-                    null, origin);
+            (bool result, AnySchemaNode? origin) = await dataProvider.DeleteDynamicTableDataAsync(schema, filter);
+            if (result) OnFieldDataChanged(context, field, TransactionChangeOperation.Delete, null, origin);
         }
         catch (Exception ex)
         {
             context.Logger.LogError(ex.Message);
             throw;
         }
-    }
 
+        return true;
+    }
+    
     #endregion
 
     #region Transaction & Data Push
@@ -291,7 +152,7 @@ public static class AppDataTransactionExtension
     /// <summary>
     /// Commit transaction.
     /// </summary>
-    public static async Task CommitTransactionAsync(this SchemaContext context)
+    public static async Task CommitTransactionAsync(this SchemaContext context, bool noEvent = false)
     {
         var dataProvider = context.GetService<IAppDataProvider>() ?? throw new InvalidOperationException(APP_DATA_PROVIDER_NOT_EXIST);
         var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
@@ -302,6 +163,9 @@ public static class AppDataTransactionExtension
 
         // Commit
         await dataProvider.CommitTransactionAsync();
+
+        // No data event
+        if (noEvent) return;
 
         // Event after commit
         foreach (var (target, value) in transChangedData)
@@ -489,25 +353,13 @@ public static class AppDataTransactionExtension
         #endregion
 
         // Process data push
-        HashSet<string> otherTargets = [];
         while (root?.Fields.Count is > 0)
         {
             foreach (AppFieldType field in root.Fields)
             {
                 if (field.PushSource == null || field.PushFuncSchema == null) continue;
-                
-                // Check ref
-                AppFieldType? tarField = field;
-                string realTarget = target;
-                bool notRefField = field.SourceAppType == null || field.TrackPush == true;
 
-                // push to source directly
-                if (!notRefField)
-                {
-                    (tarField, realTarget) = await context.GetSourceFieldNode(field, target, true);
-                    if (tarField == null) continue;
-                    if (realTarget != target) otherTargets.Add(realTarget);
-                }
+                using var stack = context.StackAccess(field.App, target);
                 
                 // Gather the field change infos
                 Dictionary<AppFieldType, (DataPushThirdFieldInfo? ThirdInfo, 
@@ -561,13 +413,13 @@ public static class AppDataTransactionExtension
                                 ArrayTypeNode? keysNode = CombineField(changeInfos, item.First().Key);
                                 if (keysNode == null || keysNode.Count == 0) continue;
 
-                                filter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                filter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                     new AppSchemaDataFilterValue(keysNode),
                                     new AppSchemaDataFilterField(item.First().DataField));
                                 break;
                             }
                             
-                            // Use key match, complex case
+                            // Use key contains, complex case
                             default:
                             {
                                 // Try Combine keys first
@@ -590,12 +442,12 @@ public static class AppDataTransactionExtension
                                                 caseFilter = null;
                                                 break;
                                             }
-                                            var kFilter = new AppSchemaDataFilterBinary(LogicExpType.Equal,
+                                            var kFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
                                                 new AppSchemaDataFilterField(map.DataField),
                                                 new AppSchemaDataFilterValue(keyNode)
                                             );
                                             caseFilter = caseFilter != null
-                                                ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kFilter)
+                                                ? new AppSchemaDataFilterBinary(LogicType.AndAlso, caseFilter, kFilter)
                                                 : kFilter;
                                             keys[keyIdx++] = keyNode.ToString();
                                         }
@@ -603,7 +455,7 @@ public static class AppDataTransactionExtension
                                         if (caseFilter == null || !existedKeys.Add(string.Join(':', keys))) continue;
 
                                         combineCase = combineCase != null
-                                            ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, combineCase, caseFilter)
+                                            ? new AppSchemaDataFilterBinary(LogicType.OrElse, combineCase, caseFilter)
                                             : caseFilter;
                                     }
 
@@ -612,15 +464,15 @@ public static class AppDataTransactionExtension
 
                                 AppSchemaDataFilter? caseFilters = buildMapCase(changeInfos.Origins.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
 
                                 caseFilters = buildMapCase(changeInfos.Updates.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
 
                                 caseFilters = buildMapCase(changeInfos.UnChanged.Values);
                                 if (caseFilters != null)
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilters) : caseFilters;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilters) : caseFilters;
                                                                 
                                 // Use contains instead of combine key cases
                                 if (filter == null || existedKeys.Count > MAX_COMBINE_CASE_COUNT)
@@ -631,10 +483,10 @@ public static class AppDataTransactionExtension
                                         ArrayTypeNode? keysNode = CombineField(changeInfos, map.Key);
                                         if (keysNode == null || keysNode.Count == 0) continue;
 
-                                        AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                        AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                             new AppSchemaDataFilterValue(keysNode),
                                             new AppSchemaDataFilterField(map.DataField));
-                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, filter, kFilter) : kFilter;
+                                        filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, kFilter) : kFilter;
                                     }
                                 }
                                 break;
@@ -650,7 +502,7 @@ public static class AppDataTransactionExtension
                         if (fetchData == null) continue;
                         
                         // Fill unchange data
-                        DynamicTableSchema schema = fromField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = fromField.Schema ?? fromField.GenDynamicTableSchema();
                         foreach (AnySchemaNode node in fetchData)
                         {
                             if (node is not StructTypeNode structNode) continue;
@@ -673,19 +525,10 @@ public static class AppDataTransactionExtension
                 // Calc the origin and new push data
                 ArrayTypeNode oldResult = await CalcPushData(originsPush);
                 ArrayTypeNode newResult = await CalcPushData(updatesPush);
+                if (oldResult.IsEmpty && newResult.IsEmpty) continue;
                 
                 // Save the incremental data
-                await context.SaveIncrementalData(tarField, realTarget, newResult, oldResult);
-
-                // Check if track push field
-                if (tarField.EnablePushTrackTable)
-                {
-                    // push to the real target
-                    (AppFieldType? refField, string refTarget) = await context.GetSourceFieldNode(tarField, realTarget, true);
-                    if (refField == null || refField == tarField) continue;
-                    if (refTarget != target) otherTargets.Add(refTarget);
-                    await context.SaveIncrementalData(refField, refTarget, newResult, oldResult);
-                }
+                await context.SaveIncrementalData(field, newResult, oldResult);
 
                 continue;
 
@@ -712,7 +555,7 @@ public static class AppDataTransactionExtension
                         DataPushThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
                         AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
                         if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var thirdChangeInfos)) continue;
-                        DynamicTableSchema schema = thirdAppField.GenDynamicTableSchema();
+                        DynamicTableSchema schema = thirdAppField.Schema ?? thirdAppField.GenDynamicTableSchema();
                         
                         // Fill data
                         Dictionary<string, (AnySchemaNode[], List<AnySchemaNode?[]>)> loadingMap = [];
@@ -776,13 +619,13 @@ public static class AppDataTransactionExtension
                                     }
                                     if (keysNode == null) continue;
 
-                                    AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicExpType.Contains,
+                                    AppSchemaDataFilterBinary kFilter = new AppSchemaDataFilterBinary(LogicType.Contains,
                                         new AppSchemaDataFilterValue(keysNode),
                                         new AppSchemaDataFilterField(primaries[k]));
-                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, filter, kFilter) : kFilter;
+                                    filter = filter != null ? new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, kFilter) : kFilter;
                                 }
                             }
-                            // Use key match
+                            // Use key contains
                             else
                             {
                                 foreach (var item in loadingMap.Values)
@@ -791,18 +634,18 @@ public static class AppDataTransactionExtension
                                     
                                     for (int k = 0; k < primaries.Length; k++)
                                     {
-                                        AppSchemaDataFilter kMatch = new AppSchemaDataFilterBinary(LogicExpType.Equal,
+                                        AppSchemaDataFilter kMatch = new AppSchemaDataFilterBinary(LogicType.Equal,
                                             new AppSchemaDataFilterField(primaries[k]),
                                             new AppSchemaDataFilterValue(item.Item1[k]));
 
                                         caseFilter = caseFilter != null
-                                            ? new AppSchemaDataFilterBinary(LogicExpType.AndAlso, caseFilter, kMatch)
+                                            ? new AppSchemaDataFilterBinary(LogicType.AndAlso, caseFilter, kMatch)
                                             : kMatch;
                                     }
                                     
                                     if (caseFilter == null) continue;
                                     filter = filter != null
-                                        ? new AppSchemaDataFilterBinary(LogicExpType.OrElse, filter, caseFilter)
+                                        ? new AppSchemaDataFilterBinary(LogicType.OrElse, filter, caseFilter)
                                         : caseFilter;
                                 }
                             }
@@ -880,7 +723,7 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructTypeNode> UnChanged) GatherFieldChangeInfos(AppFieldType appField, DataPushThirdFieldInfo? thirdInfo = null)
                 {
                     List<FieldDataChangeData>? changes = changeData.Changes.GetValueOrDefault(appField);
-                    DynamicTableSchema schema = appField.GenDynamicTableSchema();
+                    DynamicTableSchema schema = appField.Schema ?? appField.GenDynamicTableSchema();
 
                     Dictionary<string, StructTypeNode> origins = [];
                     Dictionary<string, StructTypeNode> updates = [];
@@ -926,15 +769,37 @@ public static class AppDataTransactionExtension
                                         StructTypeNode? origin = origins.GetValueOrDefault(key);
 
                                         // check push key changes
-                                        if (origin == null || thirdInfo == null || (from pushKey in thirdInfo.PushKeys
-                                                let oVal = origin.GetField(pushKey)
-                                                let nVal = structTypeNode.GetField(pushKey)
-                                                where oVal is { IsEmpty: false } || nVal is { IsEmpty: false }
-                                                where oVal == null || nVal == null || !oVal.Equals(nVal)
-                                                select oVal).Any())
+                                        if (origin == null || thirdInfo == null)
                                             updates[key] = structTypeNode;
                                         else
-                                            origins.Remove(key); // No change
+                                        {
+                                            bool isEqual = true;
+                                            foreach (string pushKey in thirdInfo.PushKeys)
+                                            {
+                                                AnySchemaNode? oVal = origin.GetField(pushKey);
+                                                AnySchemaNode? nVal = structTypeNode.GetField(pushKey);
+                                                if (oVal is { IsEmpty: false } || nVal is { IsEmpty: false })
+                                                {
+                                                    if (oVal == null || oVal.IsEmpty || nVal == null || nVal.IsEmpty)
+                                                    {
+                                                        isEqual = false;
+                                                        break;
+                                                    }
+                                                    else if (!oVal.Equals(nVal))
+                                                    {
+                                                        isEqual = false;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+
+                                            if (!isEqual)
+                                            {
+                                                updates[key] = structTypeNode;
+                                            }
+                                            else
+                                                origins.Remove(key); // No change
+                                        }
                                     }
 
                                     break;
@@ -970,20 +835,12 @@ public static class AppDataTransactionExtension
             // Process next level
             root = root.Next;
         }
-
-        // Process other targets
-        foreach (string tar in otherTargets)
-        {
-            var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
-            if (transChangedData.TryGetValue(tar, out TransactionChangeData? val))
-                await ProcessDataPush(context, tar, val);
-        }
     }
 
     /// <summary>
     /// Save the incremental data
     /// </summary>
-    internal static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, string target, AnySchemaNode? newResult, AnySchemaNode? oldResult)
+    static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, AnySchemaNode? newResult, AnySchemaNode? oldResult)
     {
         // Join the result
         AnySchemaNode? result = null;
@@ -992,7 +849,7 @@ public static class AppDataTransactionExtension
             case EnumType:
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Assign;
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? now = GroupJoin(newResult, method);
 
                     // Update with join method
@@ -1017,7 +874,7 @@ public static class AppDataTransactionExtension
                     DataCombineType method = field.Combine ?? (scalar.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
 
                     // Part
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(scalar, oldResult, method);
                     AnySchemaNode? now = GroupJoin(scalar, newResult, method);
 
@@ -1055,15 +912,15 @@ public static class AppDataTransactionExtension
                     Dictionary<string, DataCombineType> joinMethodMap = new();
 
                     // Default join
-                    foreach (StructFieldConfig f in @struct.Fields)
+                    foreach (StructFieldSchema f in @struct.Fields)
                     {
-                        if (f.SchemeType is ScalarType s)
+                        if (f.SchemaType is ScalarType s)
                             joinMethodMap[f.Name] = field.Combines?.FirstOrDefault(o => o.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase))?.Type
                                 ?? (s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign);
                     }
 
                     // Gets the result
-                    (AnySchemaNode? origin, _) = await context.GetFieldDataAsync(field, target);
+                    (AnySchemaNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
                     AnySchemaNode? old = GroupJoin(@struct, oldResult, joinMethodMap);
                     AnySchemaNode? now = GroupJoin(@struct, newResult, joinMethodMap);
 
@@ -1075,7 +932,7 @@ public static class AppDataTransactionExtension
                     else
                     {
                         StructTypeNode final = new StructTypeNode(@struct);
-                        foreach (StructFieldConfig nodeField in @struct.Fields)
+                        foreach (StructFieldSchema nodeField in @struct.Fields)
                         {
                             AnySchemaNode? originFld = origin is StructTypeNode os ? os.GetField(nodeField.Name) : null;
                             AnySchemaNode? oldFld = old is StructTypeNode ols ? ols.GetField(nodeField.Name) : null;
@@ -1093,10 +950,10 @@ public static class AppDataTransactionExtension
                                         final[nodeField.Name] = originFld is { IsEmpty: false } ? originFld : nowFld;
                                         break;
                                     }
-                                case DataCombineType.Sum when nodeField.SchemeType is ScalarType { IsNumber: true }:
-                                case DataCombineType.Count when nodeField.SchemeType is ScalarType { IsNumber: true }:
+                                case DataCombineType.Sum when nodeField.SchemaType is ScalarType { IsNumber: true }:
+                                case DataCombineType.Count when nodeField.SchemaType is ScalarType { IsNumber: true }:
                                     {
-                                        final[nodeField.Name] = nodeField.SchemeType.CreateNode(
+                                        final[nodeField.Name] = nodeField.SchemaType.CreateNode(
                                             (originFld is { IsEmpty: false } ? originFld.ToValue<decimal>() : 0m) +
                                             (nowFld is { IsEmpty: false } ? nowFld.ToValue<decimal>() : 0m) -
                                             (oldFld is { IsEmpty: false } ? oldFld.ToValue<decimal>() : 0m)
@@ -1125,19 +982,19 @@ public static class AppDataTransactionExtension
                     // Gets the value fields
                     List<string> valueFields = new();
                     Dictionary<string, AnySchemaType> primaryNodes = new();
-                    foreach (StructFieldConfig fieldType in structNode.Fields)
+                    foreach (StructFieldSchema fieldType in structNode.Fields)
                     {
                         if (!array.Primary.Contains(fieldType.Name))
                         {
                             valueFields.Add(fieldType.Name);
 
-                            if (fieldType.SchemeType is ScalarType s)
+                            if (fieldType.SchemaType is ScalarType s)
                             {
                                 joinMethodMap[fieldType.Name] = s.IsNumber ? DataCombineType.Sum : DataCombineType.Assign;
                             }
                         }
                         else
-                            primaryNodes.Add(fieldType.Name, fieldType.SchemeType!);
+                            primaryNodes.Add(fieldType.Name, fieldType.SchemaType!);
                     }
 
                     // Based on array join methods
@@ -1168,37 +1025,23 @@ public static class AppDataTransactionExtension
                     Dictionary<string, StructTypeNode> nowMap = GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
-                    HashSet<string> keys = new();
-                    JsonArray query = new();
-                    foreach ((string key, StructTypeNode obj) in oldMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-                    foreach ((string key, StructTypeNode obj) in nowMap)
-                    {
-                        if (!keys.Add(key)) continue;
-                        query.Add(obj.ToJson());
-                    }
-
+                    var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values));
+                    
                     // Gets the original data
                     Dictionary<string, StructTypeNode> resultMap = new Dictionary<string, StructTypeNode>();
-                    if (!query.IsEmpty())
+                    if (origins is ArrayTypeNode arr)
                     {
-                        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(field, target, query);
-                        if (value is ArrayTypeNode arr)
+                        foreach (AnySchemaNode token in arr)
                         {
-                            foreach (AnySchemaNode token in arr)
-                            {
-                                if (token is not StructTypeNode obj) continue;
-                                string? key = array.GetPrimaryKey(obj);
-                                if (string.IsNullOrWhiteSpace(key)) continue;
-                                resultMap[key] = obj;
-                            }
+                            if (token is not StructTypeNode obj) continue;
+                            string? key = array.GetPrimaryKey(obj);
+                            if (string.IsNullOrWhiteSpace(key)) continue;
+                            resultMap[key] = obj;
                         }
                     }
 
                     // Generate the result map
+                    var keys = new HashSet<string>(oldMap.Keys.Concat(nowMap.Keys));
                     foreach (string key in keys)
                     {
                         if (resultMap.TryGetValue(key, out var res1))
@@ -1277,8 +1120,8 @@ public static class AppDataTransactionExtension
                                     {
                                         DateTime ad = a.GetField(s)!.ToValue<DateTime>();
                                         DateTime bd = b.GetField(s)!.ToValue<DateTime>();
-                                        if (!SystemDate.notequal(ad, bd))
-                                            return SystemDate.lessthan(ad, bd) ? -1 : 1;
+                                        if (!bd.Equals(ad))
+                                            return ad.CompareTo(bd);
                                         break;
                                     }
                                 case ScalarType { IsNumber: true }:
@@ -1309,13 +1152,15 @@ public static class AppDataTransactionExtension
         }
 
         // Save
-        await SaveFieldDataAsync(context, field, target, result, true);
+        await context.SaveFieldDataAsync(field, result, true);
     }
 
     // Record the changed fields with changed values
-    static void OnFieldDataChanged(SchemaContext context, string target, AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
+    static void OnFieldDataChanged(SchemaContext context,  AppFieldType field, TransactionChangeOperation operation, AnySchemaNode? value = null, AnySchemaNode? origin = null)
     {
         var transChangedData = context.GetOrCreateContextItem<Dictionary<string, TransactionChangeData>>();
+        var access = context.GetSchemaContextItem<Access>();
+        string target = access!.Target ?? Guid.Empty.ToString();
         if (!transChangedData.TryGetValue(target, out TransactionChangeData? changeData))
         {
             changeData = new TransactionChangeData();

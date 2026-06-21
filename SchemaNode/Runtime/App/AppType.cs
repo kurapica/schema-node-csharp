@@ -1,8 +1,14 @@
+using Microsoft.AspNetCore.Http.Features;
+using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Node;
+using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
@@ -13,7 +19,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory application schema representation
 /// </summary>
-public class AppType
+public sealed class AppType
 {
     #region Properties
 
@@ -30,17 +36,27 @@ public class AppType
     /// <summary>
     /// The description
     /// </summary>
-    public LocaleString? Desc { get; private set; }
+    public LocaleString? Desc => Properties?.FirstOrDefault(p => p is DescProperty) is DescProperty desc ? desc.Value : null;
+
+    /// <summary>
+    /// The target policies, can only be changeable when no app & no fields or in debug mode
+    /// </summary>
+    public AppScopePolicy? ScopePolicy { get; private set; }
+
+    /// <summary>
+    /// The target scope type, default to business target if no scope policy defined
+    /// </summary>
+    public AppScopeType ScopeType => ScopePolicy?.Type ?? AppScopeType.BusinessTarget;
     
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    public PolicyType? Auth { get; set; }
+    public PolicyType? Auth { get; private set; }
     
     /// <summary>
     /// The data authentication policy type
     /// </summary>
-    public PolicyItem[]? Auths { get; set; }
+    public PolicyItem[]? Auths { get; private set; }
 
     /// <summary>
     /// The application field relations
@@ -53,15 +69,20 @@ public class AppType
     public AppSchema[]? Apps { get; internal set; }
 
     /// <summary>
-    /// The additional data
+    /// The properties
+    /// </summary>
+    public IProperty[]? Properties { get; private set; }
+
+    /// <summary>
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; internal set; }
+    public Dictionary<string, JsonElement>? Extensions { get; internal set; }
     
     /// <summary>
     /// The root application
     /// </summary>
-    public AppType? RootApp { get; set; }
+    public AppType? RootApp { get; init; }
 
     #endregion
 
@@ -74,7 +95,9 @@ public class AppType
         ? SchemaNodeStatus.ApplicationInvalidField
         : Auths != null && Auths.Any(p => p.Status != null && p.Status != SchemaNodeStatus.Ready)
             ? SchemaNodeStatus.ApplicationDataAuthWrongFunc
-            : SchemaNodeStatus.Ready;
+            : Relations != null && Relations.Any(r => r.Status != SchemaNodeStatus.Ready)
+                ? SchemaNodeStatus.ApplicationRelationWrongFunc
+                : SchemaNodeStatus.Ready;
 
     /// <summary>
     /// The application is used
@@ -105,11 +128,6 @@ public class AppType
     /// </summary>
     public List<AppWorkflowType>? Workflows { get; set; }
 
-    /// <summary>
-    /// The ref field
-    /// </summary>
-    public AppFieldType? RefField { get; set; }
-
     #endregion
 
     #region Methods
@@ -124,19 +142,22 @@ public class AppType
 
         // data
         Display = schema.Display;
-        Desc = schema.Desc;
+        ScopePolicy = schema.ScopePolicy;
         Auth = !string.IsNullOrEmpty(schema.Auth)
             ? await context.GetSchemaTypeAsync(schema.Auth) as PolicyType
             : null;
         Auths = schema.Auths;
         Apps = schema.Apps;
-        Additional = schema.Additional;
+        Extensions = schema.Extensions;
+        Properties = Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.App, Extensions)?.ToArray() : null;
 
         // Load the application fields
-        bool useRef = false;
-        bool requireDb = false;
         Fields = schema.Fields?.Select(p => (AppFieldType)p).ToList();
         Relations = null;
+        
+        // Reload Apps
+        List<AppType>? reloadApps = null;
+
         if (Fields is { Count: > 0 })
         {
             // load field type first to avoid circular reference
@@ -145,6 +166,7 @@ public class AppType
                 field.App = Name;
                 field.Application = this;
                 field.Status = null;
+                field.Properties = field.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppField, field.Extensions)?.ToArray() : null;
 
                 // valid the type
                 AnySchemaType? node = await context.GetSchemaTypeAsync(field.Type);
@@ -192,6 +214,7 @@ public class AppType
                             field.PushSource = pushSource;
                     
                             // Compile with data push compile context
+                            funcNode.ClearRuntimeFuncCache<DataPushCompileContext>(); // must reset the field reference
                             DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
                             try
                             {
@@ -209,32 +232,15 @@ public class AppType
                             {
                                 field.Status = fv.Status;
                             }
-                            catch
+                            catch(Exception ex)
                             {
+                                context.LogError(ex,$"AppType.LoadAsync: push function compile error for app {Name} field {field.Name}");
                                 field.Status = SchemaNodeStatus.ApplicationPushDataWrongFunc;
                             }
                         }
                     }
                 }
-
-                // valid source
-                if (!string.IsNullOrWhiteSpace(field.SourceApp) && !string.IsNullOrWhiteSpace(field.SourceField))
-                {
-                    AppType? sourceApp = await context.GetAppTypeAsync(field.SourceApp);
-                    if (sourceApp?.GetField(field.SourceField) == null)
-                    {
-                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
-                    }
-                    else
-                    {
-                        useRef = true;
-                        field.SourceAppType = sourceApp;
-                    }
-                }
-                
-                if (field.EnableDynamicTable)
-                    requireDb = true;
-                
+                                
                 // valid the auths
                 if (field.Auths != null)
                 {
@@ -257,7 +263,7 @@ public class AppType
                 // valid the row policy
                 if (field.RowAuths != null)
                 {
-                    foreach(RowPolicyItem row in field.RowAuths)
+                    foreach(RowPolicy row in field.RowAuths)
                     {
                         // valid evaluator
                         if (!string.IsNullOrEmpty(row.Evaluator))
@@ -286,16 +292,16 @@ public class AppType
                     }
                 }
 
+                // valid the column policy | filter
                 StructType? structType = field.SchemaType as StructType
                     ?? (field.SchemaType is ArrayType { ElementSchemaType: StructType st } ? st : null);
                 if (structType != null)
                 {
-                    // valid the column policy
                     if (field.ColAuths != null)
                     {
-                        foreach(ColPolicyItem colPolicy in field.ColAuths)
+                        foreach(ColPolicy colPolicy in field.ColAuths)
                         {
-                            StructFieldConfig? structField = structType.GetField(colPolicy.Name);
+                            StructFieldSchema? structField = structType.GetField(colPolicy.Name);
                             if (structField == null)
                             {
                                 field.Status = SchemaNodeStatus.ApplicationFieldDataAuthWrongField;
@@ -319,6 +325,123 @@ public class AppType
                             colPolicy.Functions = funcs.ToArray();
                         }
                     }
+
+                    if (field.Filters is { Length: > 0 })
+                    {
+                        foreach (FieldFilter filter in field.Filters)
+                        {
+                            if (filter.Mode == FieldFilterMode.Filter)
+                            {
+                                if (await context.GetSchemaTypeAsync(filter.Filter) is not FunctionType funcType ||
+                                    funcType.Args.Length < 2 ||
+                                    funcType.Args[0].SchemaType == null ||
+                                    !funcType.Args[0].SchemaType!.CanBeUseAs(structType))
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                if (structType.GetField(filter.Filter) == null)
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldDataWrongFilter;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // valid the foreign key reference
+                if (field.Foreigns is { Length: > 0})
+                {
+                    foreach (Foreign foreign in field.Foreigns)
+                    {
+                        if (string.IsNullOrWhiteSpace(foreign.Field) ||
+                            string.IsNullOrWhiteSpace(foreign.App) ||
+                            await context.GetAppTypeAsync(foreign.App) is not AppType refApp ||
+                            refApp.ScopeType == AppScopeType.SystemLevel ||
+                            structType == null || 
+                            structType.GetField(foreign.Field) == null)
+                        {
+                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                            break;
+                        }
+                        reloadApps ??= [];
+                        reloadApps.Add(refApp);
+                    }
+                }
+
+                // Check source app & field as view
+                if (!string.IsNullOrWhiteSpace(field.View?.App) || !string.IsNullOrWhiteSpace(field.View?.Field))
+                {
+                    if (structType == null || string.IsNullOrWhiteSpace(field.View?.App) || string.IsNullOrWhiteSpace(field.View?.Field) ||
+                        await context.GetAppTypeAsync(field.View.App) is not AppType sourceApp ||
+                        sourceApp.ScopeType == AppScopeType.SystemLevel ||
+                        sourceApp.GetField(field.View.Field) is not AppFieldType sourceField ||
+                        sourceField.Foreigns == null || sourceField.Foreigns.Length == 0 || 
+                        sourceField.Foreigns.All(f => !f.App.Equals(Name, StringComparison.OrdinalIgnoreCase)) ||
+                        !string.IsNullOrWhiteSpace(field.View.Map) && structType.GetField(field.View.Map) == null)
+                    {
+                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                    }
+                    else
+                    {
+                        field.View.AppType = sourceApp;
+                        AnySchemaType? sourceFieldType = sourceField.SchemaType;
+                        if (sourceFieldType is ArrayType arrType)
+                            sourceFieldType = arrType.ElementSchemaType;
+
+                        if (sourceFieldType is not StructType sourceStruct)
+                        {
+                            field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                        }
+                        else
+                        {
+                            // Check fields
+                            foreach (var f in structType.Fields)
+                            {
+                                if (f.SchemaType == null)
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                    break;
+                                }
+
+                                if (f.Name.Equals(field.View.Map, StringComparison.OrdinalIgnoreCase))
+                                    continue;
+
+                                // Match the source field
+                                if (f.DisplayOnly == true)
+                                {
+                                    // Can be generated by other fields, or from the other field of the source app
+                                    StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
+                                        r.Field.Equals(f.Name, StringComparison.OrdinalIgnoreCase) &&
+                                        r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
+
+                                    if (relation == null || DynamicTableSchema.IsReferenceFunc(relation.Func) &&
+                                        !sourceApp.Name.Equals(relation.Args.FirstOrDefault()?.Value?.ToValue<string>(), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                        break;
+                                    }
+                                }
+                                else if (sourceStruct.GetField(f.Name) is { SchemaType: { } } sourceFieldMatch)
+                                {
+                                    if (!sourceFieldMatch.SchemaType.CanBeUseAs(f.SchemaType))
+                                    {
+                                        field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    field.Status = SchemaNodeStatus.ApplicationFieldWrongRef;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
@@ -328,8 +451,8 @@ public class AppType
                 Relations = schema.Relations.Select(r => new AppRelationSchema
                 {
                     AppField = r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty,
-                    DataField = r.Field.Contains(".") ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
-                    Type = r.Type,
+                    DataField = r.Field.Contains('.') ? r.Field.Split(".", 2, StringSplitOptions.RemoveEmptyEntries)[1] : string.Empty,
+                    Prop = r.Prop,
                     Func = r.Func,
                     Args = r.Args.Select(a => new AppArgSchema
                     {
@@ -358,7 +481,7 @@ public class AppType
                         if (relationFunc is FunctionType funcNode)
                         {
                             funcNode.AddRef(field);
-                            relation.FunctionNode = funcNode;
+                            relation.FuncNode = funcNode;
                         }
                         else
                         {
@@ -366,23 +489,6 @@ public class AppType
                         }
                     }
                 }
-            }
-
-            // Use ref
-            if (requireDb && useRef) {
-                string refType = typeof(List<AppRef>).GetSchemaType()!;
-
-                RefField = new AppFieldType
-                {
-                    App = Name,
-                    Name = APP_FIELD_REF_NAME,
-                    Type = refType,
-                    SchemaType = await context.GetSchemaTypeAsync(refType)
-                };
-            }
-            else
-            {
-                RefField = null;
             }
         }
 
@@ -407,10 +513,14 @@ public class AppType
         }
         
         // load workflows
+        List<AppWorkflowType>? oldWorkflows = Workflows;
         Workflows = schema.Workflows?.Select(w =>
         {
-            var wft = (AppWorkflowType)w;
+            // if the workflow is activated, keep the old instance to avoid breaking the running workflow, otherwise create a new instance
+            AppWorkflowType wft = oldWorkflows?.FirstOrDefault(o => o.Name.Equals(w.Name, StringComparison.OrdinalIgnoreCase)) is { Activated: true } old
+                ? old : w;
             wft.Application = this;
+            wft.Properties = wft.Extensions != null ? PropertyType.GetProperties<IProperty>(context, Enum.SchemaType.AppWorkflow, wft.Extensions)?.ToArray() : null;
             return wft;
         }).ToList();
         foreach(var wf in Workflows ?? [])
@@ -428,6 +538,14 @@ public class AppType
             foreach (string name in Apps.Select(p => p.Name))
                 await context.GetAppTypeAsync(name, preload: true);
         }
+
+        // reload the foreign if changes
+        if (!preLoad && reloadApps is {  Count: > 0 })
+        {
+            // reload the reference applications to update the observers
+            foreach (AppType app in reloadApps)
+                await context.GetAppTypeAsync(app.Name, reload: true);
+        }
     }
     
     /// <summary>
@@ -444,8 +562,9 @@ public class AppType
         Relations?.ForEach(r =>
         {
             if (r.FieldNode != null)
-                r.FunctionNode?.RemoveRef(r.FieldNode);
+                r.FuncNode?.RemoveRef(r.FieldNode);
         });
+        Workflows?.ForEach(w => w.Release());
     }
 
     /// <summary>
@@ -456,7 +575,7 @@ public class AppType
         // use system for root
         if (RootApp == null)
         {
-            if (SubAppList?[NS_SYSTEM] is { } system)
+            if (SubAppList?.TryGetValue(NS_SYSTEM, out AppType? system) == true)
             {
                 foreach (var item in system.GetAuthPolicies(scope))
                     yield return item;
@@ -508,25 +627,83 @@ public class AppType
     /// <returns></returns>
     public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
     {
-        if (Fields == null || Fields.Count == 0)
-            return [];
-
         types ??= [];
         root ??= new NodeSchema
         {
             Name = "",
-            Type = SchemaType.Namespace,
+            Type = Enum.SchemaType.Namespace,
             Schemas = []
         };
 
-        foreach (AppFieldType fieldNode in Fields)
+        // App-level auth policy type
+        if (Auth != null)
+            await Auth.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+
+        // App-level data auth functions
+        if (Auths != null)
         {
-            cancellationToken?.ThrowIfCancellationRequested();
-            
-            if (fieldNode.SchemaType != null)
-             await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
-            if (fieldNode.FuncNode != null)
-             await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            foreach (PolicyItem item in Auths)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+                if (item.Function != null)
+                    await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            }
+        }
+
+        if (Fields is { Count: > 0 })
+        {
+            foreach (AppFieldType fieldNode in Fields)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+
+                if (fieldNode.SchemaType != null)
+                    await fieldNode.SchemaType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+
+                if (fieldNode.FuncNode != null)
+                    await fieldNode.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+
+                if (fieldNode.Filters is { Length: > 0 })
+                {
+                    foreach (FieldFilter filter in fieldNode.Filters.Where(f => f.Mode == FieldFilterMode.Filter))
+                    {
+                        AnySchemaType? filterType = await ctx.GetSchemaTypeAsync(filter.Filter);
+                        if (filterType != null)
+                            await filterType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
+
+                // Field-level data auth functions
+                if (fieldNode.Auths != null)
+                {
+                    foreach (PolicyItem item in fieldNode.Auths)
+                    {
+                        if (item.Function != null)
+                            await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
+
+                // Row policy functions
+                if (fieldNode.RowAuths != null)
+                {
+                    foreach (RowPolicy row in fieldNode.RowAuths)
+                    {
+                        if (row.EvaluatorFunc != null)
+                            await row.EvaluatorFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                        if (row.FilterFunc != null)
+                            await row.FilterFunc.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
+
+                // Column policy functions
+                if (fieldNode.ColAuths != null)
+                {
+                    foreach (ColPolicy colPolicy in fieldNode.ColAuths)
+                    {
+                        foreach (FunctionType func in colPolicy.Functions)
+                            await func.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
+            }
         }
 
         if (Relations is { Count: > 0 })
@@ -534,14 +711,142 @@ public class AppType
             foreach (AppRelationSchema relation in Relations)
             {
                 cancellationToken?.ThrowIfCancellationRequested();
-                
-                if (relation.FunctionNode != null)
-                    await relation.FunctionNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+
+                if (relation.FuncNode != null)
+                    await relation.FuncNode.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            }
+        }
+
+        // Workflow node schema types
+        if (Workflows is { Count: > 0 })
+        {
+            foreach (AppWorkflowType workflow in Workflows)
+            {
+                cancellationToken?.ThrowIfCancellationRequested();
+
+                // Workflow-level auth functions
+                if (workflow.Auths != null)
+                {
+                    foreach (PolicyItem item in workflow.Auths)
+                    {
+                        if (item.Function != null)
+                            await item.Function.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
+
+                // Workflow node referenced types
+                foreach (AppWorkflowNodeSchema node in workflow.Nodes)
+                {
+                    cancellationToken?.ThrowIfCancellationRequested();
+
+                    if (!string.IsNullOrWhiteSpace(node.Type))
+                    {
+                        AnySchemaType? wfType = await ctx.GetSchemaTypeAsync(node.Type);
+                        if (wfType != null)
+                            await wfType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(node.Func))
+                    {
+                        AnySchemaType? funcType = await ctx.GetSchemaTypeAsync(node.Func);
+                        if (funcType != null)
+                            await funcType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(node.Event))
+                    {
+                        AnySchemaType? eventType = await ctx.GetSchemaTypeAsync(node.Event);
+                        if (eventType != null)
+                            await eventType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(node.Payload))
+                    {
+                        AnySchemaType? payloadType = await ctx.GetSchemaTypeAsync(node.Payload);
+                        if (payloadType != null)
+                            await payloadType.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+                    }
+                }
             }
         }
 
         return root.Schemas!;
     }
+
+    /// <summary>
+    /// Gets the scope context items for the application, which will be used for policy evaluation and data push
+    /// </summary>
+    public IEnumerable<(string item, AnySchemaType type, bool isTarget)> GetScopeContextItems()
+    {
+        if (ScopePolicy?.Type == AppScopeType.SystemLevel)
+            yield break;
+
+        bool tarCovered = false;
+        StructType contextType = SchemaContext.SystemContext;
+        if (ScopePolicy is { ContextMaps.Length: > 0 })
+        {
+            foreach (var map in ScopePolicy.ContextMaps)
+            {
+                AnySchemaType? mapType = contextType;
+                string last = map.ContextItem;
+                bool isTarget = map.ContextItem.Equals(TargetAccess, StringComparison.OrdinalIgnoreCase);
+                if (isTarget) tarCovered = true;
+
+                foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.SchemaType;
+                    last = field?.Name ?? string.Empty;
+                }
+
+                if (mapType == null)
+                    throw new Exception($"Invalid context item {map.ContextItem} in app {Name} scope policy");
+                
+                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", mapType, isTarget);
+            }
+        }
+        if (!tarCovered)
+            yield return (DefaultTarget, SchemaContext.SystemString, true);
+    }
+    
+    /// <summary>
+    /// Gets the scope context items for the application, which will be used for policy evaluation and data push
+    /// </summary>
+    public IEnumerable<(string item, AnySchemaNode? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
+    {
+        if (ScopePolicy?.Type == AppScopeType.SystemLevel)
+            yield break;
+
+        bool tarCovered = false;
+        StructType contextType = SchemaContext.SystemContext;
+        if (ScopePolicy is { ContextMaps.Length: > 0 })
+        {
+            foreach (var map in ScopePolicy.ContextMaps)
+            {
+                AnySchemaType? mapType = contextType;
+                string last = map.ContextItem;
+                bool isTarget = map.ContextItem.Equals(TargetAccess, StringComparison.OrdinalIgnoreCase);
+                if (isTarget) tarCovered = true;
+
+                foreach (string path in map.ContextItem.Split('.', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    StructFieldSchema? field = mapType is StructType st ? st.GetField(path) : null;
+                    mapType = field?.SchemaType;
+                    last = field?.Name ?? string.Empty;
+                }
+
+                if (mapType == null)
+                    throw new Exception($"Invalid context item {map.ContextItem} in app {Name} scope policy");
+                
+                yield return (!string.IsNullOrWhiteSpace(map.MapKey) ? map.MapKey : $"_{last}", ctx.GetSchemaContextItem(map.ContextItem), isTarget);
+            }
+        }
+        if (!tarCovered)
+            yield return (DefaultTarget, ctx.GetSchemaContextItem(TargetAccess), true);
+    }
+
+    static string DefaultTarget = $"_{nameof(Access.Target).ToCamelCase()}";
+    const string TargetAccess = $"{nameof(Access)}.{nameof(Access.Target)}";
 
     #endregion
 } 

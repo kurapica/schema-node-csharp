@@ -1,0 +1,13 @@
+using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
+using static SchemaNode.Utility.Constant;
+
+namespace SchemaNode.Property.Common;
+
+/// <summary>
+/// The default value
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_BOOL, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_INT)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Default)}")]
+public class Default: Property<object>;

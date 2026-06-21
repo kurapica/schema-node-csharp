@@ -8,6 +8,7 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -23,7 +24,7 @@ public static class SystemCollection
     /// Gets the array length
     /// </summary>
     [Schema]
-    public static long arrlen([Schema(NS_SYSTEM_ARRAY)] object array)
+    public static long length([Schema(NS_SYSTEM_ARRAY)] object array)
     {
         if (array is string str) return str.Length;
         if (array is JsonArray jsonArray) return jsonArray.Count;
@@ -33,30 +34,11 @@ public static class SystemCollection
         return 0;
     }
     
-    [Schema]
-    public static JsonObject newstruct() => new  JsonObject();
-
-    /// <summary>
-    /// Create a new array
-    /// </summary>
-    [Schema]
-    public static List<T> newarray<T>() => new List<T>();
-
-    /// <summary>
-    /// Push to the list
-    /// </summary>
-    [Schema]
-    public static List<T> push<T>(IEnumerable<T> arr, T value)
-    {
-        List<T> res = new (arr);
-        res.Add(value);
-        return res;
-    }
-
     /// <summary>
     /// Whether the list contains the item
     /// </summary>
     [Schema]
+    [Logic(LogicType.Contains, true)]
     public static bool contains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         foreach (var item in array)
@@ -70,87 +52,20 @@ public static class SystemCollection
     /// Whether the list not contains the item
     /// </summary>
     [Schema]
+    [Logic(LogicType.NotContains, true)]
     public static bool notcontains<T>(ArrayTypeNode array, T value) where T: IComparable
     {
         return !contains(array, value);
     }
 
     /// <summary>
-    /// Calc the average
-    /// </summary>
-    [Schema]
-    public static T average<T>(ArrayTypeNode array) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        int count = 0;
-        foreach (var item in array)
-        {
-            count++;
-            sum += item.ToValue<T>() ?? T.Zero;
-        }
-        return count == 0 ? T.Zero : sum / T.CreateChecked(count);
-    }
-
-    /// <summary>
-    /// Calc the sum
-    /// </summary>
-    [Schema]
-    public static T sum<T>(ArrayTypeNode array) where T : INumber<T>
-    {
-        T sum = T.Zero;
-        foreach (var item in array)
-        {
-            sum += item.ToValue<T>() ?? T.Zero;
-        }
-        return sum;
-    }
-
-    /// <summary>
-    /// Delete a field from the json object
-    /// </summary>
-    [Schema]
-    public static StructTypeNode delfield(StructTypeNode obj, string field)
-    {
-        obj[field] = null;
-        return obj;
-    }
-
-    /// <summary>
-    /// Whether the object has the field
-    /// </summary>
-    [Schema]
-    public static bool containskey(StructTypeNode obj, string field)
-    {
-        return obj[field] != null;
-    }
-
-    /// <summary>
-    /// Whether the object not has the field
-    /// </summary>
-    [Schema]
-    public static bool notcontainskey(StructTypeNode obj, string field)
-    {
-        return obj[field] == null;
-    }
-
-    /// <summary>
     /// Gets the field value from the object
     /// </summary>
     [Schema]
-    public static async Task<T?> getfield<T>(SchemaContext context, StructTypeNode obj, string field)
+    public static async Task<T?> getfield<T>(SchemaContext context, StructTypeNode obj, string field, T? @default)
     {
         AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
-        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : default;
-    }
-
-    /// <summary>
-    /// Gets the field value from the object
-    /// </summary>
-    [Schema]
-    public static async Task<T> getfielddefault<T>(SchemaContext context, StructTypeNode obj, string field, T defaultValue)
-    {
-        AnySchemaNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
-        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T))! : defaultValue;
+        return result is { IsEmpty: false } ? (T?)result.ToTypeValue(typeof(T)) : (@default ?? default);
     }
 
     /// <summary>
@@ -162,8 +77,8 @@ public static class SystemCollection
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
         var f = @struct.Fields.FirstOrDefault(f => f.Name.Equals(field, StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidOperationException($"The field {field} not found in the struct {@struct.Name}");
-        if (f.SchemeType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
-        AnySchemaType arrayNode = await context.GetArraySchemaTypeAsync(f.SchemeType)
+        if (f.SchemaType == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
+        AnySchemaType arrayNode = SchemaContext.GetArraySchemaType(f.SchemaType)
                                   ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayTypeNode resultType = new (arrayNode);
@@ -176,134 +91,6 @@ public static class SystemCollection
         return resultType;
     }
     
-    /// <summary>
-    /// Sets the field and return a new json object
-    /// </summary>
-    [Schema]
-    public static StructTypeNode setfield(StructTypeNode obj, string field, object? value)
-    {
-        obj[field] = value;
-        return obj;
-    }
-
-    /// <summary>
-    /// Sets the field and return a new json object
-    /// </summary>
-    [Schema]
-    public static bool fieldequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        return EqualityComparer<T>.Default.Equals(node.ToValue<T>(), value);
-    }
-    
-    /// <summary>
-    /// system.collection.notequal
-    /// </summary>
-    [Schema]
-    public static bool fieldnotequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-        => !fieldequal(obj, field, value);
-
-    /// <summary>
-    /// system.collection.greateequal
-    /// </summary>
-    [Schema]
-    public static bool fieldgreateequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) >= 0;
-    }
-
-    /// <summary>
-    /// system.collection.greatethan
-    /// </summary>
-    [Schema]
-    public static bool fieldgreatethan<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) > 0;
-    }
-
-    /// <summary>
-    /// system.collection.lessequal
-    /// </summary>
-    [Schema]
-    public static bool fieldlessequal<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) <= 0;
-    }
-
-    /// <summary>
-    /// system.collection.lessthan
-    /// </summary>
-    [Schema]
-    public static bool fieldlessthan<T>(StructTypeNode obj, string field, T value) where T: IComparable
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        T? res = node.ToValue<T>();
-        if (res == null) return false;
-        return res.CompareTo(value) < 0;
-    }
-    
-    /// <summary>
-    /// Field starts with
-    /// </summary>
-    [Schema]
-    public static bool fieldstartswith(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.StartsWith(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotstartswith(StructTypeNode obj, string field, string value)
-        => !fieldstartswith(obj, field, value);
-
-    /// <summary>
-    /// Field end with
-    /// </summary>
-    [Schema]
-    public static bool fieldendswith(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.EndsWith(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotendswith(StructTypeNode obj, string field, string value)
-        => !fieldendswith(obj, field, value);
-
-    /// <summary>
-    /// Field match
-    /// </summary>
-    [Schema]
-    public static bool fieldmatch(StructTypeNode obj, string field, string value)
-    {
-        AnySchemaNode? node = obj.GetField(field);
-        if (node == null || node.IsEmpty) return false;
-        string? res = node.ToValue<string>();
-        return res != null && res.Contains(value, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Schema]
-    public static bool fieldnotmatch(StructTypeNode obj, string field, string value)
-        => !fieldmatch(obj, field, value);
-
     /// <summary>
     /// order by the given field
     /// </summary>
@@ -359,16 +146,16 @@ public static class SystemCollection
         if (obj is not StructTypeNode s) return null;
         
         StructType structType = (s.SchemaType as StructType)! ;
-        StructFieldConfig? fldConfig = structType.GetField(paths[0]);
+        StructFieldSchema? fldConfig = structType.GetField(paths[0]);
         AnySchemaNode? field = s.GetField(paths[0]);
         if (field == null) return null;
         if (fldConfig?.DisplayOnly != true)
             return paths.Length == 1 ? field : await GetFieldNode(context, field, paths.Skip(1).ToArray());
         
         // Calc the display only field
-        StructFieldRelation? relation = structType.Relations?.FirstOrDefault(r =>
+        StructRelationSchema? relation = structType.Relations?.FirstOrDefault(r =>
             r.Field.Equals(paths[0], StringComparison.OrdinalIgnoreCase) &&
-            r.Type is RelationType.Default or RelationType.Assign);
+            r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
         if (relation == null) return null;
         
         JsonArray args = [];

@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
@@ -50,10 +51,21 @@ public static class SchemaStorageProviderExtension
             if (parentNode is TypeNamespace ns)
                 ns.Schemas = ns.Schemas.Where(p => !p.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)).Concat([schema]).ToArray();
         }
+        NodeSchema[]? subSchemas = schema.Type == SchemaType.Namespace ? schema.Schemas : null;
         await context.GetSchemaTypeAsync(schema.Name, reload: true); // force reload
-
+        
+        // check sub schemas
+        if (subSchemas is { Length: > 0 })
+        {
+            foreach (var subSchema in subSchemas)
+            {
+                await context.SaveSchemaAsync(subSchema);
+            }
+        }
+        
         // event
         context.RaiseEvent<SchemaChangeEvent>(schema.Name);
+
         return true;
     }
 
@@ -95,10 +107,12 @@ public static class SchemaStorageProviderExtension
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
     /// <returns>true if saved</returns>
-    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string? value, EnumValueInfo[] values, bool? append)
+    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, EnumValueInfo[] values, bool append = false, bool noEvent = false)
     {
+        if (string.IsNullOrWhiteSpace(value)) return false; // for root level, please use SaveSchemaAsync to save the whole enum schema with sub list
+
         AnySchemaType? node = await context.GetSchemaTypeAsync(name);
-        if (node is not EnumType @enum) return false;
+        if (node is not EnumType @enum || @enum.Cascade == null || @enum.Cascade.Length == 0) return false;
 
         // authorize
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
@@ -106,14 +120,40 @@ public static class SchemaStorageProviderExtension
         // gets storage provider
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+                
+        // Need check the delete case when it has sub list, only delete the leaf node
+        values = await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
 
-        // save the sub list
-        @enum.SaveEnumSubListAsync(value, await provider.SaveEnumSubListAsync(@enum, value, values, append));
+        // Reload to avoid strange errors
+        await context.GetSchemaTypeAsync(@enum.Name, reload: true);
 
         // event
-        context.RaiseEvent<SchemaChangeEvent>(node.Name);
+        if (!noEvent)
+            context.RaiseEvent<SchemaChangeEvent>(node.Name);
         return true;
     }
+
+    static async Task<EnumValueInfo[]> SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, ISchemaStorageProvider provier, EnumType @enum, string value, EnumValueInfo[] values, bool append = false)
+    {
+        EnumValueInfo? root = await @enum.LoadEnumValueInfo(context, value);
+        if (root is null || root.Level == @enum.Cascade!.Length) return values;
+
+        if (!append)
+        {
+            EnumValueInfo[] existSubList = await @enum.LoadEnumSubListAsync(context, root.Value) ?? [];
+            EnumValueInfo[] appends = existSubList.Where(e => e.HasSubList == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
+            values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
+        }
+
+        // Save
+        await provier.SaveEnumSubListAsync(@enum, root.Value, values.Select(v => v.Clone()).ToArray(), append);
+
+        // Save sub list for the nodes with sub list recursively
+        foreach (var node in values.Where(v => v.SubList is { Length: > 0 }))
+            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provier, @enum, node.Value, node.SubList!, append);
+        return values;
+    }
+
 
     /// <summary>
     /// Save the app schema
@@ -143,11 +183,42 @@ public static class SchemaStorageProviderExtension
         else
         {
             await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
+
+            // Check app scope policy, allow change when DEBUG
+            #if !DEBUG
+            if ((node.ScopePolicy != null || app.ScopePolicy != null && 
+                (node.Apps is { Length: > 0 } || node.Fields is { Count: > 0 }) &&
+                (node.ScopePolicy == null || !node.ScopePolicy.Equals(app.ScopePolicy))))
+            {
+                throw new Exception(APP_TARGET_POLICY_CANT_CHANGE);
+            }
+            #endif
+
+            if (node.ScopePolicy?.Type == AppScopeType.IsolationContext)
+            {
+                if (node.ScopePolicy.ContextMaps == null || node.ScopePolicy.ContextMaps.Length == 0)
+                    throw new Exception(APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP);
+                
+                Array.Sort(node.ScopePolicy.ContextMaps, (a, b) =>
+                {
+                    // put Access.Target last 
+                    if (a.ContextItem.Equals($"{nameof(Access)}.{nameof(Access.Target)}", StringComparison.OrdinalIgnoreCase))
+                        return 1;
+                    return -1;
+                });
+            }
         }
 
         // Ges the storage provider
         ISchemaStorageProvider? provider = context.GetService<ISchemaStorageProvider>();
         if (provider == null) return false;
+
+        // Save node schemas first (field types may depend on them)
+        if (app.NodeSchemas is { Length: > 0 })
+        {
+            foreach (var nodeSchema in app.NodeSchemas)
+                await context.SaveSchemaAsync(nodeSchema);
+        }
 
         // save the schema
         if (!await provider.SaveAppSchemaAsync(app)) return false;
@@ -162,6 +233,20 @@ public static class SchemaStorageProviderExtension
             }
         }
         await context.GetAppTypeAsync(app.Name, reload: true); // force reload
+
+        // Save fields in order if provided
+        if (app.Fields is { Length: > 0 })
+        {
+            foreach (var field in app.Fields)
+                await context.SaveAppFieldSchemaAsync(app.Name, field);
+        }
+
+        // Save workflows if provided
+        if (app.Workflows is { Length: > 0 })
+        {
+            foreach (var workflow in app.Workflows)
+                await context.SaveAppWorkflowSchemaAsync(app.Name, workflow);
+        }
 
         // event
         context.RaiseEvent<AppSchemaChangeEvent>(app.Name);
@@ -200,6 +285,19 @@ public static class SchemaStorageProviderExtension
     {
         AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
+        
+        // validate by app scope policy
+        AnySchemaType fieldType = await context.GetSchemaTypeAsync(field.Type) ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is ArrayType arrType) fieldType = arrType.ElementSchemaType ?? throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+        if (fieldType is StructType structType)
+        {
+            if (structType.Fields.Length == 0) throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            if (node.ScopePolicy?.ContextMaps is { Length: > 0 })
+            {
+                if (structType.Fields.Any(f => node.ScopePolicy.ContextMaps.Any(m => f.Name.Equals(m.MapKey, StringComparison.OrdinalIgnoreCase))))
+                    throw new Exception(APP_FIELD_TYPE_NOT_VALID);
+            }
+        }
 
         // authorize
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
@@ -246,7 +344,7 @@ public static class SchemaStorageProviderExtension
         if (appField.EnableDynamicTable)
         {
             var dataProvider = context.GetService<IAppDataProvider>();
-            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.DynamicTableName);
+            if (dataProvider != null) await dataProvider.DropDynamicTableAsync(appField.Schema!);
         }
 
         return true;

@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -16,6 +15,7 @@ using ExpressionType = SchemaNode.Enum.ExpressionType;
 // ReSharper disable MemberCanBeProtected.Global
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedMember.Local
+// ReSharper disable AccessToModifiedClosure
 
 namespace SchemaNode.Runtime;
 
@@ -27,7 +27,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     #region Private Fields
 
     // The expression visitors
-    private readonly IExpressionVisitor[] _visitors = context.ServiceProvider.GetServices<IExpressionVisitor>()
+    private readonly IExpVisitor[] _visitors = context.ServiceProvider.GetServices<IExpVisitor>()
         .OrderByDescending(v => v.Priority)
         .ToArray();
     
@@ -38,7 +38,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     private readonly Dictionary<string, ParameterExpression> _variableExpMap = new ();
 
     // The compile exp cache for pre-set
-    private readonly Dictionary<SchemaExpression, Expression> _compiledExpCache = new ();
+    private readonly Dictionary<SchemaExp, Expression> _compiledExpCache = new ();
 
     // the return label
     private LabelTarget? _returnLabel;
@@ -57,12 +57,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// <summary>
     /// The schema context
     /// </summary>
-    protected readonly SchemaContext Context = context;
+    public readonly SchemaContext Context = context;
     
     /// <summary>
     /// The function type
     /// </summary>
-    protected readonly FunctionType Function = function;
+    public readonly FunctionType Function = function;
 
     #endregion
     
@@ -82,7 +82,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if (Function is { IsSystemCall: false, Exps.Length: 0 })
         {
             Function.Status = SchemaNodeStatus.FunctionNoExps;
-            throw new FunctionVisitException(SchemaNodeStatus.FunctionNoExps, TYPE_FUNC_NEED_EXPS);
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionNoExps);
         }
 
         // Validate return type
@@ -90,14 +90,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if (!Function.IsSystemCall && returnType is not { IsValueType: true })
         {
             Function.Status = SchemaNodeStatus.FunctionWrongReturnType;
-            throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_RETURN_NOT_VALID);
+            throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
         }
         Function.ReturnNode = returnType;
 
         // Expression cache
-        ArgumentExpression[] argExps = new ArgumentExpression[Function.Args.Length];
-        List<VariableExpression> results = [];
-        Dictionary<string, VariableExpression> expMaps = [];
+        ArgumentExp[] argExps = new ArgumentExp[Function.Args.Length];
+        List<VariableExp> results = [];
+        Dictionary<string, VariableExp> expMaps = [];
         Dictionary<string, int> accessCount = [];
 
         #endregion
@@ -115,19 +115,19 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (string.IsNullOrWhiteSpace(arg.Name))
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentNoName;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoName, TYPE_FUNC_ARG_NAME_REQUIRED);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoName);
                 }
                 // No duplicate name
                 else if (expMaps.ContainsKey(arg.Name))
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentDuplicateName;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentDuplicateName, TYPE_FUNC_ARG_NAME_DUPLICATE);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentDuplicateName);
                 }
                 // Require type, only system function support generic type like T1, T2...
                 else if (string.IsNullOrEmpty(arg.Type) || Regex.IsMatch(arg.Type, @"^[tT]\d*$"))
                 {
                     arg.Status = SchemaNodeStatus.FunctionArgumentNoType;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoType, TYPE_FUNC_ARG_NO_TYPE);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentNoType);
                 }
             }
 
@@ -136,13 +136,13 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (!Function.IsSystemCall && argTypeNode is not { IsValueType: true })
             {
                 arg.Status = SchemaNodeStatus.FunctionArgumentWrongType;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType, TYPE_FUNC_ARG_TYPE_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType);
             }
             arg.SchemaType = argTypeNode;
 
             // Create argument expression
-            argExps[argIdx] = new ArgumentExpression(arg.Name, argIdx, arg.Nullable ?? false, argTypeNode ?? GenericType.Instance); // for safe
-            expMaps[arg.Name] = new VariableExpression(arg.Name, argExps[argIdx]);
+            argExps[argIdx] = new ArgumentExp(arg.Name, argIdx, arg.Nullable ?? false, argTypeNode ?? GenericType.Instance); // for safe
+            expMaps[arg.Name] = new VariableExp(arg.Name, argExps[argIdx]);
         }
 
         #endregion
@@ -160,8 +160,21 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Expression
 
+        // Share by helpers
+        CollectionRootExp? colSource = null;
+        CollectionItemExp? iteratorExp = null;
+        HashSet<string> currAccessCount = [];
         foreach (FunctionNodeExpression exp in Function.Exps)
+        {
+            colSource = null; // share by helpers
+            iteratorExp = null;
+            currAccessCount.Clear();
             await GenFuncCallExpression(exp);
+            
+            // Merge access count
+            foreach (var kv in currAccessCount)
+                accessCount[kv] = accessCount.GetValueOrDefault(kv, 0) + 1;
+        }
 
         #endregion
 
@@ -172,30 +185,33 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             if (returnType is StructType { Fields: {  Length: > 0 } } @struct)
             {
-                List<StructFieldExpression> fields = [];
+                List<StructFieldExp> fields = [];
                 foreach (var f in @struct.Fields.Where(f => !(f.DisplayOnly ?? false)))
                 {
-                    if (GetExpression(f.Name, out SchemaExpression? fieldExp))
+                    if (GetExpression(f.Name, out SchemaExp? fieldExp))
                     {
-                        if (!fieldExp!.SchemaType.CanBeUseAs(f.SchemeType!))
+                        if (!fieldExp!.SchemaType.CanBeUseAs(f.SchemaType!))
                         {
                             Function.Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
                         }
-                        fields.Add(new StructFieldExpression(f.Name, fieldExp));
+                        fields.Add(new StructFieldExp(f.Name, fieldExp));
+
+                        string acc = f.Name.Split('.').First();
+                        accessCount[acc] = accessCount.GetValueOrDefault(acc, 0) + 1;
                     }
                     else if (f.Require ?? false)
                     {
                         Function.Status = SchemaNodeStatus.FunctionReturnMemberNotValid;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid, TYPE_FUNC_RETURN_STRUCT_MEMBER_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionReturnMemberNotValid);
                     }
                 }
-                results.Add(new VariableExpression(StructResultExpName, new StructResultExpression(fields.ToArray(), @struct)));
+                results.Add(new VariableExp(StructResultExpName, new StructResultExp(fields.ToArray(), @struct)));
             }
             else
             {
                 Function.Status = SchemaNodeStatus.FunctionWrongReturnType;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_RETURN_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
             }
         }
 
@@ -204,30 +220,29 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #region Semantic analysis
 
         // Convert single access variable expression to inline expression
-        List<VariableExpression> final = [];
-        foreach (VariableExpression t in results)
+        List<VariableExp> final = [];
+        foreach (VariableExp t in results)
         {
-            VariableExpression varExp = t;
-            SchemaExpression inner = varExp.Value;
+            VariableExp varExp = t;
+            SchemaExp inner = varExp.Value;
 
             switch (inner)
             {
                 // Function analysis and inline conversion
-                case FuncCallExpression callExp:
+                case FuncCallExp callExp:
                 {
-                    varExp = new VariableExpression(t.Name, await VisitSchemaExpAsync(
-                        new FuncCallExpression(callExp.Function, callExp.Args.Select(Inline).ToArray(), 
-                            callExp.SchemaType, callExp.ExpType,
-                            callExp.Iterator != null ? Inline(callExp.Iterator) : null)));
+                    varExp = new VariableExp(t.Name, await VisitSchemaExpAsync(
+                        new FuncCallExp(callExp.Function, callExp.Args.Select(Inline).ToArray(), 
+                            callExp.SchemaType, callExp.ExpType)));
                     expMaps[varExp.Name] = varExp;
                     break;
                 }
                 
                 // Struct result expression
-                case StructResultExpression resultExp:
+                case StructResultExp resultExp:
                 {
-                    varExp = new VariableExpression(t.Name, new StructResultExpression(resultExp.Fields.Select(f 
-                        => new StructFieldExpression(f.Name, Inline(f.Expression))).ToArray(), resultExp.SchemaType));
+                    varExp = new VariableExp(t.Name, new StructResultExp(resultExp.Fields.Select(f 
+                        => new StructFieldExp(f.Name, Inline(f.Expression))).ToArray(), resultExp.SchemaType));
                     break;
                 }
             }
@@ -244,58 +259,78 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Helper
         
+        // Combine Collection Root Exp
+        CollectionRootExp UnpackCollectionRootExp(CollectionRootExp c)
+        {
+            var exp = Inline(c.Collection);
+            return exp is CollectionRootExp r ? r : new CollectionRootExp(exp, c.SchemaType);
+        }
+        
         // Inline function
-        SchemaExpression Inline(SchemaExpression exp) => exp switch 
+        SchemaExp Inline(SchemaExp exp) => exp switch 
         {
             // Inline single access variable expression
-            VariableExpression v => accessCount.TryGetValue(v.Name, out int vc) && vc == 1 ? expMaps[v.Name].Value : expMaps[v.Name],
+            VariableExp v => accessCount.TryGetValue(v.Name, out int vc) && vc == 1 ? expMaps[v.Name].Value : expMaps[v.Name],
             
             // Inline field access expression
-            FieldAccessExpression f => new FieldAccessExpression(Inline(f.Owner), f.FieldName, f.SchemaType),
+            FieldAccessExp f => new FieldAccessExp(Inline(f.Owner), f.FieldName, f.SchemaType),
             
-            // Inline iterator expression
-            IteratorExpression i => new IteratorExpression(Inline(i.Array)),
+            // Collection expression
+            CollectionRootExp c => UnpackCollectionRootExp(c),
+            
+            // Iterator expression
+            CollectionItemExp i => new CollectionItemExp(UnpackCollectionRootExp(i.Root), i.SchemaType),
             
             // Default expression
-            DefaultExpression de => new DefaultExpression(Inline(de.Inner), de.Default),
+            DefaultExp de => new DefaultExp(Inline(de.Inner), de.Default),
             
             // Inline params expression
-            ParamsExpression pe => new ParamsExpression(pe.Exps.Select(Inline).ToArray(), pe.SchemaType),
+            ParamsExp pe => new ParamsExp(pe.Exps.Select(Inline).ToArray(), pe.SchemaType),
             
             // Already inline
             _ => exp
         };
         
         // Parse field access expression, special for display only field
-        SchemaExpression? ParseFieldAccess(VariableExpression varExp, string[] paths)
+        SchemaExp? ParseFieldAccess(VariableExp varExp, string[] paths)
         {
             // replace with field access expression
             AnySchemaType? type = varExp.SchemaType;
+            SchemaExp owner = varExp;
             if (type is ArrayType arrayType)
-                type = arrayType.ElementSchemaType;
+            {
+                type = arrayType.ElementSchemaType ?? throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
+                
+                // Only allow one collection root in one function call
+                if (colSource != null && colSource.Collection != varExp) throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongCollection);
+                colSource ??= new CollectionRootExp(varExp, varExp.SchemaType);
+                iteratorExp ??= new CollectionItemExp(colSource, type);
+                owner = iteratorExp;
+            }
 
             foreach (var fieldName in paths)
             {
                 if (type is StructType structType && structType.Fields.FirstOrDefault(f => f.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase)) is { } field)
                 {
-                    type = field.SchemeType;
+                    type = field.SchemaType;
                 }
                 else
                 {
                     return null;
                 }
             }
-            return new FieldAccessExpression(varExp, string.Join(".", paths), type!);
+            
+            return new FieldAccessExp(owner, string.Join(".", paths), type!);
         }
 
         // Get expression with visit count++ & Field Access support
-        bool GetExpression(string name, out SchemaExpression? value)
+        bool GetExpression(string name, out SchemaExp? value)
         {
             string[] access = name.Split('.', StringSplitOptions.RemoveEmptyEntries);
-            if (expMaps.TryGetValue(access[0], out VariableExpression? varExp))
+            if (expMaps.TryGetValue(access[0], out VariableExp? varExp))
             {
-                SchemaExpression exp = varExp;
-                accessCount[access[0]] = accessCount.GetValueOrDefault(access[0], 0) + 1;
+                SchemaExp exp = varExp;
+                currAccessCount.Add(access[0]);
                 
                 if (access.Length > 1)
                 {
@@ -326,13 +361,13 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (string.IsNullOrWhiteSpace(exp.Name))
             {
                 exp.Status = SchemaNodeStatus.FunctionExpNoName;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpNoName, TYPE_FUNC_EXP_NAME_REQUIRED);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpNoName);
             }
             // No duplicate name
             else if (expMaps.ContainsKey(exp.Name))
             {
                 exp.Status = SchemaNodeStatus.FunctionExpDuplicateName;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpDuplicateName, TYPE_FUNC_EXP_NAME_CONFLICT_ARG);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpDuplicateName);
             }
             
             #endregion
@@ -343,14 +378,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if ((exp.FuncNode ?? (!string.IsNullOrWhiteSpace(exp.Func) ? await Context.GetSchemaTypeAsync(exp.Func) : null)) is not FunctionType expFuncType)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc);
             }
             exp.FuncNode = expFuncType;
             SchemaFuncInfo? expFuncInfo = await expFuncType.GetSchemaFuncInfoAsync(Context);
             if (expFuncInfo is null)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc);
             }
 
             #endregion
@@ -365,13 +400,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
             if (exp.SchemaType  is not { IsValueType: true })
             {
                 exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
             }
 
             // Match types
-            AnySchemaType funcRetType = exp.SchemaType; // func return type may not match exp return type, require exp type check
-            bool isIterCall = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
-            SchemaExpression? iterSource = null;
+            AnySchemaType funcRetType = exp.SchemaType; // func return type may not contains exp return type, require exp type check
+            bool isColExp = (exp.Type ?? ExpressionType.Call) != ExpressionType.Call;
 
             // Check call type for return value, can't do it in visitor since we need generic type info
             switch (exp.Type)
@@ -385,7 +419,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     else
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
                     break;
                 }
@@ -394,7 +428,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (expFuncType.Args.Length is 0 or > 2)
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongFunc;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc, TYPE_FUNC_EXP_CALL_FUNC_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFunc);
                     }
                     break;
                 }
@@ -404,9 +438,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (exp.SchemaType is ArrayType)
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.Filter:
@@ -418,9 +452,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     else
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.Count:
@@ -428,9 +462,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (exp.SchemaType is not ScalarType { IsInt: true })
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
                 case ExpressionType.All:
@@ -439,9 +473,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (exp.SchemaType is not ScalarType { IsBool: true })
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongReturn;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongReturn);
                     }
-                    funcRetType = (await Context.GetSchemaTypeAsync(NS_SYSTEM_BOOL))!;
+                    funcRetType = SchemaContext.SystemBool;
                     break;
                 }
             }
@@ -455,17 +489,17 @@ public class CompileContext(SchemaContext context, FunctionType function)
             
             // build call arguments
             // check exp call first, get schema type for generic type
-            SchemaExpression[] args = new SchemaExpression[expFuncType.Args.Length];
+            SchemaExp[] args = new SchemaExp[expFuncType.Args.Length];
 
             // Check exp access first for generic types
             for (int eArgIdx = 0; eArgIdx < expFuncType.Args.Length; eArgIdx++)
             {
                 FuncCallArg? arg = exp.Args.ElementAtOrDefault(eArgIdx);
                 if (string.IsNullOrWhiteSpace(arg?.Name)) continue;
-                if (!GetExpression(arg.Name, out SchemaExpression? argExp))
+                if (!GetExpression(arg.Name, out SchemaExp? argExp))
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 }
                 arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetSchemaTypeAsync(arg.Type) : argExp!.SchemaType;
                 await SetArgExp(eArgIdx, argExp);
@@ -485,12 +519,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (arg.SchemeType is not { IsValueType: true })
                     {
                         exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType, TYPE_FUNC_ARG_TYPE_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType);
                     }
                 }
 
                 // Const expression
-                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExpression(arg.SchemeType!.CreateNode(arg.Value)!));
+                await SetArgExp(eArgIdx, arg?.Value == null ? null : new ConstantExp(arg.SchemeType!.CreateNode(arg.Value)!));
             }
 
             // For params
@@ -508,10 +542,10 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
                         if (!string.IsNullOrWhiteSpace(arg.Name))
                         {
-                            if (!GetExpression(arg.Name, out SchemaExpression? argExp))
+                            if (!GetExpression(arg.Name, out SchemaExp? argExp))
                             {
                                 exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                             }
                             arg.SchemeType ??= !string.IsNullOrWhiteSpace(arg.Type) ? await Context.GetSchemaTypeAsync(arg.Type) : paramType;
                             await SetArgExp(j, argExp);
@@ -524,9 +558,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
                             if (arg.SchemeType is not { IsValueType: true })
                             {
                                 exp.Status = SchemaNodeStatus.FunctionArgumentWrongType;
-                                throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType, TYPE_FUNC_ARG_TYPE_NOT_VALID);
+                                throw new FunctionVisitException(SchemaNodeStatus.FunctionArgumentWrongType);
                             }
-                            await SetArgExp(j, new ConstantExpression(arg.SchemeType.CreateNode(arg.Value)!));
+                            await SetArgExp(j, new ConstantExp(arg.SchemeType.CreateNode(arg.Value)!));
                         }
                     }
                 }
@@ -537,14 +571,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
             #region Variable
 
             // Validate collection exp
-            if (isIterCall && iterSource == null)
+            if (isColExp && colSource == null)
             {
                 exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
             }
 
             // build function call expression
-            VariableExpression callVarExp = new VariableExpression(exp.Name, new FuncCallExpression(expFuncType, args, exp.SchemaType!, exp.Type ?? ExpressionType.Call, iterSource));
+            VariableExp callVarExp = new VariableExp(exp.Name, new FuncCallExp(expFuncType, args, exp.SchemaType!, exp.Type ?? ExpressionType.Call));
 
             // Add to maps
             expMaps[exp.Name] = callVarExp;
@@ -557,7 +591,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             #region Helper
             
             // Set argument expression
-            async Task SetArgExp(int index, SchemaExpression? chkArgExp = null)
+            async Task SetArgExp(int index, SchemaExp? chkArgExp = null)
             {
                 // Gets the argument definition
                 FunctionNodeArgument? argDef = expFuncType.Args.ElementAtOrDefault(index);
@@ -569,7 +603,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     argInfo = expFuncInfo.Args.LastOrDefault();
                 }
 
-                SchemaExpression? argExp = chkArgExp;
+                SchemaExp? argExp = chkArgExp;
                 
                 // Params type check
                 AnySchemaType? argType = argDef.SchemaType;
@@ -577,33 +611,33 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     argType = arrayType.ElementSchemaType;
                 
                 // Collection expression check
-                if (isIterCall && argType is not ArrayType && (
+                if (isColExp && argType is not ArrayType && (
                         argExp?.SchemaType is ArrayType { ElementSchemaType: not null } || 
-                        argExp is FieldAccessExpression { Owner.SchemaType: ArrayType }))
+                        argExp is FieldAccessExp { Owner: CollectionItemExp }))
                 {
                     if (argDef.Params == true)
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
-                    
-                    SchemaExpression source = argExp is FieldAccessExpression fa ? fa.Owner : argExp;
 
-                    if (iterSource == null)
+                    // If has CollectionItemExp exp, the colSource must exist
+                    if (colSource == null)
                     {
-                        iterSource = source;
+                        colSource = new CollectionRootExp(argExp, argExp.SchemaType!);
+                        iteratorExp = new CollectionItemExp(colSource, argExp.SchemaType is ArrayType at ? at.ElementSchemaType! : argExp.SchemaType!);
+                        argExp = iteratorExp;
                     }
-                    else if (source != iterSource)
+                    else if (colSource.Collection is VariableExp && ( colSource.Collection == argExp ||
+                                 argExp is FieldAccessExp{ Owner: CollectionItemExp iterExp } && iterExp.Root == colSource))
+                    {
+                        if (argExp is not FieldAccessExp) argExp = iteratorExp; // direct use iterator exp
+                    }
+                    else
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
-                    else if (source is VariableExpression var)
-                    {
-                        // The same reduce the access count
-                        accessCount[var.Name] = accessCount.GetValueOrDefault(var.Name, 0) - 1;
-                    }
-                    argExp = new IteratorExpression(argExp);
                 }
 
                 // Gets the argument type
@@ -611,20 +645,20 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (argType is not { IsValueType: true })
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 }
                 if (argDef.Params == true && argExp == null) return;
 
                 // Default expression & not iterator exp
-                if (argDef.Default != null && argExp is not IteratorExpression)
+                if (argDef.Default != null && argExp is not CollectionRootExp && argExp is not FieldAccessExp { Owner: CollectionItemExp })
                 {
                     if (argExp == null)
                     {
-                        argExp = new ConstantExpression(argType.CreateNode(argDef.Default)!);
+                        argExp = new ConstantExp(argType.CreateNode(argDef.Default)!);
                     }
                     else
                     {
-                        argExp = new DefaultExpression(argExp, argType.CreateNode(argDef.Default)!);
+                        argExp = new DefaultExp(argExp, argType.CreateNode(argDef.Default)!);
                     }
                 }
 
@@ -632,21 +666,21 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (argDef.Params ?? false)
                 {
                     if (argExp == null) return;
-                    var old = args[expFuncType.Args.Length - 1] as ParamsExpression;
-                    args[expFuncType.Args.Length - 1] = new ParamsExpression(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? (await Context.GetArraySchemaTypeAsync(argType))!);
+                    var old = args[expFuncType.Args.Length - 1] as ParamsExp;
+                    args[expFuncType.Args.Length - 1] = new ParamsExp(old?.Exps.Append(argExp).ToArray() ?? [argExp], old?.SchemaType ?? SchemaContext.GetArraySchemaType(argType)!);
                 }
 
                 // Nullable check
                 else if (argExp == null && !(argDef.Nullable ?? false))
                 {
                     exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                    throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                 }
 
                 // Record argument expression
                 else
                 {
-                    args[index] = argExp ?? new NullExpression(argType);
+                    args[index] = argExp ?? new NullExp(argType);
                 }
             }
 
@@ -659,12 +693,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     if (isReturn)
                     {
                         exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
                     }
                     else
                     {
                         exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                        throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                     }
                 }
                 else
@@ -677,12 +711,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         if (isReturn)
                         {
                             exp.Status = SchemaNodeStatus.FunctionWrongReturnType;
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType, TYPE_FUNC_EXP_CALL_RETURN_NOT_VALID);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionWrongReturnType);
                         }
                         else
                         {
                             exp.Status = SchemaNodeStatus.FunctionExpWrongFuncArgs;
-                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs, TYPE_FUNC_EXP_ARGS_NOT_VALID);
+                            throw new FunctionVisitException(SchemaNodeStatus.FunctionExpWrongFuncArgs);
                         }
                     }
                     if (genType != null && genType is not GenericType)
@@ -695,14 +729,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         #endregion
-    }
+        }
 
     /// <summary>
     /// Visit schema expression with all visitors
     /// </summary>
-    public virtual async Task<SchemaExpression> VisitSchemaExpAsync(SchemaExpression exp)
+    public virtual async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
     {
-        foreach (IExpressionVisitor visitor in _visitors)
+        foreach (IExpVisitor visitor in _visitors)
             exp = await visitor.VisitExpAsync(this, exp) ?? exp;
         return exp;
     }
@@ -729,7 +763,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             paramExps[0] = _contextExp; 
             for (int i = 0; i < funcSchema.Args.Length; i++)
             {
-                ArgumentExpression arg = funcSchema.Args[i];
+                ArgumentExp arg = funcSchema.Args[i];
                 ParameterExpression paramExp = Expression.Parameter(arg.SchemaType.ToCSharpType(arg.Nullable) 
                     ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
@@ -738,10 +772,10 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
             // Expression Tree -> Function Body
             List<Expression> expBlocks = [];
-            _returnLabel = funcSchema.Exps.Any(e => e.Value is BreakExpression) ? Expression.Label(funcSchema.Return) : null;
+            _returnLabel = funcSchema.Exps.Any(e => e.Value is BreakExp) ? Expression.Label(funcSchema.Return) : null;
             
             ParameterExpression? finalVar = null;
-            foreach (VariableExpression exp in funcSchema.Exps)
+            foreach (VariableExp exp in funcSchema.Exps)
             {
                 Expression? result = await CompileSchemaExpAsync(exp.Value);
                 if (result == null) throw new Exception($"The {Function.Name} can't be compiled - expression {exp.Name} compile failed");
@@ -807,12 +841,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public Task<ArrayType?> GetArrayType(AnySchemaType elementType) => Context.GetArraySchemaTypeAsync(elementType);
+    public ArrayType? GetArrayType(AnySchemaType elementType) => SchemaContext.GetArraySchemaType(elementType);
     
     /// <summary>
     /// Compile the schema expression to Expression
     /// </summary>
-    public virtual async Task<Expression> CompileSchemaExpAsync(SchemaExpression exp, Type? expectedType = null)
+    public virtual async Task<Expression> CompileSchemaExpAsync(SchemaExp exp, Type? expectedType = null)
     {
         expectedType ??= exp.SchemaType.ToCSharpType();
         if (_compiledExpCache.TryGetValue(exp, out Expression? cachedExp))
@@ -822,8 +856,9 @@ public class CompileContext(SchemaContext context, FunctionType function)
         
         for (int i = _visitors.Length - 1; i >= 0; i--)
         {
-            Expression? resExp = await _visitors[i].CompileExpAsync(this, exp);
-            if (resExp != null) return ConvertExp(expectedType, resExp);
+            Expression? resExp = await _visitors[i].CompileExpAsync(this, exp, expectedType);
+            if (resExp != null) 
+                return ConvertExp(expectedType, resExp);
         }
         
         #endregion 
@@ -833,15 +868,15 @@ public class CompileContext(SchemaContext context, FunctionType function)
         switch (exp)
         {
             // Argument
-            case ArgumentExpression ae:
+            case ArgumentExp ae:
                 return GetParameterExpression(ae.Name);
             
             // Variable
-            case VariableExpression ve:
+            case VariableExp ve:
                 return GetParameterExpression(ve.Name);
             
             // Params
-            case ParamsExpression ps:
+            case ParamsExp ps:
             {
                 expectedType = expectedType.GetElementType() ?? expectedType; // make sure it's element type
                 Expression[] arrayInits = new Expression[ps.Exps.Length];
@@ -853,57 +888,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
             
             // Iterator
-            case IteratorExpression:
+            case CollectionRootExp:
                 throw new NotImplementedException("IteratorExpression compilation must be handled in visitor.");
-            
-            // Constant
-            case ConstantExpression constExp:
-            {
-                // For reduce
-                if (constExp.Value.IsEmpty && !expectedType.IsNullable())
-                    return Expression.Default(expectedType);
-
-                object? value = expectedType.GetNotNullType().TryConvert(constExp.Value);
-                return value != null && value.GetType().IsSafeConstantValue()
-                    ? Expression.Constant(value, expectedType)
-                    : Expression.Default(expectedType);
-            }
-            
-            // a ?? b
-            case DefaultExpression defaultExp:
-            {
-                return Expression.Coalesce(await CompileSchemaExpAsync(defaultExp.Inner, expectedType),
-                    Expression.Constant(expectedType.TryConvert(defaultExp.Default.Value), expectedType));
-            }
-            
-            // null
-            case NullExpression:
-                return Expression.Constant(null, expectedType);
-            
-            // a[b]
-            case FieldAccessExpression fldAccess:
-            {
-                return fldAccess.Default != null
-                    ? await CompileSchemaExpAsync(new FuncCallExpression(
-                        (await Context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfielddefault)}"))!,
-                        [fldAccess.Owner, new ConstantExpression((await Context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(fldAccess.FieldName)!), fldAccess.Default],
-                        fldAccess.SchemaType
-                    ), expectedType)
-                    : await CompileSchemaExpAsync(new FuncCallExpression(
-                        (await Context.GetSchemaTypeAsync<FunctionType>($"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfield)}"))!,
-                        [fldAccess.Owner, new ConstantExpression((await Context.GetSchemaTypeAsync(NS_SYSTEM_STRING))!.CreateNode(fldAccess.FieldName)!)],
-                        fldAccess.SchemaType
-                    ), expectedType);
-            }
-            
-            // a ? b : c
-            case ConditionalExpression condExp:
-                return Expression.Condition(await CompileSchemaExpAsync(condExp.Condition),
-                    await CompileSchemaExpAsync(condExp.TrueExp, expectedType),
-                    await CompileSchemaExpAsync(condExp.FalseExp, expectedType));
-            
+                
             // { a, b, c }
-            case StructResultExpression structExp:
+            case StructResultExp structExp:
             {
                 var resultVar = Expression.Variable(typeof(StructTypeNode));
                 List<Expression> blockExps = [
@@ -923,7 +912,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #region Function Arguments
 
         // Default Function Call
-        if (exp is not FuncCallExpression funcCallExp) return Expression.Empty();
+        if (exp is not FuncCallExp funcCallExp) return Expression.Empty();
 
         // function validate
         SchemaFuncInfo callFuncInfo = await funcCallExp.Function.GetSchemaFuncInfoAsync(Context) ?? throw new Exception($"The function call {funcCallExp.Function.Name} can't be compiled");
@@ -936,11 +925,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
         // Prepare the call arguments
         for (int i = 0; i < funcCallExp.Args.Length; i++)
         {
-            SchemaExpression leaf = funcCallExp.Args[i];
+            SchemaExp leaf = funcCallExp.Args[i];
             Type callType = (funcCallExp.Function.Args[i].SchemaType is GenericType ? funcCallExp.Args[i].SchemaType : funcCallExp.Function.Args[i].SchemaType)
                             ?.ToCSharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
 
-            if (leaf is IteratorExpression)
+            if (leaf is CollectionRootExp)
                 throw new Exception("IteratorExpression must be used in non-call exp.");
             
             // default
@@ -1021,9 +1010,21 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
 
         // Direct call
-        return funcCallExp.ExpType == ExpressionType.Call 
-            ? GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement) 
-            : Expression.Empty();
+        if (funcCallExp.ExpType == ExpressionType.Call)
+        {
+            // Reconcile arg types with actual callMethod parameter types.
+            // For unconstrained generic T, 'T?' compiles to 'T' in IL, so
+            // Nullable<T> args must be unwrapped to T before calling.
+            ParameterInfo[] methodParamInfos = callMethod.GetParameters();
+            for (int j = 0; j < callArgs.Length && j < methodParamInfos.Length; j++)
+            {
+                Type methodParamType = methodParamInfos[j].ParameterType;
+                if (callArgs[j].Type != methodParamType)
+                    callArgs[j] = ConvertExp(methodParamType, callArgs[j]);
+            }
+            return GenMethodCallExp(callFuncInfo, callMethod, callArgs, expRetElement);
+        }
+        return Expression.Empty();
     }
 
     /// <summary>
@@ -1049,7 +1050,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// <summary>
     /// Set compiled expression to cache
     /// </summary>
-    public void SetCompiledExpression(SchemaExpression exp, Expression compiledExp) => _compiledExpCache[exp] = compiledExp;
+    public void SetCompiledExpression(SchemaExp exp, Expression compiledExp) => _compiledExpCache[exp] = compiledExp;
 
     #endregion
     
@@ -1137,7 +1138,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         if (resExp == null)
         {
             MethodInfo method = typeof(Extension).GetMethod(nameof(Extension.TryConvert), BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!;
-            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp), type);
+            resExp = Expression.Convert(Expression.Call(null, method, Expression.Constant(type), notNullExp, Expression.Constant(null, typeof(DateFormatMode?))), type);
         }
 
         // nullable result
@@ -1230,7 +1231,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         // Case B: instance method
-        // Normal: instance method => call with target as instance, args match parmCount
+        // Normal: instance method => call with target as instance, args contains parmCount
         if (!method.IsStatic)
         {
             if (parmCount == args.Length)
@@ -1395,12 +1396,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
 /// <summary>
 /// The function visit result schema
 /// </summary>
-public record FunctionTypeSchema(ArgumentExpression[] Args, VariableExpression[] Exps, Type Return);
+public record FunctionTypeSchema(ArgumentExp[] Args, VariableExp[] Exps, Type Return);
 
 /// <summary>
 /// The function visit exception
 /// </summary>
-public class FunctionVisitException(SchemaNodeStatus status, string message) : Exception(message)
+public class FunctionVisitException(SchemaNodeStatus status) : Exception(status.ToString())
 {
     public SchemaNodeStatus Status { get; } = status;
 }

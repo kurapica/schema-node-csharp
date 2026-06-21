@@ -1,8 +1,3 @@
-using SchemaNode.Attribute;
-using System.Runtime.Serialization;
-using System.Text.Json.Serialization;
-using static SchemaNode.Utility.Extension;
-
 namespace SchemaNode.Enum;
 
 /// <summary>
@@ -29,6 +24,11 @@ public enum SchemaType
     /// The struct node
     /// </summary>
     Struct,
+
+    /// <summary>
+    /// The struct field node, sub-schema of the struct node
+    /// </summary>
+    StructField,
 
     /// <summary>
     /// The array node
@@ -60,4 +60,66 @@ public enum SchemaType
     /// The function node
     /// </summary>
     Func,
+
+    /// <summary>
+    /// Represents a component that performs recognition tasks, such as pattern recognition.
+    /// </summary>
+    Recognizer,
+
+    /// <summary>
+    /// The recognizer part node, sub-schema of the recognizer node
+    /// </summary>
+    RecognizerPart,
+
+    /// <summary>
+    /// The property for other schemas
+    /// </summary>
+    Property,
+
+    /// <summary>
+    /// The application
+    /// </summary>
+    App,
+
+    /// <summary>
+    /// The application field, The sub field of the application node
+    /// </summary>
+    AppField,
+
+    /// <summary>
+    /// The application workflow
+    /// </summary>
+    AppWorkflow,
+}
+
+/// <summary>
+/// The value schema type
+/// </summary>
+public enum ValueSchemaType
+{
+    All = 0,
+    Scalar = SchemaType.Scalar,
+    Enum = SchemaType.Enum,
+    Struct = SchemaType.Struct,
+    Array = SchemaType.Array,
+    Json = SchemaType.Json,
+
+    // Scalar value type
+    Number = 100,
+    Int,
+    Single,
+    Double,
+    Bool,
+    Char,
+    String,
+    Date,
+    Year,
+    YearMonth,
+    FullDate,
+    Namespace, // Namespace is also a value type, as it can be used as a reference in some cases
+
+    // Enum value type
+    IntEnum = 200,
+    FlagsEnum,
+    StringEnum
 }

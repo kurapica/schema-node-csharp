@@ -1,8 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using SchemaNode.Components;
 using SchemaNode.Http;
 using SchemaNode.Schema;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace SchemaNode.Api.Schema.Edit;
 
@@ -45,4 +47,59 @@ public class SaveAppSchemaResponse : SchemaApiResponse
     /// The result
     /// </summary>
     public bool Result { get; set; }
+}
+
+/// <summary>
+/// The app schema data
+/// </summary>
+public class AppSchemaData
+{
+    /// <summary>
+    /// The application name
+    /// </summary>
+    public string Name { get; set; } = default!;
+    
+    /// <summary>
+    /// The display name
+    /// </summary>
+    public LocaleString? Display { get; set; }
+    
+    /// <summary>
+    /// The description
+    /// </summary>
+    public LocaleString? Desc { get; set; }
+    
+    /// <summary>
+    /// The authentication policy type
+    /// </summary>
+    public string? Auth { get; set; }
+
+    /// <summary>
+    /// The app authentication policy type
+    /// </summary>
+    public PolicyItem[]? Auths { get; set; }
+    
+    /// <summary>
+    /// The application field relations
+    /// </summary>
+    public StructRelationSchema[]? Relations { get; set; }
+
+    /// <summary>
+    /// The extensions
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    public static implicit operator AppSchema(AppSchemaData data)
+    {
+        return new AppSchema
+        {
+            Name = data.Name,
+            Display = data.Display,
+            Auth = data.Auth,
+            Auths = data.Auths,
+            Relations = data.Relations,
+            Extensions = data.Extensions,
+        };
+    }
 }

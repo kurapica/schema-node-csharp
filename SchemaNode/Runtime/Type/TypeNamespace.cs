@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The namespace node
 /// </summary>
-public class TypeNamespace: AnySchemaType
+public sealed class TypeNamespace: AnySchemaType
 {
     #region Data
 
@@ -48,12 +48,20 @@ public class TypeNamespace: AnySchemaType
 
         if (!preload || schema.Schemas == null || schema.Schemas.Length == 0) return;
 
+        // property
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Property))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
+
         // policy
         foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Policy))
             await context.GetSchemaTypeAsync(s.Name, preload: true);
 
         // json
         foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Json))
+            await context.GetSchemaTypeAsync(s.Name, preload: true);
+
+        // recognizer
+        foreach (NodeSchema s in schema.Schemas.Where(s => s.Type == SchemaType.Recognizer))
             await context.GetSchemaTypeAsync(s.Name, preload: true);
 
         // scalar

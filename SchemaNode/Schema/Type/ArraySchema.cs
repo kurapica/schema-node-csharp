@@ -1,8 +1,8 @@
+using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SchemaNode.Attribute;
-using SchemaNode.Enum;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -12,7 +12,8 @@ namespace SchemaNode.Schema;
 /// The array schema
 /// </summary>
 [SchemaApp]
-public class ArraySchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.schema")]
+public sealed class ArraySchema: ISchemaExtensions
 {
     /// <summary>
     /// The array name
@@ -26,14 +27,8 @@ public class ArraySchema
     /// The element type of the array.
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE)]
     public string? Element { get; set; }
-
-    /// <summary>
-    /// Whether the array should be treated as a whole value,
-    /// no element schema nodes would be created
-    /// </summary>
-    public bool? Single { get; set; }
 
     /// <summary>
     /// The primary fields of the array if the element is a struct.
@@ -53,19 +48,37 @@ public class ArraySchema
     /// <summary>
     /// The realtions between the fields
     /// </summary>
-    public StructFieldRelation[]? Relations { get; set; }
-    
+    public StructRelationSchema[]? Relations { get; set; }
+
     /// <summary>
-    /// The additional data
+    /// The atomic flag indicates whether the array is atomic, which means that the array should be treated as a whole when performing operations such as updates, delete or render.
+    /// </summary>
+    public bool? Atomic { get; set; }
+
+    /// <summary>
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(ArraySchema? other)
+    {
+        Combines = other?.Combines ?? Combines;
+        Relations = other?.Relations ?? Relations;
+        this.CombineExtensions(other);
+    }
+
 }
 
 /// <summary>
 /// The data combine settings
 /// </summary>
-public class DataCombine
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.{nameof(DataCombine)}")]
+public sealed class DataCombine
 {
     /// <summary>
     /// The field
@@ -79,7 +92,8 @@ public class DataCombine
     public DataCombineType Type { get; set; } = DataCombineType.Assign;
 }
 
-public class DataIndex
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_ARRAY}.{nameof(DataIndex)}")]
+public sealed class DataIndex
 {
     /// <summary>
     /// The index name

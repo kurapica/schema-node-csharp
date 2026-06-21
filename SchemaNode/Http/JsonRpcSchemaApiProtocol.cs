@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Http;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
+using SchemaNode.Context;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
-using static SchemaNode.Utility.Extension;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Http.JsonRpc;
@@ -16,16 +15,16 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     #region Implements ISchemaApiProcessor
     
     /// <inheritdoc />
-    public OpenApiSchema WrapRequestSchema(DocumentFilterContext context, OpenApiSchema innerSchema)
+    public IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema)
     {
         return new OpenApiSchema
         {
-            Type = "object",
-            Properties = new Dictionary<string, OpenApiSchema>
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>
             {
-                ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
-                ["id"] = new OpenApiSchema { Type = "string", Format="uuid", Example = new OpenApiString(Guid.NewGuid().ToString()) },
-                ["method"] = new OpenApiSchema { Type = "string", Format="url" },
+                ["jsonrpc"] = new OpenApiSchema { Type = JsonSchemaType.String, Example = "2.0" },
+                ["id"] = new OpenApiSchema { Type = JsonSchemaType.String, Format="uuid", Example = Guid.NewGuid().ToString() },
+                ["method"] = new OpenApiSchema { Type = JsonSchemaType.String, Format="url" },
                 ["params"] = innerSchema
             },
             Required = new HashSet<string> { "jsonrpc", "id", "params" }
@@ -33,21 +32,21 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema)
+    public IOpenApiSchema WrapResponseSchema(DocumentFilterContext context, IOpenApiSchema innerSchema)
     {   
         return new OpenApiSchema
         {
-            Type = "object",
-            Properties = new Dictionary<string, OpenApiSchema>
+            Type = JsonSchemaType.Object,
+            Properties = new Dictionary<string, IOpenApiSchema>
             {
-                ["jsonrpc"] = new OpenApiSchema { Type = "string", Example = new OpenApiString("2.0") },
-                ["id"] = new OpenApiSchema { Type = "string" },
-                ["code"] = new OpenApiSchema { Type = "integer", Example = new OpenApiInteger(0) },
-                ["error"] = new OpenApiSchema { Type = "object", Properties = new Dictionary<string, OpenApiSchema>
+                ["jsonrpc"] = new OpenApiSchema { Type = JsonSchemaType.String, Example = "2.0" },
+                ["id"] = new OpenApiSchema { Type = JsonSchemaType.String },
+                ["code"] = new OpenApiSchema { Type = JsonSchemaType.Integer, Example = 0 },
+                ["error"] = new OpenApiSchema { Type = JsonSchemaType.Object, Properties = new Dictionary<string, IOpenApiSchema>
                 {
-                    ["code"] = new OpenApiSchema { Type = "integer" },
-                    ["message"] = new OpenApiSchema { Type = "string", Format = "error"},
-                    ["data"] = new OpenApiSchema { Type = "object" },
+                    ["code"] = new OpenApiSchema { Type = JsonSchemaType.Integer },
+                    ["message"] = new OpenApiSchema { Type = JsonSchemaType.String, Format = "error"},
+                    ["data"] = new OpenApiSchema { Type = JsonSchemaType.Object },
                 }},
                 ["result"] = innerSchema,
             },
@@ -55,9 +54,9 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public TRequest ReadRequest<TRequest>(string requestBody) where TRequest : SchemaApiRequest
+    public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
     {
-        JsonRpcRequestMessage<TRequest> requestMessage = requestBody.FromJson<JsonRpcRequestMessage<TRequest>>() 
+        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJson<JsonRpcRequestMessage<TRequest>>(requestBody) 
                 ?? throw new Exception("Failed to parse the request body.");
         if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
             throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
@@ -66,20 +65,20 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse
     {
-        return new JsonRpcResponseMessage<TResponse>
+        return context.ToJsonResult(new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        }.ToResult();
+        });
     }
 
-    public IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
+    public IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null)
     {
-        return new JsonRpcResponseMessage<SchemaApiResponse>
+        return context.ToJsonResult(new JsonRpcResponseMessage<SchemaApiResponse>
         {
             Jsonrpc = "2.0",
             Error = new JsonRpcResponseError
@@ -95,7 +94,7 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
                 Data = data,
             },
             Id = _requestId,
-        }.ToResult();
+        });
     }
 
     #endregion

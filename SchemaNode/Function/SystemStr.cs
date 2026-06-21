@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 // ReSharper disable InconsistentNaming
 
@@ -13,88 +14,159 @@ public static class SystemStr
 {
     #region Logic
 
-    [Schema]
-    public static bool startswith([Default("")] string str, string prefix) => str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+    [Schema("system.str.logic")]
+    public static class Logic
+    {
+        [Schema]
+        [Logic(LogicType.StartsWith, true)]
+        public static bool startswith([Default("")] string str, [Default("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
-    [Schema]
-    public static bool notstartswith([Default("")] string str, string prefix) => !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        [Schema]
+        [Logic(LogicType.NotStartsWith, true)]
+        public static bool notstartswith([Default("")] string str, [Default("")] string prefix) => !string.IsNullOrWhiteSpace(prefix) && !str.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
 
-    [Schema]
-    public static bool endswith([Default("")] string str, string suffix) => str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+        [Schema]
+        [Logic(LogicType.EndsWith, true)]
+        public static bool endswith([Default("")] string str, [Default("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
-    [Schema]
-    public static bool notendswith([Default("")] string str, string suffix) => !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+        [Schema]
+        [Logic(LogicType.NotEndsWith, true)]
+        public static bool notendswith([Default("")] string str, [Default("")] string suffix) => !string.IsNullOrWhiteSpace(suffix) && !str.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
 
-    [Schema]
-    public static bool match([Default("")] string str, string substr) => str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+        [Schema]
+        [Logic(LogicType.Match, true)]
+        public static bool contains([Default("")] string str, [Default("")] string substr) => !string.IsNullOrWhiteSpace(substr) && str.Contains(substr, StringComparison.OrdinalIgnoreCase);
 
-    [Schema]
-    public static bool notmatch([Default("")] string str, string substr) => !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+        [Schema]
+        [Logic(LogicType.NotMatch, true)]
+        public static bool notcontains([Default("")] string str, [Default("")] string substr) => !string.IsNullOrWhiteSpace(substr) && !str.Contains(substr, StringComparison.OrdinalIgnoreCase);
+    }
 
     #endregion
 
     #region State
 
-    [Schema]
-    public static long len([Default("")] string str) => long.CreateChecked(str.Length);
-    
+    [Schema("system.str.state")]
+    public static class State
+    {
+        [Schema]
+        public static long len([Default("")] string str) => long.CreateChecked(str.Length);
+
+        [Schema]
+        public static bool isempty(string? str) => string.IsNullOrWhiteSpace(str);
+    }
+
     #endregion
 
     #region Conversion
 
-    [Schema]
-    public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
-    
-    [Schema]
-    public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
-    
-    [Schema]
-    public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop) => str.Substring(startIndex, (stop ?? str.Length) - startIndex);
-
-    [Schema]
-    public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
-
-    [Schema]
-    public static LocaleString tolocale(string? str) => new LocaleString (str ?? "");
-
-    [Schema]
-    public static Entry toentry(StructTypeNode node, string valueField, string labelField)
+    [Schema("system.str.convert")]
+    public static class Convert
     {
-        AnySchemaNode? val = node.GetValueByPaths(valueField);
-        AnySchemaNode? label = node.GetValueByPaths(labelField);
-        return new Entry
-        {
-            Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
-            Label = label switch
-            {
-                StructTypeNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
-                ScalarTypeNode or EnumTypeNode => new LocaleString (label.ToTypeValue(typeof(string))?.ToString() ?? "" ),
-                _ => new LocaleString ( val?.ToTypeValue(typeof(string))?.ToString() ?? "" )
-            }
-        };
-    }
+        [Schema]
+        public static string concat([Default("")] string str1, [Default("")] string str2) => string.Concat(str1, str2);
 
-    [Schema]
-    public static List<Entry> toentrys(ArrayTypeNode array, string valueField, string labelField) => array
-        .OfType<StructTypeNode>()
-        .Select(node => toentry(node, valueField, labelField))
-        .DistinctBy(p => p.Value)
-        .ToList();
-    
-    [Schema]
-    public static LocaleString rectifylocale(LocaleString locale, string? defaultLang = null)
-    {
-        if (string.IsNullOrWhiteSpace(locale.Key))
+        [Schema]
+        public static string[] split([Default("")] string str, [Default("")] string sep) => str.Split(sep, StringSplitOptions.RemoveEmptyEntries);
+
+        [Schema]
+        public static string substr([Default("")] string str, [Default(0)] int startIndex, int? stop)
         {
-            locale.Key = (string.IsNullOrWhiteSpace(defaultLang)
-                ? locale.Trans?.FirstOrDefault()?.Tran
-                : locale.Trans?.FirstOrDefault(t => t.Lang.Equals(defaultLang, StringComparison.OrdinalIgnoreCase))?.Tran ?? locale.Key) ?? "";
+            int start = Math.Clamp(startIndex, 0, str.Length);
+            int end = Math.Clamp(stop ?? str.Length, start, str.Length);
+            return str.Substring(start, end - start);
         }
-        return locale;
+
+        [Schema]
+        public static string replace([Default("")] string str, string search, string? replace = null) => str.Replace(search, replace ?? "");
+
+        [Schema]
+        public static string trim([Default("")] string str) => str.Trim();
+
+        [Schema]
+        public static string tolower([Default("")] string str) => str.ToLower();
+
+        [Schema]
+        public static string toupper([Default("")] string str) => str.ToUpper();
+
+        [Schema]
+        public static string reverse([Default("")] string str) => new string(str.Reverse().ToArray());
+
+        [Schema]
+        public static string padleft([Default("")] string str, long totalWidth, char paddingChar = ' ') => str.PadLeft((int)totalWidth, paddingChar);
+
+        [Schema]
+        public static string padright([Default("")] string str, long totalWidth, char paddingChar = ' ') => str.PadRight((int)totalWidth, paddingChar);
+
+        [Schema]
+        public static string repeat([Default("")] string str, long count) => string.Concat(Enumerable.Repeat(str, (int)count));
     }
 
-    [Schema]
-    public static string newguid() => Guid.NewGuid().ToString();
+    #endregion
+
+    #region Map
+
+    [Schema("system.str.map")]
+    public static class Map
+    {
+        [Schema]
+        [Converter]
+        public static LocaleString tolocale(string? str) => new LocaleString(str ?? "");
+
+        [Schema]
+        [Converter]
+        public static string tolocalestr(LocaleString? locale) => locale?.Key ?? "";
+
+        [Schema]
+        public static Entry toentry(StructTypeNode node, string valueField, string labelField)
+        {
+            AnySchemaNode? val = node.GetValueByPaths(valueField);
+            AnySchemaNode? label = node.GetValueByPaths(labelField);
+            return new Entry
+            {
+                Value = val?.ToTypeValue(typeof(string))?.ToString() ?? "",
+                Label = label switch
+                {
+                    StructTypeNode labelNode => labelNode.ToTypeValue(typeof(LocaleString)) as LocaleString,
+                    ScalarTypeNode or EnumTypeNode => new LocaleString(label.ToTypeValue(typeof(string))?.ToString() ?? ""),
+                    _ => new LocaleString(val?.ToTypeValue(typeof(string))?.ToString() ?? "")
+                }
+            };
+        }
+
+        [Schema]
+        public static List<Entry> toentrys(ArrayTypeNode array, string valueField, string labelField) => array
+            .OfType<StructTypeNode>()
+            .Select(node => toentry(node, valueField, labelField))
+            .DistinctBy(p => p.Value)
+            .ToList();
+
+        [Schema]
+        public static LocaleString rectifylocale(LocaleString locale, string? defaultLang = null)
+        {
+            if (string.IsNullOrWhiteSpace(locale.Key))
+            {
+                locale.Key = (string.IsNullOrWhiteSpace(defaultLang)
+                    ? locale.Trans?.FirstOrDefault()?.Tran
+                    : locale.Trans?.FirstOrDefault(t => t.Lang.Equals(defaultLang, StringComparison.OrdinalIgnoreCase))?.Tran ?? locale.Key) ?? "";
+            }
+            return locale;
+        }
+    }
+
+    #endregion
+
+    #region Util
+
+    [Schema("system.str.util")]
+    public static class Util
+    {
+        [Schema]
+        [ServerOnly]
+        [NoCache]
+        public static string newguid() => Guid.CreateVersion7().ToString();
+    }
+
 
     #endregion
 }

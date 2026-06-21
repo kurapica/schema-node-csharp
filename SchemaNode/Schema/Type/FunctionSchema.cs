@@ -1,11 +1,14 @@
-using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using System.ComponentModel.DataAnnotations;
-using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using static SchemaNode.Utility.Constant;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -14,7 +17,8 @@ namespace SchemaNode.Schema;
 /// The schema of function
 /// </summary>
 [SchemaApp]
-public class FunctionSchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.schema")]
+public sealed class FunctionSchema: ISchemaExtensions
 {
     /// <summary>
     /// The function name
@@ -47,20 +51,106 @@ public class FunctionSchema
     public string[]? Generic { get; set; }
 
     /// <summary>
+    /// The extensions
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    /// <summary>
+    /// The function flags
+    /// </summary>
+    public Traits Flags { get; set; } = Traits.None;
+    
+    /// <summary>
+    /// As type converter
+    /// </summary>
+    [NotMapped]
+    public bool? Converter
+    {
+        get => Flags.Has(Traits.Converter);
+        init => Flags = Flags.Turn(Traits.Converter, value);
+    }
+
+    /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; set; }
+    [NotMapped]
+    public bool? Server 
+    {
+        get => Flags.Has(Traits.Server);
+        init => Flags = Flags.Turn(Traits.Server, value);
+    }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; set; }
+    [NotMapped]
+    public bool? Nocache 
+    {
+        get => Flags.Has(Traits.NoCache);
+        init => Flags = Flags.Turn(Traits.NoCache, value);
+    }
+    
+    /// <summary>
+    /// The function has side effects
+    /// </summary>
+    [NotMapped]
+    public bool? SideEffect 
+    {
+        get => Flags.Has(Traits.SideEffect);
+        init => Flags = Flags.Turn(Traits.SideEffect, value);
+    }
+    
+    /// <summary>
+    /// The function can only be used in workflow
+    /// </summary>
+    [NotMapped]
+    public bool? WorkflowOnly
+    {
+        get => Flags.Has(Traits.WorkflowOnly);
+        init => Flags = Flags.Turn(Traits.WorkflowOnly, value);
+    }
+    
+    /// <summary>
+    /// The function traits
+    /// </summary>
+    [Flags]
+    public enum Traits
+    {
+        None = 0,
+
+        /// <summary>
+        /// Declares this function as a valid type conversion
+        /// </summary>
+        Converter = 1 << 0,
+
+        /// <summary>
+        /// Result must not be cached
+        /// </summary>
+        NoCache = 1 << 1,
+
+        /// <summary>
+        /// Requires server-side execution
+        /// </summary>
+        Server = 1 << 2,
+
+        /// <summary>
+        /// Has observable side effects
+        /// </summary>
+        SideEffect = 1 << 3,
+        
+        /// <summary>
+        /// The function can only be used in workflow
+        /// </summary>
+        WorkflowOnly = 1 << 4,
+    }
 }
 
 /**
  * The function argument information
  */
-public class FuncArg
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.arg")]
+public sealed class FuncArg
 {
     /// <summary>
     /// The argument name
@@ -78,6 +168,11 @@ public class FuncArg
     /// Whether the argument is nullable
     /// </summary>
     public bool? Nullable { get; set; }
+    
+    /// <summary>
+    /// The argument display name
+    /// </summary>
+    public LocaleString? Display { get; set; }
 
     /// <summary>
     /// The argument is params
@@ -100,7 +195,8 @@ public class FuncArg
 /// <summary>
 /// The function expressions
 /// </summary>
-public class FuncExp {
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.exp")]
+public sealed class FuncExp {
     /// <summary>
     /// The expression name
     /// </summary>
@@ -111,7 +207,7 @@ public class FuncExp {
     /// The call function
     /// </summary>
     [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
-    [Schema(NS_SYSTEM_SCHEMA_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_FUNC)]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
@@ -136,11 +232,12 @@ public class FuncExp {
     [NotMapped]
     public SchemaNodeStatus? Status { get; set; }
 }
-  
+
 /// <summary>
 /// The function call argument
 /// </summary>
-public class FuncCallArg {
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_FUNC}.callarg")]
+public sealed class FuncCallArg {
     /// <summary>
     /// The argument name or expression name
     /// </summary>

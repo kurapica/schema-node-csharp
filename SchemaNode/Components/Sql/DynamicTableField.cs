@@ -1,7 +1,6 @@
 ﻿using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -27,6 +26,16 @@ public class DynamicTableField
     /// The complex field info
     /// </summary>
     public DataFieldComplexInfo? Complex { get; init; }
+    
+    /// <summary>
+    /// The scope field, used for data partition
+    /// </summary>
+    public bool Scope { get; init; }
+
+    /// <summary>
+    /// The target field, used for data partition
+    /// </summary>
+    public bool Target { get; init; }
 
     /// <summary>
     /// Whether the field is primary
@@ -37,35 +46,51 @@ public class DynamicTableField
     /// The max length of the string type
     /// </summary>
     public int? MaxLength { get; init; }
-
+    
+    /// <summary>
+    /// The join field
+    /// </summary>
+    public string? JoinAppField { get; init; }
+    
+    /// <summary>
+    /// The join data field
+    /// </summary>
+    public string? JoinDataField { get; init; }
+    
     /// <summary>
     /// The data dict type
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }
+    
+    /// <summary>
+    /// Whether the field is used as attribute table for dynamic type
+    /// </summary>
+    public AppRelationSchema? RelationType { get; init; }
+    
+    /// <summary>
+    /// The struct field relation for struct type
+    /// </summary>
+    public StructRelationSchema? StructRelation { get; init; }
+    
+    /// <summary>
+    /// The relation type, either RelationType or StructRelation
+    /// </summary>
+    public bool HasTypeRelation => RelationType != null || StructRelation != null;
 
     /// <summary>
-    /// The struct field node of primary field
+    /// The field is a value field if it has no type relation, and is not scope or target field
     /// </summary>
-    public StructFieldConfig? StructFieldNode { get; init; }
-
+    public bool IsValueField => !HasTypeRelation && !IsKeyField && !IsJoinField;
+    
     /// <summary>
-    /// Whether the type is string data
+    /// The field is a key field if it is primary, or scope or target field
     /// </summary>
-    public bool IsString => Type switch
-    {
-        DynamicTableFieldType.Bool => false,
-        DynamicTableFieldType.Smallint => false,
-        DynamicTableFieldType.USmallint => false,
-        DynamicTableFieldType.Mediumint => false,
-        DynamicTableFieldType.UMediumint => false,
-        DynamicTableFieldType.Int => false,
-        DynamicTableFieldType.UInt => false,
-        DynamicTableFieldType.BigInt => false,
-        DynamicTableFieldType.UBigInt => false,
-        DynamicTableFieldType.Float => false,
-        DynamicTableFieldType.Double => false,
-        _ => true
-    };
+    public bool IsKeyField => Primary || Scope;
+    
+    /// <summary>
+    /// The field is a join field if it has JoinAppField
+    /// </summary>
+    public bool IsJoinField => !string.IsNullOrWhiteSpace(JoinAppField);
 
     /// <summary>
     /// Get JToken from reader
@@ -76,7 +101,16 @@ public class DynamicTableField
         object? data;
         if (Type == DynamicTableFieldType.Json)
         {
-            data = JsonNode.Parse(reader.GetString(col));
+            object raw = reader.GetValue(col);
+
+            JsonNode? json = raw is DBNull ? null : raw switch
+            {
+                string s => JsonNode.Parse(s),
+                byte[] b => JsonNode.Parse(b),
+                _ => null
+            };
+
+            data = json;
         }
         else
         {
@@ -113,37 +147,6 @@ public class DynamicTableField
             DynamicTableFieldType.Bool => value.ToValue<bool>() ? "1" : "0",
             DynamicTableFieldType.DateTime => value.ToValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
             _ => value.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Gets the string of the JToken value
-    /// </summary>
-    public string? ToString(object? value)
-    {
-        if (value == null) return null;
-
-        return Type switch
-        {
-            DynamicTableFieldType.Bool => Convert.ToBoolean(value) ? "1" : "0",
-            DynamicTableFieldType.DateTime => Convert.ToDateTime(value).ToString("yyyy-MM-dd HH:mm:ss"),
-            _ => value.ToString()
-        };
-    }
-
-    /// <summary>
-    /// Gets the string of the JToken value
-    /// </summary>
-    public string? ToString(JsonNode? value)
-    {
-        if (value == null && value.IsEmpty()) return null;
-        JsonNode v = value!;
-        return Type switch
-        {
-            DynamicTableFieldType.Bool => v.GetValue<bool>() ? "1" : "0",
-            DynamicTableFieldType.DateTime => v.GetValue<DateTime>().ToString("yyyy-MM-dd HH:mm:ss"),
-            DynamicTableFieldType.Json => v.ToJsonString(),
-            _ => v.ToValue<string>()
         };
     }
 }

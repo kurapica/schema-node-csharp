@@ -7,7 +7,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// the start interaction workflow
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.interaction.start")]
+[Schema($"{NS_SYSTEM_WORKFLOW_INTERACTION}.start")]
 public class StartWorkflow: InteractionWorkflow
     , IWorkflowPayload<InteractionPayload>
 {

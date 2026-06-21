@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -14,7 +15,8 @@ namespace SchemaNode.Schema;
 /// The application workflow
 /// </summary>
 [SchemaApp]
-public class AppWorkflowSchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.schema")]
+public sealed class AppWorkflowSchema: ISchemaExtensions
 {
     /// <summary>
     /// the application name
@@ -44,12 +46,7 @@ public class AppWorkflowSchema
     /// The workflow display name
     /// </summary>
     public LocaleString? Display { get; set; }
-    
-    /// <summary>
-    /// The workflow description
-    /// </summary>
-    public LocaleString? Desc { get; set; }
-    
+        
     /// <summary>
     /// Active the workflow
     /// </summary>
@@ -59,18 +56,19 @@ public class AppWorkflowSchema
     /// The workflow nodes
     /// </summary>
     public AppWorkflowNodeSchema[] Nodes { get; set; } = [];
-    
+
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>
 /// The application workflow node
 /// </summary>
-public class AppWorkflowNodeSchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW}.node")]
+public sealed class AppWorkflowNodeSchema: ISchemaExtensions
 {
     /// <summary>
     /// The node name
@@ -144,13 +142,25 @@ public class AppWorkflowNodeSchema
     /// Cancel the previous fork branches
     /// </summary>
     public bool? CancelPre { get; set; }
+    
+    /// <summary>
+    /// Whether save the payload data
+    /// </summary>
+    public bool? PayloadSave { get; set; }
 
     /// <summary>
-    /// The additional data
+    /// The extensions
     /// </summary>
     [JsonExtensionData]
-    public Dictionary<string, JsonElement>? Additional { get; set; }
-    
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
+
+    /// <summary>
+    /// The resolved payload schema type
+    /// </summary>
+    [JsonIgnore]
+    [NotMapped]
+    public AnySchemaType? PayloadSchemaType { get; set; }
+
     /// <summary>
     /// The schema node status
     /// </summary>

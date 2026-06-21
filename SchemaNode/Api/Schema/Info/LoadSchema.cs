@@ -26,32 +26,30 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             Schemas = []
         };
         HashSet<string> types = new();
-        
+
         foreach (string t in request.Names)
         {
             cancellationToken.ThrowIfCancellationRequested();
             AnySchemaType? node = await SchemaContext.GetSchemaTypeAsync(t);
-            if (node == null) continue;
-            
-            // authorize
-            await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
-            
-            // Generate schema
-            await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
-
-            if (node is TypeNamespace ns)
-            {
-                foreach (KeyValuePair<string, AnySchemaType> pair in ns.SchemaNodes)
-                {
-                    await pair.Value.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
-                }   
-            }
+            await GetNodeSchemas(node, true);
         }
 
         return new LoadSchemaResponse
         {
             Schemas = root.Schemas
         };
+
+        async Task GetNodeSchemas(AnySchemaType? node, bool first = false)
+        {
+            if (node == null) return;
+            if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
+
+            await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
+
+            if (node is TypeNamespace ns && (first || request.Full == true))
+                foreach (KeyValuePair<string, AnySchemaType> pair in ns.SchemaNodes)
+                    await GetNodeSchemas(pair.Value);
+        }
     }
 }
 
@@ -66,6 +64,11 @@ public class LoadSchemaRequest : SchemaApiRequest
     [Required]
     [MinLength(1)]
     public string[] Names { get; set; } = [];
+
+    /// <summary>
+    /// Full namespace
+    /// </summary>
+    public bool? Full { get; set; }
 }
 
 /// <summary>

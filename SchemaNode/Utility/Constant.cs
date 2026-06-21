@@ -1,4 +1,5 @@
 // ReSharper disable InconsistentNaming
+
 namespace SchemaNode.Utility;
 
 /// <summary>
@@ -17,7 +18,12 @@ public static class Constant
     public const string NS_GENERIC_TYPE_4 = "T4";
     public const string REGEX_GENERIC_TYPE = @"^T\d*$";
     public const string REGEX_GENERIC_IMPLEMENT = @"^(\w+)<(.+)>$";
-    
+
+    // Represents the special node used as function arguments for validation or relation
+    public const string ARRAY_ITSELF = "$array";
+    public const string ARRAY_ELEMENT = "$ele";
+    public const string NODE_SELF = "$self";
+
     public const string NS_SYSTEM = "system";
     public const string NS_SYSTEM_OBJECT = "system.object"; // any value
     public const string NS_SYSTEM_ARRAY = "system.array"; // any array
@@ -33,6 +39,7 @@ public static class Constant
     public const string NS_SYSTEM_FULL_DATE = "system.fulldate";
     public const string NS_SYSTEM_INT = "system.int";
     public const string NS_SYSTEM_STRING = "system.string";
+    public const string NS_SYSTEM_CHAR = "system.char";
     public const string NS_SYSTEM_YEAR = "system.year";
     public const string NS_SYSTEM_YEARMONTH = "system.yearmonth";
     public const string NS_SYSTEM_GUID = "system.guid";
@@ -40,7 +47,8 @@ public static class Constant
     public const string NS_SYSTEM_RANGE_FULL_DATE = "system.rangefulldate";
     public const string NS_SYSTEM_RANGE_MONTH = "system.rangemonth";
     public const string NS_SYSTEM_RANGE_YEAR = "system.rangeyear";
-    
+    public const string NS_SYSTEM_IDENTIFIER = "system.identifier";
+
     // array
     public const string NS_SYSTEM_STRINGS = "system.strings";
     public const string NS_SYSTEM_NUMBERS = "system.numbers";
@@ -56,46 +64,87 @@ public static class Constant
     
     // system.schema
     public const string NS_SYSTEM_SCHEMA = "system.schema";
-    public const string NS_SYSTEM_SCHEMA_ANY_TYPE = "system.schema.anytype";
-    public const string NS_SYSTEM_SCHEMA_NAMESPACE = "system.schema.namespace";
-    public const string NS_SYSTEM_SCHEMA_SCALAR_TYPE = "system.schema.scalartype";
-    public const string NS_SYSTEM_SCHEMA_ENUM_TYPE = "system.schema.enumtype";
-    public const string NS_SYSTEM_SCHEMA_STRUCT_TYPE = "system.schema.structtype";
-    public const string NS_SYSTEM_SCHEMA_ARRAY_TYPE = "system.schema.arraytype";
-    public const string NS_SYSTEM_SCHEMA_FUNC_TYPE = "system.schema.functype";
-    public const string NS_SYSTEM_SCHEMA_EVENT_TYPE = "system.schema.eventtype";
-    public const string NS_SYSTEM_SCHEMA_WORKFLOW_TYPE = "system.schema.workflowtype";
-    public const string NS_SYSTEM_SCHEMA_POLICY_TYPE = "system.schema.policytype";
-    public const string NS_SYSTEM_SCHEMA_VALID_FUNC_TYPE = "system.schema.validfunc";
-    public const string NS_SYSTEM_SCHEMA_WHITELIST_FUNC_TYPE = "system.schema.whitelistfunc";
-    public const string NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE = "system.schema.evaluatorfunc";
-    public const string NS_SYSTEM_SCHEMA_PREDICATE_FUNC_TYPE = "system.schema.predicatefunc";
-    public const string NS_SYSTEM_SCHEMA_ARRAY_ELE_TYPE = "system.schema.arrayeletype";
-    public const string NS_SYSTEM_SCHEMA_VALUE_TYPE = "system.schema.valuetype";
-    public const string NS_SYSTEM_SCHEMA_VAR_NAME = "system.schema.varname";
+    public const string NS_SYSTEM_SCHEMA_PROPERTY = $"{NS_SYSTEM_SCHEMA}.property";
+
+    // system.type
+    public const string NS_SYSTEM_SCHEMA_TYPE = $"{NS_SYSTEM_SCHEMA}.type";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ANY = $"{NS_SYSTEM_SCHEMA_TYPE}.any";
+    public const string NS_SYSTEM_SCHEMA_TYPE_NAMESPACE = $"{NS_SYSTEM_SCHEMA_TYPE}.namespace";
+    public const string NS_SYSTEM_SCHEMA_TYPE_SCALAR = $"{NS_SYSTEM_SCHEMA_TYPE}.scalar";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ENUM = $"{NS_SYSTEM_SCHEMA_TYPE}.enum";
+    public const string NS_SYSTEM_SCHEMA_TYPE_STRUCT = $"{NS_SYSTEM_SCHEMA_TYPE}.struct";
+    public const string NS_SYSTEM_SCHEMA_TYPE_ARRAY = $"{NS_SYSTEM_SCHEMA_TYPE}.array";
+    public const string NS_SYSTEM_SCHEMA_TYPE_FUNC = $"{NS_SYSTEM_SCHEMA_TYPE}.func";
+    public const string NS_SYSTEM_SCHEMA_TYPE_EVENT = $"{NS_SYSTEM_SCHEMA_TYPE}.event";
+    public const string NS_SYSTEM_SCHEMA_TYPE_WORKFLOW = $"{NS_SYSTEM_SCHEMA_TYPE}.workflow";
+    public const string NS_SYSTEM_SCHEMA_TYPE_POLICY = $"{NS_SYSTEM_SCHEMA_TYPE}.policy";
+
+    public const string NS_SYSTEM_SCHEMA_TYPE_RECOGNIZER = $"{NS_SYSTEM_SCHEMA_TYPE}.recognizer";
+    public const string NS_SYSTEM_SCHEMA_TYPE_PROPERTY = $"{NS_SYSTEM_SCHEMA_TYPE}.property";
+
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE = $"{NS_SYSTEM_SCHEMA_TYPE}.rule";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_ARELE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.arrayelement";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_VALUE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.value";
+
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_VALID = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.valid";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_UNIONVALID = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.unionvalid";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_WHITELIST = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.whitelist";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.evaluator";
+    public const string NS_SYSTEM_SCHEMA_TYPE_RULE_PREDICATE = $"{NS_SYSTEM_SCHEMA_TYPE_RULE}.predicate";
     
-    public const string NS_SYSTEM_SCHEMA_APP = "system.schema.app";
-    public const string NS_SYSTEM_SCHEMA_APP_FIELD = "system.schema.appfield";
-    public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = "system.schema.appworkflow";
-    public const string NS_SYSTEM_SCHEMA_APP_TARGET = "system.schema.apptarget";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN = $"{NS_SYSTEM_SCHEMA}.domain";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_APP = $"{NS_SYSTEM_SCHEMA_DOMAIN}.app";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_FIELD = $"{NS_SYSTEM_SCHEMA_DOMAIN}.field";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DOMAIN}.workflow";
+    public const string NS_SYSTEM_SCHEMA_DOMAIN_TARGET = $"{NS_SYSTEM_SCHEMA_DOMAIN}.target";
+
+    public const string NS_SYSTEM_SCHEMA_DEF = $"{NS_SYSTEM_SCHEMA}.def";
+    public const string NS_SYSTEM_SCHEMA_DEF_SCALAR = $"{NS_SYSTEM_SCHEMA_DEF}.scalar";
+    public const string NS_SYSTEM_SCHEMA_DEF_ENUM = $"{NS_SYSTEM_SCHEMA_DEF}.enum";
+    public const string NS_SYSTEM_SCHEMA_DEF_STRUCT = $"{NS_SYSTEM_SCHEMA_DEF}.struct";
+    public const string NS_SYSTEM_SCHEMA_DEF_ARRAY = $"{NS_SYSTEM_SCHEMA_DEF}.array";
+    public const string NS_SYSTEM_SCHEMA_DEF_FUNC = $"{NS_SYSTEM_SCHEMA_DEF}.func";
+    public const string NS_SYSTEM_SCHEMA_DEF_POLICY = $"{NS_SYSTEM_SCHEMA_DEF}.policy";
+    public const string NS_SYSTEM_SCHEMA_DEF_EVENT = $"{NS_SYSTEM_SCHEMA_DEF}.event";
+    public const string NS_SYSTEM_SCHEMA_DEF_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF}.workflow";
+    public const string NS_SYSTEM_SCHEMA_DEF_RECOGNIZER = $"{NS_SYSTEM_SCHEMA_DEF}.recognizer";
+    public const string NS_SYSTEM_SCHEMA_DEF_PROPERTY = $"{NS_SYSTEM_SCHEMA_DEF}.property";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP = $"{NS_SYSTEM_SCHEMA_DEF}.app";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP_FIELD = $"{NS_SYSTEM_SCHEMA_DEF_APP}.field";
+    public const string NS_SYSTEM_SCHEMA_DEF_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_DEF_APP}.workflow";
 
     // function namespace
-    public const string NS_SYSTEM_CONV = "system.conv";
+    public const string NS_SYSTEM_INTRINSIC = "system.intrinsic";
     public const string NS_SYSTEM_MATH = "system.math";
     public const string NS_SYSTEM_LOGIC = "system.logic";
-    public const string NS_SYSTEM_DATETIME = "system.datetime";
+    public const string NS_SYSTEM_CALENDAR = "system.calendar";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
     public const string NS_SYSTEM_DATA = "system.data";
     
     // workflow namespace
     public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    public const string NS_SYSTEM_WORKFLOW_ID = "system.workflow.id";
+    public const string NS_SYSTEM_WORKFLOW_CRON = "system.workflow.cron";
     public const string NS_SYSTEM_WORKFLOW_NODE = "system.workflow.node";
+    public const string NS_SYSTEM_WORKFLOW_CONTROL = "system.workflow.control";
+    public const string NS_SYSTEM_WORKFLOW_EVENT = "system.workflow.event";
+    public const string NS_SYSTEM_WORKFLOW_FUNC = "system.workflow.func";
+    public const string NS_SYSTEM_WORKFLOW_INTERACTION = "system.workflow.interaction";
     
+    // property namespace
+    public const string NS_SYSTEM_PROPERTY = "system.property";
+
     // event namespace
     public const string NS_SYSTEM_EVENT = "system.event";
     
     // context struct
     public const string NS_SYSTEM_CONTEXT = "system.context";
+
+    // core property
+    public const string PROPERTY_UPLIMIT = "upLimit";
+    public const string PROPERTY_LOWLIMIT = "lowLimit";
+    public const string PROPERTY_DEFAULT = "default";
+    public const string PROPERTY_TYPE = "type";
 
     // static function sign
     public const int FUNC_SIGN_CONTEXT = 1;
@@ -122,6 +171,16 @@ public static class Constant
     public const int DYNAMIC_TABLE_TARG_LEN = 64;
 
     /// <summary>
+    /// The max length for EAV table field name, to avoid abuse of long field name which may cause performance issue. 
+    /// </summary>
+    public const int EAV_TABLE_FIELD_MAX_LENGTH = 64;
+
+    /// <summary>
+    /// The max combine case count, to avoid abuse of too many cases which may cause performance issue.
+    /// </summary>
+    public const int MAX_COMBINE_CASE_COUNT = 15;
+    
+    /// <summary>
     /// DYNAMIC TABLE VALUE FIELD
     /// </summary>
     public const string DYNAMIC_TABLE_VALUE_FIELD = "_data";
@@ -130,12 +189,52 @@ public static class Constant
     /// DYNAMIC TABLE SEQNO FIELD
     /// </summary>
     public const string DYNAMIC_TABLE_SEQNO_FIELD = "_seqno";
-
+    
     /// <summary>
     /// DYNAMIC TABLE PREFIX
     /// </summary>
     public const string DYNAMIC_TABLE_PREFIX = "dyn";
+    
+    /// <summary>
+    /// Entity-ATTRIBUTE-VALUE TABLE PREFIX
+    /// </summary>
+    public const string EAV_TABLE_PREFIX = "eav";
 
+    /// <summary>
+    /// The field name for EAV table to store the attribute name
+    /// </summary>
+    public const string EAV_TABLE_FIELD = "_field";
+    
+    /// <summary>
+    /// The big int field
+    /// </summary>
+    public const string EAV_TABLE_BIGINT_FIELD = "_bigint";
+
+    /// <summary>
+    /// The double field
+    /// </summary>
+    public const string EAV_TABLE_DOUBLE_FIELD = "_double";
+    
+    /// <summary>
+    /// The index-able string with 128 max length
+    /// </summary>
+    public const string EAV_TABLE_STRING_FIELD = "_str";
+    
+    /// <summary>
+    /// The text field
+    /// </summary>
+    public const string EAV_TABLE_TEXT_FIELD = "_text";
+    
+    /// <summary>
+    /// The datetime field
+    /// </summary>
+    public const string EAV_TABLE_DATETIME_FIELD = "_datetime";
+    
+    /// <summary>
+    /// The JSON field
+    /// </summary>
+    public const string EAV_TABLE_JSON_FIELD = "_json";
+    
     /// <summary>
     /// DYNAMIC UNIQUE INDEX
     /// </summary>
@@ -175,14 +274,11 @@ public static class Constant
 
     #region Expression Priority
 
-    public const int EXP_CONSTANT_PRIORITY = 100;
-    public const int EXP_ASSIGN_PRIORITY = 95;
-    public const int EXP_BREAK_PRIORITY = 90;
-    public const int EXP_LOGIC_PRIORITY = 85;
-    public const int EXP_CONDITIONAL_PRIORITY = 80;
-    public const int EXP_ARITHMETIC_PRIORITY = 70;
+    public const int EXP_INTRINSIC_PRIORITY = 100;
+    public const int EXP_LOGIC_PRIORITY = 90;
+    public const int EXP_ARITHMETIC_PRIORITY = 80;
+    public const int EXP_COLLECTION_PRIORITY = 70;
     public const int EXP_DATA_SOURCE_PRIORITY = 60;
-    public const int EXP_COLLECTION_PRIORITY = 10;
 
     #endregion
 
@@ -217,16 +313,17 @@ public static class Constant
     public const string TYPE_FUNC_CALL_ARG_NOT_EXIST = "TYPE_FUNC_CALL_ARG_NOT_EXIST";
     public const string TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL = "TYPE_FUNC_CALL_ARG_TYPE_NOT_MATCH_CALL";
 
-    public const string TYPE_DATA_SOURCE_COMIPLE_ERROR = "TYPE_DATA_SOURCE_COMPILE_ERROR";
-
     public const string TYPE_ENUM_VALUE_HAS_SUBLIST = "TYPE_ENUM_VALUE_HAS_SUBLIST";
     
     public const string APP_NOT_FOUND = "APP_NOT_FOUND";
     public const string APP_FIELD_NOT_FOUND = "APP_FIELD_NOT_FOUND";
+    public const string APP_FIELD_TYPE_NOT_VALID = "APP_FIELD_TYPE_NOT_VALID";
     public const string APP_TARGET_REQUIRED = "APP_TARGET_REQUIRED";
     public const string APP_PUSH_DATA_REQUIRED = "APP_PUSH_DATA_REQUIRED";
     public const string APP_DATA_PROVIDER_NOT_EXIST = "APP_DATA_PROVIDER_NOT_EXIST";
     public const string APP_PUSH_DATA_WRONG_FUNC = "APP_PUSH_DATA_WRONG_FUNC";
+    public const string APP_TARGET_POLICY_CANT_CHANGE = "APP_TARGET_POLICY_CANT_CHANGE";
+    public const string APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP = "APP_ISOLATION_CONTEXT_POLICY_MISSING_MAP";
 
     public const string WORKFLOW_NOT_FOUND = "WORKFLOW_NOT_FOUND";
     public const string WORKFLOW_NODE_NOT_FOUND = "WORKFLOW_NODE_NOT_FOUND";

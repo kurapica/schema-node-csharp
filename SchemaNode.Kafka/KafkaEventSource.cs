@@ -2,9 +2,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Components;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 
 namespace SchemaNode.Kafka;
 
@@ -56,7 +58,7 @@ public sealed class KafkaEventSource : IEventSource
                 try
                 {
                     var evt = (KafkaEvent)Activator.CreateInstance(map.Item1)!;
-                    context.RaiseEvent(evt, map.Item2 != null ? Encoding.UTF8.GetString(result.Message.Value).FromJson(map.Item2) : null);
+                    context.RaiseEvent(evt, map.Item2 != null ? FromJson(Encoding.UTF8.GetString(result.Message.Value), map.Item2) : null);
                 }
                 catch(Exception ex)
                 {
@@ -74,5 +76,20 @@ public sealed class KafkaEventSource : IEventSource
     {
         _consumer.Close();
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Deserializes a JSON string to a .NET value.
+    /// </summary>
+    internal static object? FromJson(string value, Type type)
+    {
+        if (type == typeof(string))
+            return value;
+        if (type == typeof(DateTimeOffset))
+            return DateTimeOffset.Parse(value);
+        if (type == typeof(DateTime))
+            return DateTime.Parse(value);
+
+        return JsonSerializer.Deserialize(value, type);
     }
 }

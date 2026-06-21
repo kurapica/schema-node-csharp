@@ -9,9 +9,9 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The form interaction workflow
 /// </summary>
-[Schema($"{NS_SYSTEM_WORKFLOW}.interaction.form")]
+[Schema($"{NS_SYSTEM_WORKFLOW_INTERACTION}.form")]
 public class FormWorkflow: InteractionWorkflow,
-    IWorkflowPayload<FormInteractionPayload<AnySchemaType>>
+    IWorkflowPayload<FormInteractionPayload>
 {
 }
 
@@ -19,8 +19,8 @@ public class FormWorkflow: InteractionWorkflow,
 /// The form interaction workflow payload
 /// </summary>
 /// <typeparam name="T"></typeparam>
-[Schema($"{NS_SYSTEM_WORKFLOW}.interaction.formpayload")]
-public class FormInteractionPayload<T>: InteractionPayload
+[Schema($"{NS_SYSTEM_WORKFLOW_INTERACTION}.formpayload")]
+public class FormInteractionPayload: InteractionPayload
 {
     /// <summary>
     /// The event data

@@ -1,15 +1,16 @@
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
-using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Primitives;
-using Microsoft.OpenApi.Any;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
+using SchemaNode.Components;
+using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 // ReSharper disable CollectionNeverQueried.Global
@@ -25,27 +26,27 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Gets the wrapped response schema.
     /// </summary>
-    OpenApiSchema WrapResponseSchema(DocumentFilterContext context, OpenApiSchema innerSchema);
+    IOpenApiSchema WrapResponseSchema(DocumentFilterContext context, IOpenApiSchema innerSchema);
 
     /// <summary>
     /// Gets the wrapped request schema.
     /// </summary>
-    OpenApiSchema WrapRequestSchema(DocumentFilterContext context, OpenApiSchema innerSchema);
+    IOpenApiSchema WrapRequestSchema(DocumentFilterContext context, IOpenApiSchema innerSchema);
 
     /// <summary>
     /// Read request from body
     /// </summary>
-    TRequest ReadRequest<TRequest>(string requestBody) where TRequest : SchemaApiRequest;
+    TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest;
 
     /// <summary>
     /// Generate the result based on the response
     /// </summary>
-    IResult GenerateResult<TResponse>(TResponse response) where TResponse : SchemaApiResponse;
+    IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse;
 
     /// <summary>
     /// Generate error response based on exception
     /// </summary>
-    IResult GenerateErrorResponse(SchemaApiErrorCode code, string? message = null,
+    IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null,
         IReadOnlyDictionary<string, object>? data = null);
     
     /// <summary>
@@ -58,6 +59,7 @@ public interface ISchemaApiProtocol
     {
         var provider = ctx.RequestServices;
         var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(TApi));
+        var context = provider.GetRequiredService<SchemaContext>();
 
         // Parse request.
         logger.LogDebug("{name} API is being executed ...", typeof(TApi).Name);
@@ -78,26 +80,44 @@ public interface ISchemaApiProtocol
                 JsonObject result = new ();
                 foreach (KeyValuePair<string, StringValues> item in ctx.Request.Form)
                 {
-                    if (!string.IsNullOrEmpty(item.Value))
-                        result.Add(item.Key, item.Key.Equals("Params", StringComparison.OrdinalIgnoreCase) ? JsonNode.Parse(item.Value!) : JsonValue.Create(item.Value));
+                    if (item.Value.Count ==0) continue;
+                    string? data = item.Value[0];
+                    if (string.IsNullOrWhiteSpace(data)) continue;
+
+                    JsonNode? node;
+                    try
+                    {
+                        node = JsonNode.Parse(data);
+                    }
+                    catch
+                    {
+                        node = JsonValue.Create(data);
+                    }
+                    
+                    if (node != null)
+                        result.Add(item.Key, node);
                 }
                 requestBody = result.ToString();
             }
         }
         catch
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.ParseFailed, "Failed to read the request data.");
+            return GenerateErrorResponse(context, SchemaApiErrorCode.ParseFailed, "Failed to read the request data.");
         }
         
         
         TRequest request;
         try
         {
-            request = ReadRequest<TRequest>(requestBody);
+            request = ReadRequest<TRequest>(context, requestBody);
+            context.SetRequestInfo(request.Locale, request.TimeZone, request.DateFormat); // Set the request info
+
+            if (request.DateFormat != null && request.DateFormat != DateFormatMode.Iso8601)
+                request = ReadRequest<TRequest>(context, requestBody); // re-read the request with the correct date format
         }
         catch (Exception ex)
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.ParseFailed,  ex.Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.ParseFailed,  ex.Message);
         }
 
         // Validate request.
@@ -106,12 +126,12 @@ public interface ISchemaApiProtocol
             List<ValidationResult> results = new();
             if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
             {
-                return GenerateErrorResponse(SchemaApiErrorCode.InvalidParams, "The request parameters are invalid.", GetValidationErrors(results));
+                return GenerateErrorResponse(context, SchemaApiErrorCode.InvalidParams, "The request parameters are invalid.", GetValidationErrors(results));
             }
         }
         catch (Exception ex)
         {
-            return GenerateErrorResponse(SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
         }
 
         Stopwatch watch = Stopwatch.StartNew();
@@ -133,7 +153,7 @@ public interface ISchemaApiProtocol
         catch (Exception ex)
         {
             logger.LogError(ex, "{name} API execution failed.", typeof(TApi).Name);
-            return GenerateErrorResponse(SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
+            return GenerateErrorResponse(context, SchemaApiErrorCode.InternalError, ex.GetInnermostException().Message);
         }
         finally
         {
@@ -142,28 +162,36 @@ public interface ISchemaApiProtocol
 
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
+        response!.TimeZone = context.GetTimeZone()?.Id;
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
+        var timeZone = provider.GetRequiredService<SchemaContext>().GetTimeZone();
         
         // Stream
         if (response.Output?.Stream != null)
         {
             string extension = Path.GetExtension(response.Output.Name);
             if (string.IsNullOrWhiteSpace(extension)) extension = response.Output.Extension;
-            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.')) extension = $".{extension}";
-            if (string.IsNullOrWhiteSpace(extension) || !new FileExtensionContentTypeProvider().TryGetContentType(extension, out string? contentType))
-                contentType = "text/plain";
-            FileStreamResult result = new(response.Output.Stream, contentType);
-            if (!string.IsNullOrWhiteSpace(response.Output.Name))
+            if (!string.IsNullOrWhiteSpace(extension) && !extension.StartsWith('.'))
+                extension = $".{extension}";
+
+            if (string.IsNullOrWhiteSpace(extension)
+                || !new FileExtensionContentTypeProvider()
+                    .TryGetContentType(extension, out string? contentType))
             {
-                result.FileDownloadName = response.Output.Name;
+                contentType = "application/octet-stream";
             }
+
             ctx.Response.Headers.AccessControlExposeHeaders = new StringValues("Content-Disposition");
-            return Results.File(response.Output.Stream);
+
+            return Results.File(
+                response.Output.Stream,
+                contentType,
+                fileDownloadName: response.Output.Name
+            );
         }
-        
-        return GenerateResult(response);
+        return GenerateResult(context, response);
     }
-    
+
     /// <summary>
     /// Get validation errors
     /// </summary>
@@ -195,16 +223,17 @@ public interface ISchemaApiProtocol
         var schemaGenerator = provider.GetRequiredService<ISchemaGenerator>();
         var schemaRepository = new SchemaRepository();
 
-        // 这里我们没有 API 描述，所以传空集合即可
+        // No need to generate the real schema here, we just want to analyze the structure of the wrapped schema,
+        // so we can use a placeholder schema as the inner schema and check if it's referenced in the properties of the wrapped schema.
         var context = new DocumentFilterContext(Array.Empty<Microsoft.AspNetCore.Mvc.ApiExplorer.ApiDescription>(),
             schemaGenerator, schemaRepository);
         OpenApiSchema innerSchema = new(); // placeholder
         
-        OpenApiSchema reqSchema = WrapRequestSchema(context, innerSchema);
-        OpenApiSchema resSchema = WrapResponseSchema(context, innerSchema);
+        IOpenApiSchema reqSchema = WrapRequestSchema(context, innerSchema);
+        IOpenApiSchema resSchema = WrapResponseSchema(context, innerSchema);
         
         var reqMeta = new SchemaApiProtocolRequestMeta();
-        if (reqSchema is { Type: "object", Properties: not null })
+        if (reqSchema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             foreach (var (key, value) in reqSchema.Properties)
             {
@@ -221,7 +250,7 @@ public interface ISchemaApiProtocol
         }
         
         var resMeta = new SchemaApiProtocolResponseMeta();
-        if (resSchema is { Type: "object", Properties: not null })
+        if (resSchema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             foreach (var (key, value) in resSchema.Properties)
             {
@@ -239,13 +268,14 @@ public interface ISchemaApiProtocol
         return new SchemaApiProtocolMeta{
             Name= name,
             Request= reqMeta,
-            Response= resMeta
+            Response= resMeta,
+            SchemaFormat = ISchemaFormatProvider.GetSupportedFormats().ToArray(),
         };
     }
 
-    JsonNode GenerateJsonDesc(OpenApiSchema schema)
+    JsonNode GenerateJsonDesc(IOpenApiSchema schema)
     {
-        if (schema is { Type: "object", Properties: not null })
+        if (schema is { Type: JsonSchemaType.Object, Properties: not null })
         {
             JsonObject obj = new();
             foreach (var (key, value) in schema.Properties)
@@ -254,7 +284,7 @@ public interface ISchemaApiProtocol
             }
             return obj;
         }
-        else if (schema is { Type: "array", Items: not null })
+        else if (schema is { Type: JsonSchemaType.Array, Items: not null })
         {
             JsonArray arr = new();
             arr.Add(GenerateJsonDesc(schema.Items));
@@ -262,15 +292,8 @@ public interface ISchemaApiProtocol
         }
         else
         {
-            string? example = schema.Example switch
-            {
-                OpenApiString str => str.Value,
-                OpenApiInteger integer => integer.Value.ToString(),
-                OpenApiFloat flt => flt.Value.ToString(CultureInfo.InvariantCulture),
-                OpenApiBoolean boolean => boolean.Value.ToString(),
-                _ => null
-            };
-            return JsonValue.Create($"{schema.Type}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
+            string? example = schema.Example?.ToString();
+            return JsonValue.Create($"{schema.Type.ToString()?.ToLower()}{(!string.IsNullOrEmpty(schema.Format) ? $"[{schema.Format}]" : "")}{(example != null ? $":{example}" : "")}");
         }
     }
 }
@@ -292,4 +315,5 @@ internal class SchemaApiProtocolMeta
     public string? Name { get; init; }
     public SchemaApiProtocolRequestMeta? Request { get; init; } 
     public SchemaApiProtocolResponseMeta? Response { get; init; }
+    public string[]? SchemaFormat { get; init; }
 }

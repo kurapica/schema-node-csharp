@@ -5,7 +5,7 @@ namespace SchemaNode.Components;
 /// </summary>
 /// <param name="app"></param>
 /// <param name="target"></param>
-public abstract class AppDataEvent(string app, string target): AppEvent(app)
+public abstract class AppDataEvent(string app, string? target): AppEvent(app)
 {
     /// <summary>
     /// The topic

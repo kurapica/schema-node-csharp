@@ -6,13 +6,13 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Components;
 
-[Schema($"{NS_SYSTEM_WORKFLOW}.event.appfielddata")]
+[Schema($"{NS_SYSTEM_WORKFLOW_EVENT}.appfielddata")]
 public class WaitAppFieldDataEventWorkflow : EventWorkflow, 
     IWorkflowPayload<WaitAppFieldDataEventWorkflowPayload>,
     IWorkflowSession<IDisposable>
 {
     public async Task<IDisposable?> ProcessAsync(WorkflowContext context, IDisposable? session = null,
-        [Schema(NS_SYSTEM_SCHEMA_APP_FIELD)] string field = "", 
+        [Schema(NS_SYSTEM_SCHEMA_DOMAIN_FIELD)] string field = "", 
         string? target = null)
     {
         await Task.Yield();
@@ -34,6 +34,8 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
         }
         
         session?.Dispose();
+
+        // normally should be forked
         if (Fork)
         {
             return context.SubscribeTopicEvent<AppEvent>(Event!, topic, @event =>
@@ -46,7 +48,7 @@ public class WaitAppFieldDataEventWorkflow : EventWorkflow,
                     Target = t.Length > 1 ? t[1] : null,
                     Data = @event.Payload,
                     Origin = @event.Payload?.Origin
-                });
+                }, new Access { App = Application.Name, Target = t.Length > 1 ? t[1] : null });
             });
         }
         else

@@ -11,7 +11,6 @@ public class UserInfo
     /// <summary>
     /// User ID
     /// </summary>
-    [Schema]
     public string? UserId { get; set; }
 
     /// <summary>

@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
@@ -9,7 +8,7 @@ namespace SchemaNode.Components;
 /// <summary>
 /// The in memory app schema data provider, for unit test only
 /// </summary>
-public class InMemoryAppDataProvider: IAppDataProvider
+public class InMemoryAppDataProvider(IServiceProvider serviceProvider): IAppDataProvider
 {
     public async Task<bool> EnsureDynamicTableAsync(DynamicTableSchema schema)
     {
@@ -17,121 +16,89 @@ public class InMemoryAppDataProvider: IAppDataProvider
         return true;
     }
 
-    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, string target, 
-        JsonNode? filter = null, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, 
-        bool forUpdate = false, bool onlyCount = false)
+    public async Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, AppSchemaDataResult type,
+        AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
+        string? dataField = null, bool forUpdate = false)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
-        
+        string compositeKey = PrepareKey(schema);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
+
         if (!schema.Single)
         {
-            List<JsonNode> origins = [];
-            switch (filter)
+            List<AnySchemaNode> origins = [];
+
+            if (filter == null)
             {
-                case JsonArray arrayTypeNode:
+                origins = list;
+            }
+            else
+            {
+                foreach (StructTypeNode t in list.Cast<StructTypeNode>())
                 {
-                    HashSet<string> query = [];
-                    foreach (var item in arrayTypeNode)
-                    {
-                        if (item is not JsonObject jsonObject) continue;
-                        string? key = schema.GetPrimaryKey(jsonObject);
-                        if (string.IsNullOrEmpty(key)) continue;
-                        query.Add(key);
-                    }
-                    if (query.Count == 0) return (null, 0);
-
-                    foreach (JsonNode t in list)
-                    {
-                        string key =  schema.GetPrimaryKey((JsonObject)t)!;
-                        if (query.Contains(key))
-                            origins.Add(t);
-                    }
-                    break;
+                    if (filter.Test(t).ToValue<bool>())
+                        origins.Add(t);
                 }
-                case JsonObject jsonObject:
-                {
-                    Dictionary<string, string> query = [];
-                    foreach ((string field, AnySchemaNode? value) in schema.GetFieldValues(jsonObject))
-                    {
-                        if (value != null && !value.IsEmpty)
-                            query[field] = value.ToString();
-                    }
-                    
-                    // clear by filter
-                    foreach (JsonNode t in list)
-                    {
-                        bool match = true;
-                        foreach ((string p, string v) in query)
-                        {
-                            if (((JsonObject)t)[p]!.ToString() != v)
-                            {
-                                match = false;
-                                break;
-                            }
-                        }
-
-                        if (match) origins.Add(t);
-                    }
-
-                    break;
-                }
-                default:
-                    return (null, 0);
             }
 
             int total = origins.Count;
-            if (onlyCount) return (null, total);
-            
-            if (skip > 0) origins = origins.Skip(skip).ToList();
-            if (take > 0) origins = origins.Take(take).ToList();
+
+            if (take > 0)
+            {
+                if (skip > 0) origins = origins.Skip(skip).ToList();
+                origins = origins.Take(take).ToList();
+            }
             if (orderBy != null)
             {
                 foreach (AppSchemaDataOrder t in orderBy)
                 {
                     origins.Sort((a, b) =>
                     {
-                        string aKey = ((JsonObject)a)[t.Field]!.GetValue<string>();
-                        string bKey = ((JsonObject)b)[t.Field]!.GetValue<string>();
+                        string aKey = (a is StructTypeNode sa ? sa.GetField(t.Field)?.ToString() : null) ?? string.Empty;
+                        string bKey = (b is StructTypeNode sb ? sb.GetField(t.Field)?.ToString() : null) ?? string.Empty;
                         int result = String.Compare(aKey, bKey, StringComparison.Ordinal);
                         return t.Desc ? -1 * result : result;
                     });
                 }
             }
-            return (new ArrayTypeNode(schema.SchemaType, origins), total);
+
+            return type switch
+            {
+                AppSchemaDataResult.Count => (SchemaContext.SystemInt.CreateNode(total), total),
+                AppSchemaDataResult.Exist => (SchemaContext.SystemBool.CreateNode(total > 0), total),
+                AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
+                AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
+                AppSchemaDataResult.Field => (new ArrayTypeNode(((schema.SchemaType as ArrayType)!.ElementSchemaType as StructType)!.GetField(dataField!)!.SchemaType!, 
+                    origins.Select(o => o is StructTypeNode sn ? sn.GetField(dataField!) : null).Where(x => x != null && !x.IsEmpty).Select(x => x!).ToArray()), total),
+                _ => (new ArrayTypeNode(schema.SchemaType, origins), total)
+            };
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
-            return (schema.SchemaType.CreateNode(origin),origin == null ? 0 : 1);
+            AnySchemaNode? origin = list.FirstOrDefault();
+            return (origin, origin == null ? 0 : 1);
         }
     }
 
-    public Task<(AnySchemaNode? result, int total)> QueryDynamicTableAsync(SchemaContext context, DynamicTableSchema schema, string target, AppSchemaDataResult type,
-        AppSchemaDataFilter? filter, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null,
-        string? dataField = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, string target, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false)
+    public async Task<(bool result, AnySchemaNode? update, AnySchemaNode? origin)> SaveDynamicTableDataAsync(DynamicTableSchema schema, AnySchemaNode? data = null, bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
+        string compositeKey = PrepareKey(schema);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
             Dictionary<string, int> dict = [];
             for(int i = 0; i < list.Count; i++)
-                dict[schema.GetPrimaryKey((JsonObject)list[i])!] = i;
+                if (list[i] is StructTypeNode sni && schema.GetPrimaryKey(sni) is { } k) dict[k] = i;
             
             switch (data)
             {
                 case ArrayTypeNode arrayTypeNode:
                 {
-                    List<JsonNode> origins = [];
+                    List<AnySchemaNode> origins = [];
                     List<AnySchemaNode> updates = [];
                     foreach (AnySchemaNode item in arrayTypeNode)
                     {
@@ -140,14 +107,14 @@ public class InMemoryAppDataProvider: IAppDataProvider
                         if (dict.TryGetValue(key, out int index))
                         {
                             if (onlyAdd) continue; // no update
-                            JsonNode origin = list[index];
-                            list[index] = item.ToJson()!;
+                            AnySchemaNode origin = list[index];
+                            list[index] = item;
                             origins.Add(origin);
                             updates.Add(item);
                         }
                         else if (canAdd)
                         {
-                            list.Add(item.ToJson()!);
+                            list.Add(item);
                             updates.Add(item);
                         }
                         else
@@ -164,13 +131,13 @@ public class InMemoryAppDataProvider: IAppDataProvider
                     if (dict.TryGetValue(key, out int index))
                     {
                         if (onlyAdd) return (false, null, null); // no update
-                        JsonNode origin = list[index];
-                        list[index] = structTypeNode.ToJson()!;
+                        AnySchemaNode origin = list[index];
+                        list[index] = structTypeNode;
                         return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), new ArrayTypeNode(schema.SchemaType, origin));
                     }
                     else if (canAdd)
                     {
-                        list.Add(structTypeNode.ToJson()!);
+                        list.Add(structTypeNode);
                         return (true, new ArrayTypeNode(schema.SchemaType, structTypeNode), null);
                     }
                     else
@@ -184,117 +151,64 @@ public class InMemoryAppDataProvider: IAppDataProvider
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
+            AnySchemaNode? origin = list.FirstOrDefault();
             list.Clear();
-            if (data != null) list.Add(data.ToJson()!);
-            return (true, data, schema.SchemaType.CreateNode(origin));
+            if (data != null) list.Add(data);
+            return (true, data, origin);
         }
     }
 
-    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, string target, JsonNode? filter = null)
+    /// <summary>
+    /// Clear all dynamic table data
+    /// </summary>
+    public async Task<(bool result, AnySchemaNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
     {
         await Task.Yield();
-        ConcurrentDictionary<string, List<JsonNode>> table = _dynamicTables.GetOrAdd(schema.Name, _ => []);
-        List<JsonNode> list = table.GetOrAdd(target, _ => []);
+        string compositeKey = PrepareKey(schema);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        if (table.TryRemove(compositeKey, out List<AnySchemaNode>? list))
+        {
+            return (true, new ArrayTypeNode(schema.SchemaType, list));
+        }
+
+        return (false, null);
+    }
+    
+    public async Task<(bool result, AnySchemaNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
+    {
+        await Task.Yield();
+        string compositeKey = PrepareKey(schema);
+        ConcurrentDictionary<string, List<AnySchemaNode>> table = _dynamicTables.GetOrAdd(schema.AppFieldType.DynamicTableName, _ => []);
+        List<AnySchemaNode> list = table.GetOrAdd(compositeKey, _ => []);
 
         if (!schema.Single)
         {
-            switch (filter)
+            List<AnySchemaNode> origins = [];
+            List<AnySchemaNode> remains = [];
+
+            foreach (StructTypeNode t in list.Cast<StructTypeNode>())
             {
-                case JsonArray arrayTypeNode:
-                {
-                    List<JsonNode> origins = [];
-                    HashSet<string> deletes = [];
-                    foreach (var item in arrayTypeNode)
-                    {
-                        if (item is not JsonObject jsonObject) continue;
-                        string? key = schema.GetPrimaryKey(jsonObject);
-                        if (string.IsNullOrEmpty(key)) continue;
-                        deletes.Add(key);
-                    }
-
-                    if (deletes.Count == 0) return (false, null);
-
-                    List<JsonNode> remain = [];
-                    foreach (JsonNode t in list)
-                    {
-                        string key =  schema.GetPrimaryKey((JsonObject)t)!;
-                        if (deletes.Contains(key))
-                        {
-                            origins.Add(t);
-                        }
-                        else
-                        {
-                            remain.Add(t);
-                        }
-                    }
-                    
-                    table[target] = remain;
-                    
-                    return (true, new ArrayTypeNode(schema.SchemaType, origins));
-                }
-                case JsonObject jsonObject:
-                {
-                    Dictionary<string, string> query = [];
-                    foreach ((string field, AnySchemaNode? value) in schema.GetFieldValues(jsonObject, true))
-                    {
-                        if (value != null && !value.IsEmpty)
-                            query[field] = value.ToString();
-                    }
-
-                    // all clear
-                    if (query.Count == 0)
-                    {
-                        if (schema.IncrUpdate) return (false, null);
-                        
-                        table[target] = [];
-                        return (true,  new ArrayTypeNode(schema.SchemaType, list));
-                    }
-                    
-                    // clear by filter
-                    List<JsonNode> remains = [];
-                    List<JsonNode> origins = [];
-                    foreach (JsonNode t in list)
-                    {
-                        bool match = true;
-                        foreach ((string p, string v) in query)
-                        {
-                            if (((JsonObject)t[p]!).ToString() != v)
-                            {
-                                match = false;
-                                break;
-                            }
-                        }
-
-                        if (match)
-                        {
-                            origins.Add(t);
-                        }
-                        else
-                        {
-                            remains.Add(t);
-                        }
-                    }
-
-                    table[target] = remains;
-                    return (true, new ArrayTypeNode(schema.SchemaType, origins));
-                }
-                default:
-                    return (false, null);
+                if (filter == null || filter.Test(t).ToValue<bool>())
+                    origins.Add(t);
+                else
+                    remains.Add(t);
             }
+
+            table[compositeKey] = remains;
+            return (true, new ArrayTypeNode(schema.SchemaType, origins));
         }
         else
         {
-            JsonNode? origin = list.FirstOrDefault();
+            AnySchemaNode? origin = list.FirstOrDefault();
             list.Clear();
-            return (true, schema.SchemaType.CreateNode(origin));
+            return (true, origin);
         }
     }
     
-    public async Task DropDynamicTableAsync(string dynamicTableName)
+    public async Task DropDynamicTableAsync(DynamicTableSchema schema)
     {
         await Task.Yield();
-        _dynamicTables.TryRemove(dynamicTableName, out _);
+        _dynamicTables.TryRemove(schema.AppFieldType.DynamicTableName, out _);
     }
 
     public Task BeginTransactionAsync()
@@ -309,13 +223,36 @@ public class InMemoryAppDataProvider: IAppDataProvider
 
     public Task RollbackTransactionAsync()
     {
-        throw new NotImplementedException();
+        return Task.CompletedTask;
     }
-
 
     #region Utility
 
-    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<JsonNode>>> _dynamicTables = [];
+    static ConcurrentDictionary<string, ConcurrentDictionary<string, List<AnySchemaNode>>> _dynamicTables = [];
 
+    /// <summary>
+    /// Clears all in-memory data; call between unit tests to ensure isolation.
+    /// </summary>
+    public static void Reset() => _dynamicTables.Clear();
+
+    /// <summary>
+    /// Prepare the composite key from scope and target fields
+    /// </summary>
+    private string PrepareKey(DynamicTableSchema schema)
+    {
+        List<string> keyParts = [];
+        
+        // Add scope items
+        foreach ((string item, AnySchemaNode? value) in schema.GetScopeItems(serviceProvider))
+        {
+            if (value == null || value.IsEmpty)
+                throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
+            keyParts.Add($"{item}:{value}");
+        }
+        
+        // If no scope and no target, use a default key
+        return keyParts.Count > 0 ? string.Join("|", keyParts) : "_default";
+    }
+        
     #endregion
 }

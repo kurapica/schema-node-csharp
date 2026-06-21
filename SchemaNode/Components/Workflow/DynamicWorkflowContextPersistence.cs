@@ -17,7 +17,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             if (snapshot.Forks is { Length: > 0 })
                 await SaveForksAsync(snapshot.Forks);
             
-            await context.CommitTransactionAsync();
+            await context.CommitTransactionAsync(true);
         }
         catch (Exception e)
         {
@@ -56,7 +56,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             if (status == WorkflowStatus.Running)
             {
                 var list = await context.GetEntitiesAsync<WorkflowContextSnapshot>(app, s =>
-                    s.App == app && s.Workflow == workflow && s.RootId == root && s.Status == chkStatus);
+                    s.Workflow == workflow && s.RootId == root && s.Status == chkStatus);
                 foreach (var snapshot in list)
                 {
                     var forks = await ListAsync(app, workflow, snapshot.Id, status);
@@ -67,7 +67,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             else
             {
                 return await context.GetEntitiesAsync<WorkflowContextSnapshot>(app, s =>
-                    s.App == app && s.Workflow == workflow && s.RootId == root && s.Status == chkStatus, take ?? 50, skip ?? 0);
+                    s.Workflow == workflow && s.RootId == root && s.Status == chkStatus, take ?? 50, skip ?? 0);
             }
         }
         catch (Exception e)

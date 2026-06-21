@@ -1,0 +1,6 @@
+namespace SchemaNode.Property.Core;
+
+/// <summary>
+/// Declare more equivalent type for the scalar types
+/// </summary>
+public class ClrEquivalent: Property<Type>;

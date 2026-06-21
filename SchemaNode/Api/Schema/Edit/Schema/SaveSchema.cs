@@ -101,6 +101,11 @@ public class NodeSchemaData
     /// </summary>
     public PolicySchema? Policy { get; set; }
 
+    /// <summary>
+    /// The recognizer schema if type is recognizer
+    /// </summary>
+    public RecognizerSchema? Recognizer { get; set; }
+
     #region Conversion
 
     public static implicit operator NodeSchema(NodeSchemaData schema)
@@ -117,6 +122,7 @@ public class NodeSchemaData
             Array = schema.Type == SchemaType.Array ? schema.Array : null,
             Func = schema.Type == SchemaType.Func ? schema.Func : null,
             Policy = schema.Type == SchemaType.Policy ? schema.Policy : null,
+            Recognizer = schema.Type == SchemaType.Recognizer ? schema.Recognizer : null,
             LoadState = SchemaLoadState.Server
         };
     }

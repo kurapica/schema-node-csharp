@@ -30,7 +30,29 @@ public static class AppDataTableExtension
             if (schema != null) return schema;
 
             schema = field.GenDynamicTableSchema();
-            await dataProvider.EnsureDynamicTableAsync(schema);
+            if (field.SystemMaintain != true)
+            {
+                // Makes sure the source field is prepared
+                if (field.IsForeignView)
+                {
+                    AppFieldType foreignField = (await context.GetAppTypeAsync(field.View!.App))?.GetField(field.View.Field) ?? throw new InvalidOperationException($"Foreign view field {field.View.App}.{field.View.Field} not exist");
+                    await context.PrepareFieldDataAsync(foreignField);
+                }
+                else
+                {
+                    // Prepare the dynamic table and join fields
+                    await dataProvider.EnsureDynamicTableAsync(schema);
+                    if (schema.Joins is { Length: > 0 })
+                    {
+                        foreach (DynamicTableJoin join in schema.Joins)
+                        {
+                            AppFieldType joinField = field.Application.GetField(join.Field) ?? throw new InvalidOperationException($"Join field {join.Field} not exist");
+                            await context.PrepareFieldDataAsync(joinField);
+                        }
+                    }
+                }
+            }
+
             field.Schema = schema;
             return schema;
         }
@@ -59,7 +81,7 @@ public static class AppDataTableExtension
     }
 
     /// <summary>
-    /// Assert the app field type match the value type
+    /// Assert the app field type contains the value type
     /// </summary>
     internal static void AssertType<T>(this SchemaContext context, AppFieldType field)
     {
@@ -67,6 +89,6 @@ public static class AppDataTableExtension
         if (type is ArrayType arr) type = arr.ElementSchemaType;
         Type? ctype = type?.ToCSharpType();
         if (ctype == null || !ctype.IsAssignableFrom(typeof(T)))
-            throw new ArgumentException("The app field type don't match the value type");
+            throw new ArgumentException("The app field type don't contains the value type");
     }
 }

@@ -22,9 +22,9 @@ public class PushAppDataApi : SchemaApi<PushAppDataRequest, PushAppDataResponse>
     protected override async Task<PushAppDataResponse?> ExecuteAsync(PushAppDataRequest request,
         CancellationToken cancellationToken)
     {
-        Logger.LogDebug("[Api]PushAppData [Request]{request}", request);
+        Logger.LogDebug("[Api]PushAppData [Request]{app} - {target}", request.App, request.Target);
         
-        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target);
+        using var criticalRegion = await GetLockAsync("PushAppData:{0}{1}", request.App, request.Target ?? Guid.Empty.ToString());
         (bool result, JsonNode? error) = await SchemaContext.PushAppDataAsync(request.App, request.Target, request.Datas);
         
         return new PushAppDataResponse
@@ -47,12 +47,15 @@ public static class PushDataExtenstion
         Dictionary<string, AppDataFieldPushQuery>? data)
     {
         if (string.IsNullOrWhiteSpace(app)) return (false, APP_NOT_FOUND);
-        if (string.IsNullOrWhiteSpace(target)) return (false, APP_TARGET_REQUIRED);
         if (data == null || data.Count == 0) return (false, APP_PUSH_DATA_REQUIRED);
 
         AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, APP_NOT_FOUND);
-        
+
+        // target is required for non-system-level apps
+        if (appNode.ScopeType != AppScopeType.SystemLevel && string.IsNullOrWhiteSpace(target))
+            return (false, APP_TARGET_REQUIRED);
+
         // set access
         context.SetAccess(appNode.Name, target);
         
@@ -72,13 +75,17 @@ public static class PushDataExtenstion
                 // no permission to delete data
                 if (!canDel && push.Deletes is { Count: > 0 })
                     throw new UnauthorizedAccessException();
+                
+                // Check clear all
+                if (push.ClearAll == true && (!canDel || appField.AllowClear != true))
+                    throw new UnauthorizedAccessException();
 
                 // row access check
                 FunctionType? rowChecker = null;
                 if (appField is {  SchemaType: ArrayType {  ElementSchemaType: StructType structType }, RowAuths.Length: > 0 })
                 {
                     bool authorized = true;
-                    foreach (RowPolicyItem policy in appField.RowAuths)
+                    foreach (RowPolicy policy in appField.RowAuths)
                     {
                         try
                         {
@@ -137,16 +144,35 @@ public static class PushDataExtenstion
                     await context.BeginTransactionAsync();
                 }
 
+                if (push.ClearAll == true)
+                {
+                    await context.ClearFieldDataAsync(appField);
+                    continue;
+                }
+
                 // validate and save data
                 if (push.Data != null)
                 {
                     (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Data);
-                    if (error != null) return (false, error);
-                    await context.SaveFieldDataAsync(appField, target, result, canAdd: canAdd);
+                    if (error != null)
+                    {
+                        if (hasData) await context.RollbackTransactionAsync();
+                        return (false, error);
+                    }
+                    await context.SaveFieldDataAsync(appField, result, canAdd: canAdd);
                 }
-            
+
                 if (push.Deletes is { Count: > 0 })
-                    await context.DeleteFieldListDataAsync(appField, target, push.Deletes);
+                {
+                    (_, AnySchemaNode? result, JsonNode? error) = await appField.ValidateDataAsync(context, push.Deletes);
+                    if (error != null)
+                    {
+                        if (hasData) await context.RollbackTransactionAsync();
+                        return (false, error);
+                    }
+                    if (result != null)
+                        await context.DeleteFieldListDataAsync(appField, result);
+                }
             }
 
             if (hasData)
@@ -194,10 +220,9 @@ public class PushAppDataRequest : SchemaApiRequest
     public required string App { get; set; }
 
     /// <summary>
-    /// The target
+    /// The target (not required for system-level scope apps)
     /// </summary>
-    [Required]
-    public required string Target { get; set; }
+    public string? Target { get; set; }
 
     /// <summary>
     /// The push data
@@ -232,4 +257,9 @@ public class AppDataFieldPushQuery
     /// The deleted data
     /// </summary>
     public JsonArray? Deletes { get; set; }
+    
+    /// <summary>
+    /// Clear all existing data for the field
+    /// </summary>
+    public bool? ClearAll { get; set; }
 }

@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using System.ComponentModel.DataAnnotations;
 using static SchemaNode.Utility.Constant;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Schema;
@@ -13,7 +14,8 @@ namespace SchemaNode.Schema;
 /// The schema is used to describe the data node
 /// </summary>
 [SchemaApp]
-public class NodeSchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF}.{nameof(NodeSchema)}")]
+public sealed class NodeSchema
 {
     /// <summary>
     /// The parent schema name
@@ -40,10 +42,30 @@ public class NodeSchema
     /// </summary>
     public LocaleString? Display { get; set; }
 
+    [NotMapped]
+    [JsonIgnore]
+    public Dictionary<string, JsonElement>? Extensions
+    {
+        get => Type switch { 
+            SchemaType.Scalar => Scalar?.Extensions,
+            SchemaType.Enum => Enum?.Extensions,
+            SchemaType.Struct => Struct?.Extensions,
+            SchemaType.Array => Array?.Extensions,
+            SchemaType.Func => Func?.Extensions,
+            SchemaType.Event => Event?.Extensions,
+            SchemaType.Workflow => Workflow?.Extensions,
+            SchemaType.Policy => Policy?.Extensions,
+            SchemaType.Recognizer => Recognizer?.Extensions,
+            SchemaType.Property => Property?.Extensions,
+            _ => null
+        };
+        set => _extensions = value;
+    }
+
     /// <summary>
     /// The authentication policy type
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_POLICY_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_POLICY)]
     public string? Auth { get; set; }
 
     /// <summary>
@@ -93,7 +115,19 @@ public class NodeSchema
     /// </summary>
     [NotMapped]
     public PolicySchema? Policy  { get; set; }
-    
+
+    /// <summary>
+    /// The recognizer schema
+    /// </summary>
+    [NotMapped]
+    public RecognizerSchema? Recognizer { get; set; }
+
+    /// <summary>
+    /// The property schema
+    /// </summary>
+    [NotMapped]
+    public PropertySchema? Property { get; set; }
+
     /// <summary>
     /// The load state
     /// </summary>
@@ -141,6 +175,12 @@ public class NodeSchema
     /// </summary>
     [NotMapped]
     public NodeSchema[]? Schemas  { get; set; }
+    
+    /// <summary>
+    /// The compatible schemas
+    /// </summary>
+    [NotMapped]
+    public CompatibleSchema[]? Compatibles { get; set; }
 
     /// <summary>
     /// The schema provider used to fetch the node schema
@@ -177,6 +217,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Scalar) return this;
         Scalar = scalar;
+        Scalar.Extensions = _extensions;
         return this;
     }
 
@@ -184,6 +225,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Enum) return this;
         Enum = enumSchema;
+        Enum.Extensions = _extensions;
         return this;
     }
 
@@ -191,6 +233,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Struct) return this;
         Struct = structSchema;
+        Struct.Extensions = _extensions;
         return this;
     }
 
@@ -198,6 +241,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Array) return this;
         Array = arraySchema;
+        Array.Extensions = _extensions;
         return this;
     }
 
@@ -205,6 +249,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Func) return this;
         Func = functionSchema;
+        Func.Extensions = _extensions;
         return this;
     }
 
@@ -212,6 +257,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Event) return this;
         Event = eventSchema;
+        Event.Extensions = _extensions;
         return this;
     }
 
@@ -219,6 +265,7 @@ public class NodeSchema
     {
         if (Type != SchemaType.Workflow) return this;
         Workflow = workflowSchema;
+        Workflow.Extensions = _extensions;
         return this;
     }
 
@@ -226,7 +273,51 @@ public class NodeSchema
     {
         if (Type != SchemaType.Policy) return this;
         Policy = policySchema;
+        Policy.Extensions = _extensions;
         return this;
+    }
+
+    internal NodeSchema With(RecognizerSchema recognizerSchema)
+    {
+        if (Type != SchemaType.Recognizer) return this;
+        Recognizer = recognizerSchema;
+        Recognizer.Extensions = _extensions;
+        return this;
+    }
+
+    internal NodeSchema With(PropertySchema propSchema)
+    {
+        if (Type != SchemaType.Property) return this;
+        Property = propSchema;
+        Property.Extensions = _extensions;
+        return this;
+    }
+
+    /// <summary>
+    /// Used to combine custom schema to system schema
+    /// </summary>
+    internal void CombineCustomSchema(NodeSchema? other)
+    {
+        if (other == null || other.Type != Type) return;
+
+        Display = Display != null ? Display.Concat(other.Display) : other.Display;
+        Auth = string.IsNullOrWhiteSpace(other.Auth) ? Auth : other.Auth;
+
+        switch (Type)
+        {
+            case SchemaType.Scalar:
+                Scalar?.CombineCustomSchema(other.Scalar);
+                break;
+            case SchemaType.Enum:
+                Enum?.CombineCustomSchema(other.Enum);
+                break;
+            case SchemaType.Array:
+                Array?.CombineCustomSchema(other.Array);
+                break;
+            case SchemaType.Struct:
+                Struct?.CombineCustomSchema(other.Struct);
+                break;
+        }
     }
 
     #endregion
@@ -235,6 +326,7 @@ public class NodeSchema
 
     private SchemaLoadState? _schemaLoadState;
     private Type? _schemaProvider;
+    private Dictionary<string, JsonElement>? _extensions;
 
     #endregion
 }
@@ -243,7 +335,7 @@ public class NodeSchema
 /// The locale translate
 /// </summary>
 [Schema(NS_SYSTEM_LOCALE_TRAN)]
-public class LocaleTran
+public sealed class LocaleTran
 {
     /// <summary>
     /// default constructor
@@ -285,7 +377,7 @@ public class LocaleTran
 /// The locale string
 /// </summary>
 [Schema(NS_SYSTEM_LOCALE_STRING)]
-public class LocaleString : ICloneable
+public sealed class LocaleString : ICloneable
 {
     /// <summary>
     /// default constructor
@@ -351,11 +443,51 @@ public class LocaleString : ICloneable
     }
 
     /// <summary>
+    /// Convert locale string to string
+    /// </summary>
+    public static implicit operator string(LocaleString locale)
+    {
+        return locale.Key;
+    }
+
+    /// <summary>
     /// Clone the locale string
     /// </summary>
     public object Clone()
     {
         return new LocaleString(Key, Trans?.Select(t => new LocaleTran(t.Lang, t.Tran)).ToArray() ?? []);
+    }
+
+    /// <summary>
+    /// To string
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString() => Key;
+
+    public LocaleString Concat(LocaleString? other)
+    {
+        if (other == null) return this;
+        Key = string.IsNullOrWhiteSpace(other.Key) ? Key : other.Key;
+
+        // Combine trans
+        if (Trans == null || Trans.Length == 0)
+            Trans = other.Trans;
+        else if (other.Trans is { Length: > 0 })
+        {
+            foreach (LocaleTran tran in Trans)
+            {
+                var inOther = other.Trans.FirstOrDefault(t => t.Lang.Equals(tran.Lang, StringComparison.OrdinalIgnoreCase));
+                if (inOther != null)
+                {
+                    tran.Tran = string.IsNullOrWhiteSpace(inOther.Tran) ? tran.Tran : inOther.Tran;
+                }
+            }
+            var otherOnly = other.Trans.Where(t => !Trans.Any(a => a.Lang.Equals(t.Lang, StringComparison.OrdinalIgnoreCase))).ToArray();
+            if (otherOnly is { Length: > 0 })
+                Trans = Trans.Concat(otherOnly).ToArray();
+        }
+
+        return this;
     }
 }
 
@@ -363,7 +495,7 @@ public class LocaleString : ICloneable
 /// The dict entry
 /// </summary>
 [Schema(NS_SYSTEM_ENTRY)]
-public class Entry
+public sealed class Entry
 {
     /// <summary>
     /// The entry value
@@ -376,4 +508,16 @@ public class Entry
     /// The entry label
     /// </summary>
     public LocaleString? Label { get; set; }
+    
+    /// <summary>
+    /// The entry children
+    /// </summary>
+    public Entry[]? Children { get; set; }
 }
+
+/// <summary>
+/// The compatible schema record
+/// </summary>
+/// <param name="To">The compatible type</param>
+/// <param name="Convert">The convert function</param>
+public sealed record CompatibleSchema(string To, string Convert);

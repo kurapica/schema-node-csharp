@@ -1,9 +1,10 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -13,7 +14,8 @@ namespace SchemaNode.Schema;
 /// The permission policy schema
 /// </summary>
 [SchemaApp]
-public class PolicySchema
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.schema")]
+public sealed class PolicySchema: ISchemaExtensions
 {
     /// <summary>
     /// The policy name
@@ -27,12 +29,19 @@ public class PolicySchema
     /// The policy items
     /// </summary>
     public PolicyItem[] Items { get; set; } = [];
+
+    /// <summary>
+    /// The extensions
+    /// </summary>
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extensions { get; set; }
 }
 
 /// <summary>
 /// The policy item schema
 /// </summary>
-public class PolicyItem
+[Schema($"{NS_SYSTEM_SCHEMA_DEF_POLICY}.item")]
+public sealed class PolicyItem
 {
     /// <summary>
     /// The policy scope
@@ -42,7 +51,7 @@ public class PolicyItem
     /// <summary>
     /// The policy evaluator
     /// </summary>
-    [Schema(NS_SYSTEM_SCHEMA_EVALUATOR_FUNC_TYPE)]
+    [Schema(NS_SYSTEM_SCHEMA_TYPE_RULE_EVALUATOR)]
     public required string Evaluator { get; set; }
 
     /// <summary>

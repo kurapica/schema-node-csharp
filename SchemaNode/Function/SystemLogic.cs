@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
@@ -15,54 +16,25 @@ namespace SchemaNode.Function;
 [Schema(NS_SYSTEM_LOGIC)]
 public static class SystemLogic
 {
-    #region Terminate Functions
-    
     /// <summary>
-    /// system.logic.ifret
-    /// if match the condition, return the value and stop the execution
+    /// system.logic.and
     /// </summary>
     [Schema]
-    public static T? ifret<T>(bool cond, T? value) => value;
-    
-    /// <summary>
-    /// system.logic.ifnot
-    /// if not match the condition, return the value and stop the execution
-    /// </summary>
-    [Schema]
-    public static T? ifnot<T>(bool cond, T? value) => value;
-    
-    /// <summary>
-    /// system.logic.ifnull
-    /// if the value is null, return the value and stop the execution
-    /// </summary>
-    [Schema]
-    public static T1? ifnull<T1, T2>(T2? val, T1? value) => value;
-    
-    /// <summary>
-    /// system.logic.ifempty
-    /// if the value is empty, return the value and stop the execution
-    /// </summary>
-    [Schema]
-    public static T1? ifempty<T1, T2>(T2? val, T1? value) => value;
-    
-    #endregion
+    [Logic(LogicType.AndAlso)]
+    public static bool and([Default(false)] bool a, [Default(false)] bool b) => a && b;
 
     /// <summary>
-    /// system.logic.andalso
+    /// system.logic.or
     /// </summary>
     [Schema]
-    public static bool andalso([Default(false)] bool a, [Default(false)] bool b) => a && b;
-
-    /// <summary>
-    /// system.logic.orelse
-    /// </summary>
-    [Schema]
-    public static bool orelse([Default(false)] bool a, [Default(false)] bool b) => a || b;
+    [Logic(LogicType.OrElse)]
+    public static bool or([Default(false)] bool a, [Default(false)] bool b) => a || b;
 
     /// <summary>
     /// system.logic.not
     /// </summary>
     [Schema]
+    [Logic(LogicType.Not)]
     public static bool not(bool a) => !a;
 
     /// <summary>
@@ -82,18 +54,21 @@ public static class SystemLogic
     /// system.logic.isnull
     /// </summary>
     [Schema]
+    [Logic(LogicType.IsNull)]
     public static bool isnull<T>(T? a) => a is null;
     
     /// <summary>
     /// system.logic.notnull
     /// </summary>
     [Schema]
+    [Logic(LogicType.NotNull)]
     public static bool notnull<T>(T? a) => a is not null;
 
     /// <summary>
     /// system.logic.isempty
     /// </summary>
     [Schema]
+    [Logic(LogicType.IsEmpty, true)]
     public static bool isempty(object? a)
     {
         if (a is null) return true;
@@ -104,7 +79,7 @@ public static class SystemLogic
             case JsonNode j:
                 return j.IsEmpty();
             case string s:
-                return s.Length == 0;
+                return string.IsNullOrWhiteSpace(s);
             case IEnumerable e:
             {
                 IEnumerator enumerator = e.GetEnumerator();
@@ -125,41 +100,48 @@ public static class SystemLogic
     /// system.logic.notempty
     /// </summary>
     [Schema]
-    public static bool notempty<T>(T? a) => !isempty(a);
+    [Logic(LogicType.NotEmpty, true)]
+    public static bool notempty(object? a) => !isempty(a);
 
     /// <summary>
-    /// system.logic.equal
+    /// system.logic.eq
     /// </summary>
     [Schema]
-    public static bool equal<T>(T a, T b) where T: IComparable => a.Equals(b);
+    [Logic(LogicType.Equal)]
+    public static bool eq<T>(T? a, T? b) where T: IComparable => a == null && b == null || a != null && a.Equals(b);
 
     /// <summary>
-    /// system.logic.notequal
+    /// system.logic.neq
     /// </summary>
     [Schema]
-    public static bool notequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) != 0;
+    [Logic(LogicType.NotEqual)]
+    public static bool neq<T>(T? a, T? b) where T : IComparable => !eq(a, b);
 
     /// <summary>
-    /// system.logic.greateequal
+    /// system.logic.ge
     /// </summary>
     [Schema]
-    public static bool greateequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) >= 0;
+    [Logic(LogicType.GreaterEqual)]
+    public static bool ge<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) >= 0;
 
     /// <summary>
-    /// system.logic.greatethan
+    /// system.logic.gt
     /// </summary>
     [Schema]
-    public static bool greatethan<T>(T a, T b) where T: IComparable => a.CompareTo(b) > 0;
+    [Logic(LogicType.GreaterThan)]
+    public static bool gt<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) > 0;
 
     /// <summary>
-    /// system.logic.lessequal
+    /// system.logic.le
     /// </summary>
     [Schema]
-    public static bool lessequal<T>(T a, T b) where T: IComparable => a.CompareTo(b) <= 0;
+    [Logic(LogicType.LessEqual)]
+    public static bool le<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) <= 0;
 
     /// <summary>
-    /// system.logic.lessthan
+    /// system.logic.lt
     /// </summary>
     [Schema]
-    public static bool lessthan<T>(T a, T b) where T: IComparable => a.CompareTo(b) < 0;
+    [Logic(LogicType.LessThan)]
+    public static bool lt<T>(T? a, T? b) where T: IComparable => a != null && b != null && a.CompareTo(b) < 0;
 }

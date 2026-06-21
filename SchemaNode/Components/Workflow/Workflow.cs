@@ -73,6 +73,11 @@ public abstract class Workflow
     /// Cancel the previous workflow(s) when this workflow is triggered
     /// </summary>
     internal bool CancelPre { get; set; }
+    
+    /// <summary>
+    /// Notify payload to save in workflow context
+    /// </summary>
+    internal bool PayloadSave { get; set; }
 
     #endregion
 
@@ -81,8 +86,8 @@ public abstract class Workflow
     /// <summary>
     /// Sets the payload, the workflow will be marked as done or fork a new workflow context for the next workflow
     /// </summary>
-    protected void SetPayload(WorkflowContext context, object? payload)
-        => context.Done(this, payload != null ? PayloadType?.CreateNode(payload) : null);
+    protected void SetPayload(WorkflowContext context, object? payload = null, Access? access = null)
+        => context.Done(this, payload != null ? PayloadType?.CreateNode(payload) : null, access);
     
     /// <summary>
     /// Find the next workflow by name(include self)

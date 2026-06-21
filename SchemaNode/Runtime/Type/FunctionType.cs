@@ -2,7 +2,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -23,10 +22,10 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public class FunctionType: AnySchemaType
+public sealed class FunctionType : AnySchemaType
 {
     #region Data
-    
+
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type
     /// </summary>
@@ -51,16 +50,36 @@ public class FunctionType: AnySchemaType
     /// <summary>
     /// Call server if server provided
     /// </summary>
-    public bool? Server  { get; private set; }
+    public bool? Server { get; private set; }
 
     /// <summary>
     /// The client should not cache the result
     /// </summary>
-    public bool? Nocache  { get; private set; }
+    public bool? Nocache { get; private set; }
+
+    /// <summary>
+    /// As type converter
+    /// </summary>
+    public bool? Converter { get; private set; }
+
+    /// <summary>
+    /// The function has side effects
+    /// </summary>
+    public bool? SideEffect { get; private set; }
+    
+    /// <summary>
+    /// The function is workflow only
+    /// </summary>
+    public bool? WorkflowOnly { get; private set; }
     
     #endregion
     
     #region Status
+    
+    /// <summary>
+    /// The method info of the function if it's a system function
+    /// </summary>
+    public MethodInfo? MethodInfo { get; private set; }
     
     /// <inheritdoc />
     public override SchemaType Type => SchemaType.Func;
@@ -115,6 +134,10 @@ public class FunctionType: AnySchemaType
         Generic = func?.Generic != null ? new AnySchemaType?[func.Generic.Length] : [];
         Server = func?.Server;
         Nocache = func?.Nocache;
+        Converter = func?.Converter;
+        SideEffect = func?.SideEffect;
+        WorkflowOnly = func?.WorkflowOnly;
+        MethodInfo = StaticMethodMap.TryGetValue(schema.Name, out SchemaFuncInfo? info) ? info.Method : null;
 
         // Status
         if (func == null)
@@ -209,8 +232,17 @@ public class FunctionType: AnySchemaType
                 exp.SchemaType?.AddRef(this);
                 exp.FuncNode?.AddRef(this);
                 
+                // State taint
                 if (exp.FuncNode?.RequireRemoteCall == true)
                     RequireRemoteCall = true;
+                if (exp.FuncNode?.Server == true)
+                    Server = true;
+                if (exp.FuncNode?.WorkflowOnly == true)
+                    WorkflowOnly = true;
+                if (exp.FuncNode?.SideEffect == true)
+                    SideEffect = true;
+                if (exp.FuncNode?.Nocache == true)
+                    Nocache = true;
             }
         }
         else if (isOkay)
@@ -246,7 +278,7 @@ public class FunctionType: AnySchemaType
     }
 
     /// <inheritdoc />
-    public override bool CanBeUseAs(AnySchemaType other) => false;
+    public override bool CanBeUseAs(AnySchemaType other, bool exactly = false) => false;
 
     /// <inheritdoc />
     public override ArrayType? GetArrayType(bool exactly = false) => null;
@@ -338,6 +370,22 @@ public class FunctionType: AnySchemaType
         }
         value = default;
         return false;
+    }
+    
+    /// <summary>
+    /// Clear the runtime function cache for the type
+    /// </summary>
+    public void ClearRuntimeFuncCache(Type TK)
+    {
+        _runtimeFuncCache.TryRemove(TK, out _);
+    }
+    
+    /// <summary>
+    /// Clear the runtime function cache for the type
+    /// </summary>
+    public void ClearRuntimeFuncCache<TK>()
+    {
+        _runtimeFuncCache.TryRemove(typeof(TK), out _);
     }
 
     #endregion
@@ -452,15 +500,12 @@ public class FunctionType: AnySchemaType
     #region Call Function
     
     /// <summary>
-    /// Call the function asynchronously
+    /// Call the system function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
-        where TC: CompileContext
+    private async Task<object?> CallSystemFuncAsync(SchemaContext context, object?[] args, string? rType = null)
     {
         // Argument validation
         SchemaFuncInfo funcInfo = await GetSchemaFuncInfoAsync(context) ?? throw new Exception($"Function {Name} can't be complied");
-
-        FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
         
         // Generic types
         Type?[] generics = new Type?[funcInfo.Generics.Length];
@@ -482,7 +527,7 @@ public class FunctionType: AnySchemaType
         }
         
         // parse parameters
-        object?[] callArgs = new object[funcSchema.Args.Length];
+        object?[] callArgs = new object[funcInfo.Args.Length];
         for (int i = 0; i < funcInfo.Args.Length; i++)
         {
             SchemaParamTypeInfo arg = funcInfo.Args[i];
@@ -547,7 +592,7 @@ public class FunctionType: AnySchemaType
                 int count = 0;
                 for (int j = funcInfo.Args.Length - 1; j < Math.Max(args.Length, funcInfo.Args.Length); j++)
                 {
-                    object? argObj = args.ElementAtOrDefault(i);
+                    object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
                     AnySchemaNode? argNode = argObj as AnySchemaNode;
 
@@ -587,7 +632,7 @@ public class FunctionType: AnySchemaType
 
                     if (eleType == null) throw new Exception($"The {j + 1} argument not valid");
 
-                    array ??= Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, j - funcInfo.Args.Length + 2));
+                    array ??= Array.CreateInstance(eleType.GetElementType() ?? eleType, Math.Max(0, args.Length - j + 1));
                     array.SetValue(argObj, count++);
                 }
                 array ??= Array.CreateInstance(eleType?.GetElementType() ?? eleType ?? typeof(object), 0);
@@ -595,90 +640,110 @@ public class FunctionType: AnySchemaType
             }
         }
         
-        // for more arguments than defined, only custom function support
-        for (int i = funcInfo.Args.Length; i < funcSchema.Args.Length; i++)
-        {
-            ArgumentExpression arg = funcSchema.Args[i];
-            
-            object? argObj = args.ElementAtOrDefault(i);
-            JsonNode? argJson = argObj as JsonNode;
-            AnySchemaNode? argNode = argObj as AnySchemaNode;
-
-            // check null or empty
-            if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
-            {
-                if (arg.Nullable) continue;
-                throw new Exception($"The {i + 1} argument must be provided");
-            }
-
-            // Parse argument
-            Type eleType = arg.SchemaType.ToCSharpType();
-
-            // JsonNode
-            if (argJson != null)
-            {
-                callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-            // AnySchemaNode
-            else if (argNode != null)
-            {
-                if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
-                    callArgs[i] = argNode;
-                else
-                    callArgs[i] = argNode.ToTypeValue(eleType!) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-            // object
-            else
-            {
-                callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
-            }
-        }
-        
-
         if ((funcInfo.Sign & FUNC_SIGN_CONTEXT) > 0)
             callArgs = callArgs.Prepend(context).ToArray();
+        
+        // Call the method
+        MethodInfo callMethod = funcInfo.Method!;
 
+        // Gets the generic method instance
+        if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
+        {
+            for (int i = 0; i < generics.Length; i++) generics[i] ??= typeof(object);
+            if (generics.Any(g => g is null)) throw new Exception("The generic types must be provided");
+
+            string genSign = string.Join('|', generics.Select(p => p!.Name));
+            callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
+        }
+
+        // Call the method
+        return (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
+            ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
+            : callMethod.Invoke(null, callArgs);
+    }
+    
+    /// <summary>
+    /// Call the function asynchronously
+    /// </summary>
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
+        where TC: CompileContext
+    {
         object? result;
 
         // Remote call
         if (IsRemoteCall)
         {
-            if (generics.Any(g => g == null))
-                throw new Exception($"The generic types can't be resolved for remote call");
-
             JsonArray cArgs = [];
             foreach (object? arg in args) 
                 cArgs.Add(arg is AnySchemaNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
             result = SchemaProvider != null
-                ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider))
-                    .CallFunctionAsync(Name, cArgs, rType, target)
+                ? await ((ISchemaProvider)context.GetRequiredService(SchemaProvider)).CallFunctionAsync(Name, cArgs, rType, target)
                 : null;
         }
 
         // Call system method
-        else if ((funcInfo.Sign & FUNC_SIGN_IMMUTABLE) == FUNC_SIGN_IMMUTABLE)
+        else if (IsSystemCall)
         {
-            MethodInfo callMethod = funcInfo.Method!;
-
-            // Gets the generic method instance
-            if ((funcInfo.Sign & FUNC_SIGN_GENERIC) == FUNC_SIGN_GENERIC)
-            {
-                if (generics.Any(g => g is null)) throw new Exception($"The generic types must be provided");
-
-                string genSign = string.Join('|', generics.Select(p => p!.Name));
-                callMethod = funcInfo.GenericMethods.GetOrAdd(genSign, _ => funcInfo.Method!.MakeGenericMethod(generics!));
-            }
-
-            // Call the method
-            result = (funcInfo.Sign & FUNC_SIGN_ASYNC) == FUNC_SIGN_ASYNC
-                ? GetCallAsyncFunc(callMethod.ReturnType.GetGenericArguments()[0]).Invoke(null, [callMethod, callArgs])
-                : callMethod.Invoke(null, callArgs);
+            result = await CallSystemFuncAsync(context, args, rType);
         }
 
         // Invoke the dynamic method
         else
         {
+            // Argument validation
+            FunctionTypeSchema funcSchema = await context.VisitFunctionTypeAsync<TC>(this);
+        
+            // parse parameters
+            object?[] callArgs = new object[funcSchema.Args.Length];
+            for (int i = 0; i < funcSchema.Args.Length; i++)
+            {
+                ArgumentExp arg = funcSchema.Args[i];
+            
+                // validate argument
+                object? argObj = args.ElementAtOrDefault(i);
+                JsonNode? argJson = argObj as JsonNode;
+                AnySchemaNode? argNode = argObj as AnySchemaNode;
+
+                // check null or empty
+                if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
+                {
+                    if (arg.Nullable) continue;
+                    throw new Exception($"The {i + 1} argument must be provided");
+                }
+
+                // Parse argument
+                var eleType = arg.SchemaType.ToCSharpType();
+
+                if (eleType.IsAssignableTo(typeof(AnySchemaNode)))
+                {
+                    callArgs[i] = arg.SchemaType.CreateNode(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                }
+                else
+                {
+                    // AnySchemaNode
+                    if (argNode != null)
+                    {
+                        callArgs[i] = argNode.ToTypeValue(eleType) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                
+                    // JsonNode | object
+                    else if (argJson != null)
+                    {
+                        callArgs[i] = eleType.TryConvert(argJson) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                    
+                    // other
+                    else
+                    {
+                        callArgs[i] = eleType.TryConvert(argObj) ?? throw new Exception($"The {i + 1} argument must be provided and valid");
+                    }
+                }
+            }
+        
+            // All custom function use context
+            callArgs = callArgs.Prepend(context).ToArray();
+
             try
             {
                 Delegate method = await context.CompileFunctionTypeAsync<TC>(this)
@@ -713,17 +778,7 @@ public class FunctionType: AnySchemaType
         }
         else if (retType.IsAssignableTo(typeof(AnySchemaNode)))
         {
-            AnySchemaType? funcReturnType = !string.IsNullOrEmpty(funcInfo.Return.SchemaType)
-                ? await context.GetSchemaTypeAsync(funcInfo.Return.SchemaType)
-                : null;
-
-            if (funcReturnType is not { IsValueType: true } && funcInfo.Return.Generic != null)
-            {
-                string? returnType = GetArgType(funcInfo.Return)?.GetSchemaType();
-                funcReturnType = returnType != null ? await context.GetSchemaTypeAsync(returnType) : null;
-            }
-            
-            return (T)(object)(funcReturnType?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
+            return (T)(object)(ReturnNode?.CreateNode(result) ?? await context.GetSchemaNodeAsync(result) ?? throw new Exception("The return type can't be resolved"));
         }
         return (T?)typeof(T).TryConvert(result);
     }
@@ -736,7 +791,7 @@ public class FunctionType: AnySchemaType
 
     #endregion
 
-    #region Register System Functions
+    #region Register System Functions 
 
     /// <summary>
     /// Register all schema function and its namespace
@@ -763,19 +818,27 @@ public class FunctionType: AnySchemaType
         }
 
         // Generate func schema
-        var name = funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name.ToLowerInvariant()}";
+        var name = (funcAttr.Name ?? $"{(string.IsNullOrEmpty(ns) ? "" : $"{ns}.")}{method.Name}").ToLowerInvariant();
+
+        // Keep in the same namespace
+        if (funcAttr?.Name != null)
+            ns = string.Join('.', funcAttr.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
+
         NodeSchema funcSchema = new NodeSchema
         {
             Name = name,
             Type = SchemaType.Func,
-            Display = funcAttr.Display?? method.GetSummaryFromXmlDoc() ?? name,
+            Display = funcAttr?.Display ?? method.GetSummaryFromXmlDoc() ?? name,
             Func = new FunctionSchema
             {
                 Return = string.Empty,
                 Args = new FuncArg[parameters.Length],
                 Exps = [],
-                Nocache = method.GetCustomAttribute<NoCacheAttribute>() != null,
-                Server = method.GetCustomAttribute<ServerOnlyAttribute>() != null,
+                Nocache = method.IsDefined(typeof(NoCacheAttribute)),
+                Server = method.IsDefined(typeof(ServerOnlyAttribute)),
+                SideEffect = method.IsDefined(typeof(SideEffectAttribute)),
+                Converter = method.IsDefined(typeof(ConverterAttribute)),
+                WorkflowOnly = method.IsDefined(typeof(WorkflowOnlyAttribute)),
                 Generic = genInfos.Select(g => g is { AnyArray: false, Number: true } ? NS_SYSTEM_NUMBER : "").ToArray(),
             }
         };
@@ -795,6 +858,7 @@ public class FunctionType: AnySchemaType
                 Nullable = pt.Nullable || p.HasDefaultValue || 
                     p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
                     p.IsDefined(typeof(DefaultAttribute), false),
+                Display = method.GetSummaryFromXmlDoc(p) ?? null,
                 Default = p.GetCustomAttribute<DefaultAttribute>()?.Value, // not the default value of the parameter
             };
             funcSchema.Func.Args[i] = arg;
@@ -901,6 +965,9 @@ public class FunctionType: AnySchemaType
             Return = retInfo
         });
 
+        if (Utility.SystemLocale.HasLocales)
+            Utility.SystemLocale.Translate(funcSchema.Display, funcSchema.Name);
+
         return funcSchema;
     }
 
@@ -932,16 +999,6 @@ public class FunctionType: AnySchemaType
     private static readonly ConcurrentDictionary<string, SchemaFuncInfo> StaticMethodMap = new();
     private static readonly ConcurrentDictionary<string, MethodInfo> CallConvertNullableExp = new();
 
-    private static readonly string[] RetFunc =
-    [
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifret)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnot)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifnull)}",
-        $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.ifempty)}",
-    ];
-    
-    const string GET_DATA_SOURCE = $"{NS_SYSTEM_DATA}.{nameof(SystemData.getdatasource)}";
-
     #endregion
     
     #region Conversion
@@ -959,6 +1016,7 @@ public class FunctionType: AnySchemaType
                 Name = a.Name.ToCamelCase(),
                 Type = a.Type,
                 Nullable = a.Nullable,
+                Display = a.Display,
                 Params = a.Params,
                 Default = a.Default,
                 Status = a.Status != null && a.Status != SchemaNodeStatus.Ready ? a.Status : null,
@@ -975,6 +1033,9 @@ public class FunctionType: AnySchemaType
             Generic = schema.Generic.Where(g => g is not null).Select(g => g!.Name).ToArray(),
             Server = schema.Server,
             Nocache = schema.Nocache,
+            SideEffect = schema.SideEffect,
+            WorkflowOnly = schema.WorkflowOnly,
+            Converter = schema.Converter,
         });
     }
     
@@ -989,19 +1050,9 @@ public class FunctionType: AnySchemaType
 public abstract class FunctionNodeExpTree
 {
     /// <summary>
-    /// The leaf nodes as sub expressions
-    /// </summary>
-    public FunctionNodeExpTree?[] LeafNodes { get; set; } = [];
-
-    /// <summary>
     /// The type node
     /// </summary>
     public AnySchemaType? SchemaType { get; set; }
-
-    /// <summary>
-    /// The used by count, could be used to improve the dynamic complier
-    /// </summary>
-    public int Used { get; set; }
 }
 
 /// <summary>
@@ -1025,6 +1076,11 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// Whether nullable
     /// </summary>
     public bool? Nullable { get; init; }
+    
+    /// <summary>
+    /// The display name
+    /// </summary>
+    public LocaleString? Display { get; init; }
 
     /// <summary>
     /// Whether params argument
@@ -1061,6 +1117,7 @@ public class FunctionNodeArgument : FunctionNodeExpTree
             Name = arg.Name,
             Type = arg.Type,
             Nullable = arg.Nullable,
+            Display = arg.Display,
             Params = arg.Params,
             Default = arg.Default,
         };
@@ -1143,11 +1200,10 @@ public class FunctionNodeExpression : FunctionNodeExpTree
     #endregion
 }
 
-
 /// <summary>
 /// The data dict func info
 /// </summary>
-public class SchemaFuncInfo
+public sealed class SchemaFuncInfo
 {
     /// <summary>
     /// The method name

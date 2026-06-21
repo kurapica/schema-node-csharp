@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>14</LangVersion>
         <RootNamespace>SchemaNode</RootNamespace>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -14,16 +15,21 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.1.25451.107" />
-      <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-rc.1.25451.107" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.1.25451.107" />
-      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.6" />
+      <PackageReference Include="Quartz" Version="3.15.1" />
+      <PackageReference Include="Quartz.Extensions.Hosting" Version="3.15.1" />
+      <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.4" />
       <PackageReference Include="System.Reactive" Version="6.1.0" />
-      <PackageReference Include="TimeZoneConverter" Version="7.0.0" />
+      <PackageReference Include="TimeZoneConverter" Version="7.2.0" />
     </ItemGroup>
 
     <ItemGroup>
       <None Remove="www.zip" />
       <EmbeddedResource Include="www.zip" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="locale\*.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
     </ItemGroup>
 </Project>

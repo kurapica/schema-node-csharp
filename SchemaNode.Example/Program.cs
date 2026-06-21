@@ -1,39 +1,16 @@
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode;
+using SchemaNode.AI;
 using SchemaNode.Components;
 using SchemaNode.Example.Components;
 using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
+using SchemaNode.PostgreSQL;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Kafka
-//builder.Services.AddSingleton<IConsumer<string, byte[]>>(sp =>
-//{
-//   var config = sp.GetRequiredService<IOptions<KafkaOptions>>().Value;
-
-//    var consumerConfig = new ConsumerConfig
-//    {
-//        BootstrapServers = config.BootstrapServers,
-//        GroupId = config.GroupId,
-//        AutoOffsetReset = AutoOffsetReset.Earliest,
-//        EnableAutoCommit = false
-//    };
-
-//    return new ConsumerBuilder<string, byte[]>(consumerConfig)
-//        .SetErrorHandler((_, e) =>
-//        {
-//            var logger = sp.GetRequiredService<ILogger<KafkaEventSource>>();
-//            logger.LogError("Kafka error: {Error}", e.Reason);
-//        })
-//        .Build();
-//});
-
 builder.Services
-    // Mysql
-    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-
     // Cors
     .AddCors(options =>
     {
@@ -55,16 +32,34 @@ builder.Services
             Version = "v1"
         });
     })
-    
-    // schema context items
+
+    // Ontology — registers ontology format providers (turtle / markdown / jsonld / ssp) for LoadAppSchema API
+    .AddSchemaOntology()
+    // Vector — registers embedding + vector store APIs; provider is selected via appsettings.json "SchemaOntology:Provider".
+    // Still working on, not production-ready
+    //.AddSchemaVector(opts => builder.Configuration.GetSection(OntologyVectorOptions.SectionName).Bind(opts))
+
+    // schema context items for test
     .AddScoped<UserInfo>()
     .AddScoped<UserInfoProvider>()
 
     // schema
     .AddSchemaNode<JsonRpcSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
-    //.AddAppSchemaDataProvider<AppDataMySqlProvider>();       // Mysql application data provider
-    .AddAppSchemaDataProvider<InMemoryAppDataProvider>(); // Memory application data provider - for test
+
+    // Mysql
+    // .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
+    //.AddAppSchemaDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+
+    // PostgreSQL
+    .AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
+    .AddAppSchemaDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
+
+    // For test only
+    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
+
+    // Mcp
+    .AddSchemaMcp();
 
 // App
 var app = builder.Build();
@@ -72,8 +67,9 @@ app.UseCors("AllowAll");
 app.UseMiddleware<UserInfoMiddleware>();
 
 app
-    .UseSchemaApis(enableAppDataApi:true, enableSchemaManage:true)
-    .PreLoadSchemaNodes();
+    .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true)
+    .PreLoadSchemaNodes()
+    .MapSchemaMcp();
 
 // Swagger
 if (app.Environment.IsDevelopment())
@@ -81,7 +77,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger(); 
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SchemaNode Example API v1");
         c.RoutePrefix = string.Empty;
     });
 }

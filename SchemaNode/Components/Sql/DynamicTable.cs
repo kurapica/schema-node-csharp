@@ -1,12 +1,13 @@
-﻿using SchemaNode.Context;
+﻿using Microsoft.Extensions.DependencyInjection;
+using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using System.Text.Json.Nodes;
-using SchemaNode.Function;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -19,20 +20,10 @@ namespace SchemaNode.Components;
 public class DynamicTableSchema
 {
     /// <summary>
-    /// The sql provider
+    /// the app field type of the dynamic table
     /// </summary>
-    internal static ISqlProvider SqlProvider = new DefaultSqlProvider();
-
-    /// <summary>
-    /// The dynamic table name
-    /// </summary>
-    public required string Name { get; init; }
-
-    /// <summary>
-    /// The data type name
-    /// </summary>
-    public required string DataType { get; init; }
-
+    public AppFieldType AppFieldType { get; init; } = null!;
+    
     /// <summary>
     /// Whether the table is single row
     /// </summary>
@@ -47,98 +38,62 @@ public class DynamicTableSchema
     /// The dynamic table fields
     /// </summary>
     public IReadOnlyList<DynamicTableField> Fields { get; init; } = [];
+    
+    /// <summary>
+    /// The scope target fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> ScopeFields => Fields.Where(f => f.Scope);
+    
+    /// <summary>
+    /// Non-scope and non-target fields, used for data query and save
+    /// </summary>
+    public IEnumerable<DynamicTableField> NonScopeFields => Fields.Where(f => f.Primary || f.IsValueField);
+    
+    /// <summary>
+    /// The fields used for query, including primary fields, value fields and join fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> QueryFields => Fields.Where(f => f.Target || f.Primary || f.IsValueField || f.IsJoinField);
+    
+    /// <summary>
+    /// The join fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> JoinFields => Fields.Where(f => f.IsJoinField);
 
+    /// <summary>
+    /// Gets the key fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> KeyFields => Fields.Where(f => f.IsKeyField);
+    
+    /// <summary>
+    /// Gets the value fields
+    /// </summary>
+    public IEnumerable<DynamicTableField> ValueFields => Fields.Where(f => f.IsValueField);
+
+    /// <summary>
+    /// Gets the fields without type relation, used for data query and save
+    /// </summary>
+    public IEnumerable<DynamicTableField> AllFields => Fields.Where(f => f.IsKeyField || f.IsValueField);
+    
     /// <summary>
     /// The dynamic table indexes
     /// </summary>
     public DataIndex[]? Indexes { get; init; } = [];
+    
+    /// <summary>
+    /// The dynamic table joins
+    /// </summary>
+    public DynamicTableJoin[]? Joins { get; init; } = [];
 
     /// <summary>
     /// The data type node
     /// </summary>
     public required AnySchemaType SchemaType { get; init; }
-
-    /// <summary>
-    /// Gets the field values by the fields
-    /// </summary>
-    public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(JsonObject pack, bool primaryOnly = false, bool noPrimary = false)
-    {
-        IEnumerable<DynamicTableField> fields = Fields;
-        if (primaryOnly) fields = Fields.Where(p => p.Primary);
-        else if (noPrimary) fields = Fields.Where(p => !p.Primary);
-        foreach (DynamicTableField field in fields)
-        {
-            if (field.Complex == null)
-            {
-                if (pack.ContainsKey(field.Name) && !pack[field.Name].IsEmpty())
-                {
-                    // For save
-                    if (field.Type == DynamicTableFieldType.Json)
-                    {
-                        yield return (field.Name, field.SchemaType.CreateNode(pack[field.Name]));
-                    }
-
-                    // For query
-                    else if (pack[field.Name] is JsonArray arr && field.SchemaType is not ArrayType)
-                    {
-                        if (arr.Count > 1)
-                        {
-                            yield return (field.Name, new ArrayTypeNode(field.SchemaType, arr));
-                        }
-                        else
-                        {
-                            yield return (field.Name, field.SchemaType.CreateNode(arr[0]));
-                        }
-                    }
-
-                    // Single value
-                    else
-                    {
-                        yield return (field.Name, field.SchemaType.CreateNode(pack[field.Name]));
-                    }
-                }
-                else
-                {
-                    yield return (field.Name, null);
-                }
-            }
-            else if (pack.ContainsKey(field.Complex.Main) && pack[field.Complex.Main] is JsonObject sPack && sPack.ContainsKey(field.Complex.Field) && !sPack[field.Complex.Field].IsEmpty())
-            {
-                // For save
-                if (field.Type == DynamicTableFieldType.Json)
-                {
-                    yield return (field.Name, field.SchemaType.CreateNode(sPack[field.Complex.Field]));
-                }
-                // For query
-                else if (sPack[field.Complex.Field] is JsonArray arr && field.SchemaType is not ArrayType)
-                {
-                    if (arr.Count > 1)
-                    {
-                        yield return (field.Name, new ArrayTypeNode(field.SchemaType, arr));
-                    }
-                    else
-                    {
-                        yield return (field.Name, field.SchemaType.CreateNode(arr[0]));
-                    }
-                }
-                else
-                // Single value
-                {
-                    yield return (field.Name, field.SchemaType.CreateNode(sPack[field.Complex.Field]));
-                }
-            }
-            else
-            {
-                yield return (field.Name, null);
-            }
-        }
-    }
-
+    
     public IEnumerable<(string field, AnySchemaNode? value)> GetFieldValues(StructTypeNode pack, bool primaryOnly = false, bool noPrimary = false)
     {
-        IEnumerable<DynamicTableField> fields = Fields;
-        if (primaryOnly) fields = Fields.Where(p => p.Primary);
-        else if (noPrimary) fields = Fields.Where(p => !p.Primary);
+        IEnumerable<DynamicTableField> fields = NonScopeFields;
+        if (primaryOnly) fields = fields.Where(p => p.Primary);
+        else if (noPrimary) fields = fields.Where(p => !p.Primary);
         foreach (DynamicTableField field in fields)
         {
             if (field.Complex == null)
@@ -168,15 +123,56 @@ public class DynamicTableSchema
         }
     }
 
-    /// <summary>
-    /// Gets the primary token from the data
-    /// </summary>
-    public string? GetPrimaryKey(JsonObject pack)
+    public IEnumerable<DynamicTableField> GetDynamicTableFields(string fieldName)
     {
-        StructTypeNode? node = ToStructTypeNode(pack);
-        return node != null ? GetPrimaryKey(node) : null;
+        foreach (DynamicTableField field in Fields)
+        {
+            if (field.Complex == null)
+            {
+                if (field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return field;
+                }
+            }
+            else
+            {
+                if (field.Complex.Main.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return field;
+                }
+            }
+        }
     }
 
+    /// <summary>
+    /// Gets the scope context items for the dynamic table, used for data partition and target selection
+    /// </summary>
+    public IEnumerable<string> GetScopeItems()
+    {
+        foreach (var (item, value, isTarget) in AppFieldType.Application.GetScopeContextItems())
+            yield return item;
+    }
+
+    /// <summary>
+    /// Gets the scope context items for the dynamic table, used for data partition and target selection
+    /// </summary>
+    public IEnumerable<(string item, AnySchemaNode? value)> GetScopeItems(IServiceProvider provider)
+    {
+        bool isview = AppFieldType.IsForeignView;
+        foreach (var (item, value, isTarget) in AppFieldType.Application.GetScopeContextItems(provider.GetRequiredService<SchemaContext>()))
+        {
+            if (isview && isTarget)
+            {
+                // change the view target to the foreign field
+                AppFieldType sourceField = AppFieldType.View?.AppType?.GetField(AppFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppFieldType.View?.App}.{AppFieldType.View?.Field}");
+                Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppFieldType.View?.App}.{AppFieldType.View?.Field}");
+                yield return (foreign.Field, value);
+            }
+            else
+                yield return (item, value);
+        }
+    }
+    
     /// <summary>
     /// Gets the primary token from the data
     /// </summary>
@@ -208,19 +204,32 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0)
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, int offset = 0, bool queryOnly = false)
     {
-        // single value
-        if (Fields.Count == 1 && Fields[0].SchemaType == SchemaType)
-        {
-            return Fields[0].FromReader(reader, offset);
-        }
-
         StructTypeNode result = new StructTypeNode((StructType)(SchemaType is ArrayType arr ? arr.ElementSchemaType : SchemaType)!);
-        foreach (DynamicTableField field in Fields)
+        foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
             AnySchemaNode? val = field.FromReader(reader, offset++);
-            if (val == null) continue;
+
+            if (field.Target)
+            {
+                // set the map
+                if (AppFieldType.IsForeignView)
+                {
+                    string? map = AppFieldType.View?.Map;
+                    if (!string.IsNullOrWhiteSpace(map))
+                        result.SetField(map, val);
+                }
+                continue;
+            }
+
+            if (val == null)
+            {
+                if (field is { IsJoinField: true, SchemaType: ScalarType { IsNumber: true }})
+                    val = field.SchemaType.CreateNode(0);
+                else
+                    continue;
+            }
             if (field.Complex == null)
             {
                 result.SetField(field.Name, val);
@@ -230,7 +239,7 @@ public class DynamicTableSchema
                 AnySchemaNode? main = result.GetField(field.Complex.Main);
                 if (main == null)
                 {
-                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
+                    main = new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
                     result.SetField(field.Complex.Main, main);
                 }
                 (main as StructTypeNode)![field.Complex.Field] = val;
@@ -243,11 +252,11 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the field data pack from the reader by field name
     /// </summary>
-    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName)
+    public AnySchemaNode? GetFieldPack(DbDataReader reader, string fieldName, bool queryOnly = false)
     {
         int offset = 0;
         StructTypeNode? complexResult = null;
-        foreach (DynamicTableField field in Fields)
+        foreach (DynamicTableField field in queryOnly ? QueryFields : NonScopeFields)
         {
             if (field.Complex == null && field.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
@@ -255,7 +264,7 @@ public class DynamicTableSchema
             }
             else if (field.Complex != null && field.Complex.Field.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
             {
-                complexResult ??= new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemeType!);
+                complexResult ??= new StructTypeNode((StructType)((StructType)SchemaType).Fields.First(f => f.Name == field.Complex.Main).SchemaType!);
                 AnySchemaNode? val = field.FromReader(reader, offset);
                 if (val != null)
                     complexResult.SetField(field.Complex.Field, val);
@@ -300,20 +309,7 @@ public class DynamicTableSchema
 
     #region Utility
 
-    private static readonly string[] JoinFuncs =
-    [
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdata)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyonekey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabytwokey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabythreekey)}",
-        $"{NS_SYSTEM_DATA}.{nameof(SystemData.getappfdatabyfourkey)}",
-    ];
-
-    private StructTypeNode? ToStructTypeNode(JsonObject? obj)
-    {
-        if (obj == null || obj.IsEmpty()) return null;
-        return (SchemaType is ArrayType array ? array.ElementSchemaType : SchemaType)?.CreateNode(obj) as StructTypeNode;
-    }
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, AnySchemaNode? node, bool joinHandled = false)
@@ -326,9 +322,11 @@ public class DynamicTableSchema
                 // batch process for join functions
                 if (type.Relations != null)
                 {
-                    foreach (StructFieldRelation relation in (type.Relations.Where(r =>
-                                 r.Type == RelationType.Default && JoinFuncs.Contains(r.Func) &&
-                                 type.GetField(r.Field) != null && (type.GetField(r.Field)?.DisplayOnly ?? false))))
+                    foreach (StructRelationSchema relation in (type.Relations.Where(r =>
+                                 r.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase) && 
+                                 IsReferenceFunc(r.Func) &&
+                                 type.GetField(r.Field) != null && 
+                                 (type.GetField(r.Field)?.DisplayOnly ?? false))))
                     {
                         // app
                         string? app = relation.Args.FirstOrDefault()?.Value?.ToValue<string>();
@@ -349,12 +347,12 @@ public class DynamicTableSchema
                                 ? arr.ElementSchemaType
                                 : appField.SchemaType) as StructType;
                         if (structType == null || structType.Fields.Length == 0) continue;
-                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not match
+                        if (primary.Length + 4 != relation.Args.Length) continue; // primary fields not contains
 
                         // data field
                         string? dataField = relation.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
                         if (string.IsNullOrWhiteSpace(dataField)) continue; // no data field
-                        StructFieldConfig? dataFieldType = structType.GetField(dataField);
+                        StructFieldSchema? dataFieldType = structType.GetField(dataField);
                         if (dataFieldType == null) continue; // data field not exist
 
                         // target
@@ -365,16 +363,18 @@ public class DynamicTableSchema
 
                         // collect keys
                         Dictionary<string, List<AnySchemaNode>> keyMap = new();
-                        JsonArray queries = [];
+                        AppSchemaDataFilter? filter = null;
                         if (primary.Length > 0)
                         {
                             foreach (AnySchemaNode row in array)
                             {
-                                if (row is not StructTypeNode pack) continue;
+                                if (row is not StructTypeNode pack || 
+                                    pack.GetField(relation.Field) is null ||
+                                    !pack.GetField(relation.Field)!.IsEmpty) continue;
 
                                 // build primary key
                                 List<string> keys = [];
-                                JsonObject query = [];
+                                AppSchemaDataFilter? rowFilter = null;
                                 for (int i = 3; i < relation.Args.Length - 1; i++)
                                 {
                                     string? key = !string.IsNullOrEmpty(relation.Args[i].Name)
@@ -386,26 +386,30 @@ public class DynamicTableSchema
                                         keys.Clear();
                                         break;
                                     }
-                                    query[primary[i - 3]] = key;
+                                    var argFilter = new AppSchemaDataFilterBinary(LogicType.Equal,
+                                        new AppSchemaDataFilterField(primary[i - 3]), new AppSchemaDataFilterValue(key));
+                                    rowFilter = rowFilter == null ? argFilter : new AppSchemaDataFilterBinary(LogicType.AndAlso, rowFilter, argFilter);
                                     keys.Add(key);
                                 }
                                 
-                                if (keys.Count == 0) continue; // no valid primary key
+                                if (keys.Count == 0 || rowFilter == null) continue; // no valid primary key
                                 string pkey = string.Join(":", keys);
 
                                 // add to map
                                 if (!keyMap.ContainsKey(pkey))
                                 {
                                     keyMap[pkey] = [];
-                                    queries.Add(query);
+                                    filter = filter == null ? rowFilter : new AppSchemaDataFilterBinary(LogicType.OrElse, filter, rowFilter);
                                 }
 
                                 keyMap[pkey].Add(pack);
                             }
                         }
+                        
+                        if (filter == null) continue; // no valid data to query
 
                         // query the dynamic data
-                        (AnySchemaNode? value, _) = await context.GetFieldDataAsync(appField, target, queries);
+                        (AnySchemaNode? value, _) = await context.GetAppFieldDataAsync(appField, AppSchemaDataResult.List, filter);
 
                         // set the display only field value
                         switch (primary.Length)
@@ -492,20 +496,30 @@ public class DynamicTableSchema
                         if (!fld.IsEmpty) continue; // already set value
                 
                         // default for display only
-                        var relation = type.Relations?.FirstOrDefault(f => f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && f.Type == RelationType.Default);
+                        var relation = type.Relations?.FirstOrDefault(f =>
+                            f.Field.Equals(field.Name, StringComparison.OrdinalIgnoreCase) && 
+                            f.Prop.Equals(PROPERTY_DEFAULT, StringComparison.OrdinalIgnoreCase));
                         if (relation == null) continue;
                         
                         // handled by array node
-                        if (joinHandled && JoinFuncs.Contains(relation.Func)) continue; 
+                        if (joinHandled && IsReferenceFunc(relation.Func)) continue; 
 
                         // call function to get value
                         JsonArray args = [];
                         foreach (var arg in relation.Args)
                             args.Add(!string.IsNullOrWhiteSpace(arg.Name) ? pack.GetValueByPaths(arg.Name)?.ToJson() : arg.Value?.DeepClone());
-                        JsonNode? result = await context.CallFunctionAsync(relation.Func, args, fld.SchemaType.Name);
-                        if (!result.IsEmpty()) fld.Value = result;
+                        try
+                        {
+                            JsonNode? result =
+                                await context.CallFunctionAsync(relation.Func, args, fld.SchemaType.Name);
+                            if (!result.IsEmpty()) fld.Value = result;
+                        }
+                        catch
+                        {
+                            // ignore errors
+                        }
                     }
-                    else switch (field.SchemeType)
+                    else switch (field.SchemaType)
                     {
                         case StructType @struct:
                             await GenerateDisplayOnlyFields(context, @struct, fld);
@@ -515,11 +529,9 @@ public class DynamicTableSchema
                             break;
                         // Fill empty field with default value
                         default:
-                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && !string.IsNullOrWhiteSpace(field.Default))
+                            if (fld is ScalarTypeNode or EnumTypeNode && fld.IsEmpty && field.Default is { IsEmpty: false })
                             {
-                                (AnySchemaNode? val, JsonNode? err) = await fld.SchemaType.ValidateValueAsync(context, field.Default);
-                                if (err == null || err.IsEmpty())
-                                    fld.Value = val;
+                                fld.Value = field.Default;
                             }
                             break;
                     }

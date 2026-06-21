@@ -19,7 +19,7 @@ public class SaveEnumSubListApi : SchemaApi<SaveEnumSubListRequest, SaveEnumSubL
 
         return new SaveEnumSubListResponse
         {
-            Result = await SchemaContext.SaveEnumSubListAsync(request.Name, request.Value, request.Values, request.Append)
+            Result = await SchemaContext.SaveEnumSubListAsync(request.Name, request.Value, request.Values, request.Append ?? false)
         };
     }
 }
@@ -34,11 +34,12 @@ public class SaveEnumSubListRequest : SchemaApiRequest
     /// </summary>
     [Required]
     public string Name { get; set; } = null!;
-    
+
     /// <summary>
     /// The enum value
     /// </summary>
-    public string? Value { get; set; }
+    [Required]
+    public string Value { get; set; } = null!;
 
     /// <summary>
     /// The sub enum values

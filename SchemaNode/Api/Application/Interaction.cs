@@ -7,6 +7,7 @@ using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -24,7 +25,7 @@ public class InteractionApi : SchemaApi<InteractionRequest, InteractionResponse>
         Logger.LogDebug("[Api]Interaction [Request]{request}", request);
 
         // Done
-        return new InteractionResponse { WorkflowId = await SchemaContext.Interaction(request) };
+        return new InteractionResponse { WorkflowId = await SchemaContext.InteractionAsync(request) };
     }
 }
 
@@ -33,7 +34,7 @@ public static class InteractionExtensions
     /// <summary>
     /// Process the interaction request
     /// </summary>
-    public static async Task<Guid?> Interaction(this SchemaContext context, InteractionRequest request)
+    public static async Task<Guid?> InteractionAsync(this SchemaContext context, InteractionRequest request, bool innerCall = false)
     {
         // Indicate the workflow node
         AppType app = await context.GetAppTypeAsync(request.App) ?? throw new Exception(APP_NOT_FOUND);
@@ -44,9 +45,10 @@ public static class InteractionExtensions
         context.SetAccess(app.Name, request.Target);
         
         // authorize
-        await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
+        if (!innerCall)
+            await context.AuthorizeAsync(workflowType, PolicyScope.FuncExecute);
         
-        // Find the match node
+        // Find the contains node
         Workflow node = (string.IsNullOrEmpty(request.Node) 
             ? workflowType.RootWorkflowContext.EntryWorkflow
             : workflowType.RootWorkflowContext.EntryWorkflow?.FindByName(request.Node))
@@ -62,6 +64,10 @@ public static class InteractionExtensions
         // Start a new workflow
         if (request.WorkflowId == null)
         {
+            // If terminate requested, just return
+            if (request.Terminate == true) return null;
+            if (node is FormWorkflow && (request.Data == null || request.Data.IsEmpty())) return null;
+            
             if (!workflowType.Nodes[0].Name.Equals(node.Name, StringComparison.InvariantCultureIgnoreCase))
                 throw new Exception(WORKFLOW_NODE_NOT_FOUND);
             
@@ -74,9 +80,16 @@ public static class InteractionExtensions
             ?? throw new Exception(WORKFLOW_NOT_FOUND);
         
         // Check if still working
-        WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
-        if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
-        workContext.Done(node.Name, payload);
+        if (request.Terminate == true)
+        {
+            await workContext.TerminateAsync();
+        }
+        else
+        {
+            WorkflowStatus status = workContext.GetWorkflowStatus(node.Name);
+            if (status != WorkflowStatus.Running) throw new Exception(WORKFLOW_NODE_NOT_RUNNING);
+            workContext.Done(node.Name, payload);
+        }
 
         return null;
     }
@@ -119,6 +132,11 @@ public class InteractionRequest : SchemaApiRequest
     /// The data
     /// </summary>
     public JsonNode? Data { get; set; }
+    
+    /// <summary>
+    /// Terminate the workflow context with the given id
+    /// </summary>
+    public bool? Terminate { get; set; }
 }
 
 /// <summary>

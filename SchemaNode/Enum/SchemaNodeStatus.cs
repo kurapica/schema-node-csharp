@@ -20,6 +20,11 @@ public enum SchemaNodeStatus
     NoDefinition,
 
     /// <summary>
+    /// Wrong ref type
+    /// </summary>
+    WrongRefType,
+
+    /// <summary>
     /// No base scalar
     /// </summary>
     ScalarHasWrongBase,
@@ -95,9 +100,24 @@ public enum SchemaNodeStatus
     StructMemberWrongValidFunc,
 
     /// <summary>
+    /// The struct relationship has wrong target field
+    /// </summary>
+    StructRelationshipWrongField,
+
+    /// <summary>
+    /// The struct relationship has wrong property
+    /// </summary>
+    StructRelationshipWrongProp,
+
+    /// <summary>
     /// The struct relationship has wrong valdiation function
     /// </summary>
     StructRelationshipWrongFunc,
+
+    /// <summary>
+    /// The struct relationship has wrong arguments, like circle reference
+    /// </summary>
+    StructRelationshipWrongArguments,
 
     /// <summary>
     /// The funciton has wrong return type
@@ -143,6 +163,11 @@ public enum SchemaNodeStatus
     /// The function expression use wrong arguments
     /// </summary>
     FunctionExpWrongFuncArgs,
+    
+    /// <summary>
+    /// The function expression has wrong collection
+    /// </summary>
+    FunctionExpWrongCollection,
 
     /// <summary>
     /// The function expression has wrong return value
@@ -248,9 +273,49 @@ public enum SchemaNodeStatus
     /// The application push data wrong func
     /// </summary>
     ApplicationPushDataWrongFunc,
+    
+    /// <summary>
+    /// The application field has wrong filter settings
+    /// </summary>
+    ApplicationFieldDataWrongFilter,
 
     /// <summary>
     /// The data source compile error
     /// </summary>
     DataSourceComipleError,
+
+    /// <summary>
+    /// The recognizer has wrong source type
+    /// </summary>
+    RecognizerWrongSourceType,
+
+    /// <summary>
+    /// The recognizer has wrong parts configuration
+    /// </summary>
+    RecognizerWrongParts,
+
+    /// <summary>
+    /// The recognizer part has wrong sub recognizer configuration
+    /// </summary>
+    RecognizerPartWrongSubRecognizer,
+
+    /// <summary>
+    /// The recognizer has wrong function reference
+    /// </summary>
+    RecognizerWrongFuncRef,
+
+    /// <summary>
+    /// The recognizer relation has wrong function reference
+    /// </summary>
+    RecognizerWrongRelation,
+
+    /// <summary>
+    /// The recognizer has wrong validation function
+    /// </summary>
+    RecognizerWrongValidation,
+
+    /// <summary>
+    /// The constraint has wrong value type
+    /// </summary>
+    PropertyHasWrongValueType,
 }
