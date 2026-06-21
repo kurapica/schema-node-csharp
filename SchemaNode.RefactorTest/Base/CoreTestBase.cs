@@ -6,21 +6,23 @@ using NamespaceType = SchemaNode.Runtime.NamespaceType;
 
 namespace SchemaNode.RefactorTest.Base;
 
-/// <summary>
-/// Shared base class for all Core-level unit tests.
-/// Sets up the schema runtime with AddAppSchemaAssembly and InitSchemaRuntimeAsync.
-/// </summary>
 [TestClass]
 public abstract class CoreTestBase
 {
     protected ServiceProvider Provider { get; private set; } = null!;
     protected SchemaContext Context { get; private set; } = null!;
 
+    /// <summary>
+    /// Override to register additional services before the provider is built.
+    /// </summary>
+    protected virtual void ConfigureServices(IServiceCollection services) { }
+
     [TestInitialize]
     public async Task CoreSetup()
     {
         var services = new ServiceCollection();
         services.AddAppSchemaAssembly<CoreTestBase>();
+        ConfigureServices(services);
 
         Provider = services.BuildServiceProvider();
         await Provider.InitSchemaRuntimeAsync();
@@ -30,6 +32,7 @@ public abstract class CoreTestBase
     [TestCleanup]
     public async Task CoreTeardown()
     {
-        await Provider.DisposeAsync();
+        if (Provider != null)
+            await Provider.DisposeAsync();
     }
 }

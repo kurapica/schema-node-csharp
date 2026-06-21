@@ -11,6 +11,15 @@ namespace SchemaNode.Http;
 public static class Service
 {
     /// <summary>
+    /// Sets the api protocol
+    /// </summary>
+    public static IServiceCollection WithSchemaApiProtocol<T>(this IServiceCollection services) where T: class, ISchemaApiProtocol
+    {
+        services.AddTransient<ISchemaApiProtocol, T>();
+        return services;
+    }
+    
+    /// <summary>
     /// Enable schema apis
     /// </summary>
     /// <param name="app">The web application</param>

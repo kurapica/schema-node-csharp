@@ -4,35 +4,59 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.RefactorTest.Core;
 
-/// <summary>
-/// Tests for StructType and StructNode in SchemaNode.Core
-/// </summary>
 [TestClass]
 public class StructTypeTest : Base.CoreTestBase
 {
-    /// <summary>
-    /// StructType register and load: verify struct type with fields
-    /// </summary>
     [TestMethod]
     public async Task StructType_Load_SystemContext()
     {
-        // system.context is a struct type registered by the runtime
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);
-        Assert.IsNotNull(contextType, "system.context should be loaded");
+        Assert.IsNotNull(contextType);
         Assert.AreEqual(SCHEMA_KIND_STRUCT, contextType.Kind);
     }
 
-    /// <summary>
-    /// StructNode create and field access via path
-    /// </summary>
     [TestMethod]
-    public async Task StructNode_CreateAndAccessFields()
+    public async Task StructNode_Create()
     {
         var contextType = await Context.GetNodeTypeAsync<StructType>(NS_SYSTEM_CONTEXT);
         Assert.IsNotNull(contextType);
 
-        var node = contextType.Create();
+        var node = contextType.Create() as StructNode;
         Assert.IsNotNull(node);
-        Assert.IsTrue(node.IsEmpty, "Newly created struct node should be empty");
+        Assert.IsTrue(node.IsEmpty);
+    }
+
+    [TestMethod]
+    public async Task StructType_Load_GeneratedStruct()
+    {
+        var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
+        Assert.IsNotNull(personType);
+        Assert.AreEqual(SCHEMA_KIND_STRUCT, personType.Kind);
+    }
+
+    [TestMethod]
+    public async Task StructNode_GeneratedFields()
+    {
+        var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
+        Assert.IsNotNull(personType);
+
+        var node = personType.Create() as StructNode;
+        Assert.IsNotNull(node);
+
+        var nameField = node.GetAccessValue("Name");
+        Assert.IsNotNull(nameField);
+    }
+
+    [TestMethod]
+    public async Task StructNode_SetAndGetField()
+    {
+        var personType = await Context.GetNodeTypeAsync<StructType>("test.generator.person");
+        Assert.IsNotNull(personType);
+
+        var node = personType.Create() as StructNode;
+        Assert.IsNotNull(node);
+
+        node["Name"] = "Alice";
+        Assert.AreEqual("Alice", (node.GetAccessValue("Name") as DataNode)?.GetValue<string>());
     }
 }

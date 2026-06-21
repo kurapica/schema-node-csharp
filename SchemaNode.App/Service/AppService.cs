@@ -87,13 +87,4 @@ public static class AppService
         services.AddSingleton(options);
         return services;
     }
-    
-    /// <summary>
-    /// Sets the api protocol
-    /// </summary>
-    public static IServiceCollection WithSchemaApiProtocol<T>(this IServiceCollection services) where T: class, ISchemaApiProtocol
-    {
-        services.AddTransient<ISchemaApiProtocol, T>();
-        return services;
-    }
 }
