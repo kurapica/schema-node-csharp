@@ -2,7 +2,9 @@
 
 namespace SchemaNode.Node;
 
-public abstract class ScalarNode<T> : DataNode
+public abstract class ScalarNode : DataNode;
+
+public abstract class ScalarNode<T> : ScalarNode
 {
     protected T? Value;
     

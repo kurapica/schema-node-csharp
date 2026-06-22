@@ -13,10 +13,22 @@ using SchemaNode.Utility;
 using System.Data;
 using System.Data.Common;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using Microsoft.VisualBasic.CompilerServices;
+using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using BoolType = SchemaNode.Runtime.BoolType;
+using DateType = SchemaNode.Runtime.DateType;
+using DecimalType = SchemaNode.Runtime.DecimalType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using IntType = SchemaNode.Runtime.IntType;
 using RuntimeValueType = SchemaNode.Runtime.ValueType;
+using StringType = SchemaNode.Runtime.StringType;
+using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.MySql;
 
@@ -667,7 +679,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 // join again if not joined in filter
                 if (fieldJoins is { Count: > 0 })
                 {
-                    foreach (string join in fieldJoins!.Values)
+                    foreach (string join in fieldJoins.Values)
                         select.Append(join);
                 }
                 
@@ -1200,7 +1212,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 if (schema.AppField.Topology == FieldStorageTopology.AttributeBased &&
                     (isInsert || (!onlyAdd || overrides is { Length: > 0 })))
                 {
-                    SchemaContext context = serviceProvider.GetService<SchemaContext>()!;
                     foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.HasTypeRelation))
                     {
                         StructFieldSchema[] fields = dynamic.RelationType != null
@@ -1212,7 +1223,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         foreach ((string fld, DataNode? v) in schema.GetFieldValues(pack, true))
                             primaries.Add((fld, v!));
 
-                        await SaveAttributeBasedFieldAsync(context, schema.AppField.AttributeTableName, scopeItems, fields,
+                        await SaveAttributeBasedFieldAsync(schema.AppField.AttributeTableName, scopeItems, fields,
                             pack.GetAccessValue(dynamic.Name)?.GetValue<JsonObject>(), dynamic.Name.ToLower(), primaries);
                     }
                 }
@@ -1386,29 +1397,30 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             if (!string.IsNullOrEmpty(arg.Source))
             {
                 string[] path = arg.Source.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
-                if (path[0].Equals(appField.Name, StringComparison.OrdinalIgnoreCase))
+                string fieldName = path[0];
+                string? dataField = path.ElementAtOrDefault(1);
+                if (fieldName.Equals(appField.Name, StringComparison.OrdinalIgnoreCase))
                 {
                     args[i] = node;
                 }
-                else if (_relationDataCache.TryGetValue(arg.AppField.ToLower(), out DataNode? cache) && cache != null)
+                else if (_relationDataCache.TryGetValue(fieldName, out DataNode? cache) && cache != null)
                 {
                     args[i] = cache;
                 }
                 else
                 {
-                    var schema = appField.Application.GetField(arg.AppField)?.Schema;
-                    if (schema == null)
-                        throw new Exception($"The field {arg.AppField} not found in app {appField.Application.Name}");
+                    var schema = appField.Application.GetField(fieldName)?.GetDynamicTableSchema(_context)
+                        ?? throw new Exception($"The field {fieldName} not found in app {appField.Application.Name}");
                     (DataNode? result, int total) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.List);
                     if (total > 50)
-                        Logger.LogWarning($"The query result of field {arg.AppField} in app {appField.Application.Name} is too large, total {total}, relation function {relation.Func} may not work properly");
+                        Logger.LogWarning($"The query result of field {fieldName} in app {appField.Application.Name} is too large, total {total}, relation function {call.Func} may not work properly");
                     
-                    _relationDataCache[arg.AppField.ToLower()] = result;
+                    _relationDataCache[fieldName] = result;
                     args[i] = result;
                 }
                 
-                if (args[i] != null && !string.IsNullOrWhiteSpace(arg.DataField))
-                    args[i] = (args[i] as StructNode)?.GetValueByPaths(arg.DataField);
+                if (args[i] != null && !string.IsNullOrWhiteSpace(dataField))
+                    args[i] = (args[i] as StructNode)?.GetAccessValue(dataField);
             }
             else if (arg.Value != null)
             {
@@ -1417,8 +1429,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         
         // build the unique key for cache
-        string? uniqueKey = args.All(a => a is ScalarTypeNode or EnumTypeNode or JsonValue)
-            ? $"{relation.FuncNode.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
+        string? uniqueKey = args.All(a => a is ScalarNode or EnumNode or JsonValue)
+            ? $"{call.FuncType.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
             : null;
 
         StructFieldSchema[]? fields = null;
@@ -1428,27 +1440,21 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await relation.FuncNode.CallAsync<JsonNode>(context, args, null, target);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args, null, target);
             // try convert
             if (result is JsonArray arr)
             {
-                return arr.FromJson<StructFieldSchema[]>() ?? [];
+                return arr.Deserialize<StructFieldSchema[]>() ?? [];
             }
             // try type name
             else if (result is JsonValue)
             {
                 string typeName = result.ToJsonString().Trim('"');
-                AnySchemaType? type = await context.GetSchemaTypeAsync(typeName);
+                var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName);
                 if (type is ArrayType arrType)
-                    type = arrType.ElementSchemaType;
+                    type = arrType.Element;
                 if (type is StructType structType)
-                {
-                    fields = structType.Fields.Select(f => new StructFieldSchema
-                    {
-                        Name = f.Name,
-                        Type = f.Type
-                    }).ToArray();
-                }
+                    fields = structType.GetFields().Select(GetFieldSchema).ToArray();
             }
 
             fields ??= [];
@@ -1459,7 +1465,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         catch (Exception e)
         {
-            Logger.LogError(e, $"Could not find unique field for {relation.FuncNode.Name}");
+            Logger.LogError(e, $"Could not find unique field for {call.FuncType.Name}");
         }
         
         return [];
@@ -1477,13 +1483,13 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         
         // If the arguments is another field, we can query it directly, since it's designed to be used in frontend,
         // means it's value is small and easy to query, otherwise the function can be executed to gets the value directly
-        object?[] args = new object[relation.Args.Length];
-        for (int i = 0; i < relation.Args.Length; i++)
+        object?[] args = new object[call.Args.Length];
+        for (int i = 0; i < call.Args.Length; i++)
         {
-            var arg = relation.Args[i];
-            if (!string.IsNullOrEmpty(arg.Name))
+            var arg = call.Args[i];
+            if (!string.IsNullOrEmpty(arg.Source))
             {
-                args[i] = node.GetValueByPaths(arg.Name);
+                args[i] = node.GetAccessValue(arg.Source);
             }
             else if (arg.Value != null)
             {
@@ -1492,8 +1498,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         
         // build the unique key for cache
-        string? uniqueKey = args.All(a => a is ScalarTypeNode or EnumTypeNode or JsonValue)
-            ? $"{relation.FuncNode.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
+        string? uniqueKey = args.All(a => a is ScalarNode or EnumNode or JsonValue)
+            ? $"{call.FuncType.Name}:{target}:{string.Join(":", args.Select(a => a is JsonValue jv ? jv.ToJsonString() : a?.ToString() ?? "null"))}"
             : null;
 
         StructFieldSchema[]? fields = null;
@@ -1503,26 +1509,22 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await relation.FuncNode.CallAsync<JsonNode>(context, args, null, target);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args, null, target);
             switch (result)
             {
                 // try convert
                 case JsonArray arr:
-                    return arr.FromJson<StructFieldSchema[]>() ?? [];
+                    return arr.Deserialize<StructFieldSchema[]>() ?? [];
                 // try type name
                 case JsonValue:
                 {
                     string typeName = result.ToJsonString().Trim('"');
-                    AnySchemaType? type = await context.GetSchemaTypeAsync(typeName);
+                    var type = await _context.GetNodeTypeAsync<RuntimeValueType>(typeName);
                     if (type is ArrayType arrType)
-                        type = arrType.ElementSchemaType;
+                        type = arrType.Element;
                     if (type is StructType structType)
                     {
-                        fields = structType.Fields.Select(f => new StructFieldSchema
-                        {
-                            Name = f.Name,
-                            Type = f.Type
-                        }).ToArray();
+                        fields = structType.GetFields().Select(GetFieldSchema).ToArray();
                     }
 
                     break;
@@ -1537,7 +1539,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
         catch (Exception e)
         {
-            Logger.LogError(e, $"Could not find unique field for {relation.FuncNode.Name}");
+            Logger.LogError(e, $"Could not find unique field for {call.FuncType.Name}");
         }
         
         return [];
@@ -1546,7 +1548,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <summary>
     /// Save the attribute-based field value to the attribute table, the attr field is in format "structField_attrField"
     /// </summary>
-    async Task SaveAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema[] fields, JsonObject? value, string prev, List<(string k, DataNode v)> primaries)
+    async Task SaveAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema[] fields, JsonObject? value, string prev, List<(string k, DataNode v)> primaries)
     {
         string[] scopeKeys = scopeItems.Keys.ToArray();
         string tableRef = sqlProvider.QuoteTable(attrTable);
@@ -1554,9 +1556,9 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         string fixedValues = string.Join(',', scopeKeys.Select(k => scopeItems[k]).Concat(primaries.Select(p => sqlProvider.Literal(p.v))));
         string sep = scopeKeys.Length > 0 || primaries.Count > 0 ? "," : "";
 
-        foreach (StructFieldSchema field in fields.Where(f => f.DisplayOnly != true))
+        foreach (StructFieldSchema field in fields.Where(f => f.GetProperty<DisplayOnly>()?.Value != true))
         {
-            AnySchemaType? type = await context.GetSchemaTypeAsync(field.Type);
+            var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type);
             if (type == null)
             {
                 Logger.LogWarning($"The attribute field {field.Name} type not found, will be ignored");
@@ -1578,12 +1580,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             // For struct type, we need to save the nested fields separately, since the attribute table is designed to be flat, means the field name is in format "structField_attrField"
             if (type is StructType structType)
             {
-                await SaveAttributeBasedFieldAsync(context, attrTable, scopeItems, structType.Fields.ToArray(), r as JsonObject, attrField, primaries);
+                await SaveAttributeBasedFieldAsync(attrTable, scopeItems, structType.GetFields().Select(GetFieldSchema).ToArray(), r as JsonObject, attrField, primaries);
                 continue;
             }
 
             // For one field value
-            DataNode? node = r != null ? type.CreateNode(r) : null;
+            DataNode? node = r != null ? type.From(r) : null;
             if (node is { IsEmpty: false })
             {
                 DataNode? intNode = null;
@@ -1593,18 +1595,18 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 DataNode? txtNode = null;
                 DataNode? jsonNode = null;
                 
-                if (node is ScalarTypeNode scalar)
+                if (node is ScalarNode scalar)
                 {
-                    ScalarType scalarType = scalar.SchemaType as ScalarType ?? throw new Exception($"The scalar type of field {field.Name} is invalid");
-                    if (scalarType.IsBool || scalarType.IsInt)
+                    ScalarType scalarType = scalar.Type as ScalarType ?? throw new Exception($"The scalar type of field {field.Name} is invalid");
+                    if (scalarType is BoolType or IntType)
                     {
                         intNode = node;
                     }
-                    else if (scalarType.IsNumber)
+                    else if (scalarType is DecimalType)
                     {
                         dblNode = node;
                     }
-                    else if (scalarType.IsString)
+                    else if (scalarType is StringType)
                     {
                         if (scalarType.IsIndexable)
                         {
@@ -1615,15 +1617,15 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             txtNode = node;
                         }
                     }
-                    else if (scalarType.IsDate)
+                    else if (scalarType is DateType)
                     {
                         datNode = node;
                     }
                 }
-                else if (node is EnumTypeNode enumNode)
+                else if (node is EnumNode enumNode)
                 {
-                    EnumType enumType = (enumNode.SchemaType as EnumType)!;
-                    switch (enumType.ValueType)
+                    EnumType enumType = (enumNode.Type as EnumType)!;
+                    switch (enumType.Type)
                     {
                         case EnumValueType.Int:
                         case EnumValueType.Flags:
@@ -1654,20 +1656,20 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
             else
             {
-                await DeleteAttributeBasedFieldAsync(context, attrTable, scopeItems, field, prev, primaries);
+                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, field, prev, primaries);
             }
         }
     }
     
-    async Task DeleteAttributeBasedFieldAsync(SchemaContext context, string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, DataNode v)> primaries)
+    async Task DeleteAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, DataNode v)> primaries)
     {
         string attrField = $"{prev}_{field.Name}";
-        AnySchemaType? type = await context.GetSchemaTypeAsync(attrField);
+        var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type);
         if (type is StructType @struct)
         {
-            foreach (StructFieldSchema f in @struct.Fields.Where(f => f.DisplayOnly != true))
+            foreach (StructFieldSchema f in @struct.GetFields().Where(f => f.DisplayOnly != true).Select(GetFieldSchema))
             {
-                await DeleteAttributeBasedFieldAsync(context, attrTable, scopeItems, f, attrField, primaries);
+                await DeleteAttributeBasedFieldAsync(attrTable, scopeItems, f, attrField, primaries);
             }
         }
         else
@@ -1683,15 +1685,14 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     {
         if (schema.AppField.Topology != FieldStorageTopology.AttributeBased) return;
         
-        SchemaContext context = serviceProvider.GetService<SchemaContext>()!;
         var (_, scopeItems) = PrepareWhere(schema);
         
         foreach (DynamicTableField dynamic in schema.Fields.Where(f => f.HasTypeRelation))
         {
-            foreach (StructNode pack in arr.Cast<StructNode>())
+            foreach (StructNode pack in arr.OfType<StructNode>())
             {
-                var fields = dynamic.RelationType != null 
-                    ? await GetStructFieldConfigs(schema.AppFieldType, pack, dynamic.RelationType)
+                StructFieldSchema[] fields = dynamic.RelationType != null 
+                    ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType)
                     : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
                 if (fields.Length == 0) continue;
                 List<(string, DataNode v)> primaries = [];
@@ -1699,9 +1700,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     primaries.Add((fld, v!));
 
                 foreach (StructFieldSchema field in fields)
-                {
-                    await DeleteAttributeBasedFieldAsync(context, schema.AppField.AttributeTableName, scopeItems, field, dynamic.Name.ToLower(), primaries);
-                }
+                    await DeleteAttributeBasedFieldAsync(schema.AppField.AttributeTableName, scopeItems, field,
+                        dynamic.Name.ToLower(), primaries);
             }
         }
     }
@@ -1713,7 +1713,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith(".")) prefix += ".";
         
         // Prepare the scope items
-        foreach ((string item, DataNode? value)  in schema.GetScopeItems(serviceProvider))
+        foreach ((string item, DataNode? value)  in schema.GetScopeItems(_context))
         {
             if (value == null || value.IsEmpty)
                 throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
@@ -1732,7 +1732,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         if (!string.IsNullOrEmpty(sub) && !sub.EndsWith(".")) sub += ".";
         
         // Prepare the scope items
-        foreach (string item in schema.GetScopeItems())
+        foreach (string item in schema.GetScopeKeys(_context))
             sb.Append($"{sub}{sqlProvider.QuoteField(item)} = {main}{sqlProvider.QuoteField(item)} AND ");
         
         return sb.ToString();
@@ -1771,14 +1771,26 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         _ => throw new ArgumentOutOfRangeException()
     };
 
+    StructFieldSchema GetFieldSchema(StructFieldType type)
+    {
+        var schema = new StructFieldSchema
+        {
+            Name = type.Name,
+            Type = type.Type!.Name,
+        };
+        if (type.DisplayOnly == true)
+            schema.SetProperty<DisplayOnly, bool>(true);
+        return schema;
+    }
+
     private DbTransaction? _transaction;
     private ILogger Logger => _loggerThunk.Value;
 
     private readonly Lazy<ILogger> _loggerThunk = new (serviceProvider.GetRequiredService<ILogger<AppDataMySqlProvider>>);
     
-    private readonly Dictionary<string, DataNode?> _relationDataCache = new Dictionary<string, DataNode?>(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, StructFieldSchema[]> _attrFields = new Dictionary<string, StructFieldSchema[]>(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, StructFieldSchema[]> _attrFieldsFromStruct = new Dictionary<string, StructFieldSchema[]>(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DataNode?> _relationDataCache = new (StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, StructFieldSchema[]> _attrFields = new (StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, StructFieldSchema[]> _attrFieldsFromStruct = new (StringComparer.OrdinalIgnoreCase);
 
     #endregion
 }

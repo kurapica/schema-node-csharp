@@ -561,9 +561,10 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<string> GetScopeItems(SchemaContext context)
+    public IEnumerable<string> GetScopeKeys(ISchemaContext context)
     {
-        foreach (var (item, _, _) in AppField.Application.GetScopeContextItemTypes(context))
+        if (context is not SchemaContext schemaContext) yield break;
+        foreach (var (item, _, _) in AppField.Application.GetScopeContextItemTypes(schemaContext))
             yield return item;
     }
 
