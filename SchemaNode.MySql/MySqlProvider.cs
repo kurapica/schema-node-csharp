@@ -1,9 +1,8 @@
 using System.Text.Json.Nodes;
 using MySqlConnector;
-using SchemaNode.Components;
+using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 
 namespace SchemaNode.MySql;
 
@@ -32,7 +31,7 @@ public class MySqlProvider : ISqlProvider
 
     public string Literal(object? value)
     {
-        if (value is AnySchemaNode node) value = node.LiteralValue;
+        if (value is DataNode node) value = node.GetValue<object>();
         if (value is JsonValue j) value = j.GetValue<object>();
 
         return value switch
