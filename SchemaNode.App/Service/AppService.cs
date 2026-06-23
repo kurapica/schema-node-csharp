@@ -3,9 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SchemaNode.Context;
 using SchemaNode.Data;
+using SchemaNode.Data.Sql;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Service;
 
@@ -43,13 +45,13 @@ public static class AppService
         services.TryAddScoped<IAppDataProvider>(sp => sp.GetRequiredService<T>());
         
         // sql provider check
-        /*Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
+        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
         if (interfaceType != null)
         {
             // keep it simple, just set it
             ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
             services.AddSingleton(instance);
-        }*/
+        }
         
         return services;
     }

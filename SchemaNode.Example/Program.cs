@@ -1,8 +1,9 @@
 using Microsoft.OpenApi;
-using SchemaNode.Data;
+using MySqlConnector;
 using SchemaNode.Example.Components;
 using SchemaNode.Http;
 using SchemaNode.Http.JsonRpc;
+using SchemaNode.MySql;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Service;
 
@@ -46,15 +47,15 @@ builder.Services
     .AddSchemaStorageProvider<DynamicAppSchemaStorageProvider>() // save schema as application data
 
     // Mysql
-    // .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-    //.AddAppSchemaDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
+    .AddAppDataProvider<AppDataMySqlProvider>() // Mysql application data provider
 
     // PostgreSQL
     //.AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
-    //.AddAppSchemaDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
+    //.AddAppDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
 
     // For test only
-    .AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
+    //.AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp
     //.AddSchemaMcp()

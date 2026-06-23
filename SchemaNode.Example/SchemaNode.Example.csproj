@@ -24,5 +24,6 @@
   <ItemGroup>
     <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
     <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
+    <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
   </ItemGroup>
 </Project>
