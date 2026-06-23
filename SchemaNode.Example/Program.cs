@@ -43,7 +43,7 @@ builder.Services
     .AddScoped<UserInfoProvider>()
 
     // schema
-    .WithSchemaApiProtocol<JsonRpcSchemaApiProtocol>()
+    .WithSchemaApiProtocol<DefaultSchemaApiProtocol>()
     .AddSchemaStorageProvider<DynamicAppSchemaStorageProvider>() // save schema as application data
 
     // Mysql

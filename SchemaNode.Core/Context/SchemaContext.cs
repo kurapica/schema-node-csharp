@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
@@ -428,7 +429,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Sets the context item
     /// </summary>
-    public void SetContextItem<T>(T? value) => SetContextItem(typeof(T), value);
+    public void SetContextItem<T>(T? value) where T : class => SetContextItem(typeof(T), value);
 
     /// <summary>
     /// Gets context item result, try to get from context item provider if not exist in context items
@@ -448,10 +449,10 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the context item with the given type
     /// </summary>
-    public T? GetContextItem<T>()
+    public T? GetContextItem<T>() where T : class
     {
         object? result = GetContextItemResult(typeof(T));
-        return (T?)result ?? default(T?);
+        return result as T ?? default(T?);
     }
     
     /// <summary>

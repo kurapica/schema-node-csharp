@@ -43,17 +43,17 @@ internal static class JsonOptions
     /// <summary>
     /// From http request
     /// </summary>
-    public static T? FromJsonRequest<T>(this SchemaContext context, string json)
+    public static T? FromJsonRequest<T>(this SchemaContext context, string json, DateFormatMode? dateFormatmode = null)
     {
-        return JsonSerializer.Deserialize<T>(json, GetJsonOptions(false, context.GetContextItem<DateFormatMode>(), context.GetTimeZone()));
+        return JsonSerializer.Deserialize<T>(json, GetJsonOptions(false, dateFormatmode, context.GetTimeZone()));
     }
     
     
     /// <summary>
     /// To http result
     /// </summary>
-    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false)
+    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false, DateFormatMode? dateFormatmode = null)
     {
-        return Results.Json(value, GetJsonOptions(indent, context.GetContextItem<DateFormatMode>(), context.GetTimeZone()));
+        return Results.Json(value, GetJsonOptions(indent, dateFormatmode, context.GetTimeZone()));
     }
 }

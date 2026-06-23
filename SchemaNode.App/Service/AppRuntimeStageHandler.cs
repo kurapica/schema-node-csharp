@@ -7,7 +7,6 @@ using SchemaNode.Components;
 using SchemaNode.Context;
 using SchemaNode.Event;
 using SchemaNode.Http;
-using SchemaNode.Http.JsonRpc;
 using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
