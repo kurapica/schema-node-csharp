@@ -26,6 +26,9 @@ public static partial class SchemaNodeExtensions
     /// </summary>
     public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
     {
+        // load locales
+        Locale.TryLoad();
+        
         // system access
         services.TryAddSingleton<SystemAccess>();
         

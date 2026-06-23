@@ -16,6 +16,8 @@ namespace SchemaNode.Generator;
 
 public class WorkflowGenerator : INodeSchemaGenerator
 {
+    private static readonly NullabilityInfoContext _nullabilityContext = new();
+
     public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         if (!type.IsAssignableTo(typeof(BaseWorkflow))) yield break;
@@ -96,7 +98,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
                 FuncArg arg = new ()
                 {
                     Name = p.Name ?? $"arg{i}",
-                    Nullable = pt.Nullable || p.HasDefaultValue || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable ||
+                    Nullable = pt.Nullable || p.HasDefaultValue || _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
                                p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
                                defaultProp != null,
                     Display = processMethod.GetSummaryFromXmlDoc(p) ?? null,
