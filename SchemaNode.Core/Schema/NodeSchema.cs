@@ -111,6 +111,7 @@ public sealed class NodeSchema: ExtensibleSchema
             Name = Name,
             Namespace = Namespace,
             Kind = Kind,
+            Type = Type,
         };
         nodeSchema.CombineExtensions(this, runtime);
 

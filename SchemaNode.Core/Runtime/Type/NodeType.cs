@@ -236,12 +236,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     public NodeSchema? GetNodeSchema(ISchemaRuntime? runtime = null) => Schema?.Clone(runtime);
 
     /// <summary>
-    /// Gets all node schemas used by the node schema
+    /// Gets all node schemas related by the node schema
     /// </summary>
-    /// <returns></returns>
     public async Task<NodeSchema> GetNodeSchemas(SchemaContext context, 
         NodeSchema? root = null, 
         HashSet<string>? types = null, 
+        bool fullNs = false,
         bool includeUsedBy = false, 
         CancellationToken? cancellationToken = null)
     {
@@ -258,41 +258,51 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         
         // install
         NodeSchema parent = root;
-        SpanReader reader = Name;
-        while (reader.NextNamespace())
+        if (Namespace != null)
         {
-            parent.Schemas ??= [];
-            string matched = reader.Matched.ToString();
-            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => matched.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
-            if (sub == null)
+            Stack<NamespaceType> namespaces = [];
+            NamespaceType? n = Namespace;
+            while (n != null)
             {
-                cancellationToken?.ThrowIfCancellationRequested();
-                sub = (await context.GetNodeTypeAsync(matched))?.Schema ?? new NodeSchema{ Name = matched.GetSchemaName(), Namespace = matched.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE };
-                parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
+                namespaces.Push(n);
+                n = n.Namespace;
             }
-            parent = sub;
-        }
 
+            while (namespaces.TryPop(out n))
+            {
+                parent.Schemas ??= [];
+                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => n.Name.Equals(s.FullName, StringComparison.OrdinalIgnoreCase));
+                if (sub == null)
+                {
+                    cancellationToken?.ThrowIfCancellationRequested();
+                    sub = n.GetNodeSchema(context.Runtime) ?? new NodeSchema
+                    {
+                        Name = n.Name.GetSchemaName(), Namespace = n.Name.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE
+                    };
+                    parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
+                }
+                parent = sub;
+            }
+        }
+        
         NodeSchema schema = Schema.Clone(context.Runtime);
         if (includeUsedBy)
-        {
             schema.UsedBy = _usedBy?.Keys.Select(p => p.Name).ToArray();
-        }
 
-        if (parent.Schemas == null || !parent.Schemas.Any(s => s.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)))
+        if (parent.Schemas == null || !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase)))
         {
             parent.Schemas ??= [];
             parent.Schemas = parent.Schemas.Append(schema).ToArray();
         }
         
-        if (this is NamespaceType ns)
+        if (this is NamespaceType ns && fullNs)
         {
             foreach (NodeSchema s in ns.GetNodeSchemas())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
                 var sns = await context.GetNodeTypeAsync(s.Name);
                 if (sns != null)
-                    await sns.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
+                    await sns.GetNodeSchemas(context, root, types, fullNs, includeUsedBy,  cancellationToken);
             }
         }
 
@@ -300,7 +310,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         foreach (NodeType n in GetReferenceTypes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
-            await n.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
+            await n.GetNodeSchemas(context, root, types, fullNs, includeUsedBy, cancellationToken);
         }
 
         return root;

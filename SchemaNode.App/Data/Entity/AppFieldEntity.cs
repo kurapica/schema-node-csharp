@@ -11,7 +11,8 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Data.Entity;
 
-[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<App>(NS_SYSTEM_SCHEMA)]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.appfield")]
 internal class AppFieldEntity
 {

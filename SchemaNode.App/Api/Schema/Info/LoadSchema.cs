@@ -46,9 +46,9 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
 
-            await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
+            await node.GetNodeSchemas(SchemaContext, root, types, request.Full ?? false, true, cancellationToken);
 
-            if (node is NamespaceType ns && (first || request.Full == true))
+            if (node is NamespaceType ns && first && request.Full != true)
                 foreach (var pair in ns.GetNodeSchemas())
                 {
                     var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);

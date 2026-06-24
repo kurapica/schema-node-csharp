@@ -159,6 +159,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         if (node == null)
         {
             skipUnloadNs = false;
+            spans = fullName;
             node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
             while (node != null && spans.NextNamespace())
                 node = await LoadNodeTypeAsync(node, spans);
@@ -311,8 +312,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         continue;
                     }
                     
-                    // Combine
-                    schema.CombineExtensions(loadSchema, schemaRuntime);
+                    // Combine none system schema
+                    if ((schema.LoadState & SchemaLoadState.System) == 0)
+                        schema.CombineExtensions(loadSchema, schemaRuntime);
 
                     if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;

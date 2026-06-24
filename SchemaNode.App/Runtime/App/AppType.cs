@@ -346,7 +346,7 @@ public sealed class AppType : IValueTypeAccess
         foreach (NodeType t in GetReferenceTypes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
-            await t.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            await t.GetNodeSchemas(ctx, root, types, false, includeUsedBy, cancellationToken);
         }
         return root.Schemas!;
     }
