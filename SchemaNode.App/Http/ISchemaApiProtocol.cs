@@ -38,12 +38,12 @@ public interface ISchemaApiProtocol
     /// <summary>
     /// Read request from body
     /// </summary>
-    TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest;
+    TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody, DateFormatMode? dateFormatMode = null) where TRequest : SchemaApiRequest;
 
     /// <summary>
     /// Generate the result based on the response
     /// </summary>
-    IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse;
+    IResult GenerateResult<TResponse>(SchemaContext context, TResponse response, DateFormatMode? dateFormatMode = null) where TResponse : SchemaApiResponse;
 
     /// <summary>
     /// Generate error response based on exception
@@ -120,8 +120,7 @@ public interface ISchemaApiProtocol
             // date format
             if (request.DateFormat.HasValue && request.DateFormat != DateFormatMode.Iso8601)
             {
-                context.SetContextItem(request.DateFormat.Value);
-                request = ReadRequest<TRequest>(context, requestBody); // re-read the request with the correct date format
+                request = ReadRequest<TRequest>(context, requestBody, request.DateFormat); // re-read the request with the correct date format
             }
         }
         catch (Exception ex)
@@ -132,7 +131,7 @@ public interface ISchemaApiProtocol
         // Validate request.
         try
         {
-            List<ValidationResult> results = new();
+            List<ValidationResult> results = [];
             if (!Validator.TryValidateObject(request, new ValidationContext(request), results, true))
             {
                 return GenerateErrorResponse(context, SchemaApiErrorCode.InvalidParams, "The request parameters are invalid.", GetValidationErrors(results));
@@ -197,7 +196,7 @@ public interface ISchemaApiProtocol
                 fileDownloadName: response.Output.Name
             );
         }
-        return GenerateResult(context, response);
+        return GenerateResult(context, response, request.DateFormat);
     }
 
     /// <summary>

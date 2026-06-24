@@ -8,6 +8,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
 
 // ReSharper disable AccessToDisposedClosure
@@ -21,6 +22,17 @@ public static partial class SchemaNodeExtensions
 {
     #region Extension methods
 
+    /// <summary>
+    /// Register the app schema provider, also the node schema provider
+    /// </summary>
+    public static IServiceCollection AddSchemaProvider<T>(this IServiceCollection services) 
+        where T : class, INodeSchemaProvider
+    {
+        services.TryAddScoped<T>();
+        services.AddScoped<INodeSchemaProvider>(sp => sp.GetRequiredService<T>());
+        return services;
+    }
+    
     /// <summary>
     /// Add schema frameworks from assemblies
     /// </summary>
@@ -36,8 +48,8 @@ public static partial class SchemaNodeExtensions
         services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
         
         // Default Schema context
-        services.TryAddScoped<ISchemaContext, SchemaContext>();
         services.AddScoped<SchemaContext>();
+        services.TryAddScoped<ISchemaContext>(sp => sp.GetRequiredService<SchemaContext>());
         
         // The schema runtime builder
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, NodeRuntimeStageHandler>());

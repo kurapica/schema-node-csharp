@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.OpenApi;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Utility;
 using Swashbuckle.AspNetCore.SwaggerGen;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -54,9 +55,9 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody) where TRequest : SchemaApiRequest
+    public TRequest ReadRequest<TRequest>(SchemaContext context, string requestBody, DateFormatMode? dateFormat = null) where TRequest : SchemaApiRequest
     {
-        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJsonRequest<JsonRpcRequestMessage<TRequest>>(requestBody) 
+        JsonRpcRequestMessage<TRequest> requestMessage = context.FromJsonRequest<JsonRpcRequestMessage<TRequest>>(requestBody, dateFormat) 
                 ?? throw new Exception("Failed to parse the request body.");
         if (requestMessage.Jsonrpc != "2.0" || requestMessage.Params == null || string.IsNullOrEmpty(requestMessage.Id))
             throw new ArgumentException("The request message does not follow JSON-RPC protocol strictly.");
@@ -65,14 +66,14 @@ public class JsonRpcSchemaApiProtocol: ISchemaApiProtocol
     }
 
     /// <inheritdoc />
-    public IResult GenerateResult<TResponse>(SchemaContext context, TResponse response) where TResponse : SchemaApiResponse
+    public IResult GenerateResult<TResponse>(SchemaContext context, TResponse response, DateFormatMode? dateFormat = null) where TResponse : SchemaApiResponse
     {
         return context.ToJsonResult(new JsonRpcResponseMessage<TResponse>
         {
             Jsonrpc = "2.0",
             Result = response,
             Id = _requestId,
-        });
+        },  dateFormat: dateFormat);
     }
 
     public IResult GenerateErrorResponse(SchemaContext context, SchemaApiErrorCode code, string? message = null,

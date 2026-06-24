@@ -25,7 +25,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             Type = SchemaType.Namespace,
             Schemas = []
         };
-        HashSet<string> types = new();
+        HashSet<string> types = [];
 
         foreach (string t in request.Names)
         {
@@ -41,8 +41,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
 
         async Task GetNodeSchemas(AnySchemaType? node, bool first = false)
         {
-            if (node == null) return;
-            if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
+            if (node == null || !await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true)) return;
 
             await node.GetNodeSchemas(SchemaContext, root, types, true, cancellationToken);
 

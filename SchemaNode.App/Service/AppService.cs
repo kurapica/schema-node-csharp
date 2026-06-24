@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using SchemaNode.Context;
 using SchemaNode.Data;
 using SchemaNode.Data.Sql;
-using SchemaNode.Http;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
@@ -14,25 +13,20 @@ namespace SchemaNode.Service;
 public static class AppService
 {    
     /// <summary>
-    /// Register the app schema provider
+    /// Register the app schema provider, also the node schema provider
     /// </summary>
-    public static IServiceCollection AddSchemaProvider<T>(this IServiceCollection services) 
+    public static IServiceCollection AddAppSchemaProvider<T>(this IServiceCollection services) 
         where T : class, IAppSchemaProvider
-    {
-        services.TryAddScoped<T>();
-        services.AddScoped<IAppSchemaProvider>(sp => sp.GetRequiredService<T>()); // multi allowed
-        services.AddScoped<INodeSchemaProvider>(sp => sp.GetRequiredService<T>());
-        return services;
-    }
+        => services.AddScoped<IAppSchemaProvider>(sp => sp.GetRequiredService<T>()).AddSchemaProvider<T>();
 
     /// <summary>
-    /// Register the app schema storage provider, it also will be used for <see cref="AddSchemaProvider"/>
+    /// Register the app schema storage provider, it also will be used for <see cref="AddAppSchemaProvider{T}"/>
     /// </summary>
     public static IServiceCollection AddSchemaStorageProvider<T>(this IServiceCollection services)
         where T : class, IAppSchemaStorageProvider
     {
         services.TryAddScoped<IAppSchemaStorageProvider>(sp => sp.GetRequiredService<T>()); // single per service
-        return services.AddSchemaProvider<T>();
+        return services.AddAppSchemaProvider<T>();
     }
 
     /// <summary>
@@ -52,7 +46,6 @@ public static class AppService
             ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
             services.AddSingleton(instance);
         }
-        
         return services;
     }
 

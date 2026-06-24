@@ -27,7 +27,7 @@ public class LoadSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
-        HashSet<string> types = new();
+        HashSet<string> types = [];
 
         foreach (string t in request.Names)
         {

@@ -66,7 +66,9 @@ public static class AppSchemaContextExtension
 
                 string schemaName = $"{root?.Name}.{name}".Trim('.');
                 schema = SetSchemaState(runtime.GetSystemAppSchema(schemaName), SchemaLoadState.System);
-                if (context.SystemMode) return schema;
+                
+                // system app don't allow custom app or fields to avoid cycle-loading
+                if (context.SystemMode || schema != null) return schema;
 
                 foreach (var provider in context.GetServices<IAppSchemaProvider>())
                 {

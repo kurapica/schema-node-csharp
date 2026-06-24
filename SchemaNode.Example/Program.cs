@@ -2,7 +2,6 @@ using Microsoft.OpenApi;
 using MySqlConnector;
 using SchemaNode.Example.Components;
 using SchemaNode.Http;
-using SchemaNode.Http.JsonRpc;
 using SchemaNode.MySql;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Service;
