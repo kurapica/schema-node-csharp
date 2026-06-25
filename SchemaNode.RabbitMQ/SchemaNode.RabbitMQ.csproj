@@ -8,11 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
+      <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="RabbitMQ.Client" Version="7.2.1" />
+      <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
     </ItemGroup>
 
 </Project>

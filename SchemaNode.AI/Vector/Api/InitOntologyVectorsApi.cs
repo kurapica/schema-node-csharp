@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.AI;
+using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
@@ -40,7 +41,7 @@ public class InitOntologyVectorsApi
         // carry no domain semantics worth embedding.
         // Each data app is indexed independently (includeSubApps:false) so that
         // every app produces its own focused set of SSP blocks.
-        AppType? rootApp = await SchemaContext.GetAppTypeAsync("", preload: true);
+        AppType? rootApp = await SchemaContext.GetAppTypeAsync("");
         var dataApps = new List<AppType>();
         CollectDataApps(rootApp, dataApps);
 
@@ -65,11 +66,11 @@ public class InitOntologyVectorsApi
         // Walk the full namespace tree and collect only concrete (non-namespace),
         // non-system schema types.  TypeNamespace nodes are purely structural
         // containers and carry no embeddable semantics of their own.
-        TypeNamespace? rootNs = await SchemaContext.GetSchemaTypeAsync("", preload: true) as TypeNamespace;
-        var concreteTypes = new List<AnySchemaType>();
+        var rootNs = await SchemaContext.GetNodeTypeAsync("") as NamespaceType;
+        var concreteTypes = new List<NodeType>();
         if (rootNs != null) CollectConcreteTypes(rootNs, concreteTypes);
 
-        foreach (AnySchemaType type in concreteTypes)
+        foreach (var type in concreteTypes)
         {
             cancellationToken.ThrowIfCancellationRequested();
             try
@@ -167,13 +168,13 @@ public class InitOntologyVectorsApi
     /// <see cref="TypeNamespace"/> nodes are containers — they are traversed but not
     /// added to the result set.
     /// </summary>
-    private static void CollectConcreteTypes(TypeNamespace ns, List<AnySchemaType> result)
+    private static void CollectConcreteTypes(NamespaceType ns, List<NodeType> result)
     {
-        foreach (AnySchemaType type in ns.SchemaNodes.Values)
+        foreach (var type in ns.SchemaNodes.Values)
         {
             if ((type.LoadState & SchemaLoadState.System) != 0)
                 continue;
-            if (type is TypeNamespace subNs)
+            if (type is NamespaceType subNs)
                 CollectConcreteTypes(subNs, result);
             else
                 result.Add(type);

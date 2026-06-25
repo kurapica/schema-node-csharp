@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
+using SchemaNode.Event;
+using SchemaNode.Service;
 
 namespace SchemaNode.Kafka;
 
@@ -15,7 +15,6 @@ public static class KafkaEventExtension
     public static IServiceCollection AddSchemaKafkaEvent(this IServiceCollection services)
     {
         services.AddSingleton<IEventSource, KafkaEventSource>();
-        services.AddSchemaAssemblies(typeof(KafkaEventExtension).Assembly);
-        return services;
+        return services.AddSchemaAssembly<KafkaEvent>();
     }
 }

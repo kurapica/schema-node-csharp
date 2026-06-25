@@ -6,6 +6,8 @@ using System.ClientModel;
 using System.Reflection;
 using SchemaNode.AI.Vector;
 using SchemaNode.Components;
+using SchemaNode.Service;
+using SchemaNode.Event;
 
 namespace SchemaNode.AI;
 
@@ -41,10 +43,6 @@ public static class SchemaNodeVectorInjection
         Action<OntologyVectorOptions>? configure = null,
         Action<IServiceCollection>? configureServices = null)
     {
-        // Register this assembly so that SchemaApi subclasses defined here are
-        // discovered by UseSchemaApis() during request-mapping.
-        services.AddSchemaAssemblies(Assembly.GetExecutingAssembly());
-
         // Configure and register OntologyVectorOptions as a singleton.
         var opts = new OntologyVectorOptions();
         configure?.Invoke(opts);
@@ -59,7 +57,7 @@ public static class SchemaNodeVectorInjection
         // Allow the caller to add further configuration (additional services, etc.).
         configureServices?.Invoke(services);
 
-        return services;
+        return services.AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
     }
 
     /// <summary>

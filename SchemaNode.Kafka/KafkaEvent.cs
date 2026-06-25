@@ -1,11 +1,11 @@
-﻿using SchemaNode.Components;
+﻿using SchemaNode.Event;
 
 namespace SchemaNode.Kafka;
 
 /// <summary>
 /// THe Kafka Event
 /// </summary>
-public abstract class KafkaEvent: Event
+public abstract class KafkaEvent: BaseEvent
 {
 }
 

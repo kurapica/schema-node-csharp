@@ -59,7 +59,8 @@ builder.Services
     // Mcp
     //.AddSchemaMcp()
 
-    .AddAppSchemaAssembly<Program>();
+    .AddAppSchemaAssembly<Program>()
+    .PrepareSchemaRuntime();
 
 // App
 var app = builder.Build();

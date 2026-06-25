@@ -10,6 +10,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
+using SchemaNode.Schema;
 
 // ReSharper disable AccessToDisposedClosure
 
@@ -38,28 +39,6 @@ public static partial class SchemaNodeExtensions
     /// </summary>
     public static IServiceCollection AddSchemaAssemblies(this IServiceCollection services, params Assembly[] assemblies)
     {
-        // load locales
-        Locale.TryLoad();
-        
-        // system access
-        services.TryAddSingleton<SystemAccess>();
-        
-        // Default run-time
-        services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
-        
-        // Default Schema context
-        services.AddScoped<SchemaContext>();
-        services.TryAddScoped<ISchemaContext>(sp => sp.GetRequiredService<SchemaContext>());
-        
-        // The schema runtime builder
-        services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, NodeRuntimeStageHandler>());
-        
-        // Add logger
-        services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
-        services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
-
-        #region Register Assemblys
-        
         List<Assembly> orderAssemblies = [];
         Dictionary<Assembly, bool> loadingAssemblies = [];
 
@@ -73,11 +52,11 @@ public static partial class SchemaNodeExtensions
         if (options?.Assemblies != null)
             foreach (Assembly assembly in options.Assemblies.Where(a => a != entry))
                 AddAssembly(assembly);
-        
+
         // Prepare the loading schema assemblies
         foreach (var assembly in assemblies.Where(a => a != entry))
             AddAssembly(assembly);
-        
+
         // Add entry last
         if (entry != null) AddAssembly(entry);
 
@@ -88,37 +67,86 @@ public static partial class SchemaNodeExtensions
             {
                 Assemblies = orderAssemblies.ToArray(),
             });
-        
-        // init with service collections
-        using var provider = services.BuildServiceProvider();
-        IRuntimeStageHandler[] handlers = provider.GetServices<IRuntimeStageHandler>().ToArray();
-        
-        // Register for services
-        foreach (IRuntimeStageHandler handler in handlers)
-            handler.OnServiceInitialization(provider, services, assemblies);
-        
-        // Done with all registered services
-        foreach (IRuntimeStageHandler handler in handlers)
-            handler.OnServiceInitialized(provider, services, assemblies);
-        
-        // Gets all stage handlers
+
         return services;
-        
+
         void AddAssembly(Assembly assembly)
         {
             if (!loadingAssemblies.TryAdd(assembly, true)) return;
             orderAssemblies.Add(assembly);
         }
-        
-        #endregion
     }
-    
+
     /// <summary>
     /// Add schema assembly of the given type
     /// </summary>
     public static IServiceCollection AddSchemaAssembly<T>(this IServiceCollection services) where T: class 
         => services.AddSchemaAssemblies(typeof(T).Assembly);
-    
+
+    /// <summary>
+    /// Prepare the schema runtime, register the schema assemblies and load the system schema
+    /// </summary>
+    public static IServiceCollection PrepareSchemaRuntime(this IServiceCollection services)
+    {
+        #region Check
+
+        SchemaOptions? options = services.FirstOrDefault(x => x.ServiceType == typeof(SchemaOptions))?
+            .ImplementationInstance as SchemaOptions;
+        if (options?.Assemblies is not { Length: > 0 } assemblies)
+            services.AddSchemaAssembly<ExtensibleSchema>(); // default schema assembly
+
+        options = services.FirstOrDefault(x => x.ServiceType == typeof(SchemaOptions))?
+            .ImplementationInstance as SchemaOptions;
+        if (options!.Prepared) return services;
+
+        assemblies = options.Assemblies ?? [];
+        options.Prepared = true;
+
+        #endregion
+
+        #region Prepare
+
+        // load locales
+        Locale.TryLoad();
+
+        // system access
+        services.TryAddSingleton<SystemAccess>();
+
+        // Default run-time
+        services.TryAddSingleton<ISchemaRuntime, SchemaRuntime>();
+
+        // Default Schema context
+        services.AddScoped<SchemaContext>();
+        services.TryAddScoped<ISchemaContext>(sp => sp.GetRequiredService<SchemaContext>());
+
+        // The schema runtime builder
+        services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, NodeRuntimeStageHandler>());
+
+        // Add logger
+        services.TryAddSingleton<ILoggerFactory, LoggerFactory>();
+        services.TryAddScoped(typeof(ILogger<>), typeof(Logger<>));
+
+        #endregion
+
+        #region init with service collections
+
+        using var provider = services.BuildServiceProvider();
+        IRuntimeStageHandler[] handlers = provider.GetServices<IRuntimeStageHandler>().ToArray();
+
+        // Register for services
+        foreach (IRuntimeStageHandler handler in handlers)
+            handler.OnServiceInitialization(provider, services, assemblies);
+
+        // Done with all registered services
+        foreach (IRuntimeStageHandler handler in handlers)
+            handler.OnServiceInitialized(provider, services, assemblies);
+
+        // Gets all stage handlers
+        return services;
+
+        #endregion
+    }
+
     /// <summary>
     /// Loading the schema runtime
     /// </summary>
@@ -279,11 +307,24 @@ public static partial class SchemaNodeExtensions
                 await invoke(handler);
         }
     }
-    
+
+    /// <summary>
+    /// Gets the schema assemblies from the schema context
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    public static IEnumerable<Assembly> GetSchemaAssemblies(this ISchemaContext context)
+    {
+        SchemaOptions? options = context.Services.GetService<SchemaOptions>();
+        if (options?.Assemblies != null)
+            foreach (var assembly in options.Assemblies)
+                yield return assembly;
+    }
+
     #endregion
 
     #region Utility
-    
+
     [LoggerMessage(LogLevel.Information, "Processing build stage: {stage}")]
     static partial void LogProcessingBuildStageStage(this ILogger logger, string stage);
 
@@ -303,6 +344,8 @@ public static partial class SchemaNodeExtensions
     class SchemaOptions
     {
         public Assembly[]? Assemblies { get; set; }
+
+        public bool Prepared { get; set; }
     }
 
     #endregion

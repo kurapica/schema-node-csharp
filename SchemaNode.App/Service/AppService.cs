@@ -60,10 +60,7 @@ public static class AppService
         // The schema runtime builder
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, AppRuntimeStageHandler>());
 
-        services.AddSchemaAssembly<AppSchemaRuntime>();
-        services.AddSchemaAssemblies(assemblies);
-        
-        return services;
+        return services.AddSchemaAssembly<AppSchemaRuntime>().AddSchemaAssemblies(assemblies);
     }
     
     /// <summary>

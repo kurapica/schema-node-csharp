@@ -14,6 +14,7 @@ public sealed class RuntimeInitializationTest
     {
         var services = new ServiceCollection();
         services.AddAppSchemaAssembly<RuntimeInitializationTest>();
+        services.PrepareSchemaRuntime();
 
         await using ServiceProvider provider = services.BuildServiceProvider();
         await provider.InitSchemaRuntimeAsync();

@@ -23,6 +23,7 @@ public abstract class CoreTestBase
         var services = new ServiceCollection();
         services.AddAppSchemaAssembly<CoreTestBase>();
         ConfigureServices(services);
+        services.PrepareSchemaRuntime();
 
         Provider = services.BuildServiceProvider();
         await Provider.InitSchemaRuntimeAsync();
