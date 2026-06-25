@@ -24,7 +24,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
-[Meta<Append>(typeof(Display), typeof(Disable))]
+[Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
 public sealed class AppFieldSchema: ExtensibleSchema
 {
     #region Base

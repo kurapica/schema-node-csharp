@@ -1,8 +1,18 @@
 using SchemaNode.Context;
 using SchemaNode.Enum;
+using SchemaNode.Property;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Function;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using AppType = SchemaNode.Runtime.AppType;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using EnumType = SchemaNode.Runtime.EnumType;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
+using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.AI;
 
@@ -40,8 +50,7 @@ public static class SchemaContextOntologyExtension
         var visitedEnums   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedCtx     = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // preload:true ensures the app and all sub-apps are fully loaded (fields + resolved types)
-        AppType? root = await context.GetAppTypeAsync(appName, preload: true);
+        AppType? root = await context.GetAppTypeAsync(appName);
         if (root != null)
             await BuildAppClassAsync(context, graph, root, null, includeSubApps,
                 visitedApps, visitedStructs, visitedEnums, visitedCtx, cancellationToken);
@@ -90,7 +99,7 @@ public static class SchemaContextOntologyExtension
         var visitedScalars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var visitedFuncs   = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        AnySchemaType? type = await context.GetSchemaTypeAsync(schemaName, preload: true);
+        var type = await context.GetNodeTypeAsync(schemaName);
         if (type != null)
             await CollectSchemaTypesAsync(context, graph, type,
                 visitedStructs, visitedEnums, visitedScalars, visitedFuncs, cancellationToken);
@@ -123,7 +132,7 @@ public static class SchemaContextOntologyExtension
     private static async Task CollectSchemaTypesAsync(
         SchemaContext context,
         OntologyGraph graph,
-        AnySchemaType type,
+        NodeType type,
         HashSet<string> visitedStructs,
         HashSet<string> visitedEnums,
         HashSet<string> visitedScalars,
@@ -134,11 +143,11 @@ public static class SchemaContextOntologyExtension
 
         switch (type)
         {
-            case TypeNamespace ns:
-                foreach (NodeSchema child in ns.Schemas)
+            case NamespaceType ns:
+                foreach (NodeSchema child in ns.GetNodeSchemas(context))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    AnySchemaType? childType = await context.GetSchemaTypeAsync(child.Name, preload: true);
+                    NodeType? childType = await context.GetNodeTypeAsync(child.Name);
                     if (childType == null) continue;
                     await CollectSchemaTypesAsync(context, graph, childType,
                         visitedStructs, visitedEnums, visitedScalars, visitedFuncs, cancellationToken);
@@ -175,12 +184,11 @@ public static class SchemaContextOntologyExtension
         {
             Name     = seg,
             Iri      = $"{graph.AppPrefix}{seg}",
-            Labels   = ToLabels(scalar.Display),
+            Labels   = ToLabels(scalar.GetProperty<Display>()?.Value),
             BaseType = ScalarToXsd(scalar.Name),
-            LowLimit = scalar.GetLowlimit<decimal>(),
-            UpLimit  = scalar.GetUplimit<decimal>(),
-            Unit     = scalar.Unit?.Key,
-            Pattern  = scalar.Pattern,
+            LowLimit = scalar.GetProperty("lowLimit")?.GetValue<decimal>(),
+            UpLimit  = scalar.GetProperty("upLimit")?.GetValue<decimal>(),
+            Unit     = scalar.GetProperty<Unit>()?.Value?.Key
         });
     }
 
@@ -204,21 +212,19 @@ public static class SchemaContextOntologyExtension
             IsParams   = a.Params == true,
         }).ToArray();
 
-        string returnTypeStr = func.ReturnNode != null
-            ? ResolveSchemaTypeStr(func.ReturnNode)
-            : !string.IsNullOrEmpty(func.Return) ? func.Return : "void";
+        string returnTypeStr = ResolveSchemaTypeStr(func.Return);
 
         graph.FunctionClasses.Add(new OntologyFunctionClass
         {
             Name          = seg,
             Iri           = $"{graph.PropPrefix}{seg}",
-            Labels        = ToLabels(func.Display),
+            Labels        = ToLabels(func.GetProperty<Display>()?.Value),
             Args          = args,
             ReturnTypeStr = returnTypeStr,
-            IsPure        = func.SideEffect != true,
-            IsConverter   = func.Converter == true,
-            IsWorkflowOnly = func.WorkflowOnly == true,
-            HasSideEffect = func.SideEffect == true,
+            IsPure        = func.HasFlag<SideEffect>() != true,
+            IsConverter   = func.HasFlag<Converter>() == true,
+            IsWorkflowOnly = func.HasFlag<WorkflowOnly>() == true,
+            HasSideEffect = func.HasFlag<SideEffect>() == true,
         });
     }
 
@@ -228,18 +234,18 @@ public static class SchemaContextOntologyExtension
         HashSet<string> visitedStructs,
         HashSet<string> visitedEnums)
     {
-        if (arg.SchemaType != null)
-            return ResolveSchemaTypeStr(arg.SchemaType);
+        if (arg.ValueType != null)
+            return ResolveSchemaTypeStr(arg.ValueType);
         return !string.IsNullOrWhiteSpace(arg.Type) ? arg.Type : "Any";
     }
 
-    private static string ResolveSchemaTypeStr(AnySchemaType type) => type switch
+    private static string ResolveSchemaTypeStr(NodeType type) => type switch
     {
         StructType st  => $"app:{Seg(st.Name)}",
         EnumType et    => $"en:{Seg(et.Name)}",
         ScalarType sc  => ScalarToXsd(sc.Name),
-        ArrayType ar   => ar.ElementSchemaType != null
-                            ? $"[{ResolveSchemaTypeStr(ar.ElementSchemaType)}]"
+        ArrayType ar   => ar.Element != null
+                            ? $"[{ResolveSchemaTypeStr(ar.Element)}]"
                             : "Array",
         _              => type.Name,
     };
@@ -271,90 +277,80 @@ public static class SchemaContextOntologyExtension
         {
             Name      = className,
             Iri       = classIri,
-            Labels    = ToLabels(app.Display),
-            Comment   = app.Desc?.Key,
+            Labels    = ToLabels(app.GetProperty<Display>()?.Value),
+            Comment   = app.GetProperty<Description>()?.Value?.Key,
             ParentIri = parentClassIri,
         };
 
         //Fields: each field = one DB table
-        if (app.Fields is { Count: > 0 })
+        foreach (AppFieldType field in app.GetFields())
         {
-            foreach (AppFieldType field in app.Fields)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var schemaType = field.ValueType;
+            bool isMulti = false;
+
+            // Unwrap array → get element type
+            if (schemaType is ArrayType arr)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                AnySchemaType? schemaType = field.SchemaType;
-                bool isMulti = false;
-
-                // Unwrap array → get element type
-                if (schemaType is ArrayType arr)
-                {
-                    isMulti    = true;
-                    schemaType = arr.ElementSchemaType;
-                }
-
-                string           rangeIri;
-                OntologyPropertyKind kind;
-
-                switch (schemaType)
-                {
-                    case StructType st:
-                        rangeIri = $"app:{Seg(st.Name)}";
-                        kind     = OntologyPropertyKind.Object;
-                        BuildEntityClass(context, graph, st, visitedStructs, visitedEnums);
-                        break;
-
-                    case EnumType et:
-                        rangeIri = BuildEnumClass(context, graph, et, visitedEnums);
-                        kind     = OntologyPropertyKind.Data;
-                        break;
-
-                    case ScalarType sc:
-                        rangeIri = ScalarToXsd(sc.Name);
-                        kind     = OntologyPropertyKind.Data;
-                        break;
-
-                    default:
-                        rangeIri = "xsd:string";
-                        kind     = OntologyPropertyKind.Data;
-                        break;
-                }
-
-                cls.Tables.Add(new OntologyTableField
-                {
-                    Name         = field.Name,
-                    Labels       = ToLabels(field.Display),
-                    Comment      = field.Desc?.Key,
-                    RangeIri     = rangeIri,
-                    Kind         = kind,
-                    IsMultiValued = isMulti,
-                    IsComputed   = !string.IsNullOrEmpty(field.Func),
-                });
+                isMulti    = true;
+                schemaType = arr.Element;
             }
+
+            string           rangeIri;
+            OntologyPropertyKind kind;
+
+            switch (schemaType)
+            {
+                case StructType st:
+                    rangeIri = $"app:{Seg(st.Name)}";
+                    kind     = OntologyPropertyKind.Object;
+                    BuildEntityClass(context, graph, st, visitedStructs, visitedEnums);
+                    break;
+
+                case EnumType et:
+                    rangeIri = BuildEnumClass(context, graph, et, visitedEnums);
+                    kind     = OntologyPropertyKind.Data;
+                    break;
+
+                case ScalarType sc:
+                    rangeIri = ScalarToXsd(sc.Name);
+                    kind     = OntologyPropertyKind.Data;
+                    break;
+
+                default:
+                    rangeIri = "xsd:string";
+                    kind     = OntologyPropertyKind.Data;
+                    break;
+            }
+
+            cls.Tables.Add(new OntologyTableField
+            {
+                Name         = field.Name,
+                Labels       = ToLabels(field.GetProperty<Display>()?.Value),
+                Comment      = field.GetProperty<Description>()?.Value?.Key,
+                RangeIri     = rangeIri,
+                Kind         = kind,
+                IsMultiValued = isMulti,
+                IsComputed   = field.PushFunc != null,
+            });
         }
 
         // Relation annotations
-        if (app.Relations is { Count: > 0 })
+        foreach (var rel in app.GetRelations())
         {
-            foreach (AppRelationSchema rel in app.Relations)
-            {
-                string fieldRef = !string.IsNullOrEmpty(rel.DataField)
-                    ? $"{rel.AppField}.{rel.DataField}"
-                    : rel.AppField;
+            if (rel.Process is not Call call) continue;
 
-                cls.Relations.Add(new OntologyRelation
-                {
-                    Field        = fieldRef,
-                    Property     = rel.Prop,
-                    Function     = rel.Func,
-                    Args         = rel.Args.Select(a =>
-                        !string.IsNullOrEmpty(a.DataField)
-                            ? $"{a.AppField}.{a.DataField}"
-                            : !string.IsNullOrEmpty(a.AppField)
-                                ? a.AppField
-                                : a.Value?.ToString() ?? "").ToArray(),
-                });
-            }
+            cls.Relations.Add(new OntologyRelation
+            {
+                Field        = rel.Target,
+                Property     = rel.Property,
+                Function     = call.Func,
+                Args         = call.Args.Select(a =>
+                    !string.IsNullOrEmpty(a.Source)
+                            ? a.Source
+                            : a.Value?.ToString() ?? "").ToArray(),
+            });
         }
 
         graph.AppClasses.Add(cls);
@@ -365,24 +361,9 @@ public static class SchemaContextOntologyExtension
         // Sub-apps
         if (!includeSubApps) return;
 
-        if (app.SubAppList is { Count: > 0 })
-        {
-            foreach (AppType sub in app.SubAppList.Values)
-                await BuildAppClassAsync(context, graph, sub, classIri, includeSubApps,
-                    visitedApps, visitedStructs, visitedEnums, visitedCtx, cancellationToken);
-        }
-        else if (app.Apps is { Length: > 0 })
-        {
-            // SubAppList not yet populated — load each sub-app individually
-            foreach (AppSchema subSchema in app.Apps)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                AppType? sub = await context.GetAppTypeAsync(subSchema.Name, preload: true);
-                if (sub != null)
-                    await BuildAppClassAsync(context, graph, sub, classIri, includeSubApps,
-                        visitedApps, visitedStructs, visitedEnums, visitedCtx, cancellationToken);
-            }
-        }
+        foreach (AppType sub in app.GetSubApps())
+            await BuildAppClassAsync(context, graph, sub, classIri, includeSubApps,
+                visitedApps, visitedStructs, visitedEnums, visitedCtx, cancellationToken);
     }
 
     #endregion
@@ -532,20 +513,20 @@ public static class SchemaContextOntologyExtension
         {
             Name         = className,
             Iri          = classIri,
-            Labels       = ToLabels(structType.Display),
+            Labels       = ToLabels(structType.GetProperty<Display>()?.Value),
             BaseClassIri = baseClassIri,
         };
 
-        foreach (StructFieldSchema field in structType.Fields)
+        foreach (var field in structType.GetFields())
         {
-            AnySchemaType? fieldType = field.SchemaType;
+            var fieldType = field.Type;
             bool isMulti = false;
 
             // Unwrap array element
             if (fieldType is ArrayType arr)
             {
                 isMulti   = true;
-                fieldType = arr.ElementSchemaType;
+                fieldType = arr.Element;
             }
 
             string           rangeIri;
@@ -588,8 +569,8 @@ public static class SchemaContextOntologyExtension
             entity.Properties.Add(new OntologyEntityProperty
             {
                 Name          = field.Name,
-                Labels        = ToLabels(field.Display),
-                Comment       = field.Desc?.Key,
+                Labels        = ToLabels(field.GetProperty<Display>()?.Value),
+                Comment       = field.GetProperty<Description>()?.Value?.Key,
                 RangeIri      = rangeIri,
                 Kind          = kind,
                 IsRequired    = field.Require == true,
@@ -622,13 +603,13 @@ public static class SchemaContextOntologyExtension
             {
                 Name   = seg,
                 Iri    = iri,
-                Labels = ToLabels(enumType.Display),
+                Labels = ToLabels(enumType.GetProperty<Display>()?.Value),
                 Values = enumType.LoadEnumSubListAsync(context, "").GetAwaiter().GetResult()
                     .Where(v => !string.IsNullOrEmpty(v.Value))
                     .Select(v => new OntologyEnumValue
                     {
                         Value  = v.Value,
-                        Labels = ToLabels(v.Name),
+                        Labels = ToLabels(v.GetProperty<Display>()?.Value),
                     })
                     .ToArray() ?? [],
             });

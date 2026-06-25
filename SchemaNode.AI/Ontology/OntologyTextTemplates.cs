@@ -1,9 +1,6 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.Enum;
-using SchemaNode.Property.Constraint;
-using SchemaNode.Schema;
 
 namespace SchemaNode.AI;
 
@@ -237,8 +234,7 @@ public static class OntologyTextTemplates
             if (!string.IsNullOrEmpty(sc.BaseType))
             {
                 sb.Append($" ;\n    owl:onDatatype {sc.BaseType}");
-                bool hasFacets = sc.LowLimit.HasValue || sc.UpLimit.HasValue
-                              || sc.Pattern is { Length: > 0 };
+                bool hasFacets = sc.LowLimit.HasValue || sc.UpLimit.HasValue;
                 if (hasFacets)
                 {
                     sb.Append(" ;\n    owl:withRestrictions (");
@@ -246,8 +242,6 @@ public static class OntologyTextTemplates
                         sb.Append($" [ xsd:minInclusive \"{sc.LowLimit.Value}\"^^xsd:decimal ]");
                     if (sc.UpLimit.HasValue)
                         sb.Append($" [ xsd:maxInclusive \"{sc.UpLimit.Value}\"^^xsd:decimal ]");
-                    if (sc.Pattern is { Length: > 0 })
-                        sb.Append($" [ xsd:pattern \"{Esc(PatternToRegex(sc.Pattern))}\" ]");
                     sb.Append(" )");
                 }
             }
@@ -525,14 +519,14 @@ public static class OntologyTextTemplates
         {
             sb.AppendLine("### Scalar Types");
             sb.AppendLine();
-            sb.AppendLine("| Name | Label(s) | BaseType | LowLimit | UpLimit | Unit | Pattern |");
-            sb.AppendLine("|------|---------|---------|:--------:|:-------:|------|---------|");
+            sb.AppendLine("| Name | Label(s) | BaseType | LowLimit | UpLimit | Unit |");
+            sb.AppendLine("|------|---------|---------|:--------:|:-------:|------|");
             foreach (OntologyScalarClass sc in graph.ScalarClasses)
             {
                 sb.AppendLine(
                     $"| `{sc.Name}` | {FmtLabels(sc.Labels)} | `{sc.BaseType ?? "—"}` " +
                     $"| {sc.LowLimit?.ToString() ?? "—"} | {sc.UpLimit?.ToString() ?? "—"} " +
-                    $"| {sc.Unit ?? "—"} | {(sc.Pattern is { Length: > 0 } ? $"`{PatternToRegex(sc.Pattern)}`" : "—")} |");
+                    $"| {sc.Unit ?? "—"} |");
             }
             sb.AppendLine();
         }
@@ -752,7 +746,6 @@ public static class OntologyTextTemplates
                 scNode["owl:onDatatype"] = new JsonObject { ["@id"] = Expand(sc.BaseType, graph) };
             if (sc.LowLimit.HasValue)  scNode["xsd:minInclusive"] = (double)sc.LowLimit.Value;
             if (sc.UpLimit.HasValue)   scNode["xsd:maxInclusive"] = (double)sc.UpLimit.Value;
-            if (sc.Pattern is { Length: > 0 }) scNode["xsd:pattern"] = PatternToRegex(sc.Pattern);
             if (!string.IsNullOrEmpty(sc.Unit))  scNode["schema:unitText"] = sc.Unit;
             arr.Add(scNode);
         }
@@ -934,8 +927,7 @@ public static class OntologyTextTemplates
             if (!string.IsNullOrEmpty(sc.BaseType)) sb.AppendLine($"BaseType: {sc.BaseType}");
 
             bool hasConstraints = sc.LowLimit.HasValue || sc.UpLimit.HasValue
-                               || !string.IsNullOrEmpty(sc.Unit)
-                               || sc.Pattern is { Length: > 0 };
+                               || !string.IsNullOrEmpty(sc.Unit);
             if (hasConstraints)
             {
                 sb.AppendLine();
@@ -943,7 +935,6 @@ public static class OntologyTextTemplates
                 if (sc.LowLimit.HasValue) sb.AppendLine($"  LowLimit: {sc.LowLimit.Value}");
                 if (sc.UpLimit.HasValue)  sb.AppendLine($"  UpLimit: {sc.UpLimit.Value}");
                 if (!string.IsNullOrEmpty(sc.Unit))  sb.AppendLine($"  Unit: {sc.Unit}");
-                if (sc.Pattern is { Length: > 0 }) sb.AppendLine($"  Pattern: {PatternToRegex(sc.Pattern)}");
             }
         }
 
@@ -1274,112 +1265,6 @@ public static class OntologyTextTemplates
         int idx = Math.Max(lastSlash, lastHash);
         return idx >= 0 && idx < iri.Length - 1 ? iri[(idx + 1)..] : iri;
     }
-
-    /// <summary>
-    /// Converts a <see cref="Pattern"/> array to an equivalent regex string
-    /// for ontology serialization (xsd:pattern, documentation, etc.).
-    /// </summary>
-    private static string PatternToRegex(Pattern[] pattern)
-    {
-        var sb = new StringBuilder();
-        sb.Append('^');
-        AppendPatternPartsRegex(sb, pattern);
-        sb.Append('$');
-        return sb.ToString();
-    }
-
-    private static void AppendPatternPartsRegex(StringBuilder sb, Pattern[] parts, bool caseIgnore = false)
-    {
-        foreach (var pp in parts)
-        {
-            int min = pp.Min ?? 1;
-            int max = pp.Max ?? (pp.Type is PatternType.Literal or PatternType.Group ? 1 : min);
-            bool ci = pp.CaseIgnore ?? caseIgnore;
-
-            switch (pp.Type)
-            {
-                case PatternType.Literal when pp.Text != null:
-                {
-                    string escaped = EscapeRegex(pp.Text);
-                    if (min == 0)
-                        sb.Append($"({escaped})?");
-                    else
-                        sb.Append(escaped);
-                    break;
-                }
-
-                case PatternType.CharSet:
-                {
-                    sb.Append('[');
-                    if (pp.Ranges != null)
-                    {
-                        foreach (var r in pp.Ranges)
-                            sb.Append($"{EscapeRegexChar(r.Start)}-{EscapeRegexChar(r.End)}");
-                        if (ci)
-                        {
-                            foreach (var r in pp.Ranges)
-                            {
-                                if (char.IsLetter(r.Start))
-                                {
-                                    char flippedStart = char.IsLower(r.Start) ? char.ToUpperInvariant(r.Start) : char.ToLowerInvariant(r.Start);
-                                    char flippedEnd   = char.IsLower(r.End)   ? char.ToUpperInvariant(r.End)   : char.ToLowerInvariant(r.End);
-                                    sb.Append($"{EscapeRegexChar(flippedStart)}-{EscapeRegexChar(flippedEnd)}");
-                                }
-                            }
-                        }
-                    }
-                    if (pp.Chars != null)
-                        foreach (char c in pp.Chars)
-                            sb.Append(EscapeRegexChar(c));
-                    sb.Append(']');
-                    AppendQuantifier(sb, min, max);
-                    break;
-                }
-
-                case PatternType.Any:
-                {
-                    sb.Append('.');
-                    AppendQuantifier(sb, min, max);
-                    break;
-                }
-
-                case PatternType.Group when pp.Parts is { Length: > 0 }:
-                {
-                    sb.Append('(');
-                    AppendPatternPartsRegex(sb, pp.Parts, ci);
-                    sb.Append(')');
-                    AppendQuantifier(sb, min, max <= 0 ? int.MaxValue : max);
-                    break;
-                }
-            }
-        }
-    }
-
-    private static void AppendQuantifier(StringBuilder sb, int min, int max)
-    {
-        if (max <= 0) max = int.MaxValue;
-        if (min == 1 && max == 1) return;
-        if (min == 0 && max == 1) { sb.Append('?'); return; }
-        if (min == 0 && max == int.MaxValue) { sb.Append('*'); return; }
-        if (min == 1 && max == int.MaxValue) { sb.Append('+'); return; }
-        if (min == max) { sb.Append($"{{{min}}}"); return; }
-        sb.Append(max == int.MaxValue ? $"{{{min},}}" : $"{{{min},{max}}}");
-    }
-
-    private static string EscapeRegex(string text)
-    {
-        var sb = new StringBuilder(text.Length);
-        foreach (char c in text)
-            sb.Append(EscapeRegexChar(c));
-        return sb.ToString();
-    }
-
-    private static string EscapeRegexChar(char c) => c switch
-    {
-        '\\' or '.' or '^' or '$' or '*' or '+' or '?' or '(' or ')' or '[' or ']' or '{' or '}' or '|'
-            => $"\\{c}",
-        _ => c.ToString(),
-    };
-
+    
     #endregion
 }

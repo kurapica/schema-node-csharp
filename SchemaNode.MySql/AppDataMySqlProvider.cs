@@ -51,7 +51,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     private readonly string _refAttrTxtField = sqlProvider.QuoteField(EAV_TABLE_TEXT_FIELD);
     private readonly string _refAttrJsonField = sqlProvider.QuoteField(EAV_TABLE_JSON_FIELD);
 
-    private SchemaContext _context = context as SchemaContext ?? throw new ArgumentException("Invalid schema context");
+    private readonly SchemaContext _context = context as SchemaContext ?? throw new ArgumentException("Invalid schema context");
 
     #endregion
 
@@ -922,7 +922,6 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                                 };
                             }
                         }
-
                     }
                 }
             }

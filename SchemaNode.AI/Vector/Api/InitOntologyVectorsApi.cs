@@ -5,6 +5,9 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
+using AppType = SchemaNode.Runtime.AppType;
+using NamespaceType = SchemaNode.Runtime.NamespaceType;
 
 namespace SchemaNode.AI.Vector;
 
@@ -68,7 +71,7 @@ public class InitOntologyVectorsApi
         // containers and carry no embeddable semantics of their own.
         var rootNs = await SchemaContext.GetNodeTypeAsync("") as NamespaceType;
         var concreteTypes = new List<NodeType>();
-        if (rootNs != null) CollectConcreteTypes(rootNs, concreteTypes);
+        if (rootNs != null) await CollectConcreteTypes(rootNs, concreteTypes);
 
         foreach (var type in concreteTypes)
         {
@@ -155,29 +158,29 @@ public class InitOntologyVectorsApi
     private static void CollectDataApps(AppType? root, List<AppType> result)
     {
         if (root == null) return;
-        if (root.Fields is { Count: > 0 })
+        if (root.GetFields().Any())
             result.Add(root);
-        if (root.SubAppList == null) return;
-        foreach (AppType sub in root.SubAppList.Values)
+        foreach (AppType sub in root.GetSubApps())
             CollectDataApps(sub, result);
     }
 
     /// <summary>
-    /// Recursively collects every non-namespace, non-system <see cref="AnySchemaType"/>
+    /// Recursively collects every non-namespace, non-system <see cref="NodeType"/>
     /// reachable from <paramref name="ns"/>.
-    /// <see cref="TypeNamespace"/> nodes are containers — they are traversed but not
+    /// <see cref="NamespaceType"/> nodes are containers — they are traversed but not
     /// added to the result set.
     /// </summary>
-    private static void CollectConcreteTypes(NamespaceType ns, List<NodeType> result)
+    private async Task CollectConcreteTypes(NamespaceType ns, List<NodeType> result)
     {
-        foreach (var type in ns.SchemaNodes.Values)
+        foreach (NodeSchema? type in ns.GetNodeSchemas(SchemaContext))
         {
-            if ((type.LoadState & SchemaLoadState.System) != 0)
+            NodeType? n = await SchemaContext.GetNodeTypeAsync(type.Name);
+            if (n == null || (n.LoadState & SchemaLoadState.System) != 0)
                 continue;
-            if (type is NamespaceType subNs)
-                CollectConcreteTypes(subNs, result);
+            if (n is NamespaceType subNs)
+                await CollectConcreteTypes(subNs, result);
             else
-                result.Add(type);
+                result.Add(n);
         }
     }
 }

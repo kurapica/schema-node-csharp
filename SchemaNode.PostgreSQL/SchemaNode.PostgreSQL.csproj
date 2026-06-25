@@ -14,7 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
     <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
   </ItemGroup>
 

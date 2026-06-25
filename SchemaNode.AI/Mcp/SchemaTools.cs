@@ -9,6 +9,9 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Schema.Provider;
+using AppType = SchemaNode.Runtime.AppType;
+using EnumType = SchemaNode.Runtime.EnumType;
 
 namespace SchemaNode.AI.Mcp;
 
@@ -31,7 +34,7 @@ public class SchemaTools
             "Empty value loads the root-level schema types."
         )] string name)
     {
-        AnySchemaType schemaType = await context.GetSchemaTypeAsync(name)
+        NodeType schemaType = await context.GetNodeTypeAsync(name)
             ?? throw new InvalidOperationException($"Schema type '{name}' not found.");
 
         return await schemaType.GetNodeSchemas(context);
@@ -44,23 +47,17 @@ public class SchemaTools
          "Each returned item is an instance of schema type: system.schema.enumvalueinfo." +
          "The structure and field meanings follow the schema type definition."
     )]
-    public static async Task<EnumValueInfo[]> LoadEnumSubList(
+    public static async Task<EnumValueSchema[]> LoadEnumSubList(
         SchemaContext context,
         [Description("Name of the enumeration schema type to load values from.")] string name,
         [Description(
             "Parent enum value used to load its direct child values. " +
             "If null, loads top-level values."
-        )] string? value = null,
-        [Description(
-            "If true, returns all enum values ignoring hierarchy. " +
-            "If false or null, hierarchy-based loading is used."
-        )] bool? fullList = null)
+        )] string? value = null)
     {
-        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
-        if (node is not EnumType @enum) 
+        EnumType? node = await context.GetNodeTypeAsync<EnumType>(name) ??
             throw new InvalidOperationException($"Enum schema type '{name}' not found.");
-
-        return await @enum.LoadEnumSubListAsync(context, value, fullList ?? false);
+        return await node.LoadEnumSubListAsync(context, value);
     }
     
     [McpServerTool, Description(
@@ -78,11 +75,9 @@ public class SchemaTools
         [Description( "If true, also include access information for child enum values. " +
                       "Ignored when noSubList is true.")] bool? withSubList = null)
     {
-        AnySchemaType? node = await context.GetSchemaTypeAsync(name);
-        if (node is not EnumType @enum) 
+        EnumType? node = await context.GetNodeTypeAsync<EnumType>(name) ??
             throw new InvalidOperationException($"Enum schema type '{name}' not found.");
-
-        return await @enum.LoadEnumAccessListAsync(context, value, noSubList, withSubList);
+        return await node.LoadEnumAccessListAsync(context, value, noSubList, withSubList);
     }
     
     [McpServerTool, Description(
@@ -105,11 +100,9 @@ public class SchemaTools
             "If provided, the result will conform to this schema type."
             )] string? returnType = null)
     {
-        AnySchemaType? node = await context.GetSchemaTypeAsync(functionName);
-        if (node is not FunctionType functionType)
+        FunctionType? node = await context.GetNodeTypeAsync<FunctionType>(functionName) ??
             throw new InvalidOperationException($"Function '{functionName}' not found.");
-
-        return await functionType.CallAsync<JsonNode>(context, parameters as object[], returnType);
+        return await node.CallAsync<JsonNode>(context, parameters as object[], returnType);
     }
     
     [McpServerTool, Description(
@@ -125,7 +118,6 @@ public class SchemaTools
                       "Represents a schema type structure and must conform to schema type: system.schema.nodeschema.")
         ]NodeSchema nodeSchema)
     {
-        nodeSchema.LoadState = SchemaLoadState.Server;
         return await context.SaveSchemaAsync(nodeSchema);
     }
 
@@ -142,7 +134,7 @@ public class SchemaTools
             "Parent enum value whose child list is being modified. ")] string value,
         [Description(
             "List of child enum nodes to save. " +
-            "Each item must conform to schema type: system.schema.enumvalueinfo.")] EnumValueInfo[] subList,
+            "Each item must conform to schema type: system.schema.enumvalueinfo.")] EnumValueSchema[] subList,
         [Description(
             "If true, new items are appended to the existing sub-list. " +
             "If false or null, the existing sub-list under the target node will be replaced.")]bool? append)
@@ -192,53 +184,9 @@ public class SchemaTools
         if (node == null) return null;
         
         // Generate schema
-        AppSchema schema = new()
-        {
-            Name = node.Name,
-            Display = node.Display,
-            ScopePolicy = node.ScopePolicy,
-            Auth = node.Auth?.Name,
-            Auths = node.Auths,
-            Status = node.Status,
-            HasApps = node.Apps is { Length: > 0 },
-            HasFields = node.Fields is { Count: > 0 },
-            Workflows = node.Workflows?.Select(w => (AppWorkflowSchema)w).ToArray(),
-            Extensions = node.Extensions,
-            Apps = node.Apps?.Select(a => {
-                AppType? childNode = node.SubAppList?.Values.FirstOrDefault(p => p.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase));
-                return new AppSchema
-                {
-                    Name = a.Name,
-                    Display = a.Display,
-                    Auth = a.Auth,
-                    Auths = a.Auths,
-                    Status = node.Status,
-                    Extensions = a.Extensions,
-                    HasApps = (a.HasApps ?? false) || a.Apps is { Length: > 0 } || childNode?.Apps is {  Length: > 0 },
-                    HasFields = (a.HasFields ?? false) || a.Fields is { Length: > 0 } || childNode?.Fields is { Count: > 0},
-                };
-            }).ToArray(),
-        };
-
-        if (node.Fields is { Count: > 0 })
-        {
-            schema.Fields = node.Fields.Select(p => (AppFieldSchema)p).ToArray();
-            schema.Relations = node.Relations?.Select(r => new StructRelationSchema
-            {
-                Field = !string.IsNullOrEmpty(r.DataField) ? $"{r.AppField}.{r.DataField}" : r.AppField,
-                Prop = r.Prop,
-                Func = r.Func,
-                Args = r.Args.Select(a => new FuncCallArg
-                {
-                    Name = !string.IsNullOrEmpty(a.DataField) ? $"{a.AppField}.{a.DataField}" : a.AppField,
-                    Value = a.Value,
-                }).ToArray()
-            }).ToArray();
-
-            if(includeTypes)
-                schema.NodeSchemas = await node.GetNodeSchemas(context, includeUsedBy: true);
-        }
-
+        AppSchema schema = node.GetSchema();
+        if(includeTypes)
+            schema.NodeSchemas = await node.GetNodeSchemas(context, includeUsedBy: true);
         return schema;
     }
     
@@ -260,7 +208,7 @@ public class SchemaTools
         SchemaContext context,
         [Description( "Application schema definition to save. " +
                       "Represents a business-level application model and must conform to schema type: system.schema.appschema.")
-        ]AppSchemaData appSchemaData)
+        ]AppSchema appSchemaData)
     {
         return await context.SaveAppSchemaAsync(appSchemaData);
     }

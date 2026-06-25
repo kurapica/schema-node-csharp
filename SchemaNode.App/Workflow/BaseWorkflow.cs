@@ -1,4 +1,3 @@
-using System.Data;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Schema;
@@ -33,7 +32,7 @@ public abstract class BaseWorkflow
     /// <summary>
     /// The application owner
     /// </summary>
-    internal AppType Application { get; set; } = default!;
+    internal AppType Application { get; set; } = null!;
 
     /// <summary>
     /// The workflow name

@@ -132,6 +132,11 @@ public abstract class SchemaApiResponse
     /// The time zone to handle the request
     /// </summary>
     public string? TimeZone { get; set; }
+    
+    /// <summary>
+    /// The locale to handle the request
+    /// </summary>
+    public string? Locale { get; set; }
 }
 
 /// <summary>

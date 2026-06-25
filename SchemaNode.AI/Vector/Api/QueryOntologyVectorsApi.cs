@@ -1,5 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
+using SchemaNode.Context;
 using SchemaNode.Http;
 
 namespace SchemaNode.AI.Vector;

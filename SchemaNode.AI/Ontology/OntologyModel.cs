@@ -340,9 +340,6 @@ public class OntologyScalarClass
 
     /// <summary>Display unit label key, or <see langword="null"/>.</summary>
     public string? Unit { get; init; }
-
-    /// <summary>Cross-platform pattern validation, or <see langword="null"/>.</summary>
-    public Pattern[]? Pattern { get; init; }
 }
 
 /// <summary>

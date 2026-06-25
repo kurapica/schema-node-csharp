@@ -31,17 +31,17 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// The return type node
     /// </summary>
-    internal ValueType Return { get; private set; } = null!;
+    public ValueType Return { get; private set; } = null!;
 
     /// <summary>
     /// The function arguments
     /// </summary>
-    internal FunctionNodeArgument[] Args { get; private set; } = [];
+    public FunctionNodeArgument[] Args { get; private set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    internal FunctionNodeExpression[] Exps { get; private set; } = [];
+    public FunctionNodeExpression[] Exps { get; private set; } = [];
 
     /// <summary>
     /// As type converter
@@ -695,7 +695,7 @@ public sealed class FunctionType : NodeType
 /// <summary>
 /// The expression tree
 /// </summary>
-internal abstract class FunctionNodeExpTree
+public abstract class FunctionNodeExpTree
 {
     /// <summary>
     /// The type node
@@ -706,7 +706,7 @@ internal abstract class FunctionNodeExpTree
 /// <summary>
 /// The function node argument
 /// </summary>
-internal class FunctionNodeArgument : FunctionNodeExpTree
+public class FunctionNodeArgument : FunctionNodeExpTree
 {
     #region Data
 
@@ -772,7 +772,7 @@ internal class FunctionNodeArgument : FunctionNodeExpTree
 /// <summary>
 /// The function node expression
 /// </summary>
-internal class FunctionNodeExpression : FunctionNodeExpTree
+public class FunctionNodeExpression : FunctionNodeExpTree
 {
     #region Data
     

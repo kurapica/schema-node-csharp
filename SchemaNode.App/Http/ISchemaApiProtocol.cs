@@ -117,11 +117,13 @@ public interface ISchemaApiProtocol
             if (!string.IsNullOrWhiteSpace(request.TimeZone) && TZConvert.TryGetTimeZoneInfo(request.TimeZone, out var tz))
                 context.SetContextItem(tz);
             
+            // locale
+            if (!string.IsNullOrWhiteSpace(request.Locale))
+                context.SetLocale(request.Locale);
+            
             // date format
             if (request.DateFormat.HasValue && request.DateFormat != DateFormatMode.Iso8601)
-            {
                 request = ReadRequest<TRequest>(context, requestBody, request.DateFormat); // re-read the request with the correct date format
-            }
         }
         catch (Exception ex)
         {
@@ -171,6 +173,7 @@ public interface ISchemaApiProtocol
         // Generate response.
         response!.ExecuteTime = watch.ElapsedMilliseconds;
         response.TimeZone = context.GetTimeZone().Id;
+        response.Locale = context.GetLocale();
         logger.LogDebug("{name} API is executed, cost {time}.", typeof(TApi).Name, watch.ElapsedMilliseconds);
         
         // Stream

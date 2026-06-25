@@ -19,7 +19,7 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW, SCHEMA_KIND_ORDER_APP_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
-[Meta<Append>(typeof(Display))]
+[Meta<Append>(typeof(Display), typeof(Description))]
 public sealed class AppWorkflowSchema: ExtensibleSchema
 {
     /// <summary>
@@ -57,7 +57,7 @@ public sealed class AppWorkflowSchema: ExtensibleSchema
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW_NODE, SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.node")]
-[Meta<Append>(typeof(Display))]
+[Meta<Append>(typeof(Display), typeof(Description))]
 public sealed class AppWorkflowNodeSchema: ExtensibleSchema
 {
     /// <summary>
