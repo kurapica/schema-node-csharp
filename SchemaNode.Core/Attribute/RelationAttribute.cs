@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -26,6 +27,11 @@ public interface IRelationAttribute
     /// The target property type
     /// </summary>
     Type Property { get;  }
+    
+    /// <summary>
+    /// The stage of the relation been applied
+    /// </summary>
+    public RelationStage Stage { get; }
 
     /// <summary>
     /// Generate the relation schema data
@@ -41,7 +47,8 @@ public interface IRelationAttribute
         {
             Target = Target ?? defaultTarget,
             Property = typeResolver(Property, NS_SYSTEM_SCHEMA_PROPERTY, null) ?? throw new InvalidOperationException($"Cannot resolve property type {Property.FullName}"),
-            Kind = Kind
+            Kind = Kind,
+            Stage = Stage
         };
 
         IRelationProcess process = GetRelationProcess();
@@ -85,6 +92,16 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
         Args = args;
     }
 
+    /// <summary>
+    /// The call relation with target specified
+    /// </summary>
+    public RelationAttribute(RelationStage stage, string func, params object[] args)
+    {
+        Stage = stage;
+        Func = func;
+        Args = args;
+    }
+
     /// <inheritdoc/>
     public string Kind { get; } = "call";
 
@@ -93,6 +110,9 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
     
     /// <inheritdoc/>
     public Type Property { get; } = typeof(T);
+
+    /// <inheritdoc/>
+    public RelationStage Stage { get; } = RelationStage.Load | RelationStage.Input;
 
     /// <summary>
     /// The function
@@ -146,12 +166,39 @@ public sealed class RelationAssign<T> : System.Attribute, IRelationAttribute whe
         Value = prop.GetValue<object>();
     }
 
+    public RelationAssign(RelationStage stage, string target, object value)
+    {
+        Stage = stage;
+        Target = target;
+        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
+        if (prop == null) return;
+        prop.SetValue(value);
+        Value = prop.GetValue<object>();
+    }
+
+    public RelationAssign(RelationStage stage, string target, params object[] values)
+    {
+        Stage = stage;
+        Target = target;
+        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
+        if (prop == null) return;
+        prop.SetValue(values);
+        Value = prop.GetValue<object>();
+    }
+
+    /// <inheritdoc/>
     public string Kind { get; } = "assign";
 
+    /// <inheritdoc/>
     public string Target { get; }
     
+    /// <inheritdoc/>
     public Type Property { get; } = typeof(T);
 
+    /// <inheritdoc/>
+    public RelationStage Stage { get; } = RelationStage.Load | RelationStage.Input;
+
+    /// <inheritdoc/>
     public IRelationProcess GetRelationProcess()
     {
         return new Relation.Assign { Value = Value };
