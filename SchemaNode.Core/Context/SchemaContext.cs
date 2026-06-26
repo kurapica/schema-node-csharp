@@ -561,6 +561,11 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 public class SystemAccess
 {
     /// <summary>
+    /// The system namespace self
+    /// </summary>
+    public Runtime.NamespaceType Self { get; internal set; } = null!;
+    
+    /// <summary>
     /// THe bool type
     /// </summary>
     public Runtime.BoolType Bool { get; internal set; } = null!;

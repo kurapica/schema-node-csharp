@@ -227,6 +227,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         
         // Loading system access
         SystemAccess access = schemaContext.System;
+        access.Self = (await schemaContext.GetNodeTypeAsync<Runtime.NamespaceType>(NS_SYSTEM))!;
         access.Bool = (await schemaContext.GetNodeTypeAsync<Runtime.BoolType>(NS_SYSTEM_BOOL))!;
         access.String = (await schemaContext.GetNodeTypeAsync<Runtime.StringType>(NS_SYSTEM_STRING))!;
         access.Decimal = (await schemaContext.GetNodeTypeAsync<Runtime.DecimalType>(NS_SYSTEM_NUMBER))!;

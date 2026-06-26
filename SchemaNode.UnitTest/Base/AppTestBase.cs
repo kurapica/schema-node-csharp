@@ -11,8 +11,7 @@ public abstract class AppTestBase : CoreTestBase
     protected override void ConfigureServices(IServiceCollection services)
     {
         InMemoryAppDataProvider.Reset();
-        InMemorySchemaStorageProvider.Reset();
         services.AddAppDataProvider<InMemoryAppDataProvider>();
-        services.AddSchemaStorageProvider<InMemorySchemaStorageProvider>();
+        services.AddSchemaStorageProvider<DynamicAppSchemaStorageProvider>();
     }
 }

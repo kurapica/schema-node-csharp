@@ -103,9 +103,10 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         
         try
         {
-            if (string.IsNullOrEmpty(schema.Namespace)) schema.Namespace = Root;
+            NodeEntity schemaEntity = schema!;
+            if (string.IsNullOrEmpty(schemaEntity.Namespace)) schemaEntity.Namespace = Root;
             await context.BeginTransactionAsync();
-            await context.SaveEntityAsync(Target, (NodeEntity)schema!);
+            await context.SaveEntityAsync(Target, schemaEntity);
             await context.CommitTransactionAsync();
             return true;
         }
@@ -126,15 +127,19 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             NodeType? delNode = await context.GetNodeTypeAsync(schema);
             NodeSchema? nodeSchema = delNode?.GetNodeSchema();
             if (nodeSchema == null) return false;
+            
+            NodeEntity nodeEntity = nodeSchema!;
+            if (string.IsNullOrWhiteSpace(nodeEntity.Namespace))
+                nodeEntity.Namespace = Root;
 
             await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync(Target, (NodeEntity)nodeSchema!);
+            await context.DeleteEntityAsync(Target, nodeEntity);
 
             switch (nodeSchema.Kind)
             {
                 case SCHEMA_KIND_ENUM:
                     if (delNode is Runtime.EnumType { Cascade.Length: > 0 })
-                        await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == schema);
+                        await context.DeleteEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == nodeSchema.FullName);
                     break;
             }
             await context.CommitTransactionAsync();
@@ -357,6 +362,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             else
             {
                 schema = await context.GetEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? Root : container, name);
+                if (schema != null && Root.Equals(schema.Container, StringComparison.InvariantCultureIgnoreCase))
+                    schema.Container = null;
             }
 
             // load apps
@@ -412,9 +419,9 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         try
         {
             await context.BeginTransactionAsync();
-            app.Container = string.Join('.', app.Name.Split('.', StringSplitOptions.RemoveEmptyEntries).SkipLast(1));
-            if (string.IsNullOrEmpty(app.Container)) app.Container = Root;
-            await context.SaveEntityAsync(Target, app);
+            AppEntity appEntity = app!;
+            if (string.IsNullOrEmpty(appEntity.Container)) appEntity.Container = Root;
+            await context.SaveEntityAsync(Target, appEntity);
             await context.CommitTransactionAsync();
             
             return true;
@@ -437,7 +444,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             string name = app.GetSchemaName();
             
             await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync<AppSchema>(Target, string.IsNullOrWhiteSpace(container) ? Root : container, name);
+            await context.DeleteEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? Root : container, name);
             await context.CommitTransactionAsync();
             
             return true;
@@ -470,7 +477,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
             
             await context.BeginTransactionAsync();
-            await context.SaveEntityAsync(Target, (AppFieldEntity)field!);
+            await context.SaveEntityAsync<AppFieldEntity>(Target, field!);
             await context.CommitTransactionAsync();
             
             return true;
@@ -556,7 +563,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
             
             await context.BeginTransactionAsync();
-            await context.SaveEntityAsync(Target, (AppWorkflowEntity)workflow!);
+            await context.SaveEntityAsync<AppWorkflowEntity>(Target, workflow!);
             await context.CommitTransactionAsync();
             
             return true;
