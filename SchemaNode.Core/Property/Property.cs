@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Core;
@@ -47,6 +46,18 @@ public interface IProperty
     /// The property value type
     /// </summary>
     Type Type { get; }
+
+    /// <summary>
+    /// Combine the property with another property of the same type, if the current property has no value, it will take the value from the other property.
+    /// If return true means the other property is combined into the current property.
+    /// If return false and the property is stackable, the other property can be used together with the current property.
+    /// </summary>
+    bool Combine(IProperty other)
+    {
+        if (other is null || other.GetType() != GetType()) return false;
+        if (!HasValue) SetValue(other.GetValue<object>());
+        return true;
+    }
 }
 
 /// <summary>

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
@@ -289,7 +288,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name)
         {
             NodeSchema? schema = @namespace?.GetNodeSchema(name);
-            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
+            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema; // namespace will load all sub schemas
             
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
             schema = SetSchemaState(schemaRuntime.GetSystemSchema(schemaName), SchemaLoadState.System);
@@ -312,9 +311,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         continue;
                     }
                     
-                    // Combine none system schema
-                    if ((schema.LoadState & SchemaLoadState.System) == 0)
-                        schema.CombineExtensions(loadSchema, schemaRuntime);
+                    // Combine extensions
+                    schema.CombineExtensions(loadSchema, schemaRuntime);
 
                     if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
