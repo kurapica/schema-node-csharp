@@ -133,7 +133,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// Gets the node schema by name
     /// </summary>
     public async Task<NodeSchema?> GetNodeSchemaAsync(string fullName)
-        => (await GetNodeTypeAsync<NamespaceType>(fullName.GetNamespace()))?.GetNodeSchema(fullName.GetSchemaName());
+        => (await GetNodeTypeAsync(fullName))?.GetNodeSchema(Runtime);
 
     /// <summary>
     /// Gets the schema node type by name
@@ -153,16 +153,14 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         NodeType? node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
         while (node != null && spans.NextNamespace())
             node = await LoadNodeTypeAsync(node, spans);
-
+        if (node != null) return node;
+        
         // try loading from schema provider
-        if (node == null)
-        {
-            skipUnloadNs = false;
-            spans = fullName;
-            node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
-            while (node != null && spans.NextNamespace())
-                node = await LoadNodeTypeAsync(node, spans);
-        }
+        skipUnloadNs = false;
+        spans = fullName;
+        node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
+        while (node != null && spans.NextNamespace())
+            node = await LoadNodeTypeAsync(node, spans);
 
         return node;
 
@@ -177,7 +175,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 // Generic Types
                 if (next.StartsWith('<'))
                 {
-                    if (!next.EndsWith('>'))
+                    if (!spans.IsEnd || !next.EndsWith('>'))
                     {
                         LogError("Invalid generic type format for {schemaName}", fullName);
                         return null;
@@ -252,9 +250,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             if (schema == null) return null;
 
             // node type
-            Type? nodeType = schemaRuntime.GetNodeType(schema.Kind);
-            if (nodeType == null) return null;
-
+            Type nodeType = schemaRuntime.GetNodeType(schema.Kind) ?? typeof(NodeType);
             result ??= ActivatorUtilities.CreateInstance(Services, nodeType) as NodeType;
             if (result == null)
             {

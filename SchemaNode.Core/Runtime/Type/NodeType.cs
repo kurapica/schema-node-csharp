@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public abstract class NodeType: INodeReferences, IDisposable, INodeError
+public class NodeType: INodeReferences, IDisposable, INodeError
 {
     #region Fields
     

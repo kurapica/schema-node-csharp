@@ -69,11 +69,16 @@ public sealed class NamespaceType: NodeType
     /// Saves the node type by segment name (not full name, since Schema may not be set yet)
     /// </summary>
     internal void SaveNodeType(ReadOnlySpan<char> name, NodeType nodeType) => _types[name.ToString()] = nodeType;
-    
+
     /// <summary>
     /// Save the node schema to the namespace (keyed by partial Name, consistent with LoadAsync)
     /// </summary>
-    internal void SaveNodeSchema(NodeSchema schema) => _schemas[schema.Name] = schema;
+    internal void SaveNodeSchema(NodeSchema schema)
+    {
+        _schemas[schema.Name] = schema;
+        // reload the type with new schema
+        if (_types.TryGetValue(schema.Name, out NodeType? type)) type.Loaded = false;
+    } 
     
     /// <summary>
     /// Remove node schema
