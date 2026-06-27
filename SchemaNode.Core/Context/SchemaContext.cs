@@ -147,26 +147,15 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         // registered type
         SchemaRuntime schemaRuntime = Runtime as SchemaRuntime ?? throw new InvalidOperationException();
         SpanReader spans = fullName;
-        bool skipUnloadNs = true;
         
-        // try use existed node type directly
+        // try use existed node type directly, reload means only need load it when it existed
         NodeType? node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
         while (node != null && spans.NextNamespace())
             node = await LoadNodeTypeAsync(node, spans);
-        if (node != null) return node;
-        
-        // try loading from schema provider
-        skipUnloadNs = false;
-        spans = fullName;
-        node = await LoadNodeTypeAsync(schemaRuntime.RootNamespace, spans);
-        while (node != null && spans.NextNamespace())
-            node = await LoadNodeTypeAsync(node, spans);
-
         return node;
 
         async Task<NodeType?> LoadNodeTypeAsync(NodeType node, SpanReader spans)
         {
-            // Convert <T1, T2> to [T1, T2]
             ReadOnlySpan<char> next = spans.Current;
             NamespaceType? parent = node as NamespaceType;
             NodeType? result = node;
@@ -189,15 +178,12 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     SpanReader genericReader = next;
                     string key = next.ToString();
 
+                    // Convert <T1, T2> to [T1, T2]
                     while(genericReader.NextGenericParam())
                     {
                         ReadOnlySpan<char> genericParam = genericReader.Current;
                         NodeType? type = !genericParam.IsEmpty ? await GetNodeTypeAsync(genericParam.ToString(), generics, genParams) : null;
-                        if (type == null)
-                        {
-                            LogError("Empty generic type parameter for {schemaName}", fullName);
-                            return null;
-                        }
+                        if (type == null) return null;
                         genParams.Add(type);
                     }
 
@@ -218,31 +204,12 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     node.SetGenericType(key, genType);
                     return genType;
                 }
-                else if (parent == null)
-                {
-                    return null;
-                }
-                else
-                {
-                    result = parent.GetNodeType(next);
-                }
+                
+                // Get loaded node type
+                result = parent?.GetNodeType(next);
             }
-            
-            // loading
-            if (result == null)
-            {
-                // reload means it must be already accessed, skip upload ns means just check if it existed
-                if (reload || skipUnloadNs && !spans.IsEnd) return null;
-            }
-            else if (result.Loaded)
-            {
-                if (!(spans.IsEnd && reload))
-                    return result;
-            }
-            else if (result is NamespaceType && skipUnloadNs && !spans.IsEnd)
-            {
+            if (result == null && reload || result?.Loaded == true && !(spans.IsEnd && reload))
                 return result;
-            }
             
             // loading
             string nextVal = next.IsEmpty ? "" : next.ToString();
@@ -258,16 +225,18 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 return null;
             }
             
+            // only save node schema in reload mode, otherwise it's loaded by parent namespace
+            if (reload && spans.IsEnd) parent?.SaveNodeSchema(schema);
+            
             // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
-            if (parent != result)
-                parent?.SaveNodeType(nextVal, result);
+            if (parent != result) parent?.SaveNodeType(nextVal, result);
 
             // Load the schema
             LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
 
             await result.LoadTypeAsync(this, schema);
             
-            // Namespace
+            // Save sub-namespaces for the namespace
             if (result is NamespaceType ns && schema.Schemas is { Length: > 0 })
                 foreach (NodeSchema s in schema.Schemas)
                     ns.SaveNodeSchema(s);
@@ -277,21 +246,21 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 await g.LoadTypeAsync(this, schema.Clone(schemaRuntime), g.GenericParams!.ToArray());
 
             LogDebug("[Runtime]Schema Type {schemaName} working", schema.FullName);
-
             return result;
         }
         
         async Task<NodeSchema?> LoadNodeSchemaAsync(NamespaceType? @namespace, string name)
         {
-            NodeSchema? schema = @namespace?.GetNodeSchema(name);
-            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema; // namespace will load all sub schemas
+            // get loaded schema from namespace if not in reload mode
+            NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
+            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
             
+            // system schema
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
             schema = SetSchemaState(schemaRuntime.GetSystemSchema(schemaName), SchemaLoadState.System);
-            
-            // system schema will have all features defined with meta attribute, no modification to avoid cycle-loading
-            if (SystemMode || skipUnloadNs || schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
+            if (SystemMode) return schema;
 
+            // 3rd schema provider
             foreach (INodeSchemaProvider provider in GetServices<INodeSchemaProvider>())
             {
                 try

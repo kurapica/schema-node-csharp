@@ -52,11 +52,22 @@ public interface IProperty
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
     /// </summary>
-    bool Combine(IProperty other)
+    virtual bool Combine(IProperty other)
     {
-        if (other is null || other.GetType() != GetType()) return false;
-        if (!HasValue) SetValue(other.GetValue<object>());
+        if (other.GetType() != GetType()) return false;
+        if (HasValue || !other.HasValue) return false;
+        SetValue(other.GetValue<object>());
         return true;
+    }
+    
+    /// <summary>
+    /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
+    /// </summary>
+    virtual bool Equals(IProperty other)
+    {
+        if (other.GetType() != GetType()) return false;
+        if (HasValue != other.HasValue) return false;
+        return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
     }
 }
 

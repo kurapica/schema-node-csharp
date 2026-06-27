@@ -22,7 +22,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
 {
     [SchemaIgnore]
     [JsonIgnore]
-    public string? SchemaKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>();
+    public string? SchemaKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>() ?? GetType().GetMetaProperty<Attach>()?.GetValue<string>();
 
     /// <summary>
     /// The error status
@@ -50,12 +50,14 @@ public abstract class ExtensibleSchema : IPropertyOwner
         string? kind = SchemaKind;
         if (Extensions == null || Extensions.Count == 0 || runtime == null || kind is null)
         {
+            // can't convert to property, just combine like JSON
             Extensions ??= [];
             foreach (var (key, value) in other.Extensions)
                 Extensions[key] = Combine(value, Extensions[key]);
         }
         else
         {
+            // Combine the properties
             foreach (Type propType in runtime.GetSchemaKindProperties(kind))
             {
                 IProperty[] otherProps = other.GetProperties(propType).ToArray();
@@ -64,8 +66,16 @@ public abstract class ExtensibleSchema : IPropertyOwner
                 IProperty otherProp = otherProps.First();
                 if (otherProp.Stackable)
                 {
-                    // keep using the latest
-                    OverrideProperties(otherProps);
+                    bool changed = false;
+                    List<IProperty> existProps = GetProperties(propType).ToList();
+                    foreach (IProperty s in otherProps)
+                    {
+                        if (existProps.Any(e => e.Equals(s))) continue; // skip if already exist
+                        changed = true;
+                        existProps.Add(s);
+                    }
+                    if (changed)
+                        OverrideProperties(existProps);
                 }
                 else
                 {
@@ -80,20 +90,19 @@ public abstract class ExtensibleSchema : IPropertyOwner
                                 OverrideProperty(otherProp);
                                 continue;
                             }
-                            
+
                             existSchema.CombineExtensions(innerSchema, runtime);
                             existProp.SetValue(existSchema);
                             OverrideProperty(existProp);
-                            continue;
                         }
                         else if (otherProp.GetValue<IEnumerable<ExtensibleSchema>>(true) is { } innerEnumerable)
                         {
                             if (existProp.GetValue<IEnumerable<ExtensibleSchema>>() is not { } existEnumerable)
                             {
-                                SetProperty(otherProp);
+                                OverrideProperty(otherProp);
                                 continue;
                             }
-                            
+
                             List<ExtensibleSchema> resultList = existEnumerable.ToList();
                             foreach (ExtensibleSchema combine in innerEnumerable.ToList())
                             {
@@ -105,14 +114,18 @@ public abstract class ExtensibleSchema : IPropertyOwner
                             }
 
                             existProp.SetValue(resultList.ToArray());
-                            SetProperty(existProp);
-                            continue;
+                            OverrideProperty(existProp);
+                        }
+                        else if (existProp.Combine(otherProp)) // Combine not replace
+                        {
+                            OverrideProperty(existProp);
                         }
                     }
+                    else
+                    {
+                        OverrideProperty(otherProp);
+                    }
                 }
-
-                
-                OverrideProperty(otherProp);
             }
         }
 
