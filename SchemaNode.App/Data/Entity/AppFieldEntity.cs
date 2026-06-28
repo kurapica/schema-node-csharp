@@ -8,6 +8,7 @@ using System.Text.Json.Nodes;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
+using DataCombine = SchemaNode.Schema.DataCombine;
 
 namespace SchemaNode.Data.Entity;
 

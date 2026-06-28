@@ -26,7 +26,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// The property type the relation applied to
     /// </summary>
-    public string Property { get; } = relation.Property;
+    public PropertyType? Property  { get; private set; }
 
     /// <summary>
     /// The stage of the relation been applied
@@ -50,15 +50,13 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// The relation process
     /// </summary>
     private IRelationProcess? _process;
-    
-    private PropertyType? _prop;
 
     /// <summary>
     /// Process the relation and return the property with the result
     /// </summary>
     public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner)
     {
-        var propType = _prop?.GetCsharpType();
+        var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
         if (_process == null || await _process.ProcessAsync(context, owner) is not { } value) return null;
         prop.SetValue(value);
@@ -76,17 +74,17 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// Whether the relation is used for the given property
     /// </summary>
-    public bool ForProperty<T>() where T : IProperty => _prop is not null && _prop.GetCsharpType() == typeof(T);
+    public bool ForProperty<T>() where T : IProperty => Property is not null && Property.GetCsharpType() == typeof(T);
 
     /// <summary>
     /// Load the relation type
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
-        _prop = !string.IsNullOrWhiteSpace(Property) 
-            ? await context.GetNodeTypeAsync<PropertyType>(Property)
+        Property = !string.IsNullOrWhiteSpace(relation.Property) 
+            ? await context.GetNodeTypeAsync<PropertyType>(relation.Property)
             : null;
-        if (_prop?.GetCsharpType() == null)
+        if (Property?.GetCsharpType() == null)
         {
             Error = ErrorCodes.NO_DEFINITION;
             return;

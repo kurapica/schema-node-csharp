@@ -7,6 +7,11 @@ namespace SchemaNode.Runtime;
 public class PropertyType : NodeType
 {
     private PropertySchema? _property;
+
+    /// <summary>
+    /// The property
+    /// </summary>
+    public string Property => _property?.Property ?? string.Empty;
     
     /// <summary>
     /// The property value type

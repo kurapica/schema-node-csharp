@@ -32,18 +32,19 @@ internal static class Extension
 
     private static readonly string[] DateFormats =
     [
+        "O",
         "yyyy-MM-dd",
         "yyyy/MM/dd",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ssZ",
-        "yyyy-MM-ddTHH:mm:ss.fffZ",
-        "yyyy-MM-dd HH:mm:ss.fff",
-        "yyyy-MM-ddTHH:mm:sszzz",
-        "yyyy/M/d H:mm:ss zzz",
-        "yyyy/M/d H:mm:ss",
         "yyyyMMdd",
-        "yyyyMMddHHmmss"
+        "yyyyMMddHHmmss",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss.FFFFFFF",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFF",
+        "yyyy-MM-ddTHH:mm:sszzz",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFFzzz",
+        "yyyy/M/d H:mm:ss",
+        "yyyy/M/d H:mm:sszzz",
     ];
 
     #endregion
@@ -552,7 +553,9 @@ internal static class Extension
                     switch (v.GetValueKind())
                     {
                         case JsonValueKind.String:
-                            if (v.TryGetValue(out string? s))
+                            if (!v.TryGetValue(out string? s))
+                                s = JsonSerializer.Deserialize<string>(v.ToJsonString());
+                            if (s != null)
                             {
                                 s = s.Trim();
 
@@ -563,6 +566,7 @@ internal static class Extension
                             }
                             else
                                 value = null;
+
                             break;
 
                         case JsonValueKind.Number:

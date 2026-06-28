@@ -213,7 +213,7 @@ public static class BatchQueryExtension
                     // cover result
                     if (result != null)
                     {
-                        fieldResults[field.Name] =  result.ToJson();
+                        fieldResults[field.Name] =  result.ToJsonNode()!;
                         
                         // column access check
                         var @struct = result switch

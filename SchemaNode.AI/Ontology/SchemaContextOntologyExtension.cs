@@ -344,7 +344,7 @@ public static class SchemaContextOntologyExtension
             cls.Relations.Add(new OntologyRelation
             {
                 Field        = rel.Target,
-                Property     = rel.Property,
+                Property     = rel.Property!.Name,
                 Function     = call.Func,
                 Args         = call.Args.Select(a =>
                     !string.IsNullOrEmpty(a.Source)

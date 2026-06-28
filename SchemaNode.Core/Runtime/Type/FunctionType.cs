@@ -655,6 +655,10 @@ public sealed class FunctionType : NodeType
         // Parse the return type
         if (result == null) return default(T);
         if (result is T r) return r;
+        if (typeof(T).IsAssignableTo(typeof(DataNode)))
+        {
+            return await context.GetSchemaNodeAsync(result) is T rNode ? rNode : default(T?);
+        }
         return result.TryConvertTo<T>(out var f) ? f : default(T?);
     }
 

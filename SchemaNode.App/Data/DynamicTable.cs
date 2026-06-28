@@ -720,14 +720,16 @@ public class DynamicTableSchema
         // Generate the display only fields
         return ValueType is StructType @struct 
             ? GenerateDisplayOnlyFields(context, @struct, pack)
-            : Task.CompletedTask;
+            : ValueType is ArrayType { Element: StructType structEle }
+                ? GenerateDisplayOnlyFields(context, structEle, pack)
+                : Task.CompletedTask;
     }
 
     #endregion
     
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
     private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, DataNode? node, bool joinHandled = false)
@@ -766,7 +768,7 @@ public class DynamicTableSchema
                         if ((appField.ValueType is ArrayType arr
                                 ? arr.Element
                                 : appField.ValueType) is not StructType structType || !structType.GetFields().Any()) continue;
-                        if (primary.Count + 4 != call.Args.Length) continue; // primary fields not contains
+                        if (primary.Count + 3 != call.Args.Length) continue; // primary fields not contains
 
                         // data field
                         string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
@@ -775,8 +777,7 @@ public class DynamicTableSchema
                         if (dataFieldType == null) continue; // data field not exist
 
                         // target
-                        var targetArg = call.Args.Last();
-                        string? target = targetArg.Value?.ToValue<string>() ?? context.GetContextItem<Access>()?.Target;
+                        string? target = context.GetContextItem<Access>()?.Target;
                         if (string.IsNullOrWhiteSpace(target)) continue; // no app target
 
                         // collect keys
@@ -793,7 +794,7 @@ public class DynamicTableSchema
                                 // build primary key
                                 List<string> keys = [];
                                 AppSchemaDataFilter? rowFilter = null;
-                                for (int i = 3; i < call.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length; i++)
                                 {
                                     string? key = !string.IsNullOrEmpty(call.Args[i].Source)
                                         ? pack.GetAccessValue(call.Args[i].Source!)?.ToString()

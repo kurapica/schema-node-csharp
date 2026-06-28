@@ -183,9 +183,13 @@ public sealed class AppType : IValueTypeAccess
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;

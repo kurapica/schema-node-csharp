@@ -14,7 +14,9 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Workflow;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using DataCombine = SchemaNode.Schema.DataCombine;
 
 namespace SchemaNode.Service;
 
@@ -140,7 +142,6 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     }
 
                     // Try using array type if primary index specified
-                    schemaType = runtime.GetSystemArraySchema(schemaType, true) ?? schemaType;
                     NodeSchema? typeSchema = runtime.GetSystemSchema(schemaType);
                     if (typeSchema == null)
                         throw new Exception($"The schema type for {type.FullName} is not registered in runtime");
@@ -149,7 +150,7 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     {
                         App = appName,
                         Name = type.Name.ToLowerInvariant(),
-                        Type = schemaType,
+                        Type = runtime.GetSystemArraySchema(schemaType, true) ?? schemaType,
                     };
 
                     // app field property
@@ -160,6 +161,35 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
                         field.SetProperty(property);
 
+                    // Data combine rules
+                    if (typeSchema.Kind == SCHEMA_KIND_STRUCT)
+                    {
+                        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                        var structSchema = typeSchema.GetProperty<StructProperty>()?.Value;
+                        if (structSchema != null)
+                        {
+                            List<DataCombine> combineRules = [];
+                            foreach (StructFieldSchema f in structSchema.Fields)
+                            {
+                                if (properties.FirstOrDefault(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase)) is {} p)
+                                {
+                                    var combine = p.GetMetaProperty<SchemaNode.Property.App.DataCombine>();
+                                    if (combine is { HasValue: true })
+                                        combineRules.Add(new DataCombine(f.Name, combine.Value));
+                                }
+                            }
+                            if (combineRules.Count > 0)
+                                field.Combines = combineRules.ToArray();
+                        }
+                    }
+                    
+                    // push
+                    if (type.GetMetaProperty<Push>() is { HasValue: true } push)
+                    {
+                        field.Push = push.Value!.Push;
+                        field.Source = push.Value!.Source;
+                    }
+                    
                     runtime.SaveSystemAppFieldSchema(field, type);
                 }
 

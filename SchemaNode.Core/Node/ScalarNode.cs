@@ -9,7 +9,7 @@ public abstract class ScalarNode<T> : ScalarNode
     protected T? Value;
     
     /// <inheritdoc/>
-    public override bool IsEmpty => Value == null;
+    public override bool IsEmpty => Value == null || Value.Equals(default(T));
 
     /// <inheritdoc/>
     public override bool TrySetValue<T1>(T1? value) where T1 : default

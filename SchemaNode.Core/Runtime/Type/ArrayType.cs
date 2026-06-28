@@ -71,9 +71,13 @@ public sealed class ArrayType: ValueType
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
-                // Only check constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
+                // Only work for constraint properties
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 RelationType relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;
@@ -155,7 +159,7 @@ public sealed class ArrayType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            foreach (RelationType relationType in _relations)
+            foreach (RelationType relationType in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
             {
                 for (int i = 1; i < result.Count; i++)
                 {

@@ -13,6 +13,8 @@ using SchemaNode.Property.App;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using DataCombine = SchemaNode.Schema.DataCombine;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
 

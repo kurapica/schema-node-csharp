@@ -85,7 +85,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             structSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
         }
 
-        
+        // Fields
         foreach (PropertyInfo p in type
              .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
              .Where(p =>

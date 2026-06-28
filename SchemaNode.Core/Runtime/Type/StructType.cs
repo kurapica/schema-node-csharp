@@ -79,9 +79,13 @@ public sealed class StructType: ValueType
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;
@@ -218,7 +222,7 @@ public sealed class StructType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            foreach (RelationType process in _relations)
+            foreach (RelationType process in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
             {
                 if (await process.ProcessAsync(context, result) is not IConstraintProperty prop) continue;
                 
