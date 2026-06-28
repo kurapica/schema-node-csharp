@@ -4,7 +4,6 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 

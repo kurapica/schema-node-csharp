@@ -16,35 +16,35 @@ public static class AppConstant
     public const string SCHEMA_KIND_EVENT = "event";
     public const string SCHEMA_KIND_WORKFLOW = "workflow";
 
-    internal const int SCHEMA_KIND_ORDER_EVENT = 20;
-    internal const int SCHEMA_KIND_ORDER_WORKFLOW = 21;
-    internal const int SCHEMA_KIND_ORDER_APP = 30;
-    internal const int SCHEMA_KIND_ORDER_APP_FIELD = 31;
-    internal const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 32;
-    internal const int SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE = 33;
+    public const int SCHEMA_KIND_ORDER_EVENT = 20;
+    public const int SCHEMA_KIND_ORDER_WORKFLOW = 21;
+    public const int SCHEMA_KIND_ORDER_APP = 30;
+    public const int SCHEMA_KIND_ORDER_APP_FIELD = 31;
+    public const int SCHEMA_KIND_ORDER_APP_WORKFLOW = 32;
+    public const int SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE = 33;
 
-    internal const string NS_SYSTEM_EVENT = "system.event";
-    internal const string NS_SYSTEM_WORKFLOW = "system.workflow";
-    internal const string NS_SYSTEM_WORKFLOW_CRON = $"{NS_SYSTEM_WORKFLOW}.cron";
-    internal const string NS_SYSTEM_WORKFLOW_NODE = $"{NS_SYSTEM_WORKFLOW}.node";
-    internal const string NS_SYSTEM_WORKFLOW_CONTROL = $"{NS_SYSTEM_WORKFLOW}.control";
-    internal const string NS_SYSTEM_WORKFLOW_INTERACTION = $"{NS_SYSTEM_WORKFLOW}.interaction";
-    internal const string NS_SYSTEM_WORKFLOW_EVENT = $"{NS_SYSTEM_WORKFLOW}.event";
+    public const string NS_SYSTEM_EVENT = "system.event";
+    public const string NS_SYSTEM_WORKFLOW = "system.workflow";
+    public const string NS_SYSTEM_WORKFLOW_CRON = $"{NS_SYSTEM_WORKFLOW}.cron";
+    public const string NS_SYSTEM_WORKFLOW_NODE = $"{NS_SYSTEM_WORKFLOW}.node";
+    public const string NS_SYSTEM_WORKFLOW_CONTROL = $"{NS_SYSTEM_WORKFLOW}.control";
+    public const string NS_SYSTEM_WORKFLOW_INTERACTION = $"{NS_SYSTEM_WORKFLOW}.interaction";
+    public const string NS_SYSTEM_WORKFLOW_EVENT = $"{NS_SYSTEM_WORKFLOW}.event";
 
-    internal const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
-    internal const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
-    internal const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";
-    internal const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
-    internal const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
-    internal const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
-    
-    internal const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROPERTY}.app";
-    
+    public const string NS_SYSTEM_SCHEMA_APP = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_APP}";
+    public const string NS_SYSTEM_SCHEMA_APP_FIELD = $"{NS_SYSTEM_SCHEMA_APP}.field";
+    public const string NS_SYSTEM_SCHEMA_APP_WORKFLOW = $"{NS_SYSTEM_SCHEMA_APP}.workflow";
+    public const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
+    public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
+
+    public const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROPERTY}.app";
+
     // workflow kind
-    internal const string WORKFLOW_KIND_WORKFLOW = "workflow";
-    internal const string WORKFLOW_KIND_CALL = "call";
-    internal const string WORKFLOW_KIND_EVENT = "event";
-    internal const string WORKFLOW_KIND_INTERACTION = "interaction";
+    public const string WORKFLOW_KIND_WORKFLOW = "workflow";
+    public const string WORKFLOW_KIND_CALL = "call";
+    public const string WORKFLOW_KIND_EVENT = "event";
+    public const string WORKFLOW_KIND_INTERACTION = "interaction";
     
     // Topic
     public const char TOPIC_SEP = '/';
