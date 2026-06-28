@@ -127,14 +127,21 @@ public sealed class AppType : IValueTypeAccess
     /// </summary>
     internal void SaveAppSchema(AppSchema schema)
     {
+        // system app schema without other provider doesn't need reload
+        if (_schemas != null && _schemas.TryGetValue(schema.Name, out AppSchema? exist) && (exist.LoadState & SchemaLoadState.System) > 0 && schema.Provider == null) return;
+        
+        // record and mark unload
         _schemas ??= [];
         _schemas[schema.Name] = schema;
+        if (_subApps != null && _subApps.TryGetValue(schema.Name, out AppType? app)) app.Loaded = false;
     }
 
     internal void RemoveAppSchema(ReadOnlySpan<char> name)
     {
         _schemas?.TryRemove(name.ToString(), out _);
     }
+    
+    internal IEnumerable<AppSchema> GetSubAppSchemas() => _schemas?.Values ?? [];
     
     public IEnumerable<AppType> GetSubApps() => _subApps?.Values ?? [];
     

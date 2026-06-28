@@ -20,4 +20,17 @@ public sealed class Display : Property<LocaleString>
         base.SetValue(value);
         Locale.Translate(Value);
     }
+
+    /// <inheritdoc/>
+    public override bool Combine(IProperty other)
+    {
+        if (other.GetValue<LocaleString>() is not { } otherValue) return false;
+        if (Value == null)
+        {
+            SetValue(otherValue);
+            return true;
+        }
+        Value.Concat(otherValue);
+        return true;
+    }
 }

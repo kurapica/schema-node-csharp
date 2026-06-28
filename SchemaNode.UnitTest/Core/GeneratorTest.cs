@@ -4,7 +4,7 @@ using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 /// <summary>
 /// Test types used by GeneratorTest to verify code-to-schema generation.

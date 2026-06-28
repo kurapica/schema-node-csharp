@@ -1,8 +1,9 @@
+using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 [TestClass]
 public class ScalarTypeTest : Base.CoreTestBase
@@ -45,7 +46,7 @@ public class ScalarTypeTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        DataNode node = await intType.ValidateValueAsync(Context, 10L);
+        DataNode node = await intType.ValidateValueAsync(Context, JsonValue.Create(10L)!);
         Assert.IsNotNull(node);
         Assert.AreEqual(10L, node.GetValue<long>());
         Assert.IsTrue(node.Violated is null or { IsEmpty: true });

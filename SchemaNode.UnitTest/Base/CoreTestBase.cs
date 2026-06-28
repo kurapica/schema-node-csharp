@@ -1,10 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Context;
-using SchemaNode.Runtime;
 using SchemaNode.Service;
-using NamespaceType = SchemaNode.Runtime.NamespaceType;
 
-namespace SchemaNode.RefactorTest.Base;
+namespace SchemaNode.UnitTest.Base;
 
 [TestClass]
 public abstract class CoreTestBase
@@ -33,7 +31,6 @@ public abstract class CoreTestBase
     [TestCleanup]
     public async Task CoreTeardown()
     {
-        if (Provider != null)
-            await Provider.DisposeAsync();
+        await Provider.DisposeAsync();
     }
 }

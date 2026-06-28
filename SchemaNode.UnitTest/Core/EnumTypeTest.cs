@@ -5,7 +5,7 @@ using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 [Meta<SchemaType>("test.enum.color")]
 public enum TestColorEnum { Red = 1, Green = 2, Blue = 3 }

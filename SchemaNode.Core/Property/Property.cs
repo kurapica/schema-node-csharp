@@ -52,23 +52,12 @@ public interface IProperty
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
     /// </summary>
-    virtual bool Combine(IProperty other)
-    {
-        if (other.GetType() != GetType()) return false;
-        if (HasValue || !other.HasValue) return false;
-        SetValue(other.GetValue<object>());
-        return true;
-    }
+    bool Combine(IProperty other);
     
     /// <summary>
     /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
     /// </summary>
-    virtual bool Equals(IProperty other)
-    {
-        if (other.GetType() != GetType()) return false;
-        if (HasValue != other.HasValue) return false;
-        return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
-    }
+    bool Equals(IProperty other);
 }
 
 /// <summary>
@@ -91,6 +80,23 @@ public abstract class Property<T> : IProperty
     /// </summary>
     public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
 
+    /// <inheritdoc/>
+    public virtual bool Combine(IProperty other)
+    {
+        if (other.GetType() != GetType()) return false;
+        if (HasValue || !other.HasValue) return false;
+        SetValue(other.GetValue<object>());
+        return true;
+    }
+    
+    /// <inheritdoc/>
+    public virtual bool Equals(IProperty other)
+    {
+        if (other.GetType() != GetType()) return false;
+        if (HasValue != other.HasValue) return false;
+        return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
+    }
+    
     /// <summary>
     /// Check the value is not empty
     /// </summary>

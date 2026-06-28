@@ -2,7 +2,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 /// <summary>
 /// Tests for RelationSchema and IRelationProcess in SchemaNode.Core.

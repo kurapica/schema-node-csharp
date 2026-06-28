@@ -96,6 +96,9 @@ public sealed class LocaleString : ICloneable
     /// <returns></returns>
     public override string ToString() => Key;
 
+    /// <summary>
+    /// Concat other locale string
+    /// </summary>
     public LocaleString Concat(LocaleString? other)
     {
         if (other == null) return this;

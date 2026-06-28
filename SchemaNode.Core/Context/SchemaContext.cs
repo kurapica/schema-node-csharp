@@ -208,6 +208,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 // Get loaded node type
                 result = parent?.GetNodeType(next);
             }
+            // reload means don't load it if not existed
             if (result == null && reload || result?.Loaded == true && !(spans.IsEnd && reload))
                 return result;
             
@@ -225,20 +226,22 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                 return null;
             }
             
-            // only save node schema in reload mode, otherwise it's loaded by parent namespace
-            if (reload && spans.IsEnd) parent?.SaveNodeSchema(schema);
-            
             // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
-            if (parent != result) parent?.SaveNodeType(nextVal, result);
+            NodeSchema[]? schemas = schema.Schemas;
+            schema.Schemas = null;
+            if (parent != result)
+            {
+                parent?.SaveNodeSchema(schema);
+                parent?.SaveNodeType(nextVal, result);
+            }
 
             // Load the schema
             LogDebug("[Runtime]Schema Type {schemaName} loading", schema.FullName);
-
             await result.LoadTypeAsync(this, schema);
             
             // Save sub-namespaces for the namespace
-            if (result is NamespaceType ns && schema.Schemas is { Length: > 0 })
-                foreach (NodeSchema s in schema.Schemas)
+            if (result is NamespaceType ns && schemas is { Length: > 0 })
+                foreach (NodeSchema s in schemas)
                     ns.SaveNodeSchema(s);
             
             // Generic Types Reloading
@@ -253,7 +256,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         {
             // get loaded schema from namespace if not in reload mode
             NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
-            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
+            if (schema != null) return schema;
             
             // system schema
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');
@@ -275,6 +278,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         schema = loadSchema;
                         continue;
                     }
+                    schema.LoadState |= loadSchema.LoadState;
+                    schema.Provider ??= loadSchema.Provider;
                     
                     // Combine extensions
                     schema.CombineExtensions(loadSchema, schemaRuntime);
@@ -311,8 +316,6 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     LogError(e, $"Failed to load schema '{schemaName}' from schema provider '{provider.GetType().FullName}'.");
                 }
             }
-            
-            if (schema != null) @namespace?.SaveNodeSchema(schema);
             return schema;
         }
 

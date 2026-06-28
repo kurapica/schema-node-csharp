@@ -20,6 +20,7 @@ public class AppSchemaRuntime : SchemaRuntime
     private readonly AppSchema _rootAppSchema = new();
     private readonly ConcurrentDictionary<string, Type> _appFieldTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, (string App, string Field)> _typeAppFields = new();
+    private readonly ConcurrentDictionary<string, Runtime.AppType> _apps = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Save system app schema
@@ -78,7 +79,6 @@ public class AppSchemaRuntime : SchemaRuntime
     /// <summary>
     /// Save system app field schema
     /// </summary>
-    /// <param name="schema"></param>
     internal void SaveSystemAppFieldSchema(AppFieldSchema schema, Type? matchType)
     {
         AppSchema app = GetSystemAppSchema(schema.App, true)!;
@@ -99,6 +99,11 @@ public class AppSchemaRuntime : SchemaRuntime
             _typeAppFields[matchType] = (schema.App, schema.Name);
         }
     }
+    
+    /// <summary>
+    /// Save the system applications
+    /// </summary>
+    internal void SaveSystemApp(AppType app) => _apps[app.Name] = app;
     
     /// <summary>
     /// Gets system app schema
@@ -148,19 +153,15 @@ public class AppSchemaRuntime : SchemaRuntime
     /// <summary>
     /// Gets the app & field of the given type
     /// </summary>
-    internal (string App, string Field)? GetSystemAppField(Type fieldType)
-    {
-        return _typeAppFields.GetValueOrDefault(fieldType);
-    }
+    public (AppType? App, AppFieldType? Field) GetSystemAppField(Type fieldType)
+        => _typeAppFields.TryGetValue(fieldType, out var info) && _apps.TryGetValue(info.App, out var app)
+            ? (app, app.GetField(info.Field))
+            : (null, null);
     
     /// <summary>
     /// Gets the app & field of the given type
     /// </summary>
-    internal (string App, string Field)? GetSystemAppField<T>()
-    {
-        return _typeAppFields.GetValueOrDefault(typeof(T));
-    }
-
+    public (AppType? App, AppFieldType? Field) GetSystemAppField<T>() => GetSystemAppField(typeof(T));
     
     #endregion
     

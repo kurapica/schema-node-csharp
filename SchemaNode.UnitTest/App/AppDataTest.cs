@@ -4,7 +4,7 @@ using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.RefactorTest.App;
+namespace SchemaNode.UnitTest.App;
 
 [TestClass]
 public class AppDataTest : Base.AppTestBase

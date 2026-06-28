@@ -12,4 +12,25 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Description)}")]
-public class Description : Property<LocaleString>;
+public class Description : Property<LocaleString>
+{
+    /// <inheritdoc/>
+    public override void SetValue<TValue>(TValue value)
+    {
+        base.SetValue(value);
+        Locale.Translate(Value);
+    }
+
+    /// <inheritdoc/>
+    public override bool Combine(IProperty other)
+    {
+        if (other.GetValue<LocaleString>() is not { } otherValue) return false;
+        if (Value == null)
+        {
+            SetValue(otherValue);
+            return true;
+        }
+        Value.Concat(otherValue);
+        return true;
+    }
+}

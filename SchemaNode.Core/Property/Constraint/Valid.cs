@@ -78,4 +78,15 @@ public class Valid : FuncCallProperty, IConstraintProperty
             return null;
         }
     }
+
+    /// <inheritdoc/>
+    public override bool Equals(IProperty other)
+    {
+        if (other is not Valid valid) return false;
+        if (HasValue != valid.HasValue) return false;
+        if (!HasValue) return true;
+        if (Value!.Func != valid.Value!.Func) return false;
+        if (Value.Args.Length != valid.Value.Args.Length) return false;
+        return !Value.Args.Where((t, i) => !t.Equals(valid.Value.Args[i])).Any();
+    }
 }

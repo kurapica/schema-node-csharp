@@ -1,8 +1,7 @@
-using SchemaNode.Node;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 /// <summary>
 /// Tests for DataNode value access and creation

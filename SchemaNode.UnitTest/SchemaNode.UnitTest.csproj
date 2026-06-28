@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>SchemaNode.RefactorTest</RootNamespace>
+    <RootNamespace>SchemaNode.UnitTest</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

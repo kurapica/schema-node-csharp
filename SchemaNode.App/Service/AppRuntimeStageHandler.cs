@@ -113,7 +113,7 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
     /// </summary>
     public async Task OnSystemSchemaLoaded(ISchemaContext context, IEnumerable<Assembly> assemblies)
     {
-        if (context is not SchemaContext || context.Runtime is not AppSchemaRuntime runtime) return;
+        if (context is not SchemaContext schemaContext || context.Runtime is not AppSchemaRuntime runtime) return;
 
         // auto scan
         foreach (Assembly assembly in assemblies)
@@ -170,6 +170,19 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                 }
             }
         }
+        
+        // loading system apps
+        await LoadAllAppTypes("");
+        
+        async Task LoadAllAppTypes(string fullName)
+        {
+           var appType = await schemaContext.GetAppTypeAsync(fullName);
+           if (appType == null) return;
+           runtime.SaveSystemApp(appType);
+            
+            foreach (var schema in appType.GetSubAppSchemas())
+                await LoadAllAppTypes(schema.FullName);
+        }
     }
 
     /// <summary>
@@ -181,9 +194,6 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
         AppWorkflowQueue? workflowQueue = runtime.GetRuntimeItem<AppWorkflowQueue>();
         if (workflowQueue == null) return;
         while (workflowQueue.TryDequeue(out AppWorkflowType? workflowType))
-        {
-            if (workflowType != null)
-                await workflowType.LoadAsync(schemaContext);
-        }
+            await workflowType.LoadAsync(schemaContext);
     }
 }

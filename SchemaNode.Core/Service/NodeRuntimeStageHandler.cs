@@ -225,6 +225,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Loading the system schema as node types, so they should be ready for other stages
         schemaContext.SystemMode = true;
         
+        // Loading all system node types
+        await LoadAllNodeTypes(string.Empty);
+
         // Loading system access
         SystemAccess access = schemaContext.System;
         access.Self = (await schemaContext.GetNodeTypeAsync<Runtime.NamespaceType>(NS_SYSTEM))!;
@@ -234,9 +237,6 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
-        
-        // Loading all system node types
-        await LoadAllNodeTypes(string.Empty);
         
         #endregion
         

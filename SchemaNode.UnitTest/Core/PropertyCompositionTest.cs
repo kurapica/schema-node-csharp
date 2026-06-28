@@ -5,7 +5,7 @@ using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;
 
-namespace SchemaNode.RefactorTest.Core;
+namespace SchemaNode.UnitTest.Core;
 
 /// <summary>
 /// Tests for the Property&lt;T&gt; composition system in SchemaNode.Core.

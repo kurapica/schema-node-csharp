@@ -3,7 +3,7 @@ using SchemaNode.Data;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Service;
 
-namespace SchemaNode.RefactorTest.Base;
+namespace SchemaNode.UnitTest.Base;
 
 [TestClass]
 public abstract class AppTestBase : CoreTestBase
