@@ -5,6 +5,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Property;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Schema.Provider;
 
@@ -39,7 +40,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                 {
                     string namespaceName = name.GetNamespace();
                     string schemaName = name.GetSchemaName();
-                    schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? Root : namespaceName, schemaName);
+                    schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName);
                     
                     // namespace may not save when they are system generated, just try
                     if (schema == null)
@@ -54,18 +55,13 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                     }
                 }
 
-                // clear the root namespace
-                if (Root.Equals(schema.Namespace, StringComparison.InvariantCultureIgnoreCase))
-                    schema.Namespace = null;
-
                 switch (schema.Kind)
                 {
                     case SCHEMA_KIND_NAMESPACE: 
                     {
                         // sub namespace
-                        string ns = string.IsNullOrEmpty(schema.Name) ? Root : schema.FullName;
-                        NodeSchema[] value = (await context.GetEntitiesAsync<NodeEntity>(Target, s => s.Namespace == ns))
-                            .Select(s => (NodeSchema)s!).ToArray();
+                        string ns = string.IsNullOrEmpty(schema.Name) ? ROOT : schema.FullName;
+                        NodeSchema[] value = (await context.GetEntitiesAsync<NodeEntity>(Target, s => s.Namespace == ns)).Select(s => (NodeSchema)s!).ToArray();
                         if (value.Length == 0 && checkSubNs) continue;
                         schema.Schemas = value;
                         break;
@@ -78,8 +74,9 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                             {
                                 value.IsFullyLoaded = false;
                                 value.SubList = null; // sub list will be loaded on demand, set to null to indicate not loaded
-                                value.HasSubList = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.Name && e.Root == value.Value, take: 1)).total != 0;
+                                value.HasSubList = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).total != 0;
                             }
+                            schema.SetProperty<EnumProperty, EnumSchema>(@enum);
                         }
                         break;
                 }
@@ -103,10 +100,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         
         try
         {
-            NodeEntity schemaEntity = schema!;
-            if (string.IsNullOrEmpty(schemaEntity.Namespace)) schemaEntity.Namespace = Root;
             await context.BeginTransactionAsync();
-            await context.SaveEntityAsync(Target, schemaEntity);
+            await context.SaveEntityAsync<NodeEntity>(Target, schema!);
             await context.CommitTransactionAsync();
             return true;
         }
@@ -128,12 +123,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             NodeSchema? nodeSchema = delNode?.GetNodeSchema();
             if (nodeSchema == null) return false;
             
-            NodeEntity nodeEntity = nodeSchema!;
-            if (string.IsNullOrWhiteSpace(nodeEntity.Namespace))
-                nodeEntity.Namespace = Root;
-
             await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync(Target, nodeEntity);
+            await context.DeleteEntityAsync<NodeEntity>(Target, nodeSchema!);
 
             switch (nodeSchema.Kind)
             {
@@ -183,7 +174,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         {
             string namespaceName = name.GetNamespace();
             string schemaName = name.GetSchemaName();
-            NodeSchema? schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? Root : namespaceName, schemaName);
+            NodeSchema? schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName);
             if (schema?.Kind != SCHEMA_KIND_ENUM) return [];
             EnumSchema? enumSchema = schema.GetProperty<EnumProperty>()?.Value;
             if (enumSchema == null) return [];
@@ -194,12 +185,11 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                 if (withSubList == true && enumSchema.Cascade is { Length: > 1 })
                 {
                     EnumValueSchema[] subList = await LoadEnumSubListAsync(name, value);
-                    if (subList.Length > 0)
-                        return
-                        [
-                            new EnumValueAccess { Value = value, Schema =  noSubList == true ? exist.Clone() : null, SubList = !(noSubList ?? false) ? enumSchema.Values : null },
-                            new EnumValueAccess { Value = "", SubList = subList }
-                        ];
+                    return
+                    [
+                        new EnumValueAccess { Value = value, Schema =  noSubList == true ? exist.Clone() : null, SubList = !(noSubList ?? false) ? enumSchema.Values : null },
+                        new EnumValueAccess { Value = "", SubList = subList }
+                    ];
                 }
                 return
                 [
@@ -268,10 +258,6 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             
             EnumValueAccess[] accessList = await LoadEnumAccessListAsync(name, value, noSubList: true, withSubList: true);
             if (accessList.Length == 0 || !string.IsNullOrWhiteSpace(accessList.Last().Value)) return [];
-
-            // no sub list allowed
-            if (!string.IsNullOrWhiteSpace(accessList.Last().Value))
-                return [];
             
             List<EnumValueSchema> enumValues = accessList.Last().SubList?.ToList() ?? [];
             EnumValueSchema? enumSchema = accessList.SkipLast(1).LastOrDefault()?.Schema;
@@ -322,10 +308,10 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
 
             // Update the sub list settings
-            if (enumSchema.HasSubList == true ? enumValues.Count == 0 : enumValues.Count > 0)
+            if (enumSchema.HasSubList == true ? enumValues.Count == 0 : enumValues.Count > 0 && accessList.Length > 2)
             {
                 enumSchema.HasSubList = enumValues.Count > 0;
-                await context.SaveEntityAsync(Target, (EnumValueEntity)enumSchema!);
+                await context.SaveEntityAsync<EnumValueEntity>(Target, enumSchema!);
             }
             
             await context.CommitTransactionAsync();
@@ -357,18 +343,16 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                     Name = "",
                     HasApps = true
                 };
-                app = Root;
+                app = ROOT;
             }
             else
             {
-                schema = await context.GetEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? Root : container, name);
-                if (schema != null && Root.Equals(schema.Container, StringComparison.InvariantCultureIgnoreCase))
-                    schema.Container = null;
+                schema = await context.GetEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name);
+                if (schema != null) app = schema.FullName;
             }
 
             // load apps
-            List<AppSchema> apps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == app))
-                .Select(a => (AppSchema)a!).ToList();
+            List<AppSchema> apps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == app)).Select(a => (AppSchema)a!).ToList();
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
@@ -419,9 +403,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
         try
         {
             await context.BeginTransactionAsync();
-            AppEntity appEntity = app!;
-            if (string.IsNullOrEmpty(appEntity.Container)) appEntity.Container = Root;
-            await context.SaveEntityAsync(Target, appEntity);
+            await context.SaveEntityAsync<AppEntity>(Target, app!);
             await context.CommitTransactionAsync();
             
             return true;
@@ -444,7 +426,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             string name = app.GetSchemaName();
             
             await context.BeginTransactionAsync();
-            await context.DeleteEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? Root : container, name);
+            await context.DeleteEntityAsync<AppEntity>(Target, string.IsNullOrWhiteSpace(container) ? ROOT : container, name);
             await context.CommitTransactionAsync();
             
             return true;
@@ -608,7 +590,6 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region Utility
 
     static readonly string Target = Guid.Empty.ToString("D");
-    private const string Root = "__root";
 
     #endregion
 }

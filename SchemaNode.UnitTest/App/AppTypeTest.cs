@@ -42,7 +42,7 @@ public class AppTypeTest : Base.AppTestBase
     {
         var ctx = Provider.GetRequiredService<SchemaContext>();
         await ctx.SaveAppSchemaAsync(new AppSchema { Name = "catalog" });
-        await ctx.SaveAppSchemaAsync(new AppSchema { Name = "catalog.products" });
+        await ctx.SaveAppSchemaAsync(new AppSchema { Container = "catalog", Name = "products" });
 
         var child = await ctx.GetAppTypeAsync("catalog.products");
         Assert.IsNotNull(child);

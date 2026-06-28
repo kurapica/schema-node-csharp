@@ -130,7 +130,7 @@ public static class SchemaStorageProviderExtension
     static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppSchemaStorageProvider provider, Runtime.EnumType @enum, string value, EnumValueSchema[] values, bool append = false)
     {
         EnumValueAccess[] access = await @enum.LoadEnumAccessListAsync(context, value, noSubList: true, withSubList: true);
-        if (access.Length == 0 || !string.IsNullOrWhiteSpace(access.Last().Value)) return;
+        if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Value)) return;
         
         if (!append)
         {

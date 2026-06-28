@@ -49,6 +49,7 @@ public static class AppSchemaContextExtension
 
                 // Load the schema
                 context.LogDebug("[Runtime]App Type {schemaName} loading", schema.FullName);
+                result.Loaded = true;
                 await result.LoadAsync(context, schema);
             
                 // Namespace

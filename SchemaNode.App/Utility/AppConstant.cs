@@ -71,6 +71,11 @@ public static class AppConstant
     /// The max combine case count, to avoid abuse of too many cases which may cause performance issue.
     /// </summary>
     public const int MAX_COMBINE_CASE_COUNT = 15;
+
+    /// <summary>
+    /// The default root key
+    /// </summary>
+    public const string ROOT = "__root";
     
     /// <summary>
     /// DYNAMIC TABLE VALUE FIELD

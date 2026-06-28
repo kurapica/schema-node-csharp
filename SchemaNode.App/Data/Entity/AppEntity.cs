@@ -42,7 +42,7 @@ internal class AppEntity
         if (appSchema == null) return null;
         return new AppEntity
         {
-            Container = appSchema.Container,
+            Container = string.IsNullOrWhiteSpace(appSchema.Container) ? ROOT : appSchema.Container,
             Name = appSchema.Name,
             Extensions = appSchema.Extensions?.DeepClone() as JsonObject,
         };
@@ -53,7 +53,7 @@ internal class AppEntity
         if (appEntity == null) return null;
         return new AppSchema
         {
-            Container = appEntity.Container,
+            Container = ROOT.Equals(appEntity.Container, StringComparison.OrdinalIgnoreCase) ? null : appEntity.Container,
             Name = appEntity.Name,
             Extensions = appEntity.Extensions?.DeepClone() as JsonObject
         };

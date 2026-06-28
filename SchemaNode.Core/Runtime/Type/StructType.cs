@@ -465,8 +465,13 @@ public class StructFieldType : INodeReferences
             return;
         }
 
+        ValueType? propType = Type;
+        if (propType is ArrayType arrayType) propType = arrayType.Element;
+
         // Properties
-        IProperty[] props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)).ToArray();
+        var propTypes = context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD);
+        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindProperties(propType.Kind)).Distinct();
+        IProperty[] props = field.GetProperties(propTypes).ToArray();
         IConstraintProperty[] constraints = props.OfType<IConstraintProperty>().ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);

@@ -18,7 +18,7 @@ public interface IPropertyOwner
     /// <summary>
     /// Sets the property and return itself
     /// </summary>
-    void SetProperty(IProperty property);
+    IPropertyOwner SetProperty(IProperty property);
 }
 
 public static class PropertyOwnerExtensions
@@ -38,21 +38,21 @@ public static class PropertyOwnerExtensions
         /// <summary>
         /// Set the property with type and return itself
         /// </summary>
-        public void SetProperty<TK, TV>(TV value) where TK : Property<TV>, new()
+        public IPropertyOwner SetProperty<TK, TV>(TV value) where TK : Property<TV>, new()
         {
             IProperty property = Activator.CreateInstance<TK>();
             property.SetValue(value);
-            owner.SetProperty(property);
+            return owner.SetProperty(property);
         }
 
         /// <summary>
         /// Sets the property with the given property type and value
         /// </summary>
-        public void SetProperty<T>(Type type, T value)
+        public IPropertyOwner SetProperty<T>(Type type, T value)
         {
-            if (Activator.CreateInstance(type) is not IProperty prop) return;
+            if (Activator.CreateInstance(type) is not IProperty prop) return owner;
             prop.SetValue(value);
-            owner.SetProperty(prop);
+            return owner.SetProperty(prop);
         }
 
         /// <summary>

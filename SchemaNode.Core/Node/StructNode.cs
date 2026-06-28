@@ -183,7 +183,7 @@ public class StructNode : DataNode
             }
             case JsonObject obj:
             {
-                Dictionary<string, DataNode> fieldMap = [];
+                Dictionary<string, DataNode> fieldMap = new (StringComparer.OrdinalIgnoreCase);
                 DataNode? unpackNode = null;
                 foreach ((StructFieldType f, DataNode v)  in GetFields())
                 {
@@ -262,6 +262,7 @@ public class StructNode : DataNode
             if (_csharpObject != null)
             {
                 value = _csharpObject;
+                return true;
             }
             else if (TryGetValue(out JsonObject? obj) && obj != null)
             {

@@ -185,11 +185,11 @@ public abstract class ExtensibleSchema : IPropertyOwner
     }
 
     /// <inheritdoc/>
-    public void SetProperty(IProperty property)
+    public IPropertyOwner SetProperty(IProperty property)
     {
         Extensions ??= [];
         JsonNode? node = property.GetValue<JsonNode>();
-        if (node == null) return;
+        if (node == null) return this;
         
         // Just keep in mind the stackable property not use array value types, maybe we will allow that in the future
         if (property.Stackable && Extensions.TryGetValue(property.Name, out JsonNode? existNode) && !existNode.IsEmpty())
@@ -212,6 +212,7 @@ public abstract class ExtensibleSchema : IPropertyOwner
         {
             Extensions[property.Name] = node;
         }
+        return this;
     }
     
     /// <inheritdoc/>
