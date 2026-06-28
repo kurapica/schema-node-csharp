@@ -71,7 +71,7 @@ public class StructNode : DataNode
         int i = 0;
         foreach (var field in (Type as StructType)!.GetFields())
         {
-            yield return (field, _fields[i]);
+            yield return (field, GetAccessValue(field.Name.AsSpan())!);
             i++;
         }
     }
