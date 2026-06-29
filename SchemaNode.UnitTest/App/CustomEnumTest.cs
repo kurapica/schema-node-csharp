@@ -79,4 +79,94 @@ public class CustomEnumTest : Base.AppTestBase
         Assert.IsNotNull(access);
         Assert.AreEqual(2, access.Length);
     }
+
+    [TestMethod]
+    public async Task CustomEnum_IntTypeEnum()
+    {
+        NodeSchema schema = new NodeSchema
+        {
+            Namespace = "system",
+            Name = "priority",
+            Kind = SCHEMA_KIND_ENUM,
+        };
+        EnumSchema enumSchema = new EnumSchema
+        {
+            Type = EnumValueType.Int,
+            Values =
+            [
+                new EnumValueSchema { Value = "1" },
+                new EnumValueSchema { Value = "2" },
+                new EnumValueSchema { Value = "3" }
+            ]
+        };
+        schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+        bool result = await Context.SaveSchemaAsync(schema);
+        Assert.IsTrue(result);
+
+        var priorityType = await Context.GetNodeTypeAsync<Runtime.EnumType>(schema.FullName);
+        Assert.IsNotNull(priorityType);
+
+        var node = await priorityType.ValidateValueAsync(Context, 2L);
+        Assert.IsNotNull(node);
+        Assert.IsTrue(node.IsValid);
+    }
+
+    [TestMethod]
+    public async Task CustomEnum_CascadeEnumWithAppend()
+    {
+        NodeSchema schema = new NodeSchema
+        {
+            Namespace = "system",
+            Name = "continent",
+            Kind = SCHEMA_KIND_ENUM,
+        };
+        EnumSchema enumSchema = new EnumSchema
+        {
+            Type = EnumValueType.String,
+            Cascade = ["Continent", "Country"],
+            Values =
+            [
+                new EnumValueSchema { Value = "Asia" },
+                new EnumValueSchema { Value = "Europe" }
+            ]
+        };
+        schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+        await Context.SaveSchemaAsync(schema);
+
+        // Save sub-list for Asia with all countries at once
+        await Context.SaveEnumSubListAsync(schema.FullName, "Asia", [
+            new EnumValueSchema { Value = "Japan" },
+            new EnumValueSchema { Value = "Korea" },
+            new EnumValueSchema { Value = "India" }
+        ]);
+
+        var continentType = await Context.GetNodeTypeAsync<Runtime.EnumType>(schema.FullName);
+        Assert.IsNotNull(continentType);
+
+        // Load sub-list directly (not access list)
+        var subList = await continentType.LoadEnumSubListAsync(Context, "Asia");
+        Assert.IsNotNull(subList);
+        Assert.IsTrue(subList.Length >= 3, $"Expected >= 3 sub-list values, got {subList.Length}");
+    }
+
+    [TestMethod]
+    public async Task CustomEnum_DeleteEnum()
+    {
+        NodeSchema schema = new NodeSchema
+        {
+            Namespace = "system",
+            Name = "todelete_enum",
+            Kind = SCHEMA_KIND_ENUM,
+        };
+        EnumSchema enumSchema = new EnumSchema
+        {
+            Type = EnumValueType.String,
+            Values = [new EnumValueSchema { Value = "x" }]
+        };
+        schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+        await Context.SaveSchemaAsync(schema);
+
+        bool deleted = await Context.DeleteSchemaAsync(schema.FullName);
+        Assert.IsTrue(deleted);
+    }
 }

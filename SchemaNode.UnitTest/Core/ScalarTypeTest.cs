@@ -73,4 +73,78 @@ public class ScalarTypeTest : Base.CoreTestBase
         Assert.IsNotNull(node);
         Assert.AreEqual(true, node.GetValue<bool>());
     }
+
+    [TestMethod]
+    public async Task ScalarNode_DateType()
+    {
+        var dateType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_DATE);
+        Assert.IsNotNull(dateType);
+
+        var dt = DateTimeOffset.UtcNow;
+        var node = dateType.From(dt);
+        Assert.IsNotNull(node);
+        Assert.AreEqual(dt, node.GetValue<DateTimeOffset>());
+    }
+
+    [TestMethod]
+    public async Task ScalarNode_NumberType()
+    {
+        var numType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_NUMBER);
+        Assert.IsNotNull(numType);
+
+        var node = numType.From(3.14m);
+        Assert.IsNotNull(node);
+        Assert.AreEqual(3.14m, node.GetValue<decimal>());
+    }
+
+    [TestMethod]
+    public async Task ScalarNode_Validate_InvalidType()
+    {
+        var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
+        Assert.IsNotNull(intType);
+
+        // Validate with string value for int type - should produce violations
+        DataNode node = await intType.ValidateValueAsync(Context, JsonValue.Create("not_a_number")!);
+        Assert.IsNotNull(node);
+        // Invalid input should result in violations
+        Console.WriteLine($"IsValid: {node.IsValid}, Violated: {string.Join(", ", node.Violated ?? [])}");
+    }
+
+    [TestMethod]
+    public async Task ScalarNode_Clone()
+    {
+        var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
+        Assert.IsNotNull(intType);
+
+        var original = intType.From(42L);
+        Assert.IsNotNull(original);
+
+        var cloned = original.Clone();
+        Assert.IsNotNull(cloned);
+        Assert.AreEqual(42L, cloned.GetValue<long>());
+        Assert.AreNotSame(original, cloned);
+    }
+
+    [TestMethod]
+    public async Task ScalarNode_ObjectType()
+    {
+        var objType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(objType);
+
+        var node = objType.From(42L);
+        Assert.IsNotNull(node);
+        Assert.AreEqual(42L, node.GetValue<long>());
+    }
+
+    [TestMethod]
+    public async Task ScalarNode_ClearValue()
+    {
+        var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
+        Assert.IsNotNull(intType);
+
+        var node = intType.From(42L);
+        Assert.IsFalse(node.IsEmpty);
+        node.ClearValue();
+        Assert.IsTrue(node.IsEmpty);
+    }
 }

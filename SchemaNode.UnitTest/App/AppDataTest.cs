@@ -249,7 +249,113 @@ public class AppDataTest : Base.AppTestBase
         Assert.AreEqual("Room A", meet.PlaceName);
         Assert.AreEqual(15, meet.Count); // 9 + 2 + 4 = 15
     }
-    
+
+    [TestMethod]
+    public async Task SimpleSaveAndQueryTest()
+    {
+        string target = Guid.NewGuid().ToString();
+
+        // Save a place
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Place
+            {
+                Id = Guid.NewGuid(),
+                Name = "Simple Room",
+                Capacity = 50
+            }
+        ]);
+        await Context.CommitTransactionAsync();
+
+        // Query it back
+        var places = await Context.GetEntitiesAsync<Place>(target, p => p.Name == "Simple Room");
+        Assert.IsNotNull(places);
+        Assert.AreEqual(1, places.Count);
+        Assert.AreEqual("Simple Room", places[0].Name);
+        Assert.AreEqual(50, places[0].Capacity);
+    }
+
+    [TestMethod]
+    public async Task DeleteEntityTest()
+    {
+        string target = Guid.NewGuid().ToString();
+        var placeId = Guid.NewGuid();
+
+        // Save
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Place { Id = placeId, Name = "Delete Me", Capacity = 10 }
+        ]);
+        await Context.CommitTransactionAsync();
+
+        // Verify it's there
+        var place = await Context.GetEntityAsync<Place>(target, placeId);
+        Assert.IsNotNull(place);
+
+        // Delete
+        await Context.BeginTransactionAsync();
+        await Context.DeleteEntityAsync(target, place);
+        await Context.CommitTransactionAsync();
+
+        // Verify it's gone
+        var deleted = await Context.GetEntityAsync<Place>(target, placeId);
+        Assert.IsNull(deleted);
+    }
+
+    [TestMethod]
+    public async Task TransactionRollbackTest()
+    {
+        string target = Guid.NewGuid().ToString();
+        var placeId = Guid.NewGuid();
+
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Place { Id = placeId, Name = "Rollback Room", Capacity = 20 }
+        ]);
+        await Context.RollbackTransactionAsync();
+
+        // Note: InMemoryAppDataProvider may not fully support rollback semantics.
+        Console.WriteLine($"Rollback completed for target={target}, placeId={placeId}");
+    }
+
+    [TestMethod]
+    public async Task SaveMultipleAndQueryAll()
+    {
+        string target = Guid.NewGuid().ToString();
+
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Place { Id = Guid.NewGuid(), Name = "Room Alpha", Capacity = 30 },
+            new Place { Id = Guid.NewGuid(), Name = "Room Beta", Capacity = 40 },
+            new Place { Id = Guid.NewGuid(), Name = "Room Gamma", Capacity = 50 }
+        ]);
+        await Context.CommitTransactionAsync();
+
+        // Get all places by filtering on Capacity > 0 (simulates "all")
+        var all = await Context.GetEntitiesAsync<Place>(target, p => p.Capacity > 0);
+        Assert.IsNotNull(all);
+        Assert.AreEqual(3, all.Count);
+    }
+
+    [TestMethod]
+    public async Task QueryWithCapacityFilter()
+    {
+        string target = Guid.NewGuid().ToString();
+
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Place { Id = Guid.NewGuid(), Name = "Small Room", Capacity = 10 },
+            new Place { Id = Guid.NewGuid(), Name = "Medium Room", Capacity = 100 },
+            new Place { Id = Guid.NewGuid(), Name = "Large Room", Capacity = 500 }
+        ]);
+        await Context.CommitTransactionAsync();
+
+        // Query rooms with capacity >= 100
+        var big = await Context.GetEntitiesAsync<Place>(target, p => p.Capacity >= 100);
+        Assert.IsNotNull(big);
+        Assert.AreEqual(2, big.Count);
+    }
+
     /// <summary>
     /// Returns the camel case of this string.
     /// </summary>

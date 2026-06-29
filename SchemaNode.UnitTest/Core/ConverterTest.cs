@@ -95,4 +95,67 @@ public class ConverterTest : Base.CoreTestBase
     }
 
     #endregion
+
+    #region Additional Serialization
+
+    [TestMethod]
+    public void Json_Roundtrip_DateTimeOffset()
+    {
+        var dt = DateTimeOffset.UtcNow;
+        var json = JsonSerializer.Serialize(dt);
+        var back = JsonSerializer.Deserialize<DateTimeOffset>(json);
+        Assert.AreEqual(dt.Year, back.Year);
+        Assert.AreEqual(dt.Month, back.Month);
+        Assert.AreEqual(dt.Day, back.Day);
+    }
+
+    [TestMethod]
+    public void Json_Roundtrip_Decimal()
+    {
+        var json = JsonSerializer.Serialize(3.14159m);
+        decimal back = JsonSerializer.Deserialize<decimal>(json);
+        Assert.AreEqual(3.14159m, back);
+    }
+
+    [TestMethod]
+    public async Task IsAssignableTo_BoolToObject()
+    {
+        var boolType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_BOOL);
+        var objType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(boolType);
+        Assert.IsNotNull(objType);
+        Assert.IsTrue(boolType.IsAssignableTo(objType));
+    }
+
+    [TestMethod]
+    public async Task IsAssignableTo_NumberToObject()
+    {
+        var numType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_NUMBER);
+        var objType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(numType);
+        Assert.IsNotNull(objType);
+        Assert.IsTrue(numType.IsAssignableTo(objType));
+    }
+
+    [TestMethod]
+    public async Task IsAssignableTo_DateToObject()
+    {
+        var dateType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_DATE);
+        var objType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(dateType);
+        Assert.IsNotNull(objType);
+        Assert.IsTrue(dateType.IsAssignableTo(objType));
+    }
+
+    [TestMethod]
+    public async Task IsAssignableTo_StringToObject()
+    {
+        var strType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_STRING);
+        var objType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(strType);
+        Assert.IsNotNull(objType);
+        Assert.IsTrue(strType.IsAssignableTo(objType));
+    }
+
+    #endregion
 }

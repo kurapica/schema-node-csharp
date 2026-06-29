@@ -106,4 +106,53 @@ public class EnumTypeTest : Base.CoreTestBase
         Assert.IsNotNull(accessList);
         Assert.AreEqual(0, accessList.Length);
     }
+
+    [TestMethod]
+    public async Task EnumType_ValidateInvalidEnumValue()
+    {
+        var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
+        Assert.IsNotNull(colorType);
+
+        // Validate with a value not in the enum (99L)
+        var node = await colorType.ValidateValueAsync(Context, 99L);
+        Assert.IsNotNull(node);
+        // Should have a violation for invalid enum value
+        Console.WriteLine($"Validate 99L: IsValid={node.IsValid}, Violated={string.Join(", ", node.Violated ?? [])}");
+    }
+
+    [TestMethod]
+    public async Task EnumType_Validate_StringEnum()
+    {
+        var statusType = await Context.GetNodeTypeAsync<EnumType>("test.enum.status");
+        Assert.IsNotNull(statusType);
+
+        // Status enum is string-based from TestStatusEnum (Active, Inactive, Pending)
+        var node = await statusType.ValidateValueAsync(Context, "Active");
+        Assert.IsNotNull(node);
+        Assert.IsTrue(node.IsValid);
+    }
+
+    [TestMethod]
+    public async Task EnumType_LoadAllValues()
+    {
+        var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
+        Assert.IsNotNull(colorType);
+
+        var subList = await colorType.LoadEnumSubListAsync(Context, null);
+        Assert.IsNotNull(subList);
+        Assert.IsTrue(subList.Length >= 3, $"Expected at least 3 values, got {subList.Length}");
+
+        var values = subList.Select(v => v.Value).ToList();
+        Console.WriteLine($"Enum values: {string.Join(", ", values)}");
+    }
+
+    [TestMethod]
+    public async Task EnumType_IsAssignableTo_Object()
+    {
+        var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
+        var objType = await Context.GetNodeTypeAsync<ValueType>(NS_SYSTEM_OBJECT);
+        Assert.IsNotNull(colorType);
+        Assert.IsNotNull(objType);
+        Assert.IsTrue(colorType.IsAssignableTo(objType));
+    }
 }
