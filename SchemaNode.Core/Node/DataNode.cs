@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using SchemaNode.Enum;
 using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
@@ -135,6 +134,11 @@ public abstract class DataNode : IValueAccess
     /// Gets value
     /// </summary>
     public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
+
+    /// <summary>
+    /// Clones the data node
+    /// </summary>
+    public abstract DataNode Clone();
     
     #endregion
 

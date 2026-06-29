@@ -114,4 +114,14 @@ public class EnumNode : DataNode
         }
         return false;
     }
+
+    /// <inheritdoc/>
+    public override DataNode Clone()
+    {
+        return new EnumNode((Type as EnumType)!)
+        {
+            _longValue = _longValue,
+            _strValue = _strValue
+        };
+    }
 }

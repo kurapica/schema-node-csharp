@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Api.Schema.Application;
 using SchemaNode.Attribute;
+using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
@@ -222,6 +223,31 @@ public class AppDataTest : Base.AppTestBase
         Assert.AreEqual(meetingId, data[0]![ToCamelCase(nameof(Meeting.Id))]!.GetValue<string>());
         Assert.AreEqual("Room A", data[0]![ToCamelCase(nameof(Meeting.PlaceName))]!.GetValue<string>());
         Assert.AreEqual(9, data[0]![ToCamelCase(nameof(Meeting.Count))]!.GetValue<long>());
+        
+        // Another way to update and query
+        await Context.BeginTransactionAsync();
+        await Context.SaveEntitiesAsync(target, [
+            new Attendance
+            {
+                AttId = Guid.NewGuid(),
+                MeetId = Guid.Parse(meetingId),
+                Name = "New Attendee",
+                Count = 2
+            },
+            new Attendance
+            {
+                AttId = Guid.NewGuid(),
+                MeetId = Guid.Parse(meetingId),
+                Name = "New Attendee 2",
+                Count = 4
+            }
+        ]);
+        await Context.CommitTransactionAsync();
+
+        var meet = await Context.GetEntityAsync<Meeting>(target, meetingId);
+        Assert.IsNotNull(meet);
+        Assert.AreEqual("Room A", meet.PlaceName);
+        Assert.AreEqual(15, meet.Count); // 9 + 2 + 4 = 15
     }
     
     /// <summary>

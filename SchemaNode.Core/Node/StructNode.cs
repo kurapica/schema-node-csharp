@@ -286,5 +286,18 @@ public class StructNode : DataNode
             field.ClearValue();
     }
 
+    /// <inheritdoc/>
+    public override DataNode Clone()
+    {
+        StructNode clone = new((StructType)Type);
+        int i = 0;
+        foreach (var field in (Type as StructType)!.GetFields())
+        {
+            clone._fields[i] = _fields[i].Clone();
+            i++;
+        }
+        return clone;
+    }
+
     #endregion
 }

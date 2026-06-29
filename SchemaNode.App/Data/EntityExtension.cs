@@ -44,7 +44,7 @@ public static class EntityExtension
         }
         
         using var _ = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, genDisplayOnly: true);
         return value != null ? value.GetValue<T>() : default;
     }
 
@@ -61,7 +61,7 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
        
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.First, filter, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
         return value != null ? value.GetValue<T>() : default;
     }
     
@@ -83,7 +83,7 @@ public static class EntityExtension
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
         
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter, forUpdate: forUpdate);
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
         return value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [];
     }
     
@@ -106,7 +106,7 @@ public static class EntityExtension
         using var stack = context.StackAccess(appFieldType.App, target);
         
         var (value, total) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter,
-            skip, take, desc, orderBy, forUpdate: forUpdate);
+            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
         return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
     }
     
@@ -130,7 +130,7 @@ public static class EntityExtension
         using var stack = context.StackAccess(field.App, target);
     
         var (value, total) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List, filter, skip, take,
-            desc, orderBy, forUpdate: forUpdate);
+            desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
         return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
     }
     

@@ -210,6 +210,15 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <inheritdoc/>
     public override bool IsValid => _elements.All(element => element.IsValid);
 
+    /// <inheritdoc/>
+    public override DataNode Clone()
+    {
+        ArrayNode node = new ArrayNode(ElementType);
+        foreach (DataNode element in _elements)
+            node.Add(element.Clone());
+        return node;
+    }
+
     #endregion
     
     #region Methods

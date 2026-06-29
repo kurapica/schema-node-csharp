@@ -40,6 +40,9 @@ public static class SystemAppData
         [Meta<SchemaType>(typeof(Identifier))] string field,
         params object?[] args)
     {
+        // Fix argument error
+        if (args is [object[] o]) args = o;
+        
         // get the app field type
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         AppFieldType? fieldType = appType?.GetField(field);
@@ -133,11 +136,11 @@ public static class SystemAppData
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
         [Meta<SchemaType>(typeof(Identifier))] string field,
         string dataField,
-        params object?[] args) where T : struct
+        params object?[] args)
     {
         DataNode? result = await get<DataNode>(context, app, field, args);
         DataNode? f = (result as StructNode)?.GetAccessValue(dataField);
-        return f != null ? f.GetValue<T>() : null;
+        return f != null ? f.GetValue<T>() : default(T?);
     }
     
     #endregion

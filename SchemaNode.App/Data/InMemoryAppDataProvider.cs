@@ -69,17 +69,17 @@ public class InMemoryAppDataProvider(ISchemaContext context): IAppDataProvider
             {
                 AppSchemaDataResult.Count => (schemaContext.System.Int.From(total), total),
                 AppSchemaDataResult.Exist => (schemaContext.System.Bool.From(total > 0), total),
-                AppSchemaDataResult.First => (origins.Count > 0 ? origins[0] : null, total),
-                AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1] : null, total),
+                AppSchemaDataResult.First => (origins.Count > 0 ? origins[0].Clone() : null, total),
+                AppSchemaDataResult.Last => (origins.Count > 0 ? origins[^1].Clone() : null, total),
                 AppSchemaDataResult.Field => (new ArrayNode(((schema.ValueType as ArrayType)!.Element as StructType)!.GetField(dataField!)!.Type!, 
                     origins.Select(o => o is StructNode sn ? sn.GetAccessValue(dataField!) : null).Where(x => x is { IsEmpty: false }).Select(x => x!).ToArray()), total),
-                _ => (new ArrayNode(schema.ValueType, origins), total)
+                _ => (new ArrayNode(schema.ValueType, origins.Select(o => o.Clone()).ToArray()), total)
             };
         }
         else
         {
             DataNode? origin = list.FirstOrDefault();
-            return (origin, origin == null ? 0 : 1);
+            return (origin?.Clone(), origin == null ? 0 : 1);
         }
     }
 
