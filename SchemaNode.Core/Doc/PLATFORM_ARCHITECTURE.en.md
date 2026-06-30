@@ -10,7 +10,9 @@
 3. [Property — Composable Behavioral Annotations](#property--composable-behavioral-annotations)
 4. [Relation — Dynamic Data Association](#relation--dynamic-data-association)
 5. [Function — Semantic Expression Engine](#function--semantic-expression-engine)
-6. [The Node Schema Family](#the-node-schema-family)
+6. [Schema Family Composition & Collaboration](#schema-family-composition--collaboration)
+7. [The Node Schema Family](#the-node-schema-family)
+8. [Summary](#summary)
 
 ---
 
@@ -354,22 +356,92 @@ When a user submits data, the system uses the default **CompileContext** to comp
 
 This is the **unique truth** principle: one function definition = validation + filtering + any compilation target.
 
-These multi-target compilation contexts are easy to implement and serve as the function system's external extension point.
+These multi-target compilation contexts are easy to implement and serve as the function system's external extension point. SchemaNode.Core does not concern itself with how functions execute, but rather how functions organize semantic expression. Actual execution is determined by the CompileContext — including which atomic functions are recognized as semantic primitives.
 
 ---
 
+## Schema Family Composition & Collaboration
+
+### Prototypes and Instances
+
+Based on the SchemaNode.Core kernel, different **Schema Families** can be defined. A Schema Family consists of two parts:
+
+1. **A set of prototypes** — a series of Schema Kinds, each declaring the type prototype's metadata (Meta), available extension properties (Property), and dynamic association rules between data (Relation). These prototypes are abstract, configurable templates. For example, the `struct` kind declares the prototype meaning of "struct" — it contains a field list and union validation rules, but it is not itself a concrete struct.
+
+2. **A set of Runtime Capability** — the runtime capabilities that consume these prototypes. For example, the Node Schema family's ValueType system provides `Validate()`, type conversion, and serialization; FunctionType provides `CallAsync()` execution. These capabilities are separately developed code that understands prototype semantics and handles all concrete types through generic logic.
+
+Prototypes are instantiated into concrete types (Instances) through the configuration interface. For example, based on the `struct` prototype, one can configure a struct named `system.user` with fields like `name`, `age`, and `email` in the frontend. This concrete type follows the `struct` prototype's metadata definition and is processed by the functional collection associated with `struct` — for instance, ValueType's generic validation logic iterates over all its fields and executes each constraint check.
+
+In the example above, the Meta description of Schema Kind is carried by struct schema, which serves as both metadata and an instance of struct.
+
+```
+                 Schema Family
+
+      Prototype                 Runtime Capability
+      ─────────                 ──────────────────
+      struct kind ─────────────▶ RuntimeStructType
+      enum kind   ─────────────▶ RuntimeEnumType
+      scalar kind ─────────────▶ RuntimeScalarType
+               ▲
+               │
+               │
+        Schema Instance
+      ──────────────────
+      system.user
+      system.order
+      system.product
+```
+
+### Collaboration Between Schema Families
+
+Each new Schema Family can call upon previously defined families to complement itself. For example:
+
+- The **SchemaNode.App** family defines `app`, `appfield`, `appworkflow` Kinds, but its AppField's value type references ValueTypes from the Node Schema family (`struct`, `enum`, `scalar`, etc.). The App family does not need to redefine "what is a struct" — it directly reuses the Node Schema family's definitions and functional collection.
+- If someone defines an **IoT** family in the future, its `device` prototype can declare a `schema` property referencing the Node Schema family's `struct` kind to describe the device's data model; its `telemetry` prototype can reference the `function` kind to describe processing logic for telemetry data.
+
+The core of this collaboration model is: **each family focuses on its own domain semantics, obtaining general capabilities by referencing existing families.** The Node Schema family, as the first family provided by default, plays the role of the "universal data model."
+
+### The Boundary Between Declarative and Imperative
+
+There is a clear boundary in SchemaNode's architecture: **Schema manages everything declarative, configurable, and dynamic; the execution layer is "dirty" imperative code, but it avoids "dirty" type discrimination through generic processing.**
+
+Specifically:
+
+- **Declarative Layer (Schema)**: Everything users define through the configuration interface — struct fields, enum values, function expressions, Relation computation rules. These can be modified online at any time without recompilation or redeployment. The Schema system is responsible for storing, validating, and transmitting these declarations.
+
+- **Execution Layer (Runtime)**: The code in functional collections — for example, `ValueType.Validate()`, `FunctionType.CallAsync()`, `IRelationProcess.ProcessAsync()`. This code is determined at compile time. It does not care whether "the current target is a user or an order" — it only cares that "the current target is a struct, structs have fields, fields have constraints, iterate and check."
+
+The value of this boundary design is:
+
+> **The execution layer does not need new branching logic for each new type.** No matter how many structs are configured in the frontend — `user`, `order`, `product`, `invoice` — the logic of `ValueType.Validate()` never changes. It generically reads the struct's field list, iterates each field's constraint properties, and executes the corresponding `IConstraintProperty`. Adding 100 new struct types means zero growth in execution-layer code.
+
+The same pattern runs through all functional collections:
+- `FunctionType.Compile()` does not care about business semantics, only expression tree compilation
+- `RelationSchema.Process` does not care what property is being computed, only whether to execute `Call` or `Assign`
+- SchemaNode.App's `IAppDataProvider` does not care what data is in the table, only how to dynamically generate SQL from the schema
+
+This is what enables "configuration as functionality" — new capabilities are generated through the configuration layer while the execution layer remains stable.
+
+
 ## The Node Schema Family
 
-Based on the SchemaNode.Core kernel, different **Schema Families** can be defined. A schema family contains multiple schema kinds and the complete functional system that consumes those schema kinds. To enable this, the system provides the **Node Schema** family by default.
+Based on the above design, the system provides the **Node Schema** family by default. It defines universal data types (`scalar`, `enum`, `struct`, `array`) and core types (`property`, `relation`, `function`), along with the functional collections that consume them (ValueType validation system, FunctionType compilation and execution, Relation dynamic computation).
 
-The **Node Schema** family defines the universal data types (`scalar`, `enum`, `struct`, `array`) and other core types (`property`, `relation`, `function`). Upper-layer applications like SchemaNode.App are all replaceable, while heterogeneous systems built on SchemaNode.Core can share data through the **Node Schema** family.
+Upper-layer applications like SchemaNode.App are all replaceable — they are built on the Node Schema family, but Core itself does not depend on any upper-layer family's existence. Heterogeneous systems built on SchemaNode.Core can share data and interoperate through the **Node Schema** family — because regardless of how upper-layer families are defined, they all share the same universal data model language.
 
 
 ## Summary
 
-SchemaNode.Core solely concentrates on how to construct based on `Meta`, `Property`, `Relation`, and `Function`, with the Node Schema family serving as their carrier. Based on this, we can further define other schema families to accomplish practical functions and share data based on the Node Schema.
+SchemaNode.Core is not a "feature-complete" platform — it deliberately contains no business functionality. It is a **semantic organization framework**:
 
+- **Meta** defines prototypes, establishing what each type "is"
+- **Property** provides extensions, describing how data "behaves"
+- **Relation** establishes associations, defining how property values "are computed"
+- **Function** organizes execution, expressing "how things work"
 
+Combined through the Schema Family organization (prototypes + functional collections), the execution layer remains generic and stable while the configuration layer carries all variability. This is the fundamental reason SchemaNode achieves "configuration as functionality, zero code growth for new types."
+
+```
               SchemaNode.Core
 
     Meta   Property   Relation   Function
@@ -387,3 +459,6 @@ SchemaNode.Core solely concentrates on how to construct based on `Meta`, `Proper
       │             │             │
   Form Engine   Workflow      App Model
       │             │             │
+```
+
+The four pillars define the descriptive capabilities of Schema. The Schema Family organizes these descriptions into a prototype system for specific domains, while the Runtime Capability is responsible for interpreting and executing these prototypes. New Schema Families can be continuously built upon existing Families, extending new domains by reusing existing capabilities without modifying SchemaNode.Core.

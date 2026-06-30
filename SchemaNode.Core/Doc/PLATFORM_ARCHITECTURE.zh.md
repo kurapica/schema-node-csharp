@@ -10,7 +10,9 @@
 3. [Property — 可组合的行为注解](#property--可组合的行为注解)
 4. [Relation — 动态数据关联](#relation--动态数据关联)
 5. [Function — 语义表达式引擎](#function--语义表达式引擎)
-6. [Node Schema 族](#node-schema-族)
+6. [Schema 族的构成与协作](#schema-族的构成与协作)
+7. [Node Schema 族](#node-schema-族)
+8. [总结](#总结)
 
 ---
 
@@ -361,20 +363,90 @@ C# 提供了 **CompileContext** 多目标编译系统，用于实现将语义函
 
 ---
 
+## Schema 族的构成与协作
+
+### 原型与实例
+
+基于 SchemaNode.Core 的核心可以定义不同的 **Schema 族**。一个 Schema 族由两部分构成：
+
+1. **一组原型定义（Prototype）**——即一系列 Schema Kind，每个 Kind 申明该类型原型的元数据（Meta）、可用的扩展属性（Property）以及数据间的动态关联规则（Relation）。这些原型是抽象的、可配置的模板，例如 `struct` kind 申明了"结构体"的原型含义——它包含字段列表和联合校验规则，但它本身不是一个具体的结构体。
+
+2. **一组运行时能力（Runtime Capability）**——即消费这些原型的运行时能力。例如 Node Schema 族的 ValueType 体系提供了 `Validate()`、类型转换、序列化等功能，FunctionType 提供 `CallAsync()` 执行能力。这些功能是另行开发的代码，它们理解原型的语义并基于通用逻辑处理所有具体类型。
+
+原型通过配置界面实例化为具体的类型（Instance）。例如，基于 `struct` 原型，可以在前端配置一个名为 `system.user` 的结构体，包含 `name`、`age`、`email` 等字段。这个具体类型遵循 `struct` 原型的元数据定义，并受 `struct` 原型关联的功能集合处理——例如 ValueType 的通用验证逻辑会遍历其所有字段并执行各自的约束检查。
+
+在上面的例子中，Schema Kind的Meta描述由struct schema承载，它既是元数据，又是struct的instance。
+
+```
+                 Schema Family
+
+      Prototype                 Runtime Capability
+      ─────────                 ──────────────────
+      struct kind ─────────────▶ RuntimeStructType
+      enum kind   ─────────────▶ RuntimeEnumType
+      scalar kind ─────────────▶ RuntimeScalarType
+               ▲
+               │
+               │
+        Schema Instance
+      ──────────────────
+      system.user
+      system.order
+      system.product
+```
+
+### Schema 族间的协作
+
+每个新的 Schema 族都可以基于之前定义的族调用功能来补全自己。例如：
+
+- **SchemaNode.App** 族定义了 `app`、`appfield`、`appworkflow` 等 Kind，但它的 AppField 的值类型引用的是 Node Schema 族中的 ValueType（`struct`、`enum`、`scalar` 等）。App 族不需要重新定义"什么是结构体"——它直接复用 Node Schema 族的定义和功能集合。
+- 未来如果有人定义 **IoT 族**，它的 `device` 原型可以申明一个 `schema` 属性引用 Node Schema 族的 `struct` kind，用于描述设备的数据模型；它的 `telemetry` 原型可以引用 `function` kind 用于描述遥测数据的处理逻辑。
+
+这种协作模式的核心在于：**每个族专注于自己的领域语义，通用能力通过引用已有族来获得。** Node Schema 族作为系统默认提供的第一个族，承担了"通用数据模型"的角色。
+
+### 声明层与执行层的边界
+
+SchemaNode 的架构中存在一条清晰的边界：**Schema 管理一切声明式的、可配置的、动态的内容；执行层则是 "dirty" 的命令式代码，但它通过通用处理避免了 "dirty" 的类型判定。**
+
+具体来说：
+
+- **声明层（Schema）**：用户通过配置界面定义的一切——结构体的字段、枚举的值、函数的表达式、Relation 的计算规则。这些内容可以随时在线修改，无需重新编译或发版。Schema 系统负责存储、校验、传递这些声明。
+
+- **执行层（Runtime）**：功能集合中的代码——例如 `ValueType.Validate()`、`FunctionType.CallAsync()`、`IRelationProcess.ProcessAsync()`。这些代码是编译时确定的，它们不关心"当前在处理的是 user 还是 order"，只关心"当前在处理的是一个 struct，struct 有字段，字段有约束，遍历检查"。
+
+这种边界设计的价值在于：
+
+> **执行层不需要为每种新类型写新的判断逻辑。** 无论前端配置了多少个结构体——`user`、`order`、`product`、`invoice`——`ValueType.Validate()` 的逻辑都不需要改动。它通用地读取结构体的字段列表，遍历每个字段的约束属性，执行对应的 `IConstraintProperty`。新增 100 个结构体类型，执行层代码零增长。
+
+同样的模式贯穿所有功能集合：
+- `FunctionType.Compile()` 不关心函数的业务含义，只关心表达式树的编译
+- `RelationSchema` 的 Process 不关心计算的是什么属性，只关心执行 `Call` 或 `Assign` 的规则
+- SchemaNode.App 的 `IAppDataProvider` 不关心表里存的是什么数据，只关心基于 schema 动态生成 SQL
+
+这使得 SchemaNode 能够实现"配置即功能"——新能力通过配置层产生，执行层保持稳定。
+
+
 ## Node Schema 族
 
-基于SchemaNode.Core的核心可以定义不同的shema族，一个schema族包含多个schema kind，也包含消费这些schema kind的完整功能体系。而为了实现这些，系统默认提供 **Node Schema** 族。
+基于以上设计，系统默认提供 **Node Schema** 族。它定义了通用的数据类型（`scalar`、`enum`、`struct`、`array`）和核心类型（`property`、`relation`、`function`），以及消费它们的功能集合（ValueType 验证体系、FunctionType 编译执行、Relation 动态计算）。
 
-**Node Schema** 族定义了通用的数据类型 `scalar`, `enum`, `struct`和`array`，和其他核心类型`property`，`relation`和`function`。上层的应用类似SchemaNode.App 
-都是可以替换的，而异构的基于SchemaNode.Core的系统，则可以通过**Node Schema**族完成数据共享。
-
----
+上层的应用如 SchemaNode.App 都是可替换的——它们基于 Node Schema 族构建，但 Core 本身不依赖任何上层族的存在。而异构的、基于 SchemaNode.Core 的不同系统，则可以通过 **Node Schema** 族完成数据共享和功能互操作——因为无论上层族如何定义，它们都共享同一套通用数据模型语言。
 
 
 ## 总结
 
+SchemaNode.Core 不是一个"功能齐全"的平台——它刻意不包含业务功能。它是一个**语义组织框架**：
+
+- **Meta** 定义原型，确定每种类型"是什么"
+- **Property** 提供扩展，描述数据"如何行为"
+- **Relation** 建立关联，定义属性值"如何计算"
+- **Function** 组织执行，表达"如何运作"
+
+四者组合在一起，通过 Schema 族（原型 + 功能集合）的组织方式，让执行层保持通用和稳定，让配置层承载所有可变性。这就是 SchemaNode 能够做到"配置即功能，新类型零代码增长"的根本原因。
+
 SchemaNode.Core只关注于如何基于`Meta`, `Property`, `Relation`和`Function`构建，而Node Schema族是它们的载体。基于此我们可以进一步定义其他schema族完成实际功能，并基于Node Schema共享数据。
 
+```
               SchemaNode.Core
 
     Meta   Property   Relation   Function
@@ -392,3 +464,6 @@ SchemaNode.Core只关注于如何基于`Meta`, `Property`, `Relation`和`Functio
       │             │             │
   Form Engine   Workflow      App Model
       │             │             │
+```
+
+四大支柱定义了 Schema 的描述能力，Schema Family 将这些描述组织为特定领域的原型体系，而 Runtime Capability 则负责解释并执行这些原型。新的 Schema Family 可以不断建立在已有 Family 之上，通过复用已有能力扩展新的领域，而无需修改 SchemaNode.Core。
