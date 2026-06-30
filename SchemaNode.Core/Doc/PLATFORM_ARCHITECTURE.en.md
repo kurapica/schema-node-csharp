@@ -1,588 +1,364 @@
-# SchemaNode Platform Architecture
+# SchemaNode.Core — Platform Architecture
 
-> This document is written for platform architects, framework designers, domain-modeling leaders, and potential ecosystem contributors. It explains the design philosophy, platform direction, and extension model behind `SchemaNode`. While `SchemaNode.Core` is the current primary C# reference implementation, the focus of this document is not a specific API surface, but SchemaNode as a **community-oriented metadata platform**.
+> SchemaNode.Core is a **language-agnostic, self-describing, extensible metadata platform kernel** built on four pillars: **Meta**, **Property**, **Relation**, and **Function**.
 
-## 1. What We Are Building
+## Table of Contents
 
-`SchemaNode` is not trying to become another “more convenient schema file format”.
-
-What it is building is:
-
-- a **language-agnostic** metadata declaration system;
-- a **self-describing** metadata management platform;
-- an **extensible** platform for schema types and schema properties;
-- an **executable runtime** for data types, operations, and associations;
-- a shared kernel that can serve backend, frontend, platform, and application layers together.
-
-From a platform perspective, SchemaNode is best understood as:
-
-> a metadata language kernel centered on `Property` composition, together with the open ecosystem that can grow around that kernel.
-
-`SchemaNode.Core` is the current C# implementation of that kernel. A future TypeScript implementation is expected to play the same role on the frontend side, giving the ecosystem a consistent cross-language meta-model.
+1. [The Four-Pillar Architecture](#the-four-pillar-architecture)
+2. [Meta — Schema Kind Metadata](#meta--schema-kind-metadata)
+3. [Property — Composable Behavioral Annotations](#property--composable-behavioral-annotations)
+4. [Relation — Dynamic Data Association](#relation--dynamic-data-association)
+5. [Function — Semantic Expression Engine](#function--semantic-expression-engine)
+6. [The Node Schema Family](#the-node-schema-family)
 
 ---
 
-## 2. Why This Is Not “Another JSON Schema”
+## The Four-Pillar Architecture
 
-When teams face metadata problems, a common first step is to create a JSON-based schema format and then attach validation, UI, workflow, and business semantics around it.
+SchemaNode.Core rests on four fundamental abstractions. Each pillar addresses a distinct concern:
 
-SchemaNode deliberately takes the opposite route.
-
-The hard problem is not primarily “how to represent structure in JSON”. The hard problem is how to unify:
-
-1. **data types**;
-2. **operations and functions**;
-3. **data association and dynamic rules**;
-4. **UI, validation, behavior, recognition, and layout semantics** within one meta-model;
-5. **third-party extensibility**, so those capabilities are not permanently hard-coded in the core.
-
-Because of that, JSON is only an expression and interchange format in SchemaNode, not the architectural center.
-
-In particular:
-
-> **JSON-Schema-style application expressions are expected to live mainly in `SchemaNode.App`, not at the center of `SchemaNode.Core`.**
-
-The responsibility of Core is the abstract model and runtime mechanics of the metadata platform itself.
+| Pillar | Question Answered | Implementation |
+|--------|-------------------|----------------|
+| **Meta** | What *is* this Schema Kind? | C# declarations of SchemaKind types and their usage |
+| **Property** | How does data *behave*? | `Property<T>` declares extension attributes for SchemaKinds, describing data |
+| **Relation** | How does data *relate*? | `Relation` computes Property values from associated data |
+| **Function** | How does computation *work*? | Semantic functions → multi-target compilation system |
 
 ---
 
-## 3. The Central Design Thesis
+## Meta — Schema Kind Metadata
+
+Using parts of the **Node Schema** declaration as an example — it is the schema declaration for data node types:
+
+```csharp
+
+/// <summary>
+/// The schema container node, which can contain other nodes, such as scalar, struct, enum, array, etc.
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)] // Declares a new schema kind
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]        // Registers this class as a struct type; struct is also a schema kind
+[Meta<Attach>(SCHEMA_KIND_NODE)]                             // Attach is an extension property of the struct kind,
+                                                             // meaning: attach the extension properties of the specified schema kind to this struct,
+                                                             // making them available for frontend display and configuration
+public sealed class NodeSchema: ExtensibleSchema             // ExtensibleSchema provides storage support for property extensions
+{
+    /// <summary>
+    /// The namespace which includes the schema
+    /// </summary>
+    [Meta<PrimaryIndex>(0)]                                  // Primary key declaration; if a class declares primary keys, indexes, etc.,
+                                                             // an array type containing this information is also generated
+    [Meta<SchemaType>(typeof(NamespaceType))]                // Field SchemaType specifies the schema type when stored as a struct field;
+                                                             // here it is the namespace name
+    public string? Namespace { get; set; }                   // Schema types defined in the Node Schema family are managed by namespace
+    
+    /// <summary>
+    /// The schema name
+    /// </summary>
+    [Meta<PrimaryIndex>(1)]                                  // Composite primary key, order determines position
+    [Meta<SchemaType>(typeof(Identifier))]
+    public string Name { get; set; } = null!;
+    
+    /// <summary>
+    /// The full namespace name
+    /// </summary>
+    [SchemaIgnore]                                           // Ignored when generating struct type; this is for C# internal use only
+    [JsonIgnore]
+    public string FullName => $"{Namespace}.{Name}".Trim('.');
+    
+    /// <summary>
+    /// The schema kind
+    /// </summary>
+    [Meta<SchemaType>(typeof(NodeSchemaKind))]               // Sub-schema kind, where NodeSchemaKind is defined as follows
+    public string Kind { get; set; } = null!;
+}
+
+/// <summary>
+/// Represents the node schema kinds
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.kind")]         // Enum types generate an enum schema type; again specifying the namespace name
+[Meta<Record>(typeof(Property.Record.NodeSchemaKind))]      // Values of this enum type are dynamically registered through declarations,
+                                                            // implemented via a Record property
+public enum NodeSchemaKind;
+
+/// <summary>
+/// The node schema kind record
+/// </summary>
+public class NodeSchemaKind : RecordProperty<string>;       // Property definitions are simple; based on Property<T> or extended types;
+                                                            // some properties are for internal system use
 
-The design thesis of SchemaNode can be summarized in one sentence:
-
-> **The core of a schema system should not be a fixed set of fields; it should be a mechanism for composition through `Property`.**
-
-That means:
-
-- schema types can be extended;
-- schema properties can also be extended;
-- third parties can register not only “new data models”, but also “language components used to define data models”;
-- metadata itself can become a managed platform object that is discoverable, understandable, composable, and evolvable.
-
-That is the reason SchemaNode can grow from a developer library into a real platform.
-
----
-
-## 4. First Core: Defining Schemas Through Property Composition
-
-### 4.1 Properties are not side labels; they are the building blocks
-
-In SchemaNode, `Property<T>` is not a convenience annotation layered on top of a fixed schema model. It is the primary capability unit of the platform.
-
-A property may describe:
-
-- type constraints;
-- default values;
-- required semantics;
-- UI presentation;
-- layout semantics;
-- primary and index semantics;
-- compile hints;
-- behavior semantics;
-- domain-specific extension rules.
-
-So schema meaning is not hard-coded into class fields. It is assembled progressively through property composition.
-
-### 4.2 Property composition scales better than fixed-field enumeration
-
-Traditional schema systems often evolve by adding more and more built-in fields:
-
-- today `required`
-- tomorrow `displayName`
-- then `ui`
-- then `layout`
-- then `validator`
-
-That approach has predictable problems:
-
-- the core model grows heavier over time;
-- many capabilities remain effectively owned by the framework author;
-- third-party extensions either need to modify the core or escape into side-channel configuration;
-- different extensions have no unified dependency or override model.
-
-SchemaNode takes a different route:
-
-- keep the core schema structure as stable as possible;
-- move extensibility into the property system;
-- use `Depend`, `Override`, `ForSchema`, and `ForType` to describe relationships among properties and between properties and schemas;
-- let the runtime interpret those composed semantics uniformly.
-
-This is the foundation of the SchemaNode open meta-model.
-
----
-
-## 5. Second Core: Schema Properties Are Platform Objects Themselves
-
-If “defining schemas through properties” solves the problem of expressive power, then “bringing properties themselves into the schema system” solves the problem of self-description.
-
-In SchemaNode, properties themselves are registered as `PropertySchema`.
-
-That means the system can understand:
-
-- the name of a property;
-- its value type;
-- which schema kinds it applies to;
-- which value types it applies to;
-- which properties it depends on;
-- which properties it overrides;
-- whether it is static or runtime-participating.
-
-This turns SchemaNode into:
-
-> **a self-describing platform that manages not only business metadata, but also the definitions of metadata themselves.**
-
-That is essential for ecosystem growth, because contributors are no longer limited to “using metadata”; they can also contribute new **metadata language capabilities**.
-
----
-
-## 6. The Real Role of the `NodeSchema` Family
-
-Within this architecture, the `NodeSchema` family remains important, but its role must be stated precisely:
-
-> the `NodeSchema` family is not the only center of the platform; it is the **carrier layer of the core metadata domain model**.
-
-That carrier layer holds four categories of platform objects:
-
-1. **data types**
-2. **operations**
-3. **property definitions**
-4. **data associations**
-
-### 6.1 Data type families
-
-These schema families make up the shared data type system:
-
-- `ScalarSchema`
-- `EnumSchema`
-- `StructSchema`
-- `ArraySchema`
-
-They provide the common semantic base on top of which future schema families can build.
-
-### 6.2 The operation family
-
-`FunctionSchema` provides the shared operation model.
-
-It connects not only function signatures, but also:
-
-- the expression DSL;
-- the compiler;
-- generic inference;
-- system functions;
-- remote functions;
-- multi-target execution paths.
-
-### 6.3 The property-definition family
-
-`PropertySchema` formally brings properties into the metadata system itself.
-
-### 6.4 The data-association family
-
-`RelationSchema` gives registered properties dynamic linkage and mutable behavior.
-
-So, from the platform perspective:
-
-- `Property` is the center of extensibility;
-- the `NodeSchema` family is the core metadata domain-model layer;
-- the platform emerges from the combination of both.
-
----
-
-## 7. Third Core: A Shared Model for Types, Operations, and Association
-
-SchemaNode is not only solving “type description”.
-
-It is attempting to provide a common substrate for all future third-party schema families:
-
-### 7.1 A shared type model
-
-`Scalar / Enum / Struct / Array` together define:
-
-- what a value is;
-- how it is validated;
-- how it is accessed;
-- how it is converted;
-- how it is serialized;
-- how it composes into larger structures.
-
-### 7.2 A shared operation model
-
-`FunctionSchema` and the compilation/execution pipeline define:
-
-- how operations are described;
-- how arguments are inferred;
-- how expressions are compiled;
-- how system, custom, and remote functions are executed;
-- how different schema families can share one operation language.
-
-### 7.3 A shared association model
-
-`RelationSchema` and relation processes define:
-
-- how properties are linked;
-- how property values are computed dynamically;
-- how validation, display, defaulting, and other behaviors are connected at runtime;
-- how extended schema families can reuse one dynamic-rule mechanism.
-
-Together, these three parts ensure one crucial thing:
-
-> **future schema families extended through DLLs, remote registration, or frontend registration do not need to reinvent their own type system, operation system, or rule system.**
-
----
-
-## 8. An Extension Model Designed for Ecosystem Growth
-
-SchemaNode is not designed as a closed system.
-
-Its architecture deliberately exposes multiple open extension surfaces:
-
-### 8.1 New schema families
-
-Third parties can define new schema kinds and register:
-
-- their schema definitions;
-- their runtime types;
-- their generators;
-- their providers;
-- their applicable property sets.
-
-### 8.2 New schema properties
-
-Third parties can add to existing schema families:
-
-- UI properties;
-- recognition properties;
-- approval properties;
-- layout properties;
-- validation properties;
-- behavior properties;
-- any vertically specialized metadata needed by a domain.
-
-### 8.3 New function and compilation capabilities
-
-Third parties can introduce:
-
-- new system-function namespaces;
-- new expression visitors;
-- new compile strategies;
-- new remote execution endpoints.
-
-### 8.4 New relation executors
-
-Third parties can introduce their own relation processes, allowing property linkage to grow from constraint-oriented behavior into broader dynamic semantics.
-
-The goal of this extension model is straightforward:
-
-> **the platform should gain value as participation grows, without becoming unmanageable as the core becomes more complex.**
-
-### 8.5 Schema Kinds, Schema Sources, and Runtime Lifecycle
-
-SchemaNode needs to distinguish two concepts that are easy to conflate:
-
-- **Schema Kind**: the code-level category registered by the system and used by the runtime to recognize a schema family;
-- **Schema instance**: a concrete data type, function, property definition, or relation definition that can come from multiple sources.
-
-In other words, kinds are the semantic skeleton of the platform, while schemas are the concrete runtime content loaded into that skeleton. In the current design:
-
-1. `Schema Kind` is defined and registered by system code by default;
-2. but third-party code can still extend new kinds, their property sets, runtime types, and generators;
-3. concrete schemas can come from both:
-   - **system schema** abstracted from code through reflection and `Meta`;
-   - **dynamic schema** loaded from databases, central schema-management services, or other remote sources;
-4. system schema and remote schema can be merged together in the runtime.
-
-This means SchemaNode is not a system where all schemas are permanently hard-coded. In real platform deployments, **the large majority of actually executed schemas are expected to be dynamically defined**, usually configured through frontend tools, centrally managed services, or runtime distribution.
-
-At the runtime level, SchemaNode is designed to support:
-
-- real-time loading;
-- real-time updates;
-- real-time unloading;
-- on-demand merging of system schema and dynamic schema;
-- provider-driven remote fetch and partial rebuild.
-
-That is one of the prerequisites for making “configuration as model, and model as runtime” practical.
-
----
-
-## 9. Core Abstraction Relationship Diagram
-
-The following diagram is not intended as UML. It is an architecture-discussion view of how the core abstractions of SchemaNode fit together:
-
-```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                         SchemaNode Platform                         │
-├──────────────────────────────────────────────────────────────────────┤
-│  Extension Axis A: Schema Families                                  │
-│  Extension Axis B: Schema Properties                                │
-└──────────────────────────────────────────────────────────────────────┘
-
-				declares / constrains / augments
-┌──────────────────────┐    attaches to    ┌──────────────────────────┐
-│      Property<T>     │ ─────────────────▶│     ExtensibleSchema     │
-│  IProperty metadata  │                   │  extension data carrier  │
-└──────────────────────┘                   └─────────────┬────────────┘
-														 │
-														 │ materializes as
-														 ▼
-										┌──────────────────────────────────┐
-										│         NodeSchema Family        │
-										│ Scalar / Enum / Struct / Array  │
-										│ Function / Property / Relation  │
-										└────────────────┬─────────────────┘
-														 │
-								registered by            │ loaded by
-														 ▼
-						   ┌──────────────────────────────────────────────┐
-						   │       SchemaRuntime / SchemaContext          │
-						   │ kind registry / property registry / merge    │
-						   └────────────────┬─────────────────────────────┘
-											│
-											│ interpreted as executable model
-											▼
-						   ┌──────────────────────────────────────────────┐
-						   │            NodeType / ValueType              │
-						   │ compatibility / validation / references      │
-						   └───────────────┬───────────────┬──────────────┘
-										   │               │
-										   │ creates       │ executes
-										   ▼               ▼
-						   ┌──────────────────────┐   ┌───────────────────┐
-						   │       DataNode       │   │   FunctionType /  │
-						   │ runtime value model  │   │  CompileContext   │
-						   └──────────┬───────────┘   └─────────┬─────────┘
-									  │                         │
-									  │ linked dynamically by   │
-									  └──────────┬──────────────┘
-												 ▼
-									  ┌─────────────────────────┐
-									  │      RelationSchema     │
-									  │ dynamic property rules  │
-									  └─────────────────────────┘
 ```
 
-This diagram highlights five key facts:
+The system uses `Meta<T>(...) where T : Property` declarations instead of explicit registration. This ensures that other projects can also register new schema kinds, schema types, properties, and other features through declarations, without needing to understand complex code registration syntax.
 
-1. `Property<T>` is the extension starting point, not a secondary annotation layer;
-2. `ExtensibleSchema` is the shared carrier for property composition;
-3. the `NodeSchema` family carries the core metadata domain objects;
-4. `SchemaRuntime`, `SchemaContext`, and `NodeType` turn metadata into executable runtime semantics;
-5. `FunctionSchema` and `RelationSchema` make the platform capable not only of description, but also of operation and dynamic linkage.
+Generally, a schema kind is a type prototype. It is typically associated with a class that can be registered as a struct type. The fields of that class determine the **metadata (meta)** of the type prototype — the data that immutably defines the type's capabilities. How the type is used is determined by the system that consumes it. The SchemaNode.Core kernel only concerns itself with organizing **Meta + Property + Relation through Function**, and ensuring that configuration can be completed in the frontend configuration interface.
 
 ---
 
-## 10. Why the Runtime Matters
+## Property — Composable Behavioral Annotations
 
-Without a runtime, SchemaNode would still be only an abstract meta-model.
+Property is implemented through the `Property<T>` base class, providing extensions to Meta metadata and capabilities such as data validation.
 
-One of the most important contributions of `SchemaNode.Core` is that it turns the meta-model into an executable system.
+```csharp
+public abstract class Property<T> : IProperty
+{
+    public T? Value { get; private set; }
+    public bool Stackable { get; }       // Can combine with same-type properties
+}
+```
 
-### 9.1 `SchemaRuntime`
+Properties are attributes declared by each endpoint to extend the metadata of schema kinds — for example, `visible` used by forms. Properties declared by the frontend and backend can differ; each endpoint only consumes properties it can recognize.
 
-Maintains globally:
+Using **struct kind** for further explanation:
 
-- schema-kind registration;
-- property registration;
-- kind-to-runtime-type mappings;
-- system schemas;
-- array-schema caches;
-- CLR correspondences.
+```csharp
+/// <summary>
+/// The struct schema
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]      // Declares a new struct kind
+[Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]  // Registers a new "struct" enum value for NodeSchemaKind
+[Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)] // Registers a new "struct" enum value for ValueSchemaKind; both are enum schema types
+[Meta<NodeType>(typeof(RuntimeStructType))]                           // Declares the C# runtime type, used for managing type associations and
+                                                                      // providing additional functionality, e.g., FunctionType provides CallAsync
+[Meta<SchemaGenerator>(typeof(StructGenerator))]                      // Declares the generator that extracts struct schema from C# types;
+                                                                      // it implements complex parsing and registration flows
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]               // Registers the StructSchema C# class as the struct schema type
+                                                                      // under the namespace system.schema.struct.schema
+[Meta<Attach>(SCHEMA_KIND_STRUCT)]                                    // Attaches the extension properties of the struct kind to this struct schema type
+[Meta<Append>(typeof(Relations))]                                     // Append adds properties that were already defined, or that didn't specify
+                                                                      // which schema kinds they extend; they can be added via Append
+[Relation<EntrySource>($"${nameof(UnionValids)}.{nameof(StructUnionValidation.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+public sealed class StructSchema : ExtensibleSchema
+{
+    /// <summary>
+    /// The struct fields
+    /// </summary>
+    public StructFieldSchema[] Fields { get; set; } = [];             // Struct metadata: defines struct field definitions
+    
+    /// <summary>
+    /// The union validations
+    /// </summary>
+    public StructUnionValidation[]? UnionValids { get; set; }         // Defines cross-field validation rules
+}
+```
 
-### 9.2 `SchemaContext`
+The system uses a `Generator` mechanism to extract system schemas from C# code. However, at actual runtime, the vast majority of schema types are configured through the frontend; system schemas only maintain the baseline needed for system operation.
 
-Handles:
+Then, through the property system, we attach struct to Node Schema:
 
-- on-demand loading;
-- generic resolution;
-- provider merging;
-- context objects;
-- scoped caching.
+```csharp
+/// <summary>
+/// Declare struct property for node schema
+/// </summary>
+[Meta<Alias>("struct")]                                             // Property name; if omitted, uses class name minus "Property" suffix, lowercased — also "struct"
+[Meta<ForSchema>(SCHEMA_KIND_NODE)]                                 // Declares which schema kinds this property is defined for; this is an attached property of node schema
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]                              // Declares which schema kind's generator can parse it; struct type's generator is the default;
+                                                                    // others require OfSchema to scope
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.struct")]      // Registers as a property schema type, named system.schema.property.core.struct
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
+public sealed class StructProperty: Property<StructSchema>;
+```
 
-### 9.3 `NodeType` / `ValueType`
+Through this property, a struct attribute is attached to Node Schema. The actual effect is:
 
-Translate composed property semantics into runtime behavior, including:
+```json
+{
+    "namespace": "system",
+    "name": "test",
+    "kind": "struct",
 
-- type compatibility;
-- value creation;
-- value validation;
-- reference tracking;
-- converter functions;
-- array association.
+    "struct": {
+        "fields": [
+            {
+                "name": "x",
+                "type": "system.number",
+                "require": true
+            }
+        ]
+    }
+}
+```
 
-### 9.4 `DataNode`
+All types registered in the schema system are language-agnostic; they are typically transmitted between endpoints as JSON structures. Thus, `struct` is simply an extension property of node schema — Node schema does not need to understand it, but that does not prevent struct from being defined on top of node.
 
-Carries real runtime data, making schemas not only definable, but executable.
+Beyond special properties like struct, the system also provides conventional properties:
 
-This is what gives SchemaNode platform-level capability in:
+```csharp
+[Meta<Alias>("lowlimit")]
+[Meta<ForSchema>(SCHEMA_KIND_INT)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitInt)}")]
+public class LowLimitInt : Property<long>, IConstraintProperty
+{
+    public bool? ValidateInt(SchemaContext context, IntNode node)
+    {
+        if (node.IsEmpty) return null;
+        return node.GetValue<long>() >= Value;
+    }
+}
 
-- description
-- loading
-- inference
-- validation
-- execution
-- linkage
 
-rather than merely exporting a descriptive file.
+[Meta<Alias>("lowlimit")]
+[Meta<ForSchema>(SCHEMA_KIND_DATE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LowLimitDate)}")]
+public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty
+{
+    public bool? ValidateDate(SchemaContext context, DateNode node)
+    {
+        if  (node.IsEmpty) return null;
+        return node.GetValue<DateTimeOffset>() >= Value;
+    }
+}
+```
 
----
+These two classes provide the same **lowlimit** property for the `int` and `date` schema kinds respectively. At the same time, they implement the `IConstraintProperty` interface, which means they are also used for data validation — all constraints violated by a piece of data are saved in the validation result.
 
-## 11. Cross-Language Strategy and Layer Boundaries
-
-If SchemaNode is going to become a platform, its layer boundaries must remain clear.
-
-### 10.1 The responsibility of `SchemaNode.Core`
-
-`SchemaNode.Core` is responsible for:
-
-- defining the meta-model;
-- defining the property-composition mechanism;
-- defining the runtime loading and execution model;
-- providing the C# reference implementation;
-- serving as the semantic baseline for implementations in other languages.
-
-### 10.2 The responsibility of `SchemaNode.App`
-
-`SchemaNode.App` is the more appropriate place for:
-
-- JSON-Schema-style expressions;
-- app-level workflow semantics;
-- UI and interaction protocols closer to products;
-- application-layer composition logic.
-
-### 10.3 Why a TypeScript frontend core matters
-
-The goal of the frontend implementation is not simply to parse JSON emitted by the backend. The goal is to:
-
-- share the same meta-model;
-- share the same property interpretation logic;
-- share the same schema-family extension semantics;
-- let frontend and backend truly collaborate around one metadata core.
-
-That is one of the strongest indicators that SchemaNode is designed as a platform rather than a single-language library.
-
-### 10.4 Semantic onboarding of legacy systems
-
-One of the most important platform values of SchemaNode is that `Meta` descriptions can be used to register existing:
-
-- types;
-- APIs;
-- microservice endpoints;
-- and even capabilities implemented in other languages;
-
-as SchemaNode data types and functions, which means as part of the **system schema**.
-
-This allows the platform to perform a semantic translation layer over legacy systems:
-
-- legacy types can be registered as schema data types;
-- legacy APIs can be declared as system-function calls behind `FunctionSchema`;
-- microservice endpoints can be brought into the schema operation model through an adapter layer;
-- systems written in other languages can still join the same semantic model as long as there is an invocable registration/adaptation layer.
-
-The strategic significance is this:
-
-> **SchemaNode does not require enterprises to rewrite legacy systems before they can participate. It allows them to be semantically registered first and unified gradually.**
-
-That makes the platform much more realistic for large organizations with deep existing system investments.
-
-### 10.5 AI-oriented semantic output and temporary applications
-
-Schemas in SchemaNode are semantic objects by nature, not just internal structures tied to a single runtime.
-
-Because of that, they can be exported or mapped into AI-friendly structures such as:
-
-- MCP capability descriptions;
-- JSON-Schema-style structures;
-- ontology / knowledge-graph semantics;
-- domain-specific semantic context for specialized models.
-
-This creates several important possibilities:
-
-1. AI can understand system capability through schema semantics instead of fragmented API descriptions alone;
-2. AI can customize or modify models at the semantic layer instead of editing business code directly;
-3. AI can generate temporary applications, temporary models, or temporary flows at runtime and destroy them after execution;
-4. the application itself is also data, so “the application used during execution + the input/output data” can be preserved together as logs;
-5. the platform can therefore connect legacy API platforms with AI-driven semantic programming.
-
-One major benefit of this design is that it reduces the regression risk of letting AI directly rewrite code.
-
-Instead of asking AI to repeatedly generate, patch, and overwrite source code, SchemaNode provides a better boundary where AI can operate at the:
-
-- semantic model layer;
-- application composition layer;
-- temporary runtime layer;
-- auditable and replayable metadata execution layer.
-
-That creates a more stable engineering model for AI participation in enterprise systems.
-
-### 10.6 Unified multi-end configuration and API consolidation
-
-The unified meta-model of SchemaNode also has a very practical benefit: **integrated multi-end configuration**.
-
-In many business systems today, backend, frontend, workflow, form, and reporting layers repeatedly remodel the same concepts and pay the coordination cost each time. SchemaNode aims to converge those concerns onto one semantic core, resulting in:
-
-- lower communication cost during development;
-- lower alignment cost between frontend and backend;
-- more centralized service-interface semantics;
-- simpler maintenance and secondary development.
-
-In the ideal platform shape, even if the underlying landscape is a complex microservice topology, the upper layer does not necessarily need hundreds of exposed APIs. A relatively small set of stable semantic APIs plus dynamic schema can orchestrate most business behavior.
-
-That gives the platform a valuable combination:
-
-1. the abstraction and rapid assembly benefits often associated with low-code platforms;
-2. without the usual low-code limitation that deep customization and secondary development become difficult.
+Note: only properties that declare `SchemaType` are registered in the schema system and can be transmitted to other endpoints (for example, for rendering in configuration interfaces).
 
 ---
 
-## 12. Why This Is Interesting to Senior Architects
+## Relation — Dynamic Data Association
 
-Senior architects rarely care only about whether “a library is useful today”. They care about:
+Relation defines how property values are dynamically computed based on other data. Two built-in types:
 
-- whether the abstraction boundaries are clear;
-- whether the system can evolve over time;
-- whether its extension surfaces are stable;
-- whether it supports ecosystem collaboration;
-- whether it can serve multiple teams, products, and endpoints.
+**Assign** — Forced value assignment:
+```csharp
+public class Assign : IRelationProcess
+{
+    public object? Value { get; set; }
+    public Task<object?> ProcessAsync(...) => Task.FromResult(Value);
+}
+```
 
-That is exactly where SchemaNode becomes compelling:
+**Call** — Function-based computation (e.g., `lookup_manager($store_id)`):
+```csharp
+public class Call : IRelationProcess
+{
+    public string Func { get; set; }
+    public CallArg[] Args { get; init; }
+}
+```
 
-1. **it elevates metadata from a local tooling concern to a platform-level abstraction;**
-2. **it opens two extension axes at once: schema families and schema properties;**
-3. **it is self-describing, which improves governance, registration, collaboration, and discovery;**
-4. **it has a runtime, not only a static description model;**
-5. **it is naturally suited for cross-language, multi-endpoint, plugin-based evolution.**
+In the examples above, we used two Relation declarations:
 
-That is also why SchemaNode documentation must be presented as platform architecture, not just as internal library notes.
+```csharp
+[Relation<EntrySource>($"${nameof(UnionValids)}.{nameof(StructUnionValidation.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
+```
+
+Each Relation is associated with a Property, a Target, and execution parameters. `Relation<T>` here uses the `Call` execution style. Taking:
+
+```csharp
+[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
+```
+
+as an example: it is associated with the `Visible` property. Because it is defined on a property type, its Target is the property itself — that is, **struct**. Combined with the following JSON:
+
+```json
+{
+    "namespace": "system",
+    "name": "test",
+    "kind": "struct",
+    "struct": {}
+}
+```
+
+This Relation expresses: `struct.visible = kind == "struct"` — meaning the struct configuration form is only visible when the kind is "struct".
+
+In practice, Relations are straightforward to use in the frontend configuration interface. For a type such as a struct, you can select its child fields as the target, then specify a property as the destination for the Relation's computed result. The parameters, for Call, are other fields of the struct or constants. When an associated field's value changes, the Relation is re-executed, the result is saved to the property, triggering re-rendering — this is the most basic usage.
+
+Relations configured at the C# level are primarily for controlling linkage rules in the configuration interface, rather than hard-coding them there — which would require changes in multiple places.
 
 ---
 
-## 13. External Architectural Conclusions
+## Function — Semantic Expression Engine
 
-From an external platform perspective, SchemaNode can be summarized as follows:
+SchemaNode functions are **pure, non-Turing-complete, semantically analyzable** computations. Two types:
 
-1. **SchemaNode is a language-agnostic metadata platform kernel, not a single-format schema tool.**
-2. **Its first core is the mechanism of defining schemas through `Property` composition.**
-3. **Its second core is that properties themselves are brought into schema management, making the platform self-describing.**
-4. **The `NodeSchema` family carries data types, operations, property definitions, and data associations as the domain-model layer.**
-5. **`FunctionSchema` and the compiler pipeline give the platform a shared operation language.**
-6. **`RelationSchema` gives registered properties dynamic linkage behavior.**
-7. **Platform extension is achieved primarily by opening new schema families and schema properties, not by endlessly adding fixed core fields.**
-8. **`SchemaNode.Core` is the current C# reference implementation, and together with a future TypeScript core it forms the basis of a cross-language ecosystem.**
+**Atomic functions** (registered in C#, no function body):
+```csharp
+// Function declarations must specify a namespace; all static methods without [SchemaIgnore] below are registered
+// Function parameters and return types are resolved via reflection; generics are supported
+[Meta<SchemaType>(NS_SYSTEM_LOGIC)] 
+public static class SystemLogic
+{
+    /// <summary>
+    /// system.logic.and
+    /// </summary>
+    public static bool and([Meta<Default>(false)] bool a, [Meta<Default>(false)] bool b) => a && b;
+}
+```
+
+**Semantic functions** (expression body, configured in frontend, no variables/loops):
+```json
+{
+    "namespace": "system.math",
+    "name": "clamp",
+    "kind": "function",
+    "function": {
+        "args": [
+            {
+                "name": "value",
+                "type": "system.number"
+            },
+            {
+                "name": "min",
+                "type": "system.number"
+            },
+            {
+                "name": "max",
+                "type": "system.number"
+            }
+        ],
+        "return": "system.number",
+        "exps": [
+            {
+                "name": "cmin",
+                "type": "call",
+                "func": "system.math.max",
+                "args": [
+                    { "source": "value" },
+                    { "source": "min" }
+                ]
+            },
+            {
+                "name": "result",
+                "type": "call",
+                "func": "system.math.min",
+                "args": [
+                    { "source": "cmin" },
+                    { "source": "max" }
+                ]
+            }
+        ]
+    }
+}
+```
+
+Semantic functions are defined using pure function-call composition, so any platform can implement them via interpreted function-call execution. There are a few special behaviors:
+
+- Based on the return type, the system determines how to construct the result. If the return type matches the last expression's result type, that expression's result is used.
+- If the return type is a struct, the system attempts to match expression names against struct field names and combine them into a struct.
+- The expression `type` field indicates the call mode; the default is `call` (direct invocation), but when arguments contain arrays, modes like `map`, `reduce`, `first` can be used.
+
+While the platform can execute semantic functions via interpretation, C# provides a more powerful compilation mode; other platforms implement according to their needs (e.g., TypeScript uses interpretation without needing multi-target compilation).
+
+C# provides the **CompileContext** multi-target compilation system, which converts semantic function expressions into LINQ `Expression` trees and then compiles them into delegates, ensuring execution speed close to native C#. Beyond basic compilation, it also supports compiling the same function into different forms through different CompileContexts.
+
+Taking `RowAuths` as an example: it defines rules for filtering data based on the accessing user's current role — something like `func(context, data) => data.userid == context.GetContextItem<user>().id` — retrieving the current user from context and determining data ownership.
+
+When a user requests data, the system uses **QueryFilterCompileContext** to compile this function. Its return result is no longer a `bool` value, but rather a query tree derived from the logic processing. This query tree can be merged with other query conditions to complete the data request.
+
+When a user submits data, the system uses the default **CompileContext** to compile the function, passing data in and returning a boolean to determine data validity. This ensures that modifying just this one function simultaneously affects both query and submission, preventing inconsistency between the two actions.
+
+This is the **unique truth** principle: one function definition = validation + filtering + any compilation target.
+
+These multi-target compilation contexts are easy to implement and serve as the function system's external extension point.
 
 ---
 
-## 14. Summary
+## The Node Schema Family
 
-In one sentence, the platform value of SchemaNode is this:
+Based on the SchemaNode.Core kernel, different **Schema Families** can be defined. A schema family contains multiple schema kinds and the complete functional system that consumes those schema kinds. To enable this, the system provides the **Node Schema** family by default.
 
-> `SchemaNode` is building a cross-language metadata platform centered on `Property` composition, made self-describing through `PropertySchema`, operational through `FunctionSchema`, dynamically connected through `RelationSchema`, and continuously extensible through third-party schema families and schema properties.
-
-The significance of this architecture is not merely that developers can “write less configuration”. It is that it creates a sustainable foundation for:
-
-- community collaboration
-- plugin ecosystems
-- shared meta-models across multiple endpoints
-- platform-level governance
-- vertical domain language extensions
-
-all on top of one evolving core.
+The **Node Schema** family defines the universal data types (`scalar`, `enum`, `struct`, `array`) and other core types (`property`, `relation`, `function`). Upper-layer applications like SchemaNode.App are all replaceable, while heterogeneous systems built on SchemaNode.Core can share data through the **Node Schema** family.

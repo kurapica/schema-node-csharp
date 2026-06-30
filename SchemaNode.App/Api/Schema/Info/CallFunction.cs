@@ -35,7 +35,7 @@ public class CallFunctionApi : SchemaApi<CallFunctionRequest, CallFunctionRespon
         // call function
         return new CallFunctionResponse
         {
-            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return, request.Target)
+            Result = await SchemaContext.CallFunctionAsync(func, request.Args, request.Return)
         };
     }
 }

@@ -1465,7 +1465,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args, null, target);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args);
             // try convert
             if (result is JsonArray arr)
             {
@@ -1534,7 +1534,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // Execute the function to get the struct field configs
         try
         {
-            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args, null, target);
+            JsonNode? result = await call.FuncType.CallAsync<JsonNode>(_context, args);
             switch (result)
             {
                 // try convert

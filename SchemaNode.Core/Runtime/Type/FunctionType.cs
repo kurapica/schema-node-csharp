@@ -556,7 +556,7 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null)
         where TC: CompileContext
     {
         object? result;
@@ -569,7 +569,7 @@ public sealed class FunctionType : NodeType
                 cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
             result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
-                ? await provider.CallFunctionAsync(Name, cArgs, rType, target)
+                ? await provider.CallFunctionAsync(Name, cArgs, rType)
                 : null;
         }
 
@@ -665,8 +665,8 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// Call the function asynchronously with default compile context
     /// </summary>
-    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
-        => CallAsync<T, CompileContext>(context, args, rType, target);
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null)
+        => CallAsync<T, CompileContext>(context, args, rType);
 
     #endregion
 
@@ -853,10 +853,9 @@ public static class FunctionTypeExtensions
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, string? target = null)
-        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null)
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -865,10 +864,9 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return types</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, string? target = null)
-        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -877,10 +875,9 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
-        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, target);
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null) 
+        => CallFunctionAsync<T, CompileContext>(context, name, args, rType);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -889,12 +886,11 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null) 
         where TC: CompileContext
     {
         FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args, rType, target);
+        return await node.CallAsync<T, TC>(context, args, rType);
     }
 }
