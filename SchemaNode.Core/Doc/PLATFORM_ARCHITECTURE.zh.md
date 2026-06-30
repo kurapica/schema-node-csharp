@@ -1,6 +1,7 @@
 # SchemaNode.Core — 平台架构说明
 
 > SchemaNode.Core 是一个**语言无关、自描述、可扩展的元数据平台内核**，建立在四大支柱之上：**Meta**、**Property**、**Relation**、**Function**。
+> SchemaNode.Core 并不是数据库 Schema，也不是 ORM，而是一个用于描述类型、行为、关联和计算的元数据运行时。
 
 ## 目录
 
@@ -356,7 +357,7 @@ C# 提供了 **CompileContext** 多目标编译系统，用于实现将语义函
 
 这就是**唯一真相**原则：一个函数定义 = 验证 + 过滤 + 任意编译目标。
 
-这类多目标编译上下文很容易实现，也是函数系统对外的功能扩展点。
+这类多目标编译上下文很容易实现，也是函数系统对外的功能扩展点。SchemaNode.Core并不关心函数如何执行，而是函数如何组织语义表达，实际执行由编译上下文决定，哪些原子函数作为语义原子被识别也是由编译上下文决定。
 
 ---
 
@@ -369,3 +370,25 @@ C# 提供了 **CompileContext** 多目标编译系统，用于实现将语义函
 
 ---
 
+
+## 总结
+
+SchemaNode.Core只关注于如何基于`Meta`, `Property`, `Relation`和`Function`构建，而Node Schema族是它们的载体。基于此我们可以进一步定义其他schema族完成实际功能，并基于Node Schema共享数据。
+
+              SchemaNode.Core
+
+    Meta   Property   Relation   Function
+         \      |      |      /
+          \     |      |     /
+           \    |      |    /
+            ┌───────────────┐
+            │   Node Schema │
+            │   Data Model  │
+            └───────────────┘
+                    │
+              Schema Runtime
+                    │
+      ┌─────────────┼─────────────┐
+      │             │             │
+  Form Engine   Workflow      App Model
+      │             │             │

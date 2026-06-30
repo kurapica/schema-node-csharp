@@ -1,6 +1,7 @@
 # SchemaNode.Core — Platform Architecture
 
 > SchemaNode.Core is a **language-agnostic, self-describing, extensible metadata platform kernel** built on four pillars: **Meta**, **Property**, **Relation**, and **Function**.
+> SchemaNode.Core is a metadata runtime rather than a database schema library. It provides a language-independent semantic model for describing types, behaviors, relations and computations.
 
 ## Table of Contents
 
@@ -362,3 +363,27 @@ These multi-target compilation contexts are easy to implement and serve as the f
 Based on the SchemaNode.Core kernel, different **Schema Families** can be defined. A schema family contains multiple schema kinds and the complete functional system that consumes those schema kinds. To enable this, the system provides the **Node Schema** family by default.
 
 The **Node Schema** family defines the universal data types (`scalar`, `enum`, `struct`, `array`) and other core types (`property`, `relation`, `function`). Upper-layer applications like SchemaNode.App are all replaceable, while heterogeneous systems built on SchemaNode.Core can share data through the **Node Schema** family.
+
+
+## Summary
+
+SchemaNode.Core solely concentrates on how to construct based on `Meta`, `Property`, `Relation`, and `Function`, with the Node Schema family serving as their carrier. Based on this, we can further define other schema families to accomplish practical functions and share data based on the Node Schema.
+
+
+              SchemaNode.Core
+
+    Meta   Property   Relation   Function
+         \      |      |      /
+          \     |      |     /
+           \    |      |    /
+            ┌───────────────┐
+            │   Node Schema │
+            │   Data Model  │
+            └───────────────┘
+                    │
+              Schema Runtime
+                    │
+      ┌─────────────┼─────────────┐
+      │             │             │
+  Form Engine   Workflow      App Model
+      │             │             │
