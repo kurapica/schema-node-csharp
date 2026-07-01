@@ -119,7 +119,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA = "system.schema";
     public const string NS_SYSTEM_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA}.kind";
     public const string NS_SYSTEM_SCHEMA_NODE = $"{NS_SYSTEM_SCHEMA}.node";
-    public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = $"{NS_SYSTEM_SCHEMA}.node.valuekind";
+    public const string NS_SYSTEM_SCHEMA_NODE_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_NODE}.valuekind";
     public const string NS_SYSTEM_SCHEMA_NS = $"{NS_SYSTEM_SCHEMA}.namespace";
     public const string NS_SYSTEM_SCHEMA_OBJECT = $"{NS_SYSTEM_SCHEMA}.object";
     public const string NS_SYSTEM_SCHEMA_BOOL = $"{NS_SYSTEM_SCHEMA}.bool";
