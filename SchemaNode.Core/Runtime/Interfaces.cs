@@ -24,6 +24,9 @@ public interface INodeError
     string? Error { get; }
 }
 
+/// <summary>
+/// The value type access interface, which indicates that the node has access to other value types
+/// </summary>
 public interface IValueTypeAccess
 {
     /// <summary>
@@ -32,7 +35,13 @@ public interface IValueTypeAccess
     ValueType? GetAccessValueType(string path);
 }
 
+/// <summary>
+/// The value access interface, which indicates that the node has access to other values
+/// </summary>
 public interface IValueAccess
 {
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
     DataNode? GetAccessValue(string path);
 }

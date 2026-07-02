@@ -17,9 +17,7 @@ using NodeType = SchemaNode.Runtime.NodeType;
 using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable AccessToModifiedClosure
-
 // ReSharper disable RedundantNameQualifier
-
 // ReSharper disable VariableHidesOuterVariable
 
 namespace SchemaNode.Context;

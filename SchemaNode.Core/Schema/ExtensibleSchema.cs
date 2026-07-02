@@ -178,7 +178,10 @@ public abstract class ExtensibleSchema : IPropertyOwner
         IProperty? prop = Activator.CreateInstance(type) as IProperty;
         if (prop == null) return null;
         if (prop.Stackable && node is JsonArray array)
-            prop.SetValue(array.FirstOrDefault()); // for stackable property, we only return the first value, and the rest values can be get by GetProperties method
+        {
+            if (array.Count == 0) return null;
+            prop.SetValue(array.First()); // for stackable property, we only return the first value, and the rest values can be get by GetProperties method
+        }
         else
             prop.SetValue(node);
         return prop;
