@@ -194,20 +194,19 @@ public abstract class ExtensibleSchema : IPropertyOwner
         JsonNode? node = property.GetValue<JsonNode>();
         if (node == null) return this;
         
-        // Just keep in mind the stackable property not use array value types, maybe we will allow that in the future
-        if (property.Stackable && Extensions.TryGetValue(property.Name, out JsonNode? existNode) && !existNode.IsEmpty())
+        // Keep stackable properties as array, easily for rendering
+        if (property.Stackable)
         {
-            if (existNode is JsonArray existArray)
+            if (Extensions.TryGetValue(property.Name, out JsonNode? existNode) && !existNode.IsEmpty() && existNode is JsonArray existArray)
             {
                 existArray.Add(node.DeepClone());
             }
             else
             {
-                JsonArray newArray =
-                [
-                    existNode!.DeepClone(),
-                    node.DeepClone()
-                ];
+                JsonArray newArray = [];
+                if (existNode != null && !existNode.IsEmpty() && existNode.GetType() == node.GetType())
+                    newArray.Add(existNode.DeepClone());
+                newArray.Add(node.DeepClone());
                 Extensions[property.Name] = newArray;
             }
         }
