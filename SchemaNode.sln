@@ -3,8 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.1.11304.174
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode", "SchemaNode\SchemaNode.csproj", "{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.Example", "SchemaNode.Example\SchemaNode.Example.csproj", "{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SchemaNode.MySql", "SchemaNode.MySql\SchemaNode.MySql.csproj", "{0BDBE01A-5D6F-4239-81F7-B5C99069DBA5}"
@@ -33,18 +31,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|x64.Build.0 = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Debug|x86.Build.0 = Debug|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|x64.ActiveCfg = Release|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|x64.Build.0 = Release|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|x86.ActiveCfg = Release|Any CPU
-		{53B8C780-4A12-4B44-B257-BA0B6FFD0E8E}.Release|x86.Build.0 = Release|Any CPU
 		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{171102A5-4B38-4F21-B1F7-B17E8C9DB9BA}.Debug|x64.ActiveCfg = Debug|Any CPU
