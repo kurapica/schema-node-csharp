@@ -13,6 +13,7 @@ public interface IProperty
 {
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, bool> _stackable = [];
+    private static readonly ConcurrentDictionary<Type, bool> _static = [];
 
     /// <summary>
     /// Gets the property name
@@ -26,6 +27,11 @@ public interface IProperty
     /// if not stackable, the constraints result will override the previous
     /// </summary>
     public bool Stackable => _stackable.GetOrAdd(GetType(), static t => t.GetMetaProperty<Stackable>()?.Value ?? false);
+
+    /// <summary>
+    /// Whether the property is static, which means the property value cannot be modified by relation system.
+    /// </summary>
+    public bool Static => _static.GetOrAdd(GetType(), static t => t.GetMetaProperty<Static>()?.Value ?? false);
 
     /// <summary>
     /// The property has value

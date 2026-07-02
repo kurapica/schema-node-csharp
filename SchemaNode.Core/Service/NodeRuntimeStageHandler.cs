@@ -261,9 +261,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             
             // OfSchema marks a kind root — check it first so that types like Int (which extend Number
             // but belong to a different kind) are not incorrectly categorized by their C# base class.
-            if (type.GetMetaProperty<OfSchema>() is { Value: { Length: > 0 } } ofSchema && valType != null)
+            if (type.GetMetaProperty<OfSchema>() is { HasValue: true } ofSchema && valType != null)
             {
-                schema = NodeSchema.Create(ofSchema.Value[0], name, valType);
+                schema = NodeSchema.Create(ofSchema.GetValue<string>()!, name, valType);
             }
             else if (type.BaseType?.IsSubclassOfGenericType(typeof(IScalarType<>)) == true)
             {
@@ -314,7 +314,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             NodeSchema? mainSchema = null;
             foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
                          ? kindGenerators
-                             .Where(g => ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
+                             .Where(g => ofSchema.GetValue<string>()!.Equals(g.Key, StringComparison.OrdinalIgnoreCase))
                              .Select(g => g.Value)
                          : schemaGenerators)
             {
