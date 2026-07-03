@@ -10,6 +10,7 @@ using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
@@ -25,7 +26,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
 [Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
-public sealed class AppFieldSchema: ExtensibleSchema
+public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base
     
@@ -54,6 +55,13 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// </summary>
     [Meta<SchemaType>(typeof(SchemaValueType))]
     public string Type { get; set; } = default!;
+    
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
     
     #endregion
     

@@ -2,6 +2,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;
@@ -58,7 +59,7 @@ public interface IProperty
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
     /// </summary>
-    bool Combine(IProperty other);
+    bool Combine(IProperty other, ISchemaRuntime? runtime = null);
     
     /// <summary>
     /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
@@ -87,7 +88,7 @@ public abstract class Property<T> : IProperty
     public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
 
     /// <inheritdoc/>
-    public virtual bool Combine(IProperty other)
+    public virtual bool Combine(IProperty other, ISchemaRuntime? runtime = null)
     {
         if (other.GetType() != GetType()) return false;
         if (HasValue || !other.HasValue) return false;

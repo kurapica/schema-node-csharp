@@ -164,11 +164,11 @@ public sealed class AppWorkflowType: IDisposable
                     CancelPre = n.CancelPre,
                     PayloadSave = n.PayloadSave,
                 };
-                s.CombineExtensions(n);
+                s.CombineProperties(n);
                 return s;
             }).ToArray()
         };
-        schema.CombineExtensions(_appWorkflowSchema);
+        schema.CombineProperties(_appWorkflowSchema);
         return schema;
     }
 

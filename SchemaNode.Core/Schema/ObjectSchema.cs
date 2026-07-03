@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
@@ -18,7 +19,7 @@ public sealed class ObjectSchema;
 /// <summary>
 /// The scalar schema
 /// </summary>
-public abstract class ScalarSchema: ExtensibleSchema
+public abstract class ScalarSchema: PropertyOwner
 {
     /// <summary>
     /// The base scalar schema to inherit from

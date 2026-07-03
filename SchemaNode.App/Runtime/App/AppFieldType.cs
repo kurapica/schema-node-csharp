@@ -434,7 +434,7 @@ public sealed class AppFieldType
                 Map = _appFieldSchema.View.Map,
             } : null,
         };
-        schema.CombineExtensions(_appFieldSchema);
+        schema.CombineProperties(_appFieldSchema);
         return schema;
     }
     

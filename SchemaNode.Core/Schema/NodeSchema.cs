@@ -120,10 +120,10 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
             Kind = Kind,
             Type = Type,
         };
-        nodeSchema.CombineProperties(this, runtime);
+        nodeSchema.CombineProperties(this, runtime, SCHEMA_KIND_NODE);
 
         if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
-            nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime, false)).ToArray();
+            nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime)).ToArray();
         return nodeSchema;
     }
     

@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -22,7 +23,7 @@ public sealed class Display : Property<LocaleString>
     }
 
     /// <inheritdoc/>
-    public override bool Combine(IProperty other)
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
     {
         if (other.GetValue<LocaleString>() is not { } otherValue) return false;
         if (Value == null)

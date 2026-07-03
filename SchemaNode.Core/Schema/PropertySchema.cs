@@ -4,9 +4,11 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -62,7 +64,21 @@ public class PropertySchema: PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
-public sealed class Property: Property<PropertySchema>;
+public sealed class PropertyProperty : Property<PropertySchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not PropertyProperty { Value: {} propertySchema }) return false;
+        if (Value is not { } value)
+        {
+            SetValue(propertySchema);
+            return true;
+        }
+        value.CombineProperties(propertySchema, runtime, SCHEMA_KIND_PROPERTY);
+        value.ForSchemas = value.ForSchemas.Union(propertySchema.ForSchemas).Distinct().ToArray();
+        return true;
+    }
+}
 
 /// <summary>
 /// Represents the property type

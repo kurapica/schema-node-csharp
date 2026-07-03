@@ -269,7 +269,7 @@ public sealed class AppType : IValueTypeAccess
             Fields = _fields?.Select(f => f.GetSchema()).ToArray(),
             Workflows = _workflows?.Select(w => w.GetSchema()).ToArray(),
         };
-        schema.CombineExtensions(_schema);
+        schema.CombineProperties(_schema);
         return schema;
     }
     

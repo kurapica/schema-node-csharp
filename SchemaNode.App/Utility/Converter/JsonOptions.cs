@@ -28,7 +28,7 @@ internal static class JsonOptions
                     new UniversalFlexibleEnumConverter(),
                     new ForceStringConverter(),
                     new FlexibleLongConverter(),
-                    new SchemaConverterFactory(),
+                    new PropertyOwnerConverterFactory(),
                     new JsonDateTimeConverter(dfm, tz),
                     new JsonDateTimeOffsetConverter(dfm, tz),
                     new JsonNodeDateFormatConverter(dfm, tz),

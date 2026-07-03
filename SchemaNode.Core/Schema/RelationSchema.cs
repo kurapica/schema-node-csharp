@@ -46,7 +46,7 @@ public class RelationSchema : PropertyOwner
     /// <summary>
     /// Equals check
     /// </summary>
-    public override bool Equals(PropertyOwner? other)
+    public bool Equals(PropertyOwner? other)
     {
         if (other is not RelationSchema otherRelation) return false;
         if (ReferenceEquals(this, otherRelation)) return true;
@@ -62,8 +62,25 @@ public class RelationSchema : PropertyOwner
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
-[Relation<EntrySource>($"${nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
-public class Relations: Property<RelationSchema[]>;
+[Relation<EntrySource>($"${nameof(Relations)}.{nameof(RelationSchema.Target)}",
+    NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+public class Relations : Property<RelationSchema[]>
+{
+    /// <inheritdoc/>
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not Relations { Value.Length: > 0 } otherRelations) return false;
+        if (Value is not { Length: > 0 })
+        {
+            SetValue(otherRelations.Value[..]);
+            return true;
+        }
+        List<RelationSchema> combine = new (Value ?? []);
+        combine.AddRange(otherRelations.Value.Where(r => !combine.Any(c => c.Equals(r))));
+        SetValue(combine.ToArray());
+        return true;
+    }
+}
 
 /// <summary>
 /// The handler to process the relation, Check <see cref="RelationType"/> for details

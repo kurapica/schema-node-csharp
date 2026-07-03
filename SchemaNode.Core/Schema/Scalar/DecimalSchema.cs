@@ -4,7 +4,9 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
@@ -30,7 +32,22 @@ public sealed class DecimalSchema : ScalarSchema
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.decimal")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_DECIMAL)]
-public sealed class DecimalProperty : Property<DecimalSchema>;
+public sealed class DecimalProperty : Property<DecimalSchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not StringProperty { Value: { } otherSchema }) return false;
+        if (Value is not { } selfSchema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+
+        selfSchema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_DECIMAL);
+        SetValue(selfSchema);
+        return true;
+    }
+}
 
 /// <summary>
 /// Represents the decimal scalar type

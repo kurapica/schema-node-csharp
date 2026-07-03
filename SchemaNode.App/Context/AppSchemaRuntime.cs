@@ -1,12 +1,11 @@
 using System.Collections.Concurrent;
-using SchemaNode.Http;
-using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using AppType = SchemaNode.Runtime.AppType;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Context;
 
@@ -20,7 +19,7 @@ public class AppSchemaRuntime : SchemaRuntime
     private readonly AppSchema _rootAppSchema = new();
     private readonly ConcurrentDictionary<string, Type> _appFieldTypes = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, (string App, string Field)> _typeAppFields = new();
-    private readonly ConcurrentDictionary<string, Runtime.AppType> _apps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, AppType> _apps = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Save system app schema
@@ -71,7 +70,7 @@ public class AppSchemaRuntime : SchemaRuntime
             // override the extension properties
             else
             {
-                node.CombineExtensions(schema, this);
+                node.CombineProperties(schema, this, SCHEMA_KIND_APP);
             }
         }
     }

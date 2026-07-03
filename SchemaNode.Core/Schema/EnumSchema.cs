@@ -7,6 +7,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Service;
 using SchemaNode.Struct;
 using System.Text.Json.Serialization;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
@@ -54,7 +55,42 @@ public sealed class EnumSchema : PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.enum")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
-public sealed class EnumProperty: Property<EnumSchema>;
+public sealed class EnumProperty : Property<EnumSchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not EnumProperty { Value: {} otherSchema })  return false;
+        if (Value is not { } schema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+
+        if (schema.Cascade is { Length: > 0 })
+        {
+            for (int i = 0; i < schema.Cascade.Length; i++)
+            {
+                var cascade = schema.Cascade[i];
+                var otherCascade = otherSchema.Cascade?.ElementAtOrDefault(i);
+                if (otherCascade is null) break;
+                cascade.Concat(otherCascade);
+            }
+        }
+        
+        for (int i = 0; i < schema.Values.Length; i++)
+        {
+            var value = schema.Values[i];
+            // for simple now
+            var otherValue = otherSchema.Values?.ElementAtOrDefault(i);
+            if (otherValue is null) break;
+            value.CombineProperties(otherValue, runtime, SCHEMA_KIND_ENUM_VALUE);
+        }
+
+        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_ENUM);
+        SetValue(schema);
+        return true;
+    }
+    }
 
 /// <summary>
 /// Represents the enum type

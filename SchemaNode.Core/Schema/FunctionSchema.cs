@@ -54,7 +54,34 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.func")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
-public sealed class FuncProperty: Property<FunctionSchema>;
+public sealed class FuncProperty : Property<FunctionSchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not FuncProperty { Value: {} otherSchema })  return false;
+        if (Value is not { } schema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+
+        // Combine argument display
+        for (int i = 0; i < schema.Args.Length; i++)
+        {
+            var arg = schema.Args[i];
+            var otherArg = otherSchema.Args.ElementAtOrDefault(i);
+            if (otherArg is null || otherArg.Type != arg.Type) continue;
+            if (arg.Display == null)
+                arg.Display = otherArg.Display;
+            else if (otherArg.Display != null)
+                arg.Display.Concat(otherArg.Display);
+        }
+        
+        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_FUNCTION);
+        SetValue(schema);
+        return true;
+    }
+}
 
 /// <summary>
 /// Represents the function type

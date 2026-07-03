@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
 using RuntimeAppType = SchemaNode.Runtime.AppType;
+using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Context;
 
@@ -91,7 +92,7 @@ public static class AppSchemaContextExtension
                         schema.Provider ??= loadSchema.Provider;
 
                         // CombineProperties
-                        schema.CombineExtensions(loadSchema, runtime);
+                        schema.CombineProperties(loadSchema, runtime, SCHEMA_KIND_APP);
 
                         if (schema.Apps == null || schema.Apps.Length == 0)
                         {
@@ -109,7 +110,7 @@ public static class AppSchemaContextExtension
                                 s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
                             if (index >= 0)
                             {
-                                schema.Apps[index].CombineExtensions(otherSchema, runtime);
+                                schema.Apps[index].CombineProperties(otherSchema, runtime, SCHEMA_KIND_APP);
                             }
                             else
                             {

@@ -9,8 +9,8 @@ using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
 using SchemaNode.Function;
+using SchemaNode.Property;
 using SchemaNode.Runtime;
-using SchemaNode.Service;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -22,7 +22,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
 [Meta<Append>(typeof(Display), typeof(Description), typeof(Relations))]
-public sealed class AppSchema: ExtensibleSchema
+public sealed class AppSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The container app name
@@ -45,6 +45,13 @@ public sealed class AppSchema: ExtensibleSchema
     [JsonIgnore]
     public string FullName => $"{Container}.{Name}".Trim('.');
 
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
+    
     #region Details
 
     /// <summary>

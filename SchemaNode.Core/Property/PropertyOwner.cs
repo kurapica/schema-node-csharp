@@ -22,6 +22,14 @@ public abstract class PropertyOwner
     [JsonExtensionData]
     public JsonObject? Extensions { get; internal set; }
 
+    /// <summary>
+    /// Gets the schema kind if existed
+    /// </summary>
+    [SchemaIgnore]
+    [JsonIgnore]
+    public string? SchemaKind => GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>() ??
+                                 GetType().GetMetaProperty<Attach>()?.GetValue<string>();
+
     #endregion
 
     #region Property Access
@@ -32,11 +40,11 @@ public abstract class PropertyOwner
     public PropertyOwner SetProperty(IProperty property)
     {
         Extensions ??= [];
-        JsonNode? node = property.GetValue<JsonNode>();
+        var node = property.GetValue<JsonNode>();
         if (node == null) return this;
 
         // Keep stackable properties as array, easily for rendering
-        if (property.Stackable && Extensions.TryGetValue(property.Name, out JsonNode? existNode) && !existNode.IsEmpty())
+        if (property.Stackable && Extensions.TryGetValue(property.Name, out var existNode) && !existNode.IsEmpty())
         {
             if (existNode is JsonArray existArray)
                 existArray.Add(node.DeepClone());
@@ -81,8 +89,7 @@ public abstract class PropertyOwner
     public IProperty? GetProperty(Type type)
     {
         if (Extensions == null || !Extensions.TryGetValue(type.GetPropertyName(), out JsonNode? node)) return null;
-        IProperty? prop = Activator.CreateInstance(type) as IProperty;
-        if (prop == null) return null;
+        if (Activator.CreateInstance(type) is not IProperty prop) return null;
         if (prop.Stackable && node is JsonArray array)
         {
             if (array.Count == 0) return null;
@@ -146,17 +153,19 @@ public abstract class PropertyOwner
     /// <summary>
     /// CombineProperties other extensible properties into this instance. If there are duplicate keys, the values from the other instance will overwrite the existing values.
     /// </summary>
-    public virtual void CombineProperties(PropertyOwner? other, ISchemaRuntime? runtime = null, string? kind = null)
+    public PropertyOwner CombineProperties(PropertyOwner? other, ISchemaRuntime? runtime = null, string? kind = null)
     {
-        if (other?.Extensions is not { Count: > 0 }) return;
+        if (other?.Extensions is not { Count: > 0 }) return this;
 
         // try fetch the schema kind from the type
-        if (runtime != null)
-            kind ??= GetType().GetMetaProperty<SchemaKind>()?.GetValue<string>() ?? GetType().GetMetaProperty<Attach>()?.GetValue<string>();
+        if (runtime != null) kind ??= SchemaKind;
         
-        if (Extensions == null || Extensions.Count == 0 || runtime == null || kind is null)
+        if (Extensions == null || Extensions.Count == 0)
         {
-            // can't convert to property, just combine like JSON
+            Extensions = other.Extensions.DeepClone() as JsonObject;
+        }
+        else if (runtime == null || kind is null)
+        {
             Extensions ??= [];
             foreach (var (key, value) in other.Extensions)
                 Extensions[key] = Combine(value, Extensions[key]);
@@ -187,13 +196,17 @@ public abstract class PropertyOwner
                 {
                     IProperty? existProp = GetProperty(propType);
                     if (existProp is { HasValue: true })
-                        if (existProp.Combine(otherProp))
+                    {
+                        if (existProp.Combine(otherProp, runtime))
                             OverrideProperty(existProp);
+                    }
                     else
                         OverrideProperty(otherProp);
                 }
             }
         }
+
+        return this;
 
         void OverrideProperty(IProperty prop)
         {

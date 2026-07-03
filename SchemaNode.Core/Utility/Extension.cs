@@ -24,7 +24,7 @@ internal static class Extension
             new UniversalFlexibleEnumConverter(),
             new ForceStringConverter(),
             new FlexibleLongConverter(),
-            new SchemaConverterFactory(),
+            new PropertyOwnerConverterFactory(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

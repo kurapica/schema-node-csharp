@@ -4,8 +4,10 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using RuntimeArrayType = SchemaNode.Runtime.ArrayType;
 
@@ -39,7 +41,22 @@ public sealed class ArraySchema: PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.array")]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
-public sealed class ArrayProperty: Property<ArraySchema>;
+public sealed class ArrayProperty : Property<ArraySchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not ArrayProperty { Value: { } otherSchema }) return false;
+        if (Value is not { } selfSchema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+        
+        selfSchema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_ARRAY);
+        SetValue(selfSchema);
+        return true;
+    }
+}
 
 /// <summary>
 /// Represents the array type

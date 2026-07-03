@@ -2,38 +2,36 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using SchemaNode.Schema;
+using SchemaNode.Property;
 
 namespace SchemaNode.Utility;
 
-internal sealed class SchemaConverterFactory : JsonConverterFactory
+internal sealed class PropertyOwnerConverterFactory : JsonConverterFactory
 {
     public override bool CanConvert(Type typeToConvert)
     {
-        return typeof(ExtensibleSchema).IsAssignableFrom(typeToConvert);
+        return typeof(PropertyOwner).IsAssignableFrom(typeToConvert);
     }
 
     public override JsonConverter CreateConverter(
         Type typeToConvert,
         JsonSerializerOptions options)
     {
-        Type converterType =
-            typeof(SchemaConverter<>).MakeGenericType(typeToConvert);
-
+        Type converterType = typeof(SchemaConverter<>).MakeGenericType(typeToConvert);
         return (JsonConverter)Activator.CreateInstance(converterType)!;
     }
 }
 
 internal sealed class SchemaConverter<TSchema>
     : JsonConverter<TSchema>
-    where TSchema : ExtensibleSchema
+    where TSchema : PropertyOwner
 {
     private static readonly PropertyInfo[] Properties =
         typeof(TSchema)
             .GetProperties(BindingFlags.Instance | BindingFlags.Public)
             .Where(static p =>
-                p.CanRead &&
-                p.Name != nameof(ExtensibleSchema.Extensions) &&
+                p is { CanRead: true, CanWrite: true } &&
+                p.Name != nameof(PropertyOwner.Extensions) &&
                 p.GetCustomAttribute<JsonIgnoreAttribute>() == null)
             .ToArray();
 
