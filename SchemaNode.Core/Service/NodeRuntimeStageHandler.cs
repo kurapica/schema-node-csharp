@@ -378,7 +378,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             IProperty? property = nodeSchema.GetProperty(info.Value.nodeSchemaProp);
             if (property == null) return nodeSchema;
             
-            ExtensibleSchema? schema = property.GetValue<ExtensibleSchema>();
+            PropertyOwner? schema = property.GetValue<PropertyOwner>();
             if (schema == null) return nodeSchema;
             
             foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(nodeSchema.Kind))

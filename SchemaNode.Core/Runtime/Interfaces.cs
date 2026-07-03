@@ -16,7 +16,7 @@ public interface INodeReferences
 /// <summary>
 /// The node error interface
 /// </summary>
-public interface INodeError
+public interface IErrorProvider
 {
     /// <summary>
     /// Gets the runtime node error

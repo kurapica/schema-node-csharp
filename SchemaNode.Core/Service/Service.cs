@@ -93,7 +93,7 @@ public static partial class SchemaNodeExtensions
         SchemaOptions? options = services.FirstOrDefault(x => x.ServiceType == typeof(SchemaOptions))?
             .ImplementationInstance as SchemaOptions;
         if (options?.Assemblies is not { Length: > 0 } assemblies)
-            services.AddSchemaAssembly<ExtensibleSchema>(); // default schema assembly
+            services.AddSchemaAssembly<PropertyOwner>(); // default schema assembly
 
         options = services.FirstOrDefault(x => x.ServiceType == typeof(SchemaOptions))?
             .ImplementationInstance as SchemaOptions;

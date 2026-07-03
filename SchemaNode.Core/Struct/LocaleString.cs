@@ -104,7 +104,7 @@ public sealed class LocaleString : ICloneable
         if (other == null) return this;
         Key = string.IsNullOrWhiteSpace(other.Key) ? Key : other.Key;
 
-        // Combine trans
+        // CombineProperties trans
         if (Trans == null || Trans.Length == 0)
             Trans = other.Trans;
         else if (other.Trans is { Length: > 0 })

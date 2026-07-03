@@ -170,7 +170,7 @@ public static class BatchQueryExtension
 
                         if (allowRead)
                         {
-                            // Combine filters
+                            // CombineProperties filters
                             if (q?.Filter != null)
                             {
                                 var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);

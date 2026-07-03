@@ -221,7 +221,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Helper
         
-        // Combine Collection Root Exp
+        // CombineProperties Collection Root Exp
         CollectionRootExp UnpackCollectionRootExp(CollectionRootExp c)
         {
             var exp = Inline(c.Collection);
@@ -626,7 +626,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     }
                 }
 
-                // Combine params
+                // CombineProperties params
                 if (argDef.Params ?? false)
                 {
                     if (argExp == null) return;

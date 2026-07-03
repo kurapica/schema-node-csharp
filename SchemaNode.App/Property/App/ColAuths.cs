@@ -19,7 +19,7 @@ namespace SchemaNode.Property.App;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(ColAuths)}")]
 [Relation<StringEntries>($"${nameof(ColAuths)}.{nameof(ColPolicy.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}", $"${nameof(AppFieldSchema.Type)}")]
-public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, INodeError
+public class ColAuths : Property<ColPolicy[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
     

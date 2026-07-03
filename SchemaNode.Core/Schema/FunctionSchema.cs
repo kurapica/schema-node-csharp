@@ -28,7 +28,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_FUNCTION)]
-public sealed class FunctionSchema: ExtensibleSchema
+public sealed class FunctionSchema: PropertyOwner
 {
     /// <summary>
     /// The return type of the function, T T1 T2 means the generic type

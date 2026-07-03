@@ -5,7 +5,7 @@ namespace SchemaNode.Enum;
 /// </summary>
 public enum LogicType
 {
-    // Combine
+    // CombineProperties
     AndAlso,
     OrElse,
     Not,

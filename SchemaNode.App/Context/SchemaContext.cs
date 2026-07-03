@@ -90,7 +90,7 @@ public static class AppSchemaContextExtension
                         schema.LoadState |= loadSchema.LoadState;
                         schema.Provider ??= loadSchema.Provider;
 
-                        // Combine
+                        // CombineProperties
                         schema.CombineExtensions(loadSchema, runtime);
 
                         if (schema.Apps == null || schema.Apps.Length == 0)

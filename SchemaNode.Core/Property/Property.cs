@@ -54,7 +54,7 @@ public interface IProperty
     Type Type { get; }
 
     /// <summary>
-    /// Combine the property with another property of the same type, if the current property has no value, it will take the value from the other property.
+    /// CombineProperties the property with another property of the same type, if the current property has no value, it will take the value from the other property.
     /// If return true means the other property is combined into the current property.
     /// If return false and the property is stackable, the other property can be used together with the current property.
     /// </summary>

@@ -11,7 +11,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The relation type, they are not node types, only runtime-types controlled by the node types use them
 /// </summary>
-public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, INodeError
+public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, IErrorProvider
 {
     /// <summary>
     /// The target of the relation
@@ -97,7 +97,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
             if (prop is not { HasValue: true } || prop.GetValue<IRelationProcess>(true) is not { } process) continue;
             _process = process;
             await _process.LoadAsync(context, Owner);
-            if (_process is INodeError error && !string.IsNullOrWhiteSpace(error.Error))
+            if (_process is IErrorProvider error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
     }

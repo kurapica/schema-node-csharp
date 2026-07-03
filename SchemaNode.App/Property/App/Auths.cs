@@ -24,7 +24,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_APP, SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_APP_WORKFLOW)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Auths)}")]
-public class Auths : Property<PolicyItem[]>, ILoadableProperty, INodeError
+public class Auths : Property<PolicyItem[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
     

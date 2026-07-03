@@ -176,7 +176,7 @@ public class SchemaRuntime : ISchemaRuntime
             // override the extension properties
             else if (node.Kind != SCHEMA_KIND_NAMESPACE)
             {
-                node.CombineExtensions(schema, this);
+                node.CombineProperties(schema, this);
             }
         }
         

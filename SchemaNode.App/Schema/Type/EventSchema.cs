@@ -22,7 +22,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_EVENT)]
-public sealed class EventSchema: ExtensibleSchema
+public sealed class EventSchema: PropertyOwner
 {
     /// <summary>
     /// The event construct arguments

@@ -167,7 +167,7 @@ public sealed class FieldView
 public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Newest);
 
 /// <summary>
-/// Combine the data nodes
+/// CombineProperties the data nodes
 /// </summary>
 internal static class DataCombineTypeExtensions
 {

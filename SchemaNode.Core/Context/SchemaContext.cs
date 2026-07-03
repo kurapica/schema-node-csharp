@@ -279,8 +279,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     schema.LoadState |= loadSchema.LoadState;
                     schema.Provider ??= loadSchema.Provider;
                     
-                    // Combine extensions
-                    schema.CombineExtensions(loadSchema, schemaRuntime);
+                    // CombineProperties extensions
+                    schema.CombineProperties(loadSchema, schemaRuntime);
 
                     if (!loadSchema.Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) ||
                         loadSchema.Schemas == null || loadSchema.Schemas.Length == 0) continue;
@@ -298,7 +298,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         int index = Array.FindIndex(schema.Schemas, s => s.Name.Equals(otherSchema.Name, StringComparison.OrdinalIgnoreCase));
                         if (index >= 0)
                         {
-                            schema.Schemas[index].CombineExtensions(otherSchema, schemaRuntime);
+                            schema.Schemas[index].CombineProperties(otherSchema, schemaRuntime);
                         }
                         else
                         {

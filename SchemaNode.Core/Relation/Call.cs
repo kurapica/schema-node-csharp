@@ -16,7 +16,7 @@ namespace SchemaNode.Relation;
 /// The relation call
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.call")]
-public class Call : IRelationProcess, INodeReferences, INodeError
+public class Call : IRelationProcess, INodeReferences, IErrorProvider
 {
     /// <summary>
     /// The function to be used

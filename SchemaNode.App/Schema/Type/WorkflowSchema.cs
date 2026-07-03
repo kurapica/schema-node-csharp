@@ -25,7 +25,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.schema")]
 [Meta<Attach>(SCHEMA_KIND_WORKFLOW)]
 [Meta<Append>(typeof(Generics))]
-public sealed class WorkflowSchema: ExtensibleSchema
+public sealed class WorkflowSchema: PropertyOwner
 {
     /// <summary>
     /// The workflow kind

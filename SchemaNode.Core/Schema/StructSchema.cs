@@ -27,7 +27,7 @@ namespace SchemaNode.Schema;
 [Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<Append>(typeof(Relations))]
 [Relation<EntrySource>($"${nameof(UnionValids)}.{nameof(StructUnionValidation.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
-public sealed class StructSchema : ExtensibleSchema
+public sealed class StructSchema : PropertyOwner
 {
     /// <summary>
     /// The struct fields
@@ -40,10 +40,10 @@ public sealed class StructSchema : ExtensibleSchema
     public StructUnionValidation[]? UnionValids { get; set; }
 
     /// <inheritdoc/>
-    public override void CombineExtensions(ExtensibleSchema? other, ISchemaRuntime? runtime = null)
+    public override void CombineProperties(PropertyOwner? other, ISchemaRuntime? runtime = null)
     {
         if (other is not StructSchema otherStruct) return; 
-        base.CombineExtensions(otherStruct, runtime);
+        base.CombineProperties(otherStruct, runtime);
 
         // Find the one that contains another
         if (Fields.All(f => otherStruct.Fields.Any(of => f.Name.Equals(of.Name, StringComparison.OrdinalIgnoreCase))))
@@ -52,7 +52,7 @@ public sealed class StructSchema : ExtensibleSchema
             {
                 StructFieldSchema? match = Fields.FirstOrDefault(x => x.Name == field.Name);
                 if (match is not null)
-                    field.CombineExtensions(match, runtime);
+                    field.CombineProperties(match, runtime);
             }
             Fields = otherStruct.Fields;
         }
@@ -62,11 +62,11 @@ public sealed class StructSchema : ExtensibleSchema
             {
                 StructFieldSchema? match = otherStruct.Fields.FirstOrDefault(x => x.Name == field.Name);
                 if (match is not null)
-                    field.CombineExtensions(match, runtime);
+                    field.CombineProperties(match, runtime);
             }
         }
         
-        // Combine the union valids
+        // CombineProperties the union valids
         if (otherStruct.UnionValids is { Length: > 0 })
         {
             if (UnionValids is null || UnionValids.Length == 0)
@@ -112,7 +112,7 @@ public class StructType: ValueType;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
-public sealed class StructFieldSchema : ExtensibleSchema
+public sealed class StructFieldSchema : PropertyOwner
 {
     /// <summary>
     /// The field name
@@ -127,7 +127,7 @@ public sealed class StructFieldSchema : ExtensibleSchema
     public string Type { get; set; } = string.Empty;
 
     /// <inheritdoc/>
-    public override bool Equals(ExtensibleSchema? other)
+    public override bool Equals(PropertyOwner? other)
     {
         if (other is not StructFieldSchema otherField) return false;
         return ReferenceEquals(this, otherField) || Name.Equals(otherField.Name, StringComparison.OrdinalIgnoreCase);

@@ -19,7 +19,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_RELATION, SCHEMA_KIND_ORDER_RELATION)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.schema")]
 [Meta<Attach>(SCHEMA_KIND_RELATION)]
-public class RelationSchema : ExtensibleSchema
+public class RelationSchema : PropertyOwner
 {
     /// <summary>
     /// The target of the relation
@@ -46,7 +46,7 @@ public class RelationSchema : ExtensibleSchema
     /// <summary>
     /// Equals check
     /// </summary>
-    public override bool Equals(ExtensibleSchema? other)
+    public override bool Equals(PropertyOwner? other)
     {
         if (other is not RelationSchema otherRelation) return false;
         if (ReferenceEquals(this, otherRelation)) return true;

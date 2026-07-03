@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public class NodeType: INodeReferences, IDisposable, INodeError
+public class NodeType: INodeReferences, IDisposable, IErrorProvider
 {
     #region Fields
     
@@ -150,7 +150,7 @@ public class NodeType: INodeReferences, IDisposable, INodeError
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<ExtensibleSchema>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind)) continue;
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind)) continue;
             props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
         }
 

@@ -23,7 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Append>(typeof(Relations))]
 [Meta<Attach>(SCHEMA_KIND_ARRAY)]
-public sealed class ArraySchema: ExtensibleSchema
+public sealed class ArraySchema: PropertyOwner
 {
     /// <summary>
     /// The element type of the array.

@@ -23,7 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
 [Meta<Attach>(SCHEMA_KIND_PROPERTY)]
 [Meta<Append>(typeof(Relations))]
-public class PropertySchema: ExtensibleSchema
+public class PropertySchema: PropertyOwner
 {
     /// <summary>
     /// The property name, such as "upLimit", "lowLimit", "pattern", etc.

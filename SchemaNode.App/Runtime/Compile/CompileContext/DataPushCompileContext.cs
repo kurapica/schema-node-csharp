@@ -164,7 +164,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             
                             DataPushThirdFieldInfo? thirdFieldInfo = _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);
 
-                            // Combine the third field query
+                            // CombineProperties the third field query
                             if (thirdFieldInfo == null)
                             {
                                 List<DataPushPrimaryMap> primaryMap = [];
@@ -234,7 +234,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             DataPushThirdFieldInfo? thirdFieldInfo =
                                 _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);
 
-                            // Combine the third field query
+                            // CombineProperties the third field query
                             if (thirdFieldInfo == null)
                             {
                                 List<DataPushPrimaryMap> primaryMap = [];

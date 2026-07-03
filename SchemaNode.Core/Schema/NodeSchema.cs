@@ -26,7 +26,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE)]
-public sealed class NodeSchema: ExtensibleSchema
+public sealed class NodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The namespace which includes the schema
@@ -60,7 +60,14 @@ public sealed class NodeSchema: ExtensibleSchema
     /// </summary>
     [SchemaIgnore]
     public NodeSchema[]? Schemas { get; set; }
-    
+
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
+
     /// <summary>
     /// The compatible types
     /// </summary>
@@ -113,7 +120,7 @@ public sealed class NodeSchema: ExtensibleSchema
             Kind = Kind,
             Type = Type,
         };
-        nodeSchema.CombineExtensions(this, runtime);
+        nodeSchema.CombineProperties(this, runtime);
 
         if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
             nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime, false)).ToArray();
@@ -170,7 +177,7 @@ internal static class NodeSchemaExtensions
     /// Loading properties for node schemas
     /// </summary>
     internal static async Task<(Runtime.NodeType[] RefTypes, string? Error)>
-        LoadPropertiesAsync(this ExtensibleSchema schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
+        LoadPropertiesAsync(this PropertyOwner schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
     {
         List<Runtime.NodeType> refTypes = [];
         string? error = null;
@@ -180,7 +187,7 @@ internal static class NodeSchemaExtensions
             if (prop is ILoadableProperty loadableProp)
             {
                 await loadableProp.LoadAsync(context, ownerType);
-                if (prop is INodeError err)
+                if (prop is IErrorProvider err)
                     error ??= err.Error;
             }
 

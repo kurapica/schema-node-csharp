@@ -482,7 +482,7 @@ public static class AppDataTransactionExtension
                             // Use key contains, complex case
                             default:
                             {
-                                // Try Combine keys first
+                                // Try CombineProperties keys first
                                 HashSet<string> existedKeys = [];
                                 AppSchemaDataFilter? buildMapCase(IEnumerable<StructNode> nodes)
                                 {

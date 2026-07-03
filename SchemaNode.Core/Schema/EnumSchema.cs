@@ -29,7 +29,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
-public sealed class EnumSchema : ExtensibleSchema
+public sealed class EnumSchema : PropertyOwner
 {
     /// <summary>
     /// The enum value type
@@ -68,7 +68,7 @@ public class EnumType: ValueType;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]                                                    
-public sealed class EnumValueSchema: ExtensibleSchema
+public sealed class EnumValueSchema: PropertyOwner
 {
     /// <summary>
     /// The value
@@ -143,12 +143,12 @@ public sealed class EnumValueSchema: ExtensibleSchema
                 ? SubList.Select(e => e.Clone(limitLevel - 1)).ToArray()
                 : null
         };
-        schema.CombineExtensions(this);
+        schema.CombineProperties(this);
         return schema;
     }
     
     /// <summary>
-    /// Combine the access list
+    /// CombineProperties the access list
     /// </summary>
     /// <param name="accesses"></param>
     internal void CombineAccessList(EnumValueAccess[] accesses)
