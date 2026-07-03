@@ -12,7 +12,8 @@
 5. [Function — Semantic Expression Engine](#function--semantic-expression-engine)
 6. [Schema Family Composition & Collaboration](#schema-family-composition--collaboration)
 7. [The Node Schema Family](#the-node-schema-family)
-8. [Summary](#summary)
+8. [Semantic Consensus & Execution Separation](#semantic-consensus--execution-separation)
+9. [Summary](#summary)
 
 ---
 
@@ -430,16 +431,161 @@ Based on the above design, the system provides the **Node Schema** family by def
 Upper-layer applications like SchemaNode.App are all replaceable — they are built on the Node Schema family, but Core itself does not depend on any upper-layer family's existence. Heterogeneous systems built on SchemaNode.Core can share data and interoperate through the **Node Schema** family — because regardless of how upper-layer families are defined, they all share the same universal data model language.
 
 
+## Semantic Consensus & Execution Separation
+
+The previous chapters explained how Meta, Property, Relation, and Function describe the complete semantics of a type system. This chapter addresses a more fundamental question: **what is the relationship between these semantic descriptions and the code that ultimately executes them?**
+
+The answer: **they belong to two separate layers, fully independent of each other.**
+
+```
+┌─────────────────────────────────────────────┐
+│           Authoring Layer                     │
+│   C# Attribute  /  TS Decorator  /  JSON    │
+│   YAML  /  AI  /  Visual Editor  /  ...     │
+│                                             │
+│   Responsibility: produce Schema. Any        │
+│   language, any tool — they are merely       │
+│   "editors" for Schema.                     │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│        Semantic Consensus Layer (Schema)     │
+│                                             │
+│   Schema itself — language-agnostic,         │
+│   platform-agnostic.                         │
+│   Contains no "how to execute" information. │
+│   Only answers: what is this type?           │
+│   What fields? What constraints?             │
+│   How are values computed?                   │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│          Semantic Execution Layer             │
+│                                             │
+│   C# Expression compilation                  │
+│   TypeScript interpretation                  │
+│   SQL query plans  /  Workflow scheduling   │
+│                                             │
+│   Responsibility: based on Schema's semantic │
+│   consensus, choose optimal execution.       │
+│   May differ, but results are consistent.    │
+└─────────────────────────────────────────────┘
+```
+
+This three-layer model is the most fundamental theoretical foundation of SchemaNode. It means:
+
+- **Schema does not belong to any language.** C#'s `[Meta<T>]`, TypeScript's `@Meta()`, JSON config files, YAML, even direct AI output — these are all just Schema **Providers**, "editors," not Schema itself.
+- **The execution layer can freely choose its strategy.** As long as the semantic consensus is consistent, the execution layer can run in completely different ways — interpretation, delegate compilation, SQL query plan conversion — and the results will be identical.
+- **Optimization is merely equivalent transformation at the execution layer.** Any execution that appears "smarter" is simply choosing a more efficient path without changing the semantics.
+
+Two battle-tested examples follow.
+
+### Example 1: RowAuths — One Function, Two Executions
+
+RowAuths defines a row-level data filtering rule. Its **semantic consensus** is: given a data row and the current user, determine whether that row is visible to the user.
+
+In Schema, this is an ordinary validation function — parameters are the data row and user context, return type is `bool`:
+
+```
+func can_access(context: SchemaContext, row: Order) : bool
+{
+    use = context.getContextItem<User>()
+    return row.store_id == user?.store_id && row.status != "deleted"
+}
+```
+
+The function's semantics are clear — "users can only see orders from their own store that aren't deleted" — no ambiguity.
+
+But at the **execution layer**, the same function has two completely different execution modes:
+
+| Scenario | Execution Mode | Implementation |
+|----------|---------------|----------------|
+| User submits data | Default CompileContext | Compiled to `Func<Order, User, bool>`, evaluates row by row |
+| User queries data | QueryFilterCompileContext | Compiled to `AppSchemaDataFilter` query tree, converted to SQL `WHERE` pushed to database |
+
+Key insight: **QueryFilterCompileContext does not change the function's semantics.** It merely recognizes that "this judgment can be expressed as a database query" and moves the filtering from the application layer to the database layer — this is purely an **execution layer optimization**.
+
+> The semantic consensus of `can_access(row, user)` has never changed. What changed is only "where to execute this judgment" — in memory, row by row, or in SQL, filtered in one pass.
+
+If you remove QueryFilterCompileContext, the system still works correctly — just slower. Semantic consistency does not depend on any execution layer optimization.
+
+### Example 2: DataPush — Same Semantics, Smarter Execution
+
+A DataPush function aggregates source data into a target field. For example:
+
+```
+func push_summary(orders: Order[]) -> StoreSummary
+{
+    store_id = orders[0].store_id
+    manager = system.data.app.getfield("stores", store_id, "manager")
+    region  = system.data.app.getfield("employees", manager, "region")
+    return StoreSummary {
+        total  = SUM(orders.amount),
+        region = region
+    }
+}
+```
+
+The **semantic consensus** of this function: summarize order data, enriching with store manager and region information.
+
+The execution layer faces a practical problem: submitting 1000 orders means `getfield` gets called 2000 times — each a cross-table query.
+
+**DataPushCompileContext**'s strategy:
+
+1. Analyze the function body, identifying all `system.data.app.getfield()` calls
+2. Extract these as "third-table dependencies"
+3. Replace 2000 individual queries with **two batch queries**
+4. Pass the query results as extra function parameters
+
+After optimization, it's equivalent to:
+
+```
+push_summary(orders, pre_fetched_stores, pre_fetched_employees)
+```
+
+Equally critical: **the semantic consensus has not changed.** To callers, the function's inputs and outputs mean exactly the same thing. The execution layer simply chose "batch pre-fetch" as a more efficient approach. Furthermore — when a third-party table (e.g., an employee's `region`) is modified, the system can automatically identify all affected summary data and recompute it based on the dependency graph — still an execution layer optimization, not a semantic change.
+
+### What This Separation Means
+
+Placing both examples back into the three-layer model:
+
+```
+     Authoring                Semantic Consensus              Execution
+ ┌──────────────┐         ┌──────────────────┐        ┌────────────────────┐
+ │ C# [Meta]    │         │                  │        │ CompileContext     │
+ │ TS @Meta()   │  ────▶  │  can_access()    │  ────▶ │  → Func<bool>      │
+ │ JSON config  │         │  push_summary()  │        │  → SQL WHERE       │
+ │ AI output    │         │                  │        │  → Batch pre-fetch │
+ └──────────────┘         └──────────────────┘        └────────────────────┘
+       │                         │                           │
+  Arbitrarily replaceable    Immutable                 Arbitrarily optimizable
+  (just "editors")       (the single truth)         (never changes semantics)
+```
+
+This is the fundamental difference between SchemaNode and all traditional development frameworks:
+
+> **Traditional frameworks bind "definition" and "execution" together. SchemaNode separates them completely, connected only by Schema as the single layer of semantic consensus.**
+
+Practical value of this separation:
+
+1. **Cross-platform consistency.** C# backend and TypeScript frontend consume the same Schema, each executing in their own way — results are guaranteed consistent because the semantic consensus is unique.
+2. **Replaceable execution layer.** Today it's C# Expression compilation; tomorrow it could be IL generation, GPU acceleration, or WASM — Schema requires zero changes.
+3. **Optimizations don't affect correctness.** QueryFilterCompileContext's query pushdown, DataPushCompileContext's batch pre-fetch — remove these optimizations and the system semantics remain correct. Optimization is "better," not "required."
+4. **AI can safely participate.** Because AI doesn't need to generate "correct code" — it only needs to generate correct Schema. Schema is declarative, verifiable, and runtime-constrained — far safer than code.
+5. **Readable by humans, AI, and engines alike.** The semantic consensus is expressed purely declaratively, containing no execution details. Humans can directly inspect a Schema and understand its business intent. AI can accurately recognize its semantics and generate configuration or reasoning from it. Code engines (such as CompileContext) can perform equivalent transformations based on semantics — QueryFilterCompileContext can convert validation logic into SQL precisely because it "understands" the function's semantics. All three audiences collaborate on the same consensus — no guesswork, fully auditable.
+
+
 ## Summary
 
-SchemaNode.Core is not a "feature-complete" platform — it deliberately contains no business functionality. It is a **semantic organization framework**:
+SchemaNode.Core is not a "feature-complete" platform — it deliberately contains no business functionality. It is a **semantic organization framework** with just three layers:
 
-- **Meta** defines prototypes, establishing what each type "is"
-- **Property** provides extensions, describing how data "behaves"
-- **Relation** establishes associations, defining how property values "are computed"
-- **Function** organizes execution, expressing "how things work"
+1. **Authoring Layer**: C# Attribute, TypeScript Decorator, JSON, YAML, AI — they are all Schema Providers, "editors," arbitrarily replaceable.
+2. **Semantic Consensus Layer (Schema)**: Everything described by Meta + Property + Relation + Function. This is the single truth — language-agnostic, platform-agnostic.
+3. **Semantic Execution Layer**: CompileContext, SQL query plans, workflow scheduling — choosing the optimal execution based on consensus. Optimizations are optional; correctness does not depend on them.
 
-Combined through the Schema Family organization (prototypes + functional collections), the execution layer remains generic and stable while the configuration layer carries all variability. This is the fundamental reason SchemaNode achieves "configuration as functionality, zero code growth for new types."
+SchemaNode.Core focuses on the middle layer. The Node Schema family is its default carrier. Other Schema Families can be defined on top for practical functions, sharing data through Node Schema.
 
 ```
               SchemaNode.Core
@@ -461,4 +607,4 @@ Combined through the Schema Family organization (prototypes + functional collect
       │             │             │
 ```
 
-The four pillars define the descriptive capabilities of Schema. The Schema Family organizes these descriptions into a prototype system for specific domains, while the Runtime Capability is responsible for interpreting and executing these prototypes. New Schema Families can be continuously built upon existing Families, extending new domains by reusing existing capabilities without modifying SchemaNode.Core.
+The four pillars define Schema's descriptive capabilities. Schema Families organize these descriptions into domain-specific prototype systems. New Families can be continuously built upon existing ones. And the three-layer separation ensures: whatever language is used above, whatever execution strategy is used below, the Schema in the middle remains the single consensus.

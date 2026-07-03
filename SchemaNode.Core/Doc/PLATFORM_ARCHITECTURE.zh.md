@@ -12,7 +12,8 @@
 5. [Function — 语义表达式引擎](#function--语义表达式引擎)
 6. [Schema 族的构成与协作](#schema-族的构成与协作)
 7. [Node Schema 族](#node-schema-族)
-8. [总结](#总结)
+8. [语义共识与执行分离](#语义共识与执行分离)
+9. [总结](#总结)
 
 ---
 
@@ -433,18 +434,178 @@ SchemaNode 的架构中存在一条清晰的边界：**Schema 管理一切声明
 上层的应用如 SchemaNode.App 都是可替换的——它们基于 Node Schema 族构建，但 Core 本身不依赖任何上层族的存在。而异构的、基于 SchemaNode.Core 的不同系统，则可以通过 **Node Schema** 族完成数据共享和功能互操作——因为无论上层族如何定义，它们都共享同一套通用数据模型语言。
 
 
+## 语义共识与执行分离
+
+前面四个章节分别讲解了 Meta、Property、Relation、Function 如何描述一个类型系统的全部语义。这一节讨论一个更根本的问题：**这些语义描述，和最终执行它们的代码之间，到底是什么关系？**
+
+答案是：**它们分属两层，彼此独立。**
+
+```
+┌─────────────────────────────────────────────┐
+│              编写层 (Authoring)               │
+│   C# Attribute  /  TS Decorator  /  JSON    │
+│   YAML  /  AI  /  Visual Editor  /  ...     │
+│                                             │
+│   职责：产生 Schema。用什么语言、什么工具，    │
+│         都可以。它们只是 Schema 的"编辑器"。   │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│           语义共识层 (Schema)                 │
+│                                             │
+│   Schema 本身 —— 语言无关、平台无关           │
+│   不包含任何"如何执行"的信息                  │
+│   只回答：这个类型是什么？有什么字段？          │
+│          字段有什么约束？值如何计算？           │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│           语义执行层 (Execution)              │
+│                                             │
+│   C# Expression 编译  /  TS 解释执行          │
+│   SQL 查询计划  /  Workflow 调度  /  ...     │
+│                                             │
+│   职责：基于 Schema 的语义共识，选择最优       │
+│         的执行方式。可以不同，但结果一致。      │
+└─────────────────────────────────────────────┘
+```
+
+这个三层模型是 SchemaNode 最核心的理论基础。它意味着：
+
+- **Schema 不属于任何语言。** C# 的 `[Meta<T>]`、TypeScript 的 `@Meta()`、JSON 配置文件、YAML、甚至 AI 直接输出——这些都只是 Schema 的 **Provider**（提供者），是"编辑器"，不是 Schema 本身。
+- **执行层可以自由选择策略。** 只要语义共识一致，执行层可以用完全不同的方式运行——解释执行、编译为委托、转换为 SQL 查询计划——结果必然一致。
+- **优化只是执行层的等价变换。** 任何看起来"更聪明"的执行方式，都只是在不改变语义的前提下，选择了一条更高效的路径。
+
+下面用两个已经实战验证的例子来说明。
+
+### 例一：RowAuths —— 同一函数，两种执行
+
+RowAuths 定义了一条行级数据过滤规则。它的**语义共识**是：给定一个数据行和当前用户，判定该行是否对用户可见。
+
+在 Schema 中，这表现为一个普通的校验函数，参数是数据行和用户上下文，返回值是 `bool`：
+
+```
+func can_access(context: SchemaContext, row: Order) : bool
+{
+    use = context.getContextItem<User>()
+    return row.store_id == user?.store_id && row.status != "deleted"
+}
+```
+
+这个函数的语义是清晰的——"用户只能看到自己门店的、未被删除的订单"——没有歧义。
+
+但在**执行层**，同一个函数有两种完全不同的运行方式：
+
+| 场景 | 执行方式 | 实现 |
+|------|---------|------|
+| 用户提交数据时 | 默认 CompileContext | 编译为 `Func<Order, User, bool>`，逐行判定 |
+| 用户查询数据时 | QueryFilterCompileContext | 编译为 `AppSchemaDataFilter` 查询树，转换为 SQL `WHERE` 下推到数据库 |
+
+关键洞察：**QueryFilterCompileContext 并没有改变这个函数的语义。** 它只是识别到"这个判定可以用数据库查询来表达"，于是将过滤从应用层移到了数据库层——这是纯粹的**执行层优化**。
+
+> `can_access(row, user)` 的语义共识从未改变。改变的只是"在哪里执行这个判定"——在内存里逐行判断，还是在 SQL 里一次性过滤。
+
+如果你把 QueryFilterCompileContext 去掉，系统仍然能正确工作——只是慢一些。语义一致性不依赖执行层的任何优化。
+
+### 例二：DataPush —— 语义不变，执行更聪明
+
+DataPush 函数将源数据汇总到目标字段。例如：
+
+```
+func push_summary(orders: Order[]) -> StoreSummary
+{
+    store_id = orders[0].store_id
+    manager = system.data.app.getfield("stores", store_id, "manager")
+    region  = system.data.app.getfield("employees", manager, "region")
+    return StoreSummary {
+        total  = SUM(orders.amount),
+        region = region
+    }
+}
+```
+
+这个函数的**语义共识**是：汇总订单数据，补充门店经理和区域信息。
+
+执行层面临一个现实问题：如果一次提交 1000 条订单，`getfield` 会被调用 2000 次——每次都是一次跨表查询。
+
+**DataPushCompileContext** 的策略：
+
+1. 分析函数体，识别出所有 `system.data.app.getfield()` 调用
+2. 将这些调用提取为"第三方表依赖"
+3. 用两次批量查询替代 2000 次逐条查询
+4. 将查询结果作为函数的额外参数传入
+
+优化后等价于：
+
+```
+push_summary(orders, pre_fetched_stores, pre_fetched_employees)
+```
+
+同样关键的是：**语义共识没有变化。** 函数对调用者而言，输入和输出的含义完全相同。只是执行层选择了"批量预取"这个更高效的方式。更进一步——当第三方表（例如某个员工的 `region`）被修改后，系统能基于依赖图自动识别所有受影响的汇总数据并重新计算——这仍然是执行层优化，不是语义变化。
+
+### 三层分离的意义
+
+将两个例子放回三层模型：
+
+```
+       编写层                     语义共识层                    执行层
+ ┌──────────────┐         ┌──────────────────┐        ┌────────────────────┐
+ │ C# [Meta]    │         │                  │        │ CompileContext     │
+ │ TS @Meta()   │  ────▶  │  can_access()    │  ────▶ │  → Func<bool>      │
+ │ JSON config  │         │  push_summary()  │        │  → SQL WHERE       │
+ │ AI output    │         │                  │        │  → 批量预取+重算    │
+ └──────────────┘         └──────────────────┘        └────────────────────┘
+       │                         │                           │
+  可以任意替换               永远不变                   可以任意优化
+  (只是"编辑器")           (唯一的真相)              (不改变语义)
+```
+
+这就是 SchemaNode 与所有传统开发框架的根本区别：
+
+> **传统框架将"定义"和"执行"绑在一起。SchemaNode 将它们彻底分离，中间只靠 Schema 这一层语义共识来衔接。**
+
+这个分离带来的实际价值：
+
+1. **跨平台一致**。C# 后端和 TypeScript 前端消费同一个 Schema，各自按自己的方式执行——结果必然一致，因为语义共识是唯一的。
+2. **执行层可替换**。今天用 C# Expression 编译，明天可以换成 IL 生成、GPU 加速或 WASM——Schema 不需要任何改动。
+3. **优化不影响正确性**。QueryFilterCompileContext 的查询下推、DataPushCompileContext 的批量预取——这些优化即使去掉，系统语义仍然正确。优化是"更好"，不是"必须"。
+4. **AI 可以安全参与**。因为 AI 不需要生成"正确的代码"——它只需要生成正确的 Schema。Schema 是声明式的、可验证的、运行时受约束的，远比代码安全。
+5. **人、AI、引擎三者可读**。语义共识采用纯声明式表达，不包含任何执行细节。人类可以直接审查一份 Schema 并理解其业务意图；AI 可以准确识别语义并基于它生成配置或推理；代码引擎（如 CompileContext）可以基于语义做等价变换——QueryFilterCompileContext 之所以能将校验逻辑转为 SQL，正是因为它"读懂"了函数的语义。三者基于同一份共识协作，无需猜测，可审计。
+
+
 ## 总结
 
-SchemaNode.Core 不是一个"功能齐全"的平台——它刻意不包含业务功能。它是一个**语义组织框架**：
+SchemaNode.Core 不是一个"功能齐全"的平台——它刻意不包含业务功能。它是一个**语义组织框架**，核心只有三层：
 
-- **Meta** 定义原型，确定每种类型"是什么"
-- **Property** 提供扩展，描述数据"如何行为"
-- **Relation** 建立关联，定义属性值"如何计算"
-- **Function** 组织执行，表达"如何运作"
+1. **编写层**：C# Attribute、TypeScript Decorator、JSON、YAML、AI——它们都是 Schema 的 Provider，是"编辑器"，可以任意替换。
+2. **语义共识层（Schema）**：Meta + Property + Relation + Function 描述的一切。这是唯一的真相，语言无关、平台无关。
+3. **语义执行层**：CompileContext、SQL 查询计划、工作流调度——基于共识选择最优执行方式。优化是可选的，不影响正确性。
 
-四者组合在一起，通过 Schema 族（原型 + 功能集合）的组织方式，让执行层保持通用和稳定，让配置层承载所有可变性。这就是 SchemaNode 能够做到"配置即功能，新类型零代码增长"的根本原因。
+SchemaNode.Core 关注的是中间这一层。Node Schema 族是它的默认载体。基于此可以定义其他 Schema 族完成实际功能，并通过 Node Schema 共享数据。
 
-SchemaNode.Core只关注于如何基于`Meta`, `Property`, `Relation`和`Function`构建，而Node Schema族是它们的载体。基于此我们可以进一步定义其他schema族完成实际功能，并基于Node Schema共享数据。
+```
+              SchemaNode.Core
+
+    Meta   Property   Relation   Function
+         \      |      |      /
+          \     |      |     /
+           \    |      |    /
+            ┌───────────────┐
+            │   Node Schema │
+            │   Data Model  │
+            └───────────────┘
+                    │
+              Schema Runtime
+                    │
+      ┌─────────────┼─────────────┐
+      │             │             │
+  Form Engine   Workflow      App Model
+      │             │             │
+```
+
+四大支柱定义了 Schema 的描述能力，Schema Family 将这些描述组织为特定领域的原型体系。新的 Schema Family 可以不断建立在已有 Family 之上。而三层分离确保了：无论上面用什么语言编写、下面用什么方式执行，中间的 Schema 始终是唯一的共识。
 
 ```
               SchemaNode.Core
