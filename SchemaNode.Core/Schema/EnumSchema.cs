@@ -103,7 +103,8 @@ public class EnumType: ValueType;
 /// The enum value info
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]                                                    
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]
+[Meta<Attach>(SCHEMA_KIND_ENUM_VALUE)]
 public sealed class EnumValueSchema: PropertyOwner
 {
     /// <summary>
