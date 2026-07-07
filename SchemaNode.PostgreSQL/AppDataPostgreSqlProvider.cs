@@ -1096,7 +1096,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                             fullFill = false;
                             break;
                         }
-                        keys.Add(v.ToString());
+                        keys.Add(v.ToString()!);
                     }
 
                     if (!fullFill) return (false, null, null);
@@ -1119,7 +1119,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         fullFill = false;
                         break;
                     }
-                    keys.Add(v.ToString());
+                    keys.Add(v.ToString()!);
                     sb.Append($"{sqlProvider.QuoteField(fld)} = {sqlProvider.Literal(v)} AND ");
                 }
                 if (!fullFill) continue;

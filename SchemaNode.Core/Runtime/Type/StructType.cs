@@ -26,12 +26,7 @@ public sealed class StructType: ValueType
     /// The struct fields
     /// </summary>
     private List<StructFieldType> _fields = [];
-
-    /// <summary>
-    /// The union validations
-    /// </summary>
-    private List<StructUnionValidation>? _unionValids;
-    
+        
     /// <summary>
     /// The relations between the fields
     /// </summary>
@@ -94,31 +89,6 @@ public sealed class StructType: ValueType
                 _relations.Add(relationType);
             }
         }
-        
-        // Load Union Validation
-        if (@struct.UnionValids is { Length: > 0 })
-        {
-            _unionValids = @struct.UnionValids
-                .Where(v => !string.IsNullOrWhiteSpace(v.Func))
-                .Select(v => new StructUnionValidation
-                {
-                    Func = v.Func,
-                    Args = v.Args,
-                }).ToList();
-            foreach (StructUnionValidation valid in _unionValids)
-            {
-                FunctionType? funcNode = await context.GetNodeTypeAsync<FunctionType>(valid.Func);
-                if (funcNode != null)
-                {
-                    valid.FuncNode = funcNode;
-                }
-                else
-                {
-                    valid.Error = ErrorCodes.STRUCT_VALID_FUNC_NOT_EXIST;
-                    Error ??= valid.Error;
-                }
-            }
-        }
     }
 
     /// <inheritdoc />
@@ -126,7 +96,6 @@ public sealed class StructType: ValueType
     {
         _fields = [];
         _relations = null;
-        _unionValids = null;
     }
 
     /// <inheritdoc />
@@ -138,12 +107,7 @@ public sealed class StructType: ValueType
         if (_relations != null)
             foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
-
-        if (_unionValids != null)
-            foreach(StructUnionValidation valid in _unionValids)
-                if (valid.FuncNode != null)
-                    yield return valid.FuncNode;
-        
+                
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;
     }
@@ -269,41 +233,6 @@ public sealed class StructType: ValueType
                     }
                     currNodes = nextLevels;
                 }
-            }
-        }
-
-        // Union validation
-        if (_unionValids is { Count: > 0 })
-        {
-            foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
-            {
-                var args = new object?[valid.Args.Length];
-                DataNode? first = null;
-                for(int i = 0; i < valid.Args.Length; i++)
-                {
-                    var arg = valid.Args[i];
-                    if (!string.IsNullOrWhiteSpace(arg.Source))
-                    {
-                        DataNode? node = result.GetAccessValue(arg.Source);
-                        first ??= node;
-                        args[i] = node;
-                    }
-                    else
-                    {
-                        args[i] = arg.Value;
-                    }
-                }
-
-                if (first == null) continue;
-                try
-                {
-                    if (await valid.FuncNode!.CallAsync<bool>(context, args)) continue;
-                }
-                catch
-                {
-                    // ignore
-                }
-                first.SetViolated(valid.Func);
             }
         }
     }

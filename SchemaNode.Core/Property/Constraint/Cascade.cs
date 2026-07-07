@@ -6,7 +6,6 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 

@@ -13,7 +13,7 @@ namespace SchemaNode.RabbitMQ;
 public sealed class RabbitEventSource(IConnection connection) : IEventSource
 {
     private readonly IConnection _connection = connection;
-    private IReadOnlyDictionary<string, (Type, Type?, IEnumerable<RabbitBindingAttribute>)> _events;
+    private IReadOnlyDictionary<string, (Type, Type?, IEnumerable<RabbitBindingAttribute>)>? _events;
     private IServiceScopeFactory _factory = null!;
     private IChannel _channel = null!;
 
@@ -89,7 +89,7 @@ public sealed class RabbitEventSource(IConnection connection) : IEventSource
 
     private void HandleMessage(string queue, byte[] body)
     {
-        if (!_events.TryGetValue(queue, out var map))
+        if (_events == null || !_events.TryGetValue(queue, out var map))
             return;
 
         using var scope = _factory.CreateScope();

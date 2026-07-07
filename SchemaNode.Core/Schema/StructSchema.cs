@@ -26,18 +26,12 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<Append>(typeof(Relations))]
-[Relation<EntrySource>($"${nameof(UnionValids)}.{nameof(StructUnionValidation.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public sealed class StructSchema : PropertyOwner
 {
     /// <summary>
     /// The struct fields
     /// </summary>
     public StructFieldSchema[] Fields { get; set; } = [];
-    
-    /// <summary>
-    /// The union validations
-    /// </summary>
-    public StructUnionValidation[]? UnionValids { get; set; }
 }
 
 /// <summary>
@@ -85,24 +79,6 @@ public sealed class StructProperty : Property<StructSchema>
         combineFields.AddRange(selfStruct.Fields.Where(field => matched.Add(field.Name)));
         selfStruct.Fields = combineFields.ToArray();
         
-        // CombineProperties the union valids
-        if (otherStruct.UnionValids is { Length: > 0 })
-        {
-            if (selfStruct.UnionValids is null || selfStruct.UnionValids.Length == 0)
-            {
-                selfStruct.UnionValids = otherStruct.UnionValids[..];
-            }
-            else
-            {
-                List<StructUnionValidation> combined = new (selfStruct.UnionValids);
-                foreach (var union in otherStruct.UnionValids)
-                {
-                    if (combined.All(f => !f.Equals(union)))
-                        combined.Add(union);
-                }
-                selfStruct.UnionValids = combined.ToArray();
-            }
-        }
         SetValue(selfStruct);
         return true;
     }
@@ -141,42 +117,4 @@ public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
     [Meta<SchemaType>(typeof(Enum.ErrorCode))]
     [Meta<ReadOnly>(true)]
     public string? Error { get; set; }
-}
-
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.unionvalid")]
-public class StructUnionValidation: IEquatable<StructUnionValidation>
-{
-    /// <summary>
-    /// The union validation func
-    /// </summary>
-    [Meta<SchemaType>(typeof(ValidFuncType))]
-    public string Func { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The func arguments
-    /// </summary>
-    public CallArg[] Args { get; set; } = [];
-
-    /// <summary>
-    /// The error message
-    /// </summary>
-    [SchemaIgnore]
-    public string? Error { get; set; }
-
-    /// <summary>
-    /// The function node ref
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    public FunctionType? FuncNode { get; set; }
-    
-    /// <summary>
-    /// Whether the schema is equals
-    /// </summary>
-    public bool Equals(StructUnionValidation? other)
-    {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Func == other.Func && Args.SequenceEqual(other.Args);
-    }
 }
