@@ -111,6 +111,7 @@ public sealed class FuncArg
     /// The argument name
     /// </summary>
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -156,6 +157,7 @@ public sealed class FuncExp {
     /// The expression name
     /// </summary>
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
