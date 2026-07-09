@@ -112,6 +112,7 @@ public sealed class FuncArg : PropertyOwner
     /// </summary>
     [Meta<PrimaryIndex>]
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
