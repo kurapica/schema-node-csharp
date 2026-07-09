@@ -5,9 +5,12 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using GenericParameter = SchemaNode.Property.Core.GenericParameter;
@@ -25,6 +28,8 @@ namespace SchemaNode.Service;
 /// </summary>
 internal sealed class FunctionGenerator : INodeSchemaGenerator
 {
+    private static readonly NullabilityInfoContext _nullabilityContext = new();
+
     /// <summary>
     /// The system func infos
     /// </summary>
@@ -112,28 +117,47 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             
             FuncArg arg = new ()
             {
-                Name = p.Name ?? $"arg{i}",
-                Nullable = pt.Nullable || p.HasDefaultValue || 
-                    p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
-                    defaultProp != null,
-                Display = method.GetSummaryFromXmlDoc(p) ?? null,
-                Default = defaultProp?.Value, // not the default value of the parameter
+                Name = p.Name ?? $"arg{i}"
             };
-            funcSchema.Args[i] = arg;
-            if ((arg.Nullable ?? false) || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable)
+            
+            // Require
+            if (pt.Nullable || p.HasDefaultValue ||
+                _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+                p.GetCustomAttributesData().FirstOrDefault(a =>
+                    a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
+                defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false))
+            {
                 pt.Kind |= TypeDetail.ParameterTypeKind.Nullable;
+            }
+            else
+            {
+                arg.SetProperty<Require, bool>(true);
+            }
+
+            // Display
+            arg.SetProperty<Display, LocaleString>(method.GetSummaryFromXmlDoc(p) ??  $"{schema.FullName}.{arg.Name}");
+                    
+            // Default
+            if (defaultProp?.Value != null)
+                arg.SetProperty<Default, object>(defaultProp.Value);
+                    
+            // Extension Properties
+            foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNC_ARG))
+                arg.SetProperty(property);
+            
+            funcSchema.Args[i] = arg;
 
             // Params
-            if (p.IsDefined(typeof(ParamArrayAttribute), false))
+            bool isVariadic = p.IsDefined(typeof(ParamArrayAttribute), false);
+            if (isVariadic)
             {
-                arg.Params = true;
-                arg.Nullable = true;
+                arg.SetProperty<Variadic, bool>(true);
                 pt.Kind |= TypeDetail.ParameterTypeKind.Params;
             }
 
             // Check dynamic type
             arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
-                        ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, genericArgs)
+                        ?? typeResolver(isVariadic ? pt.CoreType : pt.Type, @namespace, genericArgs)
                         ?? throw new Exception($"Can't resolve parameter type for method {method.Name} in {@namespace}");
         }
 

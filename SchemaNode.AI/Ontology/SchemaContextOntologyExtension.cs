@@ -207,9 +207,9 @@ public static class SchemaContextOntologyExtension
         {
             Name       = a.Name,
             TypeStr    = ResolveArgTypeStr(a, graph, visitedStructs, visitedEnums),
-            Labels     = ToLabels(a.Display),
-            IsNullable = a.Nullable == true,
-            IsParams   = a.Params == true,
+            Labels     = ToLabels(a.GetProperty<Display>()?.Value),
+            IsRequired = a.Require,
+            IsVariadic   = a.Variadic == true,
         }).ToArray();
 
         string returnTypeStr = ResolveSchemaTypeStr(func.Return);

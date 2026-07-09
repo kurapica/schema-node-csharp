@@ -24,6 +24,7 @@ using DateType = SchemaNode.Runtime.DateType;
 using DecimalType = SchemaNode.Runtime.DecimalType;
 using EnumType = SchemaNode.Runtime.EnumType;
 using IntType = SchemaNode.Runtime.IntType;
+using RelationType = SchemaNode.Runtime.RelationType;
 using RuntimeValueType = SchemaNode.Runtime.ValueType;
 using StringType = SchemaNode.Runtime.StringType;
 using StructType = SchemaNode.Runtime.StructType;

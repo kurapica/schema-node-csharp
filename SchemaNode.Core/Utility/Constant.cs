@@ -51,6 +51,7 @@ public static class Constant
     public const string SCHEMA_KIND_STRUCT_FIELD = "structfield";
     public const string SCHEMA_KIND_ENUM_VALUE = "enumvalue";
     public const string SCHEMA_KIND_RELATION = "relation";
+    public const string SCHEMA_KIND_FUNC_ARG = "functionarg";
 
     internal const int SCHEMA_KIND_ORDER_NODE = 0;
     internal const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
@@ -68,6 +69,7 @@ public static class Constant
     internal const int SCHEMA_KIND_ORDER_RELATION = 13;
     internal const int SCHEMA_KIND_ORDER_ENUM_VALUE = 14;
     internal const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
+    internal const int SCHEMA_KIND_ORDER_FUNC_ARG = 16;
     
     #endregion
 

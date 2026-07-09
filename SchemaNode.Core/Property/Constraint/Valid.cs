@@ -32,7 +32,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
         {
             CallArg arg = Value.Args[i];
             FunctionNodeArgument? argInfo = func.Args.ElementAtOrDefault(i) ?? 
-                                            (func.Args.LastOrDefault() is { Params: true } p  ? p : null);
+                                            (func.Args.LastOrDefault() is { Variadic: true } p  ? p : null);
             if (argInfo == null) return null; // skip if argument info is not found, or args exceed the non-params args but no params defined
             
             if (!string.IsNullOrWhiteSpace(arg.Source))

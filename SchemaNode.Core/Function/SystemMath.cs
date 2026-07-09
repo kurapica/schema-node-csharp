@@ -2,7 +2,6 @@ using System.Numerics;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using ArithmeticType = SchemaNode.Enum.ArithmeticType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;

@@ -1,13 +1,11 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
-using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -71,10 +69,7 @@ public sealed class FuncProperty : Property<FunctionSchema>
             var arg = schema.Args[i];
             var otherArg = otherSchema.Args.ElementAtOrDefault(i);
             if (otherArg is null || otherArg.Type != arg.Type) continue;
-            if (arg.Display == null)
-                arg.Display = otherArg.Display;
-            else if (otherArg.Display != null)
-                arg.Display.Concat(otherArg.Display);
+            arg.CombineProperties(otherArg, runtime, SCHEMA_KIND_FUNC_ARG);
         }
         
         schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_FUNCTION);
@@ -97,6 +92,9 @@ public class FuncType: AnyType;
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class ValidFuncType: FuncType;
 
+/// <summary>
+/// Represents the function return value type
+/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.valuetype")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
 public class TypeFuncType : FuncType;
@@ -104,12 +102,15 @@ public class TypeFuncType : FuncType;
 /**
  * The function argument information
  */
+[Meta<SchemaKind>(SCHEMA_KIND_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
-public sealed class FuncArg
+[Meta<Attach>(SCHEMA_KIND_FUNC_ARG)]
+public sealed class FuncArg : PropertyOwner
 {
     /// <summary>
     /// The argument name
     /// </summary>
+    [Meta<PrimaryIndex>]
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
 
@@ -118,33 +119,6 @@ public sealed class FuncArg
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string Type { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Whether the argument is nullable
-    /// </summary>
-    public bool? Nullable { get; set; }
-    
-    /// <summary>
-    /// The argument display name
-    /// </summary>
-    public LocaleString? Display { get; set; }
-
-    /// <summary>
-    /// The argument is params
-    /// </summary>
-    public bool? Params { get; set; }
-
-    /// <summary>
-    /// The default value
-    /// </summary>
-    [SchemaIgnore]
-    public object? Default { get; set; }
-
-    /// <summary>
-    /// The schema node status
-    /// </summary>
-    [SchemaIgnore]
-    public string? Error { get; set; }
 }
 
 /// <summary>
@@ -156,6 +130,7 @@ public sealed class FuncExp {
     /// The expression name
     /// </summary>
     [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
@@ -179,12 +154,6 @@ public sealed class FuncExp {
     /// The argument list, should be exp name or argument name.
     /// </summary>
     public CallArg[] Args { get; set; } = [];
-    
-    /// <summary>
-    /// The error message
-    /// </summary>
-    [SchemaIgnore]
-    public string? Error { get; set; }
 }
 
 /// <summary>
@@ -216,13 +185,6 @@ public class CallArg: IEquatable<CallArg>
     [SchemaIgnore] 
     [JsonIgnore] 
     public Runtime.ValueType? ValueType { get; set; }
-
-    /// <summary>
-    /// The data node represents the value
-    /// </summary>
-    [SchemaIgnore] 
-    [JsonIgnore] 
-    public DataNode? Constant { get; set; }
 
     public bool Equals(CallArg? other)
     {

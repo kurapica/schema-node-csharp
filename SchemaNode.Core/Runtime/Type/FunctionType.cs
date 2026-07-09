@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Service;
 using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -343,7 +345,7 @@ public sealed class FunctionType : NodeType
             Args = Args.Select(a =>
             {
                 TypeDetail info = a.ValueType!.GetNodeTypeDetails();
-                if (a.Nullable ?? false) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
+                if (!a.Require) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
             Return = Return.GetNodeTypeDetails()
@@ -599,7 +601,7 @@ public sealed class FunctionType : NodeType
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    if (arg.Nullable) continue;
+                    if (!arg.Require) continue;
                     throw new Exception($"The {i + 1} argument must be provided");
                 }
 
@@ -723,35 +725,35 @@ public class FunctionNodeArgument : FunctionNodeExpTree
     /// The argument type
     /// </summary>
     public required string Type { get; init; }
-
-    /// <summary>
-    /// Whether nullable
-    /// </summary>
-    public bool? Nullable { get; init; }
     
     /// <summary>
-    /// The display name
+    /// The argument is required
     /// </summary>
-    public LocaleString? Display { get; init; }
+    public bool Require { get; init; }
 
     /// <summary>
     /// Whether params argument
     /// </summary>
-    public bool? Params { get; init; }
+    public bool? Variadic { get; init; }
 
     /// <summary>
     /// The default value
     /// </summary>
     public object? Default { get; init; }
 
-    #endregion
+    /// <summary>
+    /// The func argument
+    /// </summary>
+    private FuncArg? _source;
 
-    #region State
+    #endregion
+    
+    #region Methdos
 
     /// <summary>
-    /// The status
+    /// Gets the property of the argument
     /// </summary>
-    public string? Status { get; set; }
+    public T? GetProperty<T>() where T : class, IProperty => _source?.GetProperty<T>();
     
     #endregion
     
@@ -763,10 +765,10 @@ public class FunctionNodeArgument : FunctionNodeExpTree
         {
             Name = arg.Name,
             Type = arg.Type,
-            Nullable = arg.Nullable,
-            Display = arg.Display,
-            Params = arg.Params,
-            Default = arg.Default,
+            Variadic = arg.GetProperty<Variadic>()?.Value,
+            Require = arg.GetProperty<Require>()?.GetValue<bool>() ?? false,
+            Default = arg.GetProperty<Default>()?.Value,
+            _source = arg
         };
     }
     

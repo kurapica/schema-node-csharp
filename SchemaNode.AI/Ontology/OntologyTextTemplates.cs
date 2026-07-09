@@ -264,9 +264,9 @@ public static class OntologyTextTemplates
             sb.AppendLine(" .");
             foreach (OntologyFunctionArg a in ft.Args)
             {
-                string nullable = a.IsNullable ? " nullable" : "";
-                string parms    = a.IsParams   ? " params"   : "";
-                sb.AppendLine($"# arg {a.Name}: {a.TypeStr}{nullable}{parms}");
+                string required = a.IsRequired ? " required" : "";
+                string parms    = a.IsVariadic   ? " variadic"   : "";
+                sb.AppendLine($"# arg {a.Name}: {a.TypeStr}{required}{parms}");
             }
             sb.AppendLine();
         }
@@ -553,12 +553,12 @@ public static class OntologyTextTemplates
 
                 if (ft.Args.Length > 0)
                 {
-                    sb.AppendLine("| Arg | Type | Label(s) | Nullable | Params |");
+                    sb.AppendLine("| Arg | Type | Label(s) | Required | Variadic |");
                     sb.AppendLine("|-----|------|---------|:--------:|:------:|");
                     foreach (OntologyFunctionArg a in ft.Args)
                         sb.AppendLine(
                             $"| `{a.Name}` | `{a.TypeStr}` | {FmtLabels(a.Labels)} " +
-                            $"| {(a.IsNullable ? "\u2713" : "")} | {(a.IsParams ? "\u2713" : "")} |");
+                            $"| {(a.IsRequired ? "\u2713" : "")} | {(a.IsVariadic ? "\u2713" : "")} |");
                     sb.AppendLine();
                 }
             }
@@ -770,8 +770,8 @@ public static class OntologyTextTemplates
                 foreach (OntologyFunctionArg a in ft.Args)
                 {
                     var argNode = new JsonObject { ["@value"] = a.Name, ["schema:argType"] = a.TypeStr };
-                    if (a.IsNullable) argNode["schema:nullable"] = true;
-                    if (a.IsParams)   argNode["schema:params"]   = true;
+                    if (a.IsRequired) argNode["schema:required"] = true;
+                    if (a.IsVariadic)   argNode["schema:variadic"]   = true;
                     argsArr.Add(argNode);
                 }
                 ftNode["schema:args"] = argsArr;
@@ -955,11 +955,11 @@ public static class OntologyTextTemplates
                 sb.AppendLine("Args:");
                 foreach (OntologyFunctionArg a in ft.Args)
                 {
-                    string nullable = a.IsNullable ? " Nullable" : "";
-                    string parms    = a.IsParams   ? " Params"   : "";
+                    string required = a.IsRequired ? " Required" : "";
+                    string parms    = a.IsVariadic   ? " Variadic"   : "";
                     string aLbl     = SspLabel(a.Labels, locale);
                     string desc     = !string.IsNullOrEmpty(aLbl) ? $" — {aLbl}" : "";
-                    sb.AppendLine($"  {a.Name}: {a.TypeStr}{nullable}{parms}{desc}");
+                    sb.AppendLine($"  {a.Name}: {a.TypeStr}{required}{parms}{desc}");
                 }
             }
 

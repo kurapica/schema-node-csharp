@@ -3,6 +3,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -81,6 +82,13 @@ public class Relations : Property<RelationSchema[]>
         return true;
     }
 }
+
+/// <summary>
+/// Represents the relation type
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.type")]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_RELATION)]
+public class RelationType: AnyType;
 
 /// <summary>
 /// The handler to process the relation, Check <see cref="RelationType"/> for details

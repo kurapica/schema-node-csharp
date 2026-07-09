@@ -191,7 +191,7 @@ public class DataSourceExpVisitor : IExpVisitor
                     SchemaExp? item = funcCall.Args.ElementAtOrDefault(i);
                     if (item == null)
                     {
-                        paramMap[arg] = arg.Nullable
+                        paramMap[arg] = !arg.Require
                             ? new ConstantExp(arg.ValueType.From(null))
                             : throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                     }
