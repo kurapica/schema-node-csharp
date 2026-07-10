@@ -95,7 +95,7 @@ public class RelationType: AnyType;
 /// </summary>
 public interface IRelationProcess
 {
-    Task LoadAsync(SchemaContext context, IValueTypeAccess owner);
+    Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner);
     
     /// <summary>
     /// Process the relation and return the new property value

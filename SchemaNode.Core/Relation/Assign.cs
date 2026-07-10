@@ -23,7 +23,11 @@ public class Assign : IRelationProcess
     public object? Value { get; set; }
 
     /// <inheritdoc/> 
-    public Task LoadAsync(SchemaContext context, IValueTypeAccess owner) => Task.CompletedTask;
+    public Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
+    {
+        Value = schema.GetProperty<AssignProperty>()?.GetValue<object>();
+        return Task.CompletedTask;
+    }
 
     /// <inheritdoc/> 
     public Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner) => Task.FromResult(Value);
@@ -36,6 +40,7 @@ public class Assign : IRelationProcess
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.assign")]
 [Meta<Property.Record.RelationKind>("assign", 0)]
+[Meta<RelationProcess>(typeof(Assign))]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "assign")]
-[Relation<OverrideType>($"$assign.{nameof(Assign.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getproptype)}", $"${nameof(RelationSchema.Property)}")]
-public class AssignProperty : Property<Assign>;
+[Relation<OverrideType>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getproptype)}", $"${nameof(RelationSchema.Property)}")]
+public class AssignProperty : Property<object>;
