@@ -23,7 +23,7 @@ public static class SystemIntrinsic
     /// <summary>
     /// Gets the default value if value is null
     /// </summary>
-    public static T @default<T>(T? a, T d) => a ?? d;
+    public static T @default<T>(T? value, T @default) => value ?? @default;
 
     /// <summary>
     /// Return the null value of the given type
@@ -36,13 +36,13 @@ public static class SystemIntrinsic
 
     /// <summary>
     /// system.intrinsic.ifret
-    /// if contains the condition, return the value and stop the execution
+    /// if match the condition, return the value and stop the execution
     /// </summary>
     public static T? ifret<T>(bool cond, T? value) => value;
 
     /// <summary>
     /// system.intrinsic.ifnot
-    /// if not contains the condition, return the value and stop the execution
+    /// if not match the condition, return the value and stop the execution
     /// </summary>
     public static T? ifnot<T>(bool cond, T? value) => value;
 

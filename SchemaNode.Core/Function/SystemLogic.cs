@@ -37,7 +37,7 @@ public static class SystemLogic
     /// system.logic.not
     /// </summary>
     [Meta<Logic>(LogicType.Not)]
-    public static bool not(bool a) => !a;
+    public static bool not([Meta<Default>(false)] bool a) => !a;
 
     /// <summary>
     /// system.logic.between
