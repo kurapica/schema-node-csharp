@@ -14,13 +14,12 @@ namespace SchemaNode.Relation;
 /// <summary>
 /// The relation assign
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.assign")]
 public class Assign : IRelationProcess
 {
     /// <summary>
     /// The value assign to property
     /// </summary>
-    public object? Value { get; set; }
+    public object? Value { get; private set; }
 
     /// <inheritdoc/> 
     public Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Enum;
 using SchemaNode.Property;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -36,7 +37,7 @@ public interface IRelationAttribute
     /// <summary>
     /// Generate the relation schema data
     /// </summary>
-    IRelationProcess GetRelationProcess();
+    void SetRelationProcess(RelationSchema schema);
 
     /// <summary>
     /// Gets the relation schema
@@ -51,10 +52,7 @@ public interface IRelationAttribute
             Stage = Stage
         };
 
-        IRelationProcess process = GetRelationProcess();
-        Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
-                        ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
-        relationSchema.SetProperty(propType, process);
+        SetRelationProcess(relationSchema);
         return relationSchema;
     }
 }
@@ -84,7 +82,7 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
     }
     
     /// <summary>
-    /// The call relation with target specified
+    /// The call relation with target specified n
     /// </summary>
     public RelationAttribute(string func, params object[] args)
     {
@@ -117,33 +115,39 @@ public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute 
     /// <summary>
     /// The function
     /// </summary>
-    string Func { get; }
+    private string Func { get; }
     
     /// <summary>
     /// The call arguments
     /// </summary>
-    object[] Args { get; }
+    private object[] Args { get; }
     
     /// <inheritdoc/>
-    public IRelationProcess GetRelationProcess()
+    public void SetRelationProcess(RelationSchema schema)
     {
-        return new Relation.Call
+        schema.SetProperty<CallProperty, FuncCall>(new FuncCall
         {
             Func = Func,
             Args = Args.Select(a => a is string str
                 ? str.StartsWith('$')
                     ? str.StartsWith("$$")
                         ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
-                    : new CallArg{ Value = JsonValue.Create(str) }
+                        : new CallArg
+                        {
+                            Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT)
+                                ? str
+                                : str[1..].ToCamelCase()
+                        }
+                    : new CallArg { Value = JsonValue.Create(str) }
                 : new CallArg { Value = a.ToJsonNode() }).ToArray()
-        };
+        });
     }
 }
 
 /// <summary>
 /// The assignment relation
 /// </summary>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
 public sealed class RelationAssign<T> : System.Attribute, IRelationAttribute where T: IProperty
 {
     object? Value { get; }
@@ -199,8 +203,8 @@ public sealed class RelationAssign<T> : System.Attribute, IRelationAttribute whe
     public RelationStage Stage { get; } = RelationStage.Load | RelationStage.Input;
 
     /// <inheritdoc/>
-    public IRelationProcess GetRelationProcess()
+    public void SetRelationProcess(RelationSchema schema)
     {
-        return new Relation.Assign { Value = Value };
+        schema.SetProperty<AssignProperty, object>(Value!);
     }
 }

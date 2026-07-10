@@ -109,7 +109,7 @@ public class FunctionTypeTest : Base.CoreTestBase
     [TestMethod]
     public async Task SystemStr_Len()
     {
-        var func = await Context.GetNodeTypeAsync<FunctionType>("system.str.state.len");
+        var func = await Context.GetNodeTypeAsync<FunctionType>("system.str.state.length");
         Assert.IsNotNull(func);
         Assert.AreEqual(10L, await func.CallAsync<long>(Context, ["SchemaNode"]));
     }
@@ -501,13 +501,13 @@ public class FunctionTypeTest : Base.CoreTestBase
     [TestMethod]
     public async Task SystemMath_Constants()
     {
-        var piFunc = await Context.GetNodeTypeAsync<FunctionType>("system.math.constants.pi");
-        if (piFunc == null) Assert.Inconclusive("system.math.constants.pi not loaded");
+        var piFunc = await Context.GetNodeTypeAsync<FunctionType>("system.math.const.pi");
+        Assert.IsNotNull(piFunc);
         var pi = await piFunc.CallAsync<decimal>(Context, []);
         Assert.IsTrue(pi > 3m && pi < 4m);
 
-        var eFunc = await Context.GetNodeTypeAsync<FunctionType>("system.math.constants.e");
-        if (eFunc == null) Assert.Inconclusive("system.math.constants.e not loaded");
+        var eFunc = await Context.GetNodeTypeAsync<FunctionType>("system.math.const.e");
+        Assert.IsNotNull(eFunc);
         var e = await eFunc.CallAsync<decimal>(Context, []);
         Assert.IsTrue(e > 2m && e < 3m);
     }
@@ -515,8 +515,8 @@ public class FunctionTypeTest : Base.CoreTestBase
     [TestMethod]
     public async Task SystemMath_Sqrt()
     {
-        var func = await Context.GetNodeTypeAsync<FunctionType>("system.math.sqrt");
-        if (func == null) Assert.Inconclusive("system.math.sqrt not loaded");
+        var func = await Context.GetNodeTypeAsync<FunctionType>("system.math.numeric.sqrt");
+        Assert.IsNotNull(func);
         var result = await func.CallAsync<double>(Context, [16.0]);
         Assert.AreEqual(4.0, result, 0.001);
     }

@@ -1,4 +1,3 @@
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
@@ -15,36 +14,42 @@ namespace SchemaNode.Relation;
 /// <summary>
 /// The relation call
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.call")]
 public class Call : IRelationProcess, INodeReferences, IErrorProvider
 {
     /// <summary>
     /// The function to be used
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    public string Func { get; set; } = null!;
+    public string Func { get; private set; } = null!;
 
     /// <summary>
     /// The call arguments
     /// </summary>
-    public CallArg[] Args { get; init; } = [];
+    public CallArg[] Args { get; private set; } = [];
     
     /// <summary>
     /// The load error
     /// </summary>
-    [SchemaIgnore]
     public string? Error { get; private set; }
 
     /// <summary>
     /// The function type
     /// </summary>
-    [SchemaIgnore]
-    [JsonIgnore]
     public FunctionType? FuncType { get; private set; }
 
     /// <inheritdoc/>
-    public async Task LoadAsync(SchemaContext context, IValueTypeAccess owner)
+    public async Task LoadAsync(SchemaContext context, RelationSchema schema, IValueTypeAccess owner)
     {
+        FuncCall? call = schema.GetProperty<CallProperty>()?.GetValue<FuncCall>();
+        if (call == null)
+        {
+            Error ??= ErrorCodes.RELATION_FUNC_NOT_EXIST;
+            return;
+        }
+        Func = call.Func;
+        Args = call.Args;
+        
+        // load & check
         FuncType = !string.IsNullOrWhiteSpace(Func) ? await context.GetNodeTypeAsync<FunctionType>(Func): null;
         Error = FuncType == null ? ErrorCodes.RELATION_FUNC_NOT_EXIST : null;
         
@@ -84,6 +89,7 @@ public class Call : IRelationProcess, INodeReferences, IErrorProvider
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.call")]
 [Meta<SchemaNode.Property.Record.RelationKind>("call", 1)]
+[Meta<RelationProcess>(typeof(Call))]
 [Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
-[Relation<EntrySource>($"$call.{nameof(Call.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
-public class CallProperty : Property<Call>;
+[Relation<EntrySource>($"${nameof(Call.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+public class CallProperty : FuncCallProperty;

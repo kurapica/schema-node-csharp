@@ -16,6 +16,9 @@ public static class ErrorCodes
     
     [Meta<ErrorCode>(RELATION_FUNC_NOT_EXIST)]
     public const string RELATION_FUNC_NOT_EXIST = "relation_func_not_exist";
+    
+    [Meta<ErrorCode>(RELATION_PROPERTY_NOT_VALID)]
+    public const string RELATION_PROPERTY_NOT_VALID = "relation_property_not_valid";
 
     [Meta<ErrorCode>(STRUCT_VALID_FUNC_NOT_EXIST)]
     public const string STRUCT_VALID_FUNC_NOT_EXIST = "struct_valid_func_not_exist";
