@@ -173,8 +173,10 @@ public abstract class PropertyOwner
         else
         {
             // CombineProperties the properties
+            HashSet<string> handled = new (StringComparer.OrdinalIgnoreCase);
             foreach (Type propType in runtime.GetSchemaKindProperties(kind))
             {
+                handled.Add(propType.Name);
                 IProperty[] otherProps = other.GetProperties(propType).ToArray();
                 if (otherProps.Length == 0) continue;
 
@@ -203,6 +205,13 @@ public abstract class PropertyOwner
                     else
                         OverrideProperty(otherProp);
                 }
+            }
+            
+            // for other un-supported properties
+            foreach (KeyValuePair<string, JsonNode?> pair in other.Extensions)
+            {
+                if (!handled.Add(pair.Key) || Extensions.ContainsKey(pair.Key) || pair.Value is null || pair.Value.IsEmpty()) continue;
+                Extensions[pair.Key] = pair.Value.DeepClone();
             }
         }
 

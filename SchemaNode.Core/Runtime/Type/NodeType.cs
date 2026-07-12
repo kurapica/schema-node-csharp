@@ -113,9 +113,9 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     public virtual Task LoadAsync(SchemaContext context) => Task.CompletedTask;
 
     /// <summary>
-    /// Release the references
+    /// Unload the type
     /// </summary>
-    public virtual void Release() { }
+    public virtual void Unload() { }
 
     /// <summary>
     /// Gets the csharp type
@@ -137,7 +137,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
         // reset
-        ReleaseType();
+        UnloadType();
         Error = null;
         
         // load basic info
@@ -174,7 +174,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
         }
     }
 
-    private void ReleaseType()
+    private void UnloadType()
     {
         if (GenericParams != null)
             foreach (NodeType node in GenericParams)
@@ -182,7 +182,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
         else
             foreach (NodeType node in GetReferenceTypes())
                 node.RemoveUsedBy(this);
-        Release();
+        Unload();
     }
 
     /// <summary>
@@ -380,7 +380,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     /// <summary>
     /// Release ref
     /// </summary>
-    public void Dispose() => ReleaseType();
+    public void Dispose() => UnloadType();
     
     #endregion
 }

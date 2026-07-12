@@ -92,7 +92,7 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override void Release()
+    public override void Unload()
     {
         _fields = [];
         _relations = null;

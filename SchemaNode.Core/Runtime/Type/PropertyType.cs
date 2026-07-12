@@ -28,4 +28,13 @@ public class PropertyType : NodeType
         if (ValueType == null)
             Error = ErrorCodes.NO_DEFINITION;
     }
+
+    /// <inheritdoc/>
+    public override IEnumerable<NodeType> GetReferenceTypes()
+    {
+        if (ValueType != null)
+            yield return ValueType;
+        foreach(var type in base.GetReferenceTypes())
+            yield return type;
+    }
 }

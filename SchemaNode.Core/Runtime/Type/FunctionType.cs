@@ -169,7 +169,7 @@ public sealed class FunctionType : NodeType
     }
     
     /// <inheritdoc />
-    public override void Release()
+    public override void Unload()
     {
         Args = [];
         Exps = [];

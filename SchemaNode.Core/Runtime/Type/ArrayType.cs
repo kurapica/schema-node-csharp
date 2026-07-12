@@ -89,7 +89,7 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override void Release() => _relations = null;
+    public override void Unload() => _relations = null;
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
