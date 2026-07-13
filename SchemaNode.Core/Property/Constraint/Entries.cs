@@ -5,7 +5,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Property.Constraints;
+namespace SchemaNode.Property.Constraint;
 
 [Meta<Alias>("entries")]
 [Meta<ForSchema>(SCHEMA_KIND_STRING)]
