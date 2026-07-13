@@ -311,4 +311,36 @@ public sealed class ArrayType: ValueType
     }
 
     #endregion
+    
+    #region Property
+    
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? Element?.GetProperty<T>();
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    {
+        foreach (var property in base.GetProperties<T>())
+        {
+            yield return property;
+            if (!property.Stackable) yield break;
+        }
+
+        if (Element != null)
+        {
+            foreach (var property in Element.GetProperties<T>())
+            {
+                yield return property;
+                if (!property.Stackable) yield break;
+            }
+        }
+    }
+    
+    #endregion
 }

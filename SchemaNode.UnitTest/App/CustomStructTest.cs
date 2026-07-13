@@ -40,9 +40,9 @@ public class CustomStructTest : Base.AppTestBase
                 }
             ]
         };
-        addressSchema.Fields[0].SetProperty<UplimitString, long>(20);
-        addressSchema.Fields[1].SetProperty<UplimitString, long>(20);
-        addressSchema.Fields[2].SetProperty<UplimitInt, long>(99999);
+        addressSchema.Fields[0].SetProperty<UpLimitString, long>(20);
+        addressSchema.Fields[1].SetProperty<UpLimitString, long>(20);
+        addressSchema.Fields[2].SetProperty<UpLimitInt, long>(99999);
         schema.SetProperty<StructProperty, StructSchema>(addressSchema);
         bool result = await Context.SaveSchemaAsync(schema);
         Assert.IsTrue(result);
@@ -85,7 +85,7 @@ public class CustomStructTest : Base.AppTestBase
                 new StructFieldSchema { Name = "isActive", Type = NS_SYSTEM_BOOL }
             ]
         };
-        eventSchema.Fields[0].SetProperty<UplimitString, long>(100);
+        eventSchema.Fields[0].SetProperty<UpLimitString, long>(100);
         schema.SetProperty<StructProperty, StructSchema>(eventSchema);
         bool result = await Context.SaveSchemaAsync(schema);
         Assert.IsTrue(result);
@@ -124,9 +124,9 @@ public class CustomStructTest : Base.AppTestBase
                 new StructFieldSchema { Name = "age", Type = NS_SYSTEM_INT }
             ]
         };
-        profileSchema.Fields[0].SetProperty<UplimitString, long>(10);
+        profileSchema.Fields[0].SetProperty<UpLimitString, long>(10);
         profileSchema.Fields[1].SetProperty<LowLimitInt, long>(0);
-        profileSchema.Fields[1].SetProperty<UplimitInt, long>(150);
+        profileSchema.Fields[1].SetProperty<UpLimitInt, long>(150);
         schema.SetProperty<StructProperty, StructSchema>(profileSchema);
         await Context.SaveSchemaAsync(schema);
 

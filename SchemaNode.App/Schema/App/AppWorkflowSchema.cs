@@ -35,7 +35,7 @@ public sealed class AppWorkflowSchema: PropertyOwner
     /// The work flow name
     /// </summary>
     [Meta<PrimaryIndex>(1)]
-    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
     
     /// <summary>
@@ -65,7 +65,7 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The node name
     /// </summary>
-    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
     
     /// <summary>

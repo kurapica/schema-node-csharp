@@ -247,7 +247,7 @@ public sealed class EnumType: ValueType
             {
                 if (long.TryParse(info.Value, out long val))
                 {
-                    max = Math.Max(max, val);
+                    max |= val;
                 }
             }
         }
@@ -256,7 +256,7 @@ public sealed class EnumType: ValueType
             // pass
         }
 
-        _maxFlags = max * 2;
+        _maxFlags = max;
     }
 
     // Load the enum value access path

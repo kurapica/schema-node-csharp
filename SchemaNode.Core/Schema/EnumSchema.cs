@@ -112,14 +112,14 @@ public sealed class EnumValueSchema: PropertyOwner
     /// </summary>
     [Meta<PrimaryIndex>]
     [Meta<UniqueIndex>("SUB_LIST", 1)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
     /// The root value
     /// </summary>
     [Meta<UniqueIndex>("SUB_LIST", 0)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
     
     #region Runtime info

@@ -26,7 +26,7 @@ public class CustomScalarTest : Base.AppTestBase
             Base = NS_SYSTEM_INT,
         };
         ageSchema.SetProperty<LowLimitInt, long>(0);
-        ageSchema.SetProperty<UplimitInt, long>(200);
+        ageSchema.SetProperty<UpLimitInt, long>(200);
         schema.SetProperty<IntProperty, IntSchema>(ageSchema);
         bool result = await Context.SaveSchemaAsync(schema);
         Assert.IsTrue(result);
@@ -55,7 +55,7 @@ public class CustomScalarTest : Base.AppTestBase
             Base = NS_SYSTEM_INT,
         };
         intSchema.SetProperty<LowLimitInt, long>(1);
-        intSchema.SetProperty<UplimitInt, long>(1000);
+        intSchema.SetProperty<UpLimitInt, long>(1000);
         schema.SetProperty<IntProperty, IntSchema>(intSchema);
         await Context.SaveSchemaAsync(schema);
 
@@ -86,7 +86,7 @@ public class CustomScalarTest : Base.AppTestBase
         {
             Base = NS_SYSTEM_STRING,
         };
-        strSchema.SetProperty<UplimitString, long>(10);
+        strSchema.SetProperty<UpLimitString, long>(10);
         schema.SetProperty<StringProperty, StringSchema>(strSchema);
         await Context.SaveSchemaAsync(schema);
 

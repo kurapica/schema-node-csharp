@@ -111,7 +111,7 @@ public sealed class FuncArg : PropertyOwner
     /// The argument name
     /// </summary>
     [Meta<PrimaryIndex>]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 
@@ -130,7 +130,7 @@ public sealed class FuncExp {
     /// <summary>
     /// The expression name
     /// </summary>
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
 

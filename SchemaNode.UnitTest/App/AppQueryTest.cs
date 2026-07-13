@@ -28,10 +28,10 @@ public class AppQueryTest : Base.AppTestBase
         [Meta<PrimaryIndex>]
         public Guid Id { get; set; }
 
-        [Meta<UplimitString>(200)]
+        [Meta<UpLimitString>(200)]
         public string Title { get; set; } = null!;
 
-        [Meta<UplimitString>(100)]
+        [Meta<UpLimitString>(100)]
         public string Author { get; set; } = null!;
 
         public long Year { get; set; }

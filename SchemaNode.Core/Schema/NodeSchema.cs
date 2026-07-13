@@ -153,7 +153,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
 /// Represents the namespace type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.type")]
-[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+[Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
 [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.gettypes)}", NODE_SELF)]
 public class AnyType: String;
 

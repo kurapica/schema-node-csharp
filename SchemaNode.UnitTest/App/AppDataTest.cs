@@ -38,14 +38,14 @@ public class AppDataTest : Base.AppTestBase
         /// <summary>
         /// The place name
         /// </summary>
-        [Meta<UplimitString>(50)]
+        [Meta<UpLimitString>(50)]
         public string Name { get; set; } = null!;
 
         /// <summary>
         /// The capacity of the place
         /// </summary>
         [Meta<LowLimitInt>(0)]
-        [Meta<UplimitInt>(1000)]
+        [Meta<UpLimitInt>(1000)]
         public long Capacity { get; set; }
     }
 
@@ -63,7 +63,7 @@ public class AppDataTest : Base.AppTestBase
         /// <summary>
         /// The meeting name
         /// </summary>
-        [Meta<UplimitString>(50)]
+        [Meta<UpLimitString>(50)]
         public string Name { get; set; } = null!;
 
         /// <summary>
@@ -110,7 +110,7 @@ public class AppDataTest : Base.AppTestBase
         /// <summary>
         /// The user name or id
         /// </summary>
-        [Meta<UplimitString>(50)]
+        [Meta<UpLimitString>(50)]
         public string Name { get; set; } = null!;
         
         /// <summary>

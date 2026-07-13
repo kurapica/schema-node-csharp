@@ -375,16 +375,6 @@ public class StructFieldType : INodeReferences
     public DataNode? Default { get; private set; }
 
     /// <summary>
-    /// The low limit of the scalar value.
-    /// </summary>
-    public object? LowLimit { get; private set; }
-
-    /// <summary>
-    /// The up limit of the scalar value.
-    /// </summary>
-    public object? UpLimit { get; private set; }
-
-    /// <summary>
     /// Load struct field schema
     /// </summary>
     internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, PropertyInfo? property = null)
@@ -420,8 +410,6 @@ public class StructFieldType : INodeReferences
         DisplayOnly = GetProperty<DisplayOnly>()?.Value;
         Unpack =  GetProperty<Unpack>()?.Value;
         Default = GetProperty<Default>() is {} defProp ? await Type.ValidateValueAsync(context, defProp.Value) : null;
-        UpLimit = GetProperty(nameof(UpLimit))?.GetValue<object>();
-        LowLimit = GetProperty(nameof(LowLimit))?.GetValue<object>();
     }
 
     /// <summary>
@@ -436,12 +424,31 @@ public class StructFieldType : INodeReferences
     }
     
     /// <summary>
-    /// Gets the property
-    /// </summary>
-    public IProperty? GetProperty(string propertyName) => Properties?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-    
-    /// <summary>
     /// Get the property with property type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => Properties?.OfType<T>().FirstOrDefault();
+    public T? GetProperty<T>() where T : class, IProperty => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
+
+    /// <summary>
+    /// Gets the properties
+    /// </summary>
+    public IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    {
+        if (Properties is { Length: > 0 })
+        {
+            foreach (var prop in Properties.OfType<T>())
+            {
+                yield return prop;
+                if (!prop.Stackable) yield break;
+            }
+        }
+
+        if (Type != null)
+        {
+            foreach (var prop in Type.GetProperties<T>())
+            {
+                yield return prop;
+                if (!prop.Stackable) yield break;
+            }
+        }
+    }
 }

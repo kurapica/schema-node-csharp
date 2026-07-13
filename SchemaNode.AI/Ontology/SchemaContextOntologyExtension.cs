@@ -1,7 +1,9 @@
+using Microsoft.Win32;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Function;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
@@ -10,8 +12,12 @@ using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
+using DateType = SchemaNode.Runtime.DateType;
+using DecimalType = SchemaNode.Runtime.DecimalType;
 using EnumType = SchemaNode.Runtime.EnumType;
+using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
+using StringType = SchemaNode.Schema.StringType;
 using StructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.AI;
@@ -186,8 +192,20 @@ public static class SchemaContextOntologyExtension
             Iri      = $"{graph.AppPrefix}{seg}",
             Labels   = ToLabels(scalar.GetProperty<Display>()?.Value),
             BaseType = ScalarToXsd(scalar.Name),
-            LowLimit = scalar.GetProperty("lowLimit")?.GetValue<decimal>(),
-            UpLimit  = scalar.GetProperty("upLimit")?.GetValue<decimal>(),
+            LowLimit = scalar switch
+            {
+                IntType intType => intType.GetProperty<LowLimitInt>()?.Value,
+                DecimalType decimalType => decimalType.GetProperty<LowLimitNumber>()?.Value,
+                Runtime.StringType strType => strType.GetProperty<LowLimitString>()?.Value,
+                _ => null,
+            },
+            UpLimit  =  scalar switch
+            {
+                IntType intType => intType.GetProperty<UpLimitInt>()?.Value,
+                DecimalType decimalType => decimalType.GetProperty<UpLimitNumber>()?.Value,
+                Runtime.StringType strType => strType.GetProperty<UpLimitString>()?.Value,
+                _ => null,
+            },
             Unit     = scalar.GetProperty<Unit>()?.Value?.Key
         });
     }

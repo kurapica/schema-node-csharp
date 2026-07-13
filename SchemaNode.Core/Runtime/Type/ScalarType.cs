@@ -69,15 +69,33 @@ public abstract class ScalarType : ValueType
     #region Methods
 
     /// <summary>
-    /// Gets the property with given type
+    /// Gets the property with the given type
     /// </summary>
     public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>();
-    
-    /// <summary>
-    /// Gets the property by property name
-    /// </summary>
-    public new IProperty? GetProperty(string propertyName) => base.GetProperty(propertyName) ?? BaseNode?.GetProperty(propertyName);
 
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    {
+        foreach (var property in base.GetProperties<T>())
+        {
+            yield return property;
+            if (!property.Stackable) yield break;
+        }
+
+        if (BaseNode != null)
+        {
+            foreach (var property in BaseNode.GetProperties<T>())
+            {
+                yield return property;
+                if (!property.Stackable) yield break;
+            }
+        }
+    }
+    
     #endregion
 }
 

@@ -30,7 +30,7 @@ public class PropertySchema: PropertyOwner
     /// <summary>
     /// The property name, such as "upLimit", "lowLimit", "pattern", etc.
     /// </summary>
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Property { get; set; } = string.Empty;
 
     /// <summary>

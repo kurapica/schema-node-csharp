@@ -11,7 +11,7 @@ namespace SchemaNode.Runtime;
 public sealed class StringType : ScalarType
 {
     /// <inheritdoc/>
-    public override bool IsIndexable => GetProperty<UplimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
+    public override bool IsIndexable => GetProperty<UpLimitString>()?.GetValue<long>() < ENTITY_PRIMARY_KEY_MAX_LEN;
 
     /// <inheritdoc/>
     public override DataNode Create() => new StringNode { Type = this };

@@ -441,18 +441,31 @@ public sealed class AppFieldType
     /// <summary>
     /// Gets the property with given type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault() ?? ValueType?.GetProperty<T>();
 
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    public IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    {
+        if (_props != null)
+        {
+            foreach (var prop in _props.OfType<T>())
+            {
+                yield return prop;
+                if (!prop.Stackable) yield break;
+            }
+        }
+        if (ValueType  != null)
+        {
+            foreach (var prop in ValueType.GetProperties<T>())
+            {
+                yield return prop;
+                if (!prop.Stackable) yield break;
+            }
+        }
+    }
     
-    /// <summary>
-    /// Gets the property by property name
-    /// </summary>
-    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-
     /// <summary>
     /// Gets the primary properties for the struct array type, return empty if the field is not struct array or no primary defined
     /// </summary>

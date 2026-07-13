@@ -45,7 +45,7 @@ public class Int : Number, IScalarType<long>;
 /// Represents the percent scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_PERCENT)]
-[Meta<UplimitInt>(100)]
+[Meta<UpLimitInt>(100)]
 [Meta<LowLimitInt>(0)]
 public class Percent: Float;
 

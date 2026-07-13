@@ -960,7 +960,7 @@ public class DynamicTableSchema
         {
             case IntType intType:
             {
-                upLimit ??= field?.GetProperty<UplimitInt>()?.Value ?? intType.GetProperty<UplimitInt>()?.Value;
+                upLimit ??= field?.GetProperty<UpLimitInt>()?.Value ?? intType.GetProperty<UpLimitInt>()?.Value;
                 lowLimit ??= field?.GetProperty<LowLimitInt>()?.Value ?? intType.GetProperty<LowLimitInt>()?.Value;
                 
                 // No Limit
@@ -1012,7 +1012,7 @@ public class DynamicTableSchema
             }
             case StringType stringType:
             {
-                upLimit ??= field?.GetProperty<UplimitString>()?.Value ?? stringType.GetProperty<UplimitString>()?.Value;
+                upLimit ??= field?.GetProperty<UpLimitString>()?.Value ?? stringType.GetProperty<UpLimitString>()?.Value;
                 
                 if (upLimit == 1)
                 {

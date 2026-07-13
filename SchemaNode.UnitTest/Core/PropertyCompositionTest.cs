@@ -53,8 +53,8 @@ public class PropertyCompositionTest : Base.CoreTestBase
         Assert.IsNotNull(intType);
 
         // GetProperty by string name
-        var prop = intType.GetProperty("Display");
-        Console.WriteLine($"Property by name 'Display': {prop?.Name}");
+        var prop = intType.GetProperty<Display>();
+        Console.WriteLine($"Property by name 'Display': {prop?.Value?.Key}");
     }
 
     /// <summary>

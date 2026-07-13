@@ -25,14 +25,14 @@ public class EnumValueEntity
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<UniqueIndex>("SUB_LIST", 3)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
     /// The root value
     /// </summary>
     [Meta<UniqueIndex>("SUB_LIST", 1)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
     
     /// <summary>

@@ -196,11 +196,6 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
     
     /// <summary>
-    /// Gets the property by property name
-    /// </summary>
-    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
     /// Gets the generic map
     /// </summary>
     internal NodeType? GetGenericType(ReadOnlySpan<char> name)
