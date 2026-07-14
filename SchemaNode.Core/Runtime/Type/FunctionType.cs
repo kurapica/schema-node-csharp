@@ -14,7 +14,6 @@ using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
-using SchemaNode.Struct;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -56,14 +55,9 @@ public sealed class FunctionType : NodeType
     internal MethodInfo? MethodInfo => FuncInfo?.Method;
     
     /// <summary>
-    /// Whether the function require call server
-    /// </summary>
-    internal bool RequireRemoteCall { get; private set; }
-
-    /// <summary>
     /// Whether the function is remote call only
     /// </summary>
-    internal bool IsRemoteCall => (LoadState & SchemaLoadState.Remote) > 0;
+    internal bool IsRemoteCall => Exps.Length == 0 && !IsSystemCall;
 
     /// <summary>
     /// Whether the function is defined as system, direct call
@@ -128,9 +122,6 @@ public sealed class FunctionType : NodeType
         Converter = func.GetProperty<Converter>()?.Value;
         FuncInfo = FunctionGenerator.GetSystemFuncInfo(Name);
 
-        // Check if server or direct call
-        RequireRemoteCall = IsRemoteCall;
-
         // Argument types
         HashSet<string> existNames = [];
         foreach (FunctionNodeArgument arg in Args)
@@ -159,13 +150,6 @@ public sealed class FunctionType : NodeType
         
         // Generate the exp trees
         await PreCompileAsync(context);
-        
-        foreach (FunctionNodeExpression exp in Exps)
-        {
-            // State taint
-            if (exp.FuncNode?.RequireRemoteCall == true)
-                RequireRemoteCall = true;
-        }
     }
     
     /// <inheritdoc />
