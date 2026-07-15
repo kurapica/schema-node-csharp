@@ -173,6 +173,10 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             fieldConfigs.Add(field);
         }
         
+        // struct level relations
+        foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit:false).OfType<IRelationAttribute>())
+            relations.Add((relation.GetRelationSchema(runtime, NODE_SELF, typeResolver)));
+        
         structSchema.Fields = fieldConfigs.ToArray();
 
         string[]? primaryFields = BuildFields(primaries);
