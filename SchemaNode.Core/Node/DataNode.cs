@@ -28,6 +28,11 @@ public abstract class DataNode : IValueAccess
     /// </summary>
     public ImmutableArray<string>? Violated { get; private set; }
     
+    /// <summary>
+    /// The parent
+    /// </summary>
+    public IValueAccess? Parent { get; init; }
+    
     #endregion
     
     #region Methods
@@ -35,12 +40,12 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Gets the access value by path
     /// </summary>
-    public DataNode? GetAccessValue(string path)
+    public IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
         SpanReader reader = path;
         DataNode? curr = this;
         while (curr != null && reader.NextPath())
-            curr = curr.GetAccessValue(reader.Current);
+            curr = curr.GetAccessValue(reader.Current, node);
         return curr;
     }
     
@@ -101,7 +106,7 @@ public abstract class DataNode : IValueAccess
     public abstract bool TrySetValue<T>(T? value);
 
     /// <summary>
-    /// Try gets the value as the gieven type
+    /// Try gets the value as the given type
     /// </summary>
     public abstract bool TryGetValue(Type type, out object? value);
 
@@ -152,7 +157,8 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Gets the access value by part path
     /// </summary>
-    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source) => source.IsEmpty || source.SeqEquals(NODE_SELF) ? this : null;
+    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null) 
+        => source.IsEmpty || source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? this : null;
 
     /// <summary>
     /// Whether the node is valid, which means no violated constraints
@@ -162,7 +168,14 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Equals check
     /// </summary>
-    public virtual bool Equals(DataNode? other) => other != null && (ReferenceEquals(this, other) || IsEmpty ? other.IsEmpty : TryGetValue(out object? thisValue) && other.TryGetValue(out object? otherValue) && Equals(thisValue, otherValue));
+    public virtual bool Equals(DataNode? other) 
+        => other != null && 
+           (ReferenceEquals(this, other) || 
+            IsEmpty 
+               ? other.IsEmpty 
+               : TryGetValue(out object? thisValue) && 
+                 other.TryGetValue(out object? otherValue) && 
+                 Equals(thisValue, otherValue));
 
     /// <inheritdoc/>
     public override string? ToString() => GetValue<string>();

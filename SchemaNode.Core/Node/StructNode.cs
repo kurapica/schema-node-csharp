@@ -38,7 +38,7 @@ public class StructNode : DataNode
         get => GetAccessValue(name);
         set
         {
-            DataNode? field = GetAccessValue(name);
+            IValueAccess? field = GetAccessValue(name);
             if (field == null) return;
             _csharpObject = null;
             field.TrySetValue(value);
@@ -78,8 +78,7 @@ public class StructNode : DataNode
     /// </summary>
     public bool TrySetFieldValue(string fieldName, object? value)
     {
-        DataNode? field = GetAccessValue(fieldName);
-        if (field == null || !field.TrySetValue(value)) return false;
+        if (GetAccessValue(fieldName) is not DataNode field || !field.TrySetValue(value)) return false;
         // assign back
         if (_csharpObject == null) return true;
         try
@@ -102,9 +101,9 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the access value
     /// </summary>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+    public override DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
     {
-        if (source.IsEmpty || source.SeqEquals(NODE_SELF)) return this;
+        if (source.IsEmpty || source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         return _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(source) ?? -1);
     }
 
@@ -117,7 +116,7 @@ public class StructNode : DataNode
         foreach (var (field, value) in GetFields())
         {
             if (field.DisplayOnly == true) continue;
-            DataNode? otherValue = otherStruct.GetAccessValue(field.Name);
+            var otherValue = otherStruct.GetAccessValue(field.Name);
             if (otherValue == null || !value.Equals(otherValue)) return false;
         }
         return true;
@@ -148,7 +147,7 @@ public class StructNode : DataNode
             {
                 foreach ((StructFieldType f, DataNode v) in GetFields())
                 {
-                    DataNode? otherValue = @struct.GetAccessValue(f.Name);
+                    var otherValue = @struct.GetAccessValue(f.Name);
                     if (otherValue != null) v.TrySetValue(otherValue);
                 }
 
@@ -291,7 +290,7 @@ public class StructNode : DataNode
     {
         StructNode clone = new((StructType)Type);
         int i = 0;
-        foreach (var field in (Type as StructType)!.GetFields())
+        foreach (var _ in (Type as StructType)!.GetFields())
         {
             clone._fields[i] = _fields[i].Clone();
             i++;

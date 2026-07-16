@@ -139,7 +139,7 @@ public static class SystemAppData
         params object?[] args)
     {
         DataNode? result = await get<DataNode>(context, app, field, args);
-        DataNode? f = (result as StructNode)?.GetAccessValue(dataField);
+        var f = (result as StructNode)?.GetAccessValue(dataField);
         return f != null ? f.GetValue<T>() : default(T?);
     }
     
@@ -232,8 +232,8 @@ public static class SystemAppData
                     if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
                     foreach (var fld in @struct.GetFields())
                     {
-                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name);
-                        DataNode? dataFld = structData.GetAccessValue(fld.Name);
+                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name) as DataNode;
+                        DataNode? dataFld = structData.GetAccessValue(fld.Name) as DataNode;
 
                         if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                         {
@@ -273,8 +273,8 @@ public static class SystemAppData
                         {
                             foreach (var fld in arrStruct.GetFields())
                             {
-                                DataNode? orgFld = oitem.GetAccessValue(fld.Name);
-                                DataNode? dataFld = ditem.GetAccessValue(fld.Name);
+                                DataNode? orgFld = oitem.GetAccessValue(fld.Name) as  DataNode;
+                                DataNode? dataFld = ditem.GetAccessValue(fld.Name)  as DataNode;
 
                                 if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                                 {

@@ -63,7 +63,7 @@ public class RelationSchema : PropertyOwner
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
-[Relation<EntrySource>($"${nameof(Relations)}.{nameof(RelationSchema.Target)}",
+[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}",
     NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public class Relations : Property<RelationSchema[]>
 {
@@ -100,5 +100,5 @@ public interface IRelationProcess
     /// <summary>
     /// Process the relation and return the new property value
     /// </summary>
-    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner);
+    Task<object?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null);
 }

@@ -104,7 +104,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     public override bool IsEmpty => Count == 0;
 
     /// <inheritdoc/>
-    public override bool TrySetValue<T>(T? value) where T : default
+    public sealed override bool TrySetValue<T>(T? value) where T : default
     {
         if (value is ArrayNode arrayNode)
         {
@@ -198,13 +198,27 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     public override void ClearValue() => _elements.Clear();
 
     /// <inheritdoc/>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+    public override DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
     {
-        if (source.SeqEquals(NODE_SELF)) return this;
-        if (source.SeqEquals(ARRAY_PREVIOUS)) return new ArrayNode(this, this.Count - 1);
+        if (source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        
+        int eleIndex = -1;
+        IValueAccess? branch = node;
+        
+        // locate the node's branch
+        while (branch is not null)
+        {
+            if ((eleIndex = _elements.FindIndex(e => e == branch)) >= 0) break;
+            branch = branch.Parent;
+        }
+        
+        // previous array
+        if (source.SeqEquals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
+            return eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
 
-        var lastEle = _elements.LastOrDefault();
-        return source.SeqEquals(ARRAY_ELEMENT) ? lastEle : lastEle?.GetAccessValue(source);
+        // deep access
+        DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
+        return source.SeqEquals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? arrayEle : arrayEle?.GetAccessValue(source);
     }
 
     /// <inheritdoc/>

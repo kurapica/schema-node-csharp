@@ -467,7 +467,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         DataNode? result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
             ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(item)
             : null;
-        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) : result;
+        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) as DataNode : result;
     }
     
     /// <summary>

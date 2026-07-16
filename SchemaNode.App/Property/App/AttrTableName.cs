@@ -14,5 +14,5 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(AttrTableName)}")]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(Topology)}", FieldStorageTopology.AttributeBased)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"${nameof(Topology)}", FieldStorageTopology.AttributeBased)]
 public class AttrTableName : Property<string>;

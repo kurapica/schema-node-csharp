@@ -131,5 +131,5 @@ public static class SystemCollection
     /// Gets the field node from object
     /// </summary>
     static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string path)
-        => obj is not StructNode s ? obj?.GetAccessValue(path) : await s.GetFieldValueAsync(context, path);
+        => obj is not StructNode s ? obj?.GetAccessValue(path) as DataNode : await s.GetFieldValueAsync(context, path);
 }

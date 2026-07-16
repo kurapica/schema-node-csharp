@@ -43,5 +43,33 @@ public interface IValueAccess
     /// <summary>
     /// Gets the access value
     /// </summary>
-    DataNode? GetAccessValue(string path);
+    /// <param name="path">The access path from current</param>
+    /// <param name="node">The access branch where the node should be in</param>
+    /// <returns></returns>
+    IValueAccess? GetAccessValue(string path, IValueAccess? node = null);
+
+    /// <summary>
+    /// Try set the value
+    /// </summary>
+    bool TrySetValue<T>(T? value);
+    
+    /// <summary>
+    /// Try get the value as the given type
+    /// </summary>
+    bool TryGetValue<T>(out T? value);
+    
+    /// <summary>
+    /// Gets the value
+    /// </summary>
+    public T? GetValue<T>() => TryGetValue<T>(out T? value) ? value : default(T?);
+    
+    /// <summary>
+    /// Whether the value is empty
+    /// </summary>
+    bool IsEmpty { get; }
+    
+    /// <summary>
+    /// The value parent
+    /// </summary>
+    IValueAccess? Parent { get; }
 }

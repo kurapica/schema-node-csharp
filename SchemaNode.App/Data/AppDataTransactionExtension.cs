@@ -496,7 +496,7 @@ public static class AppDataTransactionExtension
                                         int keyIdx = 0;
                                         foreach (DataPushPrimaryFieldAccess map in item)
                                         {
-                                            DataNode? keyNode = node.GetAccessValue(map.Key);
+                                            DataNode? keyNode = node.GetAccessValue(map.Key) as DataNode;
                                             if (keyNode == null || keyNode.IsEmpty) // cover case, impossible
                                             {
                                                 caseFilter = null;
@@ -628,7 +628,7 @@ public static class AppDataTransactionExtension
                                 {
                                     case DataPushPrimaryFieldAccess access:
                                         StructNode? owner = pushItem.ElementAtOrDefault(access.ArgIndex) as StructNode;
-                                        keysNodes[k] = owner?.GetAccessValue(access.DataField);
+                                        keysNodes[k] = owner?.GetAccessValue(access.DataField) as DataNode;
                                         break;
                                     
                                     case DataPushPrimaryConstant constant:
@@ -760,7 +760,7 @@ public static class AppDataTransactionExtension
                     ArrayNode? keysNode = null;
                     void AddKeys(IEnumerable<StructNode> nodes)
                     {
-                        foreach (DataNode? key in nodes.Select(node => node.GetAccessValue(keyField)))
+                        foreach (DataNode? key in nodes.Select(node => node.GetAccessValue(keyField) as DataNode))
                         {
                             if (key is not { IsEmpty: false }) continue;
                             var keyStr = key.GetValue<string>() ?? string.Empty;
@@ -836,8 +836,8 @@ public static class AppDataTransactionExtension
                                             bool isEqual = true;
                                             foreach (string pushKey in thirdInfo.PushKeys)
                                             {
-                                                DataNode? oVal = origin.GetAccessValue(pushKey);
-                                                DataNode? nVal = StructNode.GetAccessValue(pushKey);
+                                                DataNode? oVal = origin.GetAccessValue(pushKey) as  DataNode;
+                                                DataNode? nVal = StructNode.GetAccessValue(pushKey) as DataNode;
                                                 if (oVal is { IsEmpty: false } || nVal is { IsEmpty: false })
                                                 {
                                                     if (oVal == null || oVal.IsEmpty || nVal == null || nVal.IsEmpty)
@@ -994,9 +994,9 @@ public static class AppDataTransactionExtension
                         StructNode final = new StructNode(@struct);
                         foreach (var nodeField in @struct.GetFields())
                         {
-                            DataNode? originFld = origin is StructNode os ? os.GetAccessValue(nodeField.Name) : null;
-                            DataNode? oldFld = old is StructNode ols ? ols.GetAccessValue(nodeField.Name) : null;
-                            DataNode? nowFld = now is StructNode ns ? ns.GetAccessValue(nodeField.Name) : null;
+                            DataNode? originFld = origin is StructNode os ? os.GetAccessValue(nodeField.Name) as DataNode : null;
+                            DataNode? oldFld = old is StructNode ols ? ols.GetAccessValue(nodeField.Name) as DataNode : null;
+                            DataNode? nowFld = now is StructNode ns ? ns.GetAccessValue(nodeField.Name) as DataNode : null;
 
                             switch (joinMethodMap.GetValueOrDefault(nodeField.Name, DataCombineType.Newest))
                             {
@@ -1102,9 +1102,9 @@ public static class AppDataTransactionExtension
                             nowMap.TryGetValue(key, out StructNode? now);
                             foreach (string s in valueFields)
                             {
-                                DataNode? originFld = res1.GetAccessValue(s);
-                                DataNode? oldFld = old?.GetAccessValue(s);
-                                DataNode? nowFld = now?.GetAccessValue(s);
+                                DataNode? originFld = res1.GetAccessValue(s) as DataNode;
+                                DataNode? oldFld = old?.GetAccessValue(s) as DataNode;
+                                DataNode? nowFld = now?.GetAccessValue(s) as DataNode;
 
                                 switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {
@@ -1135,8 +1135,8 @@ public static class AppDataTransactionExtension
                             // Shouldn't be but still handle it
                             foreach (string s in valueFields)
                             {
-                                DataNode? oldFld = old?.GetAccessValue(s);
-                                DataNode? nowFld = res?.GetAccessValue(s);
+                                DataNode? oldFld = old?.GetAccessValue(s) as DataNode;
+                                DataNode? nowFld = res?.GetAccessValue(s) as DataNode;
 
                                 switch (joinMethodMap.GetValueOrDefault(s, DataCombineType.Newest))
                                 {

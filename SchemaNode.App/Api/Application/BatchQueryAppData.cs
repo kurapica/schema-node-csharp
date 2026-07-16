@@ -371,8 +371,7 @@ public static class BatchQueryExtension
                 {
                     foreach (StructFieldType f in @struct.GetFields())
                     {
-                        DataNode? v = obj.GetAccessValue(f.Name);
-                        if (v is { IsEmpty: false })
+                        if (obj.GetAccessValue(f.Name) is DataNode { IsEmpty: false } v)
                             await ScanEnumAccess(context, root, f.Type!, enumsKeys, v);
                     }
                 }

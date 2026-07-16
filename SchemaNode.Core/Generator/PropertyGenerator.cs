@@ -51,7 +51,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
         // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
         // Do not inspect Property-type relations here; those are dynamically assembled later.
         foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-            relations.Add(relation.GetRelationSchema(runtime, propSchema.Property, typeResolver));
+            relations.Add(relation.GetRelationSchema(propSchema.Property));
         if (relations.Count > 0)
             propSchema.SetProperty<Relations, RelationSchema[]>(relations.ToArray());
         

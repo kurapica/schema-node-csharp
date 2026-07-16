@@ -118,7 +118,7 @@ public class WaitEvent : BaseWorkflow,
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.workflow.event")]
-[Relation<Visible>($"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemAppReflect.Workflow.iskind)}", $"${nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
+[Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemAppReflect.Workflow.iskind)}", $"${nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
 public class EventProperty : Property<EventDeclare>;
 
 /// <summary>

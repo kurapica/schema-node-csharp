@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
 [Meta<Stackable>]
-[RelationAssign<Valid>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
+[Relation<Valid, Relation.Assign>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class Valid : FuncCallProperty, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)
@@ -37,7 +37,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
             
             if (!string.IsNullOrWhiteSpace(arg.Source))
             {
-                DataNode? value = node.GetAccessValue(arg.Source);
+                DataNode? value = node.GetAccessValue(arg.Source) as  DataNode;
                 args[i] = value;
                 if (value is ArrayNode && argInfo.ValueType is not ArrayType)
                 {

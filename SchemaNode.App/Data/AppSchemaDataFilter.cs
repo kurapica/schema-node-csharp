@@ -452,7 +452,7 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterField access:
             {
                 // Check if the field is complex field
-                return structNode.GetAccessValue(access.Field) ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
+                return structNode.GetAccessValue(access.Field) as DataNode ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
             }
             case AppSchemaDataFilterUnary unary:
             {

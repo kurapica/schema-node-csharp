@@ -357,7 +357,7 @@ public static class SchemaContextOntologyExtension
         // Relation annotations
         foreach (var rel in app.GetRelations())
         {
-            if (rel.Process is not Call call) continue;
+            if (rel.Process is not CallProcess call) continue;
 
             cls.Relations.Add(new OntologyRelation
             {

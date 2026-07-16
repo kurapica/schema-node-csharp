@@ -115,7 +115,7 @@ public sealed class StructType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF)) return this;
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
@@ -156,7 +156,7 @@ public sealed class StructType: ValueType
         // Validate by fields
         foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
         {
-            DataNode? dataNode = result.GetAccessValue(field.Name);
+            var dataNode = result.GetAccessValue(field.Name) as DataNode;
             if (dataNode == null) continue;
             
             // Validate the struct fields
@@ -188,8 +188,6 @@ public sealed class StructType: ValueType
         {
             foreach (RelationType process in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
             {
-                if (await process.ProcessAsync(context, result) is not IConstraintProperty prop) continue;
-                
                 // apply constraint on target
                 SpanReader spans = process.Target;
                 List<DataNode> currNodes = [result];
@@ -199,6 +197,8 @@ public sealed class StructType: ValueType
                     {
                         foreach (DataNode currNode in currNodes)
                         {
+                            if (await process.ProcessAsync(context, result, currNode) is not IConstraintProperty prop) continue;
+
                             if (await prop.ValidateAsync(context, currNode) == false)
                             {
                                 if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
@@ -278,18 +278,18 @@ public sealed class StructType: ValueType
         StructFieldType? fieldType = GetField(paths[0]);
         if (fieldType == null) return null;
         
-        DataNode? value = node.GetAccessValue(paths[0]);
+        var value = node.GetAccessValue(paths[0]) as DataNode;
         if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
         
         // check relations
         RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
         if (r == null) return value;
         
         // process relations
-        IProperty? def = await r.ProcessAsync(context, node);
+        IProperty? def = await r.ProcessAsync(context, node, value);
         value.TrySetValue(def?.GetValue<object>());
-        return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
+        return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
     }
     
     /// <summary>

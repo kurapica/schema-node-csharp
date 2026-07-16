@@ -50,11 +50,11 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// Process the relation and return the property with the result
     /// </summary>
-    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner)
+    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {
         var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
-        if (Process == null || await Process.ProcessAsync(context, owner) is not { } value) return null;
+        if (Process == null || await Process.ProcessAsync(context, owner, target) is not { } value) return null;
         prop.SetValue(value);
         return prop;
     }

@@ -71,6 +71,6 @@ public class Call: BaseWorkflow,
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.workflow.call")]
-[Relation<Visible>($"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemAppReflect.Workflow.iskind)}", $"${nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_CALL)]
-[RelationAssign<Valid>($"{nameof(Call)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(AppWorkflowNodeSchema.Type)}")]
+[Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemAppReflect.Workflow.iskind)}", $"${nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_CALL)]
+[Relation<Valid, Relation.Assign>($"{nameof(Call)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(AppWorkflowNodeSchema.Type)}")]
 public class CallProperty : Property<FuncCall>;

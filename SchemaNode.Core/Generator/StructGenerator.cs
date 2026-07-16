@@ -156,7 +156,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
             // Do not inspect Property-type relations here; those are dynamically assembled later.
             foreach (IRelationAttribute relation in p.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-                relations.Add(relation.GetRelationSchema(runtime, fieldName, typeResolver));
+                relations.Add(relation.GetRelationSchema(fieldName));
 
             // [Meta<PrimaryIndex>] → array primary keys
             foreach (PrimaryIndex idx in p.GetMetaProperties<PrimaryIndex>())
@@ -174,8 +174,8 @@ internal sealed class StructGenerator : INodeSchemaGenerator
         }
         
         // struct level relations
-        foreach (IRelationAttribute relation in type.GetCustomAttributes(inherit:false).OfType<IRelationAttribute>())
-            relations.Add((relation.GetRelationSchema(runtime, NODE_SELF, typeResolver)));
+        foreach (var relation in type.GetCustomAttributes(inherit:false).OfType<IRelationAttribute>())
+            relations.Add((relation.GetRelationSchema(NODE_SELF)));
         
         structSchema.Fields = fieldConfigs.ToArray();
 

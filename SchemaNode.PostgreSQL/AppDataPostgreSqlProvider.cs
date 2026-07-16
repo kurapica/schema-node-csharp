@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 using SchemaNode.Context;
-using SchemaNode.Property;
 using SchemaNode.Data;
 using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
@@ -827,10 +826,10 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
                         if (string.IsNullOrWhiteSpace(attr)) continue;
 
                         string[] paths = attr.Split('_', StringSplitOptions.RemoveEmptyEntries);
-                        DataNode? attrNode = pack.GetAccessValue(paths[0]);
+                        var attrNode = pack.GetAccessValue(paths[0]);
                         if (attrNode is StructNode structAttrNode)
                         {
-                            DataNode? last = structAttrNode.GetAccessValue(string.Join(".", paths.Skip(1)));
+                            var last = structAttrNode.GetAccessValue(string.Join(".", paths.Skip(1)));
                             if (last != null)
                             {
                                 // bigint
@@ -1374,7 +1373,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// </summary>
     async Task<StructFieldSchema[]> GetStructFieldConfigs(AppFieldType appField, StructNode node, RelationType relation)
     {
-        if (relation.Process is not Call call) throw new Exception("Only support Call relation process");
+        if (relation.Process is not CallProcess call) throw new Exception("Only support Call relation process");
         if (call.FuncType == null) throw new Exception("The function node missing");
 
         string target = _context.GetContextItem<Access>()?.Target ?? string.Empty;
@@ -1467,7 +1466,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
     /// </summary>
     async Task<StructFieldSchema[]> GetStructFieldConfigs(StructNode node, RelationType relation)
     {
-        if (relation.Process is not Call call) throw new Exception("Only support Call relation process");
+        if (relation.Process is not CallProcess call) throw new Exception("Only support Call relation process");
         if (call.FuncType == null) throw new Exception("The function node missing");
         
         string target = _context.GetContextItem<Access>()?.Target ?? string.Empty;

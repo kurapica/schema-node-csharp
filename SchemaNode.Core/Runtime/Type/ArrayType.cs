@@ -108,8 +108,8 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
-        return path.SequenceEqual(ARRAY_ELEMENT) ? Element : Element?.GetAccessValueType(path);
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
+        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? Element : Element?.GetAccessValueType(path);
     }
 
     /// <inheritdoc />
@@ -159,46 +159,52 @@ public sealed class ArrayType: ValueType
         // Validate by relations
         if (_relations != null)
         {
-            foreach (RelationType relationType in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
+            foreach (RelationType process in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
             {
-                for (int i = 1; i < result.Count; i++)
+                // apply constraint on target
+                SpanReader spans = process.Target;
+                List<DataNode> currNodes = [result];
+                while (spans.NextPath())
                 {
-                    ArrayNode spanNode = new ArrayNode(result, i);
-                    IConstraintProperty? prop = await relationType.ProcessAsync(context, spanNode) as IConstraintProperty;
-                    if (prop is not { HasValue: true }) continue;
-
-                    // apply constraint on target
-                    SpanReader spans = relationType.Target;
-                    List<DataNode> currNodes = [spanNode];
-                    while (spans.NextPath())
+                    if (spans.IsEnd)
                     {
-                        if (spans.IsEnd)
-                        {
-                            foreach (DataNode currNode in currNodes)
-                            {
-                                if (await prop.ValidateAsync(context, currNode) == false)
-                                {
-                                    if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                    currNode.SetViolated(prop);
-                                }
-                                else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                                {
-                                    currNode.ClearViolated(prop);
-                                }
-                            }
-                            break;
-                        }
-
-                        // Gather effect nodes
-                        ReadOnlySpan<char> path = spans.Current;
-                        List<DataNode> nextLevels = [];
                         foreach (DataNode currNode in currNodes)
+                        {
+                            if (await process.ProcessAsync(context, result, currNode) is not IConstraintProperty prop) continue;
+
+                            if (await prop.ValidateAsync(context, currNode) == false)
+                            {
+                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
+                                currNode.SetViolated(prop);
+                            }
+                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
+                            {
+                                currNode.ClearViolated(prop);
+                            }
+                        }
+                        break;
+                    }
+                    
+                    // Gather effect nodes
+                    ReadOnlySpan<char> path = spans.Current;
+                    List<DataNode> nextLevels = [];
+                    foreach (DataNode currNode in currNodes)
+                    {
+                        if (currNode is ArrayNode arr)
+                        {
+                            foreach (DataNode element in arr)
+                            {
+                                DataNode? next = element.GetAccessValue(path);
+                                if (next != null) nextLevels.Add(next);
+                            }
+                        }
+                        else
                         {
                             DataNode? next = currNode.GetAccessValue(path);
                             if (next != null) nextLevels.Add(next);
                         }
-                        currNodes = nextLevels;
                     }
+                    currNodes = nextLevels;
                 }
             }
         }

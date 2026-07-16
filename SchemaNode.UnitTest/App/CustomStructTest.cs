@@ -62,7 +62,7 @@ public class CustomStructTest : Base.AppTestBase
         Assert.IsNotNull(data);
         Assert.IsFalse(data.IsValid);
         
-        var zipCode = data.GetAccessValue("zipCode");
+        var zipCode = data.GetAccessValue("zipCode") as DataNode;
         Assert.IsNotNull(zipCode);
         Assert.IsFalse(zipCode.IsValid);
         Assert.AreEqual("uplimit", zipCode.Violated?.ElementAtOrDefault(0));
@@ -143,7 +143,7 @@ public class CustomStructTest : Base.AppTestBase
         Assert.IsNotNull(node);
         Assert.IsFalse(node.IsValid);
 
-        var usernameField = node.GetAccessValue("username");
+        var usernameField = node.GetAccessValue("username") as DataNode;
         Assert.IsNotNull(usernameField);
         Assert.IsFalse(usernameField.IsValid);
     }
