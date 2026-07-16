@@ -172,7 +172,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new EnumNode(this);
+    public override DataNode Create(IValueAccess? parent = null) => new EnumNode(this,  parent);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)

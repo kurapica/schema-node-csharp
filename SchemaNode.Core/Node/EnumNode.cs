@@ -10,23 +10,28 @@ public class EnumNode : DataNode
     private long? _longValue;
     private readonly bool _isString;
 
-    public EnumNode(EnumType type)
+    #region Constructors
+    
+    public EnumNode(EnumType type, IValueAccess? parent = null)
     {
         Type = type;
+        Parent = parent;
         _isString = type.Type == EnumValueType.String;
     }
-
-    public EnumNode(EnumType type, object value) : this(type)
+    
+    public EnumNode(EnumType type, object value, IValueAccess? parent = null): this(type, parent)
     {
         if (!TrySetValue(value))
-            throw new InvalidCastException($"Invalid enum value type '{value.GetType()}'.");
+            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
+    
+    #endregion
 
     /// <inheritdoc/>
     public override bool IsEmpty => _isString ? string.IsNullOrWhiteSpace(_strValue) : _longValue == null;
     
     /// <inheritdoc/>
-    public override bool TrySetValue<T>(T? value) where T : default
+    public sealed override bool TrySetValue<T>(T? value) where T : default
     {
         if (_isString)
         {

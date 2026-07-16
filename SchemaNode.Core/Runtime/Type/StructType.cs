@@ -146,7 +146,7 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new StructNode(this);
+    public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)

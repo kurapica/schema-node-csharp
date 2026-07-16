@@ -145,7 +145,7 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new ArrayNode(this);
+    public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
 
     /// <inheritdoc />
     protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)

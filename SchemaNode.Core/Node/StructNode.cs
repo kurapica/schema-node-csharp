@@ -14,18 +14,18 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(StructType type)
+    public StructNode(StructType type, IValueAccess? parent = null)
     {
         Type = type;
-        
+        Parent = parent;
         // init fields
-        _fields = type.GetFields().Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+        _fields = type.GetFields().Select(p => p.Type?.Create(this) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
-    public StructNode(StructType type, object value) : this(type)
+    public StructNode(StructType type, object value, IValueAccess? parent = null): this(type, parent)
     {
         if (!TrySetValue(value))
-            throw new InvalidCastException($"Invalid struct value type '{value.GetType()}'.");
+            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
     #endregion

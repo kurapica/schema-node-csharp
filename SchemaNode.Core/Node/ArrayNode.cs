@@ -16,33 +16,23 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
 {
     #region Constructors
     
-    public ArrayNode(NodeType type)
+    public ArrayNode(ValueType type, IValueAccess? parent = null)
     {
-        switch (type)
-        {
-            case ArrayType arrayType:
-                Type = arrayType;
-                ElementType = arrayType.Element ?? throw new Exception($"The type '{type.Name}' is not a valid array type.");
-                break;
-            case ValueType valueType:
-                Type = valueType.ArrayType ?? valueType;
-                ElementType = valueType;
-                break;
-            default:
-                throw new ArgumentException($"The node type '{type.Name}' is not a value type.", nameof(type));
-        }
+        Type = type.ArrayType ?? type;
+        Parent = parent;
+        ElementType = (type is ArrayType arr ? arr.Element : type) ??
+                      throw new Exception($"The type '{type.Name}' is not a valid array type.");
     }
 
-    public ArrayNode(NodeType type, object value): this(type)
+    public ArrayNode(ValueType type, object value, IValueAccess? parent = null): this(type, parent)
     {
         if (!TrySetValue(value))
-            throw new InvalidCastException($"Invalid array value type '{value.GetType()}'.");
+            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
-    internal ArrayNode(ArrayNode array, int count)
+    private ArrayNode(ArrayNode array, int count): this(array.Type, array.Parent)
     {
-        Type = array.Type;
-        ElementType = array.ElementType;
+        // only used for relation calc, no parent change
         _elements = array._elements.Take(count).ToList();
     }
 
@@ -338,7 +328,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
             return true;
         }
 
-        node = ElementType.Create();
+        node = ElementType.Create(this);
         return node.TrySetValue(value);
     }
 

@@ -24,14 +24,14 @@ public abstract class DataNode : IValueAccess
     public ValueType Type { get; init; } = null!;
 
     /// <summary>
-    /// Violated Constraints
-    /// </summary>
-    public ImmutableArray<string>? Violated { get; private set; }
-    
-    /// <summary>
     /// The parent
     /// </summary>
     public IValueAccess? Parent { get; init; }
+
+    /// <summary>
+    /// Violated Constraints
+    /// </summary>
+    public ImmutableArray<string>? Violated { get; private set; }
     
     #endregion
     
