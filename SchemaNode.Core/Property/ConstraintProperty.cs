@@ -20,7 +20,7 @@ public interface IConstraintProperty : IProperty
             EnumNode enumNode => ValidateEnum(context, enumNode),
             IntNode intNode => ValidateInt(context, intNode),
             StringNode stringNode => ValidateString(context, stringNode),
-            NumericNode numericNode => ValidateNumeric(context, numericNode),
+            DecimalNode numericNode => ValidateNumeric(context, numericNode),
             DateNode dateNode => ValidateDate(context, dateNode),
             StructNode structNode => ValidateStruct(context, structNode),
             ArrayNode arrayNode => ValidateArray(context, arrayNode),
@@ -82,12 +82,12 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Validate the numeric data node with the constraint rule. Return true if valid, false if invalid, null if not applicable.
     /// </summary>
-    public virtual bool? ValidateNumeric(SchemaContext context, NumericNode node) => null;
+    public virtual bool? ValidateNumeric(SchemaContext context, DecimalNode node) => null;
 
     /// <summary>
     /// Async version of <see cref="ValidateNumeric"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateNumericAsync(SchemaContext context, NumericNode node) => Task.FromResult(ValidateNumeric(context, node));
+    public virtual Task<bool?> ValidateNumericAsync(SchemaContext context, DecimalNode node) => Task.FromResult(ValidateNumeric(context, node));
 
     #endregion
 

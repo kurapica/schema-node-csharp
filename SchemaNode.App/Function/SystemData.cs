@@ -212,13 +212,13 @@ public static class SystemAppData
         {
             case ScalarType:
                 {
-                    if (dataNode is not IntNode and not NumericNode) goto ROLLBACK;
+                    if (dataNode is not IntNode and not DecimalNode) goto ROLLBACK;
                     if (dataNode is IntNode)
                         origin = fieldType.ValueType.From(
                             (origin is { IsEmpty: false } ? origin.GetValue<long>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<long>() : 0m)
                         );
-                    else if (dataNode is NumericNode)
+                    else if (dataNode is DecimalNode)
                         origin = fieldType.ValueType.From(
                             (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<decimal>() : 0m)

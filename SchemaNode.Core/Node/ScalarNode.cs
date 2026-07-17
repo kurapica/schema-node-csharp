@@ -99,11 +99,11 @@ public class StringNode : ScalarNode<string>
 /// <summary>
 ///  Numeric data node
 /// </summary>
-public class NumericNode : ScalarNode<decimal>
+public class DecimalNode : ScalarNode<decimal>
 {
     public override DataNode Clone()
     {
-        return new NumericNode
+        return new DecimalNode
         {
             Type = Type,
             Value = Value

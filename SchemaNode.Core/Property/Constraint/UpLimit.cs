@@ -27,7 +27,7 @@ public class UpLimitString : Property<long>, IConstraintProperty
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(UpLimitNumber)}")]
 public class UpLimitNumber : Property<decimal>, IConstraintProperty
 {
-    public bool? ValidateNumeric(SchemaContext context, NumericNode node)
+    public bool? ValidateNumeric(SchemaContext context, DecimalNode node)
     {
         if (node.IsEmpty) return null;
         return node.GetValue<decimal>() <= Value;
