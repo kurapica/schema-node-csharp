@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
@@ -42,27 +43,34 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// The value map, only used in the root
     /// </summary>
     private ConcurrentDictionary<T, Entry<T>>? _valueMaps;
+    
+    /// <summary>
+    /// The entry is root
+    /// </summary>
+    [JsonIgnore]
+    [SchemaIgnore]
+    public bool IsRoot => _parent == null;
 
     #endregion
     
     #region Methods
+
+    /// <summary>
+    /// Gets the entry by value
+    /// </summary>
+    public Entry<T>? GetEntry(T? value)
+    {
+        Entry<T>? entry = value is null ? (_parent == null ? this : null) : _valueMaps?.GetValueOrDefault(value);
+        return entry != null && IsDescendant(entry) ? entry : null;
+    }
     
     /// <summary>
     /// Gets the entry access list if fully loaded
     /// </summary>
     public EntryAccess<T>[]? GetAccessList(T? value)
     {
-        Entry<T>? entry = null;
-        if (value is null)
-        {
-            if (_children is not { Length: > 0 }) return null;
-            entry = this;
-        }
-        else
-        {
-            if (_valueMaps == null || !_valueMaps.TryGetValue(value, out entry)) return null;
-            if (entry is { HasChildren: true, _children: not { Length: > 0 } }) return null; // not fully loaded
-        }
+        Entry<T>? entry = GetEntry(value);
+        if (entry is null or { HasChildren: true, _children: not { Length: > 0 } }) return null; // require load
         
         // build entry access list
         List<EntryAccess<T>> accesses = [];
@@ -71,7 +79,7 @@ public class Entry<T>: PropertyOwner where T: notnull
         {
             accesses.Add(new EntryAccess<T>
             {
-                Entry = entry.Value is not null ? entry.Clone() : null,
+                Entry = entry._parent != null ? entry.Clone() : null,
                 Children = entry._children?.Select(c => c.Clone()).ToArray()
             });
             if (entry == this)
@@ -93,38 +101,32 @@ public class Entry<T>: PropertyOwner where T: notnull
     public void SaveAccessList(EntryAccess<T>[] accesses)
     {
         _valueMaps ??= []; // only root entry will create it
+        Entry<T>? root = this;
         
-        if (accesses.Length == 0) return;
-        EntryAccess<T> current = accesses[0];
-
-        // replace with new
-        if (_children is { Length: > 0}) Array.ForEach(_children, c => c.UnRegister());
-        if (current.Children is { Length: > 0 }) {
-            foreach (Entry<T> v in current.Children)
-            {
-                v._parent = this;
-                v._valueMaps = _valueMaps;
-                v._children = _children?.FirstOrDefault(x => x.Value.Equals(v.Value)) is {} match
-                    ? match._children
-                    : null;
-                v.Register();
-            }
-        }
-        _children = current.Children;
-
-        // for next part
-        if (_children is { Length: >  0} && accesses.Length > 1 && accesses[1].Entry is {} next)
+        foreach (var current in accesses)
         {
-            _children!.FirstOrDefault(x => x.Value.Equals(next.Value))?
-                .SaveAccessList(accesses.Skip(1).ToArray());
+            root = root.GetEntry(current.Entry != null ? current.Entry.Value : default(T?));
+            if (root is null) return; // can't save the access list
+
+            // replace with new
+            if (root._children is { Length: > 0}) Array.ForEach(root._children, c => c.UnRegister());
+            if (current.Children is { Length: > 0 }) {
+                foreach (Entry<T> v in current.Children)
+                {
+                    v._parent = root;
+                    v._valueMaps = _valueMaps;
+                    v._children = root._children?.FirstOrDefault(x => x.Value.Equals(v.Value)) is {} match
+                        ? match._children
+                        : null;
+                    v.Register();
+                }
+            }
+            root._children = current.Children;
         }
     }
     
-    #endregion
-
-    #region Utility
-
-    private Entry<T> Clone()
+    // Clone the entry
+    public Entry<T> Clone()
     {
         Entry<T> clone = new()
         {
@@ -134,7 +136,11 @@ public class Entry<T>: PropertyOwner where T: notnull
         clone.CombineProperties(this);
         return clone;
     }
-    
+
+    #endregion
+
+    #region Utility
+
     // remove this from the value map
     private void UnRegister()
     {
@@ -155,6 +161,14 @@ public class Entry<T>: PropertyOwner where T: notnull
                 c._valueMaps = _valueMaps;
                 c.Register();
             });
+    }
+
+    // Whether the entry is a descendant
+    private bool IsDescendant(Entry<T> entry)
+    {
+        while (entry != this && entry._parent != null)
+            entry = entry._parent;
+        return entry == this;
     }
 
     #endregion

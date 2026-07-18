@@ -30,6 +30,7 @@ public static class Constant
     public const string ARRAY_PREVIOUS = "$previous";
     public const string ARRAY_ELEMENT = "$element";
     public const string NODE_SELF = "$self";
+    public const string NODE_TYPE = "$type";
 
     #endregion
 
