@@ -223,7 +223,7 @@ public sealed class AppFieldType
         ValueType = await context.GetNodeTypeAsync<ValueType>(Type);
         if (ValueType == null) Error = AppErrorCodes.APP_FIELD_TYPE_NOT_VALID;
         
-        _props = _appFieldSchema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP_FIELD)).ToArray();
+        _props = _appFieldSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_FIELD)).ToArray();
         (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType);
 
         _appFieldSchema.Error = Error;

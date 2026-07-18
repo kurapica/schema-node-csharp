@@ -76,7 +76,7 @@ public sealed class ArrayType: ValueType
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
                 if (propType == null) continue;
                 
                 RelationType relationType = await relation.LoadAsync(context, this);

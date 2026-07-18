@@ -1,4 +1,5 @@
 using SchemaNode.Enum;
+using SchemaNode.Property;
 
 namespace SchemaNode.Runtime;
 
@@ -16,7 +17,7 @@ public interface ISchemaRuntime
     /// <summary>
     /// Register the schema kind
     /// </summary>
-    void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null);
+    void RegisterSchemaKind(string kind, Type schemaType, Type[]? propertyTypes = null, IProperty[]? properties = null);
     
     /// <summary>
     /// Gets the schema kinds
@@ -29,15 +30,17 @@ public interface ISchemaRuntime
     /// </summary>
     /// <param name="kind"></param>
     /// <returns></returns>
-    IEnumerable<Type> GetSchemaKindProperties(string kind);
+    IEnumerable<Type> GetSchemaKindPropertyTypes(string kind);
     
     /// <summary>
-    /// Gets the schema property with specific value type
+    /// Gets schema kind property
     /// </summary>
-    /// <param name="kind"></param>
-    /// <param name="valueType"></param>
-    /// <returns></returns>
-    Type? GetSchemaKindProperty(string kind, Type valueType);
+    T? GetSchemaKindProperty<T>(string kind) where T: class, IProperty;
+    
+    /// <summary>
+    /// Gets schema kind properties
+    /// </summary>
+    IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T: class, IProperty;
     
     /// <summary>
     /// Gets the schema property by property name
@@ -45,5 +48,5 @@ public interface ISchemaRuntime
     /// <param name="kind"></param>
     /// <param name="propertyName"></param>
     /// <returns></returns>
-    Type? GetSchemaKindPropertyByName(string kind, string propertyName);
+    Type? GetSchemaKindPropertyTypeByName(string kind, string propertyName);
 }

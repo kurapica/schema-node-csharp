@@ -135,7 +135,7 @@ public static class SchemaStorageProviderExtension
         if (!append)
         {
             EnumValueSchema[] existSubList = access.Last().SubList ?? [];
-            EnumValueSchema[] appends = existSubList.Where(e => e.HasSubList == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
+            EnumValueSchema[] appends = existSubList.Where(e => e.HasChildren == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
             values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
         }
 
@@ -143,8 +143,8 @@ public static class SchemaStorageProviderExtension
         await provider.SaveEnumSubListAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
 
         // Save sub list for the nodes with sub list recursively
-        foreach (var node in values.Where(v => v.SubList is { Length: > 0 }))
-            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, node.Value, node.SubList!, append);
+        foreach (var node in values.Where(v => v.Children is { Length: > 0 }))
+            await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, node.Value, node.Children!, append);
     }
 
 

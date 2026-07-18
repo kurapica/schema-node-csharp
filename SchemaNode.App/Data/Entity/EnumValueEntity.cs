@@ -4,7 +4,7 @@ using SchemaNode.Property.App;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
-using SchemaNode.Utility;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
@@ -44,7 +44,7 @@ public class EnumValueEntity
     /// <summary>
     /// Has sub enum value list
     /// </summary>
-    public bool HasSubList { get; set; }
+    public bool HasChildren { get; set; }
     
     /// <summary>
     /// The extension properties of the node
@@ -58,24 +58,19 @@ public class EnumValueEntity
         if  (enumValueSchema == null) return null;
         return new EnumValueEntity
         {
-            Enum = enumValueSchema.Parent?.Root ?? enumValueSchema.Value,
             Value = enumValueSchema.Value,
-            Root = enumValueSchema.Root,
-            Seqno = enumValueSchema.Seqno,
-            HasSubList = enumValueSchema.HasSubList ?? false,
+            HasChildren = enumValueSchema.HasChildren ?? false,
             Extensions = enumValueSchema.Extensions?.DeepClone() as JsonObject
         };
     }
     
-    public static implicit operator EnumValueSchema?(EnumValueEntity? enumValueEntity)
+    public static implicit operator Entry<string>?(EnumValueEntity? enumValueEntity)
     {
         if (enumValueEntity == null) return null;
-        return new EnumValueSchema
+        return new Entry<string>
         {
             Value = enumValueEntity.Value,
-            Root = enumValueEntity.Root,
-            Seqno = enumValueEntity.Seqno,
-            HasSubList = enumValueEntity.HasSubList,
+            HasChildren = enumValueEntity.HasChildren,
             Extensions = enumValueEntity.Extensions?.DeepClone() as JsonObject
         };
     }

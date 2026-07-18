@@ -35,6 +35,8 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
 
     #region Properties
     
+    public ISchemaRuntime? Runtime { get; private set; }
+    
     /// <summary>
     /// The parent
     /// </summary>
@@ -136,6 +138,8 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     /// </summary>
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
+        Runtime = context.Runtime;
+        
         // reset
         UnloadType();
         Error = null;
@@ -146,12 +150,12 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
         GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
 
         // load properties
-        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE)).ToList();
+        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE)).ToList();
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
             if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind, StringComparison.OrdinalIgnoreCase)) continue;
-            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
+            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(schema.Kind)));
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
@@ -193,7 +197,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    public IEnumerable<T> GetProperties<T>() where T : class, IProperty => _props?.OfType<T>() ?? [];
     
     /// <summary>
     /// Gets the generic map

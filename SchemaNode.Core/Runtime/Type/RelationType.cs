@@ -86,7 +86,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
             return;
         }
         
-        foreach (Type propType in context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_RELATION))
+        foreach (Type propType in context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_RELATION))
         {
             if (!Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
             

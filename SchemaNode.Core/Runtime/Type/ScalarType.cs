@@ -71,7 +71,7 @@ public abstract class ScalarType : ValueType
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>();
+    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
 
     /// <summary>
     /// Gets the properties with the given type
@@ -89,6 +89,15 @@ public abstract class ScalarType : ValueType
         if (BaseNode != null)
         {
             foreach (var property in BaseNode.GetProperties<T>())
+            {
+                yield return property;
+                if (!property.Stackable) yield break;
+            }
+        }
+
+        if (Runtime != null)
+        {
+            foreach (T property in Runtime.GetSchemaKindProperties<T>(Kind))
             {
                 yield return property;
                 if (!property.Stackable) yield break;

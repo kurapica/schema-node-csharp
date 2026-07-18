@@ -10,7 +10,6 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
-using SchemaNode.Schema;
 
 // ReSharper disable AccessToDisposedClosure
 
@@ -159,7 +158,8 @@ public static partial class SchemaNodeExtensions
         IRuntimeStageHandler[] handlers = scope.ServiceProvider.GetServices<IRuntimeStageHandler>().ToArray();
         Assembly[] assemblies = provider.GetService<SchemaOptions>()?.Assemblies ?? [];
         Dictionary<string, (Type schemaType, SchemaKind kind)> schemaKinds = [];
-        Dictionary<string, Dictionary<string, Type>> schemaProperties = new();
+        Dictionary<string, Dictionary<string, Type>> schemaProperties = [];
+        Dictionary<string, IProperty[]> kindProperties = [];
 
         // Gather the schema kind & schema properties
         foreach (Assembly assembly in assemblies)
@@ -172,6 +172,7 @@ public static partial class SchemaNodeExtensions
                     if (!schemaKinds.TryAdd(asSchemaKind.Value!, (type, asSchemaKind)))
                         throw new Exception($"Duplicate schema kind '{asSchemaKind.Value!}' found in type '{type.FullName}' and '{schemaKinds[asSchemaKind.Value!].schemaType.FullName}'");
 
+                    // Append property types
                     foreach (Append append in type.GetMetaProperties<Append>())
                     {
                         if (append.Value is not { Length: > 0 }) continue;
@@ -188,6 +189,13 @@ public static partial class SchemaNodeExtensions
                                 throw new Exception($"Duplicate property name '{propName}' found for schema kind '{asSchemaKind.Value}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                         }
                     }
+                    
+                    // Prototype Properties
+                    IProperty[] properties = type.GetMetaProperties<IProperty>().Where(p =>
+                        p.GetType().GetMetaProperty<ForSchema>() is { HasValue: true } f &&
+                        f.Value!.Contains(asSchemaKind.Value, StringComparer.OrdinalIgnoreCase)).ToArray();
+                    if (properties.Length > 0)
+                        kindProperties[asSchemaKind.Value!] = properties;
                 }
 
                 // Gather properties
@@ -218,7 +226,9 @@ public static partial class SchemaNodeExtensions
             runtime.RegisterSchemaKind(item.kind.Value!, item.schemaType, 
                 schemaProperties.TryGetValue(item.kind.Value!, out Dictionary<string, Type>? propertyTypes) 
                     ? SortProperties(propertyTypes.Values.ToList()) 
-                    : null);
+                    : null,
+                kindProperties.GetValueOrDefault(item.kind.Value!)
+                );
         }
 
         // System Schema

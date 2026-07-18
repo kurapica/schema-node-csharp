@@ -358,9 +358,9 @@ public static class BatchQueryExtension
 
                             if (parent.Kind == SCHEMA_KIND_ENUM)
                             {
-                                RootEnumValueSchema.Value!.SubList = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
+                                RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
                                 RootEnumValueSchema.Value!.CombineAccessList(access);
-                                RootEnumValueSchema.Value!.SubList = null;
+                                RootEnumValueSchema.Value!.Children = null;
                             }
                         }
                     }

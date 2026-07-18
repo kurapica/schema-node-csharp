@@ -20,7 +20,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     public async Task<NodeSchema[]> LoadSchemaAsync(string[] names)
     {
         try
-        {            
+        {
             List<NodeSchema> result = new();
             foreach (string name in names)
             {
@@ -73,8 +73,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                             foreach (EnumValueSchema value in @enum.Values)
                             {
                                 value.IsFullyLoaded = false;
-                                value.SubList = null; // sub list will be loaded on demand, set to null to indicate not loaded
-                                value.HasSubList = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).total != 0;
+                                value.Children = null; // sub list will be loaded on demand, set to null to indicate not loaded
+                                value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).total != 0;
                             }
                             schema.SetProperty<EnumProperty, EnumSchema>(@enum);
                         }
@@ -279,7 +279,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                 enumValues = values.Select(e =>
                 {
                     EnumValueSchema? exist = enumValues.FirstOrDefault(v => v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase));
-                    if (exist != null) e.HasSubList = exist.HasSubList; // keep the sub list info if exist
+                    if (exist != null) e.HasChildren = exist.HasChildren; // keep the sub list info if exist
                     return e;
                 }).ToList();
             }
@@ -308,9 +308,9 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
 
             // Update the sub list settings
-            if (enumSchema.HasSubList == true ? enumValues.Count == 0 : enumValues.Count > 0 && accessList.Length > 2)
+            if (enumSchema.HasChildren == true ? enumValues.Count == 0 : enumValues.Count > 0 && accessList.Length > 2)
             {
-                enumSchema.HasSubList = enumValues.Count > 0;
+                enumSchema.HasChildren = enumValues.Count > 0;
                 await context.SaveEntityAsync<EnumValueEntity>(Target, enumSchema!);
             }
             

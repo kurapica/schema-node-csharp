@@ -160,7 +160,7 @@ public sealed class AppType : IValueTypeAccess
 
         // data
         _schema  = schema;
-        _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
+        _props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP)).ToArray();
 
         (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props);
         ScopePolicy = GetProperty<ScopePolicy>()?.Value;
@@ -188,7 +188,7 @@ public sealed class AppType : IValueTypeAccess
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
                 if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);

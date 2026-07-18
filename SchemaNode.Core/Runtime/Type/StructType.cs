@@ -79,7 +79,7 @@ public sealed class StructType: ValueType
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, prop.Property);
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
                 if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
@@ -392,8 +392,8 @@ public class StructFieldType : INodeReferences
         if (propType is ArrayType arrayType) propType = arrayType.Element;
 
         // Properties
-        var propTypes = context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD);
-        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindProperties(propType.Kind)).Distinct();
+        var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_STRUCT_FIELD);
+        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes(propType.Kind)).Distinct();
         IProperty[] props = field.GetProperties(propTypes).ToArray();
         IConstraintProperty[] constraints = props.OfType<IConstraintProperty>().ToArray();
         

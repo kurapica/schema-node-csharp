@@ -174,7 +174,7 @@ public abstract class PropertyOwner
         {
             // CombineProperties the properties
             HashSet<string> handled = new (StringComparer.OrdinalIgnoreCase);
-            foreach (Type propType in runtime.GetSchemaKindProperties(kind))
+            foreach (Type propType in runtime.GetSchemaKindPropertyTypes(kind))
             {
                 handled.Add(propType.Name);
                 IProperty[] otherProps = other.GetProperties(propType).ToArray();

@@ -93,7 +93,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                         
             // Gets the match node schema property type
             nodeSchemaTypes.Add((kind, type,
-    runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE).
+    runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
                 FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
                 GetGenericArguments().ElementAtOrDefault(0) == type)));
             

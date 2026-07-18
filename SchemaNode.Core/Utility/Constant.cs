@@ -49,9 +49,9 @@ public static class Constant
     public const string SCHEMA_KIND_FUNCTION = "function";
     public const string SCHEMA_KIND_PROPERTY = "property";
     public const string SCHEMA_KIND_STRUCT_FIELD = "structfield";
-    public const string SCHEMA_KIND_ENUM_VALUE = "enumvalue";
     public const string SCHEMA_KIND_RELATION = "relation";
     public const string SCHEMA_KIND_FUNC_ARG = "functionarg";
+    public const string SCHEMA_KIND_ENTRY = "entry";
 
     internal const int SCHEMA_KIND_ORDER_NODE = 0;
     internal const int SCHEMA_KIND_ORDER_NAMESPACE = 1;
@@ -67,9 +67,9 @@ public static class Constant
     internal const int SCHEMA_KIND_ORDER_FUNC = 11;
     internal const int SCHEMA_KIND_ORDER_PROP = 12;
     internal const int SCHEMA_KIND_ORDER_RELATION = 13;
-    internal const int SCHEMA_KIND_ORDER_ENUM_VALUE = 14;
     internal const int SCHEMA_KIND_ORDER_STRUCT_FIELD = 15;
     internal const int SCHEMA_KIND_ORDER_FUNC_ARG = 16;
+    internal const int SCHEMA_KIND_ORDER_ENTRY = 17;
     
     #endregion
 
@@ -112,6 +112,7 @@ public static class Constant
 
     // entry for white list
     public const string NS_SYSTEM_ENTRY = "system.entry";
+    public const string NS_SYSTEM_ENTRY_ACCESS = "system.entryaccess";
 
     #endregion
 

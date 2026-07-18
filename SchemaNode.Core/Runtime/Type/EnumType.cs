@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
+using SchemaNode.Property;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
 
@@ -28,10 +29,7 @@ public sealed class EnumType: ValueType
     private long _maxFlags;
 
     // The root for all enum values
-    private EnumValueSchema _root = new();
-
-    // The enum value cache
-    private readonly ConcurrentDictionary<string, EnumValueSchema> _valueMaps = new(StringComparer.OrdinalIgnoreCase);
+    private Entry<string> _root = new();
 
     #endregion
     
@@ -66,17 +64,46 @@ public sealed class EnumType: ValueType
         _enumSchema = GetProperty<EnumProperty>()?.Value;
 
         // Data
-        _valueMaps.Clear();
-        _root = new EnumValueSchema
-        {
-            SubList = _enumSchema?.Values
-        };
-        UpdateLoadState(_root, reset: true);
+        _root = new Entry<string>();
+        _root.SaveAccessList([
+            new EntryAccess<string>
+            {
+                Children = _enumSchema?.Values ?? []
+            }
+        ]);
         UpdateMaxFlags();
         
         // Status
         if (_enumSchema == null) Error = ErrorCodes.NO_DEFINITION;
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    {
+        foreach (var property in base.GetProperties<T>())
+        {
+            yield return property;
+            if (!property.Stackable) yield break;
+        }
+
+        if (Runtime != null)
+        {
+            foreach (T property in Runtime.GetSchemaKindProperties<T>(Kind))
+            {
+                yield return property;
+                if (!property.Stackable) yield break;
+            }
+        }
     }
 
     /// <summary>
@@ -89,13 +116,13 @@ public sealed class EnumType: ValueType
     {
         bool fullList = false;
         if (string.IsNullOrWhiteSpace(value))
-            return _root.Clone(fullList ? (_enumSchema?.Cascade?.Length ?? 1) : 1).SubList ?? [];
+            return _root.Clone(fullList ? (_enumSchema?.Cascade?.Length ?? 1) : 1).Children ?? [];
 
         EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];
 
         EnumValueSchema access = accesses.Last();
-        if (!(access.HasSubList ?? false)) return [];
+        if (!(access.HasChildren ?? false)) return [];
 
         // load sub list
         int chkLvl = 1;
@@ -104,7 +131,7 @@ public sealed class EnumType: ValueType
 
         // full-filled
         if (UpdateLoadState(access, chkLvl))
-            return access.Clone(chkLvl).SubList ?? [];
+            return access.Clone(chkLvl).Children ?? [];
 
         // load sub list
         if (Provider != null && context.GetRequiredService(Provider) is IEnumSchemaProvider provider)
@@ -112,10 +139,10 @@ public sealed class EnumType: ValueType
             EnumValueSchema[] subList = await provider.LoadEnumSubListAsync(Name, value);
             lock (_lock)
             {
-                access.SubList = subList;
+                access.Children = subList;
                 UpdateLoadState(access);
             }
-            return access.Clone(chkLvl).SubList ?? [];
+            return access.Clone(chkLvl).Children ?? [];
         }
         return [];
     }
@@ -133,7 +160,7 @@ public sealed class EnumType: ValueType
         EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
         if (accesses.Length == 0) return [];
         
-        withSubList = (withSubList ?? false) && accesses.Length < (_enumSchema?.Cascade?.Length ?? 1) && accesses.Last().SubList is { Length: > 0};
+        withSubList = (withSubList ?? false) && accesses.Length < (_enumSchema?.Cascade?.Length ?? 1) && accesses.Last().Children is { Length: > 0};
         EnumValueAccess[] result = new EnumValueAccess[withSubList.Value ? accesses.Length : (accesses.Length - 1)];
         for (int i = 0; i < accesses.Length - 1; i++)
         {
@@ -142,7 +169,7 @@ public sealed class EnumType: ValueType
                 Value = accesses[i + 1].Value,
                 Name = _enumSchema?.Cascade?[i],
                 Schema = noSubList == true ? accesses[i + 1].Clone() : null,
-                SubList = (noSubList ?? false) ? null : accesses[i].SubList?.Select(a => a.Clone()).ToArray()
+                SubList = (noSubList ?? false) ? null : accesses[i].Children?.Select(a => a.Clone()).ToArray()
             };
         }
 
@@ -152,7 +179,7 @@ public sealed class EnumType: ValueType
             {
                 Value = "",
                 Name = _enumSchema?.Cascade?[accesses.Length - 1],
-                SubList = accesses.Last().SubList?.Select(a => a.Clone()).ToArray()
+                SubList = accesses.Last().Children?.Select(a => a.Clone()).ToArray()
             };
         }
         
@@ -200,50 +227,13 @@ public sealed class EnumType: ValueType
 
     #region Utility
 
-    /// <summary>
-    /// Refresh status
-    /// </summary>
-    bool UpdateLoadState(EnumValueSchema node, int level = 999, EnumValueSchema? parent = null, bool reset = false)
-    {
-        if (node.IsFullyLoaded && !reset || level == 0) return true;
-        node.IsFullyLoaded = false;
-        _valueMaps[node.Value] = node;
-
-        // update ref
-        if (parent != null)
-        {
-            node.Parent = parent;
-            node.Level = parent.Level + 1;
-        }
-
-        // If loaded from static resources
-        if (node.SubList is not null && node.SubList.Length > 0) node.HasSubList = true;
-
-        if (node.HasSubList ?? false)
-        {
-            if (node.SubList is not null && node.SubList.Length > 0)
-            {
-                foreach (var item in node.SubList)
-                    UpdateLoadState(item, level - 1, node, reset);
-                node.IsFullyLoaded = node.SubList.All(x => x.IsFullyLoaded);
-                return true;
-            }
-        }
-        else
-        {
-            node.IsFullyLoaded = true;
-        }
-
-        return node.IsFullyLoaded;
-    }
-
     void UpdateMaxFlags()
     {
-        if (_enumSchema?.Type != EnumValueType.Flags || _root.SubList == null || _root.SubList.Length == 0) return;
+        if (_enumSchema?.Type != EnumValueType.Flags || _root.Children == null || _root.Children.Length == 0) return;
         long max = 0;
         try
         {
-            foreach (EnumValueSchema info in _root.SubList)
+            foreach (var info in _root.Children)
             {
                 if (long.TryParse(info.Value, out long val))
                 {
