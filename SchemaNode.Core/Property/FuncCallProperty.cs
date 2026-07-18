@@ -31,13 +31,14 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
                 base.SetValue(new FuncCall
                 {
                     Func = f,
-                    Args = args.Skip(1).Select(a => a is string str
-                        ? str.StartsWith('$')
-                            ? str.StartsWith("$$")
-                                ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                                : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
-                            : new CallArg{ Value = JsonValue.Create(str) }
-                        : new CallArg { Value = a.ToJsonNode() }).ToArray()
+                    Args = args.Skip(1).Select(a => 
+                        a is string str
+                            ? str.StartsWith('@')
+                                ? new CallArg { Source = str[1..].ToCamelCase() }
+                                : str.StartsWith('$')
+                                    ? new CallArg { Source = str }
+                                    : new CallArg { Value = JsonValue.Create(str) }
+                            : new CallArg { Value = a.ToJsonNode() }).ToArray()
                 });
                 break;
 

@@ -71,34 +71,34 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// The input source field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string? Source { get; set; }
     
     [Meta<SchemaType>(typeof(SchemaValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"${nameof(App)}", $"${nameof(Source)}", true)]
+    [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(Source)}", true)]
     public string? SourceType { get; set; }
 
     /// <summary>
     /// The push function, convert the input data to the type data
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"${nameof(Source)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"${nameof(SourceType)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(Type)}", true)]
     public string? Push { get; set; }
     
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public DataCombine[]? Combines { get; set; }
 
     #endregion
@@ -135,7 +135,7 @@ public sealed class Foreign
     /// <summary>
     /// The field refer to the other app target
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
     
     [JsonIgnore]
@@ -155,7 +155,7 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>

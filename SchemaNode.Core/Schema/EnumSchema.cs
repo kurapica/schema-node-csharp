@@ -14,6 +14,7 @@ using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using RuntimeEnumType = SchemaNode.Runtime.EnumType;
+using SchemaNode.Function;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -29,7 +30,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
-[Meta<EntrySource>($"{NS_SYSTEM_DATA}.getenumaccess", NODE_TYPE, NODE_SELF)]
+[Meta<EntrySource>($"{NS_SYSTEM_DATA_ENUM}.{nameof(SystemData.EnumOper.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
 public sealed class EnumSchema : PropertyOwner
 {
     /// <summary>
@@ -54,7 +55,7 @@ public sealed class EnumSchema : PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.enum")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty : Property<EnumSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)

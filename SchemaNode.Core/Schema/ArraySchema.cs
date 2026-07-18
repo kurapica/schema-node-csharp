@@ -40,7 +40,7 @@ public sealed class ArraySchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.array")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 public sealed class ArrayProperty : Property<ArraySchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)

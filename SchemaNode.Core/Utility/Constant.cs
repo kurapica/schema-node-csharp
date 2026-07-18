@@ -31,6 +31,7 @@ public static class Constant
     public const string ARRAY_ELEMENT = "$element";
     public const string NODE_SELF = "$self";
     public const string NODE_TYPE = "$type";
+    public const string ENTRY_ROOT = "$root";
 
     #endregion
 
@@ -156,6 +157,7 @@ public static class Constant
     public const string NS_SYSTEM_CALENDAR = "system.calendar";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
     public const string NS_SYSTEM_DATA = "system.data";
+    public const string NS_SYSTEM_DATA_ENUM = "system.data.enum";
     public const string NS_SYSTEM_STR = "system.str";
 
     public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";

@@ -43,6 +43,6 @@ public class AssignProcess : IRelationProcess
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.assign")]
 [Meta<Property.Record.RelationKind>("assign", 0)]
 [Meta<RelationProcess>(typeof(AssignProcess))]
-[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "assign")]
-[Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getproptype)}", $"${nameof(RelationSchema.Property)}")]
+[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "assign")]
+[Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getproptype)}", $"@{nameof(RelationSchema.Property)}")]
 public class Assign : Property<object>;

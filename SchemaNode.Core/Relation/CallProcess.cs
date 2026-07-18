@@ -89,6 +89,6 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.call")]
 [Meta<SchemaNode.Property.Record.RelationKind>("call", 1)]
 [Meta<RelationProcess>(typeof(CallProcess))]
-[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"${nameof(RelationSchema.Kind)}", "call")]
-[Relation<EntrySource, Call>($"${nameof(CallProcess.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
+[Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "call")]
+[Relation<EntrySource, Call>($"{nameof(CallProcess.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES, RELATION_OWNER, NODE_SELF)]
 public class Call : FuncCallProperty;
