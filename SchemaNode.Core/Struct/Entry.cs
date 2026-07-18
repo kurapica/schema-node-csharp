@@ -50,22 +50,38 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// <summary>
     /// Gets the entry access list if fully loaded
     /// </summary>
-    public EntryAccess<T>[]? GetAccessList(T value)
+    public EntryAccess<T>[]? GetAccessList(T? value)
     {
-        if (_valueMaps == null || !_valueMaps.TryGetValue(value, out Entry<T>? entry)) return null;
-        if (entry is { HasChildren: true, _children: not { Length: > 0 } }) return null; // not fully loaded
+        Entry<T>? entry = null;
+        if (value is null)
+        {
+            if (_children is not { Length: > 0 }) return null;
+            entry = this;
+        }
+        else
+        {
+            if (_valueMaps == null || !_valueMaps.TryGetValue(value, out entry)) return null;
+            if (entry is { HasChildren: true, _children: not { Length: > 0 } }) return null; // not fully loaded
+        }
         
         // build entry access list
         List<EntryAccess<T>> accesses = [];
+        bool inBranch = false;
         while (entry != null)
         {
             accesses.Add(new EntryAccess<T>
             {
-                Entry = entry.Clone(),
+                Entry = entry.Value is not null ? entry.Clone() : null,
                 Children = entry._children?.Select(c => c.Clone()).ToArray()
             });
+            if (entry == this)
+            {
+                inBranch = true;
+                break;
+            }
             entry = entry._parent;
         }
+        if (!inBranch) return null;
 
         accesses.Reverse();
         return accesses.ToArray();

@@ -3,10 +3,9 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using System.Collections.Concurrent;
 using SchemaNode.Property;
-using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
+using SchemaNode.Schema.Provider;
 
 namespace SchemaNode.Runtime;
 
@@ -112,13 +111,14 @@ public sealed class EnumType: ValueType
     /// <param name="context">The schema context</param>
     /// <param name="value">The root enum value, optional</param>
     /// <returns></returns>
+    [Obsolete]
     public async Task<EnumValueSchema[]> LoadEnumSubListAsync(SchemaContext context, string? value)
     {
         bool fullList = false;
         if (string.IsNullOrWhiteSpace(value))
             return _root.Clone(fullList ? (_enumSchema?.Cascade?.Length ?? 1) : 1).Children ?? [];
 
-        EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueSchema[] accesses = await GetEnumEntryAccess(context, value);
         if (accesses.Length == 0) return [];
 
         EnumValueSchema access = accesses.Last();
@@ -155,9 +155,10 @@ public sealed class EnumType: ValueType
     /// <param name="noSubList">no sub list should be loaded</param>
     /// <param name="withSubList">with the value's sub list</param>
     /// <returns></returns>
+    [Obsolete]
     public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(SchemaContext context, string value, bool? noSubList = false, bool? withSubList = false)
     {
-        EnumValueSchema[] accesses = await LoadEnumValueAccessAsync(context, value);
+        EnumValueSchema[] accesses = await GetEnumEntryAccess(context, value);
         if (accesses.Length == 0) return [];
         
         withSubList = (withSubList ?? false) && accesses.Length < (_enumSchema?.Cascade?.Length ?? 1) && accesses.Last().Children is { Length: > 0};
@@ -214,7 +215,7 @@ public sealed class EnumType: ValueType
         }
         else if (result.TryGetValue(out string? strValue))
         {
-            EnumValueSchema[] access = await LoadEnumValueAccessAsync(context, strValue);
+            EnumValueSchema[] access = await GetEnumEntryAccess(context, strValue);
             if (access.Length == 0)
                 result.SetViolated(Kind);
         }
@@ -229,11 +230,11 @@ public sealed class EnumType: ValueType
 
     void UpdateMaxFlags()
     {
-        if (_enumSchema?.Type != EnumValueType.Flags || _root.Children == null || _root.Children.Length == 0) return;
+        if (_enumSchema?.Type != EnumValueType.Flags) return;
         long max = 0;
         try
         {
-            foreach (var info in _root.Children)
+            foreach (var info in _enumSchema.Values)
             {
                 if (long.TryParse(info.Value, out long val))
                 {
@@ -250,46 +251,30 @@ public sealed class EnumType: ValueType
     }
 
     // Load the enum value access path
-    async Task<EnumValueSchema[]> LoadEnumValueAccessAsync(SchemaContext context, string? value)
+    async Task<EntryAccess<string>[]> GetEnumEntryAccess(SchemaContext context, string? value, string? start)
     {
-        if (string.IsNullOrWhiteSpace(value)) return [];
+        var root = _root;
+        if (!string.IsNullOrWhiteSpace(start) && _root.GetAccessList(start) is { Length: > 1 } startList)
+            root = startList.Last().Entry!;
 
-        // Try to get from cache
-        if (GetAccess(value, out EnumValueSchema[]? accesses))
-            return accesses ?? [];
+        var access = root.GetAccessList(value);
+        if (access is not null) return access;
+
 
         // Load from the provider
-        if (Provider != null && context.GetRequiredService(Provider) is IEnumSchemaProvider provider)
+        if (Provider != null && context.GetRequiredService(Provider) is INodeSchemaProvider provider)
         {
-            EnumValueAccess[] accessList = await provider.LoadEnumAccessListAsync(Name, value, false, true);
+            var accessList = await provider.GetEnumEntryAccess(Name, value);
             if (accessList.Length > 0)
             {
                 lock (_lock)
                 {
-                    _root.CombineAccessList(accessList);
-                    UpdateLoadState(_root);
+                    root.SaveAccessList(accessList);
                 }
-                return GetAccess(value, out accesses) ? accesses ?? [] : [];
+                return root.GetAccessList(value) ?? [];
             }
         }
         return [];
-
-        bool GetAccess(string v, out EnumValueSchema[]? result)
-        {
-            result = null;
-            if (!_valueMaps.TryGetValue(v, out var node)) return false;
-            
-            var temp = new EnumValueSchema[node.Level + 1];
-            temp[node.Level] = node;
-            for (int i = node.Level - 1; i >= 0; i--)
-            {
-                if (node.Parent == null) return false;
-                node = node.Parent;
-                temp[i] = node;
-            }
-            result = temp;
-            return true;
-        }
     }
 
     #endregion

@@ -17,7 +17,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region Schema
 
     /// <inheritdoc />
-    public async Task<NodeSchema[]> LoadSchemaAsync(string[] names)
+    public async Task<NodeSchema[]> GetchemaAsync(string[] names)
     {
         try
         {

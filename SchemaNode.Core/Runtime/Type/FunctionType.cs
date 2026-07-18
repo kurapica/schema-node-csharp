@@ -554,7 +554,7 @@ public sealed class FunctionType : NodeType
             foreach (object? arg in args) 
                 cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
-            result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
+            result = Provider != null && context.GetRequiredService(Provider) is INodeSchemaProvider provider
                 ? await provider.CallFunctionAsync(Name, cArgs, rType)
                 : null;
         }
