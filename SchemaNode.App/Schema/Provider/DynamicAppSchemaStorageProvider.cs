@@ -149,10 +149,9 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     /// <inheritdoc />
     public async Task<EntryAccess<string>[]> GetEnumEntryAccess(string name, string? value, string? start = null)
     {
-        if (string.IsNullOrEmpty(value)) return [];
+        if (string.IsNullOrEmpty(value) && string.IsNullOrWhiteSpace(start)) return [];
         try
-        {
-            
+        {          
             
             string namespaceName = name.GetNamespace();
             string schemaName = name.GetSchemaName();
@@ -232,7 +231,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     }
 
     /// <inheritdoc />
-    public async Task<bool> SaveEnumSubListAsync(string name, string? value, Entry<string>[] values, bool? append)
+    public async Task<bool> SaveEnumEntriesAsync(string name, string? value, Entry<string>[] values, bool? append)
     {
         try
         {

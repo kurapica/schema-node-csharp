@@ -141,7 +141,7 @@ public static class SchemaStorageProviderExtension
         }
 
         // Save
-        await provider.SaveEnumSubListAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
+        await provider.SaveEnumEntriesAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
     }
 
 

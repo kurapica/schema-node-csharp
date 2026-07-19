@@ -22,14 +22,14 @@ public interface IAppSchemaStorageProvider: IAppSchemaProvider
     Task<bool> DeleteSchemaAsync(string schema);
     
     /// <summary>
-    /// Save the sub list for an enum value
+    /// Save the enum entries of the parent value
     /// </summary>
     /// <param name="name">The schema name</param>
     /// <param name="value">The enum value</param>
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
     /// <returns>true if saved</returns>
-    Task<bool> SaveEnumSubListAsync(string name, string? value, Entry<string>[] values, bool? append);
+    Task<bool> SaveEnumEntriesAsync(string name, string? value, Entry<string>[] values, bool? append);
     
     /// <summary>
     /// Save the app schema

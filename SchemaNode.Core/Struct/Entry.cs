@@ -51,8 +51,15 @@ public class Entry<T>: PropertyOwner where T: notnull
     [SchemaIgnore]
     public bool IsRoot => _parent == null;
 
+    /// <summary>
+    /// The entry is fully loaded
+    /// </summary>
+    [JsonIgnore]
+    [SchemaIgnore]
+    public bool? IsFullyLoaded { get; set; }
+
     #endregion
-    
+
     #region Methods
 
     /// <summary>
