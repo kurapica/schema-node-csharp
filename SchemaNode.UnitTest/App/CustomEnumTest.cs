@@ -3,6 +3,7 @@ using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.UnitTest.App;
@@ -24,9 +25,9 @@ public class CustomEnumTest : Base.AppTestBase
             Type = EnumValueType.String,
             Values =
             [
-                new EnumValueSchema { Value = "active" },
-                new EnumValueSchema { Value = "inactive" },
-                new EnumValueSchema { Value = "pending" }
+                new Entry<string> { Value = "active" },
+                new Entry<string> { Value = "inactive" },
+                new Entry<string> { Value = "pending" }
             ]
         };
         schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
@@ -55,8 +56,8 @@ public class CustomEnumTest : Base.AppTestBase
             Type = EnumValueType.String,
             Cascade = [ "Country", "City" ],
             Values = [
-                new EnumValueSchema{ Value = "Usa" },
-                new EnumValueSchema{ Value = "China" }
+                new Entry<string>{ Value = "Usa" },
+                new Entry<string>{ Value = "China" }
             ]
         };
         schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
@@ -65,8 +66,8 @@ public class CustomEnumTest : Base.AppTestBase
         
         // sub list
         bool saved = await Context.SaveEnumSubListAsync(schema.FullName, "China", [
-            new EnumValueSchema{ Value = "Beijing" },
-            new EnumValueSchema{ Value = "Shanghai" }
+            new Entry<string>{ Value = "Beijing" },
+            new Entry<string>{ Value = "Shanghai" }
         ]);
         Assert.IsTrue(saved);
         

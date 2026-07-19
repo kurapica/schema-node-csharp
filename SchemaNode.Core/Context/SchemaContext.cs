@@ -266,7 +266,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             {
                 try
                 {
-                    NodeSchema[] loadSchemas = await provider.GetchemaAsync([schemaName]);
+                    NodeSchema[] loadSchemas = await provider.GetSchemaAsync([schemaName]);
                     if (loadSchemas.Length == 0) continue;
                     NodeSchema loadSchema = SetSchemaState(loadSchemas[0], SchemaLoadState.Service, provider.GetType())!;
 

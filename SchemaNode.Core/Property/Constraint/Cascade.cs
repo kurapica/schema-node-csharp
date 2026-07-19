@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
 
@@ -25,7 +26,7 @@ public class Cascade : Property<long>, IConstraintProperty
         EnumType? enumType = node.Type as EnumType;
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
-        EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, node.GetValue<string>()!, noSubList: true, withSubList: false);
+        EntryAccess<string>[] access = await enumType.GetEnumEntryAccess(context, node.GetValue<string>());
         return access.Length <= effectiveValue;
     }
 }

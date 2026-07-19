@@ -3,7 +3,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Property.App;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
@@ -53,7 +52,7 @@ public class EnumValueEntity
 
     #region Conversion
 
-    public static implicit operator EnumValueEntity?(EnumValueSchema? enumValueSchema)
+    public static implicit operator EnumValueEntity?(Entry<string>? enumValueSchema)
     {
         if  (enumValueSchema == null) return null;
         return new EnumValueEntity

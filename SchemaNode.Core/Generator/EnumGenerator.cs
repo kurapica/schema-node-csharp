@@ -37,14 +37,14 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
             : EnumValueType.String;
 
         // Build enum values from public static fields
-        EnumValueSchema[] values = 
+        Entry<string>[] values = 
             // from record property
             type.GetMetaProperty<Record>()?.Value?.GetRecordedValues()
            .Where(v => v.HasValue)
            .Select(v =>
            {
                string value = v.GetValue<string>()!.ToCamelCase();
-               EnumValueSchema valueSchema = new () { Value = value };
+               Entry<string> valueSchema = new () { Value = value };
                valueSchema.SetProperty<Display, LocaleString>($"{schema.FullName}.{value.ToLowerInvariant()}");
                return valueSchema;
             }).ToArray() 
@@ -53,7 +53,7 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
        ?? type.GetFields(BindingFlags.Public | BindingFlags.Static)
         .Select(f =>
         {
-            EnumValueSchema valueSchema = new ()
+            Entry<string> valueSchema = new ()
             {
                 Value = valueType switch
                 {
@@ -64,13 +64,10 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
             valueSchema.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(f) ?? $"{schema.FullName}.{f.Name.ToLowerInvariant()}");
             
             // properties
-            foreach (IProperty prop in f.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_ENUM_VALUE))
+            foreach (IProperty prop in f.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_ENTRY))
                 valueSchema.SetProperty(prop);
             return valueSchema;
         }).ToArray();
-
-        for (int i = 0; i < values.Length; i++)
-            values[i].Seqno = i;
 
         // Set the EnumProperty with the value type and values
         schema.SetProperty<EnumProperty, EnumSchema>(new EnumSchema

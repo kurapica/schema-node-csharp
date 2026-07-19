@@ -14,7 +14,7 @@ public interface INodeSchemaProvider
     /// </summary>
     /// <param name="names">The schema names</param>
     /// <returns>The schema</returns>
-    Task<NodeSchema[]> GetchemaAsync(string[] names);
+    Task<NodeSchema[]> GetSchemaAsync(string[] names);
 
     /// <summary>
     /// Gets the enum entry access list by value

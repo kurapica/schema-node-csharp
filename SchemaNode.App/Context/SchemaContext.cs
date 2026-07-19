@@ -78,7 +78,7 @@ public static class AppSchemaContextExtension
                 {
                     try
                     {
-                        AppSchema? loadAppSchema = await provider.LoadAppSchemaAsync(schemaName);
+                        AppSchema? loadAppSchema = await provider.GetAppSchemaAsync(schemaName);
                         if (loadAppSchema == null) continue;
                         AppSchema loadSchema = SetSchemaState(loadAppSchema, SchemaLoadState.Service, provider.GetType())!;
 

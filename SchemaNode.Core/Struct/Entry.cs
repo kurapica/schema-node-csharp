@@ -60,7 +60,7 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// </summary>
     public Entry<T>? GetEntry(T? value)
     {
-        Entry<T>? entry = value is null ? (_parent == null ? this : null) : _valueMaps?.GetValueOrDefault(value);
+        Entry<T>? entry = value is null ? this : _valueMaps?.GetValueOrDefault(value);
         return entry != null && IsDescendant(entry) ? entry : null;
     }
     

@@ -1,3 +1,5 @@
+using SchemaNode.Struct;
+
 namespace SchemaNode.Schema.Provider;
 
 /// <summary>
@@ -26,8 +28,8 @@ public interface IAppSchemaStorageProvider: IAppSchemaProvider
     /// <param name="value">The enum value</param>
     /// <param name="values">The enum sub list</param>
     /// <param name="append">Whether append the sub list not replace</param>
-    /// <returns>The new enum value info</returns>
-    Task<EnumValueSchema[]> SaveEnumSubListAsync(string name, string? value, EnumValueSchema[] values, bool? append);
+    /// <returns>true if saved</returns>
+    Task<bool> SaveEnumSubListAsync(string name, string? value, Entry<string>[] values, bool? append);
     
     /// <summary>
     /// Save the app schema

@@ -3,6 +3,7 @@ using SchemaNode.Data;
 using SchemaNode.Data.Entity;
 using SchemaNode.Runtime;
 using SchemaNode.Property;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -17,7 +18,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region Schema
 
     /// <inheritdoc />
-    public async Task<NodeSchema[]> GetchemaAsync(string[] names)
+    public async Task<NodeSchema[]> GetSchemaAsync(string[] names)
     {
         try
         {
@@ -70,10 +71,8 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                         EnumSchema? @enum = schema.GetProperty<EnumProperty>()?.Value;
                         if (@enum is { Cascade.Length: > 0 })
                         {
-                            foreach (EnumValueSchema value in @enum.Values)
+                            foreach (var value in @enum.Values)
                             {
-                                value.IsFullyLoaded = false;
-                                value.Children = null; // sub list will be loaded on demand, set to null to indicate not loaded
                                 value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).total != 0;
                             }
                             schema.SetProperty<EnumProperty, EnumSchema>(@enum);
@@ -148,30 +147,13 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region Eunm
     
     /// <inheritdoc />
-    public async Task<EnumValueSchema[]> LoadEnumSubListAsync(string schemaName, string? value)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(value)) return [];
-
-            // load enum values
-            List<EnumValueEntity> enumValues = await context.GetEntitiesAsync<EnumValueEntity>(Target, e => e.Enum == schemaName && e.Root == value);
-            enumValues.Sort((a, b) => a.Seqno.CompareTo(b.Seqno));
-            return enumValues.Select(e => (EnumValueSchema)e!).ToArray();
-        }
-        catch (Exception e)
-        {
-            context.LogError(e, "Failed to load enum sub list: {schema} - {value}", schemaName, value);
-            return [];
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<EnumValueAccess[]> LoadEnumAccessListAsync(string name, string? value, bool? noSubList = null, bool? withSubList = null)
+    public async Task<EntryAccess<string>[]> GetEnumEntryAccess(string name, string? value, string? start = null)
     {
         if (string.IsNullOrEmpty(value)) return [];
         try
         {
+            
+            
             string namespaceName = name.GetNamespace();
             string schemaName = name.GetSchemaName();
             NodeSchema? schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName);
@@ -250,14 +232,14 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     }
 
     /// <inheritdoc />
-    public async Task<EnumValueSchema[]> SaveEnumSubListAsync(string name, string? value, EnumValueSchema[] values, bool? append)
+    public async Task<bool> SaveEnumSubListAsync(string name, string? value, Entry<string>[] values, bool? append)
     {
         try
         {
-            if (string.IsNullOrEmpty(value)) return values; // should be done in save schema
+            if (string.IsNullOrEmpty(value)) return false; // should be done in save schema
             
-            EnumValueAccess[] accessList = await LoadEnumAccessListAsync(name, value, noSubList: true, withSubList: true);
-            if (accessList.Length == 0 || !string.IsNullOrWhiteSpace(accessList.Last().Value)) return [];
+            var accessList = await GetEnumEntryAccess(name, value);
+            if (accessList.Length == 0 || !string.IsNullOrWhiteSpace(accessList.Last().Entry?.Value)) return false;
             
             List<EnumValueSchema> enumValues = accessList.Last().SubList?.ToList() ?? [];
             EnumValueSchema? enumSchema = accessList.SkipLast(1).LastOrDefault()?.Schema;
@@ -315,12 +297,12 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             }
             
             await context.CommitTransactionAsync();
-            return enumValues.ToArray();
+            return true;
         }
         catch (Exception e)
         {
             context.LogError(e, "Failed to save enum sub list: {schema} - {value}", name, value);
-            return [];
+            return false;
         }
     }
 
@@ -329,7 +311,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region App
     
     /// <inheritdoc />
-    public async Task<AppSchema?> LoadAppSchemaAsync(string app)
+    public async Task<AppSchema?> GetAppSchemaAsync(string app)
     {
         try
         {

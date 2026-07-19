@@ -239,11 +239,16 @@ public sealed class StructType: ValueType
 
     public override IEnumerable<Entry<string>> GetSubEntries()
     {
-        return GetFields().Select(field => new Entry<string>
+        return GetFields().Select(field =>
         {
-            Value = field.Name,
-            Label = field.GetProperty<Display>()?.Value,
-            HasChildren = field.Type?.HasSubEntries  ?? false
+            var entry = new Entry<string>
+            {
+                Value = field.Name,
+                HasChildren = field.Type?.HasSubEntries ?? false
+            };
+            var display = field.GetProperty<Display>();
+            if (display != null) entry.SetProperty(display);
+            return entry;
         });
     }
 

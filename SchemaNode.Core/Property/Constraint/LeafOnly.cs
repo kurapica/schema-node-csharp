@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
 
@@ -21,7 +22,8 @@ public class LeafOnly : Property<bool>, IConstraintProperty
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
         if (!Value || node.IsEmpty) return null;
-        EnumValueSchema[]? val = (node.Type as EnumType) is { } enumType ? await enumType.LoadEnumSubListAsync(context, node.GetValue<string>()) : null;
-        return val == null || val.Length == 0;
+        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccess(context, null, node.GetValue<string>()) : null;
+        if (val is null || val.Length == 0) return null;
+        return val[0].Entry != null && val[0].Entry!.HasChildren != true;
     }
 }
