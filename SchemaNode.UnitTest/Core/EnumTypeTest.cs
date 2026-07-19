@@ -28,7 +28,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var subList = await colorType.GetEnumEntryAccessAsync(Context, null);
+        var subList = (await colorType.GetEnumEntryAccessAsync(Context, null))?.FirstOrDefault()?.Children;
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3);
     }

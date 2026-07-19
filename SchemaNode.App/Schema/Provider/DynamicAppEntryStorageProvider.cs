@@ -154,21 +154,24 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
         {
             var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name);
             if (enumType is not { Cascade.Length: > 0 }) return [];
+
+            Entry<string>[] root = (await enumType.GetEnumEntryAccessAsync(context, null)).First().Children!; // only root
             AppSchemaDataOrder[] orderBy = [new AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)];
 
             // Only load the children of the start value if value not provided
             if (string.IsNullOrWhiteSpace(value))
             {
-                Entry<string>? startEntry = await context.GetEntityAsync<EnumValueEntity>(Target, name, start!);
+                Entry<string>? startEntry = root.FirstOrDefault(e => e.Value.Equals(start, StringComparison.OrdinalIgnoreCase)) 
+                                            ?? await context.GetEntityAsync<EnumValueEntity>(Target, name, start!);
                 if (startEntry is not { HasChildren: true }) return []; // not existed
                 
-                var children = await context.GetEntitiesAsync<EnumValueEntity>(Target, 
+                List<EnumValueEntity> children = await context.GetEntitiesAsync<EnumValueEntity>(Target, 
                     e => e.Enum == name && e.Root == start, orderBy: orderBy);
                 return
                 [
                     new EntryAccess<string>
                     {
-                        Entry    =  startEntry,
+                        Entry    = startEntry,
                         Children = children.Select(e => (Entry<string>)e!).ToArray(),
                     }
                 ];
@@ -179,8 +182,11 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             bool matchBranch = false;
             while (value is not null)
             {
-                EnumValueEntity? info = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
+                Entry<string>? info = root.FirstOrDefault(e => e.Value.Equals(value, StringComparison.OrdinalIgnoreCase));
+                EnumValueEntity? entity = info == null ? await context.GetEntityAsync<EnumValueEntity>(Target, name, value) : null;
+                if (entity != null) info = entity;
                 if (info == null) return [];
+                
                 accesses.Add(new EntryAccess<string>
                 {
                     Entry =  info,
@@ -188,12 +194,21 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
                         e => e.Enum == name && e.Root == value, orderBy: orderBy))
                         .Select(e => (Entry<string>)e!).ToArray()
                 });
+                if (entity == null)
+                {
+                    if (start is not null) return [];
+                    matchBranch = true;
+                    accesses.Add(new EntryAccess<string>
+                    {
+                        Children = root.Select(r => r.Clone()).ToArray()
+                    });
+                }
                 if (start is not null && value.Equals(start))
                 {
                     matchBranch = true;
                     break;
                 }
-                value = info.Root;
+                value = entity?.Root;
             }
             if (start is not null && !matchBranch) return [];
             
@@ -219,10 +234,12 @@ public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntrySt
             if (enumType is not { Cascade.Length: > 0 }) return false;
             
             var accessList = await GetEnumEntryAccessAsync(name, value);
-            if (accessList.Length == 0 || accessList.Length >= enumType.Cascade.Length) return false;
+            if (accessList.Length == 0 || accessList.Length > enumType.Cascade.Length) return false;
+
+            value = accessList.Last().Entry!.Value;
 
             EnumValueEntity? valueEntity = null;
-            if (accessList.Length > 1)
+            if (accessList.Length > 2)
             {
                 valueEntity = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
                 if (valueEntity == null) return false;

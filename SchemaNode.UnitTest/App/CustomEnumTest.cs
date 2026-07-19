@@ -78,7 +78,7 @@ public class CustomEnumTest : Base.AppTestBase
         // access list
         var access = await regionType.GetEnumEntryAccessAsync(Context, "Beijing");
         Assert.IsNotNull(access);
-        Assert.AreEqual(2, access.Length);
+        Assert.AreEqual(3, access.Length);
     }
 
     [TestMethod]
@@ -145,7 +145,7 @@ public class CustomEnumTest : Base.AppTestBase
         Assert.IsNotNull(continentType);
 
         // Load sub-list directly (not access list)
-        var subList = await continentType.GetEnumEntryAccessAsync(Context, "Asia");
+        var subList = (await continentType.GetEnumEntryAccessAsync(Context, "Asia")).Last().Children;
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3, $"Expected >= 3 sub-list values, got {subList.Length}");
     }

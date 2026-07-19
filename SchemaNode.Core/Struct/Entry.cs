@@ -110,7 +110,9 @@ public class Entry<T>: PropertyOwner where T: notnull
     /// </summary>
     public void SaveAccessList(EntryAccess<T>[] accesses)
     {
-        _valueMaps ??= []; // only root entry will create it
+        _valueMaps ??= typeof(T) == typeof(string) 
+            ? new ConcurrentDictionary<string, Entry<string>>(StringComparer.OrdinalIgnoreCase) as ConcurrentDictionary<T, Entry<T>>
+            : new ConcurrentDictionary<T, Entry<T>>(); // only root entry will create it
         Entry<T>? root = this;
         
         foreach (var current in accesses)
