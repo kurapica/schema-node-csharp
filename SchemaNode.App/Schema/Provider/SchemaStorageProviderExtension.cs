@@ -37,7 +37,7 @@ public static class SchemaStorageProviderExtension
         }
 
         // Gets storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // save schema
@@ -78,7 +78,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(node, PolicyScope.SchemaDelete);
 
         // get storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // delete the schema
@@ -102,7 +102,7 @@ public static class SchemaStorageProviderExtension
     /// <param name="append">Whether append the sub list not replace</param>
     /// <param name="noEvent">no event raised</param>
     /// <returns>true if saved</returns>
-    public static async Task<bool> SaveEnumSubListAsync(this SchemaContext context, string name, string value, Entry<string>[] values, bool append = false, bool noEvent = false)
+    public static async Task<bool> SaveEnumEntriesAsync(this SchemaContext context, string name, string value, Entry<string>[] values, bool append = false, bool noEvent = false)
     {
         if (string.IsNullOrWhiteSpace(value)) return false; // for root level, please use SaveSchemaAsync to save the whole enum schema with sub list
 
@@ -113,7 +113,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
 
         // gets storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
                 
         // Need check the delete case when it has sub list, only delete the leaf node
@@ -128,9 +128,9 @@ public static class SchemaStorageProviderExtension
         return true;
     }
 
-    static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppSchemaStorageProvider provider, Runtime.EnumType @enum, string value, Entry<string>[] values, bool append = false)
+    static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppEntryStorageProvider provider, Runtime.EnumType @enum, string value, Entry<string>[] values, bool append = false)
     {
-        var access = await @enum.GetEnumEntryAccess(context, value);
+        var access = await @enum.GetEnumEntryAccessAsync(context, value);
         if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return;
         
         if (!append)
@@ -197,7 +197,7 @@ public static class SchemaStorageProviderExtension
         }
 
         // Ges the storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // Save node schemas first (field types may depend on them)
@@ -252,7 +252,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(node, PolicyScope.SchemaDelete);
 
         // delete the schema
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppSchemaAsync(app)) return false;
         node.Container?.RemoveAppSchema(app);
@@ -287,7 +287,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
 
         // Gets the storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // save the field schema
@@ -313,7 +313,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(node!, PolicyScope.SchemaUpdate);
 
         // Gets the storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // delete the field schema
@@ -351,7 +351,7 @@ public static class SchemaStorageProviderExtension
         await context.AuthorizeAsync(node, PolicyScope.SchemaUpdate);
 
         // Gets the storage provider
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
 
         // swap the field schema
@@ -378,7 +378,7 @@ public static class SchemaStorageProviderExtension
         AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow.Name);
         if (!forActive && appWorkflowType is { Activated: true }) return false;
 
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
         if (!await provider.SaveAppWorkflowSchemaAsync(app, workflow)) return false;
 
@@ -405,7 +405,7 @@ public static class SchemaStorageProviderExtension
         AppWorkflowType? appWorkflowType = node.GetWorkflow(workflow);
         if (appWorkflowType is { Activated: true }) return false;
 
-        IAppSchemaStorageProvider? provider = context.GetService<IAppSchemaStorageProvider>();
+        IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
         if (!await provider.DeleteAppWorkflowSchemaAsync(app, workflow)) return false;
 

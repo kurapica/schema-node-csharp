@@ -2,7 +2,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.Text.Json.Nodes;
 using SchemaNode.Data;
 using SchemaNode.Enum;
@@ -74,10 +73,10 @@ public static class SystemAppData
                     f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
                     f.Resolve == FieldFilterResolve.CascadeParent))
             {
-                EnumValueAccess[] enumAccess = await enumType.LoadEnumAccessListAsync(context, valueNode.GetValue<string>()!,
-                    noSubList: true, withSubList: false);
+                var enumAccess = await enumType.GetEnumEntryAccessAsync(context, valueNode.GetValue<string>()!);
                 if (enumAccess.Length == 0) return default;
-                keyValues[i] = enumAccess.Select(a => keyType.From(a.Value)).ToList();
+                keyValues[i] = enumAccess.Where(a => !string.IsNullOrWhiteSpace(a.Entry?.Value))
+                    .Select(a => keyType.From(a.Entry!.Value)).ToList();
             }
             else
             {

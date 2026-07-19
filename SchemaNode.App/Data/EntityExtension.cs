@@ -70,33 +70,34 @@ public static class EntityExtension
     /// </summary>
     public static Task<T?> GetEntityAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond, bool forUpdate = false) 
         => context.GetEntityAsync(string.Empty, cond, forUpdate);
-
+    
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, bool forUpdate = false)
+    public static async Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
             return [];
         
         AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
-        
         using var stack = context.StackAccess(appFieldType.App, target);
-        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
+        
+        var (value, _) = await context.GetAppFieldDataAsync(appFieldType, AppSchemaDataResult.List, filter,
+            skip, take, desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
         return value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [];
     }
     
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context,  Expression<Func<T, bool>> cond, bool forUpdate = false)
-        => context.GetEntitiesAsync(string.Empty, cond, forUpdate);
+    public static Task<List<T>> GetEntitiesAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond,  int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+        => context.GetEntitiesAsync(string.Empty, cond, skip, take, desc, orderBy, forUpdate);
 
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static async Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+    public static async Task<(List<T>, int)> GetEntitiesWithTotalAsync<T>(this SchemaContext context, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
     {
         AppFieldType appFieldType = await context.AssertAppField<T>();
         if (appFieldType.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
@@ -113,32 +114,8 @@ public static class EntityExtension
     /// <summary>
     /// Gets the entity data by full primary keys
     /// </summary>
-    public static Task<(List<T> value, int total)> GetEntitiesAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond, int take, int skip = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
-        => context.GetEntitiesAsync(string.Empty, cond, take, skip, desc, orderBy, forUpdate);
-
-    /// <summary>
-    /// Gets the entity data by full primary keys
-    /// </summary>
-    public static async Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, string target, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
-    {
-        context.AssertType<T>(field);
-        if (field.Application.ScopeType != AppScopeType.SystemLevel && string.IsNullOrEmpty(target))
-            return ([], 0);
-        
-        AppSchemaDataFilter filter = AppSchemaDataFilterVisitor.Build(cond);
-        
-        using var stack = context.StackAccess(field.App, target);
-    
-        var (value, total) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List, filter, skip, take,
-            desc, orderBy, forUpdate: forUpdate, genDisplayOnly: !forUpdate);
-        return (value is ArrayNode arr ? arr.Select(o => o.GetValue<T>()!).ToList() : [], total);
-    }
-    
-    /// <summary>
-    /// Gets the entity data by full primary keys
-    /// </summary>
-    public static Task<(List<T> value, int total)> GetFieldEntitiesAsync<T>(this SchemaContext context, AppFieldType field, Expression<Func<T, bool>> cond, int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
-        => context.GetFieldEntitiesAsync(field, string.Empty, cond, skip, take, desc, orderBy, forUpdate);
+    public static Task<(List<T>, int)> GetEntitiesWithTotalAsync<T>(this SchemaContext context, Expression<Func<T, bool>> cond,  int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, bool forUpdate = false)
+        => context.GetEntitiesWithTotalAsync(string.Empty, cond, skip, take, desc, orderBy, forUpdate);
 
     #endregion
 

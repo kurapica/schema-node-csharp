@@ -4,29 +4,30 @@ using SchemaNode.Http;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 
 namespace SchemaNode.Api.Schema.Info;
 
 /// <summary>
 /// The LoadEnumAccessList api
 /// </summary>
-public class LoadEnumAccessListApi : SchemaApi<LoadEnumAccessListRequest, LoadEnumAccessListResponse>
+public class GetEnumEntryAccessApi : SchemaApi<GetEnumEntryAccessRequest, GetEnumEntryAccessResponse>
 {
     /// <inheritdoc />
-    protected override async Task<LoadEnumAccessListResponse?> ExecuteAsync(LoadEnumAccessListRequest request,
+    protected override async Task<GetEnumEntryAccessResponse?> ExecuteAsync(GetEnumEntryAccessRequest request,
         CancellationToken cancellationToken)
     {
         Logger.LogDebug("[Api]LoadEnumAccessList [Request]{request}", request);
 
         NodeType? node = await SchemaContext.GetNodeTypeAsync(request.Name);
-        if (node is not Runtime.EnumType @enum) return new LoadEnumAccessListResponse();
+        if (node is not Runtime.EnumType @enum) return new GetEnumEntryAccessResponse();
         
         // authorize
         await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead);
 
-        return new LoadEnumAccessListResponse
+        return new GetEnumEntryAccessResponse
         {
-            Access = await @enum.LoadEnumAccessListAsync(SchemaContext, request.Value, request.NoSubList, request.WithSubList)
+            Access = await @enum.GetEnumEntryAccessAsync(SchemaContext, request.Value, request.Start)
         };
     }
 }
@@ -34,7 +35,7 @@ public class LoadEnumAccessListApi : SchemaApi<LoadEnumAccessListRequest, LoadEn
 /// <summary>
 /// The LoadEnumAccessList request
 /// </summary>
-public class LoadEnumAccessListRequest : SchemaApiRequest
+public class GetEnumEntryAccessRequest : SchemaApiRequest
 {
     /// <summary>
     /// The eum schema name
@@ -45,26 +46,21 @@ public class LoadEnumAccessListRequest : SchemaApiRequest
     /// <summary>
     /// The access enum value
     /// </summary>
-    public required string Value { get; set; }
+    public string? Value { get; set; }
     
     /// <summary>
-    /// Don't load sub list
+    /// The path start value
     /// </summary>
-    public bool? NoSubList { get; set; }
-    
-    /// <summary>
-    /// Also load the sub list of the given value
-    /// </summary>
-    public bool? WithSubList { get; set; }
+    public string? Start {get; set;}
 }
 
 /// <summary>
 /// The LoadEnumAccessList response
 /// </summary>
-public class LoadEnumAccessListResponse : SchemaApiResponse
+public class GetEnumEntryAccessResponse : SchemaApiResponse
 {
     /// <summary>
     /// The enum value access list
     /// </summary>
-    public EnumValueAccess[] Access { get; set; } = [];
+    public EntryAccess<string>[] Access { get; set; } = [];
 }

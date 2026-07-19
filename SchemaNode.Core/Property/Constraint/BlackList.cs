@@ -16,7 +16,7 @@ public class BlackList : Property<object[]>, IConstraintProperty
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
         if (Value == null || Value.Length == 0 || node.IsEmpty) return null;
-        EntryAccess<string>[] accessList = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccess(context, node.GetValue<string>()!);
+        EntryAccess<string>[] accessList = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, node.GetValue<string>()!);
         return accessList.All(a => Value.All(v => !v.Equals(a.Entry?.Value)));
     }
 

@@ -11,7 +11,7 @@ namespace SchemaNode.Api.Schema.Info;
 /// <summary>
 /// The LoadSchema api
 /// </summary>
-public class LoadAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResponse>
+public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResponse>
 {
     /// <inheritdoc />
     protected override async Task<LoadAppSchemaResponse?> ExecuteAsync(LoadAppSchemaRequest request,

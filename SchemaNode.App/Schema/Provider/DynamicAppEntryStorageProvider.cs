@@ -13,7 +13,7 @@ namespace SchemaNode.Schema.Provider;
 /// <summary>
 /// Use application storage to store type schemas
 /// </summary>
-public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchemaStorageProvider
+public class DynamicAppEntryStorageProvider(SchemaContext context) : IAppEntryStorageProvider
 {
     #region Schema
 
@@ -73,7 +73,7 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
                         {
                             foreach (var value in @enum.Values)
                             {
-                                value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).total != 0;
+                                value.HasChildren = (await context.GetEntitiesAsync<EnumValueEntity>(Target,e => e.Enum == schema.FullName && e.Root == value.Value, take: 1)).Count != 0;
                             }
                             schema.SetProperty<EnumProperty, EnumSchema>(@enum);
                         }
@@ -147,80 +147,58 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     #region Eunm
     
     /// <inheritdoc />
-    public async Task<EntryAccess<string>[]> GetEnumEntryAccess(string name, string? value, string? start = null)
+    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(string name, string? value, string? start = null)
     {
         if (string.IsNullOrEmpty(value) && string.IsNullOrWhiteSpace(start)) return [];
         try
-        {          
-            
-            string namespaceName = name.GetNamespace();
-            string schemaName = name.GetSchemaName();
-            NodeSchema? schema = await context.GetEntityAsync<NodeEntity>(Target, string.IsNullOrWhiteSpace(namespaceName) ? ROOT : namespaceName, schemaName);
-            if (schema?.Kind != SCHEMA_KIND_ENUM) return [];
-            EnumSchema? enumSchema = schema.GetProperty<EnumProperty>()?.Value;
-            if (enumSchema == null) return [];
-            
-            // current value is in the root list, just return the root list
-            if (enumSchema.Values.FirstOrDefault(v => v.Value.Equals(value, StringComparison.OrdinalIgnoreCase)) is {} exist)
+        {
+            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name);
+            if (enumType is not { Cascade.Length: > 0 }) return [];
+            AppSchemaDataOrder[] orderBy = [new AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)];
+
+            // Only load the children of the start value if value not provided
+            if (string.IsNullOrWhiteSpace(value))
             {
-                if (withSubList == true && enumSchema.Cascade is { Length: > 1 })
-                {
-                    EnumValueSchema[] subList = await LoadEnumSubListAsync(name, value);
-                    return
-                    [
-                        new EnumValueAccess { Value = value, Schema =  noSubList == true ? exist.Clone() : null, SubList = !(noSubList ?? false) ? enumSchema.Values : null },
-                        new EnumValueAccess { Value = "", SubList = subList }
-                    ];
-                }
+                Entry<string>? startEntry = await context.GetEntityAsync<EnumValueEntity>(Target, name, start!);
+                if (startEntry is not { HasChildren: true }) return []; // not existed
+                
+                var children = await context.GetEntitiesAsync<EnumValueEntity>(Target, 
+                    e => e.Enum == name && e.Root == start, orderBy: orderBy);
                 return
                 [
-                    new EnumValueAccess { Value = value, SubList = !(noSubList ?? false) ? enumSchema.Values : null }
+                    new EntryAccess<string>
+                    {
+                        Entry    =  startEntry,
+                        Children = children.Select(e => (Entry<string>)e!).ToArray(),
+                    }
                 ];
             }
-
-            // no root value match
-            if (enumSchema is not { Cascade.Length: > 0 }) return [];
             
             // check the entity
-            EnumValueEntity? info = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
-            
-            List<EnumValueAccess>? accesses = null;
-            while (!string.IsNullOrWhiteSpace(info?.Root))
+            List<EntryAccess<string>> accesses = [];
+            bool matchBranch = false;
+            while (value is not null)
             {
-                accesses ??= [];
-                accesses.Insert(0, new EnumValueAccess
+                EnumValueEntity? info = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
+                if (info == null) return [];
+                accesses.Add(new EntryAccess<string>
                 {
-                    Value = info.Value,
-                    Schema = noSubList == true ? info : null,
-                    SubList = noSubList != true ? await  LoadEnumSubListAsync(name, info.Root) : null
+                    Entry =  info,
+                    Children = (await context.GetEntitiesAsync<EnumValueEntity>(Target, 
+                        e => e.Enum == name && e.Root == value, orderBy: orderBy))
+                        .Select(e => (Entry<string>)e!).ToArray()
                 });
-                
-                // check root value is in the enum list, if exist just break, otherwise continue to find the parent value
-                if (enumSchema.Values.FirstOrDefault(v => v.Value.Equals(info.Root, StringComparison.OrdinalIgnoreCase)) is {} existRoot)
+                if (start is not null && value.Equals(start))
                 {
-                    accesses.Insert(0, new EnumValueAccess
-                    {
-                        Value = info.Root,
-                        Schema = noSubList == true ? existRoot : null,
-                        SubList = noSubList != true ? enumSchema.Values : null
-                    });
+                    matchBranch = true;
                     break;
                 }
-                info = await context.GetEntityAsync<EnumValueEntity>(Target, name, info.Root);
+                value = info.Root;
             }
-
-            // access path broken
-            if (string.IsNullOrWhiteSpace(info?.Root) || accesses == null) return [];
-
-            if (withSubList == true && enumSchema.Cascade.Length > accesses.Count)
-            {
-                accesses.Add(new EnumValueAccess
-                {
-                    Value = "",
-                    SubList = await LoadEnumSubListAsync(name, value)
-                });
-            }
-
+            if (start is not null && !matchBranch) return [];
+            
+            // return
+            accesses.Reverse();
             return accesses.ToArray();
         }
         catch (Exception e)
@@ -231,68 +209,76 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
     }
 
     /// <inheritdoc />
-    public async Task<bool> SaveEnumEntriesAsync(string name, string? value, Entry<string>[] values, bool? append)
+    public async Task<bool> SaveEnumEntriesAsync(string name, string value, Entry<string>[] values, bool? append)
     {
         try
         {
             if (string.IsNullOrEmpty(value)) return false; // should be done in save schema
             
-            var accessList = await GetEnumEntryAccess(name, value);
-            if (accessList.Length == 0 || !string.IsNullOrWhiteSpace(accessList.Last().Entry?.Value)) return false;
+            var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(name);
+            if (enumType is not { Cascade.Length: > 0 }) return false;
             
-            List<EnumValueSchema> enumValues = accessList.Last().SubList?.ToList() ?? [];
-            EnumValueSchema? enumSchema = accessList.SkipLast(1).LastOrDefault()?.Schema;
-            if (enumSchema == null) return [];
+            var accessList = await GetEnumEntryAccessAsync(name, value);
+            if (accessList.Length == 0 || accessList.Length >= enumType.Cascade.Length) return false;
 
+            EnumValueEntity? valueEntity = null;
+            if (accessList.Length > 1)
+            {
+                valueEntity = await context.GetEntityAsync<EnumValueEntity>(Target, name, value);
+                if (valueEntity == null) return false;
+            }
+            
+            // Gets the exist entries
+            List<EnumValueEntity> existEntries = await context.GetEntitiesAsync<EnumValueEntity>(
+                Target, e => e.Enum == name && e.Root == value, orderBy:[new  AppSchemaDataOrder(nameof(EnumValueEntity.Seqno), false)]);
+            
             List<EnumValueEntity>? deletes = null;
             
             // merge values
             if (append == true)
             {
-                enumValues.AddRange(values.Where(v => !enumValues.Any(e => e.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase))));
+                existEntries.AddRange(values.Where(v => 
+                    !existEntries.Any(e => e.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase)))
+                    .Select(v =>
+                    {
+                        EnumValueEntity entity = v!;
+                        entity.Enum = name;
+                        entity.Root = value;
+                        entity.HasChildren = false;
+                        return entity;
+                    }));
             }
             else
             {
-                deletes = enumValues
+                deletes = existEntries
                     .Where(e => !values.Any(v => v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase)))
-                    .Select(e => (EnumValueEntity)e!)
                     .ToList();
-                enumValues = values.Select(e =>
+                if (deletes.Any(d => d.HasChildren)) return false; // don't delete entry that has children
+                existEntries = values.Select(e => (EnumValueEntity)e!).Select((e, i) =>
                 {
-                    EnumValueSchema? exist = enumValues.FirstOrDefault(v => v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase));
+                    e.Enum = name;
+                    e.Root = value;
+                    e.HasChildren = false;
+                    e.Seqno = i;
+                    
+                    var exist = existEntries.FirstOrDefault(v => v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase));
                     if (exist != null) e.HasChildren = exist.HasChildren; // keep the sub list info if exist
                     return e;
                 }).ToList();
             }
             
-            // Index settings
-            List<EnumValueEntity> entities  = enumValues.Select(e => (EnumValueEntity)e!).ToList();
-            
             await context.BeginTransactionAsync();
             if (deletes is { Count: > 0 })
-            {
-                foreach (var delete in deletes)
-                    delete.Enum = name;
-
                 await context.DeleteEntitiesAsync(Target, deletes);
-            }
 
-            if (enumValues.Count > 0)
-            {
-                for(int i = 0; i < enumValues.Count; i++)
-                {
-                    entities[i].Enum = name;
-                    entities[i].Root = value;
-                    entities[i].Seqno = i;
-                }
-                await context.SaveEntitiesAsync(Target, entities);
-            }
+            if (existEntries.Count > 0)
+                await context.SaveEntitiesAsync(Target, existEntries);
 
-            // Update the sub list settings
-            if (enumSchema.HasChildren == true ? enumValues.Count == 0 : enumValues.Count > 0 && accessList.Length > 2)
+            // Update the children flag
+            if (valueEntity is not null)
             {
-                enumSchema.HasChildren = enumValues.Count > 0;
-                await context.SaveEntityAsync<EnumValueEntity>(Target, enumSchema!);
+                valueEntity.HasChildren = existEntries.Count > 0;
+                await context.SaveEntityAsync(Target, valueEntity);
             }
             
             await context.CommitTransactionAsync();
@@ -337,10 +323,10 @@ public class DynamicAppSchemaStorageProvider(SchemaContext context) : IAppSchema
             foreach(AppSchema subApp in apps)
             {
                 // check sub apps
-                subApp.HasApps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == subApp.FullName, take: 1)).total != 0;
+                subApp.HasApps = (await context.GetEntitiesAsync<AppEntity>(Target, e => e.Container == subApp.FullName, take: 1)).Count != 0;
 
                 // check fields
-                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == subApp.FullName, take: 1)).total != 0;
+                subApp.HasFields = (await context.GetEntitiesAsync<AppFieldEntity>(Target, e => e.App == subApp.FullName, take: 1)).Count != 0;
             }
 
             // provide container app

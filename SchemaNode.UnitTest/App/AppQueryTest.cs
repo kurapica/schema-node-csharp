@@ -63,9 +63,8 @@ public class AppQueryTest : Base.AppTestBase
         await Context.CommitTransactionAsync();
 
         // Get first 5 (filter on Year > 0 to get all)
-        var (page1, total) = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 5, skip: 0);
+        var page1 = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 5, skip: 0);
         Assert.AreEqual(5, page1.Count);
-        Assert.AreEqual(10, total);
     }
 
     [TestMethod]
@@ -91,9 +90,8 @@ public class AppQueryTest : Base.AppTestBase
         await Context.CommitTransactionAsync();
 
         // Skip 2, take 2
-        var (result, total) = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 2, skip: 2);
+        var result = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 2, skip: 2);
         Assert.AreEqual(2, result.Count);
-        Assert.AreEqual(5, total);
     }
 
     [TestMethod]
@@ -113,7 +111,7 @@ public class AppQueryTest : Base.AppTestBase
         await Context.CommitTransactionAsync();
 
         // Order by Price descending (filter all by Year > 0)
-        var (result, total) = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 10, skip: 0,
+        var result = await Context.GetEntitiesAsync<Book>(target, b => b.Year > 0, take: 10, skip: 0,
             desc: false,
             orderBy: [new AppSchemaDataOrder("price", true)]);
         Assert.AreEqual(3, result.Count);

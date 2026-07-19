@@ -99,7 +99,7 @@ public class SchemaRuntime : ISchemaRuntime
         if (detail.IsGenericParameter) return null;
         if (detail.IsGenericType)
         {
-            schemaName = GetTypeSchema(type.GetGenericTypeDefinition());
+            schemaName = GetTypeSchema(detail.CoreType.GetGenericTypeDefinition());
             if (schemaName == null) return null;
             Type[] args = type.GetGenericArguments();
             string[] genericArgs = new string[args.Length];

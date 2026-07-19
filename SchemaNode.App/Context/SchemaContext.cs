@@ -74,7 +74,7 @@ public static class AppSchemaContextExtension
                 if (context.SystemMode) return schema;
 
                 // 3rd app schema provider
-                foreach (var provider in context.GetServices<IAppSchemaProvider>())
+                foreach (var provider in context.GetServices<IAppEntryProvider>())
                 {
                     try
                     {

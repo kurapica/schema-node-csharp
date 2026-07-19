@@ -8,8 +8,8 @@ using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using SchemaNode.Data;
-using SchemaNode.Property;
 using SchemaNode.Property.App;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
@@ -59,7 +59,7 @@ public static class BatchQueryExtension
             Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
-        RootEnumValueSchema.Value = new EnumValueSchema();
+        RootEnumValueSchema.Value = new Entry<string>();
         
         foreach (AppDataQuery query in queries)
         {
@@ -339,7 +339,7 @@ public static class BatchQueryExtension
                     string key = $"{enumNode.Name}:{val.GetValue<string>()}";
                     if (enumsKeys.Add(key))
                     {
-                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.GetValue<string>()!);
+                        var access = await enumNode.GetEnumEntryAccessAsync(context, val.GetValue<string>()!);
 
                         if (access.Length > 0)
                         {
@@ -359,7 +359,7 @@ public static class BatchQueryExtension
                             if (parent.Kind == SCHEMA_KIND_ENUM)
                             {
                                 RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
-                                RootEnumValueSchema.Value!.CombineAccessList(access);
+                                RootEnumValueSchema.Value!.SaveAccessList(access);
                                 RootEnumValueSchema.Value!.Children = null;
                             }
                         }
@@ -407,7 +407,7 @@ public static class BatchQueryExtension
         }
     }
 
-    static readonly AsyncLocal<EnumValueSchema> RootEnumValueSchema = new();
+    static readonly AsyncLocal<Entry<string>> RootEnumValueSchema = new();
 }
 
 /// <summary>

@@ -28,7 +28,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var subList = await colorType.LoadEnumSubListAsync(Context, null);
+        var subList = await colorType.GetEnumEntryAccessAsync(Context, null);
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3);
     }
@@ -83,7 +83,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var access = await colorType.LoadEnumSubListAsync(Context, "Red");
+        var access = await colorType.GetEnumEntryAccessAsync(Context, "Red");
         Assert.IsNotNull(access);
     }
 
@@ -92,7 +92,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var accessList = await colorType.LoadEnumAccessListAsync(Context, "Red", noSubList: true);
+        var accessList = await colorType.GetEnumEntryAccessAsync(Context, "Red");
         Assert.IsNotNull(accessList);
     }
 
@@ -101,7 +101,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var accessList = await colorType.LoadEnumAccessListAsync(Context, "NonExistent");
+        var accessList = await colorType.GetEnumEntryAccessAsync(Context, "NonExistent");
         Assert.IsNotNull(accessList);
         Assert.AreEqual(0, accessList.Length);
     }
@@ -137,7 +137,7 @@ public class EnumTypeTest : Base.CoreTestBase
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
 
-        var subList = await colorType.LoadEnumSubListAsync(Context, null);
+        var subList = (await colorType.GetEnumEntryAccessAsync(Context, null)).FirstOrDefault()?.Children;
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3, $"Expected at least 3 values, got {subList.Length}");
 

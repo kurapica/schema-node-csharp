@@ -12,6 +12,6 @@ public abstract class AppTestBase : CoreTestBase
     {
         InMemoryAppDataProvider.Reset();
         services.AddAppDataProvider<InMemoryAppDataProvider>();
-        services.AddSchemaStorageProvider<DynamicAppSchemaStorageProvider>();
+        services.AddSchemaStorageProvider<DynamicAppEntryStorageProvider>();
     }
 }

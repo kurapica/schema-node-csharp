@@ -23,7 +23,7 @@ public class EnumValueEntity
     /// The value
     /// </summary>
     [Meta<PrimaryIndex>(1)]
-    [Meta<UniqueIndex>("SUB_LIST", 3)]
+    [Meta<UniqueIndex>("SUB_LIST", 2)]
     [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
@@ -37,7 +37,6 @@ public class EnumValueEntity
     /// <summary>
     /// The seqno
     /// </summary>
-    [Meta<UniqueIndex>("SUB_LIST", 2)]
     public long Seqno { get; set; }
     
     /// <summary>

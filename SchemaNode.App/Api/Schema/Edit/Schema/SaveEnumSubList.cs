@@ -1,15 +1,15 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Http;
-using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Struct;
 
 namespace SchemaNode.Api.Schema.Edit;
 
 /// <summary>
 /// The SaveEnumSubList api
 /// </summary>
-public class SaveEnumSubListApi : SchemaApi<SaveEnumSubListRequest, SaveEnumSubListResponse>
+public class SaveEnumEntriesApi : SchemaApi<SaveEnumSubListRequest, SaveEnumSubListResponse>
 {
     /// <inheritdoc />
     protected override async Task<SaveEnumSubListResponse?> ExecuteAsync(SaveEnumSubListRequest request,
@@ -19,7 +19,7 @@ public class SaveEnumSubListApi : SchemaApi<SaveEnumSubListRequest, SaveEnumSubL
 
         return new SaveEnumSubListResponse
         {
-            Result = await SchemaContext.SaveEnumSubListAsync(request.Name, request.Value, request.Values, request.Append ?? false)
+            Result = await SchemaContext.SaveEnumEntriesAsync(request.Name, request.Value, request.Values, request.Append ?? false)
         };
     }
 }
@@ -44,7 +44,7 @@ public class SaveEnumSubListRequest : SchemaApiRequest
     /// <summary>
     /// The sub enum values
     /// </summary>
-    public EnumValueSchema[] Values { get; set; } = [];
+    public Entry<string>[] Values { get; set; } = [];
     
     /// <summary>
     /// Append not override

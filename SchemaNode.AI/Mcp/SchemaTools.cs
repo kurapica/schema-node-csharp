@@ -10,6 +10,7 @@ using SchemaNode.Enum;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Struct;
 using AppType = SchemaNode.Runtime.AppType;
 using EnumType = SchemaNode.Runtime.EnumType;
 
@@ -26,7 +27,7 @@ public class SchemaTools
          "If no name is provided, the root namespace schemas are returned." + 
          "Each returned item is an instance of schema type: system.schema.nodeschema. " +
          "The structure and field meanings follow the definition of this schema type.")]
-    public static async Task<NodeSchema> LoadSchema(
+    public static async Task<NodeSchema> GetSchema(
         SchemaContext context,
         [Description(
             "Name of the schema type or namespace to browse. " +
@@ -41,43 +42,22 @@ public class SchemaTools
     }
     
     [McpServerTool, Description(
-         "Load enumeration values from an enum schema type. " +
-         "Supports hierarchical enums where values may have parent-child relationships. " +
-         "Can return the full list or only the direct children of a specified enum value." + 
-         "Each returned item is an instance of schema type: system.schema.enumvalueinfo." +
-         "The structure and field meanings follow the schema type definition."
-    )]
-    public static async Task<EnumValueSchema[]> LoadEnumSubList(
-        SchemaContext context,
-        [Description("Name of the enumeration schema type to load values from.")] string name,
-        [Description(
-            "Parent enum value used to load its direct child values. " +
-            "If null, loads top-level values."
-        )] string? value = null)
-    {
-        EnumType? node = await context.GetNodeTypeAsync<EnumType>(name) ??
-            throw new InvalidOperationException($"Enum schema type '{name}' not found.");
-        return await node.LoadEnumSubListAsync(context, value);
-    }
-    
-    [McpServerTool, Description(
          "Load access control information for a specific enum value from a hierarchical enum schema type. " +
          "Each returned item represents an access node in the enum hierarchy, describing which enum values are accessible. " +
          "Sub-list access nodes may be included depending on the loading options. " +
          "Each returned item is an instance of schema type: system.schema.enumvalueaccess. " +
          "The structure and field meanings follow the schema type definition."
     )]
-    public static async Task<EnumValueAccess[]> LoadEnumAccessList(
+    public static async Task<EntryAccess<string>[]> GetEnumEntryAccess(
         SchemaContext context,
         [Description("Name of the hierarchical enumeration schema type.")] string name,
-        [Description("The enum value whose access scope should be evaluated.")] string value,
-        [Description("If true, only load access for the specified value itself, without any child access nodes.")] bool? noSubList = null,
-        [Description( "If true, also include access information for child enum values. " +
-                      "Ignored when noSubList is true.")] bool? withSubList = null)
+        [Description("The enum value whose access scope should be evaluated.")] string? value,
+        [Description("The access path start enum value.")] string? start
+        )
     {
         EnumType? node = await context.GetNodeTypeAsync<EnumType>(name) ??
             throw new InvalidOperationException($"Enum schema type '{name}' not found.");
-        return await node.LoadEnumAccessListAsync(context, value, noSubList, withSubList);
+        return await node.GetEnumEntryAccessAsync(context, value, start);
     }
     
     [McpServerTool, Description(
@@ -128,18 +108,18 @@ public class SchemaTools
          "Depending on the append option, the existing sub-list may be replaced or extended. " +
          "Returns true if the update was successful."
     )]
-    public static async Task<bool> SaveEnumSubList(SchemaContext context,
+    public static async Task<bool> SaveEnumEntries(SchemaContext context,
         [Description("Schema type name of the hierarchical enumeration to modify.")] string name,
         [Description( 
             "Parent enum value whose child list is being modified. ")] string value,
         [Description(
             "List of child enum nodes to save. " +
-            "Each item must conform to schema type: system.schema.enumvalueinfo.")] EnumValueSchema[] subList,
+            "Each item must conform to schema type: system.schema.enumvalueinfo.")] Entry<string>[] subList,
         [Description(
             "If true, new items are appended to the existing sub-list. " +
             "If false or null, the existing sub-list under the target node will be replaced.")]bool? append)
     {
-        return await context.SaveEnumSubListAsync(name, value, subList, append ?? false);
+        return await context.SaveEnumEntriesAsync(name, value, subList, append ?? false);
     }
     
     [McpServerTool,  Description(
@@ -175,7 +155,7 @@ public class SchemaTools
          "All field meanings and structures follow that schema definition." +
          "This model acts as a business semantic composition unit rather than a primitive schema type."
     )]
-    public static async Task<AppSchema?> LoadAppSchema(
+    public static async Task<AppSchema?> GetAppSchema(
         SchemaContext context,
         [Description("The application schema name")]  string appName,
         [Description("Whether contains the types that the application used")] bool includeTypes = false)

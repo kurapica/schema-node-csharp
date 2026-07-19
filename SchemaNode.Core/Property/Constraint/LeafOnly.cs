@@ -22,7 +22,7 @@ public class LeafOnly : Property<bool>, IConstraintProperty
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {
         if (!Value || node.IsEmpty) return null;
-        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccess(context, null, node.GetValue<string>()) : null;
+        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccessAsync(context, null, node.GetValue<string>()) : null;
         if (val is null || val.Length == 0) return null;
         return val[0].Entry != null && val[0].Entry!.HasChildren != true;
     }

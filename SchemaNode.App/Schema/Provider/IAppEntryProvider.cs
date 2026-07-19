@@ -3,7 +3,7 @@ namespace SchemaNode.Schema.Provider;
 /// <summary>
 /// Provider interface for loading app schemas from external sources
 /// </summary>
-public interface IAppSchemaProvider : INodeSchemaProvider
+public interface IAppEntryProvider : INodeSchemaProvider, IEnumEntryProvider
 {
     /// <summary>
     /// Load the app schema information

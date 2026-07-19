@@ -41,7 +41,7 @@ public static class Service
         Assembly schemaAssembly = typeof(Service).Assembly;
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
-        bool hasSchemaStorage = service.IsService(typeof(IAppSchemaStorageProvider));
+        bool hasSchemaStorage = service.IsService(typeof(IAppEntryStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
 
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();

@@ -65,7 +65,7 @@ public class CustomEnumTest : Base.AppTestBase
         Assert.IsTrue(result);
         
         // sub list
-        bool saved = await Context.SaveEnumSubListAsync(schema.FullName, "China", [
+        bool saved = await Context.SaveEnumEntriesAsync(schema.FullName, "China", [
             new Entry<string>{ Value = "Beijing" },
             new Entry<string>{ Value = "Shanghai" }
         ]);
@@ -76,7 +76,7 @@ public class CustomEnumTest : Base.AppTestBase
         Assert.IsNotNull(regionType);
         
         // access list
-        var access = await regionType.LoadEnumAccessListAsync(Context, "Beijing");
+        var access = await regionType.GetEnumEntryAccessAsync(Context, "Beijing");
         Assert.IsNotNull(access);
         Assert.AreEqual(2, access.Length);
     }
@@ -95,9 +95,9 @@ public class CustomEnumTest : Base.AppTestBase
             Type = EnumValueType.Int,
             Values =
             [
-                new EnumValueSchema { Value = "1" },
-                new EnumValueSchema { Value = "2" },
-                new EnumValueSchema { Value = "3" }
+                new Entry<string>() { Value = "1" },
+                new Entry<string>() { Value = "2" },
+                new Entry<string>() { Value = "3" }
             ]
         };
         schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
@@ -127,25 +127,25 @@ public class CustomEnumTest : Base.AppTestBase
             Cascade = ["Continent", "Country"],
             Values =
             [
-                new EnumValueSchema { Value = "Asia" },
-                new EnumValueSchema { Value = "Europe" }
+                new Entry<string>() { Value = "Asia" },
+                new Entry<string>() { Value = "Europe" }
             ]
         };
         schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
         await Context.SaveSchemaAsync(schema);
 
         // Save sub-list for Asia with all countries at once
-        await Context.SaveEnumSubListAsync(schema.FullName, "Asia", [
-            new EnumValueSchema { Value = "Japan" },
-            new EnumValueSchema { Value = "Korea" },
-            new EnumValueSchema { Value = "India" }
+        await Context.SaveEnumEntriesAsync(schema.FullName, "Asia", [
+            new Entry<string>() { Value = "Japan" },
+            new Entry<string>() { Value = "Korea" },
+            new Entry<string>() { Value = "India" }
         ]);
 
         var continentType = await Context.GetNodeTypeAsync<Runtime.EnumType>(schema.FullName);
         Assert.IsNotNull(continentType);
 
         // Load sub-list directly (not access list)
-        var subList = await continentType.LoadEnumSubListAsync(Context, "Asia");
+        var subList = await continentType.GetEnumEntryAccessAsync(Context, "Asia");
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3, $"Expected >= 3 sub-list values, got {subList.Length}");
     }
@@ -162,7 +162,7 @@ public class CustomEnumTest : Base.AppTestBase
         EnumSchema enumSchema = new EnumSchema
         {
             Type = EnumValueType.String,
-            Values = [new EnumValueSchema { Value = "x" }]
+            Values = [new Entry<string>() { Value = "x" }]
         };
         schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
         await Context.SaveSchemaAsync(schema);

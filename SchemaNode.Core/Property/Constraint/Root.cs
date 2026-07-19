@@ -23,7 +23,7 @@ public class Root: Property<string>, IConstraintProperty
         if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(nodeValue)) return null;
         if (Value.Equals(nodeValue)) return true;
 
-        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccess(context, nodeValue);
+        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue);
         return access.Any(a =>Value.Equals(a.Entry?.Value));
     }
 }

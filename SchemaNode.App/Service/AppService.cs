@@ -16,16 +16,16 @@ public static class AppService
     /// Register the app schema provider, also the node schema provider
     /// </summary>
     public static IServiceCollection AddAppSchemaProvider<T>(this IServiceCollection services) 
-        where T : class, IAppSchemaProvider
-        => services.AddScoped<IAppSchemaProvider>(sp => sp.GetRequiredService<T>()).AddSchemaProvider<T>();
+        where T : class, IAppEntryProvider
+        => services.AddScoped<IAppEntryProvider>(sp => sp.GetRequiredService<T>()).AddSchemaProvider<T>();
 
     /// <summary>
     /// Register the app schema storage provider, it also will be used for <see cref="AddAppSchemaProvider{T}"/>
     /// </summary>
     public static IServiceCollection AddSchemaStorageProvider<T>(this IServiceCollection services)
-        where T : class, IAppSchemaStorageProvider
+        where T : class, IAppEntryStorageProvider
     {
-        services.TryAddScoped<IAppSchemaStorageProvider>(sp => sp.GetRequiredService<T>()); // single per service
+        services.TryAddScoped<IAppEntryStorageProvider>(sp => sp.GetRequiredService<T>()); // single per service
         return services.AddAppSchemaProvider<T>();
     }
 

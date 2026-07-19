@@ -131,7 +131,7 @@ public sealed class EnumType: ValueType
         }
         else if (result.TryGetValue(out string? strValue))
         {
-            EntryAccess<string>[] access = await GetEnumEntryAccess(context, strValue);
+            EntryAccess<string>[] access = await GetEnumEntryAccessAsync(context, strValue);
             if (access.Length == 0)
                 result.SetViolated(Kind);
         }
@@ -147,23 +147,28 @@ public sealed class EnumType: ValueType
     /// <param name="value">The enum value to be queried</param>
     /// <param name="start">The start value of the access path</param>
     /// <returns></returns>
-    public async Task<EntryAccess<string>[]> GetEnumEntryAccess(SchemaContext context, string? value, string? start = null)
+    public async Task<EntryAccess<string>[]> GetEnumEntryAccessAsync(SchemaContext context, string? value, string? start = null)
     {
         if (string.IsNullOrWhiteSpace(start)) start = null;
         if (string.IsNullOrWhiteSpace(value)) value = null;
 
-        Entry<string> root = (start != null ? _root.GetEntry(start) : null) ?? _root;
+        Entry<string>? root = (start != null ? _root.GetEntry(start) : null) ?? _root;
 
-        EntryAccess<string>[]? access = root.GetAccessList(value);
+        EntryAccess<string>[]? access = root.GetAccessList(value); // if value is null, always has return value
         if (access is not null) return access;
 
         // Load from the provider
-        if (Provider != null && context.GetRequiredService(Provider) is INodeSchemaProvider provider)
+        if (Provider != null && context.GetRequiredService(Provider) is IEnumEntryProvider provider)
         {
-            EntryAccess<string>[] accessList = await provider.GetEnumEntryAccess(Name, value, !root.IsRoot ? root.Value : null);
+            EntryAccess<string>[] accessList = await provider.GetEnumEntryAccessAsync(Name, value, !root.IsRoot ? root.Value : null);
             if (accessList.Length > 0)
             {
                 lock (_lock) root.SaveAccessList(accessList);
+                if (start != null && root.IsRoot)
+                {
+                    root = root.GetEntry(start);
+                    if (root is null) return []; // strange start point
+                }
                 return root.GetAccessList(value) ?? [];
             }
         }

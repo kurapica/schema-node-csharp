@@ -34,7 +34,7 @@ public static class SystemData
             // Check with value access
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return [];
-            return await enumType.GetEnumEntryAccess(context, value, root);
+            return await enumType.GetEnumEntryAccessAsync(context, value, root);
         }
 
         /// <summary>
@@ -50,7 +50,7 @@ public static class SystemData
             // Check with value access
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return false;
-            var access = await enumType.GetEnumEntryAccess(context, value, root);
+            var access = await enumType.GetEnumEntryAccessAsync(context, value, root);
             return access is { Length: > 0 };
         }
 
@@ -67,7 +67,7 @@ public static class SystemData
             // Check with value access
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return false;
-            var access = await enumType.GetEnumEntryAccess(context, value);
+            var access = await enumType.GetEnumEntryAccessAsync(context, value);
             return access.Any(a => a.Entry?.Value is not null && rootSet.Contains(a.Entry.Value));
         }
 
@@ -81,7 +81,7 @@ public static class SystemData
             // Check with value access
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return string.Empty;
-            var access = await enumType.GetEnumEntryAccess(context, value);
+            var access = await enumType.GetEnumEntryAccessAsync(context, value);
             return depth < 0 
                 ? access.Length > 1-depth ? access[access.Length + depth - 1].Entry?.Value : null
                 : access.Length > depth ? access[depth].Entry?.Value : null;
@@ -97,7 +97,7 @@ public static class SystemData
             // Check with value access
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return -1;
-            var access = await enumType.GetEnumEntryAccess(context, value);
+            var access = await enumType.GetEnumEntryAccessAsync(context, value);
             return access.Length - 1;
         }
 
@@ -110,10 +110,10 @@ public static class SystemData
             if (values.Length == 0) return string.Empty;
             EnumType? enumType = await context.GetNodeTypeAsync<EnumType>(@enum);
             if (enumType == null) return string.Empty;
-            var access = await enumType.GetEnumEntryAccess(context, values[0]);
+            var access = await enumType.GetEnumEntryAccessAsync(context, values[0]);
             for (int i = 1; i < values.Length; i++)
             {
-                var next = await enumType.GetEnumEntryAccess(context, values[i]);
+                var next = await enumType.GetEnumEntryAccessAsync(context, values[i]);
                 if (next.Length == 0) { access = []; break; }
                 for (int j = 1; j < access.Length && j < next.Length; j++)
                 {

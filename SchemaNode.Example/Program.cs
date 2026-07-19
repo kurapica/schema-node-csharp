@@ -43,7 +43,7 @@ builder.Services
 
     // schema
     .WithSchemaApiProtocol<DefaultSchemaApiProtocol>()
-    .AddSchemaStorageProvider<DynamicAppSchemaStorageProvider>() // save schema as application data
+    .AddSchemaStorageProvider<DynamicAppEntryStorageProvider>() // save schema as application data
 
     // Mysql
     .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
