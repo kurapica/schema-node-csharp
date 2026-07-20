@@ -28,7 +28,7 @@ public class Entry<T>: PropertyOwner where T: notnull
     public bool? HasChildren { get; set; }
     
     /// <summary>
-    /// The sub enum values
+    /// The children entries of the entry
     /// </summary>
     [SchemaIgnore]
     public Entry<T>[]? Children;
