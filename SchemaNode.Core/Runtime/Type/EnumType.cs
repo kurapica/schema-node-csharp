@@ -61,7 +61,19 @@ public sealed class EnumType: ValueType
         
         // Status
         if (_enumSchema == null) Error = ErrorCodes.NO_DEFINITION;
-        UpdateMaxFlags();
+        
+        // max flags
+        if (_enumSchema?.Type == EnumValueType.Flags)
+        {
+            _maxFlags = 0;
+            foreach (var info in _enumSchema!.Values)
+            {
+                if (long.TryParse(info.Value, out long val))
+                {
+                    _maxFlags |= val;
+                }
+            }
+        }
 
         // Data
         _root = new Entry<string>();
@@ -173,31 +185,6 @@ public sealed class EnumType: ValueType
             }
         }
         return [];
-    }
-
-    #endregion
-
-    #region Utility
-
-    void UpdateMaxFlags()
-    {
-        if (_enumSchema?.Type != EnumValueType.Flags) return;
-        long max = 0;
-        try
-        {
-            foreach (var info in _enumSchema.Values)
-            {
-                if (long.TryParse(info.Value, out long val))
-                {
-                    max |= val;
-                }
-            }
-        }
-        catch
-        {
-            // pass
-        }
-        _maxFlags = max;
     }
 
     #endregion
