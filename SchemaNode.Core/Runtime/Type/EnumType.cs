@@ -155,7 +155,7 @@ public sealed class EnumType: ValueType
         Entry<string>? root = (start != null ? _root.GetEntry(start) : null) ?? _root;
 
         EntryAccess<string>[]? access = root.GetAccessList(value); // if value is null, always has return value
-        if (access is not null) return access;
+        if (access is not null || root.IsFullyLoaded == true) return access ?? [];
 
         // Load from the provider
         if (Provider != null && context.GetRequiredService(Provider) is IEnumEntryProvider provider)
