@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Node;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Property;
 
@@ -13,7 +14,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Validate the data node with the constraint rule. Return true if valid, false if invalid, null if not applicable.
     /// </summary>
-    public virtual bool? Validate(SchemaContext context, DataNode node)
+    public virtual bool? Validate(SchemaContext context, IValueAccess node)
     {
         return node switch
         {
@@ -31,7 +32,7 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="Validate"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateAsync(SchemaContext context, DataNode node) => Task.FromResult(Validate(context, node));
+    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node) => Task.FromResult(Validate(context, node));
 
     #region Enum validation
 

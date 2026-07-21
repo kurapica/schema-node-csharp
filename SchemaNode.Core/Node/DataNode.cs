@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using SchemaNode.Utility;
+﻿using SchemaNode.Utility;
 using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
@@ -31,11 +30,11 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Violated Constraints
     /// </summary>
-    public ImmutableArray<string>? Violated { get; private set; }
+    private List<IConstraintProperty>? _violated;
     
     #endregion
     
-    #region Methods
+    #region Implementation
     
     /// <summary>
     /// Gets the access value by path
@@ -43,53 +42,43 @@ public abstract class DataNode : IValueAccess
     public IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
         SpanReader reader = path;
-        DataNode? curr = this;
+        IValueAccess? curr = this;
         while (curr != null && reader.NextPath())
-            curr = curr.GetAccessValue(reader.Current, node);
+            curr = curr.GetAccessValue(reader.Current.ToString(), node);
         return curr;
     }
-    
-    /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
-    /// </summary>
-    public void SetViolated(IEnumerable<IProperty>? violated = null, IEnumerable<IProperty>? passed = null, bool? reset = null)
+
+    /// <inheritdoc/>
+    public void RecordConstraint(IConstraintProperty constraint, bool result)
     {
-        var violatedNames = violated?.Select(v => v.Name);
-        IEnumerable<string>? v = reset == true || Violated == null ? violatedNames : violatedNames != null ? Violated.Concat(violatedNames) : Violated;
-        if (passed is not null) v = v?.Except(passed.Where(p => !p.Stackable).Select(p => p.Name), StringComparer.OrdinalIgnoreCase);
-        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
+        if (result)
+        {
+            if (_violated == null) return;
+            for (int i = _violated.Count - 1; i >= 0; i--)
+            {
+                if (_violated[i].Equals(constraint) || !constraint.Stackable && constraint.GetType() == _violated[i].GetType())
+                    _violated.RemoveAt(i);
+            }
+        }
+        else
+        {
+            _violated ??= [];
+            _violated.Add(constraint);
+        }
     }
 
-
-    /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
-    /// </summary>
-    public void SetViolated(IEnumerable<string>? violated = null, IEnumerable<string>? passed = null, bool? reset = null)
+    /// <inheritdoc/>
+    public IEnumerable<IConstraintProperty> GetViolatedConstraints()
     {
-        IEnumerable<string>? v = reset == true || Violated == null ? violated : violated != null ? Violated.Concat(violated) : Violated;
-        if (passed is not null) v = v?.Except(passed, StringComparer.OrdinalIgnoreCase);
-        Violated = v?.Distinct(StringComparer.OrdinalIgnoreCase)?.ToImmutableArray();
+        if (_violated == null) yield break;
+        foreach (var constraint in _violated) 
+            yield return constraint;
     }
 
     /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
+    /// Whether the node is valid, which means no violated constraints
     /// </summary>
-    public void SetViolated(params IProperty[] violated) => SetViolated(violated, null, false);
-    
-    /// <summary>
-    /// Clear violated constraints
-    /// </summary>
-    public void ClearViolated(params IProperty[] passed) => SetViolated(null, passed, false);
-
-    /// <summary>
-    /// Sets violated constraints, which will be used to determine whether the node is valid
-    /// </summary>
-    public void SetViolated(params string[] violated) => SetViolated(violated, null, false);
-
-    /// <summary>
-    /// Clear violated constraints
-    /// </summary>
-    public void ClearViolated(params string[] passed) => SetViolated(null, passed, false);
+    public virtual bool IsValid => _violated is not { Count: > 0 };
 
     #endregion
 
@@ -157,14 +146,9 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Gets the access value by part path
     /// </summary>
-    public virtual DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null) 
+    public virtual IValueAccess? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null) 
         => source.IsEmpty || source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? this : null;
 
-    /// <summary>
-    /// Whether the node is valid, which means no violated constraints
-    /// </summary>
-    public virtual bool IsValid => Violated is not { Length: > 0 };
-    
     /// <summary>
     /// Equals check
     /// </summary>

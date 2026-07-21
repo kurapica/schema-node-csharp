@@ -12,7 +12,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : DataNode, IEnumerable<DataNode>
+public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 {
     #region Constructors
     
@@ -188,7 +188,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     public override void ClearValue() => _elements.Clear();
 
     /// <inheritdoc/>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
+    public override IValueAccess? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
     {
         if (source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         
@@ -297,7 +297,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return true;
     }
 
-    public IEnumerator<DataNode> GetEnumerator() => _elements.GetEnumerator();
+    public IEnumerator<IValueAccess> GetEnumerator() => _elements.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => _elements.GetEnumerator();
 

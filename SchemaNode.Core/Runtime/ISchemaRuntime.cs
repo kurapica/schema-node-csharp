@@ -40,7 +40,7 @@ public interface ISchemaRuntime
     /// <summary>
     /// Gets schema kind properties
     /// </summary>
-    IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T: class, IProperty;
+    IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T: IProperty;
     
     /// <summary>
     /// Gets the schema property by property name

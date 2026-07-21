@@ -30,6 +30,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
+[Meta<Property.Constraint.Enum>]
 [Meta<EntrySource>($"{NS_SYSTEM_DATA_ENUM}.{nameof(SystemData.EnumOper.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
 public sealed class EnumSchema : PropertyOwner
 {

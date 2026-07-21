@@ -97,6 +97,18 @@ public sealed class StructType: ValueType
         _fields = [];
         _relations = null;
     }
+    
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public new T? GetProperty<T>() where T : class, IProperty 
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    public new IEnumerable<T> GetProperties<T>() where T : IProperty 
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
@@ -149,94 +161,6 @@ public sealed class StructType: ValueType
     public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
 
     /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
-    {
-        if (value is not StructNode result) return;
-        
-        // Validate by fields
-        foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
-        {
-            var dataNode = result.GetAccessValue(field.Name) as DataNode;
-            if (dataNode == null) continue;
-            
-            // Validate the struct fields
-            await field.Type!.ValidateValueAsync(context, dataNode);
-
-            if (field.Constraints is not { Length: > 0 }) continue;
-            
-            List<IProperty>? errors = null;
-            List<IProperty>? passed = null;
-            foreach (IConstraintProperty constraint in field.Constraints)
-            {
-                if (await constraint.ValidateAsync(context, dataNode) != false)
-                {
-                    passed ??= [];
-                    passed.Add(constraint);
-                }
-                else
-                {
-                    errors ??= [];
-                    errors.Add(constraint);
-                }
-            }
-            if (errors != null || passed != null)
-                dataNode.SetViolated(errors, passed);
-        }
-
-        // Validate by relations
-        if (_relations != null)
-        {
-            foreach (RelationType process in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
-            {
-                // apply constraint on target
-                SpanReader spans = process.Target;
-                List<DataNode> currNodes = [result];
-                while (spans.NextPath())
-                {
-                    if (spans.IsEnd)
-                    {
-                        foreach (DataNode currNode in currNodes)
-                        {
-                            if (await process.ProcessAsync(context, result, currNode) is not IConstraintProperty prop) continue;
-
-                            if (await prop.ValidateAsync(context, currNode) == false)
-                            {
-                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.SetViolated(prop);
-                            }
-                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                            {
-                                currNode.ClearViolated(prop);
-                            }
-                        }
-                        break;
-                    }
-                    
-                    // Gather effect nodes
-                    ReadOnlySpan<char> path = spans.Current;
-                    List<DataNode> nextLevels = [];
-                    foreach (DataNode currNode in currNodes)
-                    {
-                        if (currNode is ArrayNode arr)
-                        {
-                            foreach (DataNode element in arr)
-                            {
-                                DataNode? next = element.GetAccessValue(path);
-                                if (next != null) nextLevels.Add(next);
-                            }
-                        }
-                        else
-                        {
-                            DataNode? next = currNode.GetAccessValue(path);
-                            if (next != null) nextLevels.Add(next);
-                        }
-                    }
-                    currNodes = nextLevels;
-                }
-            }
-        }
-    }
-
     public override IEnumerable<Entry<string>> GetSubEntries()
     {
         return GetFields().Select(field =>
@@ -327,7 +251,7 @@ public sealed class StructType: ValueType
 /// <summary>
 /// The runtime struct field type
 /// </summary>
-public class StructFieldType : INodeReferences
+public class StructFieldType : INodeReferences, IPropertyProvider
 {
     /// <summary>
     /// The field name
@@ -350,9 +274,9 @@ public class StructFieldType : INodeReferences
     internal IProperty[]? Properties { get; private set; }
 
     /// <summary>
-    /// The constraint properties from Extensions
+    /// The constraint properties
     /// </summary>
-    internal IConstraintProperty[]? Constraints { get; private set; }
+    public IEnumerable<IConstraintProperty> Constraints => GetProperties<IConstraintProperty>().Reverse();
 
     /// <summary>
     /// The ref types from the properties in Extensions
@@ -400,7 +324,6 @@ public class StructFieldType : INodeReferences
         var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_STRUCT_FIELD);
         if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes(propType.Kind)).Distinct();
         IProperty[] props = field.GetProperties(propTypes).ToArray();
-        IConstraintProperty[] constraints = props.OfType<IConstraintProperty>().ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
         field.Error ??= error;
@@ -408,7 +331,6 @@ public class StructFieldType : INodeReferences
         // init
         Name = field.Name;
         Properties = props;
-        Constraints = constraints;
 
         // Useful properties
         Require = GetProperty<Require>()?.Value;
@@ -431,29 +353,12 @@ public class StructFieldType : INodeReferences
     /// <summary>
     /// Get the property with property type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
+    public T? GetProperty<T>() where T : class, IProperty 
+        => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
 
     /// <summary>
     /// Gets the properties
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() where T : class, IProperty
-    {
-        if (Properties is { Length: > 0 })
-        {
-            foreach (var prop in Properties.OfType<T>())
-            {
-                yield return prop;
-                if (!prop.Stackable) yield break;
-            }
-        }
-
-        if (Type != null)
-        {
-            foreach (var prop in Type.GetProperties<T>())
-            {
-                yield return prop;
-                if (!prop.Stackable) yield break;
-            }
-        }
-    }
+    public IEnumerable<T> GetProperties<T>() where T : IProperty
+        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>());
 }

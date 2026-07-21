@@ -1,4 +1,4 @@
-using SchemaNode.Node;
+using SchemaNode.Property;
 
 namespace SchemaNode.Runtime;
 
@@ -22,6 +22,22 @@ public interface IErrorProvider
     /// Gets the runtime node error
     /// </summary>
     string? Error { get; }
+}
+
+/// <summary>
+/// The property provider for property sequence access
+/// </summary>
+public interface IPropertyProvider
+{
+    /// <summary>
+    /// Gets the property
+    /// </summary>
+    T? GetProperty<T>() where T : class, IProperty;
+
+    /// <summary>
+    /// Gets the properties
+    /// </summary>
+    IEnumerable<T> GetProperties<T>() where T : IProperty;
 }
 
 /// <summary>
@@ -72,4 +88,19 @@ public interface IValueAccess
     /// The value parent
     /// </summary>
     IValueAccess? Parent { get; }
+    
+    /// <summary>
+    /// Record the constraint result
+    /// </summary>
+    void RecordConstraint(IConstraintProperty constraint, bool result);
+
+    /// <summary>
+    /// Gets the violated constraints
+    /// </summary>
+    IEnumerable<IConstraintProperty> GetViolatedConstraints();
+    
+    /// <summary>
+    /// The value is valid
+    /// </summary>
+    public virtual bool IsValid => !GetViolatedConstraints().Any();
 }

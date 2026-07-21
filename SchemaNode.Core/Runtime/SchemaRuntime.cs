@@ -47,7 +47,7 @@ public class SchemaRuntime : ISchemaRuntime
             ?.OfType<T>().FirstOrDefault();
 
     /// <inheritdoc/>
-    public IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T : class, IProperty
+    public IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T : IProperty
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>() ?? [];
 

@@ -37,6 +37,11 @@ public sealed class EnumType: ValueType
     public EnumValueType Type => _enumSchema?.Type ?? EnumValueType.String;
     
     /// <summary>
+    /// The max flags
+    /// </summary>
+    public long MaxFlags => _maxFlags;
+    
+    /// <summary>
     /// The enum cascade
     /// </summary>
     public LocaleString[]? Cascade => _enumSchema?.Cascade;
@@ -90,30 +95,14 @@ public sealed class EnumType: ValueType
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+    public new T? GetProperty<T>() where T : class, IProperty 
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
-    {
-        foreach (var property in base.GetProperties<T>())
-        {
-            yield return property;
-            if (!property.Stackable) yield break;
-        }
-
-        if (Runtime != null)
-        {
-            foreach (T property in Runtime.GetSchemaKindProperties<T>(Kind))
-            {
-                yield return property;
-                if (!property.Stackable) yield break;
-            }
-        }
-    }
+    public new IEnumerable<T> GetProperties<T>() where T : IProperty 
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
     /// <inheritdoc />
     public override bool IsAssignableTo(ValueType other)
@@ -129,25 +118,6 @@ public sealed class EnumType: ValueType
 
     /// <inheritdoc />
     public override DataNode Create(IValueAccess? parent = null) => new EnumNode(this,  parent);
-
-    /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
-    {
-        if (value is not EnumNode result || result.Type != this || result.IsEmpty) return;
-
-        // Validate value
-        if (_enumSchema?.Type == EnumValueType.Flags)
-        {
-            if (!result.TryGetValue(out long flagsValue) || flagsValue < 0 || flagsValue > _maxFlags)
-                result.SetViolated(Kind);
-        }
-        else if (result.TryGetValue(out string? strValue))
-        {
-            EntryAccess<string>[] access = await GetEnumEntryAccessAsync(context, strValue);
-            if (access.Length == 0)
-                result.SetViolated(Kind);
-        }
-    }
 
     /// <inheritdoc />
     public override bool IsIndexable => true;

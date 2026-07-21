@@ -147,69 +147,6 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
 
-    /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
-    {
-        if (Element == null || value is not ArrayNode result || result.Type != this) return;
-
-        // Validate by elements
-        foreach (DataNode element in result)
-            await Element.ValidateValueAsync(context, element);
-
-        // Validate by relations
-        if (_relations != null)
-        {
-            foreach (RelationType process in _relations.Where(r => r.Property?.GetCsharpType()?.IsAssignableTo(typeof(IConstraintProperty)) == true))
-            {
-                // apply constraint on target
-                SpanReader spans = process.Target;
-                List<DataNode> currNodes = [result];
-                while (spans.NextPath())
-                {
-                    if (spans.IsEnd)
-                    {
-                        foreach (DataNode currNode in currNodes)
-                        {
-                            if (await process.ProcessAsync(context, result, currNode) is not IConstraintProperty prop) continue;
-
-                            if (await prop.ValidateAsync(context, currNode) == false)
-                            {
-                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.SetViolated(prop);
-                            }
-                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                            {
-                                currNode.ClearViolated(prop);
-                            }
-                        }
-                        break;
-                    }
-                    
-                    // Gather effect nodes
-                    ReadOnlySpan<char> path = spans.Current;
-                    List<DataNode> nextLevels = [];
-                    foreach (DataNode currNode in currNodes)
-                    {
-                        if (currNode is ArrayNode arr)
-                        {
-                            foreach (DataNode element in arr)
-                            {
-                                DataNode? next = element.GetAccessValue(path);
-                                if (next != null) nextLevels.Add(next);
-                            }
-                        }
-                        else
-                        {
-                            DataNode? next = currNode.GetAccessValue(path);
-                            if (next != null) nextLevels.Add(next);
-                        }
-                    }
-                    currNodes = nextLevels;
-                }
-            }
-        }
-    }
-
     #endregion
 
     #region Method
@@ -323,30 +260,14 @@ public sealed class ArrayType: ValueType
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? Element?.GetProperty<T>();
+    public new T? GetProperty<T>() where T : class, IProperty 
+        => base.GetProperty<T>() ?? Element?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
     public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
-    {
-        foreach (var property in base.GetProperties<T>())
-        {
-            yield return property;
-            if (!property.Stackable) yield break;
-        }
-
-        if (Element != null)
-        {
-            foreach (var property in Element.GetProperties<T>())
-            {
-                yield return property;
-                if (!property.Stackable) yield break;
-            }
-        }
-    }
+        => this.JoinProperties(base.GetProperties<T>(), Element?.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
     
     #endregion
 }

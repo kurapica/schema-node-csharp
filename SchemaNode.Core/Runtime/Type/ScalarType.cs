@@ -60,10 +60,6 @@ public abstract class ScalarType : ValueType
     /// <inheritdoc />
     public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseNode?.GetCsharpType();
     
-    /// <inheritdoc />
-    protected override Task ValidateNodeAsync(SchemaContext context, DataNode node)
-        => BaseNode?.ValidateValueAsync(context, node) ?? Task.CompletedTask;
-
     #endregion
 
     #region Methods
@@ -71,39 +67,14 @@ public abstract class ScalarType : ValueType
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+    public new T? GetProperty<T>() where T : class, IProperty 
+        => base.GetProperty<T>() ?? (BaseNode != null ? BaseNode.GetProperty<T>() : Runtime?.GetSchemaKindProperty<T>(Kind));
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
-    {
-        foreach (var property in base.GetProperties<T>())
-        {
-            yield return property;
-            if (!property.Stackable) yield break;
-        }
-
-        if (BaseNode != null)
-        {
-            foreach (var property in BaseNode.GetProperties<T>())
-            {
-                yield return property;
-                if (!property.Stackable) yield break;
-            }
-        }
-
-        if (Runtime != null)
-        {
-            foreach (T property in Runtime.GetSchemaKindProperties<T>(Kind))
-            {
-                yield return property;
-                if (!property.Stackable) yield break;
-            }
-        }
-    }
+    public new IEnumerable<T> GetProperties<T>() where T : IProperty
+        => this.JoinProperties(base.GetProperties<T>(), BaseNode != null ? BaseNode.GetProperties<T>() : Runtime?.GetSchemaKindProperties<T>(Kind));
     
     #endregion
 }

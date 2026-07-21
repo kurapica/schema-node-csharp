@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public class NodeType: INodeReferences, IDisposable, IErrorProvider
+public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyProvider
 {
     #region Fields
     
@@ -197,7 +197,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() where T : class, IProperty => _props?.OfType<T>() ?? [];
+    public IEnumerable<T> GetProperties<T>() where T : IProperty => _props?.OfType<T>() ?? [];
     
     /// <summary>
     /// Gets the generic map
@@ -392,7 +392,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     #region Fields
     
     private ConcurrentDictionary<ValueType, FunctionType>? _isAssignableTo;
-    private IConstraintProperty[]? _constraints;
 
     #endregion
     
@@ -401,7 +400,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<IConstraintProperty> Constraints => _constraints?.AsEnumerable() ?? [];
+    public IEnumerable<IConstraintProperty> Constraints => GetProperties<IConstraintProperty>().Reverse();
 
     /// <summary>
     /// The array type
@@ -411,12 +410,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     #endregion
     
     #region Override Methods
-
-    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
-    {
-        await base.LoadTypeAsync(context, schema, genericParams);
-        _constraints = GetProperties<IConstraintProperty>().ToArray();
-    }
 
     /// <summary>
     /// Used by unknown objects
@@ -465,7 +458,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    public async Task<DataNode?> ValidateValueAsync(SchemaContext context, object? value)
     {
         DataNode? result = null;
         if (value is DataNode node)
@@ -476,37 +469,20 @@ public abstract class ValueType : NodeType, IValueTypeAccess
                 value = node.TryGetValue(out object? v) ? v : null;
         }
         
+        // skip validation if node can't set value
         if (result == null)
         {
             result = Create();
             if (value != null && !result.TrySetValue(value))
-            {
-                result.SetViolated(Kind);
-                return result;
-            }
+                return null;
         }
     
-        // Node type validation
-        await ValidateNodeAsync(context, result);
-        
-        // apply constraints
-        List<IProperty>? errors = null;
-        List<IProperty>? passed = null;
+        // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            if (await constraint.ValidateAsync(context, result) == false)
-            {
-                errors ??= [];
-                errors.Add(constraint);
-            }
-            else
-            {
-                passed ??= [];
-                passed.Add(constraint);
-            }
+            bool? valid = await constraint.ValidateAsync(context, result);
+            if (valid.HasValue) result.RecordConstraint(constraint, valid.Value);
         }
-        if (errors != null || passed != null)
-            result.SetViolated(errors, passed);
         
         return result;
     }
@@ -537,11 +513,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// Whether the type can be used as data index
     /// </summary>
     public virtual bool IsIndexable => false;
-
-    /// <summary>
-    /// Validate the data node
-    /// </summary>
-    protected virtual Task ValidateNodeAsync(SchemaContext context, DataNode node) => Task.CompletedTask;
 
     /// <summary>
     /// Gets value type through path reader
