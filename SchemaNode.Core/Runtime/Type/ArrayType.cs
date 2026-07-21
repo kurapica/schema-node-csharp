@@ -263,13 +263,13 @@ public sealed class ArrayType: ValueType, IRelationProvider
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty 
+    public override T? GetProperty<T>() where T : class 
         => base.GetProperty<T>() ?? Element?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
-    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    public override IEnumerable<T> GetProperties<T>()
         => this.JoinProperties(base.GetProperties<T>(), Element?.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
     
     #endregion

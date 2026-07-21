@@ -25,7 +25,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<Append>(typeof(Relations))]
-[Meta<Property.Constraint.Struct>]
+[Meta<Property.Constraint.StructValue>]
 public sealed class StructSchema : PropertyOwner
 {
     /// <summary>

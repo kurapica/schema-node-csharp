@@ -8,12 +8,13 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
+[Meta<Alias>("struct")]
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Struct)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.struct")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
-public class Struct: Property<bool>, IConstraintProperty
+public class StructValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 

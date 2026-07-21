@@ -42,12 +42,12 @@ public class PropertyType : NodeType
     /// <summary>
     /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty 
+    public override T? GetProperty<T>() where T : class 
         => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
 
     /// <summary>
     /// Gets the properties with the given type
     /// </summary>
-    public new IEnumerable<T> GetProperties<T>() where T : class, IProperty
+    public override IEnumerable<T> GetProperties<T>()
         => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 }

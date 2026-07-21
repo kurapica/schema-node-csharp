@@ -187,11 +187,14 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
     /// <inheritdoc/>
     public override void ClearValue() => _elements.Clear();
 
-    /// <inheritdoc/>
-    public override IValueAccess? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
+    public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         
+        string[] paths = path.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
         int eleIndex = -1;
         IValueAccess? branch = node;
         
@@ -203,12 +206,18 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         }
         
         // previous array
-        if (source.SeqEquals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
-            return eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
-
-        // deep access
-        DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
-        return source.SeqEquals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? arrayEle : arrayEle?.GetAccessValue(source);
+        IValueAccess? result;
+        if (paths[0].Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
+            result = eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
+        else
+        {
+            // deep access
+            DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
+            result = paths[0].SeqEquals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
+                ? arrayEle
+                : arrayEle?.GetAccessValue(paths[0], node);
+        }
+        return paths.Length > 1 ? result?.GetAccessValue(paths[1]) : result;
     }
 
     /// <inheritdoc/>

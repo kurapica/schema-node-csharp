@@ -748,7 +748,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
             await FillAttributeDataAsync(schema, value, forUpdate);
 
             if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
-                return (value?.ElementAtOrDefault(0), value is { Count: > 0 } ? 1 : 0);
+                return (value?.ElementAtOrDefault(0) as DataNode, value is { Count: > 0 } ? 1 : 0);
             return (value, total > 0 ? total : (value?.Count ?? 0));
         }
     }
@@ -952,7 +952,7 @@ public class AppDataPostgreSqlProvider(NpgsqlConnection dbConn, IServiceProvider
         // single row
         if (schema.Single)
         {
-            if (value is ArrayNode arr) value = arr.FirstOrDefault();
+            if (value is ArrayNode arr) value = arr.FirstOrDefault() as DataNode;
 
             (DataNode? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
 

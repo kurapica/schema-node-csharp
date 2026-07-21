@@ -1,6 +1,5 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
@@ -65,7 +64,7 @@ public class CustomStructTest : Base.AppTestBase
         var zipCode = data.GetAccessValue("zipCode") as DataNode;
         Assert.IsNotNull(zipCode);
         Assert.IsFalse(zipCode.IsValid);
-        Assert.AreEqual("uplimit", zipCode.Violated?.ElementAtOrDefault(0));
+        Assert.AreEqual("uplimit", zipCode.GetViolatedConstraints()?.FirstOrDefault()?.Name);
     }
 
     [TestMethod]

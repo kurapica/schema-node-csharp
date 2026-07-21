@@ -192,12 +192,12 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// <summary>
     /// Gets the property with given type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+    public virtual T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
 
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() where T : IProperty => _props?.OfType<T>() ?? [];
+    public virtual IEnumerable<T> GetProperties<T>() where T : IProperty => _props?.OfType<T>() ?? [];
     
     /// <summary>
     /// Gets the generic map

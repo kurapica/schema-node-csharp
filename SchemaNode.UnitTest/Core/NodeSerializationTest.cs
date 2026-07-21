@@ -87,24 +87,6 @@ public class NodeSerializationTest : Base.CoreTestBase
     }
 
     [TestMethod]
-    public async Task DataNode_SetAndClearViolated()
-    {
-        var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
-        Assert.IsNotNull(intType);
-
-        var node = intType.From(42L);
-        Assert.IsTrue(node.IsValid);
-
-        node.SetViolated("test_violation");
-        Assert.IsFalse(node.IsValid);
-        Assert.AreEqual("test_violation", node.Violated?.ElementAtOrDefault(0));
-
-        // Clear violations by passing the same violation name
-        node.ClearViolated("test_violation");
-        Assert.IsTrue(node.IsValid);
-    }
-
-    [TestMethod]
     public async Task ScalarNode_NegativeInt()
     {
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);

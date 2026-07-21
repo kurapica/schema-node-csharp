@@ -11,10 +11,10 @@ namespace SchemaNode.Property.Constraint;
 [Meta<Alias>("array")]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(System.Array)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.array")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
-public class ArrayRule: Property<bool>, IConstraintProperty
+public class ArrayValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 

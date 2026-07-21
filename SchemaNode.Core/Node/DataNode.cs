@@ -1,5 +1,4 @@
-﻿using SchemaNode.Utility;
-using ValueType = SchemaNode.Runtime.ValueType;
+﻿using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
 using SchemaNode.Runtime;
@@ -39,14 +38,8 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Gets the access value by path
     /// </summary>
-    public IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
-    {
-        SpanReader reader = path;
-        IValueAccess? curr = this;
-        while (curr != null && reader.NextPath())
-            curr = curr.GetAccessValue(reader.Current.ToString(), node);
-        return curr;
-    }
+    public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
+        => (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase))  ? this : null;
 
     /// <inheritdoc/>
     public void RecordConstraint(IConstraintProperty constraint, bool result)
@@ -143,12 +136,6 @@ public abstract class DataNode : IValueAccess
     /// </summary>
     public virtual Type? CsharpType => Type.GetCsharpType();
     
-    /// <summary>
-    /// Gets the access value by part path
-    /// </summary>
-    public virtual IValueAccess? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null) 
-        => source.IsEmpty || source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? this : null;
-
     /// <summary>
     /// Equals check
     /// </summary>

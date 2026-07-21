@@ -28,7 +28,7 @@ public class EnumTypeTest : Base.CoreTestBase
     {
         var colorType = await Context.GetNodeTypeAsync<EnumType>("test.enum.color");
         Assert.IsNotNull(colorType);
-        var subList = (await colorType.GetEnumEntryAccessAsync(Context, null))?.FirstOrDefault()?.Children;
+        var subList = (await colorType.GetEnumEntryAccessAsync(Context, null)).FirstOrDefault()?.Children;
         Assert.IsNotNull(subList);
         Assert.IsTrue(subList.Length >= 3);
     }
@@ -116,7 +116,7 @@ public class EnumTypeTest : Base.CoreTestBase
         var node = await colorType.ValidateValueAsync(Context, 99L);
         Assert.IsNotNull(node);
         // Should have a violation for invalid enum value
-        Console.WriteLine($"Validate 99L: IsValid={node.IsValid}, Violated={string.Join(", ", node.Violated ?? [])}");
+        Console.WriteLine($"Validate 99L: IsValid={node.IsValid}, Violated={string.Join(", ", node.GetViolatedConstraints().Select(p => p.Name))}");
     }
 
     [TestMethod]

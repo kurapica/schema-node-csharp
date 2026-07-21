@@ -8,12 +8,13 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
+[Meta<Alias>("enum")]
 [Meta<ForSchema>(SCHEMA_KIND_ENUM)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Enum)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.enum")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
-public class Enum: Property<bool>, IConstraintProperty
+public class EnumValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
 

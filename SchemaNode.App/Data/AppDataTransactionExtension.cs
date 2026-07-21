@@ -903,14 +903,14 @@ public static class AppDataTransactionExtension
     static async Task SaveIncrementalData(this SchemaContext context, AppFieldType field, DataNode? newResult, DataNode? oldResult)
     {
         // Join the result
-        DataNode? result = null;
+        IValueAccess? result = null;
         switch (field.ValueType)
         {
             case EnumType:
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Newest;
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? now = DataCombineTypeExtensions.GroupJoin(newResult, method);
+                    IValueAccess? now = DataCombineTypeExtensions.GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -935,8 +935,8 @@ public static class AppDataTransactionExtension
 
                     // Part
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? old = scalar.GroupJoin(oldResult, method);
-                    DataNode? now = scalar.GroupJoin(newResult, method);
+                    IValueAccess? old = scalar.GroupJoin(oldResult, method);
+                    IValueAccess? now = scalar.GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -981,8 +981,8 @@ public static class AppDataTransactionExtension
 
                     // Gets the result
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    DataNode? old = @struct.GroupJoin(oldResult, joinMethodMap);
-                    DataNode? now = @struct.GroupJoin(newResult, joinMethodMap);
+                    IValueAccess? old = @struct.GroupJoin(oldResult, joinMethodMap);
+                    IValueAccess? now = @struct.GroupJoin(newResult, joinMethodMap);
 
                     // Update with join method
                     if ((origin == null || origin.IsEmpty) && (old == null || old.IsEmpty))
@@ -1212,7 +1212,7 @@ public static class AppDataTransactionExtension
         }
 
         // Save
-        await context.SaveFieldDataAsync(field, result, true);
+        await context.SaveFieldDataAsync(field, result as DataNode, true);
     }
 
     // Record the changed fields with changed values

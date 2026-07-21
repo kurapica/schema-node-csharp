@@ -188,8 +188,8 @@ internal static class DataCombineTypeExtensions
     {
         return method switch
         {
-            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() as DataNode : value,
+            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() as DataNode : value,
             _ => throw new NotImplementedException(),
         };
     }
@@ -201,8 +201,8 @@ internal static class DataCombineTypeExtensions
     {
         return method switch
         {
-            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() as DataNode : value,
+            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() as DataNode : value,
             DataCombineType.Sum => type.From(value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
             DataCombineType.Count => type.From(value is ArrayNode arr ? arr.Count : 0),
             _ => throw new NotImplementedException(),

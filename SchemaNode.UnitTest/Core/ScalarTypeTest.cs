@@ -46,10 +46,10 @@ public class ScalarTypeTest : Base.CoreTestBase
         var intType = await Context.GetNodeTypeAsync<ScalarType>(NS_SYSTEM_INT);
         Assert.IsNotNull(intType);
 
-        DataNode node = await intType.ValidateValueAsync(Context, JsonValue.Create(10L)!);
+        DataNode? node = await intType.ValidateValueAsync(Context, JsonValue.Create(10L)!);
         Assert.IsNotNull(node);
         Assert.AreEqual(10L, node.GetValue<long>());
-        Assert.IsTrue(node.Violated is null or { IsEmpty: true });
+        Assert.IsTrue(node.IsValid);
     }
 
     [TestMethod]
@@ -104,10 +104,8 @@ public class ScalarTypeTest : Base.CoreTestBase
         Assert.IsNotNull(intType);
 
         // Validate with string value for int type - should produce violations
-        DataNode node = await intType.ValidateValueAsync(Context, JsonValue.Create("not_a_number")!);
-        Assert.IsNotNull(node);
-        // Invalid input should result in violations
-        Console.WriteLine($"IsValid: {node.IsValid}, Violated: {string.Join(", ", node.Violated ?? [])}");
+        DataNode? node = await intType.ValidateValueAsync(Context, JsonValue.Create("not_a_number")!);
+        Assert.IsNull(node);
     }
 
     [TestMethod]

@@ -1,5 +1,4 @@
 using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -37,8 +36,9 @@ public class CustomScalarTest : Base.AppTestBase
         DataNode? node = await ageType.ValidateValueAsync(Context, 250);
         Assert.IsNotNull(node);
         Assert.IsFalse(node.IsValid);
-        Assert.IsTrue(node.Violated?.Length == 1);
-        Assert.AreEqual("uplimit", node.Violated?.ElementAtOrDefault(0));
+        var violated = node.GetViolatedConstraints().ToArray();
+        Assert.IsTrue(violated.Length == 1);
+        Assert.AreEqual("uplimit", violated.ElementAtOrDefault(0)?.Name);
     }
 
     [TestMethod]
@@ -70,7 +70,7 @@ public class CustomScalarTest : Base.AppTestBase
         // Below low limit — try negative value
         var invalidNode = await type.ValidateValueAsync(Context, -5);
         Assert.IsNotNull(invalidNode);
-        Console.WriteLine($"LowLimit(-5): IsValid={invalidNode.IsValid}, Violated={string.Join(", ", invalidNode.Violated ?? [])}");
+        Console.WriteLine($"LowLimit(-5): IsValid={invalidNode.IsValid}, Violated={string.Join(", ", invalidNode.GetViolatedConstraints().Select(v => v.Name) ?? [])}");
     }
 
     [TestMethod]

@@ -25,7 +25,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Append>(typeof(Relations))]
 [Meta<Attach>(SCHEMA_KIND_ARRAY)]
-[Meta<ArrayRule>]
+[Meta<ArrayValue>]
 public sealed class ArraySchema: PropertyOwner
 {
     /// <summary>

@@ -101,10 +101,12 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the access value
     /// </summary>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source, IValueAccess? node = null)
+    public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (source.IsEmpty || source.SeqEquals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
-        return _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(source) ?? -1);
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        string[] paths = path.Split('.', 2,  StringSplitOptions.RemoveEmptyEntries);
+        DataNode? field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
+        return paths.Length > 1 ? field?.GetAccessValue(paths[1], node) : field;
     }
 
     /// <inheritdoc/>

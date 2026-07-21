@@ -32,7 +32,20 @@ public interface IConstraintProperty : IProperty
     /// <summary>
     /// Async version of <see cref="Validate"/>. Override this for async constraint validation.
     /// </summary>
-    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node) => Task.FromResult(Validate(context, node));
+    public virtual Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
+    {
+        return node switch
+        {
+            EnumNode enumNode => ValidateEnumAsync(context, enumNode),
+            IntNode intNode => ValidateIntAsync(context, intNode),
+            StringNode stringNode => ValidateStringAsync(context, stringNode),
+            DecimalNode numericNode => ValidateNumericAsync(context, numericNode),
+            DateNode dateNode => ValidateDateAsync(context, dateNode),
+            StructNode structNode => ValidateStructAsync(context, structNode),
+            ArrayNode arrayNode => ValidateArrayAsync(context, arrayNode),
+            _ => Task.FromResult<bool?>(null)
+        };
+    }
 
     #region Enum validation
 
