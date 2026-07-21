@@ -8,6 +8,7 @@ using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using StructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Runtime;
 
 // ReSharper disable InconsistentNaming
 
@@ -87,7 +88,7 @@ public static class SystemCollection
     /// </summary>
     public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
     {
-        var list = new List<DataNode>(obj);
+        var list = new List<IValueAccess>(obj);
         list.Sort((a, b) =>
         {
             if (a is not StructNode sa || b is not StructNode sb) return 0;

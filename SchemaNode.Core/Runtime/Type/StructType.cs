@@ -18,7 +18,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType
+public sealed class StructType: ValueType, IRelationProvider
 {
     #region Fields
     

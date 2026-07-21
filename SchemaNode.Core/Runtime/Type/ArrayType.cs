@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public sealed class ArrayType: ValueType
+public sealed class ArrayType: ValueType, IRelationProvider
 {
     #region Fields
 
@@ -146,6 +146,9 @@ public sealed class ArrayType: ValueType
 
     /// <inheritdoc />
     public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
+
+    /// <inheritdoc />
+    public IEnumerable<RelationType> GetRelations() => _relations ?? [];
 
     #endregion
 
