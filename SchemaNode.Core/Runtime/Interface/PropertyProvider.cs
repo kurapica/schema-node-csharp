@@ -30,14 +30,17 @@ public static class PropertyProviderExtension
         {
             foreach (T prop in enumerable)
             {
-                if (prop.Stackable) yield return prop;
-
-                Type propType = prop.GetType();
-                if (types.Add(propType))
-                {
+                if (prop.Stackable) 
                     yield return prop;
-                    if (propType == typeof(T))
-                        yield break;
+                else
+                {
+                    Type propType = prop.GetType();
+                    if (types.Add(propType))
+                    {
+                        yield return prop;
+                        if (propType == typeof(T))
+                            yield break;
+                    }
                 }
             }
         }

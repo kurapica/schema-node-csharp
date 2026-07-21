@@ -14,6 +14,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.enum")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
+[Meta<Static>(true)]
 public class EnumValue: Property<bool>, IConstraintProperty
 {
     public override bool HasValue => true;
