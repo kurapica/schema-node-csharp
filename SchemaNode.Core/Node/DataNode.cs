@@ -53,7 +53,7 @@ public abstract class DataNode : IValueAccess
                     _violated.RemoveAt(i);
             }
         }
-        else
+        else if (_violated == null || _violated.All(v => v != constraint && (v.Stackable || v.GetType() != constraint.GetType())))
         {
             _violated ??= [];
             _violated.Add(constraint);
