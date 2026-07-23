@@ -213,7 +213,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         {
             // deep access
             DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
-            result = paths[0].SeqEquals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
+            result = paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
                 ? arrayEle
                 : arrayEle?.GetAccessValue(paths[0], node);
         }
