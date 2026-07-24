@@ -888,7 +888,7 @@ public class WorkflowContext: SchemaContext
             }
             return new WorkflowState();
         });
-        state.PayloadSave = workflow.PayloadSave;
+        state.PayloadSave = workflow.SavePayload;
         return state;
     }
     

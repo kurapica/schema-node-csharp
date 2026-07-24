@@ -84,7 +84,7 @@ public abstract class BaseWorkflow
     /// <summary>
     /// Notify payload to save in workflow context
     /// </summary>
-    internal bool PayloadSave { get; set; }
+    internal bool SavePayload { get; set; }
 
     #endregion
 

@@ -1,7 +1,5 @@
-using Microsoft.Win32;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Function;
@@ -12,13 +10,12 @@ using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
-using DateType = SchemaNode.Runtime.DateType;
 using DecimalType = SchemaNode.Runtime.DecimalType;
 using EnumType = SchemaNode.Runtime.EnumType;
 using IntType = SchemaNode.Runtime.IntType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
-using StringType = SchemaNode.Schema.StringType;
 using StructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Property.App;
 
 namespace SchemaNode.AI;
 

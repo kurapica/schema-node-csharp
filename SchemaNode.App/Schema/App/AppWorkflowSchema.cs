@@ -22,6 +22,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW, SCHEMA_KIND_ORDER_APP_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
 [Meta<Append>(typeof(Display), typeof(Description))]
+[Meta<Attach>(SCHEMA_KIND_APP_WORKFLOW)]
 public sealed class AppWorkflowSchema: PropertyOwner
 {
     /// <summary>
@@ -60,12 +61,14 @@ public sealed class AppWorkflowSchema: PropertyOwner
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW_NODE, SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.node")]
 [Meta<Append>(typeof(Display), typeof(Description))]
+[Meta<Attach>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
 public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The node name
     /// </summary>
     [Meta<UpLimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<PrimaryIndex>]
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
@@ -77,6 +80,7 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The workflow node payload schema type
     /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
     public string Payload { get; set; } = string.Empty;
     
     /// <summary>
@@ -118,7 +122,7 @@ public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// Whether save the payload data
     /// </summary>
-    public bool? PayloadSave { get; set; }
+    public bool? SavePayload { get; set; }
 
     /// <summary>
     /// The error status

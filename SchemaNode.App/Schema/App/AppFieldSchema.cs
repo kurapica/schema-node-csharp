@@ -26,6 +26,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
 [Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
+[Meta<Attach>(SCHEMA_KIND_APP_FIELD)]
 public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base
@@ -56,13 +57,6 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     [Meta<SchemaType>(typeof(SchemaValueType))]
     public string Type { get; set; } = default!;
     
-    /// <summary>
-    /// The error status
-    /// </summary>
-    [Meta<SchemaType>(typeof(ErrorCode))]
-    [Meta<ReadOnly>(true)]
-    public string? Error { get; set; }
-    
     #endregion
     
     #region Source Push
@@ -71,13 +65,13 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// The input source field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string? Source { get; set; }
     
     [Meta<SchemaType>(typeof(SchemaValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(Source)}", true)]
+    [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(Source)}", true)]
     public string? SourceType { get; set; }
 
     /// <summary>
@@ -116,6 +110,16 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     public FieldView? View { get; set; }
 
     #endregion
+    
+    #region Status
+    
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [SchemaIgnore]
+    public string? Error { get; set; }
+
+    #endregion
 }
 
 #region Help Types
@@ -130,12 +134,13 @@ public sealed class Foreign
     /// The foreign app name
     /// </summary>
     [Meta<SchemaType>(typeof(AppType))]
+    [Meta<PrimaryIndex>]
     public string App { get; set; } = string.Empty;
     
     /// <summary>
     /// The field refer to the other app target
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
     
     [JsonIgnore]
@@ -155,7 +160,7 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
@@ -172,7 +177,7 @@ public sealed class FieldView
 /// The data combine settings
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.combine")]
-public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Newest);
+public sealed record DataCombine([Meta<PrimaryIndex>]string Field, DataCombineType Type = DataCombineType.Newest);
 
 /// <summary>
 /// CombineProperties the data nodes

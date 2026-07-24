@@ -162,7 +162,7 @@ public sealed class AppWorkflowType: IDisposable
                     ForkKey = n.ForkKey,
                     UnCancelable = n.UnCancelable,
                     CancelPre = n.CancelPre,
-                    PayloadSave = n.PayloadSave,
+                    SavePayload = n.SavePayload,
                 };
                 s.CombineProperties(n);
                 return s;
@@ -212,7 +212,7 @@ public sealed class AppWorkflowType: IDisposable
             wNode.ForkKey = node.ForkKey?.ToArray();
             wNode.UnCancelable = node.UnCancelable ?? false;
             wNode.CancelPre = node.CancelPre ?? false;
-            wNode.PayloadSave = node.PayloadSave ?? false;
+            wNode.SavePayload = node.SavePayload ?? false;
 
             // payload type
             if (node.PayloadValueType != null)
