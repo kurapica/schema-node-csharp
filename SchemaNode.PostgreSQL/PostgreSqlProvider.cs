@@ -1,8 +1,7 @@
 using System.Text.Json.Nodes;
-using SchemaNode.Components;
+using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Runtime;
 
 namespace SchemaNode.PostgreSQL;
 
@@ -31,7 +30,7 @@ public class PostgreSqlProvider : ISqlProvider
 
     public string Literal(object? value)
     {
-        if (value is AnySchemaNode node) value = node.LiteralValue;
+        if (value is DataNode node) value = node is ScalarNode or EnumNode ? node.GetValue<object>() : node.GetValue<JsonNode>();
         if (value is JsonValue j) value = j.GetValue<object>();
 
         return value switch

@@ -4,9 +4,9 @@ using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
 
@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Cascade)}")]
-[Relation<Visible>(NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"${nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"@{nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
 public class Cascade : Property<long>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
@@ -26,7 +26,7 @@ public class Cascade : Property<long>, IConstraintProperty
         EnumType? enumType = node.Type as EnumType;
         if (enumType?.Cascade == null || enumType.Cascade.Length <= effectiveValue) return null;
 
-        EnumValueAccess[] access = await enumType.LoadEnumAccessListAsync(context, node.GetValue<string>()!, noSubList: true, withSubList: false);
+        EntryAccess<string>[] access = await enumType.GetEnumEntryAccessAsync(context, node.GetValue<string>());
         return access.Length <= effectiveValue;
     }
 }

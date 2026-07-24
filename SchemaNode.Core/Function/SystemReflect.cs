@@ -33,7 +33,17 @@ public static class SystemReflect
     {
         var ns = await context.GetNodeTypeAsync<Runtime.NamespaceType>(name ?? string.Empty);
         if (ns == null) return [];
-        return ns.GetNodeSchemas().Select(s => new Entry<string> { Value = s.FullName, Label = s.GetProperty<Display>()?.Value, HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE }).ToArray();
+        return ns.GetNodeSchemas().Select(s =>
+        {
+            var entry = new Entry<string>
+            {
+                Value = s.FullName,
+                HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE
+            };
+            var display = s.GetProperty<Display>();
+            if (display != null) entry.SetProperty(display);
+            return entry;
+        }).ToArray();
     }
 
     /// <summary>

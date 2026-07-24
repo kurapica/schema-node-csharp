@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
@@ -92,7 +93,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                         
             // Gets the match node schema property type
             nodeSchemaTypes.Add((kind, type,
-    runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE).
+    runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
                 FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
                 GetGenericArguments().ElementAtOrDefault(0) == type)));
             
@@ -124,14 +125,14 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         // system.array
         {
-            NodeSchema schema = NodeSchema.Create(nameof(ArraySchema), NS_SYSTEM_ARRAY, typeof(List<object>));
+            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
             schema.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema{ Element = NS_SYSTEM_OBJECT });
             runtime.SaveSystemSchema(schema);
         }
 
         // system.list<T>
         {
-            NodeSchema schema = NodeSchema.Create(nameof(ArraySchema), NS_SYSTEM_LIST, typeof(List<>));
+            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
             ArraySchema arraySchema = new ArraySchema{ Element = NS_GENERIC_TYPE };
             arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter(NS_GENERIC_TYPE)]);
             schema.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
@@ -163,7 +164,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // scalar type first because the schema type is not the type declare it
             foreach (Type type in assembly.GetTypes())
             {
-                if (type.IsAbstract || type.IsInterface || type.GetMetaProperty<SchemaType>() == null) continue;
+                if (type.GetMetaProperty<SchemaType>() == null) continue;
                 
                 if (type.IsSubclassOfGenericType(typeof(IScalarType<>)))
                     ResolveScalarSchema(type, defaultNs);
@@ -224,17 +225,18 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         // Loading the system schema as node types, so they should be ready for other stages
         schemaContext.SystemMode = true;
         
+        // Loading all system node types
+        await LoadAllNodeTypes(string.Empty);
+
         // Loading system access
         SystemAccess access = schemaContext.System;
+        access.Self = (await schemaContext.GetNodeTypeAsync<Runtime.NamespaceType>(NS_SYSTEM))!;
         access.Bool = (await schemaContext.GetNodeTypeAsync<Runtime.BoolType>(NS_SYSTEM_BOOL))!;
         access.String = (await schemaContext.GetNodeTypeAsync<Runtime.StringType>(NS_SYSTEM_STRING))!;
         access.Decimal = (await schemaContext.GetNodeTypeAsync<Runtime.DecimalType>(NS_SYSTEM_NUMBER))!;
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
-        
-        // Loading all system node types
-        await LoadAllNodeTypes(string.Empty);
         
         #endregion
         
@@ -259,9 +261,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             
             // OfSchema marks a kind root — check it first so that types like Int (which extend Number
             // but belong to a different kind) are not incorrectly categorized by their C# base class.
-            if (type.GetMetaProperty<OfSchema>() is { Value: { Length: > 0 } } ofSchema && valType != null)
+            if (type.GetMetaProperty<OfSchema>() is { HasValue: true } ofSchema && valType != null)
             {
-                schema = NodeSchema.Create(ofSchema.Value[0], name, valType);
+                schema = NodeSchema.Create(ofSchema.GetValue<string>()!, name, valType);
             }
             else if (type.BaseType?.IsSubclassOfGenericType(typeof(IScalarType<>)) == true)
             {
@@ -312,7 +314,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             NodeSchema? mainSchema = null;
             foreach (INodeSchemaGenerator generator in ofSchema is { HasValue: true } 
                          ? kindGenerators
-                             .Where(g => ofSchema.Value.Contains(g.Key, StringComparer.OrdinalIgnoreCase))
+                             .Where(g => ofSchema.GetValue<string>()!.Equals(g.Key, StringComparison.OrdinalIgnoreCase))
                              .Select(g => g.Value)
                          : schemaGenerators)
             {
@@ -376,7 +378,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             IProperty? property = nodeSchema.GetProperty(info.Value.nodeSchemaProp);
             if (property == null) return nodeSchema;
             
-            ExtensibleSchema? schema = property.GetValue<ExtensibleSchema>();
+            PropertyOwner? schema = property.GetValue<PropertyOwner>();
             if (schema == null) return nodeSchema;
             
             foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(nodeSchema.Kind))

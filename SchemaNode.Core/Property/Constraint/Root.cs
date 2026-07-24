@@ -14,7 +14,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Root)}")]
-[Relation<Visible>(NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"${nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"@{nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
 public class Root: Property<string>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
@@ -23,7 +23,7 @@ public class Root: Property<string>, IConstraintProperty
         if (string.IsNullOrWhiteSpace(Value) || string.IsNullOrWhiteSpace(nodeValue)) return null;
         if (Value.Equals(nodeValue)) return true;
 
-        EnumValueAccess[] access = await (node.Type as Runtime.EnumType)!.LoadEnumAccessListAsync(context, nodeValue, noSubList: true);
-        return access.Any(a => a.Value.Equals(Value));
+        var access = await (node.Type as Runtime.EnumType)!.GetEnumEntryAccessAsync(context, nodeValue);
+        return access.Any(a =>Value.Equals(a.Entry?.Value));
     }
 }

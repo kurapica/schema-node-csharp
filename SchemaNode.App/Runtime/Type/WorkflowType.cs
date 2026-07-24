@@ -75,7 +75,7 @@ public sealed class WorkflowType: NodeType
         }
     }
 
-    public override void Release()
+    public override void Unload()
     {
         Payload = null;
         State = null;

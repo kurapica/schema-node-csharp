@@ -1,12 +1,11 @@
 ﻿using Confluent.Kafka;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
+using SchemaNode.Event;
 using SchemaNode.Context;
-using SchemaNode.Enum;
-using SchemaNode.Utility;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using SchemaNode.Service;
 
 namespace SchemaNode.Kafka;
 
@@ -23,7 +22,7 @@ public sealed class KafkaEventSource : IEventSource
 
     public Task StartAsync(SchemaContext context, CancellationToken token)
     {
-        _events = Injection.GetRegisteredAssemblies() // Only scan registered schema assemblies
+        _events = context.GetSchemaAssemblies() // Only scan registered schema assemblies
             .SelectMany(a => a.GetTypes())
             .Where(t => !t.IsAbstract && typeof(KafkaEvent).IsAssignableFrom(t) && t.IsDefined(typeof(KafkaTopicAttribute), false))
             .SelectMany(t => t.GetCustomAttributes<KafkaTopicAttribute>()
@@ -58,7 +57,12 @@ public sealed class KafkaEventSource : IEventSource
                 try
                 {
                     var evt = (KafkaEvent)Activator.CreateInstance(map.Item1)!;
-                    context.RaiseEvent(evt, map.Item2 != null ? FromJson(Encoding.UTF8.GetString(result.Message.Value), map.Item2) : null);
+                    if (map.Item2 != null)
+                    {
+                        var payload = FromJson(Encoding.UTF8.GetString(result.Message.Value), map.Item2);
+                        evt.Payload = context.GetSchemaNodeAsync(payload).GetAwaiter().GetResult();
+                    }
+                    context.RaiseEvent(evt);
                 }
                 catch(Exception ex)
                 {

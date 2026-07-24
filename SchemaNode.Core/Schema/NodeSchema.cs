@@ -26,7 +26,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE)]
-public sealed class NodeSchema: ExtensibleSchema
+public sealed class NodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The namespace which includes the schema
@@ -60,7 +60,14 @@ public sealed class NodeSchema: ExtensibleSchema
     /// </summary>
     [SchemaIgnore]
     public NodeSchema[]? Schemas { get; set; }
-    
+
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
+
     /// <summary>
     /// The compatible types
     /// </summary>
@@ -104,15 +111,19 @@ public sealed class NodeSchema: ExtensibleSchema
     /// <summary>
     /// Gets the clone
     /// </summary>
-    public NodeSchema Clone(ISchemaRuntime? runtime = null)
+    public NodeSchema Clone(ISchemaRuntime? runtime = null, bool withNamespaces = false)
     {
         var nodeSchema = new NodeSchema()
         {
             Name = Name,
             Namespace = Namespace,
             Kind = Kind,
+            Type = Type,
         };
-        nodeSchema.CombineExtensions(this, runtime);
+        nodeSchema.CombineProperties(this, runtime, SCHEMA_KIND_NODE);
+
+        if (withNamespaces && Kind.Equals(SCHEMA_KIND_NAMESPACE, StringComparison.OrdinalIgnoreCase) && Schemas != null)
+            nodeSchema.Schemas = Schemas.Select(x => x.Clone(runtime)).ToArray();
         return nodeSchema;
     }
     
@@ -142,7 +153,7 @@ public sealed class NodeSchema: ExtensibleSchema
 /// Represents the namespace type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.type")]
-[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+[Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
 [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.gettypes)}", NODE_SELF)]
 public class AnyType: String;
 
@@ -166,7 +177,7 @@ internal static class NodeSchemaExtensions
     /// Loading properties for node schemas
     /// </summary>
     internal static async Task<(Runtime.NodeType[] RefTypes, string? Error)>
-        LoadPropertiesAsync(this ExtensibleSchema schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
+        LoadPropertiesAsync(this PropertyOwner schema, SchemaContext context, IEnumerable<IProperty> properties, Runtime.ValueType? ownerType = null)
     {
         List<Runtime.NodeType> refTypes = [];
         string? error = null;
@@ -176,7 +187,7 @@ internal static class NodeSchemaExtensions
             if (prop is ILoadableProperty loadableProp)
             {
                 await loadableProp.LoadAsync(context, ownerType);
-                if (prop is INodeError err)
+                if (prop is IErrorProvider err)
                     error ??= err.Error;
             }
 

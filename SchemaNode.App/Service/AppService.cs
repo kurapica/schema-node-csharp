@@ -3,34 +3,30 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SchemaNode.Context;
 using SchemaNode.Data;
-using SchemaNode.Http;
+using SchemaNode.Data.Sql;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Service;
 
 public static class AppService
 {    
     /// <summary>
-    /// Register the app schema provider
+    /// Register the app schema provider, also the node schema provider
     /// </summary>
-    public static IServiceCollection AddSchemaProvider<T>(this IServiceCollection services) 
-        where T : class, IAppSchemaProvider
-    {
-        services.TryAddScoped<T>();
-        services.AddScoped<IAppSchemaProvider>(sp => sp.GetRequiredService<T>()); // multi allowed
-        services.AddScoped<INodeSchemaProvider>(sp => sp.GetRequiredService<T>());
-        return services;
-    }
+    public static IServiceCollection AddAppSchemaProvider<T>(this IServiceCollection services) 
+        where T : class, IAppEntryProvider
+        => services.AddScoped<IAppEntryProvider>(sp => sp.GetRequiredService<T>()).AddSchemaProvider<T>();
 
     /// <summary>
-    /// Register the app schema storage provider, it also will be used for <see cref="AddSchemaProvider"/>
+    /// Register the app schema storage provider, it also will be used for <see cref="AddAppSchemaProvider{T}"/>
     /// </summary>
     public static IServiceCollection AddSchemaStorageProvider<T>(this IServiceCollection services)
-        where T : class, IAppSchemaStorageProvider
+        where T : class, IAppEntryStorageProvider
     {
-        services.TryAddScoped<IAppSchemaStorageProvider>(sp => sp.GetRequiredService<T>()); // single per service
-        return services.AddSchemaProvider<T>();
+        services.TryAddScoped<IAppEntryStorageProvider>(sp => sp.GetRequiredService<T>()); // single per service
+        return services.AddAppSchemaProvider<T>();
     }
 
     /// <summary>
@@ -43,14 +39,13 @@ public static class AppService
         services.TryAddScoped<IAppDataProvider>(sp => sp.GetRequiredService<T>());
         
         // sql provider check
-        /*Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
+        Type? interfaceType = typeof(T).GetInterfaces().FirstOrDefault(i => i.IsSubclassOfGenericType(typeof(IAppDataSqlProvider<>)));
         if (interfaceType != null)
         {
             // keep it simple, just set it
             ISqlProvider instance = (ISqlProvider)Activator.CreateInstance(interfaceType.GetGenericArguments()[0])!;
             services.AddSingleton(instance);
-        }*/
-        
+        }
         return services;
     }
 
@@ -65,10 +60,7 @@ public static class AppService
         // The schema runtime builder
         services.TryAddEnumerable(ServiceDescriptor.Scoped<IRuntimeStageHandler, AppRuntimeStageHandler>());
 
-        services.AddSchemaAssembly<AppSchemaRuntime>();
-        services.AddSchemaAssemblies(assemblies);
-        
-        return services;
+        return services.AddSchemaAssembly<AppSchemaRuntime>().AddSchemaAssemblies(assemblies);
     }
     
     /// <summary>
@@ -85,15 +77,6 @@ public static class AppService
         var options = new SchemaNodeConfig();
         config.Invoke(options);
         services.AddSingleton(options);
-        return services;
-    }
-    
-    /// <summary>
-    /// Sets the api protocol
-    /// </summary>
-    public static IServiceCollection WithSchemaApiProtocol<T>(this IServiceCollection services) where T: class, ISchemaApiProtocol
-    {
-        services.AddTransient<ISchemaApiProtocol, T>();
         return services;
     }
 }

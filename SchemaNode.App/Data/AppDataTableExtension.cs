@@ -59,9 +59,9 @@ public static class AppDataTableExtension
     
     internal static async Task<AppFieldType> AssertAppField<T>(this SchemaContext context)
     {
-        (string app, string field)? app = (context.Runtime as AppSchemaRuntime)?.GetSystemAppField<T>();
+        (AppType? app, AppFieldType? field) = (context.Runtime as AppSchemaRuntime ?? throw new Exception("The runtime is not app schema runtime")).GetSystemAppField<T>();
         if (app == null) throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
-        return (await context.GetAppTypeAsync(app.Value.app))?.GetField(app.Value.field) ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
+        return field ?? throw new ArgumentException($"The type {typeof(T).FullName} is not a valid app field data type");
     }
 
     /// <summary>

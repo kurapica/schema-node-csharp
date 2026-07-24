@@ -22,7 +22,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EventGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_EVENT)]
-public sealed class EventSchema: ExtensibleSchema
+public sealed class EventSchema: PropertyOwner
 {
     /// <summary>
     /// The event construct arguments
@@ -43,7 +43,7 @@ public sealed class EventSchema: ExtensibleSchema
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.event")]
 [Meta<ReadOnly>(true)] // Only system event schema allowed
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_EVENT)]
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_EVENT)]
 public sealed class EventProperty: Property<EventSchema>;
 
 /// <summary>

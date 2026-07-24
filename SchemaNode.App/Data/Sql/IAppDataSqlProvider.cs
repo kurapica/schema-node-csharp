@@ -4,6 +4,4 @@ namespace SchemaNode.Data.Sql;
 /// The application data provider for SQL-based databases.
 /// </summary>
 /// <typeparam name="T">The sql provider</typeparam>
-public interface IAppDataSqlProvider<T>: IAppDataProvider where T: ISqlProvider
-{
-}
+public interface IAppDataSqlProvider<T>: IAppDataProvider where T: ISqlProvider;

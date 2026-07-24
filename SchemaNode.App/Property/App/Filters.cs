@@ -19,7 +19,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Filters)}")]
-public class Filters : Property<FieldFilter[]>, ILoadableProperty, INodeError
+public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvider
 {
     public string? Error { get; set; }
 

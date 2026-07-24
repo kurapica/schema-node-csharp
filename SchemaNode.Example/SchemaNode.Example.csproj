@@ -18,20 +18,12 @@
 
   <ItemGroup>
     <PackageReference Include="Cszy.DistributedLock.Medallion" Version="0.0.240" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
-    <PackageReference Include="Npgsql" Version="10.0.1" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
-    <PackageReference Include="Npgsql.Json.NET" Version="10.0.1" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="10.1.4" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="10.1.4" />
-    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.1.4" />
+    <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="10.2.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SchemaNode.Kafka\SchemaNode.Kafka.csproj" />
+    <ProjectReference Include="..\SchemaNode.App\SchemaNode.App.csproj" />
+    <ProjectReference Include="..\SchemaNode.Core\SchemaNode.Core.csproj" />
     <ProjectReference Include="..\SchemaNode.MySql\SchemaNode.MySql.csproj" />
-    <ProjectReference Include="..\SchemaNode.AI\SchemaNode.AI.csproj" />
-    <ProjectReference Include="..\SchemaNode.PostgreSQL\SchemaNode.PostgreSQL.csproj" />
-    <ProjectReference Include="..\SchemaNode\SchemaNode.csproj" />
   </ItemGroup>
 </Project>

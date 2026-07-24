@@ -8,6 +8,7 @@ using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using StructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Runtime;
 
 // ReSharper disable InconsistentNaming
 
@@ -56,9 +57,9 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
-    public static async Task<T?> getfield<T>(SchemaContext context, StructNode obj, string field, T? @default)
+    public static async Task<T?> getfield<T>(SchemaContext context, DataNode obj, string field, T? @default)
     {
-        DataNode? result = await GetFieldNode(context, obj, field.Split('.', StringSplitOptions.RemoveEmptyEntries));
+        DataNode? result = await GetFieldNode(context, obj, field);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
     }
 
@@ -74,11 +75,10 @@ public static class SystemCollection
         var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         ArrayNode resultType = new (arrayNode);
-        string[] paths = field.Split('.', StringSplitOptions.RemoveEmptyEntries);
         foreach (DataNode item in array)
         {
-            DataNode? fieldNode = await GetFieldNode(context, item, paths);
-            if (fieldNode != null) resultType.Add(fieldNode);
+            DataNode? fieldNode = await GetFieldNode(context, item, field);
+            if (fieldNode != null && !fieldNode.IsEmpty) resultType.Add(fieldNode);
         }
         return resultType;
     }
@@ -88,7 +88,7 @@ public static class SystemCollection
     /// </summary>
     public static ArrayNode orderby(ArrayNode obj, string field, bool descending)
     {
-        var list = new List<DataNode>(obj);
+        var list = new List<IValueAccess>(obj);
         list.Sort((a, b) =>
         {
             if (a is not StructNode sa || b is not StructNode sb) return 0;
@@ -131,15 +131,6 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field node from object
     /// </summary>
-    static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string[] paths)
-    {
-        if (paths.Length == 0) return obj;
-
-        foreach (var path in paths)
-        {
-            if (obj is not StructNode s) return null;
-            obj = await s.GetFieldValueAsync(context, path);
-        }
-        return obj;
-    }
+    static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string path)
+        => obj is not StructNode s ? obj?.GetAccessValue(path) as DataNode : await s.GetFieldValueAsync(context, path);
 }

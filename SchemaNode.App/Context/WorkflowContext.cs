@@ -214,7 +214,7 @@ public class WorkflowContext: SchemaContext
             : _root?.GetWorkflowPayload(paths[0]);
         
         // check nested payload
-        return paths.Length > 1 ? data?.GetAccessValue(paths[1]) : data;
+        return paths.Length > 1 ? data?.GetAccessValue(paths[1]) as DataNode : data;
     }
 
     /// <summary>
@@ -321,7 +321,7 @@ public class WorkflowContext: SchemaContext
                     string[] keys = new  string[workflow.ForkKey.Length];
                     for (int i = 0; i < workflow.ForkKey.Length; i++)
                     {
-                        DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
+                        DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]) as DataNode;
                         if (forkKeyNode == null || forkKeyNode.IsEmpty) return null; // skip fork if any fork key not provided
                         keys[i] = forkKeyNode.ToString()!;
                     }
@@ -348,8 +348,7 @@ public class WorkflowContext: SchemaContext
                         string[] keys = new string[workflow.ForkKey!.Length];
                         for (int i = 0; i < workflow.ForkKey.Length; i++)
                         {
-                            DataNode? forkKeyNode =
-                                (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]);
+                            DataNode? forkKeyNode = (payload as StructNode)?.GetAccessValue(workflow.ForkKey[i]) as DataNode;
                             if (forkKeyNode == null || forkKeyNode.IsEmpty) break;
                             keys[i] = forkKeyNode.ToString()!;
                         }

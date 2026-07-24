@@ -18,7 +18,7 @@ public class SchemaRuntime : ISchemaRuntime
 {
     #region Implementation of ISchemaRuntime
 
-    private (string kind, Type schemaType, Type[]? properties)[] _schemaKinds = [];
+    private (string kind, Type schemaType, Type[]? propertyTypes, IProperty[]? properties)[] _schemaKinds = [];
     private readonly object _schemaKindsLock = new();
 
     /// <summary>
@@ -27,10 +27,10 @@ public class SchemaRuntime : ISchemaRuntime
     public RuntimeStage Stage { get; set; } = RuntimeStage.SystemSchemaLoading;
 
     /// <inheritdoc/>
-    public void RegisterSchemaKind(string kind, Type schemaType, Type[]? properties = null)
+    public void RegisterSchemaKind(string kind, Type schemaType, Type[]? propertyTypes = null, IProperty[]? properties = null)
     {
         lock (_schemaKindsLock)
-            _schemaKinds = _schemaKinds.Append((kind, schemaType, properties)).ToArray();
+            _schemaKinds = _schemaKinds.Append((kind, schemaType, propertyTypes, properties)).ToArray();
     }
 
     /// <inheritdoc/>
@@ -38,24 +38,22 @@ public class SchemaRuntime : ISchemaRuntime
         => _schemaKinds.Select(k => (k.kind, k.schemaType));
 
     /// <inheritdoc/>
-    public IEnumerable<Type> GetSchemaKindProperties(string kind)
-        => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties ?? [];
+    public IEnumerable<Type> GetSchemaKindPropertyTypes(string kind)
+        => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).propertyTypes ?? [];
 
     /// <inheritdoc/>
-    public Type? GetSchemaKindProperty(string kind, Type valueType)
-    {
-        foreach (Type propType in GetSchemaKindProperties(kind))
-        {
-            Type? valType = propType.GetGenericBaseType(typeof(Property<>));
-            if (valType != null && valType.GetGenericArguments().FirstOrDefault() == valueType)
-                return propType;
-        }
-        return null;
-    }
+    public T? GetSchemaKindProperty<T>(string kind) where T : class, IProperty
+        => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
+            ?.OfType<T>().FirstOrDefault();
 
     /// <inheritdoc/>
-    public Type? GetSchemaKindPropertyByName(string kind, string propertyName)
-        => GetSchemaKindProperties(kind).FirstOrDefault(propType => propertyName.Equals(propType.GetPropertyName(), StringComparison.OrdinalIgnoreCase));
+    public IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T : IProperty
+        => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
+            ?.OfType<T>() ?? [];
+
+    /// <inheritdoc/>
+    public Type? GetSchemaKindPropertyTypeByName(string kind, string propertyName)
+        => GetSchemaKindPropertyTypes(kind).FirstOrDefault(propType => propertyName.Equals(propType.GetPropertyName(), StringComparison.OrdinalIgnoreCase));
 
     #endregion
 
@@ -101,7 +99,7 @@ public class SchemaRuntime : ISchemaRuntime
         if (detail.IsGenericParameter) return null;
         if (detail.IsGenericType)
         {
-            schemaName = GetTypeSchema(type.GetGenericTypeDefinition());
+            schemaName = GetTypeSchema(detail.CoreType.GetGenericTypeDefinition());
             if (schemaName == null) return null;
             Type[] args = type.GetGenericArguments();
             string[] genericArgs = new string[args.Length];
@@ -176,7 +174,7 @@ public class SchemaRuntime : ISchemaRuntime
             // override the extension properties
             else if (node.Kind != SCHEMA_KIND_NAMESPACE)
             {
-                node.CombineExtensions(schema, this);
+                node.CombineProperties(schema, this, SCHEMA_KIND_NODE);
             }
         }
         
@@ -202,20 +200,20 @@ public class SchemaRuntime : ISchemaRuntime
             
              // Generic Types
             if (part.StartsWith('<'))
-                return node?.Clone(this);
+                return node.Clone(this);
             
             if (node.Schemas != null)
             {
                 foreach (NodeSchema schema in node.Schemas)
                 {
-                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!part.SeqEquals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
                     curr = schema;
                     break;
                 }
             }
             node = curr;
         }
-        return node?.Clone(this);
+        return node?.Clone(this, true);
     }
 
     /// <summary>
@@ -253,7 +251,7 @@ public class SchemaRuntime : ISchemaRuntime
             {
                 foreach (NodeSchema schema in node.Schemas)
                 {
-                    if (!part.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!part.SeqEquals(schema.Name, StringComparison.OrdinalIgnoreCase)) continue;
                     curr = schema;
                     break;
                 }

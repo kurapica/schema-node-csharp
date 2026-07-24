@@ -1,6 +1,6 @@
-using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
+using SchemaNode.Service;
+using System.Reflection;
 
 namespace SchemaNode.AI;
 
@@ -28,7 +28,6 @@ public static class SchemaNodeOntologyInjection
         configure?.Invoke(options);
         OntologyOptions.Apply(options);
 
-        services.AddSchemaAssemblies(Assembly.GetExecutingAssembly());
-        return services;
+        return services.AddAppSchemaAssemblies(Assembly.GetExecutingAssembly());
     }
 }

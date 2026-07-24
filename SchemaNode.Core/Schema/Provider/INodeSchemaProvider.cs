@@ -1,3 +1,6 @@
+using SchemaNode.Struct;
+using System.Text.Json.Nodes;
+
 namespace SchemaNode.Schema.Provider;
 
 /// <summary>
@@ -11,5 +14,5 @@ public interface INodeSchemaProvider
     /// </summary>
     /// <param name="names">The schema names</param>
     /// <returns>The schema</returns>
-    Task<NodeSchema[]> LoadSchemaAsync(string[] names);
+    Task<NodeSchema[]> GetSchemaAsync(string[] names);
 }

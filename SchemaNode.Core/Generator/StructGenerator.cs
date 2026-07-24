@@ -85,7 +85,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             structSchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
         }
 
-        
+        // Fields
         foreach (PropertyInfo p in type
              .GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
              .Where(p =>
@@ -156,7 +156,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
             // Do not inspect Property-type relations here; those are dynamically assembled later.
             foreach (IRelationAttribute relation in p.GetCustomAttributes(inherit: false).OfType<IRelationAttribute>())
-                relations.Add(relation.GetRelationSchema(runtime, fieldName, typeResolver));
+                relations.Add(relation.GetRelationSchema(fieldName));
 
             // [Meta<PrimaryIndex>] → array primary keys
             foreach (PrimaryIndex idx in p.GetMetaProperties<PrimaryIndex>())
@@ -172,6 +172,10 @@ internal sealed class StructGenerator : INodeSchemaGenerator
 
             fieldConfigs.Add(field);
         }
+        
+        // struct level relations
+        foreach (var relation in type.GetCustomAttributes(inherit:false).OfType<IRelationAttribute>())
+            relations.Add((relation.GetRelationSchema(NODE_SELF)));
         
         structSchema.Fields = fieldConfigs.ToArray();
 
@@ -197,6 +201,14 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                 arraySchema.SetProperty<Primary, string[]>(primaryFields);
             if (dataIndexes is { Length: > 0 })
                 arraySchema.SetProperty<Indexes, DataIndex[]>(dataIndexes);
+            
+            // Use the same generic settings
+            if (genericDeclare is { Length: > 0 })
+            {
+                arraySchema.SetProperty<Generics, GenericParameter[]>(genericDeclare);
+                arraySchema.Element = $"{schema.FullName}<{string.Join(',', genericDeclare.Select(g => g.Name))}>";
+            }
+
             array.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
 
             yield return array;

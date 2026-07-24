@@ -7,12 +7,13 @@ using System.Reflection;
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Service;
 using ExpType = SchemaNode.Enum.ExpType;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
-using SchemaNode.Struct;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -31,17 +32,17 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// The return type node
     /// </summary>
-    internal ValueType Return { get; private set; } = null!;
+    public ValueType Return { get; private set; } = null!;
 
     /// <summary>
     /// The function arguments
     /// </summary>
-    internal FunctionNodeArgument[] Args { get; private set; } = [];
+    public FunctionNodeArgument[] Args { get; private set; } = [];
 
     /// <summary>
     /// The function expressions
     /// </summary>
-    internal FunctionNodeExpression[] Exps { get; private set; } = [];
+    public FunctionNodeExpression[] Exps { get; private set; } = [];
 
     /// <summary>
     /// As type converter
@@ -54,14 +55,9 @@ public sealed class FunctionType : NodeType
     internal MethodInfo? MethodInfo => FuncInfo?.Method;
     
     /// <summary>
-    /// Whether the function require call server
-    /// </summary>
-    internal bool RequireRemoteCall { get; private set; }
-
-    /// <summary>
     /// Whether the function is remote call only
     /// </summary>
-    internal bool IsRemoteCall => (LoadState & SchemaLoadState.Remote) > 0;
+    internal bool IsRemoteCall => Exps.Length == 0 && !IsSystemCall;
 
     /// <summary>
     /// Whether the function is defined as system, direct call
@@ -126,9 +122,6 @@ public sealed class FunctionType : NodeType
         Converter = func.GetProperty<Converter>()?.Value;
         FuncInfo = FunctionGenerator.GetSystemFuncInfo(Name);
 
-        // Check if server or direct call
-        RequireRemoteCall = IsRemoteCall;
-
         // Argument types
         HashSet<string> existNames = [];
         foreach (FunctionNodeArgument arg in Args)
@@ -157,17 +150,10 @@ public sealed class FunctionType : NodeType
         
         // Generate the exp trees
         await PreCompileAsync(context);
-        
-        foreach (FunctionNodeExpression exp in Exps)
-        {
-            // State taint
-            if (exp.FuncNode?.RequireRemoteCall == true)
-                RequireRemoteCall = true;
-        }
     }
     
     /// <inheritdoc />
-    public override void Release()
+    public override void Unload()
     {
         Args = [];
         Exps = [];
@@ -179,6 +165,9 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
+        // ReSharper disable once ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
+        if (Return == null) yield break;
+        
         if (Return is not GenericType)
             yield return Return;
 
@@ -209,6 +198,18 @@ public sealed class FunctionType : NodeType
         foreach (var type in base.GetReferenceTypes())
             yield return type;
     }
+
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public override T? GetProperty<T>() where T : class 
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    public override IEnumerable<T> GetProperties<T>()
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
     #endregion
 
@@ -340,7 +341,7 @@ public sealed class FunctionType : NodeType
             Args = Args.Select(a =>
             {
                 TypeDetail info = a.ValueType!.GetNodeTypeDetails();
-                if (a.Nullable ?? false) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
+                if (!a.Require) info.Kind |= TypeDetail.ParameterTypeKind.Nullable;
                 return info;
             }).ToArray(),
             Return = Return.GetNodeTypeDetails()
@@ -553,7 +554,7 @@ public sealed class FunctionType : NodeType
     /// <summary>
     /// Call the function asynchronously
     /// </summary>
-    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
+    public async Task<T?> CallAsync<T, TC>(SchemaContext context, object?[] args, string? rType = null)
         where TC: CompileContext
     {
         object? result;
@@ -566,7 +567,7 @@ public sealed class FunctionType : NodeType
                 cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
 
             result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
-                ? await provider.CallFunctionAsync(Name, cArgs, rType, target)
+                ? await provider.CallFunctionAsync(Name, cArgs, rType)
                 : null;
         }
 
@@ -596,7 +597,7 @@ public sealed class FunctionType : NodeType
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
                 {
-                    if (arg.Nullable) continue;
+                    if (!arg.Require) continue;
                     throw new Exception($"The {i + 1} argument must be provided");
                 }
 
@@ -652,14 +653,18 @@ public sealed class FunctionType : NodeType
         // Parse the return type
         if (result == null) return default(T);
         if (result is T r) return r;
+        if (typeof(T).IsAssignableTo(typeof(DataNode)))
+        {
+            return await context.GetSchemaNodeAsync(result) is T rNode ? rNode : default(T?);
+        }
         return result.TryConvertTo<T>(out var f) ? f : default(T?);
     }
 
     /// <summary>
     /// Call the function asynchronously with default compile context
     /// </summary>
-    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null, string? target = null)
-        => CallAsync<T, CompileContext>(context, args, rType, target);
+    public Task<T?> CallAsync<T>(SchemaContext context, object?[] args, string? rType = null)
+        => CallAsync<T, CompileContext>(context, args, rType);
 
     #endregion
 
@@ -692,7 +697,7 @@ public sealed class FunctionType : NodeType
 /// <summary>
 /// The expression tree
 /// </summary>
-internal abstract class FunctionNodeExpTree
+public abstract class FunctionNodeExpTree
 {
     /// <summary>
     /// The type node
@@ -703,7 +708,7 @@ internal abstract class FunctionNodeExpTree
 /// <summary>
 /// The function node argument
 /// </summary>
-internal class FunctionNodeArgument : FunctionNodeExpTree
+public class FunctionNodeArgument : FunctionNodeExpTree
 {
     #region Data
 
@@ -716,35 +721,35 @@ internal class FunctionNodeArgument : FunctionNodeExpTree
     /// The argument type
     /// </summary>
     public required string Type { get; init; }
-
-    /// <summary>
-    /// Whether nullable
-    /// </summary>
-    public bool? Nullable { get; init; }
     
     /// <summary>
-    /// The display name
+    /// The argument is required
     /// </summary>
-    public LocaleString? Display { get; init; }
+    public bool Require { get; init; }
 
     /// <summary>
     /// Whether params argument
     /// </summary>
-    public bool? Params { get; init; }
+    public bool? Variadic { get; init; }
 
     /// <summary>
     /// The default value
     /// </summary>
     public object? Default { get; init; }
 
-    #endregion
+    /// <summary>
+    /// The func argument
+    /// </summary>
+    private FuncArg? _source;
 
-    #region State
+    #endregion
+    
+    #region Methdos
 
     /// <summary>
-    /// The status
+    /// Gets the property of the argument
     /// </summary>
-    public string? Status { get; set; }
+    public T? GetProperty<T>() where T : class, IProperty => _source?.GetProperty<T>();
     
     #endregion
     
@@ -756,10 +761,10 @@ internal class FunctionNodeArgument : FunctionNodeExpTree
         {
             Name = arg.Name,
             Type = arg.Type,
-            Nullable = arg.Nullable,
-            Display = arg.Display,
-            Params = arg.Params,
-            Default = arg.Default,
+            Variadic = arg.GetProperty<Variadic>()?.Value,
+            Require = arg.GetProperty<Require>()?.GetValue<bool>() ?? false,
+            Default = arg.GetProperty<Default>()?.Value,
+            _source = arg
         };
     }
     
@@ -769,7 +774,7 @@ internal class FunctionNodeArgument : FunctionNodeExpTree
 /// <summary>
 /// The function node expression
 /// </summary>
-internal class FunctionNodeExpression : FunctionNodeExpTree
+public class FunctionNodeExpression : FunctionNodeExpTree
 {
     #region Data
     
@@ -846,10 +851,9 @@ public static class FunctionTypeExtensions
     /// <param name="node">The function schema node</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null, string? target = null)
-        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, FunctionType node, JsonArray args, string? rType = null)
+        => node.CallAsync<JsonNode>(context, args.Select(object? (p) => p).ToArray(), rType);
 
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -858,10 +862,9 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return types</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null, string? target = null)
-        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType, target);
+    public static Task<JsonNode?> CallFunctionAsync(this SchemaContext context, string name, JsonArray args, string? rType = null)
+        => CallFunctionAsync<JsonNode>(context, name,  args.Select(object? (p) => p).ToArray(), rType);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -870,10 +873,9 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
-        => CallFunctionAsync<T, CompileContext>(context, name, args, rType, target);
+    public static Task<T?> CallFunctionAsync<T>(this SchemaContext context, string name, object?[] args, string? rType = null) 
+        => CallFunctionAsync<T, CompileContext>(context, name, args, rType);
     
     /// <summary>
     /// Call the function with arguments and given generic type
@@ -882,12 +884,11 @@ public static class FunctionTypeExtensions
     /// <param name="name">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="rType">The return type</param>
-    /// <param name="target">The related target</param>
     /// <returns>The result</returns>
-    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null, string? target = null) 
+    public static async Task<T?> CallFunctionAsync<T, TC>(this SchemaContext context, string name, object?[] args, string? rType = null) 
         where TC: CompileContext
     {
         FunctionType node = await context.GetNodeTypeAsync<FunctionType>(name) ?? throw new Exception($"Function {name} not found");
-        return await node.CallAsync<T, TC>(context, args, rType, target);
+        return await node.CallAsync<T, TC>(context, args, rType);
     }
 }

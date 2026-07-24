@@ -12,7 +12,7 @@ public sealed class BoolType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc />
-    public override DataNode Create() => new BoolNode { Type = this };
+    public override DataNode Create(IValueAccess? parent = null) => new BoolNode { Type = this, Parent = parent };
 
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => null;

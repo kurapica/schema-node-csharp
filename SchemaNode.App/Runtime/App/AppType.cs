@@ -127,14 +127,21 @@ public sealed class AppType : IValueTypeAccess
     /// </summary>
     internal void SaveAppSchema(AppSchema schema)
     {
+        // system app schema without other provider doesn't need reload
+        if (_schemas != null && _schemas.TryGetValue(schema.Name, out AppSchema? exist) && (exist.LoadState & SchemaLoadState.System) > 0 && schema.Provider == null) return;
+        
+        // record and mark unload
         _schemas ??= [];
         _schemas[schema.Name] = schema;
+        if (_subApps != null && _subApps.TryGetValue(schema.Name, out AppType? app)) app.Loaded = false;
     }
 
     internal void RemoveAppSchema(ReadOnlySpan<char> name)
     {
         _schemas?.TryRemove(name.ToString(), out _);
     }
+    
+    internal IEnumerable<AppSchema> GetSubAppSchemas() => _schemas?.Values ?? [];
     
     public IEnumerable<AppType> GetSubApps() => _subApps?.Values ?? [];
     
@@ -153,7 +160,7 @@ public sealed class AppType : IValueTypeAccess
 
         // data
         _schema  = schema;
-        _props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP)).ToArray();
+        _props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP)).ToArray();
 
         (_refTypes, Error) = await schema.LoadPropertiesAsync(context, _props);
         ScopePolicy = GetProperty<ScopePolicy>()?.Value;
@@ -176,9 +183,13 @@ public sealed class AppType : IValueTypeAccess
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;
@@ -258,7 +269,7 @@ public sealed class AppType : IValueTypeAccess
             Fields = _fields?.Select(f => f.GetSchema()).ToArray(),
             Workflows = _workflows?.Select(w => w.GetSchema()).ToArray(),
         };
-        schema.CombineExtensions(_schema);
+        schema.CombineProperties(_schema);
         return schema;
     }
     
@@ -346,7 +357,7 @@ public sealed class AppType : IValueTypeAccess
         foreach (NodeType t in GetReferenceTypes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
-            await t.GetNodeSchemas(ctx, root, types, includeUsedBy, cancellationToken);
+            await t.GetNodeSchemas(ctx, root, types, false, includeUsedBy, cancellationToken);
         }
         return root.Schemas!;
     }

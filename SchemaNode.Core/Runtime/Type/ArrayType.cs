@@ -16,7 +16,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory array schema representation
 /// </summary>
-public sealed class ArrayType: ValueType
+public sealed class ArrayType: ValueType, IRelationProvider
 {
     #region Fields
 
@@ -71,9 +71,13 @@ public sealed class ArrayType: ValueType
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
-                // Only check constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
+                // Only work for constraint properties
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 RelationType relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;
@@ -85,7 +89,7 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override void Release() => _relations = null;
+    public override void Unload() => _relations = null;
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
@@ -104,8 +108,8 @@ public sealed class ArrayType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) || path.SequenceEqual(ARRAY_PREVIOUS)) return this;
-        return path.SequenceEqual(ARRAY_ELEMENT) ? Element : Element?.GetAccessValueType(path);
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
+        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? Element : Element?.GetAccessValueType(path);
     }
 
     /// <inheritdoc />
@@ -141,64 +145,10 @@ public sealed class ArrayType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new ArrayNode(this);
+    public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
 
     /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
-    {
-        if (Element == null || value is not ArrayNode result || result.Type != this) return;
-
-        // Validate by elements
-        foreach (DataNode element in result)
-            await Element.ValidateValueAsync(context, element);
-
-        // Validate by relations
-        if (_relations != null)
-        {
-            foreach (RelationType relationType in _relations)
-            {
-                for (int i = 1; i < result.Count; i++)
-                {
-                    ArrayNode spanNode = new ArrayNode(result, i);
-                    IConstraintProperty? prop = await relationType.ProcessAsync(context, spanNode) as IConstraintProperty;
-                    if (prop is not { HasValue: true }) continue;
-
-                    // apply constraint on target
-                    SpanReader spans = relationType.Target;
-                    List<DataNode> currNodes = [spanNode];
-                    while (spans.NextPath())
-                    {
-                        if (spans.IsEnd)
-                        {
-                            foreach (DataNode currNode in currNodes)
-                            {
-                                if (await prop.ValidateAsync(context, currNode) == false)
-                                {
-                                    if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                    currNode.SetViolated(prop);
-                                }
-                                else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                                {
-                                    currNode.ClearViolated(prop);
-                                }
-                            }
-                            break;
-                        }
-
-                        // Gather effect nodes
-                        ReadOnlySpan<char> path = spans.Current;
-                        List<DataNode> nextLevels = [];
-                        foreach (DataNode currNode in currNodes)
-                        {
-                            DataNode? next = currNode.GetAccessValue(path);
-                            if (next != null) nextLevels.Add(next);
-                        }
-                        currNodes = nextLevels;
-                    }
-                }
-            }
-        }
-    }
+    public IEnumerable<RelationType> GetRelations() => _relations ?? [];
 
     #endregion
 
@@ -306,5 +256,21 @@ public sealed class ArrayType: ValueType
         return string.Join(sep, keys);
     }
 
+    #endregion
+    
+    #region Property
+    
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public override T? GetProperty<T>() where T : class 
+        => base.GetProperty<T>() ?? Element?.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    public override IEnumerable<T> GetProperties<T>()
+        => this.JoinProperties(base.GetProperties<T>(), Element?.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
+    
     #endregion
 }

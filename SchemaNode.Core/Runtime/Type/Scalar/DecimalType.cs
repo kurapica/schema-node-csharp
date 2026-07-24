@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// </summary>
 public sealed class DecimalType : ScalarType
 {
-    public override DataNode Create() => new NumericNode { Type = this };
+    public override DataNode Create(IValueAccess? parent = null) => new DecimalNode { Type = this, Parent = parent };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<DecimalProperty>()?.Value;

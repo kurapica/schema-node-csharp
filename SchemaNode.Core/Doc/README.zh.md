@@ -1,170 +1,37 @@
 # SchemaNode.Core 文档索引
 
-> 本页是 `SchemaNode.Core/Doc` 的中文入口，帮助不同角色快速找到合适的材料。
+## 阅读路径
 
-## 文档清单
+### 初次了解
+1. **[PROJECT_HISTORY.zh.md](./PROJECT_HISTORY.zh.md)** — SchemaNode *为何*存在（暖通灾难 → 碳汇核算 → Core/App 分离）
+2. **[PLATFORM_OVERVIEW.zh.md](./PLATFORM_OVERVIEW.zh.md)** — 架构概览
+3. **[PLATFORM_ARCHITECTURE.zh.md](./PLATFORM_ARCHITECTURE.zh.md)** — 含代码示例的深入架构
 
-### 1. `PLATFORM_OVERVIEW.zh.md`
+### 准备开发
+1. **[FEATURE_GUIDE.zh.md](./FEATURE_GUIDE.zh.md)** — 四大支柱实用代码示例
+2. 参考架构文档了解设计细节
 
-**定位：对外摘要版 / 快速介绍版**
-
-适合场景：
-
-- 第一次了解 SchemaNode
-- 对外沟通、生态招募、合作交流
-- 架构评审前的快速预读
-- 仓库首页或提案材料中的简版引用
-
-你会看到：
-
-- SchemaNode 是什么
-- 它不是什么
-- 三个核心价值
-- 核心抽象的极简关系
-- 为什么它值得高级架构人员关注
-
-### 2. `PLATFORM_ARCHITECTURE.zh.md`
-
-**定位：对外平台架构长文档 / 白皮书风格说明**
-
-适合场景：
-
-- 需要系统理解 SchemaNode 的平台定位
-- 需要评估架构边界、扩展机制和生态潜力
-- 需要对外展示平台设计思想
-- 希望参与平台共建或长期架构演进
-
-你会看到：
-
-- 为什么 SchemaNode 不是“再做一套 JSON Schema”
-- 为什么 `Property` 组合是平台第一核心
-- 为什么 `PropertySchema` 让平台自解释
-- `NodeSchema` 族在平台中的真实定位
-- 统一的数据类型、操作和关联模型
-- 动态 schema 的来源、合并与运行时生命周期
-- 老系统语义化接入路径
-- 面向 AI 的语义输出与运行期临时应用
-- 多端一体化配置与 API 收敛价值
-- 核心抽象关系图（ASCII）
-
-### 3. `PLATFORM_OVERVIEW.en.md`
-
-**定位：英文摘要版**
-
-适合：
-
-- 对英文读者进行快速介绍
-- 用于国际化交流、邮件、提案摘要
-
-### 4. `PLATFORM_ARCHITECTURE.en.md`
-
-**定位：英文平台架构长文档**
-
-适合：
-
-- 英文环境下的架构沟通
-- 吸引国际化技术贡献者
-- 对外展示平台架构愿景
+### 快速判断
+1. **[POSITIONING.zh.md](./POSITIONING.zh.md)** — 市场定位、设计哲学、三层愿景
+2. **[PLATFORM_OVERVIEW.zh.md](./PLATFORM_OVERVIEW.zh.md)** — 5 分钟架构概览
+3. **[PROJECT_HISTORY.zh.md](./PROJECT_HISTORY.zh.md)** — 实战检验的起源
 
 ---
 
-## 推荐阅读路径
+## 文档
 
-### 路径 A：第一次了解 SchemaNode
+| 文档 | 描述 |
+|------|------|
+| [PROJECT_HISTORY.zh.md](./PROJECT_HISTORY.zh.md) | 三版演化：暖通 Lua 灾难 (2019) → Datanode 碳汇 (2021, 3人/700表/3月) → v2 (2025) → Core/App 分离 v3 (2026) |
+| [POSITIONING.zh.md](./POSITIONING.zh.md) | 市场定位、设计哲学、三层愿景，SchemaNode 是什么/不是什么 |
+| [PLATFORM_OVERVIEW.zh.md](./PLATFORM_OVERVIEW.zh.md) | 四大支柱架构、核心概念、运行时、扩展性 |
+| [PLATFORM_ARCHITECTURE.zh.md](./PLATFORM_ARCHITECTURE.zh.md) | 深入：Meta 声明、IProperty/Property<T>、IRelationProcess、原子与语义函数、CompileContext、Node 族、运行时层次 |
+| [FEATURE_GUIDE.zh.md](./FEATURE_GUIDE.zh.md) | 代码指南：Schema Kind、自定义属性/约束、Relation、Function、CompileContext、运行时操作 |
 
-建议顺序：
-
-1. `PLATFORM_OVERVIEW.zh.md`
-2. `PLATFORM_ARCHITECTURE.zh.md`
-
-### 路径 B：面向高级架构评审
-
-建议顺序：
-
-1. `PLATFORM_OVERVIEW.zh.md`
-2. `PLATFORM_ARCHITECTURE.zh.md`
-3. 结合代码查看 `Property<T>`、`ExtensibleSchema`、`SchemaRuntime`、`SchemaContext`、`FunctionSchema`、`RelationSchema`
-
-### 路径 C：面向国际沟通
-
-建议顺序：
-
-1. `PLATFORM_OVERVIEW.en.md`
-2. `PLATFORM_ARCHITECTURE.en.md`
-
-### 路径 D：想快速判断是否值得参与
-
-如果你只想在 5 分钟内判断 SchemaNode 是否值得继续看，优先读：
-
-1. `PLATFORM_OVERVIEW.zh.md`
-2. `PLATFORM_OVERVIEW.en.md`（如需要英文转发）
-
----
-
-## 不同角色应该读什么
-
-### 平台架构师
-
-优先阅读：
-
-- `PLATFORM_OVERVIEW.zh.md`
-- `PLATFORM_ARCHITECTURE.zh.md`
-
-重点关注：
-
-- property 组合机制
-- schema family / schema property 双扩展轴
-- 动态 schema 与 runtime 生命周期
-- 多端统一元模型
-- AI 语义化连接能力
-
-### 前端核心或 TypeScript 实现参与者
-
-优先阅读：
-
-- `PLATFORM_OVERVIEW.zh.md`
-- `PLATFORM_ARCHITECTURE.zh.md`
-- 英文对应版本（用于统一术语）
-
-重点关注：
-
-- 跨语言语义基线
-- property 解释逻辑
-- schema family 扩展语义
-- 前后端共享元模型边界
-
-### 后端框架与微服务架构人员
-
-优先阅读：
-
-- `PLATFORM_ARCHITECTURE.zh.md`
-
-重点关注：
-
-- Meta 驱动的 system schema
-- 旧 API / 微服务语义化接入
-- 少量稳定 API + 动态 schema 的编排方式
-- provider 驱动的动态加载和合并
-
-### AI / 知识工程参与者
-
-优先阅读：
-
-- `PLATFORM_OVERVIEW.zh.md`
-- `PLATFORM_ARCHITECTURE.zh.md`
-
-重点关注：
-
-- schema 的语义化输出
-- MCP / JSON Schema / Ontology 映射
-- 运行期临时应用
-- 可审计、可回放的元数据执行日志
-
----
-
-## 一句话导航
-
-如果只保留一句话来说明本目录：
-
-> 先看 `PLATFORM_OVERVIEW`，快速理解平台价值；再看 `PLATFORM_ARCHITECTURE`，完整理解 SchemaNode 为什么值得作为跨语言、可扩展、自解释的元数据平台持续投入。
-
+### English (英文)
+| Document | Description |
+|----------|-------------|
+| [PROJECT_HISTORY.en.md](./PROJECT_HISTORY.en.md) | Three-version evolution |
+| [PLATFORM_OVERVIEW.en.md](./PLATFORM_OVERVIEW.en.md) | Quick summary |
+| [PLATFORM_ARCHITECTURE.en.md](./PLATFORM_ARCHITECTURE.en.md) | Deep dive |
+| [FEATURE_GUIDE.en.md](./FEATURE_GUIDE.en.md) | Feature guide |

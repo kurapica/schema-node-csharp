@@ -66,7 +66,7 @@ public class DynamicWorkflowContextPersistence(SchemaContext context): IWorkflow
             }
             else
             {
-                return await context.GetEntitiesAsync<WorkflowContextSnapshot>(s =>
+                return await context.GetEntitiesWithTotalAsync<WorkflowContextSnapshot>(s =>
                     s.Workflow == workflow && s.RootId == root && s.Status == chkStatus, take ?? 50, skip ?? 0);
             }
         }

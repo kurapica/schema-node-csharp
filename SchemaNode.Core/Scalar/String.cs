@@ -17,26 +17,29 @@ public class String: IScalarType<string>;
 /// Represents the char scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_CHAR)]
-[Meta<UplimitString>(1)]
+[Meta<UpLimitString>(1)]
 [Meta<LowLimitString>(1)]
+[Meta<ClrEquivalent>(typeof(char))]
 public class Char: String;
 
 /// <summary>
 /// Represents the GUID scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_GUID)]
+[Meta<UpLimitString>(36)]
+[Meta<LowLimitString>(36)]
 public class Guid: String, IScalarType<System.Guid>;
 
 /// <summary>
 /// Represents the language scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_LANGUAGE)]
-[Meta<UplimitString>(LANGUAGE_MAX_LEN)]
+[Meta<UpLimitString>(LANGUAGE_MAX_LEN)]
 public class Language: String;
 
 /// <summary>
 /// Represents the identifier scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_IDENTIFIER)]
-[Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+[Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
 public class Identifier: String;

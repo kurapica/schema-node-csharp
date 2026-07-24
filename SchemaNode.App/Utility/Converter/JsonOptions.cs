@@ -28,7 +28,7 @@ internal static class JsonOptions
                     new UniversalFlexibleEnumConverter(),
                     new ForceStringConverter(),
                     new FlexibleLongConverter(),
-                    new SchemaConverterFactory(),
+                    new PropertyOwnerConverterFactory(),
                     new JsonDateTimeConverter(dfm, tz),
                     new JsonDateTimeOffsetConverter(dfm, tz),
                     new JsonNodeDateFormatConverter(dfm, tz),
@@ -43,17 +43,13 @@ internal static class JsonOptions
     /// <summary>
     /// From http request
     /// </summary>
-    public static T? FromJsonRequest<T>(this SchemaContext context, string json)
-    {
-        return JsonSerializer.Deserialize<T>(json, GetJsonOptions(false, context.GetContextItem<DateFormatMode>(), context.GetTimeZone()));
-    }
+    public static T? FromJsonRequest<T>(this SchemaContext context, string json, DateFormatMode? dateFormat = null)
+        => JsonSerializer.Deserialize<T>(json, GetJsonOptions(false, dateFormat, context.GetTimeZone()));
     
     
     /// <summary>
     /// To http result
     /// </summary>
-    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false)
-    {
-        return Results.Json(value, GetJsonOptions(indent, context.GetContextItem<DateFormatMode>(), context.GetTimeZone()));
-    }
+    public static IResult ToJsonResult<T>(this SchemaContext context, T value, bool indent = false, DateFormatMode? dateFormat = null)
+        => Results.Json(value, GetJsonOptions(indent, dateFormat, context.GetTimeZone()));
 }

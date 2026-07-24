@@ -3,15 +3,15 @@ using SchemaNode.Attribute;
 using SchemaNode.Property.App;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
-using SchemaNode.Schema;
-using SchemaNode.Utility;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
 
 namespace SchemaNode.Data.Entity;
 
-[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<App>(NS_SYSTEM_SCHEMA)]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.enumvalue")]
 public class EnumValueEntity
 {
@@ -23,27 +23,26 @@ public class EnumValueEntity
     /// The value
     /// </summary>
     [Meta<PrimaryIndex>(1)]
-    [Meta<UniqueIndex>("SUB_LIST", 3)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UniqueIndex>("SUB_LIST", 2)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Value { get; set; } = string.Empty;
 
     /// <summary>
     /// The root value
     /// </summary>
     [Meta<UniqueIndex>("SUB_LIST", 1)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string? Root { get; set; }
     
     /// <summary>
     /// The seqno
     /// </summary>
-    [Meta<UniqueIndex>("SUB_LIST", 2)]
     public long Seqno { get; set; }
     
     /// <summary>
     /// Has sub enum value list
     /// </summary>
-    public bool HasSubList { get; set; }
+    public bool HasChildren { get; set; }
     
     /// <summary>
     /// The extension properties of the node
@@ -52,29 +51,24 @@ public class EnumValueEntity
 
     #region Conversion
 
-    public static implicit operator EnumValueEntity?(EnumValueSchema? enumValueSchema)
+    public static implicit operator EnumValueEntity?(Entry<string>? enumValueSchema)
     {
         if  (enumValueSchema == null) return null;
         return new EnumValueEntity
         {
-            Enum = enumValueSchema.Parent?.Root ?? enumValueSchema.Value,
             Value = enumValueSchema.Value,
-            Root = enumValueSchema.Root,
-            Seqno = enumValueSchema.Seqno,
-            HasSubList = enumValueSchema.HasSubList ?? false,
+            HasChildren = enumValueSchema.HasChildren ?? false,
             Extensions = enumValueSchema.Extensions?.DeepClone() as JsonObject
         };
     }
     
-    public static implicit operator EnumValueSchema?(EnumValueEntity? enumValueEntity)
+    public static implicit operator Entry<string>?(EnumValueEntity? enumValueEntity)
     {
         if (enumValueEntity == null) return null;
-        return new EnumValueSchema
+        return new Entry<string>
         {
             Value = enumValueEntity.Value,
-            Root = enumValueEntity.Root,
-            Seqno = enumValueEntity.Seqno,
-            HasSubList = enumValueEntity.HasSubList,
+            HasChildren = enumValueEntity.HasChildren,
             Extensions = enumValueEntity.Extensions?.DeepClone() as JsonObject
         };
     }

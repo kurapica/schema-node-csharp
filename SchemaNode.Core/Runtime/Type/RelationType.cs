@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
+using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -11,7 +12,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The relation type, they are not node types, only runtime-types controlled by the node types use them
 /// </summary>
-public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, INodeError
+public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INodeReferences, IErrorProvider
 {
     /// <summary>
     /// The target of the relation
@@ -26,7 +27,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// The property type the relation applied to
     /// </summary>
-    public string Property { get; } = relation.Property;
+    public PropertyType? Property  { get; private set; }
 
     /// <summary>
     /// The stage of the relation been applied
@@ -44,23 +45,16 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// The process
     /// </summary>
-    public IRelationProcess? Process => _process;
+    public IRelationProcess? Process { get; private set; }
     
-    /// <summary>
-    /// The relation process
-    /// </summary>
-    private IRelationProcess? _process;
-    
-    private PropertyType? _prop;
-
     /// <summary>
     /// Process the relation and return the property with the result
     /// </summary>
-    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner)
+    public async Task<IProperty?> ProcessAsync(SchemaContext context, IValueAccess owner, IValueAccess? target = null)
     {
-        var propType = _prop?.GetCsharpType();
+        var propType = Property?.GetCsharpType();
         if (propType == null || Activator.CreateInstance(propType) is not IProperty prop) return null;
-        if (_process == null || await _process.ProcessAsync(context, owner) is not { } value) return null;
+        if (Process == null || await Process.ProcessAsync(context, owner, target) is not { } value) return null;
         prop.SetValue(value);
         return prop;
     }
@@ -68,7 +62,7 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <inheritdoc/>
     public IEnumerable<NodeType> GetReferenceTypes()
     {
-        if (_process is not INodeReferences references) yield break;
+        if (Process is not INodeReferences references) yield break;
         foreach (NodeType type in references.GetReferenceTypes())
             yield return type;
     }
@@ -76,30 +70,35 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     /// <summary>
     /// Whether the relation is used for the given property
     /// </summary>
-    public bool ForProperty<T>() where T : IProperty => _prop is not null && _prop.GetCsharpType() == typeof(T);
+    public bool ForProperty<T>() where T : IProperty => Property is not null && Property.GetCsharpType() == typeof(T);
 
     /// <summary>
     /// Load the relation type
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
-        _prop = !string.IsNullOrWhiteSpace(Property) 
-            ? await context.GetNodeTypeAsync<PropertyType>(Property)
+        Property = !string.IsNullOrWhiteSpace(relation.Property) 
+            ? await context.GetNodeTypeAsync<PropertyType>(relation.Property)
             : null;
-        if (_prop?.GetCsharpType() == null)
+        if (Property?.GetCsharpType() == null)
         {
             Error = ErrorCodes.NO_DEFINITION;
             return;
         }
         
-        foreach (Type propType in context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_RELATION))
+        foreach (Type propType in context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_RELATION))
         {
             if (!Kind.Equals(propType.GetMetaProperty<Property.Record.RelationKind>()?.Value, StringComparison.OrdinalIgnoreCase)) continue;
-            IProperty? prop = relation.GetProperty(propType);
-            if (prop is not { HasValue: true } || prop.GetValue<IRelationProcess>(true) is not { } process) continue;
-            _process = process;
-            await _process.LoadAsync(context, Owner);
-            if (_process is INodeError error && !string.IsNullOrWhiteSpace(error.Error))
+            
+            Type? processType = propType.GetMetaProperty<RelationProcess>()?.Value;
+            Process = processType != null ? (IRelationProcess)Activator.CreateInstance(processType)! : null;
+            if (Process == null)
+            {
+                Error = ErrorCodes.RELATION_PROPERTY_NOT_VALID;
+                break;
+            }
+            await Process.LoadAsync(context, relation, Owner);
+            if (Process is IErrorProvider error && !string.IsNullOrWhiteSpace(error.Error))
                 Error = error.Error;
         }
     }

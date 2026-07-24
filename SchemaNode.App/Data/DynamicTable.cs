@@ -90,11 +90,11 @@ public class DynamicTableSchema
                         var relation = structNode.GetRelations(sField.Name)
                             .FirstOrDefault(r => 
                                 r.ForProperty<Default>() &&
-                                r.Process is Call call &&
+                                r.Process is CallProcess call &&
                                 IsReferenceFunc(call.Func));
                         if (relation == null) continue;
 
-                        Call call = (relation.Process as Call)!;
+                        CallProcess call = (relation.Process as CallProcess)!;
 
                         // app
                         string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
@@ -239,11 +239,11 @@ public class DynamicTableSchema
                         {
                             var relation = structNode.GetRelations(sField.Name).FirstOrDefault(r => 
                                 r.ForProperty<Default>() &&
-                                r.Process is Call call &&
+                                r.Process is CallProcess call &&
                                 IsReferenceFunc(call.Func));
                             if (relation == null) continue;
 
-                            Call call = (relation.Process as Call)!;
+                            CallProcess call = (relation.Process as CallProcess)!;
 
                             // app
                             string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
@@ -512,10 +512,10 @@ public class DynamicTableSchema
         {
             if (field.Complex == null)
             {
-                DataNode? fieldNode = pack.GetAccessValue(field.Name);
+                var fieldNode = pack.GetAccessValue(field.Name);
                 if (fieldNode is { IsEmpty: false })
                 {
-                    yield return (field.Name, fieldNode);
+                    yield return (field.Name, fieldNode as DataNode);
                 }
                 else
                 {
@@ -524,10 +524,10 @@ public class DynamicTableSchema
             }
             else
             {
-                DataNode? complex = pack.GetAccessValue(field.Complex.Main);
+                var complex = pack.GetAccessValue(field.Complex.Main);
                 if (complex is StructNode sPack && sPack.GetAccessValue(field.Complex.Field) is { IsEmpty: false } part)
                 {
-                    yield return (field.Name, part);
+                    yield return (field.Name, part as DataNode);
                 }
                 else
                 {
@@ -561,9 +561,10 @@ public class DynamicTableSchema
     /// <summary>
     /// Gets the scope context items for the dynamic table, used for data partition and target selection
     /// </summary>
-    public IEnumerable<string> GetScopeItems(SchemaContext context)
+    public IEnumerable<string> GetScopeKeys(ISchemaContext context)
     {
-        foreach (var (item, _, _) in AppField.Application.GetScopeContextItemTypes(context))
+        if (context is not SchemaContext schemaContext) yield break;
+        foreach (var (item, _, _) in AppField.Application.GetScopeContextItemTypes(schemaContext))
             yield return item;
     }
 
@@ -651,7 +652,7 @@ public class DynamicTableSchema
             }
             else
             {
-                DataNode? main = result.GetAccessValue(field.Complex.Main);
+                var main = result.GetAccessValue(field.Complex.Main);
                 if (main == null)
                 {
                     main = new StructNode((StructType)((StructType)ValueType).GetField(field.Complex.Main)!.Type!);
@@ -719,17 +720,19 @@ public class DynamicTableSchema
         // Generate the display only fields
         return ValueType is StructType @struct 
             ? GenerateDisplayOnlyFields(context, @struct, pack)
-            : Task.CompletedTask;
+            : ValueType is ArrayType { Element: StructType structEle }
+                ? GenerateDisplayOnlyFields(context, structEle, pack)
+                : Task.CompletedTask;
     }
 
     #endregion
     
     #region Utility
 
-    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
+    internal static bool IsReferenceFunc(string func) => $"{NS_SYSTEM_DATA}.app.{nameof(SystemAppData.getfield)}".Equals(func, StringComparison.OrdinalIgnoreCase);
 
     // Generate the display only fields
-    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, DataNode? node, bool joinHandled = false)
+    private static async Task GenerateDisplayOnlyFields(SchemaContext context, StructType type, IValueAccess? node, bool joinHandled = false)
     {
         switch (node)
         {
@@ -740,13 +743,13 @@ public class DynamicTableSchema
                 {
                     foreach (var relation in (type.GetRelations().Where(r =>
                                  r.ForProperty<Default>() &&
-                                 r.Process is Call call &&
+                                 r.Process is CallProcess call &&
                                  IsReferenceFunc(call.Func) &&
                                  type.GetField(r.Target) != null && 
                                  (type.GetField(r.Target)?.DisplayOnly ?? false))))
                     {
                         // call
-                        Call call = (relation.Process as Call)!;
+                        CallProcess call = (relation.Process as CallProcess)!;
                         
                         // app
                         string? app = call.Args.FirstOrDefault()?.Value?.ToValue<string>();
@@ -765,7 +768,7 @@ public class DynamicTableSchema
                         if ((appField.ValueType is ArrayType arr
                                 ? arr.Element
                                 : appField.ValueType) is not StructType structType || !structType.GetFields().Any()) continue;
-                        if (primary.Count + 4 != call.Args.Length) continue; // primary fields not contains
+                        if (primary.Count + 3 != call.Args.Length) continue; // primary fields not contains
 
                         // data field
                         string? dataField = call.Args.ElementAtOrDefault(2)?.Value?.ToValue<string>();
@@ -774,8 +777,7 @@ public class DynamicTableSchema
                         if (dataFieldType == null) continue; // data field not exist
 
                         // target
-                        var targetArg = call.Args.Last();
-                        string? target = targetArg.Value?.ToValue<string>() ?? context.GetContextItem<Access>()?.Target;
+                        string? target = context.GetContextItem<Access>()?.Target;
                         if (string.IsNullOrWhiteSpace(target)) continue; // no app target
 
                         // collect keys
@@ -792,7 +794,7 @@ public class DynamicTableSchema
                                 // build primary key
                                 List<string> keys = [];
                                 AppSchemaDataFilter? rowFilter = null;
-                                for (int i = 3; i < call.Args.Length - 1; i++)
+                                for (int i = 3; i < call.Args.Length; i++)
                                 {
                                     string? key = !string.IsNullOrEmpty(call.Args[i].Source)
                                         ? pack.GetAccessValue(call.Args[i].Source!)?.ToString()
@@ -841,7 +843,7 @@ public class DynamicTableSchema
                                     List<string> keys = [];
                                     foreach (string path in primary)
                                     {
-                                        DataNode? n = resultStruct.GetAccessValue(path);
+                                        var n = resultStruct.GetAccessValue(path);
                                         if (n == null || n.IsEmpty)
                                         {
                                             keys.Clear();
@@ -855,7 +857,7 @@ public class DynamicTableSchema
                                     string pkey = string.Join(":", keys);
 
                                     // get data node
-                                    DataNode? dataNode = resultStruct.GetAccessValue(dataField);
+                                    var dataNode = resultStruct.GetAccessValue(dataField);
                                     if (dataNode == null || dataNode.IsEmpty) continue;
 
                                     // set value
@@ -863,7 +865,7 @@ public class DynamicTableSchema
                                     foreach (DataNode row in packs)
                                     {
                                         if (row is not StructNode pack) continue;
-                                        DataNode? fld = pack.GetAccessValue(relation.Target);
+                                        var fld = pack.GetAccessValue(relation.Target);
                                         if (fld is not { IsEmpty: true }) continue;
 
                                         // set value
@@ -876,13 +878,13 @@ public class DynamicTableSchema
                             case 0 when value is StructNode resultStruct:
                             {
                                 // single key
-                                DataNode? dataNode = resultStruct.GetAccessValue(dataField);
+                                var dataNode = resultStruct.GetAccessValue(dataField);
                                 if (dataNode == null || dataNode.IsEmpty) continue;
 
                                 foreach (DataNode row in array)
                                 {
                                     if (row is not StructNode pack) continue;
-                                    DataNode? fld = pack.GetAccessValue(relation.Target);
+                                    var fld = pack.GetAccessValue(relation.Target);
                                     if (fld is not { IsEmpty: true }) continue;
 
                                     // set value
@@ -905,7 +907,7 @@ public class DynamicTableSchema
                 foreach (var field in type.GetFields())
                 {
                     // Gets the field node
-                    DataNode? fld = pack.GetAccessValue(field.Name);
+                    var fld = pack.GetAccessValue(field.Name);
                     if (fld == null) continue; // impossible
                     
                     if (field.DisplayOnly ?? false)
@@ -917,12 +919,12 @@ public class DynamicTableSchema
                         if (relation == null) continue;
                         
                         // handled by array node
-                        if (joinHandled && relation.Process is Call call && IsReferenceFunc(call.Func)) continue; 
+                        if (joinHandled && relation.Process is CallProcess call && IsReferenceFunc(call.Func)) continue; 
 
                         // call function to get value
                         try
                         {
-                            if (await relation.ProcessAsync(context, pack) is Default { HasValue: true } result)
+                            if (await relation.ProcessAsync(context, pack, fld) is Default { HasValue: true } result)
                                 fld.TrySetValue(result.Value);
                         }
                         catch
@@ -958,7 +960,7 @@ public class DynamicTableSchema
         {
             case IntType intType:
             {
-                upLimit ??= field?.GetProperty<UplimitInt>()?.Value ?? intType.GetProperty<UplimitInt>()?.Value;
+                upLimit ??= field?.GetProperty<UpLimitInt>()?.Value ?? intType.GetProperty<UpLimitInt>()?.Value;
                 lowLimit ??= field?.GetProperty<LowLimitInt>()?.Value ?? intType.GetProperty<LowLimitInt>()?.Value;
                 
                 // No Limit
@@ -1010,7 +1012,7 @@ public class DynamicTableSchema
             }
             case StringType stringType:
             {
-                upLimit ??= field?.GetProperty<UplimitString>()?.Value ?? stringType.GetProperty<UplimitString>()?.Value;
+                upLimit ??= field?.GetProperty<UpLimitString>()?.Value ?? stringType.GetProperty<UpLimitString>()?.Value;
                 
                 if (upLimit == 1)
                 {

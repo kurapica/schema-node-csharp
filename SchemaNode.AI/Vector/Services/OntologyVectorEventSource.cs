@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using SchemaNode.Components;
+using SchemaNode.Event;
 using SchemaNode.Context;
 using SchemaNode.Runtime;
 
@@ -43,16 +43,16 @@ public sealed class OntologyVectorEventSource : IEventSource
     public Task StartAsync(SchemaContext context, CancellationToken token)
     {
         AddSub(context.SubscribeEvent<AppSchemaChangeEvent>(e =>
-            EnqueueAsync(e.Payload?.ToValue<string>(), OntologyVectorCategory.SchemaApp, reindex: true)));
+            EnqueueAsync(e.Payload?.GetValue<string>(), OntologyVectorCategory.SchemaApp, reindex: true)));
 
         AddSub(context.SubscribeEvent<AppSchemaDeleteEvent>(e =>
-            EnqueueAsync(e.Payload?.ToValue<string>(), OntologyVectorCategory.SchemaApp, reindex: false)));
+            EnqueueAsync(e.Payload?.GetValue<string>(), OntologyVectorCategory.SchemaApp, reindex: false)));
 
         AddSub(context.SubscribeEvent<SchemaChangeEvent>(e =>
-            EnqueueAsync(e.Payload?.ToValue<string>(), OntologyVectorCategory.SchemaType, reindex: true)));
+            EnqueueAsync(e.Payload?.GetValue<string>(), OntologyVectorCategory.SchemaType, reindex: true)));
 
         AddSub(context.SubscribeEvent<SchemaDeleteEvent>(e =>
-            EnqueueAsync(e.Payload?.ToValue<string>(), OntologyVectorCategory.SchemaType, reindex: false)));
+            EnqueueAsync(e.Payload?.GetValue<string>(), OntologyVectorCategory.SchemaType, reindex: false)));
 
         return Task.CompletedTask;
     }
@@ -124,11 +124,10 @@ public sealed class OntologyVectorEventSource : IEventSource
     private async Task ReIndexAppAsync(
         string name, IOntologyVectorService vectorService, SchemaContext context)
     {
-        AppType? appType = await context.GetAppTypeAsync(name, preload: true);
-        if (appType?.Fields is not { Count: > 0 })
+        AppType? appType = await context.GetAppTypeAsync(name);
+        if (appType == null || !appType.GetFields().Any())
         {
-            _logger.LogDebug(
-                "[OntologyVector] Skipping app '{Name}': no fields (container)", name);
+            _logger.LogDebug("[OntologyVector] Skipping app '{Name}': no fields (container)", name);
             return;
         }
 
@@ -146,11 +145,10 @@ public sealed class OntologyVectorEventSource : IEventSource
     private async Task ReIndexTypeAsync(
         string name, IOntologyVectorService vectorService, SchemaContext context)
     {
-        AnySchemaType? type = await context.GetSchemaTypeAsync(name, preload: true);
-        if (type == null || type is TypeNamespace)
+        var type = await context.GetNodeTypeAsync(name);
+        if (type == null || type is NamespaceType)
         {
-            _logger.LogDebug(
-                "[OntologyVector] Skipping type '{Name}': namespace or not found", name);
+            _logger.LogDebug("[OntologyVector] Skipping type '{Name}': namespace or not found", name);
             return;
         }
 

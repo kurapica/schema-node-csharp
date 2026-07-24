@@ -42,7 +42,7 @@ public sealed class LocaleString : ICloneable
     /// {@schema.path} - use schema path to translate, default display
     /// </summary>
     [Meta<PrimaryIndex>]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
     public string Key { get; set; } = string.Empty;
 
     /// <summary>
@@ -96,12 +96,15 @@ public sealed class LocaleString : ICloneable
     /// <returns></returns>
     public override string ToString() => Key;
 
+    /// <summary>
+    /// Concat other locale string
+    /// </summary>
     public LocaleString Concat(LocaleString? other)
     {
         if (other == null) return this;
         Key = string.IsNullOrWhiteSpace(other.Key) ? Key : other.Key;
 
-        // Combine trans
+        // CombineProperties trans
         if (Trans == null || Trans.Length == 0)
             Trans = other.Trans;
         else if (other.Trans is { Length: > 0 })

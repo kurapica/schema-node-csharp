@@ -1,11 +1,12 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Core;
 
 namespace SchemaNode.Example.Components;
 
 /// <summary>
 /// The user info
 /// </summary>
-[Schema("example.user")]
+[Meta<SchemaType>("example.user")]
 public class UserInfo
 {
     /// <summary>

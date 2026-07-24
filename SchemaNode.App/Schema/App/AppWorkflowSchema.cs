@@ -2,10 +2,12 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
+using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
-using SchemaNode.Struct;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
@@ -19,8 +21,8 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW, SCHEMA_KIND_ORDER_APP_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.schema")]
-[Meta<Append>(typeof(Display))]
-public sealed class AppWorkflowSchema: ExtensibleSchema
+[Meta<Append>(typeof(Display), typeof(Description))]
+public sealed class AppWorkflowSchema: PropertyOwner
 {
     /// <summary>
     /// the application name
@@ -33,7 +35,7 @@ public sealed class AppWorkflowSchema: ExtensibleSchema
     /// The work flow name
     /// </summary>
     [Meta<PrimaryIndex>(1)]
-    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = default!;
     
     /// <summary>
@@ -57,13 +59,13 @@ public sealed class AppWorkflowSchema: ExtensibleSchema
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_APP_WORKFLOW_NODE, SCHEMA_KIND_ORDER_APP_WORKFLOW_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_WORKFLOW}.node")]
-[Meta<Append>(typeof(Display))]
-public sealed class AppWorkflowNodeSchema: ExtensibleSchema
+[Meta<Append>(typeof(Display), typeof(Description))]
+public sealed class AppWorkflowNodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
     /// The node name
     /// </summary>
-    [Meta<UplimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<UpLimitString>(ENTITY_PRIMARY_KEY_MAX_LEN)]
     public string Name { get; set; } = string.Empty;
     
     /// <summary>
@@ -118,6 +120,13 @@ public sealed class AppWorkflowNodeSchema: ExtensibleSchema
     /// </summary>
     public bool? PayloadSave { get; set; }
 
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
+    
     /// <summary>
     /// The resolved payload schema type
     /// </summary>

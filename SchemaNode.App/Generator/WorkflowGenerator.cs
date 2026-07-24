@@ -3,12 +3,16 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Function;
 using SchemaNode.Property.Record;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Service;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
+using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Workflow;
 
@@ -16,6 +20,8 @@ namespace SchemaNode.Generator;
 
 public class WorkflowGenerator : INodeSchemaGenerator
 {
+    private static readonly NullabilityInfoContext _nullabilityContext = new();
+
     public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
         if (!type.IsAssignableTo(typeof(BaseWorkflow))) yield break;
@@ -95,24 +101,34 @@ public class WorkflowGenerator : INodeSchemaGenerator
             
                 FuncArg arg = new ()
                 {
-                    Name = p.Name ?? $"arg{i}",
-                    Nullable = pt.Nullable || p.HasDefaultValue || new NullabilityInfoContext().Create(p).ReadState == NullabilityState.Nullable ||
-                               p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
-                               defaultProp != null,
-                    Display = processMethod.GetSummaryFromXmlDoc(p) ?? null,
-                    Default = defaultProp?.Value, // not the default value of the parameter
+                    Name = p.Name ?? $"arg{i}"
                 };
+                
+                // Require
+                if (!(pt.Nullable || p.HasDefaultValue || _nullabilityContext.Create(p).ReadState == NullabilityState.Nullable ||
+                      p.GetCustomAttributesData().FirstOrDefault(a => a.AttributeType.FullName == "System.Runtime.CompilerServices.NullableAttribute") != null ||
+                      defaultProp != null || p.IsDefined(typeof(ParamArrayAttribute), false)))
+                    arg.SetProperty<Require, bool>(true);
+                
+                // Display
+                arg.SetProperty<Display, LocaleString>(processMethod.GetSummaryFromXmlDoc(p) ??  $"{schema.FullName}.{arg.Name}");
+                    
+                // Default
+                if (defaultProp?.Value != null)
+                    arg.SetProperty<Default, object>(defaultProp.Value);
+                    
+                // Extension Properties
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNC_ARG))
+                    arg.SetProperty(property);
 
                 // Params
-                if (p.IsDefined(typeof(ParamArrayAttribute), false))
-                {
-                    arg.Params = true;
-                    arg.Nullable = true;
-                }
+                bool isVariadic = p.IsDefined(typeof(ParamArrayAttribute), false);
+                if (isVariadic)
+                    arg.SetProperty<Variadic, bool>(true);
 
                 // Check dynamic type
                 arg.Type =  p.GetMetaProperty<SchemaType>()?.GetValue<string>() 
-                            ?? typeResolver(arg.Params == true ? pt.CoreType : pt.Type, @namespace, null)
+                            ?? typeResolver(isVariadic ? pt.CoreType : pt.Type, @namespace, null)
                             ?? throw new Exception($"Can't resolve parameter type for method {processMethod.Name} in {@type.FullName}");
 
                 workflowSchema.Args[i] = arg;

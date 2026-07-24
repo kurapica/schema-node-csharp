@@ -1,8 +1,9 @@
 ﻿using SchemaNode.Context;
 using SchemaNode.Schema;
 using System.Collections.Concurrent;
+using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Record;
+using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 
 namespace SchemaNode.Runtime;
 
@@ -69,11 +70,19 @@ public sealed class NamespaceType: NodeType
     /// Saves the node type by segment name (not full name, since Schema may not be set yet)
     /// </summary>
     internal void SaveNodeType(ReadOnlySpan<char> name, NodeType nodeType) => _types[name.ToString()] = nodeType;
-    
+
     /// <summary>
     /// Save the node schema to the namespace (keyed by partial Name, consistent with LoadAsync)
     /// </summary>
-    internal void SaveNodeSchema(NodeSchema schema) => _schemas[schema.Name] = schema;
+    internal void SaveNodeSchema(NodeSchema schema)
+    {
+        // system schema without other provider doesn't need reload
+        if (_schemas.TryGetValue(schema.Name, out NodeSchema? exist) && (exist.LoadState & SchemaLoadState.System) > 0 && schema.Provider == null) return;
+        
+        // reload the type with new schema
+        _schemas[schema.Name] = schema;
+        if (_types.TryGetValue(schema.Name, out NodeType? type)) type.Loaded = false;
+    } 
     
     /// <summary>
     /// Remove node schema

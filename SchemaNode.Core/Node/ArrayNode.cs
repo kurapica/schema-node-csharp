@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SchemaNode.Runtime;
+using SchemaNode.Utility;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructFieldType = SchemaNode.Runtime.StructFieldType;
 using StructType = SchemaNode.Runtime.StructType;
@@ -11,37 +12,27 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : DataNode, IEnumerable<DataNode>
+public class ArrayNode : DataNode, IEnumerable<IValueAccess>
 {
     #region Constructors
     
-    public ArrayNode(NodeType type)
+    public ArrayNode(ValueType type, IValueAccess? parent = null)
     {
-        switch (type)
-        {
-            case ArrayType arrayType:
-                Type = arrayType;
-                ElementType = arrayType.Element ?? throw new Exception($"The type '{type.Name}' is not a valid array type.");
-                break;
-            case ValueType valueType:
-                Type = valueType.ArrayType ?? valueType;
-                ElementType = valueType;
-                break;
-            default:
-                throw new ArgumentException($"The node type '{type.Name}' is not a value type.", nameof(type));
-        }
+        Type = type.ArrayType ?? type;
+        Parent = parent;
+        ElementType = (type is ArrayType arr ? arr.Element : type) ??
+                      throw new Exception($"The type '{type.Name}' is not a valid array type.");
     }
 
-    public ArrayNode(NodeType type, object value): this(type)
+    public ArrayNode(ValueType type, object value, IValueAccess? parent = null): this(type, parent)
     {
         if (!TrySetValue(value))
-            throw new InvalidCastException($"Invalid array value type '{value.GetType()}'.");
+            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
-    internal ArrayNode(ArrayNode array, int count)
+    private ArrayNode(ArrayNode array, int count): this(array.Type, array.Parent)
     {
-        Type = array.Type;
-        ElementType = array.ElementType;
+        // only used for relation calc, no parent change
         _elements = array._elements.Take(count).ToList();
     }
 
@@ -103,7 +94,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     public override bool IsEmpty => Count == 0;
 
     /// <inheritdoc/>
-    public override bool TrySetValue<T>(T? value) where T : default
+    public sealed override bool TrySetValue<T>(T? value) where T : default
     {
         if (value is ArrayNode arrayNode)
         {
@@ -196,19 +187,50 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// <inheritdoc/>
     public override void ClearValue() => _elements.Clear();
 
-    /// <inheritdoc/>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
+    public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (source.SequenceEqual(NODE_SELF)) return this;
-        if (source.SequenceEqual(ARRAY_PREVIOUS)) return new ArrayNode(this, this.Count - 1);
-
-        var lastEle = _elements.LastOrDefault();
-        if (source.SequenceEqual(ARRAY_ELEMENT)) return lastEle;
-        return lastEle?.GetAccessValue(source);
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        
+        string[] paths = path.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
+        int eleIndex = -1;
+        IValueAccess? branch = node;
+        
+        // locate the node's branch
+        while (branch is not null)
+        {
+            if ((eleIndex = _elements.FindIndex(e => e == branch)) >= 0) break;
+            branch = branch.Parent;
+        }
+        
+        // previous array
+        IValueAccess? result;
+        if (paths[0].Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
+            result = eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
+        else
+        {
+            // deep access
+            DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
+            result = paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
+                ? arrayEle
+                : arrayEle?.GetAccessValue(paths[0], node);
+        }
+        return paths.Length > 1 ? result?.GetAccessValue(paths[1]) : result;
     }
 
     /// <inheritdoc/>
     public override bool IsValid => _elements.All(element => element.IsValid);
+
+    /// <inheritdoc/>
+    public override DataNode Clone()
+    {
+        ArrayNode node = new ArrayNode(ElementType);
+        foreach (DataNode element in _elements)
+            node.Add(element.Clone());
+        return node;
+    }
 
     #endregion
     
@@ -284,7 +306,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         return true;
     }
 
-    public IEnumerator<DataNode> GetEnumerator() => _elements.GetEnumerator();
+    public IEnumerator<IValueAccess> GetEnumerator() => _elements.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => _elements.GetEnumerator();
 
@@ -315,7 +337,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
             return true;
         }
 
-        node = ElementType.Create();
+        node = ElementType.Create(this);
         return node.TrySetValue(value);
     }
 

@@ -1,12 +1,10 @@
 using Microsoft.OpenApi;
 using MySqlConnector;
-using SchemaNode;
-using SchemaNode.AI;
-using SchemaNode.Components;
 using SchemaNode.Example.Components;
-using SchemaNode.Http.JsonRpc;
+using SchemaNode.Http;
 using SchemaNode.MySql;
-using SchemaNode.PostgreSQL;
+using SchemaNode.Schema.Provider;
+using SchemaNode.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +32,7 @@ builder.Services
     })
 
     // Ontology — registers ontology format providers (turtle / markdown / jsonld / ssp) for LoadAppSchema API
-    .AddSchemaOntology()
+    //.AddSchemaOntology()
     // Vector — registers embedding + vector store APIs; provider is selected via appsettings.json "SchemaOntology:Provider".
     // Still working on, not production-ready
     //.AddSchemaVector(opts => builder.Configuration.GetSection(OntologyVectorOptions.SectionName).Bind(opts))
@@ -44,22 +42,25 @@ builder.Services
     .AddScoped<UserInfoProvider>()
 
     // schema
-    .AddSchemaNode<JsonRpcSchemaApiProtocol>()
-    .AddSchemaStorageProvider<DynamicSchemaStorageProvider>() // save schema as application data
+    .WithSchemaApiProtocol<DefaultSchemaApiProtocol>()
+    .AddSchemaStorageProvider<DynamicAppEntryStorageProvider>() // save schema as application data
 
     // Mysql
-    // .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
-    //.AddAppSchemaDataProvider<AppDataMySqlProvider>() // Mysql application data provider
+    .AddMySqlDataSource(builder.Configuration.GetConnectionString("Default")!)
+    .AddAppDataProvider<AppDataMySqlProvider>() // Mysql application data provider
 
     // PostgreSQL
-    .AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
-    .AddAppSchemaDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
+    //.AddNpgsqlDataSource(builder.Configuration.GetConnectionString("PostgreSql")!)
+    //.AddAppDataProvider<AppDataPostgreSqlProvider>() // PostgreSQL application data provider
 
     // For test only
-    //.AddAppSchemaDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
+    //.AddAppDataProvider<InMemoryAppDataProvider>() // Memory application data provider - for test
 
     // Mcp
-    .AddSchemaMcp();
+    //.AddSchemaMcp()
+
+    .AddAppSchemaAssembly<Program>()
+    .PrepareSchemaRuntime();
 
 // App
 var app = builder.Build();
@@ -67,9 +68,8 @@ app.UseCors("AllowAll");
 app.UseMiddleware<UserInfoMiddleware>();
 
 app
-    .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true)
-    .PreLoadSchemaNodes()
-    .MapSchemaMcp();
+    .UseSchemaApis(enableAppDataApi: true, enableSchemaManage: true);
+    //.MapSchemaMcp();
 
 // Swagger
 if (app.Environment.IsDevelopment())
@@ -81,5 +81,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = string.Empty;
     });
 }
+
+await app.Services.InitSchemaRuntimeAsync();
+await app.Services.ActivateSchemaRuntimeAsync();
 
 app.Run();

@@ -1,9 +1,9 @@
-using System.Text.Json.Nodes;
+using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using RelationKind = SchemaNode.Property.Record.RelationKind;
 
 namespace SchemaNode.Attribute;
 
@@ -12,148 +12,53 @@ namespace SchemaNode.Attribute;
 /// </summary>
 public interface IRelationAttribute
 {
-    /// <summary>
-    /// The target
-    /// </summary>
-    string? Target { get; }
-    
-    /// <summary>
-    /// The relation process kind
-    /// </summary>
-    string Kind { get; }
-    
-    /// <summary>
-    /// The target property type
-    /// </summary>
-    Type Property { get;  }
-
-    /// <summary>
-    /// Generate the relation schema data
-    /// </summary>
-    IRelationProcess GetRelationProcess();
-
-    /// <summary>
-    /// Gets the relation schema
-    /// </summary>
-    public RelationSchema GetRelationSchema(SchemaRuntime runtime, string defaultTarget, Func<Type, string, Type[]?, string?> typeResolver)
-    {
-        RelationSchema relationSchema = new()
-        {
-            Target = Target ?? defaultTarget,
-            Property = typeResolver(Property, NS_SYSTEM_SCHEMA_PROPERTY, null) ?? throw new InvalidOperationException($"Cannot resolve property type {Property.FullName}"),
-            Kind = Kind
-        };
-
-        IRelationProcess process = GetRelationProcess();
-        Type propType = runtime.GetSchemaKindProperty(SCHEMA_KIND_RELATION, process.GetType())
-                        ?? throw new Exception($"Failed to find relation property for process type '{process.GetType().FullName}'.");
-        relationSchema.SetProperty(propType, process);
-        return relationSchema;
-    }
+    RelationSchema GetRelationSchema(string target);
 }
 
 /// <summary>
-/// The default relation using call process
+/// The relation declaration
 /// </summary>
+/// <typeparam name="TP">The property the relation used for</typeparam>
+/// <typeparam name="TR">The relation process property</typeparam>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Assembly | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Method, AllowMultiple = true)]
-public sealed class RelationAttribute<T> : System.Attribute, IRelationAttribute where T: IProperty
+public sealed class RelationAttribute<TP, TR> : System.Attribute, IRelationAttribute where TP: IProperty where TR: IProperty
 {
-    /// <summary>
-    /// The call relation with target specified
-    /// </summary>
-    public RelationAttribute(string target, string func, params object[] args)
-    {
-        if (target.StartsWith('$') && !target.StartsWith("$$"))
-        {
-            Target = target.Equals(NODE_SELF) || target.Equals(ARRAY_PREVIOUS) || target.Equals(ARRAY_ELEMENT) ? target : target[1..].ToCamelCase();
-            Func = func;
-            Args = args;
-        }
-        else
-        {
-            Func = target;
-            Args = args.Prepend(func).ToArray();
-        }
-    }
+    private readonly string _target;
+    private readonly RelationStage  _stage;
+    private readonly object[] _args;
     
     /// <summary>
     /// The call relation with target specified
     /// </summary>
-    public RelationAttribute(string func, params object[] args)
+    public RelationAttribute(string target, params object[] args) : this(RelationStage.LoadInput, target, args){}
+    
+    /// <summary>
+    /// The call relation with target specified
+    /// </summary>
+    public RelationAttribute(RelationStage stage, string target, object[] args)
     {
-        Func = func;
-        Args = args;
+        _stage = stage;
+        _target = target;
+        _args = args;
     }
 
-    /// <inheritdoc/>
-    public string Kind { get; } = "call";
-
-    /// <inheritdoc/>
-    public string? Target { get; }
-    
-    /// <inheritdoc/>
-    public Type Property { get; } = typeof(T);
-
-    /// <summary>
-    /// The function
-    /// </summary>
-    string Func { get; }
-    
-    /// <summary>
-    /// The call arguments
-    /// </summary>
-    object[] Args { get; }
-    
-    /// <inheritdoc/>
-    public IRelationProcess GetRelationProcess()
+    public RelationSchema GetRelationSchema(string target)
     {
-        return new Relation.Call
+        TR prop = Activator.CreateInstance<TR>();
+        prop.SetValue(_args.Length == 1 ? _args[0] : _args);
+
+        string kind = typeof(TR).GetMetaProperty<RelationKind>()?.GetValue<string>()
+                      ?? throw new Exception($"The {typeof(TR).Name} can't be used as relation process.");
+
+        RelationSchema schema = new RelationSchema
         {
-            Func = Func,
-            Args = Args.Select(a => a is string str
-                ? str.StartsWith('$')
-                    ? str.StartsWith("$$")
-                        ? new CallArg { Value = JsonValue.Create(str[1..]) }
-                        : new CallArg { Source = str.Equals(NODE_SELF) || str.Equals(ARRAY_PREVIOUS) || str.Equals(ARRAY_ELEMENT) ? str : str[1..].ToCamelCase() }
-                    : new CallArg{ Value = JsonValue.Create(str) }
-                : new CallArg { Value = a.ToJsonNode() }).ToArray()
+            Target = string.IsNullOrWhiteSpace(_target) || _target.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? target : _target,
+            Kind = kind,
+            Stage = _stage,
+            Property = typeof(TP).GetSchemaType() ??
+                       throw new Exception($"The {typeof(TP).Name} is not a valid property.")
         };
-    }
-}
-
-/// <summary>
-/// The assignment relation
-/// </summary>
-public sealed class RelationAssign<T> : System.Attribute, IRelationAttribute where T: IProperty
-{
-    object? Value { get; }
-
-    public RelationAssign(string target, object value)
-    {
-        Target = target;
-        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
-        if (prop == null) return;
-        prop.SetValue(value);
-        Value = prop.GetValue<object>();
-    }
-
-    public RelationAssign(string target, params object[] values)
-    {
-        Target = target;
-        IProperty? prop = Activator.CreateInstance(Property) as IProperty;
-        if (prop == null) return;
-        prop.SetValue(values);
-        Value = prop.GetValue<object>();
-    }
-
-    public string Kind { get; } = "assign";
-
-    public string Target { get; }
-    
-    public Type Property { get; } = typeof(T);
-
-    public IRelationProcess GetRelationProcess()
-    {
-        return new Relation.Assign { Value = Value };
+        schema.SetProperty(prop);
+        return schema;
     }
 }

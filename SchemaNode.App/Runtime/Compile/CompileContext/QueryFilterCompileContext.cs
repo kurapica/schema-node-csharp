@@ -81,8 +81,8 @@ public class QueryFilterCompileContext : CompileContext
                     if (field.DisplayOnly == true)
                     {
                         var relation = _queryType.GetRelations(fExp.FieldName)
-                            .FirstOrDefault(r => r.Process is Call && r.ForProperty<Default>());
-                        var call = (relation?.Process as Call)!;
+                            .FirstOrDefault(r => r.Process is CallProcess && r.ForProperty<Default>());
+                        var call = (relation?.Process as CallProcess)!;
                         if (call.FuncType == null) throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
 
                         if (DynamicTableSchema.IsReferenceFunc(call.Func))

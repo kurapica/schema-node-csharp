@@ -340,9 +340,6 @@ public class OntologyScalarClass
 
     /// <summary>Display unit label key, or <see langword="null"/>.</summary>
     public string? Unit { get; init; }
-
-    /// <summary>Cross-platform pattern validation, or <see langword="null"/>.</summary>
-    public Pattern[]? Pattern { get; init; }
 }
 
 /// <summary>
@@ -361,12 +358,12 @@ public class OntologyFunctionArg
 
     /// <summary>Multi-language display labels.</summary>
     public OntologyLabel[] Labels { get; init; } = [];
-
-    /// <summary>Whether the argument is optional (<c>nullable</c>).</summary>
-    public bool IsNullable { get; init; }
+    
+    /// <summary> Whether the argument is required. </summary>
+    public bool IsRequired { get; init; }
 
     /// <summary>Whether the argument is a variadic (<c>params</c>) parameter.</summary>
-    public bool IsParams { get; init; }
+    public bool IsVariadic { get; init; }
 }
 
 /// <summary>

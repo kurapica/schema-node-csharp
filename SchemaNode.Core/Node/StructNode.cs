@@ -14,18 +14,18 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(StructType type)
+    public StructNode(StructType type, IValueAccess? parent = null)
     {
         Type = type;
-        
+        Parent = parent;
         // init fields
-        _fields = type.GetFields().Select(p => p.Type?.Create() ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+        _fields = type.GetFields().Select(p => p.Type?.Create(this) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
-    public StructNode(StructType type, object value) : this(type)
+    public StructNode(StructType type, object value, IValueAccess? parent = null): this(type, parent)
     {
         if (!TrySetValue(value))
-            throw new InvalidCastException($"Invalid struct value type '{value.GetType()}'.");
+            throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
     }
 
     #endregion
@@ -38,7 +38,7 @@ public class StructNode : DataNode
         get => GetAccessValue(name);
         set
         {
-            DataNode? field = GetAccessValue(name);
+            IValueAccess? field = GetAccessValue(name);
             if (field == null) return;
             _csharpObject = null;
             field.TrySetValue(value);
@@ -70,10 +70,7 @@ public class StructNode : DataNode
     {
         int i = 0;
         foreach (var field in (Type as StructType)!.GetFields())
-        {
-            yield return (field, _fields[i]);
-            i++;
-        }
+            yield return (field, _fields[i++]);
     }
     
     /// <summary>
@@ -81,8 +78,7 @@ public class StructNode : DataNode
     /// </summary>
     public bool TrySetFieldValue(string fieldName, object? value)
     {
-        DataNode? field = GetAccessValue(fieldName);
-        if (field == null || !field.TrySetValue(value)) return false;
+        if (GetAccessValue(fieldName) is not DataNode field || !field.TrySetValue(value)) return false;
         // assign back
         if (_csharpObject == null) return true;
         try
@@ -105,34 +101,12 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the access value
     /// </summary>
-    public override DataNode? GetAccessValue(ReadOnlySpan<char> source)
+    public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (source.IsEmpty || source.SequenceEqual(NODE_SELF)) return this;
-        int index = (Type as StructType)?.GetIndex(source) ?? -1;
-        DataNode? field = _fields.ElementAtOrDefault(index);
-        if (field is { IsEmpty: true } && _csharpObject != null)
-        {
-            // Lazy loading
-            StructFieldType? fieldType = (Type as StructType)?.GetField(source);
-            if (fieldType?.Property != null)
-            {
-                object? value = fieldType.Property.GetValue(_csharpObject);
-                if (value != null)
-                {
-                    // replace the field with new data node since the field is generic
-                    // @TODO: check the TrySetFieldValue if need do the same logic
-                    // normally, the data won't be changed during the usages or the real type won't be changed
-                    if (field is AnyNode && value is DataNode vNode)
-                    {
-                        _fields[index] = vNode;
-                        field = vNode;
-                    }
-                    else
-                        field.TrySetValue(value);
-                }
-            }
-        }
-        return field;
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        string[] paths = path.Split('.', 2,  StringSplitOptions.RemoveEmptyEntries);
+        DataNode? field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
+        return paths.Length > 1 ? field?.GetAccessValue(paths[1], node) : field;
     }
 
     /// <inheritdoc/>
@@ -144,14 +118,14 @@ public class StructNode : DataNode
         foreach (var (field, value) in GetFields())
         {
             if (field.DisplayOnly == true) continue;
-            DataNode? otherValue = otherStruct.GetAccessValue(field.Name);
+            var otherValue = otherStruct.GetAccessValue(field.Name);
             if (otherValue == null || !value.Equals(otherValue)) return false;
         }
         return true;
     }
 
     /// <inheritdoc/>
-    public override bool IsEmpty => _fields.All(f => f.IsEmpty);
+    public override bool IsEmpty => _csharpObject == null && _fields.All(f => f.IsEmpty);
 
     /// <inheritdoc/>
     public override bool IsValid => _fields.All(f => f.IsValid);
@@ -175,7 +149,7 @@ public class StructNode : DataNode
             {
                 foreach ((StructFieldType f, DataNode v) in GetFields())
                 {
-                    DataNode? otherValue = @struct.GetAccessValue(f.Name);
+                    var otherValue = @struct.GetAccessValue(f.Name);
                     if (otherValue != null) v.TrySetValue(otherValue);
                 }
 
@@ -183,7 +157,7 @@ public class StructNode : DataNode
             }
             case JsonObject obj:
             {
-                Dictionary<string, DataNode> fieldMap = [];
+                Dictionary<string, DataNode> fieldMap = new (StringComparer.OrdinalIgnoreCase);
                 DataNode? unpackNode = null;
                 foreach ((StructFieldType f, DataNode v)  in GetFields())
                 {
@@ -213,8 +187,28 @@ public class StructNode : DataNode
             {
                 if (value.GetType() == CsharpType)
                 {
-                    ClearValue(); // lazy loading
                     _csharpObject = value;
+                    int i = 0;
+                    foreach (var field in (Type as StructType)!.GetFields())
+                    {
+                        DataNode f = _fields[i];
+                        if (field.Property == null || field.DisplayOnly == true)
+                            f.ClearValue();
+                        else
+                        {
+                            object? v = field.Property.GetValue(_csharpObject);
+                            if (v != null)
+                            {
+                                if (f is AnyNode && v is DataNode vNode)
+                                {
+                                    _fields[i] = vNode;
+                                }
+                                else
+                                    f.TrySetValue(v);
+                            }
+                        }
+                        i++;
+                    }
                 }
                 else
                 {
@@ -230,7 +224,7 @@ public class StructNode : DataNode
     /// <inheritdoc/>
     public override bool TryGetValue(Type type, out object? value)
     {
-        if (type == typeof(JsonObject))
+        if (type == typeof(JsonObject) || type == typeof(JsonNode))
         {
             JsonObject result = [];
             foreach ((StructFieldType f, DataNode v) in GetFields())
@@ -262,6 +256,7 @@ public class StructNode : DataNode
             if (_csharpObject != null)
             {
                 value = _csharpObject;
+                return true;
             }
             else if (TryGetValue(out JsonObject? obj) && obj != null)
             {
@@ -290,6 +285,19 @@ public class StructNode : DataNode
         _csharpObject = null;
         foreach (DataNode field in _fields)
             field.ClearValue();
+    }
+
+    /// <inheritdoc/>
+    public override DataNode Clone()
+    {
+        StructNode clone = new((StructType)Type);
+        int i = 0;
+        foreach (var _ in (Type as StructType)!.GetFields())
+        {
+            clone._fields[i] = _fields[i].Clone();
+            i++;
+        }
+        return clone;
     }
 
     #endregion

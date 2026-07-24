@@ -2,7 +2,6 @@ using System.Numerics;
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using static SchemaNode.Utility.Constant;
-using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using ArithmeticType = SchemaNode.Enum.ArithmeticType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
@@ -36,7 +35,7 @@ public static class SystemMath
     [Meta<Arithmetic>(ArithmeticType.Divide)]
     public static T divide<T>([Meta<Default>(0)] params T[] values) where T : INumber<T>
     {
-        if (values.Length == 0) return T.One;
+        if (values.Length == 0) return T.Zero;
         T result = values[0];
         for (int i = 1; i < values.Length; i++)
         {
@@ -64,6 +63,7 @@ public static class SystemMath
     {
         [Meta<Constant>(Math.E)]
         public static decimal e() => (decimal)Math.E;
+        
         [Meta<Constant>(Math.PI)]
         public static decimal pi() => (decimal)Math.PI;
     }

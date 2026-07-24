@@ -18,7 +18,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory struct schema representation
 /// </summary>
-public sealed class StructType: ValueType
+public sealed class StructType: ValueType, IRelationProvider
 {
     #region Fields
     
@@ -26,12 +26,7 @@ public sealed class StructType: ValueType
     /// The struct fields
     /// </summary>
     private List<StructFieldType> _fields = [];
-
-    /// <summary>
-    /// The union validations
-    /// </summary>
-    private List<StructUnionValidation>? _unionValids;
-    
+        
     /// <summary>
     /// The relations between the fields
     /// </summary>
@@ -79,9 +74,13 @@ public sealed class StructType: ValueType
                 ValueType? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyByName(currentType.Kind, relation.Property);
-                if (propType == null || !typeof(IConstraintProperty).IsAssignableFrom(propType)) continue;
+                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
                 Error ??= relationType.Error;
@@ -90,40 +89,26 @@ public sealed class StructType: ValueType
                 _relations.Add(relationType);
             }
         }
-        
-        // Load Union Validation
-        if (@struct.UnionValids is { Length: > 0 })
-        {
-            _unionValids = @struct.UnionValids
-                .Where(v => !string.IsNullOrWhiteSpace(v.Func))
-                .Select(v => new StructUnionValidation
-                {
-                    Func = v.Func,
-                    Args = v.Args,
-                }).ToList();
-            foreach (StructUnionValidation valid in _unionValids)
-            {
-                FunctionType? funcNode = await context.GetNodeTypeAsync<FunctionType>(valid.Func);
-                if (funcNode != null)
-                {
-                    valid.FuncNode = funcNode;
-                }
-                else
-                {
-                    valid.Error = ErrorCodes.STRUCT_VALID_FUNC_NOT_EXIST;
-                    Error ??= valid.Error;
-                }
-            }
-        }
     }
 
     /// <inheritdoc />
-    public override void Release()
+    public override void Unload()
     {
         _fields = [];
         _relations = null;
-        _unionValids = null;
     }
+    
+    /// <summary>
+    /// Gets the property with the given type
+    /// </summary>
+    public override T? GetProperty<T>() where T : class 
+        => base.GetProperty<T>() ?? Runtime?.GetSchemaKindProperty<T>(Kind);
+
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    public override IEnumerable<T> GetProperties<T>()
+        => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
@@ -134,12 +119,7 @@ public sealed class StructType: ValueType
         if (_relations != null)
             foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))
                 yield return node;
-
-        if (_unionValids != null)
-            foreach(StructUnionValidation valid in _unionValids)
-                if (valid.FuncNode != null)
-                    yield return valid.FuncNode;
-        
+                
         foreach (NodeType nodeType in base.GetReferenceTypes())
             yield return nodeType;
     }
@@ -147,7 +127,7 @@ public sealed class StructType: ValueType
     /// <inheritdoc />
     public override ValueType? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF)) return this;
+        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
@@ -178,139 +158,21 @@ public sealed class StructType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create() => new StructNode(this);
+    public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
 
     /// <inheritdoc />
-    protected override async Task ValidateNodeAsync(SchemaContext context, DataNode value)
-    {
-        if (value is not StructNode result) return;
-        
-        // Validate by fields
-        foreach (StructFieldType field in _fields.Where(f => f.Type != null && f.DisplayOnly != true))
-        {
-            DataNode? dataNode = result.GetAccessValue(field.Name);
-            if (dataNode == null) continue;
-            
-            // Validate the struct fields
-            await field.Type!.ValidateValueAsync(context, dataNode);
-
-            if (field.Constraints is not { Length: > 0 }) continue;
-            
-            List<IProperty>? errors = null;
-            List<IProperty>? passed = null;
-            foreach (IConstraintProperty constraint in field.Constraints)
-            {
-                if (await constraint.ValidateAsync(context, dataNode) != false)
-                {
-                    passed ??= [];
-                    passed.Add(constraint);
-                }
-                else
-                {
-                    errors ??= [];
-                    errors.Add(constraint);
-                }
-            }
-            if (errors != null || passed != null)
-                dataNode.SetViolated(errors, passed);
-        }
-
-        // Validate by relations
-        if (_relations != null)
-        {
-            foreach (RelationType process in _relations)
-            {
-                if (await process.ProcessAsync(context, result) is not IConstraintProperty prop) continue;
-                
-                // apply constraint on target
-                SpanReader spans = process.Target;
-                List<DataNode> currNodes = [result];
-                while (spans.NextPath())
-                {
-                    if (spans.IsEnd)
-                    {
-                        foreach (DataNode currNode in currNodes)
-                        {
-                            if (await prop.ValidateAsync(context, currNode) == false)
-                            {
-                                if (currNode.Violated != null && currNode.Violated.Contains(prop.Name)) continue;
-                                currNode.SetViolated(prop);
-                            }
-                            else if (currNode.Violated != null && currNode.Violated.Contains(prop.Name))
-                            {
-                                currNode.ClearViolated(prop);
-                            }
-                        }
-                        break;
-                    }
-                    
-                    // Gather effect nodes
-                    ReadOnlySpan<char> path = spans.Current;
-                    List<DataNode> nextLevels = [];
-                    foreach (DataNode currNode in currNodes)
-                    {
-                        if (currNode is ArrayNode arr)
-                        {
-                            foreach (DataNode element in arr)
-                            {
-                                DataNode? next = element.GetAccessValue(path);
-                                if (next != null) nextLevels.Add(next);
-                            }
-                        }
-                        else
-                        {
-                            DataNode? next = currNode.GetAccessValue(path);
-                            if (next != null) nextLevels.Add(next);
-                        }
-                    }
-                    currNodes = nextLevels;
-                }
-            }
-        }
-
-        // Union validation
-        if (_unionValids is { Count: > 0 })
-        {
-            foreach (StructUnionValidation valid in _unionValids.Where(v => v.Error == null))
-            {
-                var args = new object?[valid.Args.Length];
-                DataNode? first = null;
-                for(int i = 0; i < valid.Args.Length; i++)
-                {
-                    var arg = valid.Args[i];
-                    if (!string.IsNullOrWhiteSpace(arg.Source))
-                    {
-                        DataNode? node = result.GetAccessValue(arg.Source);
-                        first ??= node;
-                        args[i] = node;
-                    }
-                    else
-                    {
-                        args[i] = arg.Value;
-                    }
-                }
-
-                if (first == null) continue;
-                try
-                {
-                    if (await valid.FuncNode!.CallAsync<bool>(context, args)) continue;
-                }
-                catch
-                {
-                    // ignore
-                }
-                first.SetViolated(valid.Func);
-            }
-        }
-    }
-
     public override IEnumerable<Entry<string>> GetSubEntries()
     {
-        return GetFields().Select(field => new Entry<string>
+        return GetFields().Select(field =>
         {
-            Value = field.Name,
-            Label = field.GetProperty<Display>()?.Value,
-            HasChildren = field.Type?.HasSubEntries  ?? false
+            var entry = new Entry<string>
+            {
+                Value = field.Name,
+                HasChildren = field.Type?.HasSubEntries ?? false
+            };
+            var display = field.GetProperty<Display>();
+            if (display != null) entry.SetProperty(display);
+            return entry;
         });
     }
 
@@ -341,20 +203,22 @@ public sealed class StructType: ValueType
     /// </summary>
     public async Task<DataNode?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
     {
-        StructFieldType? fieldType = GetField(fieldName);
+        string[] paths = fieldName.Split('.', 2);
+        StructFieldType? fieldType = GetField(paths[0]);
         if (fieldType == null) return null;
-        DataNode? value = node.GetAccessValue(fieldName);
+        
+        var value = node.GetAccessValue(paths[0]) as DataNode;
         if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return value;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
         
         // check relations
         RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
         if (r == null) return value;
         
         // process relations
-        IProperty? def = await r.ProcessAsync(context, node);
+        IProperty? def = await r.ProcessAsync(context, node, value);
         value.TrySetValue(def?.GetValue<object>());
-        return value;
+        return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
     }
     
     /// <summary>
@@ -364,7 +228,7 @@ public sealed class StructType: ValueType
     {
         for (int i = 0; i < _fields.Count; i++)
         {
-            if (fieldName.Equals(_fields[i].Name, StringComparison.OrdinalIgnoreCase))
+            if (fieldName.SeqEquals(_fields[i].Name, StringComparison.OrdinalIgnoreCase))
                 return i;
         }
         return -1;
@@ -387,7 +251,7 @@ public sealed class StructType: ValueType
 /// <summary>
 /// The runtime struct field type
 /// </summary>
-public class StructFieldType : INodeReferences
+public class StructFieldType : INodeReferences, IPropertyProvider
 {
     /// <summary>
     /// The field name
@@ -410,9 +274,9 @@ public class StructFieldType : INodeReferences
     internal IProperty[]? Properties { get; private set; }
 
     /// <summary>
-    /// The constraint properties from Extensions
+    /// The constraint properties
     /// </summary>
-    internal IConstraintProperty[]? Constraints { get; private set; }
+    public IEnumerable<IConstraintProperty> Constraints => GetProperties<IConstraintProperty>().Reverse();
 
     /// <summary>
     /// The ref types from the properties in Extensions
@@ -440,16 +304,6 @@ public class StructFieldType : INodeReferences
     public DataNode? Default { get; private set; }
 
     /// <summary>
-    /// The low limit of the scalar value.
-    /// </summary>
-    public object? LowLimit { get; private set; }
-
-    /// <summary>
-    /// The up limit of the scalar value.
-    /// </summary>
-    public object? UpLimit { get; private set; }
-
-    /// <summary>
     /// Load struct field schema
     /// </summary>
     internal async Task LoadAsync(SchemaContext context, StructFieldSchema field, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, PropertyInfo? property = null)
@@ -463,9 +317,13 @@ public class StructFieldType : INodeReferences
             return;
         }
 
+        ValueType? propType = Type;
+        if (propType is ArrayType arrayType) propType = arrayType.Element;
+
         // Properties
-        IProperty[] props = field.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_STRUCT_FIELD)).ToArray();
-        IConstraintProperty[] constraints = props.OfType<IConstraintProperty>().ToArray();
+        var propTypes = context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_STRUCT_FIELD);
+        if (propType != null) propTypes = propTypes.Concat(context.Runtime.GetSchemaKindPropertyTypes(propType.Kind)).Distinct();
+        IProperty[] props = field.GetProperties(propTypes).ToArray();
         
         (RefTypes, string? error) = await field.LoadPropertiesAsync(context, props, Type);
         field.Error ??= error;
@@ -473,15 +331,12 @@ public class StructFieldType : INodeReferences
         // init
         Name = field.Name;
         Properties = props;
-        Constraints = constraints;
 
         // Useful properties
         Require = GetProperty<Require>()?.Value;
         DisplayOnly = GetProperty<DisplayOnly>()?.Value;
         Unpack =  GetProperty<Unpack>()?.Value;
         Default = GetProperty<Default>() is {} defProp ? await Type.ValidateValueAsync(context, defProp.Value) : null;
-        UpLimit = GetProperty(nameof(UpLimit))?.GetValue<object>();
-        LowLimit = GetProperty(nameof(LowLimit))?.GetValue<object>();
     }
 
     /// <summary>
@@ -496,12 +351,14 @@ public class StructFieldType : INodeReferences
     }
     
     /// <summary>
-    /// Gets the property
-    /// </summary>
-    public IProperty? GetProperty(string propertyName) => Properties?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-    
-    /// <summary>
     /// Get the property with property type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => Properties?.OfType<T>().FirstOrDefault();
+    public T? GetProperty<T>() where T : class, IProperty 
+        => Properties?.OfType<T>().FirstOrDefault() ?? Type?.GetProperty<T>();
+
+    /// <summary>
+    /// Gets the properties
+    /// </summary>
+    public IEnumerable<T> GetProperties<T>() where T : IProperty
+        => this.JoinProperties(Properties?.OfType<T>(), Type?.GetProperties<T>());
 }

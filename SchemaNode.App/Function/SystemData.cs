@@ -2,7 +2,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.Text.Json.Nodes;
 using SchemaNode.Data;
 using SchemaNode.Enum;
@@ -40,6 +39,9 @@ public static class SystemAppData
         [Meta<SchemaType>(typeof(Identifier))] string field,
         params object?[] args)
     {
+        // Fix argument error
+        if (args is [object[] o]) args = o;
+        
         // get the app field type
         AppType? appType = !string.IsNullOrEmpty(app) ? await context.GetAppTypeAsync(app) : null;
         AppFieldType? fieldType = appType?.GetField(field);
@@ -71,10 +73,10 @@ public static class SystemAppData
                     f.Filter.Equals(keys[i], StringComparison.OrdinalIgnoreCase) &&
                     f.Resolve == FieldFilterResolve.CascadeParent))
             {
-                EnumValueAccess[] enumAccess = await enumType.LoadEnumAccessListAsync(context, valueNode.GetValue<string>()!,
-                    noSubList: true, withSubList: false);
+                var enumAccess = await enumType.GetEnumEntryAccessAsync(context, valueNode.GetValue<string>()!);
                 if (enumAccess.Length == 0) return default;
-                keyValues[i] = enumAccess.Select(a => keyType.From(a.Value)).ToList();
+                keyValues[i] = enumAccess.Where(a => !string.IsNullOrWhiteSpace(a.Entry?.Value))
+                    .Select(a => keyType.From(a.Entry!.Value)).ToList();
             }
             else
             {
@@ -133,11 +135,11 @@ public static class SystemAppData
         [Meta<SchemaType>(typeof(Schema.AppType))] string app,
         [Meta<SchemaType>(typeof(Identifier))] string field,
         string dataField,
-        params object?[] args) where T : struct
+        params object?[] args)
     {
         DataNode? result = await get<DataNode>(context, app, field, args);
-        DataNode? f = (result as StructNode)?.GetAccessValue(dataField);
-        return f != null ? f.GetValue<T>() : null;
+        var f = (result as StructNode)?.GetAccessValue(dataField);
+        return f != null ? f.GetValue<T>() : default(T?);
     }
     
     #endregion
@@ -209,13 +211,13 @@ public static class SystemAppData
         {
             case ScalarType:
                 {
-                    if (dataNode is not IntNode and not NumericNode) goto ROLLBACK;
+                    if (dataNode is not IntNode and not DecimalNode) goto ROLLBACK;
                     if (dataNode is IntNode)
                         origin = fieldType.ValueType.From(
                             (origin is { IsEmpty: false } ? origin.GetValue<long>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<long>() : 0m)
                         );
-                    else if (dataNode is NumericNode)
+                    else if (dataNode is DecimalNode)
                         origin = fieldType.ValueType.From(
                             (origin is { IsEmpty: false } ? origin.GetValue<decimal>() : 0m) +
                             (dataNode is { IsEmpty: false } ? dataNode.GetValue<decimal>() : 0m)
@@ -229,8 +231,8 @@ public static class SystemAppData
                     if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
                     foreach (var fld in @struct.GetFields())
                     {
-                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name);
-                        DataNode? dataFld = structData.GetAccessValue(fld.Name);
+                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name) as DataNode;
+                        DataNode? dataFld = structData.GetAccessValue(fld.Name) as DataNode;
 
                         if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                         {
@@ -270,8 +272,8 @@ public static class SystemAppData
                         {
                             foreach (var fld in arrStruct.GetFields())
                             {
-                                DataNode? orgFld = oitem.GetAccessValue(fld.Name);
-                                DataNode? dataFld = ditem.GetAccessValue(fld.Name);
+                                DataNode? orgFld = oitem.GetAccessValue(fld.Name) as  DataNode;
+                                DataNode? dataFld = ditem.GetAccessValue(fld.Name)  as DataNode;
 
                                 if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                                 {

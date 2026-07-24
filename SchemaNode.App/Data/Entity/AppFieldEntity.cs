@@ -8,10 +8,12 @@ using System.Text.Json.Nodes;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
+using DataCombine = SchemaNode.Schema.DataCombine;
 
 namespace SchemaNode.Data.Entity;
 
-[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<App>(NS_SYSTEM_SCHEMA)]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.appfield")]
 internal class AppFieldEntity
 {

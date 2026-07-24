@@ -28,6 +28,11 @@ public class Access
     /// The access target
     /// </summary>
     public string? Target { get; set; }
+    
+    /// <summary>
+    /// The specific locale
+    /// </summary>
+    public string? Locale { get; set; }
 
     /// <summary>
     /// Sets the access information, and will clear the stack and reset to the new state
@@ -37,6 +42,11 @@ public class Access
         App = app;
         Target = target;
         _stack.Clear();
+    }
+    
+    internal void SetLocale(string? locale = null)
+    {
+        Locale = locale;
     }
 
     internal bool Stack(string? app = null, string? target = null)
@@ -105,6 +115,28 @@ public static class AccessContextItemProviderExtensions
         // Gets the shared access
         var access = context.GetRequiredService<Access>();
         access.SetAccess(app, target);
+    }
+
+    /// <summary>
+    /// Sets the current localization
+    /// </summary>
+    public static void SetLocale(this SchemaContext context, string? locale = null)
+    {
+        // Gets the shared access
+        var access = context.GetRequiredService<Access>();
+        access.SetLocale(locale);
+    }
+    
+    /// <summary>
+    /// Gets the current localization
+    /// </summary>
+    /// <param name="context"></param>
+    /// <returns></returns>
+    public static string? GetLocale(this SchemaContext context)
+    {
+        // Gets the shared access
+        var access = context.GetRequiredService<Access>();
+        return access.Locale;
     }
     
     /// <summary>

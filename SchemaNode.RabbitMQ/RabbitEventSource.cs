@@ -1,27 +1,26 @@
 using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
-using SchemaNode.Components;
+using SchemaNode.Event;
 using SchemaNode.Context;
+using SchemaNode.Service;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
 
 namespace SchemaNode.RabbitMQ;
 
-public sealed class RabbitEventSource : IEventSource
+public sealed class RabbitEventSource(IConnection connection) : IEventSource
 {
-    private readonly IConnection _connection;
-    private readonly IReadOnlyDictionary<string, (Type, Type?, IEnumerable<RabbitBindingAttribute>)> _events;
+    private readonly IConnection _connection = connection;
+    private IReadOnlyDictionary<string, (Type, Type?, IEnumerable<RabbitBindingAttribute>)>? _events;
     private IServiceScopeFactory _factory = null!;
     private IChannel _channel = null!;
 
-    public RabbitEventSource(IConnection connection)
+    public async Task StartAsync(SchemaContext context, CancellationToken token)
     {
-        _connection = connection;
-
         // Scan event mappings at construction or StartAsync (both OK)
-        _events = Injection.GetRegisteredAssemblies()
+        _events = context.GetSchemaAssemblies()
             .SelectMany(a => a.GetTypes())
             .Where(t => !t.IsAbstract
                 && typeof(RabbitEvent).IsAssignableFrom(t)
@@ -38,10 +37,7 @@ public sealed class RabbitEventSource : IEventSource
                     Binding = t.GetCustomAttributes<RabbitBindingAttribute>()
                 }))
             .ToDictionary(x => x.Queue, x => (x.Type, x.PayloadType, x.Binding));
-    }
 
-    public async Task StartAsync(SchemaContext context, CancellationToken token)
-    {
         _factory = context.GetRequiredService<IServiceScopeFactory>();
         _channel = await _connection.CreateChannelAsync(cancellationToken: token);
         
@@ -93,7 +89,7 @@ public sealed class RabbitEventSource : IEventSource
 
     private void HandleMessage(string queue, byte[] body)
     {
-        if (!_events.TryGetValue(queue, out var map))
+        if (_events == null || !_events.TryGetValue(queue, out var map))
             return;
 
         using var scope = _factory.CreateScope();
@@ -107,9 +103,9 @@ public sealed class RabbitEventSource : IEventSource
             if (map.Item2 != null)
             {
                 payload = FromJson(Encoding.UTF8.GetString(body), map.Item2);
+                evt.Payload = context.GetSchemaNodeAsync(payload).GetAwaiter().GetResult();
             }
-
-            context.RaiseEvent(evt, payload);
+            context.RaiseEvent(evt);
         }
         catch (Exception ex)
         {

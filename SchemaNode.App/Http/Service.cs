@@ -11,6 +11,15 @@ namespace SchemaNode.Http;
 public static class Service
 {
     /// <summary>
+    /// Sets the api protocol
+    /// </summary>
+    public static IServiceCollection WithSchemaApiProtocol<T>(this IServiceCollection services) where T: class, ISchemaApiProtocol
+    {
+        services.AddTransient<ISchemaApiProtocol, T>();
+        return services;
+    }
+    
+    /// <summary>
     /// Enable schema apis
     /// </summary>
     /// <param name="app">The web application</param>
@@ -32,7 +41,7 @@ public static class Service
         Assembly schemaAssembly = typeof(Service).Assembly;
 
         IServiceProviderIsService service = app.Services.GetRequiredService<IServiceProviderIsService>();
-        bool hasSchemaStorage = service.IsService(typeof(IAppSchemaStorageProvider));
+        bool hasSchemaStorage = service.IsService(typeof(IAppEntryStorageProvider));
         bool hasAppDataStorage = service.IsService(typeof(IAppDataProvider));
 
         ISchemaApiProtocol apiProtocol = app.Services.GetRequiredService<ISchemaApiProtocol>();

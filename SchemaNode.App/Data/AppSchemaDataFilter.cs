@@ -46,7 +46,7 @@ public sealed record AppSchemaDataOrder(string Field, bool Desc);
 public static class AppSchemaDataFilterExtensions
 {
     /// <summary>
-    /// Combine two filters with AND ALSO
+    /// CombineProperties two filters with AND ALSO
     /// </summary>
     public static AppSchemaDataFilter AndAlso(this AppSchemaDataFilter left, AppSchemaDataFilter right)
         => left is AppSchemaDataFilterValue ? right
@@ -54,7 +54,7 @@ public static class AppSchemaDataFilterExtensions
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, left, right);
     
     /// <summary>
-    /// Combine two filters with OR ELSE
+    /// CombineProperties two filters with OR ELSE
     /// </summary>
     public static AppSchemaDataFilter OrElse(this AppSchemaDataFilter left, AppSchemaDataFilter right)
         => left is AppSchemaDataFilterValue ? right
@@ -452,7 +452,7 @@ public static class AppSchemaDataFilterExtensions
             case AppSchemaDataFilterField access:
             {
                 // Check if the field is complex field
-                return structNode.GetAccessValue(access.Field) ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
+                return structNode.GetAccessValue(access.Field) as DataNode ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
             }
             case AppSchemaDataFilterUnary unary:
             {

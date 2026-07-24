@@ -15,7 +15,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory schema representation
 /// </summary>
-public abstract class NodeType: INodeReferences, IDisposable, INodeError
+public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyProvider
 {
     #region Fields
     
@@ -34,6 +34,8 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     #endregion
 
     #region Properties
+    
+    public ISchemaRuntime? Runtime { get; private set; }
     
     /// <summary>
     /// The parent
@@ -77,7 +79,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// The load state
     /// </summary>
-    public SchemaLoadState LoadState { get; internal set; } = SchemaLoadState.Service;
+    public SchemaLoadState LoadState => Schema?.LoadState ?? SchemaLoadState.Service;
 
     /// <summary>
     /// Whether the node is used
@@ -113,9 +115,9 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     public virtual Task LoadAsync(SchemaContext context) => Task.CompletedTask;
 
     /// <summary>
-    /// Release the references
+    /// Unload the type
     /// </summary>
-    public virtual void Release() { }
+    public virtual void Unload() { }
 
     /// <summary>
     /// Gets the csharp type
@@ -136,8 +138,10 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// </summary>
     internal virtual async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
     {
+        Runtime = context.Runtime;
+        
         // reset
-        ReleaseType();
+        UnloadType();
         Error = null;
         
         // load basic info
@@ -146,12 +150,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         GenericParams = genericParams is { Count: > 0 } ? genericParams : null;
 
         // load properties
-        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_NODE)).ToList();
+        List<IProperty> props = schema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE)).ToList();
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<ExtensibleSchema>(true) is not { } s || schema.Kind.Equals(s.SchemaKind)) continue;
-            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindProperties(schema.Kind)));
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind, StringComparison.OrdinalIgnoreCase)) continue;
+            props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(schema.Kind)));
         }
 
         _props = props.Count > 0 ? props.ToArray() : null;
@@ -174,28 +178,27 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         }
     }
 
-    private void ReleaseType()
+    private void UnloadType()
     {
-        foreach (NodeType node in GenericParams ?? GetReferenceTypes())
-            node.RemoveUsedBy(this);
-        Release();
+        if (GenericParams != null)
+            foreach (NodeType node in GenericParams)
+                node.RemoveUsedBy(this);
+        else
+            foreach (NodeType node in GetReferenceTypes())
+                node.RemoveUsedBy(this);
+        Unload();
     }
 
     /// <summary>
     /// Gets the property with given type
     /// </summary>
-    public T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
+    public virtual T? GetProperty<T>() where T : class, IProperty => _props?.OfType<T>().FirstOrDefault();
 
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    public virtual IEnumerable<T> GetProperties<T>() where T : IProperty => _props?.OfType<T>() ?? [];
     
-    /// <summary>
-    /// Gets the property by property name
-    /// </summary>
-    public IProperty? GetProperty(string propertyName) => _props?.FirstOrDefault(p => p.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase));
-
     /// <summary>
     /// Gets the generic map
     /// </summary>
@@ -232,12 +235,12 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     public NodeSchema? GetNodeSchema(ISchemaRuntime? runtime = null) => Schema?.Clone(runtime);
 
     /// <summary>
-    /// Gets all node schemas used by the node schema
+    /// Gets all node schemas related by the node schema
     /// </summary>
-    /// <returns></returns>
     public async Task<NodeSchema> GetNodeSchemas(SchemaContext context, 
         NodeSchema? root = null, 
         HashSet<string>? types = null, 
+        bool fullNs = false,
         bool includeUsedBy = false, 
         CancellationToken? cancellationToken = null)
     {
@@ -254,41 +257,51 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         
         // install
         NodeSchema parent = root;
-        SpanReader reader = Name;
-        while (reader.NextNamespace())
+        if (Namespace != null)
         {
-            parent.Schemas ??= [];
-            string matched = reader.Matched.ToString();
-            NodeSchema? sub = parent.Schemas.FirstOrDefault(s => matched.Equals(s.Name, StringComparison.OrdinalIgnoreCase));
-            if (sub == null)
+            Stack<NamespaceType> namespaces = [];
+            NamespaceType? n = Namespace;
+            while (n != null)
             {
-                cancellationToken?.ThrowIfCancellationRequested();
-                sub = (await context.GetNodeTypeAsync(matched))?.Schema ?? new NodeSchema{ Name = matched.GetSchemaName(), Namespace = matched.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE };
-                parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
+                namespaces.Push(n);
+                n = n.Namespace;
             }
-            parent = sub;
-        }
 
+            while (namespaces.TryPop(out n))
+            {
+                parent.Schemas ??= [];
+                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => n.Name.Equals(s.FullName, StringComparison.OrdinalIgnoreCase));
+                if (sub == null)
+                {
+                    cancellationToken?.ThrowIfCancellationRequested();
+                    sub = n.GetNodeSchema(context.Runtime) ?? new NodeSchema
+                    {
+                        Name = n.Name.GetSchemaName(), Namespace = n.Name.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE
+                    };
+                    parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
+                }
+                parent = sub;
+            }
+        }
+        
         NodeSchema schema = Schema.Clone(context.Runtime);
         if (includeUsedBy)
-        {
             schema.UsedBy = _usedBy?.Keys.Select(p => p.Name).ToArray();
-        }
 
-        if (parent.Schemas == null || !parent.Schemas.Any(s => s.Name.Equals(schema.Name, StringComparison.OrdinalIgnoreCase)))
+        if (parent.Schemas == null || !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase)))
         {
             parent.Schemas ??= [];
             parent.Schemas = parent.Schemas.Append(schema).ToArray();
         }
         
-        if (this is NamespaceType ns)
+        if (this is NamespaceType ns && fullNs)
         {
             foreach (NodeSchema s in ns.GetNodeSchemas())
             {
                 cancellationToken?.ThrowIfCancellationRequested();
                 var sns = await context.GetNodeTypeAsync(s.Name);
                 if (sns != null)
-                    await sns.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
+                    await sns.GetNodeSchemas(context, root, types, fullNs, includeUsedBy,  cancellationToken);
             }
         }
 
@@ -296,7 +309,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
         foreach (NodeType n in GetReferenceTypes())
         {
             cancellationToken?.ThrowIfCancellationRequested();
-            await n.GetNodeSchemas(context, root, types, includeUsedBy, cancellationToken);
+            await n.GetNodeSchemas(context, root, types, fullNs, includeUsedBy, cancellationToken);
         }
 
         return root;
@@ -366,7 +379,7 @@ public abstract class NodeType: INodeReferences, IDisposable, INodeError
     /// <summary>
     /// Release ref
     /// </summary>
-    public void Dispose() => ReleaseType();
+    public void Dispose() => UnloadType();
     
     #endregion
 }
@@ -379,7 +392,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     #region Fields
     
     private ConcurrentDictionary<ValueType, FunctionType>? _isAssignableTo;
-    private IConstraintProperty[]? _constraints;
 
     #endregion
     
@@ -388,7 +400,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<IConstraintProperty> Constraints => _constraints?.AsEnumerable() ?? [];
+    public IEnumerable<IConstraintProperty> Constraints => GetProperties<IConstraintProperty>().Reverse();
 
     /// <summary>
     /// The array type
@@ -398,12 +410,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     #endregion
     
     #region Override Methods
-
-    internal override async Task LoadTypeAsync(SchemaContext context, NodeSchema schema, IReadOnlyList<NodeType>? genericParams = null)
-    {
-        await base.LoadTypeAsync(context, schema, genericParams);
-        _constraints = GetProperties<IConstraintProperty>().ToArray();
-    }
 
     /// <summary>
     /// Used by unknown objects
@@ -452,7 +458,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public async Task<DataNode> ValidateValueAsync(SchemaContext context, object? value)
+    public async Task<DataNode?> ValidateValueAsync(SchemaContext context, object? value)
     {
         DataNode? result = null;
         if (value is DataNode node)
@@ -463,37 +469,20 @@ public abstract class ValueType : NodeType, IValueTypeAccess
                 value = node.TryGetValue(out object? v) ? v : null;
         }
         
+        // skip validation if node can't set value
         if (result == null)
         {
             result = Create();
             if (value != null && !result.TrySetValue(value))
-            {
-                result.SetViolated(Kind);
-                return result;
-            }
+                return null;
         }
     
-        // Node type validation
-        await ValidateNodeAsync(context, result);
-        
-        // apply constraints
-        List<IProperty>? errors = null;
-        List<IProperty>? passed = null;
+        // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            if (await constraint.ValidateAsync(context, result) == false)
-            {
-                errors ??= [];
-                errors.Add(constraint);
-            }
-            else
-            {
-                passed ??= [];
-                passed.Add(constraint);
-            }
+            bool? valid = await constraint.ValidateAsync(context, result);
+            if (valid.HasValue) result.RecordConstraint(constraint, valid.Value);
         }
-        if (errors != null || passed != null)
-            result.SetViolated(errors, passed);
         
         return result;
     }
@@ -505,14 +494,14 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract DataNode Create();
+    public abstract DataNode Create(IValueAccess? parent = null);
 
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    public DataNode From(object? value)
+    public DataNode From(object? value, IValueAccess? parent = null)
     {
-        var node = Create();
+        var node = Create(parent);
         node.TrySetValue(value);
         return node;
     }
@@ -524,11 +513,6 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// Whether the type can be used as data index
     /// </summary>
     public virtual bool IsIndexable => false;
-
-    /// <summary>
-    /// Validate the data node
-    /// </summary>
-    protected virtual Task ValidateNodeAsync(SchemaContext context, DataNode node) => Task.CompletedTask;
 
     /// <summary>
     /// Gets value type through path reader

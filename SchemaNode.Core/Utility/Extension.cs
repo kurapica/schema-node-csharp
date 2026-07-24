@@ -8,7 +8,9 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using SchemaNode.Attribute;
+using SchemaNode.Property;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 
 namespace SchemaNode.Utility;
@@ -24,7 +26,7 @@ internal static class Extension
             new UniversalFlexibleEnumConverter(),
             new ForceStringConverter(),
             new FlexibleLongConverter(),
-            new SchemaConverterFactory(),
+            new PropertyOwnerConverterFactory(),
         },
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -32,18 +34,19 @@ internal static class Extension
 
     private static readonly string[] DateFormats =
     [
+        "O",
         "yyyy-MM-dd",
         "yyyy/MM/dd",
-        "yyyy-MM-dd HH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ss",
-        "yyyy-MM-ddTHH:mm:ssZ",
-        "yyyy-MM-ddTHH:mm:ss.fffZ",
-        "yyyy-MM-dd HH:mm:ss.fff",
-        "yyyy-MM-ddTHH:mm:sszzz",
-        "yyyy/M/d H:mm:ss zzz",
-        "yyyy/M/d H:mm:ss",
         "yyyyMMdd",
-        "yyyyMMddHHmmss"
+        "yyyyMMddHHmmss",
+        "yyyy-MM-dd HH:mm:ss",
+        "yyyy-MM-dd HH:mm:ss.FFFFFFF",
+        "yyyy-MM-ddTHH:mm:ss",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFF",
+        "yyyy-MM-ddTHH:mm:sszzz",
+        "yyyy-MM-ddTHH:mm:ss.FFFFFFFzzz",
+        "yyyy/M/d H:mm:ss",
+        "yyyy/M/d H:mm:sszzz",
     ];
 
     #endregion
@@ -180,6 +183,36 @@ internal static class Extension
         }
     }
 
+    extension(ReadOnlySpan<char> value)
+    {
+        internal bool SeqEquals(ReadOnlySpan<char> other, StringComparison comparisonType = StringComparison.Ordinal)
+        {
+            if (other.Length != value.Length) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                switch (comparisonType)
+                {
+                    case StringComparison.Ordinal:
+                    case StringComparison.CurrentCulture:
+                    case StringComparison.InvariantCulture:
+                        if (value[i] != other[i]) return false;
+                        break;
+                    case StringComparison.OrdinalIgnoreCase:
+                    case StringComparison.CurrentCultureIgnoreCase:
+                    case StringComparison.InvariantCultureIgnoreCase:
+                        if (char.ToLowerInvariant(value[i]) != char.ToLowerInvariant(other[i])) return false;
+                        break;
+                    default:
+                        throw new NotSupportedException(
+                            $"Only Ordinal and OrdinalIgnoreCase are supported, but got {comparisonType}");
+                }
+            }
+            return true;
+        }
+        
+        internal bool SeqEquals(string other, StringComparison comparisonType = StringComparison.Ordinal) => value.SeqEquals(other.AsSpan(), comparisonType);
+    }
+    
     #endregion
 
     #region JSON
@@ -522,7 +555,9 @@ internal static class Extension
                     switch (v.GetValueKind())
                     {
                         case JsonValueKind.String:
-                            if (v.TryGetValue(out string? s))
+                            if (!v.TryGetValue(out string? s))
+                                s = JsonSerializer.Deserialize<string>(v.ToJsonString());
+                            if (s != null)
                             {
                                 s = s.Trim();
 
@@ -533,6 +568,7 @@ internal static class Extension
                             }
                             else
                                 value = null;
+
                             break;
 
                         case JsonValueKind.Number:

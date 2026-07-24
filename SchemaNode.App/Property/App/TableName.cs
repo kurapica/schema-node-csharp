@@ -13,5 +13,5 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(TableName)}")]
-[Relation<Visible>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"${nameof(EnableStorage)}")]
+[Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
 public class TableName : Property<string>;

@@ -103,7 +103,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             FunctionNodeArgument arg = Function.Args[argIdx];
 
             // Create argument expression
-            argExps[argIdx] = new ArgumentExp(arg.Name, argIdx, arg.Nullable ?? false, arg.ValueType!); // for safe
+            argExps[argIdx] = new ArgumentExp(arg.Name, argIdx, arg.Require, arg.ValueType!); // for safe
             expMaps[arg.Name] = new VariableExp(arg.Name, argExps[argIdx]);
         }
 
@@ -221,7 +221,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
         #region Helper
         
-        // Combine Collection Root Exp
+        // CombineProperties Collection Root Exp
         CollectionRootExp UnpackCollectionRootExp(CollectionRootExp c)
         {
             var exp = Inline(c.Collection);
@@ -494,7 +494,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             // For params
             {
                 var argDef = expFuncType.Args.LastOrDefault();
-                if (argDef?.Params == true)
+                if (argDef?.Variadic == true)
                 {
                     var paramType = ParseGenericType(expFuncInfo.Args.Last(), argDef.ValueType);
                     if (paramType is ArrayType arrayType)
@@ -563,7 +563,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 if (argDef == null)
                 {
                     argDef = expFuncType.Args.LastOrDefault();
-                    if (argDef?.Params != true) return;
+                    if (argDef?.Variadic != true) return;
                     argInfo = expFuncInfo.Args.LastOrDefault();
                 }
 
@@ -571,7 +571,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 
                 // Params type check
                 ValueType? argType = argDef.ValueType;
-                if (argDef.Params == true && argType is ArrayType arrayType)
+                if (argDef.Variadic == true && argType is ArrayType arrayType)
                     argType = arrayType.Element;
                 
                 // Collection expression check
@@ -579,7 +579,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                         argExp?.ValueType is ArrayType { Element: not null } || 
                         argExp is FieldAccessExp { Owner: CollectionItemExp }))
                 {
-                    if (argDef.Params == true)
+                    if (argDef.Variadic == true)
                     {
                         exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
                         throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
@@ -611,7 +611,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
                 }
-                if (argDef.Params == true && argExp == null) return;
+                if (argDef.Variadic == true && argExp == null) return;
 
                 // Default expression & not iterator exp
                 if (argDef.Default != null && argExp is not CollectionRootExp && argExp is not FieldAccessExp { Owner: CollectionItemExp })
@@ -626,8 +626,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     }
                 }
 
-                // Combine params
-                if (argDef.Params ?? false)
+                // CombineProperties params
+                if (argDef.Variadic ?? false)
                 {
                     if (argExp == null) return;
                     var old = args[expFuncType.Args.Length - 1] as ParamsExp;
@@ -635,7 +635,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 }
 
                 // Nullable check
-                else if (argExp == null && !(argDef.Nullable ?? false))
+                else if (argExp == null && argDef.Require)
                 {
                     exp.Status = ErrorCodes.FUNC_EXP_WRONG_ARGS;
                     throw new FunctionVisitException(ErrorCodes.FUNC_EXP_WRONG_ARGS);
@@ -712,7 +712,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             for (int i = 0; i < funcSchema.Args.Length; i++)
             {
                 ArgumentExp arg = funcSchema.Args[i];
-                ParameterExpression paramExp = Expression.Parameter(arg.ValueType.GetCsharpType(arg.Nullable) ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
+                ParameterExpression paramExp = Expression.Parameter(arg.ValueType.GetCsharpType(!arg.Require) ?? throw new Exception($"The {Function.Name} can't be compiled - expression compile failed"));
                 paramExps[i + 1] = paramExp;
                 _paramExpMap[arg.Name] = paramExp;
             }
@@ -869,7 +869,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         {
             SchemaExp leaf = funcCallExp.Args[i];
             Type callType = (funcCallExp.Function.Args[i].ValueType is GenericType ? funcCallExp.Args[i].ValueType : funcCallExp.Function.Args[i].ValueType)
-                            ?.GetCsharpType(funcCallExp.Function.Args[i].Nullable) ?? throw new Exception($"The expression {i} argument type not valid.");
+                            ?.GetCsharpType(!funcCallExp.Function.Args[i].Require) ?? throw new Exception($"The expression {i} argument type not valid.");
 
             if (leaf is CollectionRootExp)
                 throw new Exception("IteratorExpression must be used in non-call exp.");

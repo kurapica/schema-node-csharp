@@ -8,8 +8,8 @@ using SchemaNode.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
 using SchemaNode.Data;
-using SchemaNode.Property;
 using SchemaNode.Property.App;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;
@@ -59,7 +59,7 @@ public static class BatchQueryExtension
             Kind = SCHEMA_KIND_NAMESPACE,
             Schemas = []
         };
-        RootEnumValueSchema.Value = new EnumValueSchema();
+        RootEnumValueSchema.Value = new Entry<string>();
         
         foreach (AppDataQuery query in queries)
         {
@@ -170,7 +170,7 @@ public static class BatchQueryExtension
 
                         if (allowRead)
                         {
-                            // Combine filters
+                            // CombineProperties filters
                             if (q?.Filter != null)
                             {
                                 var qFilter = await q.Filter.ToAppSchemaDataFilterAsync(context, ((field.ValueType as ArrayType)!.Element as StructType)!, field.Filters);
@@ -213,7 +213,7 @@ public static class BatchQueryExtension
                     // cover result
                     if (result != null)
                     {
-                        fieldResults[field.Name] =  result.ToJson();
+                        fieldResults[field.Name] =  result.ToJsonNode()!;
                         
                         // column access check
                         var @struct = result switch
@@ -339,7 +339,7 @@ public static class BatchQueryExtension
                     string key = $"{enumNode.Name}:{val.GetValue<string>()}";
                     if (enumsKeys.Add(key))
                     {
-                        EnumValueAccess[] access = await enumNode.LoadEnumAccessListAsync(context, val.GetValue<string>()!);
+                        var access = await enumNode.GetEnumEntryAccessAsync(context, val.GetValue<string>()!);
 
                         if (access.Length > 0)
                         {
@@ -358,9 +358,9 @@ public static class BatchQueryExtension
 
                             if (parent.Kind == SCHEMA_KIND_ENUM)
                             {
-                                RootEnumValueSchema.Value!.SubList = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
-                                RootEnumValueSchema.Value!.CombineAccessList(access);
-                                RootEnumValueSchema.Value!.SubList = null;
+                                RootEnumValueSchema.Value!.Children = parent.GetProperty<EnumProperty>()!.GetValue<EnumSchema>()!.Values;
+                                RootEnumValueSchema.Value!.SaveAccessList(access);
+                                RootEnumValueSchema.Value!.Children = null;
                             }
                         }
                     }
@@ -371,8 +371,7 @@ public static class BatchQueryExtension
                 {
                     foreach (StructFieldType f in @struct.GetFields())
                     {
-                        DataNode? v = obj.GetAccessValue(f.Name);
-                        if (v is { IsEmpty: false })
+                        if (obj.GetAccessValue(f.Name) is DataNode { IsEmpty: false } v)
                             await ScanEnumAccess(context, root, f.Type!, enumsKeys, v);
                     }
                 }
@@ -408,7 +407,7 @@ public static class BatchQueryExtension
         }
     }
 
-    static readonly AsyncLocal<EnumValueSchema> RootEnumValueSchema = new();
+    static readonly AsyncLocal<Entry<string>> RootEnumValueSchema = new();
 }
 
 /// <summary>

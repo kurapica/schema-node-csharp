@@ -48,7 +48,7 @@ public static class SystemStr
     [Meta<SchemaType>($"{NS_SYSTEM_STR}.state")]
     public static class State
     {
-        public static long len([Meta<Default>("")] string str) => long.CreateChecked(str.Length);
+        public static long length([Meta<Default>("")] string str) => long.CreateChecked(str.Length);
         
         public static bool isempty(string? str) => string.IsNullOrWhiteSpace(str);
     }

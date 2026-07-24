@@ -4,14 +4,14 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
 
 namespace SchemaNode.Data.Entity;
 
-[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<App>(NS_SYSTEM_SCHEMA)]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.app")]
 internal class AppEntity
 {
@@ -41,7 +41,7 @@ internal class AppEntity
         if (appSchema == null) return null;
         return new AppEntity
         {
-            Container = appSchema.Container,
+            Container = string.IsNullOrWhiteSpace(appSchema.Container) ? ROOT : appSchema.Container,
             Name = appSchema.Name,
             Extensions = appSchema.Extensions?.DeepClone() as JsonObject,
         };
@@ -52,7 +52,7 @@ internal class AppEntity
         if (appEntity == null) return null;
         return new AppSchema
         {
-            Container = appEntity.Container,
+            Container = ROOT.Equals(appEntity.Container, StringComparison.OrdinalIgnoreCase) ? null : appEntity.Container,
             Name = appEntity.Name,
             Extensions = appEntity.Extensions?.DeepClone() as JsonObject
         };

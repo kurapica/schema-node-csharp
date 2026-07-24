@@ -100,7 +100,7 @@ public sealed class AppWorkflowType: IDisposable
     /// </summary>
     public async Task LoadAsync(SchemaContext context)
     {
-        _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindProperties(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
+        _props = _appWorkflowSchema.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_APP_WORKFLOW)).ToArray();
         (_refTypes, Error) = await _appWorkflowSchema.LoadPropertiesAsync(context, _props);
 
         // Resolve payload types for all nodes
@@ -164,11 +164,11 @@ public sealed class AppWorkflowType: IDisposable
                     CancelPre = n.CancelPre,
                     PayloadSave = n.PayloadSave,
                 };
-                s.CombineExtensions(n);
+                s.CombineProperties(n);
                 return s;
             }).ToArray()
         };
-        schema.CombineExtensions(_appWorkflowSchema);
+        schema.CombineProperties(_appWorkflowSchema);
         return schema;
     }
 

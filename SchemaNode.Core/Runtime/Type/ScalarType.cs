@@ -60,24 +60,22 @@ public abstract class ScalarType : ValueType
     /// <inheritdoc />
     public override Type? GetCsharpType() => base.GetCsharpType() ?? BaseNode?.GetCsharpType();
     
-    /// <inheritdoc />
-    protected override Task ValidateNodeAsync(SchemaContext context, DataNode node)
-        => BaseNode?.ValidateValueAsync(context, node) ?? Task.CompletedTask;
-
     #endregion
 
     #region Methods
 
     /// <summary>
-    /// Gets the property with given type
+    /// Gets the property with the given type
     /// </summary>
-    public new T? GetProperty<T>() where T : class, IProperty => base.GetProperty<T>() ?? BaseNode?.GetProperty<T>();
-    
-    /// <summary>
-    /// Gets the property by property name
-    /// </summary>
-    public new IProperty? GetProperty(string propertyName) => base.GetProperty(propertyName) ?? BaseNode?.GetProperty(propertyName);
+    public override T? GetProperty<T>() where T : class 
+        => base.GetProperty<T>() ?? (BaseNode != null ? BaseNode.GetProperty<T>() : Runtime?.GetSchemaKindProperty<T>(Kind));
 
+    /// <summary>
+    /// Gets the properties with the given type
+    /// </summary>
+    public override IEnumerable<T> GetProperties<T>()
+        => this.JoinProperties(base.GetProperties<T>(), BaseNode != null ? BaseNode.GetProperties<T>() : Runtime?.GetSchemaKindProperties<T>(Kind));
+    
     #endregion
 }
 

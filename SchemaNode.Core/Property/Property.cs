@@ -1,8 +1,8 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using SchemaNode.Utility;
 
 namespace SchemaNode.Property;
@@ -14,6 +14,7 @@ public interface IProperty
 {
     private static readonly ConcurrentDictionary<Type, string> _names = [];
     private static readonly ConcurrentDictionary<Type, bool> _stackable = [];
+    private static readonly ConcurrentDictionary<Type, bool> _static = [];
 
     /// <summary>
     /// Gets the property name
@@ -27,6 +28,11 @@ public interface IProperty
     /// if not stackable, the constraints result will override the previous
     /// </summary>
     public bool Stackable => _stackable.GetOrAdd(GetType(), static t => t.GetMetaProperty<Stackable>()?.Value ?? false);
+
+    /// <summary>
+    /// Whether the property is static, which means the property value cannot be modified by relation system.
+    /// </summary>
+    public bool Static => _static.GetOrAdd(GetType(), static t => t.GetMetaProperty<Static>()?.Value ?? false);
 
     /// <summary>
     /// The property has value
@@ -47,6 +53,18 @@ public interface IProperty
     /// The property value type
     /// </summary>
     Type Type { get; }
+
+    /// <summary>
+    /// CombineProperties the property with another property of the same type, if the current property has no value, it will take the value from the other property.
+    /// If return true means the other property is combined into the current property.
+    /// If return false and the property is stackable, the other property can be used together with the current property.
+    /// </summary>
+    bool Combine(IProperty other, ISchemaRuntime? runtime = null);
+    
+    /// <summary>
+    /// Whether the properties are equal, used for stackable property, if the properties are equal, the other property will be ignored.
+    /// </summary>
+    bool Equals(IProperty other);
 }
 
 /// <summary>
@@ -69,6 +87,23 @@ public abstract class Property<T> : IProperty
     /// </summary>
     public virtual TV? GetValue<TV>(bool matchType = false) => HasValue && (!matchType || Value is TV) ? Value.ConvertTo<TV>() : default(TV?);
 
+    /// <inheritdoc/>
+    public virtual bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other.GetType() != GetType()) return false;
+        if (HasValue || !other.HasValue) return false;
+        SetValue(other.GetValue<object>());
+        return true;
+    }
+    
+    /// <inheritdoc/>
+    public virtual bool Equals(IProperty other)
+    {
+        if (other.GetType() != GetType()) return false;
+        if (HasValue != other.HasValue) return false;
+        return !HasValue || Equals(other.GetValue<object>(), GetValue<object>());
+    }
+    
     /// <summary>
     /// Check the value is not empty
     /// </summary>

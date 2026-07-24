@@ -12,11 +12,11 @@ namespace SchemaNode.Property.Constraint;
 /// <summary>
 /// The validation property
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_ENUM)]
+[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRUCT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
 [Meta<Stackable>]
-[RelationAssign<Valid>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
+[Relation<Valid, Relation.Assign>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class Valid : FuncCallProperty, IConstraintProperty
 {
     public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)
@@ -32,12 +32,12 @@ public class Valid : FuncCallProperty, IConstraintProperty
         {
             CallArg arg = Value.Args[i];
             FunctionNodeArgument? argInfo = func.Args.ElementAtOrDefault(i) ?? 
-                                            (func.Args.LastOrDefault() is { Params: true } p  ? p : null);
+                                            (func.Args.LastOrDefault() is { Variadic: true } p  ? p : null);
             if (argInfo == null) return null; // skip if argument info is not found, or args exceed the non-params args but no params defined
             
             if (!string.IsNullOrWhiteSpace(arg.Source))
             {
-                DataNode? value = node.GetAccessValue(arg.Source);
+                DataNode? value = node.GetAccessValue(arg.Source) as  DataNode;
                 args[i] = value;
                 if (value is ArrayNode && argInfo.ValueType is not ArrayType)
                 {
@@ -77,5 +77,16 @@ public class Valid : FuncCallProperty, IConstraintProperty
             context.LogError(e.Message);
             return null;
         }
+    }
+
+    /// <inheritdoc/>
+    public override bool Equals(IProperty other)
+    {
+        if (other is not Valid valid) return false;
+        if (HasValue != valid.HasValue) return false;
+        if (!HasValue) return true;
+        if (Value!.Func != valid.Value!.Func) return false;
+        if (Value.Args.Length != valid.Value.Args.Length) return false;
+        return !Value.Args.Where((t, i) => !t.Equals(valid.Value.Args[i])).Any();
     }
 }

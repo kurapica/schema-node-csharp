@@ -6,7 +6,7 @@ using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Service;
 using SchemaNode.Struct;
-using System.Text.Json.Serialization;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
@@ -14,6 +14,7 @@ using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using RuntimeEnumType = SchemaNode.Runtime.EnumType;
+using SchemaNode.Function;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -29,7 +30,9 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
-public sealed class EnumSchema : ExtensibleSchema
+[Meta<Property.Constraint.EnumValue>]
+[Meta<EntrySource>($"{NS_SYSTEM_DATA_ENUM}.{nameof(SystemData.EnumOper.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+public sealed class EnumSchema : PropertyOwner
 {
     /// <summary>
     /// The enum value type
@@ -44,7 +47,7 @@ public sealed class EnumSchema : ExtensibleSchema
     /// <summary>
     /// The enum values
     /// </summary>
-    public EnumValueSchema[] Values { get; set; } = [];
+    public Entry<string>[] Values { get; set; } = [];
 }
 
 /// <summary>
@@ -53,8 +56,41 @@ public sealed class EnumSchema : ExtensibleSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.enum")]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
-public sealed class EnumProperty: Property<EnumSchema>;
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
+public sealed class EnumProperty : Property<EnumSchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not EnumProperty { Value: {} otherSchema })  return false;
+        if (Value is not { } schema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+
+        if (schema.Cascade is { Length: > 0 })
+        {
+            for (int i = 0; i < schema.Cascade.Length; i++)
+            {
+                var cascade = schema.Cascade[i];
+                var otherCascade = otherSchema.Cascade?.ElementAtOrDefault(i);
+                if (otherCascade is null) break;
+                cascade.Concat(otherCascade);
+            }
+        }
+        
+        foreach (var value in schema.Values)
+        {
+            var otherValue = otherSchema.Values?.FirstOrDefault(o => o.Value.Equals(value.Value, StringComparison.OrdinalIgnoreCase));
+            if (otherValue is null) break;
+            value.CombineProperties(otherValue, runtime, SCHEMA_KIND_ENTRY);
+        }
+
+        schema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_ENUM);
+        SetValue(schema);
+        return true;
+    }
+    }
 
 /// <summary>
 /// Represents the enum type
@@ -62,145 +98,3 @@ public sealed class EnumProperty: Property<EnumSchema>;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_ENUM)]
 public class EnumType: ValueType;
-
-/// <summary>
-/// The enum value info
-/// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_ENUM_VALUE, SCHEMA_KIND_ORDER_ENUM_VALUE)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.value")]                                                    
-public sealed class EnumValueSchema: ExtensibleSchema
-{
-    /// <summary>
-    /// The value
-    /// </summary>
-    [Meta<PrimaryIndex>]
-    [Meta<UniqueIndex>("SUB_LIST", 1)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
-    public string Value { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The root value
-    /// </summary>
-    [Meta<UniqueIndex>("SUB_LIST", 0)]
-    [Meta<UplimitString>(PRIMARY_KEY_MAX_LEN)]
-    public string? Root { get; set; }
-    
-    #region Runtime info
-    
-    /// <summary>
-    /// The seqno
-    /// </summary>
-    [SchemaIgnore]
-    public long Seqno { get; set; }
-    
-    /// <summary>
-    /// Whether the enum value has sub enum values
-    /// </summary>
-    [SchemaIgnore]
-    public bool? HasSubList { get; set; }
-    
-    /// <summary>
-    /// The sub enum values
-    /// </summary>
-    [SchemaIgnore]
-    public EnumValueSchema[]? SubList { get; set; }
-
-    /// <summary>
-    /// Whether the enum value is fully loaded
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal bool IsFullyLoaded { get; set; }
-
-    /// <summary>
-    /// The parent of the enum value
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal EnumValueSchema? Parent { get; set; }
-
-    /// <summary>
-    /// The cascade level
-    /// </summary>
-    [JsonIgnore]
-    [SchemaIgnore]
-    internal int Level { get; set;  }
-    
-    #endregion
-    
-    /// <summary>
-    /// Clones the enum value with limit level
-    /// </summary>
-    /// <param name="limitLevel"></param>
-    /// <returns></returns>
-    internal EnumValueSchema Clone(int limitLevel = 0)
-    {
-        var schema = new EnumValueSchema
-        {
-            Value = Value,
-            HasSubList = HasSubList,
-            SubList = (HasSubList ?? false) && SubList is { Length: > 0 } && limitLevel > 0 
-                ? SubList.Select(e => e.Clone(limitLevel - 1)).ToArray()
-                : null
-        };
-        schema.CombineExtensions(this);
-        return schema;
-    }
-    
-    /// <summary>
-    /// Combine the access list
-    /// </summary>
-    /// <param name="accesses"></param>
-    internal void CombineAccessList(EnumValueAccess[] accesses)
-    {
-        if (accesses.Length == 0) return;
-        EnumValueAccess current = accesses[0];
-
-        if (current.SubList is not null)
-        {
-            // replace with new
-            if (SubList is not null && SubList.Length > 0) {
-                foreach (var v in current.SubList)
-                {
-                    EnumValueSchema? match = SubList!.FirstOrDefault(x => x.Value.Equals(v.Value, StringComparison.OrdinalIgnoreCase));
-                    if (match is not null) v.SubList = match.SubList;
-                }
-            }
-
-            SubList = current.SubList;
-
-            if (accesses.Length > 1)
-            {
-                EnumValueSchema? match = SubList!.FirstOrDefault(x => x.Value.Equals(current.Value, StringComparison.OrdinalIgnoreCase));
-                if (match is not null)
-                    match.CombineAccessList(accesses.Skip(1).ToArray());
-            }
-        }
-    }
-}
-
-/// <summary>
-/// The enum value access info
-/// </summary>
-public sealed class EnumValueAccess
-{
-    /// <summary>
-    /// The cascade name
-    /// </summary>
-    public LocaleString? Name { get; set; }
-    
-    /// <summary>
-    /// The enum value of the cascade
-    /// </summary>
-    public string Value { get; set; } = string.Empty;
-    
-    /// <summary>
-    /// The enum value schema
-    /// </summary>
-    public EnumValueSchema? Schema { get; set; }
-    
-    /// <summary>
-    /// The sublist of the enum value
-    /// </summary>
-    public EnumValueSchema[]? SubList { get; set; }
-}

@@ -6,13 +6,15 @@ using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
+using SchemaNode.Property.Constraint;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Data.Entity;
 
-[Meta<App>($"{NS_SYSTEM_SCHEMA}")]
+[Meta<App>(NS_SYSTEM_SCHEMA)]
 [Meta<ScopePolicy>(AppScopeType.SystemLevel)]
+[Meta<EnableStorage>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.entity.node")]
 internal class NodeEntity
 {
@@ -46,44 +48,25 @@ internal class NodeEntity
     public static implicit operator NodeEntity?(NodeSchema? nodeSchema)
     {
         if (nodeSchema == null) return null;
-        JsonObject? extensions = null;
-        if (nodeSchema.Extensions is { Count : > 0})
-        {
-            extensions = new JsonObject();
-            foreach (var kvp in nodeSchema.Extensions)
-            {
-                extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-
         return new NodeEntity
         {
-            Namespace = nodeSchema.Namespace,
+            Namespace = string.IsNullOrWhiteSpace(nodeSchema.Namespace) ? ROOT : nodeSchema.Namespace,
             Name = nodeSchema.Name,
             Kind = nodeSchema.Kind,
-            Extensions = extensions
+            Extensions = nodeSchema.Extensions?.DeepClone() as JsonObject
         };
     }
 
     public static implicit operator NodeSchema?(NodeEntity? nodeEntity)
     {
         if (nodeEntity == null) return null;
-        var nodeSchema = new NodeSchema
+        return new NodeSchema
         {
-            Namespace = nodeEntity.Namespace,
+            Namespace = ROOT.Equals(nodeEntity.Namespace, StringComparison.OrdinalIgnoreCase) ? null : nodeEntity.Namespace,
             Name = nodeEntity.Name,
-            Kind = nodeEntity.Kind
+            Kind = nodeEntity.Kind,
+            Extensions = nodeEntity.Extensions?.DeepClone() as JsonObject
         };
-        if (nodeEntity.Extensions is { Count: > 0 })
-        {
-            nodeSchema.Extensions = [];
-            foreach (var kvp in nodeEntity.Extensions)
-            {
-                if (kvp.Value != null && !kvp.Value.IsEmpty())
-                    nodeSchema.Extensions[kvp.Key] = kvp.Value.DeepClone();
-            }
-        }
-        return nodeSchema;
     }
     
     #endregion

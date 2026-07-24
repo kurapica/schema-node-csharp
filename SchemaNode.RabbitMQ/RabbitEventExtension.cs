@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using SchemaNode.Components;
+using SchemaNode.Event;
+using SchemaNode.Service;
 
 namespace SchemaNode.RabbitMQ;
 
@@ -11,7 +12,7 @@ public static class RabbitEventExtension
     public static IServiceCollection AddSchemaRabbitEvent(this IServiceCollection services)
     {
         services.AddSingleton<IEventSource, RabbitEventSource>();
-        services.AddSchemaAssemblies(typeof(RabbitEventExtension).Assembly);
+        services.AddSchemaAssembly<RabbitEventSource>();
         return services;
     }
 }

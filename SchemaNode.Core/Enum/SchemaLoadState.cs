@@ -15,9 +15,4 @@ public enum SchemaLoadState
     /// Service defined
     /// </summary>
     Service = 2,
-
-    /// <summary>
-    /// Remote defined
-    /// </summary>
-    Remote = 4,
 }

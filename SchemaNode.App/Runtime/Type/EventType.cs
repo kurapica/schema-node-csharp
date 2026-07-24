@@ -67,7 +67,7 @@ public sealed class EventType: NodeType
     }
 
     /// <inheritdoc />
-    public override void Release()
+    public override void Unload()
     {
         Payload = null;
         PayloadEvaluator = null;

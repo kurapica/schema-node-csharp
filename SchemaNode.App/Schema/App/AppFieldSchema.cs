@@ -10,6 +10,7 @@ using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
@@ -24,8 +25,8 @@ namespace SchemaNode.Schema;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.schema")]
 [Meta<SchemaKind>(SCHEMA_KIND_APP_FIELD, SCHEMA_KIND_ORDER_APP_FIELD)]
-[Meta<Append>(typeof(Display), typeof(Disable))]
-public sealed class AppFieldSchema: ExtensibleSchema
+[Meta<Append>(typeof(Display), typeof(Description), typeof(Disable))]
+public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
 {
     #region Base
     
@@ -55,6 +56,13 @@ public sealed class AppFieldSchema: ExtensibleSchema
     [Meta<SchemaType>(typeof(SchemaValueType))]
     public string Type { get; set; } = default!;
     
+    /// <summary>
+    /// The error status
+    /// </summary>
+    [Meta<SchemaType>(typeof(ErrorCode))]
+    [Meta<ReadOnly>(true)]
+    public string? Error { get; set; }
+    
     #endregion
     
     #region Source Push
@@ -63,34 +71,34 @@ public sealed class AppFieldSchema: ExtensibleSchema
     /// The input source field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string? Source { get; set; }
     
     [Meta<SchemaType>(typeof(SchemaValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"${nameof(App)}", $"${nameof(Source)}", true)]
+    [Relation<Default, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(Source)}", true)]
     public string? SourceType { get; set; }
 
     /// <summary>
     /// The push function, convert the input data to the type data
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    [Relation<Visible>($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"${nameof(Source)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"${nameof(SourceType)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"${nameof(Type)}", true)]
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(Type)}", true)]
     public string? Push { get; set; }
     
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    [Relation<InVisible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    [Relation<Visible>($"${NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"${nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public DataCombine[]? Combines { get; set; }
 
     #endregion
@@ -127,7 +135,7 @@ public sealed class Foreign
     /// <summary>
     /// The field refer to the other app target
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
     
     [JsonIgnore]
@@ -147,7 +155,7 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"${nameof(App)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
     public string Field { get; set; } = string.Empty;
 
     /// <summary>
@@ -167,7 +175,7 @@ public sealed class FieldView
 public sealed record DataCombine(string Field, DataCombineType Type = DataCombineType.Newest);
 
 /// <summary>
-/// Combine the data nodes
+/// CombineProperties the data nodes
 /// </summary>
 internal static class DataCombineTypeExtensions
 {
@@ -180,8 +188,8 @@ internal static class DataCombineTypeExtensions
     {
         return method switch
         {
-            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() as DataNode : value,
+            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() as DataNode : value,
             _ => throw new NotImplementedException(),
         };
     }
@@ -193,8 +201,8 @@ internal static class DataCombineTypeExtensions
     {
         return method switch
         {
-            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() : value,
-            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() : value,
+            DataCombineType.Newest => value is ArrayNode arr ? arr.LastOrDefault() as DataNode : value,
+            DataCombineType.Oldest => value is ArrayNode arr ? arr.FirstOrDefault() as DataNode : value,
             DataCombineType.Sum => type.From(value is ArrayNode arr ? arr.Sum(a => a.TryGetValue<decimal>(out var d) ? d : 0) : value != null && value.TryGetValue<decimal>(out var s) ? s : 0m),
             DataCombineType.Count => type.From(value is ArrayNode arr ? arr.Count : 0),
             _ => throw new NotImplementedException(),

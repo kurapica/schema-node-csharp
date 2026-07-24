@@ -4,7 +4,9 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
+using NodeType = SchemaNode.Property.Core.NodeType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
@@ -29,8 +31,23 @@ public sealed class DateSchema : ScalarSchema
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.date")]
-[Relation<Visible>(NS_SYSTEM_LOGIC_EQ, $"${nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
-public sealed class DateProperty : Property<DateSchema>;
+[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
+public sealed class DateProperty : Property<DateSchema>
+{
+    public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
+    {
+        if (other is not StringProperty { Value: { } otherSchema }) return false;
+        if (Value is not { } selfSchema)
+        {
+            SetValue(otherSchema);
+            return true;
+        }
+
+        selfSchema.CombineProperties(otherSchema, runtime, SCHEMA_KIND_DATE);
+        SetValue(selfSchema);
+        return true;
+    }
+}
 
 /// <summary>
 /// Represents the date scalar type
