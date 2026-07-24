@@ -26,6 +26,8 @@ public class Char: String;
 /// Represents the GUID scalar value type
 /// </summary>
 [Meta<SchemaType>(NS_SYSTEM_GUID)]
+[Meta<UpLimitString>(36)]
+[Meta<LowLimitString>(36)]
 public class Guid: String, IScalarType<System.Guid>;
 
 /// <summary>
