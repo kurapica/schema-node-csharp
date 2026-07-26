@@ -421,7 +421,7 @@ public class DynamicTableSchema
         Single = single;
         Fields  = fields;
         Indexes = indexes;
-        IncrUpdate = appFieldType.IncrUpdate ?? false;
+        Pageable = appFieldType.Pageable ?? false;
         Joins = joins?.ToArray();
     }
     
@@ -447,7 +447,7 @@ public class DynamicTableSchema
     /// <summary>
     /// Whether the table use increase update, no full data push allowed
     /// </summary>
-    public bool IncrUpdate { get; init; }
+    public bool Pageable { get; init; }
 
     /// <summary>
     /// The dynamic table fields

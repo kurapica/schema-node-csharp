@@ -151,7 +151,7 @@ public sealed class AppFieldType
     /// <summary>
     /// The app field is using increase update mode, no full data push allowed, always using page query
     /// </summary>
-    public bool? IncrUpdate { get; private set; }
+    public bool? Pageable { get; private set; }
     
     #endregion
     
@@ -236,7 +236,7 @@ public sealed class AppFieldType
         Topology = GetProperty<Topology>()?.Value;
         TableName = GetProperty<TableName>()?.Value;
         AttrTableName = GetProperty<AttrTableName>()?.Value;
-        IncrUpdate = GetProperty<IncrUpdate>()?.Value;
+        Pageable = GetProperty<Pageable>()?.Value;
         Filters = GetProperty<Filters>()?.Value;
         
         // loading

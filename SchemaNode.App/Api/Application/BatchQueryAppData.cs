@@ -107,7 +107,7 @@ public static class BatchQueryExtension
                     
                     // limit incr field take count
                     int take = q?.Take ?? query.Take ?? 0;
-                    if (field.IncrUpdate == true)
+                    if (field.Pageable == true)
                     {
                         take = take <= 0 
                             ? SchemaNodeConfig.Current.IncrFieldDefaultTakeCount 
