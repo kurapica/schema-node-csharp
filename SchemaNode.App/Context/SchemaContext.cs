@@ -37,7 +37,7 @@ public static class AppSchemaContextExtension
                 AppSchema? schema = await LoadAppSchemaAsync(root != result ? root : null, nextVal);
                 if (schema == null) return null;
 
-                result ??= new RuntimeAppType();
+                result ??= new RuntimeAppType { Container = root };
             
                 // cache by segment name (next), because result.Name is empty until LoadTypeAsync sets Schema
                 AppSchema[]? apps = schema.Apps;
