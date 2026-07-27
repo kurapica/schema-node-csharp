@@ -28,10 +28,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="www.zip" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Include="locale\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
