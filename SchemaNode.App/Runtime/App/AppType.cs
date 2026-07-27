@@ -38,7 +38,7 @@ public sealed class AppType : IValueTypeAccess
     private List<RelationType>? _relations;
     
     // properties
-    private IProperty[]? _props;                                                                                                                                       
+    private IProperty[]? _props;
     private NodeType[]? _refTypes;
     
     #endregion
