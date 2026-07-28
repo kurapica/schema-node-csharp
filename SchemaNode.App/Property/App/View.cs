@@ -16,6 +16,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(View)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<Static>(true)]
 [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
 public class View : Property<FieldView>;
 

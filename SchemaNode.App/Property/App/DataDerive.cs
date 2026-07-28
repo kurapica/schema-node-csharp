@@ -23,6 +23,7 @@ namespace SchemaNode.Property.App;
 [Meta<ForSchema>(SCHEMA_KIND_APP_FIELD)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(DataDerive)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<Static>(true)]
 [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
 [Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
 [Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
