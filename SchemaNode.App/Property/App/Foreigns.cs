@@ -6,6 +6,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Scalar;
 
 namespace SchemaNode.Property.App;
 
@@ -35,6 +36,7 @@ public sealed class Foreign
     /// The field refer to the other app target
     /// </summary>
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
+    [Meta<SchemaType>(typeof(Identifier))]
     public string Field { get; set; } = string.Empty;
     
     [JsonIgnore]

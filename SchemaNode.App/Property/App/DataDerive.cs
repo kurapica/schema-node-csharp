@@ -24,6 +24,11 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(DataDerive)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
+[Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
+[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
+[Relation<Valid, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Calc)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(AppFieldSchema.Type)}", true)]
+[Relation<InVisible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combine)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+[Relation<Visible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combines)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
 public class DataDerive : Property<Derive>
 {
     public override void SetValue<TValue>(TValue value)
@@ -52,8 +57,6 @@ public class DataDerive : Property<Derive>
 /// The data derive settings
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.{nameof(Derive)}")]
-[Relation<EntrySource, Relation.Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
-[Relation<Default, Relation.Call>(nameof(SourceType), $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(Source)}", true)]
 public class Derive
 {
     /// <summary>
@@ -71,21 +74,18 @@ public class Derive
     /// The calculate function, convert the input data to the type data
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(Type)}", true)]
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
     public string? Calc { get; set; }
     
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
     public FieldCombine[]? Combines { get; set; }
 }
 
@@ -94,7 +94,9 @@ public class Derive
 /// The data combine settings
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.combine")]
-public sealed record FieldCombine([Meta<PrimaryIndex>]string Field, DataCombineType Type = DataCombineType.Newest);
+public sealed record FieldCombine(
+    [Meta<PrimaryIndex>][Meta<SchemaType>(typeof(Identifier))] string Field, 
+    DataCombineType Type = DataCombineType.Newest);
 
 /// <summary>
 /// CombineProperties the data nodes
