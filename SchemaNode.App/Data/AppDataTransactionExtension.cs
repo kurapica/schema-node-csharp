@@ -2,11 +2,11 @@
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using System.Text.Json.Nodes;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Utility;
 using SchemaNode.Event;
+using SchemaNode.Property.App;
 using AppType = SchemaNode.Runtime.AppType;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using DateType = SchemaNode.Runtime.DateType;
@@ -910,7 +910,7 @@ public static class AppDataTransactionExtension
                 {
                     DataCombineType method = field.Combine ?? DataCombineType.Newest;
                     (DataNode? origin, _) = await context.GetAppFieldDataAsync(field, AppSchemaDataResult.List);
-                    IValueAccess? now = DataCombineTypeExtensions.GroupJoin(newResult, method);
+                    IValueAccess? now = DataDeriveExtensions.GroupJoin(newResult, method);
 
                     // Update with join method
                     switch (method)
@@ -1060,7 +1060,7 @@ public static class AppDataTransactionExtension
                     // Based on field join methods
                     if (field.Combines != null)
                     {
-                        foreach (DataCombine combine in field.Combines)
+                        foreach (var combine in field.Combines!)
                         {
                             joinMethodMap[combine.Field] = combine.Type;
                         }
@@ -1073,8 +1073,8 @@ public static class AppDataTransactionExtension
                     newResult = newResult is ArrayNode newArr ? newArr.FilterByPrimaryKeys(array.Primary) : newResult;
                     
                     // Group join the old & now data
-                    Dictionary<string, StructNode> oldMap = DataCombineTypeExtensions.GroupJoinObjectMap(array, oldResult, joinMethodMap);
-                    Dictionary<string, StructNode> nowMap = DataCombineTypeExtensions.GroupJoinObjectMap(array, newResult, joinMethodMap);
+                    Dictionary<string, StructNode> oldMap = DataDeriveExtensions.GroupJoinObjectMap(array, oldResult, joinMethodMap);
+                    Dictionary<string, StructNode> nowMap = DataDeriveExtensions.GroupJoinObjectMap(array, newResult, joinMethodMap);
 
                     // Query the original data
                     var origins = await context.GetAppFieldDataAsync(field,oldMap.Values.Concat(nowMap.Values));

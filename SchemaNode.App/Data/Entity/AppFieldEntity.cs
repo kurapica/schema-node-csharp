@@ -5,10 +5,8 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using System.Text.Json.Nodes;
-using SchemaNode.Utility;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
-using DataCombine = SchemaNode.Schema.DataCombine;
 
 namespace SchemaNode.Data.Entity;
 
@@ -48,46 +46,6 @@ internal class AppFieldEntity
 
     #endregion
 
-    #region Source Push
-
-    /// <summary>
-    /// The input source field
-    /// </summary>
-    [Meta<SchemaType>(typeof(Identifier))]
-    public string? Source { get; set; }
-
-    /// <summary>
-    /// The push function, convert the input data to the type data
-    /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
-    public string? Push { get; set; }
-
-    /// <summary>
-    /// The combine rule for scalar/enum type
-    /// </summary>
-    public DataCombineType? Combine { get; set; }
-
-    /// <summary>
-    /// The combine rule for struct or struct-array type
-    /// </summary>
-    public DataCombine[]? Combines { get; set; }
-
-    #endregion
-
-    #region Foreign & View
-
-    /// <summary>
-    /// The foreign key settings
-    /// </summary>
-    public Foreign[]? Foreigns { get; set; }
-
-    /// <summary>
-    /// The field view settings
-    /// </summary>
-    public FieldView? View { get; set; }
-
-    #endregion
-
     #region Extension
 
     /// <summary>
@@ -108,12 +66,6 @@ internal class AppFieldEntity
             Name = appFieldSchema.Name,
             Seqno = appFieldSchema.Seqno,
             Type = appFieldSchema.Type,
-            Source = appFieldSchema.Source,
-            Push = appFieldSchema.Push,
-            Combine = appFieldSchema.Combine,
-            Combines = appFieldSchema.Combines,
-            Foreigns = appFieldSchema.Foreigns,
-            View = appFieldSchema.View,
             Extensions = appFieldSchema.Extensions?.DeepClone() as JsonObject
         };
     }
@@ -127,12 +79,6 @@ internal class AppFieldEntity
             Name = appFieldEntity.Name,
             Seqno = appFieldEntity.Seqno,
             Type = appFieldEntity.Type,
-            Source = appFieldEntity.Source,
-            Push = appFieldEntity.Push,
-            Combine = appFieldEntity.Combine,
-            Combines = appFieldEntity.Combines,
-            Foreigns = appFieldEntity.Foreigns,
-            View = appFieldEntity.View,
             Extensions = appFieldEntity.Extensions?.DeepClone() as JsonObject
         };
     }

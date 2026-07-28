@@ -13,7 +13,6 @@ using SchemaNode.Property.App;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using DataCombine = SchemaNode.Schema.DataCombine;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
@@ -85,16 +84,16 @@ public sealed class AppFieldType
     #endregion
     
     #region Foreign & View
-    
+
     /// <summary>
     /// The foreign key settings
     /// </summary>
-    public Foreign[]? Foreigns { get; private set; }
+    public Foreign[]? Foreigns => GetProperty<Foreigns>()?.Value;
 
     /// <summary>
     /// The field view setting
     /// </summary>
-    public FieldView? View { get; private set; }
+    public FieldView? View => GetProperty<View>()?.Value;
 
     /// <summary>
     /// Whether the field is a view for foreign view, only readable
@@ -124,6 +123,16 @@ public sealed class AppFieldType
     /// The third-party push field info
     /// </summary>
     public DataPushThirdFieldInfo[]? ThirdPushFields { get; private set; }
+
+    /// <summary>
+    /// The combine rule for scalar/enum type
+    /// </summary>
+    public DataCombineType? Combine { get; private set; }
+    
+    /// <summary>
+    /// The combine rule for struct or struct-array type
+    /// </summary>
+    public FieldCombine[]? Combines { get; private set; }
 
     #endregion
     
@@ -156,16 +165,6 @@ public sealed class AppFieldType
     #endregion
     
     #region The data combine rules
-
-    /// <summary>
-    /// The combine rule for scalar/enum type
-    /// </summary>
-    public DataCombineType? Combine => _appFieldSchema.Combine;
-    
-    /// <summary>
-    /// The combine rule for struct or struct-array type
-    /// </summary>
-    public DataCombine[]? Combines => _appFieldSchema.Combines;
 
     #endregion
 
@@ -227,8 +226,6 @@ public sealed class AppFieldType
         (_refTypes, Error) = await _appFieldSchema.LoadPropertiesAsync(context, _props, ValueType);
 
         _appFieldSchema.Error = Error;
-        Foreigns = _appFieldSchema.Foreigns;
-        View = _appFieldSchema.View;
         
         // Cache
         Disable = GetProperty<Disable>()?.Value;
@@ -253,14 +250,15 @@ public sealed class AppFieldType
             }
         }
 
-        // Loading source & push
-        if (!string.IsNullOrWhiteSpace(_appFieldSchema.Source))
+        // Loading data derive
+        Derive? derive = GetProperty<DataDerive>()?.Value;
+        if (!string.IsNullOrWhiteSpace(derive?.Source))
         {
-            if (await context.GetNodeTypeAsync<FunctionType>(_appFieldSchema.Push ?? string.Empty) is { Args.Length: 1 } funcNode)
+            if (await context.GetNodeTypeAsync<FunctionType>(derive?.Calc ?? string.Empty) is { Args.Length: 1 } funcNode)
             {
                 PushFunc = funcNode;
                 
-                AppFieldType? pushSource = Application.GetField(_appFieldSchema.Source);
+                AppFieldType? pushSource = Application.GetField(derive!.Source);
                 if (pushSource == null || (pushSource.ValueType ?? await context.GetNodeTypeAsync<ValueType>(pushSource.Type))
                     is not ArrayType { Element: not null, Primary: { Count: > 0}} array ||
                     funcNode.Args[0].ValueType != null && funcNode.Args[0].ValueType is not GenericType && 
@@ -299,6 +297,9 @@ public sealed class AppFieldType
                         Error = AppErrorCodes.APP_FIELD_PUSH_FUNC_NOT_VALID;
                     }
                 }
+
+                Combine = derive.Combine;
+                Combines = derive.Combines;
             }
             else
             {
@@ -418,21 +419,6 @@ public sealed class AppFieldType
             Name = _appFieldSchema.Name,
             Seqno = _appFieldSchema.Seqno,
             Type = _appFieldSchema.Type,
-            Source = _appFieldSchema.Source,
-            Push =  _appFieldSchema.Push,
-            Combine = _appFieldSchema.Combine,
-            Combines = _appFieldSchema.Combines?.ToArray(),
-            Foreigns = _appFieldSchema.Foreigns?.Select(f => new Foreign
-            {
-                App = f.App,
-                Field = f.Field,
-            }).ToArray(),
-            View = _appFieldSchema.View != null ? new FieldView
-            {
-                App = _appFieldSchema.View.App,
-                Field = _appFieldSchema.View.Field,
-                Map = _appFieldSchema.View.Map,
-            } : null,
         };
         schema.CombineProperties(_appFieldSchema);
         

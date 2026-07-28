@@ -402,7 +402,7 @@ public class DynamicTableSchema
         if (isView)
         {
             AppFieldType sourceField = appFieldType.View?.AppType?.GetField(appFieldType.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
-            Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(appFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
+            var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(appFieldType.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {appFieldType.View?.App}.{appFieldType.View?.Field}");
             if (!fields.Any(f => f.Name.Equals(foreign.Field, StringComparison.OrdinalIgnoreCase)))
             {
                 StructType eleType = (sourceField.ValueType is ArrayType arr ? arr.Element : sourceField.ValueType) as StructType ?? throw new Exception($"The {appFieldType.Name} field can't be used as view");
@@ -580,8 +580,8 @@ public class DynamicTableSchema
             if (isview && isTarget)
             {
                 // change the view target to the foreign field
-                AppFieldType sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
-                Foreign foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
+                var sourceField = AppField.View?.AppType?.GetField(AppField.View?.Field ?? "") ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
+                var foreign = sourceField.Foreigns?.FirstOrDefault(f => f.App.Equals(AppField.App, StringComparison.OrdinalIgnoreCase)) ?? throw new Exception($"Invalid view source field: {AppField.View?.App}.{AppField.View?.Field}");
                 yield return (foreign.Field, value);
             }
             else

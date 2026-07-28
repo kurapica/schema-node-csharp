@@ -12,7 +12,7 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
-public class ArrayNode : DataNode, IEnumerable<IValueAccess>
+public class ArrayNode : DataNode, IEnumerable<DataNode>
 {
     #region Constructors
     
@@ -306,7 +306,7 @@ public class ArrayNode : DataNode, IEnumerable<IValueAccess>
         return true;
     }
 
-    public IEnumerator<IValueAccess> GetEnumerator() => _elements.GetEnumerator();
+    public IEnumerator<DataNode> GetEnumerator() => _elements.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => _elements.GetEnumerator();
 

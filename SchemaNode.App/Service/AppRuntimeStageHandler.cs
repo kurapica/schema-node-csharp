@@ -16,7 +16,6 @@ using SchemaNode.Workflow;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
-using DataCombine = SchemaNode.Schema.DataCombine;
 
 namespace SchemaNode.Service;
 
@@ -161,35 +160,38 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
                         field.SetProperty(property);
 
-                    // Data combine rules
-                    if (typeSchema.Kind == SCHEMA_KIND_STRUCT)
+                    // data derive
+                    if (type.GetMetaProperty<DataDerive>() is { HasValue: true } derive)
                     {
-                        var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
-                        var structSchema = typeSchema.GetProperty<StructProperty>()?.Value;
-                        if (structSchema != null)
+                        // Data combine rules
+                        if (typeSchema.Kind == SCHEMA_KIND_STRUCT)
                         {
-                            List<DataCombine> combineRules = [];
-                            foreach (StructFieldSchema f in structSchema.Fields)
+                            var deriveProp = derive.GetValue<Derive>()!;
+                            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+                            var structSchema = typeSchema.GetProperty<StructProperty>()?.Value;
+                            if (structSchema != null)
                             {
-                                if (properties.FirstOrDefault(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase)) is {} p)
+                                List<FieldCombine> combineRules = [];
+                                foreach (StructFieldSchema f in structSchema.Fields)
                                 {
-                                    var combine = p.GetMetaProperty<SchemaNode.Property.App.DataCombine>();
-                                    if (combine is { HasValue: true })
-                                        combineRules.Add(new DataCombine(f.Name, combine.Value));
+                                    if (properties.FirstOrDefault(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase)) is {} p)
+                                    {
+                                        var combine = p.GetMetaProperty<SchemaNode.Property.App.DataCombine>();
+                                        if (combine is { HasValue: true })
+                                            combineRules.Add(new FieldCombine(f.Name, combine.Value));
+                                    }
+                                }
+
+                                if (combineRules.Count > 0)
+                                {
+                                    deriveProp.Combines = combineRules.ToArray();
+                                    derive.SetValue(deriveProp);
                                 }
                             }
-                            if (combineRules.Count > 0)
-                                field.Combines = combineRules.ToArray();
                         }
+                        field.SetProperty(derive);
                     }
-                    
-                    // push
-                    if (type.GetMetaProperty<Push>() is { HasValue: true } push)
-                    {
-                        field.Push = push.Value!.Push;
-                        field.Source = push.Value!.Source;
-                    }
-                    
+
                     runtime.SaveSystemAppFieldSchema(field, type);
                 }
 

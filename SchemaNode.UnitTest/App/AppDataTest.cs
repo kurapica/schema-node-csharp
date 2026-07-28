@@ -121,7 +121,7 @@ public class AppDataTest : Base.AppTestBase
 
     [Meta<Application>(APP_NAME)]
     [Meta<SchemaType>($"meeting.{nameof(MeetingCount)}")]
-    [Meta<Push>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", nameof(Attendance))]
+    [Meta<DataDerive>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", nameof(Attendance))]
     [Meta<EnableStorage>(true)]
     public class MeetingCount
     {
