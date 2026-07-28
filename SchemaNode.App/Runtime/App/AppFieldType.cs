@@ -410,7 +410,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Get the application field schema
     /// </summary>
-    public AppFieldSchema GetSchema()
+    public async Task<AppFieldSchema> GetSchemaAsync(SchemaContext context)
     {
         AppFieldSchema schema = new AppFieldSchema
         {
@@ -435,6 +435,42 @@ public sealed class AppFieldType
             } : null,
         };
         schema.CombineProperties(_appFieldSchema);
+        
+        // The auth properties
+        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        schema.SetProperty<DataCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
+        schema.SetProperty<DataRead, bool>(await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
+        schema.SetProperty<DataUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));
+        schema.SetProperty<DataDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.DataDelete, true));
+        
+        // The block columns
+        // column access check
+        if ((ValueType is ArrayType arr ? arr.Element : ValueType) is StructType @struct)
+        {
+            List<string>? ignoreFields = null;
+            foreach (StructFieldType f in @struct.GetFields())
+            {
+                // Authorize with order
+                bool authorized = true;
+                foreach (string evaluator in this.GetColPolicies(f.Name))
+                {
+                    authorized = await context.AuthorizeAsync(evaluator, true);
+                    if (authorized) break;
+                }
+
+                if (authorized) continue;
+
+                ignoreFields ??= [];
+                ignoreFields.Add(f.Name);
+            }
+
+            if (ignoreFields is { Count: > 0 })
+                schema.SetProperty<BlockColumns, string[]>(ignoreFields.ToArray());
+        }
+
         return schema;
     }
     

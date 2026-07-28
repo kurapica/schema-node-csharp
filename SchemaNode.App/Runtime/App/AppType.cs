@@ -259,17 +259,36 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the schema of the application
     /// </summary>
-    public AppSchema GetSchema()
+    public async Task<AppSchema> GetSchemaAsync(SchemaContext context)
     {
-        if (_schema == null) return new  AppSchema();
+        if (_schema == null) return new AppSchema();
         AppSchema schema = new AppSchema
         {
             Name = Name,
-            Container = _schema.Container,
-            Fields = _fields?.Select(f => f.GetSchema()).ToArray(),
-            Workflows = _workflows?.Select(w => w.GetSchema()).ToArray(),
+            Container = _schema.Container
         };
         schema.CombineProperties(_schema);
+        
+        // The auth properties
+        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+
+        if (_fields is { Count: > 0 })
+        {
+            schema.Fields = new AppFieldSchema[_fields.Count];
+            for (int i = 0; i < _fields.Count; i++)
+                schema.Fields[i] = await _fields[i].GetSchemaAsync(context);
+        }
+
+        if (_workflows is { Count: > 0 })
+        {
+            schema.Workflows = new AppWorkflowSchema[_workflows.Count];
+            for (int i = 0; i < _workflows.Count; i++)
+                schema.Workflows[i] = await _workflows[i].GetSchemaAsync(context);
+        }
+        
         return schema;
     }
     
@@ -338,28 +357,6 @@ public sealed class AppType : IValueTypeAccess
                 return remain.IsEmpty ? field.ValueType : field.ValueType?.GetAccessValueType(remain.ToString());
         }
         return null;
-    }
-
-    /// <summary>
-    /// Gets all node schemas used by the application
-    /// </summary>
-    /// <returns></returns>
-    public async Task<NodeSchema[]> GetNodeSchemas(SchemaContext ctx, NodeSchema? root = null, HashSet<string>? types = null, bool includeUsedBy = false, CancellationToken? cancellationToken = null)
-    {
-        types ??= [];
-        root ??= new NodeSchema
-        {
-            Name = "",
-            Kind = SCHEMA_KIND_NAMESPACE,
-            Schemas = []
-        };
-
-        foreach (NodeType t in GetReferenceTypes())
-        {
-            cancellationToken?.ThrowIfCancellationRequested();
-            await t.GetNodeSchemas(ctx, root, types, false, includeUsedBy, cancellationToken);
-        }
-        return root.Schemas!;
     }
 
     /// <summary>

@@ -74,48 +74,56 @@ public static class Service
 
         if (enableSchemaManage)
         {
-            // schema manage web sites
-            var manProvider = new CachedZipFileProvider(typeof(SchemaApi<,>).Assembly, "SchemaNode.www.zip", "dist");
-
-            var endpoint = app.MapGet("/schema-node-man", async context =>
+            try
             {
-                // authorization
-                if (authorize is not null)
+                // schema manage web sites
+                var manProvider =
+                    new CachedZipFileProvider(typeof(SchemaApi<,>).Assembly, "SchemaNode.www.zip", "dist");
+
+                var endpoint = app.MapGet("/schema-node-man", async context =>
                 {
-                    var ok = await authorize(context);
-                    if (!ok)
+                    // authorization
+                    if (authorize is not null)
                     {
-                        context.Response.StatusCode = 403;
-                        await context.Response.WriteAsync("Forbidden");
-                        return;
+                        var ok = await authorize(context);
+                        if (!ok)
+                        {
+                            context.Response.StatusCode = 403;
+                            await context.Response.WriteAsync("Forbidden");
+                            return;
+                        }
                     }
-                }
 
-                // add embedded meta
-                await using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
-                using var reader = new StreamReader(stream);
-                var html = await reader.ReadToEndAsync();
+                    // add embedded meta
+                    await using var stream = manProvider.GetFileInfo("index.html").CreateReadStream();
+                    using var reader = new StreamReader(stream);
+                    var html = await reader.ReadToEndAsync();
 
-                // add <head> meta tag
-                html = html.Replace("</head>", string.Join("", [
-                    "<meta name=\"schema-embedded\" content=\"true\">",
-                    $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",
-                    $"<meta name=\"schema-api-protocol\" content='{apiProtocol.GetProtocolMeta(app.Services).ToJson()}'></head>"]));
+                    // add <head> meta tag
+                    html = html.Replace("</head>", string.Join("", [
+                        "<meta name=\"schema-embedded\" content=\"true\">",
+                        $"<meta name=\"schema-api-base-url\" content=\"/{prefix}\">",
+                        $"<meta name=\"schema-api-protocol\" content='{apiProtocol.GetProtocolMeta(app.Services).ToJson()}'></head>"
+                    ]));
 
-                context.Response.ContentType = "text/html";
-                await context.Response.WriteAsync(html);
-            });
+                    context.Response.ContentType = "text/html";
+                    await context.Response.WriteAsync(html);
+                });
 
-            // add authorization policy
-            if (!string.IsNullOrEmpty(managePolicy))
-                endpoint.RequireAuthorization(managePolicy);
+                // add authorization policy
+                if (!string.IsNullOrEmpty(managePolicy))
+                    endpoint.RequireAuthorization(managePolicy);
 
-            app.UseStaticFiles(new StaticFileOptions
+                app.UseStaticFiles(new StaticFileOptions
+                {
+                    FileProvider = manProvider,
+                    RequestPath = "/schema-node-man"
+                });
+            }
+            catch (Exception ex)
             {
-                FileProvider = manProvider,
-                RequestPath = "/schema-node-man"
-            });
-
+                Console.Error.WriteLine($"Enable schema manager failed: {ex.Message}");
+            }
         }
 
         return app;

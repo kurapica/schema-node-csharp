@@ -128,12 +128,6 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     #region Methods
 
     /// <summary>
-    /// Gets the node schema by name
-    /// </summary>
-    public async Task<NodeSchema?> GetNodeSchemaAsync(string fullName)
-        => (await GetNodeTypeAsync(fullName))?.GetNodeSchema(Runtime);
-
-    /// <summary>
     /// Gets the schema node type by name
     /// </summary>
     public async Task<NodeType?> GetNodeTypeAsync(string fullName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false)

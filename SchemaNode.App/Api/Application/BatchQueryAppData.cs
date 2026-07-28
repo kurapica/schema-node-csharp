@@ -76,7 +76,8 @@ public static class BatchQueryExtension
             context.SetAccess(node.Name, query.Target); 
 
             // load schema
-            if (!(query.NoSchema ?? false)) await node.GetNodeSchemas(context, root, cancellationToken:cancellationToken);
+            if (!(query.NoSchema ?? false)) 
+                await context.GetNodeSchemasAsync(node, root, cancellationToken:cancellationToken);
 
             // query fields
             IEnumerable<AppFieldType> fields = node.GetFields().Where(f => f.EnableDynamicTable);
@@ -204,10 +205,6 @@ public static class BatchQueryExtension
                         Take = take,
                         Descend = q?.Descend ?? query.Descend ?? false,
                         Total = total,
-                        AllowRead = allowRead,
-                        AllowCreate = await context.AuthorizeAsync(field, PolicyScope.DataCreate, true),
-                        AllowUpdate = await context.AuthorizeAsync(field, PolicyScope.DataUpdate, true),
-                        AllowDelete = await context.AuthorizeAsync(field, PolicyScope.DataDelete, true),
                     };
 
                     // cover result
@@ -243,8 +240,6 @@ public static class BatchQueryExtension
                             // remove ignore fields
                             if (ignoreFields != null)
                             {
-                                fieldInfos[field.Name].BlackColumns = ignoreFields.ToArray();
-                                
                                 if (fieldResults[field.Name] is JsonArray jsonArray)
                                 {
                                     foreach(var obj in jsonArray)
@@ -279,7 +274,7 @@ public static class BatchQueryExtension
                 Target = query.Target,
                 Results = fieldResults,
                 Infos = fieldInfos,
-                Schema = !(query.NoSchema ?? false) ? node.GetSchema(): null
+                Schema = !(query.NoSchema ?? false) ? await node.GetSchemaAsync(context): null
             };
             
             /*/ workflow states
@@ -584,31 +579,6 @@ public class AppDataFieldInfo
     /// The total count
     /// </summary>
     public int? Total { get; set; }
-    
-    /// <summary>
-    /// Allow create
-    /// </summary>
-    public bool AllowCreate { get; set; }
-    
-    /// <summary>
-    /// Allow read
-    /// </summary>
-    public bool AllowRead { get; set; }
-    
-    /// <summary>
-    /// Allow update
-    /// </summary>
-    public bool AllowUpdate { get; set; }
-    
-    /// <summary>
-    /// Allow delete
-    /// </summary>
-    public bool AllowDelete { get; set; }
-    
-    /// <summary>
-    /// Disable columns access
-    /// </summary>
-    public string[]? BlackColumns { get; set;  }
 }
 
 /// <summary>

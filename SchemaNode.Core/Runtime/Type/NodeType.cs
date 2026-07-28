@@ -234,87 +234,6 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// </summary>
     public NodeSchema? GetNodeSchema(ISchemaRuntime? runtime = null) => Schema?.Clone(runtime);
 
-    /// <summary>
-    /// Gets all node schemas related by the node schema
-    /// </summary>
-    public async Task<NodeSchema> GetNodeSchemas(SchemaContext context, 
-        NodeSchema? root = null, 
-        HashSet<string>? types = null, 
-        bool fullNs = false,
-        bool includeUsedBy = false, 
-        CancellationToken? cancellationToken = null)
-    {
-        if (!Loaded) await context.GetNodeTypeAsync(Name);
-        
-        types ??= [];
-        root ??= new NodeSchema
-        {
-            Name = "",
-            Kind = SCHEMA_KIND_NAMESPACE,
-            Schemas = []
-        };
-        if (Schema == null || !types.Add(Name) || this is GenericType) return root;
-        
-        // install
-        NodeSchema parent = root;
-        if (Namespace != null)
-        {
-            Stack<NamespaceType> namespaces = [];
-            NamespaceType? n = Namespace;
-            while (n != null)
-            {
-                namespaces.Push(n);
-                n = n.Namespace;
-            }
-
-            while (namespaces.TryPop(out n))
-            {
-                parent.Schemas ??= [];
-                NodeSchema? sub = parent.Schemas.FirstOrDefault(s => n.Name.Equals(s.FullName, StringComparison.OrdinalIgnoreCase));
-                if (sub == null)
-                {
-                    cancellationToken?.ThrowIfCancellationRequested();
-                    sub = n.GetNodeSchema(context.Runtime) ?? new NodeSchema
-                    {
-                        Name = n.Name.GetSchemaName(), Namespace = n.Name.GetNamespace(), Kind = SCHEMA_KIND_NAMESPACE
-                    };
-                    parent.Schemas = parent.Schemas == null ? [sub] : parent.Schemas.Append(sub).ToArray();
-                }
-                parent = sub;
-            }
-        }
-        
-        NodeSchema schema = Schema.Clone(context.Runtime);
-        if (includeUsedBy)
-            schema.UsedBy = _usedBy?.Keys.Select(p => p.Name).ToArray();
-
-        if (parent.Schemas == null || !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase)))
-        {
-            parent.Schemas ??= [];
-            parent.Schemas = parent.Schemas.Append(schema).ToArray();
-        }
-        
-        if (this is NamespaceType ns && fullNs)
-        {
-            foreach (NodeSchema s in ns.GetNodeSchemas())
-            {
-                cancellationToken?.ThrowIfCancellationRequested();
-                var sns = await context.GetNodeTypeAsync(s.Name);
-                if (sns != null)
-                    await sns.GetNodeSchemas(context, root, types, fullNs, includeUsedBy,  cancellationToken);
-            }
-        }
-
-        // add references
-        foreach (NodeType n in GetReferenceTypes())
-        {
-            cancellationToken?.ThrowIfCancellationRequested();
-            await n.GetNodeSchemas(context, root, types, fullNs, includeUsedBy, cancellationToken);
-        }
-
-        return root;
-    }
-
     #endregion
 
     #region UsedBy
@@ -359,6 +278,15 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// Gets the nodes that reference this node, only return node types, other types are not tracked and will not be returned
     /// </summary>
     public IEnumerable<NodeType> GetUsedBy() => _usedBy?.Keys ?? [];
+
+    /// <summary>
+    /// Gets the other types that reference this node
+    /// </summary>
+    public IEnumerable<T> GetUsedBy<T>() => typeof(T) == typeof(NodeType)
+        ? (_usedBy?.Keys.OfType<T>() ?? [])
+        : _usedByOther?.TryGetValue(typeof(T), out ConcurrentDictionary<object, bool>? dict) == true
+            ? dict.Keys.OfType<T>()
+            : [];
 
     #endregion
 
@@ -450,7 +378,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         
         base.RemoveUsedBy(usedBy);
     }
-
+    
     #endregion
 
     #region Methods

@@ -37,8 +37,7 @@ public class SchemaTools
     {
         NodeType schemaType = await context.GetNodeTypeAsync(name)
             ?? throw new InvalidOperationException($"Schema type '{name}' not found.");
-
-        return await schemaType.GetNodeSchemas(context);
+        return await context.GetNodeSchemasAsync(schemaType);
     }
     
     [McpServerTool, Description(
@@ -164,9 +163,9 @@ public class SchemaTools
         if (node == null) return null;
         
         // Generate schema
-        AppSchema schema = node.GetSchema();
+        AppSchema schema = await node.GetSchemaAsync(context);
         if(includeTypes)
-            schema.NodeSchemas = await node.GetNodeSchemas(context, includeUsedBy: true);
+            schema.NodeSchemas = await context.GetNodeSchemasAsync(node, includeUsedBy: true);
         return schema;
     }
     

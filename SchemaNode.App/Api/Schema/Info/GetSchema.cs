@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.Extensions.Logging;
+using SchemaNode.Context;
 using SchemaNode.Http;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
@@ -46,7 +47,7 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             if (node == null) return;
             if (await SchemaContext.AuthorizeAsync(node, PolicyScope.SchemaRead, true) == false) return;
 
-            await node.GetNodeSchemas(SchemaContext, root, types, request.Full ?? false, true, cancellationToken);
+            await SchemaContext.GetNodeSchemasAsync(node, root, types, request.Full ?? false, true, cancellationToken);
 
             if (node is NamespaceType ns && first && request.Full != true)
                 foreach (var pair in ns.GetNodeSchemas())
@@ -54,10 +55,6 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
                     var nodeType = await SchemaContext.GetNodeTypeAsync(pair.FullName);
                     if (nodeType != null)
                         await GetNodeSchemas(nodeType);
-                    else
-                    {
-                        // TODO: no runtime schema
-                    }
                 }
         }
     }

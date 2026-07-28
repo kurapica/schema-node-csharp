@@ -43,14 +43,21 @@ public class GetAppSchemaApi : SchemaApi<LoadAppSchemaRequest, LoadAppSchemaResp
         }
 
         // Generate schema
-        AppSchema schema = node.GetSchema();
+        AppSchema schema = await node.GetSchemaAsync(SchemaContext);
         
         if(request.IncludeTypes)
-            schema.NodeSchemas = await node.GetNodeSchemas(SchemaContext, includeUsedBy: true, cancellationToken: cancellationToken);
+            schema.NodeSchemas = await SchemaContext.GetNodeSchemasAsync(node, includeUsedBy: true, cancellationToken: cancellationToken);
 
         if (schema.Fields is not { Length: > 0 })
         {
-            schema.Apps = node.GetSubApps().Select(a => a.GetSchema()).ToArray();
+            List<AppSchema> apps = [];
+            foreach (AppSchema s in node.GetSubAppSchemas())
+            {
+                Runtime.AppType? subApp = await SchemaContext.GetAppTypeAsync(s.FullName);
+                if (subApp != null)
+                    apps.Add(await subApp.GetSchemaAsync(SchemaContext));
+            }
+            schema.Apps = apps.ToArray();
         }
 
         return new LoadAppSchemaResponse

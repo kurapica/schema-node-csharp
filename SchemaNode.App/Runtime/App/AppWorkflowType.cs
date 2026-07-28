@@ -6,6 +6,7 @@ using SchemaNode.Schema;
 using SchemaNode.Utility;
 using SchemaNode.Workflow;
 using System.Reflection;
+using SchemaNode.Property.App;
 using static SchemaNode.Utility.AppConstant;
 
 namespace SchemaNode.Runtime;
@@ -136,7 +137,7 @@ public sealed class AppWorkflowType: IDisposable
     /// Get the application workflow schema
     /// </summary>
     /// <returns></returns>
-    public AppWorkflowSchema GetSchema()
+    public async Task<AppWorkflowSchema> GetSchemaAsync(SchemaContext context)
     {
         AppWorkflowSchema schema = new AppWorkflowSchema
         {
@@ -169,6 +170,13 @@ public sealed class AppWorkflowType: IDisposable
             }).ToArray()
         };
         schema.CombineProperties(_appWorkflowSchema);
+        
+        // The auth properties
+        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+        schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
+        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        
         return schema;
     }
 

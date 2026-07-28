@@ -166,7 +166,7 @@ public static class PolicyExtensions
     {
         // Try parent auth policy items first
         NamespaceType? parent = !string.IsNullOrWhiteSpace(schema.Namespace) 
-            ? context.GetNodeTypeAsync<Runtime.NamespaceType>(schema.Namespace).GetAwaiter().GetResult() 
+            ? context.GetNodeTypeAsync<NamespaceType>(schema.Namespace).GetAwaiter().GetResult() 
             : schema.Name.Equals(NS_SYSTEM, StringComparison.OrdinalIgnoreCase)
                 ? null 
                 : context.System.Self;
