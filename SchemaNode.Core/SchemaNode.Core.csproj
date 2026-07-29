@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -16,6 +16,11 @@
   
   <ItemGroup>
     <InternalsVisibleTo Include="SchemaNode.App" />
+    <InternalsVisibleTo Include="SchemaNode.UnitTest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="locale\*.json" />
   </ItemGroup>
 
 </Project>

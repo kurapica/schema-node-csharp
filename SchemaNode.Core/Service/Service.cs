@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -105,8 +105,8 @@ public static partial class SchemaNodeExtensions
 
         #region Prepare
 
-        // load locales
-        Locale.TryLoad();
+        // load locales (built-in embedded resources first, then directory overrides)
+        Locale.TryLoad(assemblies);
 
         // system access
         services.TryAddSingleton<SystemAccess>();
