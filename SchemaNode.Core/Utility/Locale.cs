@@ -102,7 +102,7 @@ internal static class Locale
         // The file stem is the segment after the last '.' (resource namespace separator)
         int lastDot = span.LastIndexOf('.');
         string stem = lastDot >= 0 ? span[(lastDot + 1)..].ToString() : span.ToString();
-        return GetLocaleFromStem(stem, requireSchemaPrefix: true);
+        return GetLocaleFromStem(stem);
     }
 
     /// <summary>
@@ -112,17 +112,15 @@ internal static class Locale
     private static string? GetFileLocale(string path)
     {
         string stem = Path.GetFileNameWithoutExtension(path);
-        return GetLocaleFromStem(stem, requireSchemaPrefix: false);
+        return GetLocaleFromStem(stem);
     }
 
     /// <summary>
     /// Extracts the locale code from a file stem. When <paramref name="requireSchemaPrefix"/>
     /// is <see langword="true"/>, only stems starting with <c>schema_</c> are accepted.
     /// </summary>
-    private static string? GetLocaleFromStem(string stem, bool requireSchemaPrefix)
+    private static string? GetLocaleFromStem(string stem)
     {
-        if (requireSchemaPrefix && !stem.StartsWith("schema_", StringComparison.OrdinalIgnoreCase))
-            return null;
         int lastUnderscore = stem.LastIndexOf('_');
         if (lastUnderscore < 0) return stem; // bare locale name, e.g. "enUS"
         if (lastUnderscore == stem.Length - 1) return null; // trailing underscore
