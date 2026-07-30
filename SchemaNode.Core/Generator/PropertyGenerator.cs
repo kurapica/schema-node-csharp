@@ -1,8 +1,10 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
+using SchemaNode.Struct;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 
@@ -47,6 +49,10 @@ internal class PropertyGenerator : INodeSchemaGenerator
                 
         // Relations
         List<RelationSchema> relations = [];
+        
+        // Default error
+        if (type.IsAssignableTo(typeof(IConstraintProperty)))
+            schema.SetProperty<Error, LocaleString>($"{schema.FullName}.error");
         
         // Direct [Relation<T>] attributes declared on the field itself are aggregated to struct relations.
         // Do not inspect Property-type relations here; those are dynamically assembled later.

@@ -16,6 +16,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
 [Meta<NodeType>(typeof(Runtime.StringType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRING}.schema")]
+[Meta<StringValue>]
 public sealed class StringSchema : ScalarSchema
 {
     /// <summary>

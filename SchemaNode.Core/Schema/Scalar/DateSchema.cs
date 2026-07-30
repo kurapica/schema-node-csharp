@@ -16,6 +16,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<NodeType>(typeof(Runtime.DateType))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.schema")]
+[Meta<DateValue>]
 public sealed class DateSchema : ScalarSchema
 {
     /// <summary>
