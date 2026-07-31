@@ -1,9 +1,8 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Constraint;
-using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
-namespace SchemaNode.Property.Common;
+namespace SchemaNode.Property.Core;
 
 [Meta<ForSchema>(SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]

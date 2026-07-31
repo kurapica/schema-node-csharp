@@ -60,6 +60,7 @@ public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
     /// <summary>
     /// The context item
     /// </summary>
+    [Meta<PrimaryIndex>]
     public required string ContextItem { get; set; }
 
     /// <summary>

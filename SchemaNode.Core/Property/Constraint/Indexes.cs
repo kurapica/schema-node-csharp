@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
+using SchemaNode.Scalar;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
@@ -15,4 +16,4 @@ public class Indexes : Property<DataIndex[]>, IConstraintProperty;
 
 
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.index")]
-public sealed record DataIndex([Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)] string Name, string[] Fields, bool IsUnique = false);
+public sealed record DataIndex([Meta<SchemaType>(typeof(Identifier))] string Name, string[] Fields, bool IsUnique = false);
