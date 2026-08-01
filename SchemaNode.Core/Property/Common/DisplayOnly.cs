@@ -10,5 +10,5 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(DisplayOnly)}")]
-[Meta<Static>()]
+[Meta<Static>(true)]
 public class DisplayOnly: Property<bool>;

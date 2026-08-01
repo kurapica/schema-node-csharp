@@ -8,7 +8,7 @@ namespace SchemaNode.Property.Function;
 /// <summary>
 /// Marks a function as server-side only.
 /// </summary>
-[Meta<Static>]
+[Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]

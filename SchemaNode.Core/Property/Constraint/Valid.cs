@@ -15,7 +15,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRUCT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
-[Meta<Stackable>]
+[Meta<Stackable>(true)]
 [Relation<Valid, Relation.Assign>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class Valid : FuncCallProperty, IConstraintProperty
 {

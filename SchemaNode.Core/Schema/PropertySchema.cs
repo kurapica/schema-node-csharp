@@ -44,16 +44,6 @@ public class PropertySchema: PropertyOwner
     /// </summary>
     [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA}.kind")]
     public string[] ForSchemas { get; set; } = [];
-    
-    /// <summary>
-    /// Whether the property shouldn't be changed by relations
-    /// </summary>
-    public bool? Static { get; set; }
-
-    /// <summary>
-    /// The property is stackable, which means it can be applied multiple times and their effect is stackable not overridable
-    /// </summary>
-    public bool? Stackable { get; set; }
 }
 
 /// <summary>

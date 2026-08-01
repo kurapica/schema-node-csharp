@@ -7,7 +7,7 @@ namespace SchemaNode.Property.Constraint;
 /// <summary>
 /// The array primaries
 /// </summary>
-[Meta<Static>]
+[Meta<Static>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Primary)}")]

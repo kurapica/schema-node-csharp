@@ -39,12 +39,6 @@ internal class PropertyGenerator : INodeSchemaGenerator
 
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
-
-            // Static
-            Static = type.GetMetaProperty<Static>()?.GetValue<bool>(),
-
-            // Stackable
-            Stackable = type.GetMetaProperty<Stackable>()?.GetValue<bool>(),
         };
                 
         // Relations
