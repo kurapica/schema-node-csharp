@@ -75,15 +75,20 @@ public static class SystemReflect
     /// <summary>
     /// Checks if the schema kind of the schema node with the given name is the same as the given kind
     /// </summary>
-    public static async Task<bool> isschemakind(SchemaContext context, 
-        [Meta<SchemaType>(typeof(AnyType))] string name, 
-        [Meta<SchemaType>(typeof(SchemaKind))] string kind,
-        bool matchArrayElement = false)
+    public static async Task<bool> isschemakind(SchemaContext context,
+        [Meta<SchemaType>(typeof(AnyType))] string name,
+        bool matchArrayElement,
+        [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         if (nodeType == null) return false;
-        if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase)) return true;
-        return matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true;
+        foreach (var kind in kinds)
+        {
+            if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
+                matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true)
+            return true;
+        }
+        return false;
     }
 
     /// <summary>

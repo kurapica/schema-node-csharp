@@ -28,8 +28,8 @@ namespace SchemaNode.Property.App;
 [Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
 [Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
 [Relation<Valid, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Calc)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(AppFieldSchema.Type)}", true)]
-[Relation<InVisible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combine)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
-[Relation<Visible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combines)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", SCHEMA_KIND_STRUCT, true)]
+[Relation<InVisible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combine)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
+[Relation<Visible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combines)}", $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
 public class DataDerive : Property<Derive>
 {
     public override void SetValue<TValue>(TValue value)
