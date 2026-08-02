@@ -2,7 +2,6 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
-using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
@@ -43,6 +42,12 @@ public class RelationSchema : PropertyOwner
     /// </summary>
     [Meta<SchemaType>(typeof(RelationKind))]
     public string Kind { get; set; } = null!;
+    
+    /// <summary>
+    /// The relation only works for the given schema kind(for property relation only)
+    /// </summary>
+    [Meta<SchemaType>(typeof(Enum.SchemaKind))]
+    public string? ForSchema { get; set; }
 
     /// <summary>
     /// Equals check
@@ -54,7 +59,8 @@ public class RelationSchema : PropertyOwner
         return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) && 
                Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) && 
                Stage == otherRelation.Stage && 
-               Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase);
+               Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase) &&
+               ForSchema == otherRelation.ForSchema;
     }
 }
 

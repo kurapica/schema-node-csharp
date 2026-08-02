@@ -4,12 +4,16 @@ using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
+using SchemaNode.Relation;
+using SchemaNode.Function;
+using SchemaNode.Schema;
 
 namespace SchemaNode.Property.Constraint;
 
 [Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_INT, SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(WhiteList)}")]
+[Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SystemReflect.Array.getarraytype)}", $"@{nameof(IntSchema.Base)}")]
 public class WhiteList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>

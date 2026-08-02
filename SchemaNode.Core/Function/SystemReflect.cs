@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -144,6 +145,40 @@ public static class SystemReflect
                 if (funcType.Args[i].ValueType == null || !funcType.Args[i].ValueType!.IsAssignableTo(argType)) return false;
             }
             return true;
+        }
+    }
+
+    /// <summary>
+    /// The reflection helpers for the schema arrays
+    /// </summary>
+    [Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_ARRAY)]
+    public static class Array
+    {
+        /// <summary>
+        /// Generates the array name for the given element type
+        /// </summary>
+        public static string genarrayname([Meta<SchemaType>(typeof(ElementType))] string element)
+        {
+            var split = element.Split('<')[0].Split('.');
+            return $"{split[split.Length - 1]}s";
+        }
+
+        /// <summary>
+        /// Generates the array display name for the given element type
+        /// </summary>
+        public static string genarraydisplay([Meta<SchemaType>(typeof(ElementType))] string element)
+        {
+            return $"{Locale.LIST_PREFIX}{{@{element}}}{Locale.LIST_SUFFIX}";
+        }
+    
+        /// <summary>
+        /// Gets the array type for the given element type
+        /// </summary>
+        public static async Task<string> getarraytype(SchemaContext context, [Meta<SchemaType>(typeof(ElementType))] string element)
+        {
+            var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+            if (elementType is null) return "";
+            return elementType is ArrayType ? elementType.Name : (elementType?.ArrayType?.Name ?? $"{NS_SYSTEM_LIST}<{elementType!.Name}>");
         }
     }
 }

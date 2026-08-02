@@ -6,6 +6,8 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Presentation;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Struct;
@@ -33,6 +35,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(NamespaceType))]
+    [Relation<ReadOnly, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Name)}")]
     public string? Namespace { get; set; }
     
     /// <summary>
@@ -40,6 +43,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<Immutable>(true)]
     public string Name { get; set; } = null!;
     
     /// <summary>
@@ -64,8 +68,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     /// <summary>
     /// The error status
     /// </summary>
-    [Meta<SchemaType>(typeof(ErrorCode))]
-    [Meta<ReadOnly>(true)]
+    [SchemaIgnore]
     public string? Error { get; set; }
 
     /// <summary>

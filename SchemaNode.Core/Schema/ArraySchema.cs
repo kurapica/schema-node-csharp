@@ -10,6 +10,7 @@ using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 using RuntimeArrayType = SchemaNode.Runtime.ArrayType;
+using SchemaNode.Struct;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -42,6 +43,8 @@ public sealed class ArraySchema: PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.array")]
 [Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
+[Relation<Default, Relation.Call>($"@{nameof(NodeSchema.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarrayname", $"@array.{nameof(ArraySchema.Element)}")]
+[Relation<Default, Relation.Call>($"@{nameof(Display)}.{nameof(LocaleString.Key)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarraydisplay", $"@array.{nameof(ArraySchema.Element)}")]
 public sealed class ArrayProperty : Property<ArraySchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
