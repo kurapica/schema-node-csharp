@@ -164,6 +164,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC = $"{NS_SYSTEM_SCHEMA_REFLECT}.func";
     public const string NS_SYSTEM_SCHEMA_REFLECT_ARRAY = $"{NS_SYSTEM_SCHEMA_REFLECT}.array";
     public const string NS_SYSTEM_SCHEMA_REFLECT_ENUM = $"{NS_SYSTEM_SCHEMA_REFLECT}.enum";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_STRUCT = $"{NS_SYSTEM_SCHEMA_REFLECT}.struct";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluekind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}";

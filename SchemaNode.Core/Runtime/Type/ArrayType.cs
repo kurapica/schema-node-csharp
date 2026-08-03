@@ -116,18 +116,12 @@ public sealed class ArrayType: ValueType, IRelationProvider
     public override IEnumerable<Entry<string>> GetAccessEntries()
     {
         // previous
-        yield return new Entry<string>
-        {
-            Value = ARRAY_PREVIOUS
-        };
+        yield return new Entry<string> { Value = ARRAY_PREVIOUS };
 
         if (Element == null) yield break;
         
         // element
-        yield return new Entry<string>
-        {
-            Value = ARRAY_ELEMENT,
-        };
+        yield return new Entry<string> { Value = ARRAY_ELEMENT };
 
         foreach (Entry<string> entry in Element.GetAccessEntries())
             yield return entry;

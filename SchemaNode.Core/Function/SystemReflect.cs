@@ -1,5 +1,3 @@
-using System.Reflection.Metadata;
-using System.Security.Cryptography;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
@@ -31,24 +29,50 @@ public static class SystemReflect
     /// <summary>
     /// Gets the full names and labels of the schema nodes under the namespace with the given name
     /// </summary>
-    public static async Task<Entry<string>[]> gettypes(SchemaContext context,
-        [Meta<SchemaType>(typeof(Schema.NamespaceType))] string? name = null)
+    public static async Task<List<EntryAccess<string>>> gettypeentries(SchemaContext context,
+        [Meta<SchemaType>(typeof(AnyType))] string? name = null, string? root = null)
     {
-        var ns = await context.GetNodeTypeAsync<Runtime.NamespaceType>(name ?? string.Empty);
+        if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
+            return []; // not access-able
+        
+        var ns = await context.GetNodeTypeAsync<Runtime.NodeType>(string.IsNullOrWhiteSpace(name) ? (root ?? "") : name);
         if (ns == null) return [];
-        return ns.GetNodeSchemas().Select(s =>
-        {
-            var entry = new Entry<string>
-            {
-                Value = s.FullName,
-                HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE
-            };
-            var display = s.GetProperty<Display>();
-            if (display != null) entry.SetProperty(display);
-            return entry;
-        }).ToArray();
-    }
 
+        List<EntryAccess<string>> result = [];
+        while (ns != null)
+        {
+            var access = new EntryAccess<string>();
+            if (ns.Namespace != null)
+            {
+                access.Entry = new Entry<string>()
+                {
+                    Value = ns.Name,
+                    HasChildren =  ns.Kind == SCHEMA_KIND_NAMESPACE
+                };
+                access.Entry.SetProperty<Display, LocaleString>(ns.GetProperty<Display>()?.Value ?? ns.Name);
+            }
+            if (ns is Runtime.NamespaceType nt)
+            {
+                access.Children = nt.GetNodeSchemas().Select(s =>
+                {
+                    var entry = new Entry<string>
+                    {
+                        Value = s.FullName,
+                        HasChildren = s.Kind == SCHEMA_KIND_NAMESPACE
+                    };
+                    var display = s.GetProperty<Display>();
+                    if (display != null) entry.SetProperty(display);
+                    return entry;
+                }).ToArray();
+            }
+            result.Add(access);
+            ns = ns.Namespace;
+            if (!string.IsNullOrWhiteSpace(root) && root.Equals(ns?.Name, StringComparison.OrdinalIgnoreCase)) break;
+        }
+        result.Reverse();
+        return result;
+    }
+    
     /// <summary>
     /// Gets the property value type
     /// </summary>
@@ -62,20 +86,50 @@ public static class SystemReflect
     /// <summary>
     /// Gets the sub entries of the value type
     /// </summary>
-    public static async Task<Entry<string>[]> getaccessentries(SchemaContext context,
+    public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
         [Meta<SchemaType>(typeof(ValueType))] string name,
-        string? path = null)
+        string? path = null, string? root = null)
     {
+        if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
+            return []; // not access-able
+        
         var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
         if (valueType == null) return [];
-        
-        if (!string.IsNullOrWhiteSpace(path))
-            valueType = valueType.GetAccessValueType(path);
-        return valueType?.GetAccessEntries().Select(p =>
+
+        List<EntryAccess<string>> result = [];
+        Entry<string>? curr = null;
+        while (valueType != null)
         {
-            p.Value = string.IsNullOrWhiteSpace(path) ? p.Value : $"{path}.{p.Value}";
-            return p;
-        }).ToArray() ?? [];
+            var accessEntry = new EntryAccess<string>();
+            Entry<string>[] accesses = valueType.GetAccessEntries().ToArray();
+            if (curr != null)
+            {
+                accessEntry.Entry = new Entry<string> { Value = curr.Value, HasChildren = accesses.Length > 0 };
+                accessEntry.Entry.SetProperty<Display, LocaleString>(curr.GetProperty<Display>()?.Value ?? curr.Value);
+            }
+            accessEntry.Children = accesses;
+            
+            // check next part
+            Runtime.ValueType? next = null;
+            foreach (var a in accesses)
+            {
+                string n = a.Value;
+                if (curr != null) a.Value = $"{curr.Value}.{n}";
+                if (!string.IsNullOrWhiteSpace(path) && (a.Value.Equals(path, StringComparison.OrdinalIgnoreCase) || 
+                                                         path.StartsWith($"{a.Value}.", StringComparison.OrdinalIgnoreCase)))
+                {
+                    next = valueType.GetAccessValueType(n);
+                    curr = a;
+                }
+            }
+            result.Add(accessEntry);
+            valueType = next;
+        }
+
+        // cut
+        if (!string.IsNullOrWhiteSpace(root))
+            result = result.SkipWhile(r => (r.Entry?.Value.Length ?? 0) < root.Length).ToList();
+        return result;
     }
 
     /// <summary>
@@ -380,4 +434,10 @@ public static class SystemReflect
             return access.Length > 1 ? access[access.Length - 1].Entry?.Value : null;
         }
     }
+
+    /// <summary>
+    /// The reflection helpers for the schema structs
+    /// </summary>
+    [Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_STRUCT)]
+    public static class Struct;
 }
