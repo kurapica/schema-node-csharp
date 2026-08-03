@@ -14,8 +14,10 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(BlackList)}")]
-[Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(StructFieldSchema.Type)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRING)]
-[Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SystemReflect.Array.getarraytype)}", $"@{nameof(StructFieldSchema.Type)}")]
+[Relation<Visible, Call>(nameof(BlackList), $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(StructFieldSchema.Type)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_STRING)]
+[Relation<OverrideType, Call>(nameof(BlackList), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(SystemReflect.Array.getarraytype)}", $"@{nameof(StructFieldSchema.Type)}")]
+[Relation<Root, Call>(nameof(BlackList), $"{NS_SYSTEM_INTRINSIC}.assign", "@root")]
+[Relation<Cascade, Call>(nameof(BlackList), $"{NS_SYSTEM_INTRINSIC}.assign", "@cascade")]
 public class BlackList : Property<object[]>, IConstraintProperty
 {
     /// <inheritdoc/>

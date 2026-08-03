@@ -76,7 +76,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
                 RelationType relationType = await relation.LoadAsync(context, this);
@@ -113,7 +113,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override IEnumerable<Entry<string>> GetSubEntries()
+    public override IEnumerable<Entry<string>> GetAccessEntries()
     {
         // previous
         yield return new Entry<string>
@@ -129,7 +129,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
             Value = ARRAY_ELEMENT,
         };
 
-        foreach (Entry<string> entry in Element.GetSubEntries())
+        foreach (Entry<string> entry in Element.GetAccessEntries())
             yield return entry;
     }
 

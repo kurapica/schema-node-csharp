@@ -51,10 +51,6 @@ public class SchemaRuntime : ISchemaRuntime
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>() ?? [];
 
-    /// <inheritdoc/>
-    public Type? GetSchemaKindPropertyTypeByName(string kind, string propertyName)
-        => GetSchemaKindPropertyTypes(kind).FirstOrDefault(propType => propertyName.Equals(propType.GetPropertyName(), StringComparison.OrdinalIgnoreCase));
-
     #endregion
 
     #region Node Type

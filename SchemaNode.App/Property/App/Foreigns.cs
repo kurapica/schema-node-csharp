@@ -17,7 +17,7 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Foreigns)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<Static>(true)]
-[Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
+[Relation<Visible, Relation.Call>(nameof(Foreigns), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
 public class Foreigns : Property<Foreign[]>;
 
 /// <summary>

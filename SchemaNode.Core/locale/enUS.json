@@ -321,7 +321,7 @@
   "system.schema.prop.type": "Property Type",
   "system.schema.reflect": "System Reflect",
   "system.schema.reflect.getproptype": "Getproptype",
-  "system.schema.reflect.getsubentries": "Getsubentries",
+  "system.schema.reflect.getaccessentries": "Get Access Entries",
   "system.schema.reflect.gettypes": "Gettypes",
   "system.schema.reflect.isarrayele": "Isarrayele",
   "system.schema.reflect.isschemakind": "Isschemakind",

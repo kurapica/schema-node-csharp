@@ -2,7 +2,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Constraint;
@@ -19,7 +18,6 @@ public class UpLimitString : Property<long>, IConstraintProperty
         return (node.GetValue<string>() ?? string.Empty).Length <= Value;
     }
 }
-
 
 [Meta<Alias>("uplimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL)]

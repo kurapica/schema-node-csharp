@@ -41,12 +41,4 @@ public interface ISchemaRuntime
     /// Gets schema kind properties
     /// </summary>
     IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T: IProperty;
-    
-    /// <summary>
-    /// Gets the schema property by property name
-    /// </summary>
-    /// <param name="kind"></param>
-    /// <param name="propertyName"></param>
-    /// <returns></returns>
-    Type? GetSchemaKindPropertyTypeByName(string kind, string propertyName);
 }

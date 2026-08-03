@@ -1,5 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
+using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -14,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(SingleFlag)}")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND, $"@{nameof(StructFieldSchema.Type)}", SCHEMA_KIND_ENUM)]
+[Relation<Visible, Relation.Call>(nameof(SingleFlag), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.isenumvaluetype)}", $"@{nameof(StructFieldSchema.Type)}", EnumValueType.Flags)]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node)

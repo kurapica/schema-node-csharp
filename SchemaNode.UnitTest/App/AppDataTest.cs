@@ -13,6 +13,7 @@ using SchemaNode.Function;
 using SchemaNode.Property.App;
 using SchemaNode.Schema;
 using DataCombine = SchemaNode.Property.App.DataCombine;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.UnitTest.App;
 
@@ -147,7 +148,7 @@ public class AppDataTest : Base.AppTestBase
         string placeId = Guid.NewGuid().ToString();
         string meetingId = Guid.NewGuid().ToString();
         
-        (bool Result, JsonNode? Error) = await Context.PushAppDataAsync(APP_NAME, target, new Dictionary<string, AppDataFieldPushQuery>
+        (bool ok, _) = await Context.PushAppDataAsync(APP_NAME, target, new Dictionary<string, AppDataFieldPushQuery>
         {
             { nameof(Place), new AppDataFieldPushQuery
                 {
@@ -206,7 +207,7 @@ public class AppDataTest : Base.AppTestBase
             }
         });
         
-        Assert.IsTrue(Result);
+        Assert.IsTrue(ok);
         
         (AppDataResult[] Result, NodeSchema[]? Schemas) result = await Context.BatchQueryAppDataAsync([new AppDataQuery
         {

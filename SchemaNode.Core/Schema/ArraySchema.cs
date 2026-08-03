@@ -42,7 +42,7 @@ public sealed class ArraySchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.array")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
+[Relation<Visible, Relation.Call>("array", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 [Relation<Default, Relation.Call>($"@{nameof(NodeSchema.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarrayname", $"@array.{nameof(ArraySchema.Element)}")]
 [Relation<Default, Relation.Call>($"@{nameof(Display)}.{nameof(LocaleString.Key)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarraydisplay", $"@array.{nameof(ArraySchema.Element)}")]
 public sealed class ArrayProperty : Property<ArraySchema>

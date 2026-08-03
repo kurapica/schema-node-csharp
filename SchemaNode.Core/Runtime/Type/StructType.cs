@@ -79,7 +79,7 @@ public sealed class StructType: ValueType, IRelationProvider
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);
@@ -161,7 +161,7 @@ public sealed class StructType: ValueType, IRelationProvider
     public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
 
     /// <inheritdoc />
-    public override IEnumerable<Entry<string>> GetSubEntries()
+    public override IEnumerable<Entry<string>> GetAccessEntries()
     {
         return GetFields().Select(field =>
         {

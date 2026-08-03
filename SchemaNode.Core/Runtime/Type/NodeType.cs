@@ -448,9 +448,9 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     public virtual ValueType? GetAccessValueType(string path) => string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) ? this : null;
 
     /// <summary>
-    /// Gets sub entries
+    /// Gets access entries
     /// </summary>
-    public virtual IEnumerable<Entry<string>> GetSubEntries()
+    public virtual IEnumerable<Entry<string>> GetAccessEntries()
     {
         yield break;
     }

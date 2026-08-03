@@ -1,5 +1,6 @@
 using System.Reflection;
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Common;
@@ -51,8 +52,9 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                     p.GetMetaProperty<Index>() != null))
             {
                 // Also generate a companion array schema when primary keys, indexes, or nested types are present
-                NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, @namespace, $"{name}s", null, 
-                    $"{Locale.LIST_PREFIX}{{@{schema.FullName}}}{Locale.LIST_SUFFIX}");
+                NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, 
+                    @namespace, SystemReflect.Array.genarrayname(name), null, 
+                    SystemReflect.Array.genarraydisplay(schema.FullName));
                 array.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema { Element = schema.FullName });
 
                 yield return array;

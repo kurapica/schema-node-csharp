@@ -321,7 +321,7 @@
   "system.schema.prop.type": "属性类型",
   "system.schema.reflect": "系统反射",
   "system.schema.reflect.getproptype": "获取属性类型",
-  "system.schema.reflect.getsubentries": "获取子项",
+  "system.schema.reflect.getaccessentries": "获取子项",
   "system.schema.reflect.gettypes": "获取类型列表",
   "system.schema.reflect.isarrayele": "是否数组元素",
   "system.schema.reflect.isschemakind": "是否Schema分类",

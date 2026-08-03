@@ -15,6 +15,7 @@ using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using RuntimeEnumType = SchemaNode.Runtime.EnumType;
 using SchemaNode.Function;
+using SchemaNode.Property.Presentation;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -30,8 +31,9 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
-[Meta<Property.Constraint.EnumValue>]
-[Meta<EntrySource>($"{NS_SYSTEM_DATA_ENUM}.{nameof(SystemData.EnumOper.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+[Meta<EnumValue>]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+[Relation<Immutable, Relation.Assign>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", true)]
 public sealed class EnumSchema : PropertyOwner
 {
     /// <summary>
@@ -42,11 +44,14 @@ public sealed class EnumSchema : PropertyOwner
     /// <summary>
     /// The cascades of the enum value
     /// </summary>
+    [Relation<InVisible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(Type)}", EnumValueType.Flags)]
     public LocaleString[]? Cascade { get; set; }
 
     /// <summary>
     /// The enum values
     /// </summary>
+    [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getvaluetype)}", $"@{nameof(Type)}")]
+    [Relation<Default, Relation.Call>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getdefaultentryvalue)}", $"@{nameof(Type)}", $"@{nameof(Values)}.{ARRAY_PREVIOUS}")]
     public Entry<string>[] Values { get; set; } = [];
 }
 
@@ -56,7 +61,7 @@ public sealed class EnumSchema : PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.enum")]
-[Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
+[Relation<Visible, Relation.Call>("enum", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty : Property<EnumSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)

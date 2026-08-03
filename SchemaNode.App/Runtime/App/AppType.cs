@@ -188,7 +188,7 @@ public sealed class AppType : IValueTypeAccess
                 if (prop == null) continue;
                 
                 // Only work for constraint properties
-                Type? propType = context.Runtime.GetSchemaKindPropertyTypeByName(currentType.Kind, prop.Property);
+                Type? propType = prop.GetCsharpType();
                 if (propType == null) continue;
                 
                 var relationType = await relation.LoadAsync(context, this);

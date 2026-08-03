@@ -162,7 +162,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
         }
 
         // Return type
-        TypeDetail retInfo = method.ReturnType.GetTypeDetail();
+        TypeDetail retInfo = method.ReturnType.GetTypeDetail(true);
         if (retInfo.Task) sign |= FunctionFlags.Async;
         if (retInfo.Nullable || new NullabilityInfoContext().Create(method.ReturnParameter).ReadState == NullabilityState.Nullable) 
             sign |= FunctionFlags.NullableRet;

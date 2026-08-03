@@ -40,13 +40,6 @@ internal class PropertyGenerator : INodeSchemaGenerator
             // ForSchemas
             ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
         };
-
-        // Record all savable properties
-        foreach (var prop in type.GetMetaProperties<IProperty>())
-        {
-            // For simple, the property may for the schema kind the property defined for
-            if (prop.Savable) propSchema.SetProperty(prop.GetType(), prop.GetValue<object>());
-        }
                 
         // Relations
         List<RelationSchema> relations = [];

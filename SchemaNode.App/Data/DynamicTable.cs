@@ -3,7 +3,6 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Data.Common;
 using SchemaNode.Node;

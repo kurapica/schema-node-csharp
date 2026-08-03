@@ -26,10 +26,10 @@ public static class Constant
 
     #region Relation
 
-    public const string RELATION_OWNER = "$owner";
     public const string ARRAY_PREVIOUS = "$previous";
     public const string ARRAY_ELEMENT = "$element";
     public const string NODE_SELF = "$self";
+    public const string NODE_PARENT = "$parent";
     public const string NODE_TYPE = "$type";
     public const string ENTRY_ROOT = "$root";
 
@@ -114,6 +114,7 @@ public static class Constant
 
     // entry for white list
     public const string NS_SYSTEM_ENTRY = "system.entry";
+    public const string NS_SYSTEM_ENTRYS = $"{NS_SYSTEM_ENTRY}s";
     public const string NS_SYSTEM_ENTRY_ACCESS = "system.entryaccess";
 
     #endregion
@@ -157,16 +158,16 @@ public static class Constant
     public const string NS_SYSTEM_CALENDAR = "system.calendar";
     public const string NS_SYSTEM_COLLECTION = "system.collection";
     public const string NS_SYSTEM_DATA = "system.data";
-    public const string NS_SYSTEM_DATA_ENUM = "system.data.enum";
     public const string NS_SYSTEM_STR = "system.str";
 
     public const string NS_SYSTEM_SCHEMA_REFLECT = $"{NS_SYSTEM_SCHEMA}.reflect";
     public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC = $"{NS_SYSTEM_SCHEMA_REFLECT}.func";
     public const string NS_SYSTEM_SCHEMA_REFLECT_ARRAY = $"{NS_SYSTEM_SCHEMA_REFLECT}.array";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_ENUM = $"{NS_SYSTEM_SCHEMA_REFLECT}.enum";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isvaluekind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isarrayele)}";
-    public const string NS_SYSTEM_SCHEMA_REFLECT_GET_SUB_ENTRIES = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getsubentries)}";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES = $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.getaccessentries)}";
 
     public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withreturn)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS = $"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(SystemReflect.Function.withargs)}";
