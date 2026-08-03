@@ -458,7 +458,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Has sub entries
     /// </summary>
-    public virtual bool HasSubEntries => false;
+    public virtual bool HasAccessEntries => false;
     
     /// <summary>
     /// The value type is assignable to other value type

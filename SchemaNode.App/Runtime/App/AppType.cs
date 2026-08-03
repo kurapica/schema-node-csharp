@@ -8,6 +8,8 @@ using SchemaNode.Node;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
+using SchemaNode.Struct;
+using SchemaNode.Property.Common;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -358,6 +360,25 @@ public sealed class AppType : IValueTypeAccess
         }
         return null;
     }
+
+    /// <summary>
+    /// Gets the access entries for the application
+    /// </summary>
+    public IEnumerable<Entry<string>> GetAccessEntries()
+    {
+        if (_fields == null || _fields.Count == 0) yield break;
+        foreach (AppFieldType field in _fields)
+        {
+            var entry = new Entry<string> { Value = field.Name, HasChildren = field.ValueType?.HasAccessEntries };
+            entry.SetProperty<Display, LocaleString>(field.GetProperty<Display>()?.Value ?? field.Name);
+            yield return entry;
+        }
+    }
+
+    /// <summary>
+    /// Whether has access entries
+    /// </summary>
+    public bool HasAccessEntries => _fields is { Count: > 0 };
 
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push

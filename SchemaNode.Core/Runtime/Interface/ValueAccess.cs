@@ -1,4 +1,5 @@
 ﻿using SchemaNode.Property;
+using SchemaNode.Struct;
 
 namespace SchemaNode.Runtime;
 
@@ -11,6 +12,17 @@ public interface IValueTypeAccess
     /// Gets the access value type
     /// </summary>
     ValueType? GetAccessValueType(string path);
+
+    /// <summary>
+    /// Gets the access entries
+    /// </summary>
+    IEnumerable<Entry<string>> GetAccessEntries();
+
+    /// <summary>
+    /// Whether has access entries
+    /// </summary>
+    /// <returns></returns>
+    bool HasAccessEntries { get; }
 }
 
 /// <summary>

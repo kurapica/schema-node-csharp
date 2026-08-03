@@ -168,7 +168,7 @@ public sealed class StructType: ValueType, IRelationProvider
             var entry = new Entry<string>
             {
                 Value = field.Name,
-                HasChildren = field.Type?.HasSubEntries ?? false
+                HasChildren = field.Type?.HasAccessEntries ?? false
             };
             var display = field.GetProperty<Display>();
             if (display != null) entry.SetProperty(display);

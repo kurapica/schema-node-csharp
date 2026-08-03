@@ -134,7 +134,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override bool HasSubEntries => Element?.HasSubEntries ?? false;
+    public override bool HasAccessEntries => Element?.HasAccessEntries ?? false;
 
     /// <inheritdoc />
     public override bool IsAssignableTo(ValueType other)
