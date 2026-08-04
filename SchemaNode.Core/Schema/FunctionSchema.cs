@@ -166,6 +166,7 @@ public class CallArg: IEquatable<CallArg>
     /// <summary>
     /// The argument data source, like field access path
     /// </summary>
+    [Meta<EntrySourceConsumer>(true)]
     public string? Source { get; set; }
     
     /// <summary>j

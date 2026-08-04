@@ -24,11 +24,14 @@ public class RelationSchema : PropertyOwner
     /// <summary>
     /// The target of the relation
     /// </summary>
+    [Meta<PrimaryIndex>(0)]
+    [Meta<EntrySourceConsumer>(true)]
     public string Target { get; set; } = null!;
 
     /// <summary>
     /// The property the relation applied to
     /// </summary>
+    [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(SchemaPropertyType))]
     public string Property { get; set; } = null!;
 

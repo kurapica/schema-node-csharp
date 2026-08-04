@@ -24,8 +24,9 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT)]
-[Meta<Append>(typeof(Relations))]
+[Meta<Append>(typeof(Relations), typeof(EntrySourceProvider))]
 [Meta<StructValue>]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF, ENTRY_ROOT)]
 public sealed class StructSchema : PropertyOwner
 {
     /// <summary>
