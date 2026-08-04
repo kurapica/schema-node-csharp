@@ -7,7 +7,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ValueType = System.ValueType;
+using ValueType = SchemaNode.Schema.ValueType;
 
 namespace SchemaNode.Function.Reflect;
 
@@ -64,7 +64,7 @@ public static class Type
     /// <summary>
     /// Gets the property value type
     /// </summary>
-    public static async Task<string?> getproptype(SchemaContext context,
+    public static async Task<string?> getpropertyvaluetype(SchemaContext context,
         [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
     {
         var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;

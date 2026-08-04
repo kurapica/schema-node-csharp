@@ -4,7 +4,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
-using ValueType = System.ValueType;
+using ValueType = SchemaNode.Schema.ValueType;
 
 namespace SchemaNode.Function.Reflect;
 
