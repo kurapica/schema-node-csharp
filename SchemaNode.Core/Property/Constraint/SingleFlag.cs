@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(SingleFlag)}")]
-[Relation<Visible, Relation.Call>(nameof(SingleFlag), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.isenumvaluetype)}", $"@{nameof(StructFieldSchema.Type)}", EnumValueType.Flags)]
+[Relation<Visible, Relation.Call>(nameof(SingleFlag), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SchemaNode.Function.Reflect.Enum.isenumvaluetype)}", $"@{nameof(StructFieldSchema.Type)}", EnumValueType.Flags)]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node)

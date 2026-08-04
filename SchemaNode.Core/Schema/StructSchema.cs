@@ -4,7 +4,6 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
-using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Service;

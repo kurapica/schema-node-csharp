@@ -13,5 +13,5 @@ namespace SchemaNode.Property.Common;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(StackUpLimit)}")]
-[Relation<Visible, Call>(nameof(StackUpLimit), $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(StructFieldSchema.Type)}", false, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL)]
+[Relation<Visible, Call>(nameof(StackUpLimit), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(StructFieldSchema.Type)}", false, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL)]
 public class StackUpLimit : Property<bool>;

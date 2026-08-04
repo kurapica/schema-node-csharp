@@ -15,5 +15,5 @@ namespace SchemaNode.Property.App;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Pageable)}")]
 [Relation<InVisible, Relation.Call>(nameof(Pageable), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)}")]
-[Relation<Visible, Relation.Call>(nameof(Pageable), $"{NS_SYSTEM_SCHEMA_REFLECT}.{nameof(SystemReflect.isschemakind)}", $"@{nameof(Type)}", false, SCHEMA_KIND_ARRAY)]
+[Relation<Visible, Relation.Call>(nameof(Pageable), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", false, SCHEMA_KIND_ARRAY)]
 public class Pageable : Property<bool>;

@@ -32,7 +32,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ENUM)]
 [Meta<EnumValue>]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
 [Relation<Immutable, Relation.Assign>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", true)]
 public sealed class EnumSchema : PropertyOwner
 {
@@ -50,8 +50,8 @@ public sealed class EnumSchema : PropertyOwner
     /// <summary>
     /// The enum values
     /// </summary>
-    [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getvaluetype)}", $"@{nameof(Type)}")]
-    [Relation<Default, Relation.Call>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.getdefaultentryvalue)}", $"@{nameof(Type)}", $"@{nameof(Values)}.{ARRAY_PREVIOUS}")]
+    [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getvaluetype)}", $"@{nameof(Type)}")]
+    [Relation<Default, Relation.Call>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getdefaultentryvalue)}", $"@{nameof(Type)}", $"@{nameof(Values)}.{ARRAY_PREVIOUS}")]
     public Entry<string>[] Values { get; set; } = [];
 }
 

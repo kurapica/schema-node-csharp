@@ -53,8 +53,8 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             {
                 // Also generate a companion array schema when primary keys, indexes, or nested types are present
                 NodeSchema array = NodeSchema.Create(SCHEMA_KIND_ARRAY, 
-                    @namespace, SystemReflect.Array.genarrayname(name), null, 
-                    SystemReflect.Array.genarraydisplay(schema.FullName));
+                    @namespace, Function.Reflect.Array.genarrayname(name), null, 
+                    Function.Reflect.Array.genarraydisplay(schema.FullName));
                 array.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema { Element = schema.FullName });
 
                 yield return array;

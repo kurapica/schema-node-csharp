@@ -17,7 +17,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(LeafOnly)}")]
-[Relation<Visible, Relation.Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SystemReflect.Enum.hascascade)}", $"@{nameof(StructFieldSchema.Type)}")]
+[Relation<Visible, Relation.Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SchemaNode.Function.Reflect.Enum.hascascade)}", $"@{nameof(StructFieldSchema.Type)}")]
 public class LeafOnly : Property<bool>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
