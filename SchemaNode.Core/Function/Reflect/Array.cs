@@ -129,4 +129,15 @@ public static class Array
         return result;
     }
 
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public static async Task<string?> getaccessvaluetype(SchemaContext context,  [Meta<SchemaType>(typeof(ValueType))] string element, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+        if (elementType is null) return null;
+        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return $"{NS_SYSTEM_LIST}<{elementType.Name}>";
+        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? elementType.Name : elementType.GetAccessValueType(path)?.Name;
+    }
 }

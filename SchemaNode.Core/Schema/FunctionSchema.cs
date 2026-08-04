@@ -9,6 +9,8 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using SchemaNode.Function;
+using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
@@ -164,22 +166,33 @@ public sealed class FuncExp {
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
+    /// The argument label
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    public LocaleString? Label { get; set; }
+    
+    /// <summary>
+    /// The argument type
+    /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<ReadOnly>(true)]
+    public string? Type { get; set; }
+    
+    /// <summary>
     /// The argument data source, like field access path
     /// </summary>
     [Meta<EntrySourceConsumer>(true)]
+    [Meta<AccessValueTypeConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
+    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
     public string? Source { get; set; }
     
     /// <summary>j
     /// The const value
     /// </summary>
     [Meta<SchemaType>(typeof(Object))]
+    [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
+    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
     public JsonNode? Value { get; set; }
-    
-    /// <summary>
-    /// The argument type
-    /// </summary>
-    [Meta<SchemaType>(typeof(AnyType))]
-    public string? Type { get; set; }
     
     /// <summary>
     /// The node type of the call argument

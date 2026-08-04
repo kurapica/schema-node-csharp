@@ -152,4 +152,15 @@ public static class Type
         return nodeType != null && 
             typeof(ValueSchemaKind).GetRecordedValues().Any(v => v.GetValue<string>()!.Equals(nodeType.Kind, StringComparison.OrdinalIgnoreCase));
     }
+    
+    /// <summary>
+    /// Checks if the type is assignable to other value type
+    /// </summary>
+    public static async Task<bool> isassignableto(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, [Meta<SchemaType>(typeof(ValueType))] string target)
+    {
+        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+        if (typeNode == null || targetNode == null) return false;
+        return typeNode.IsAssignableTo(targetNode);
+    }
 }

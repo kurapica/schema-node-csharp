@@ -20,7 +20,7 @@ public static class Struct
     /// Gets the sub entries of the value type
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
-        StructFieldSchema[]  fields,
+        StructFieldSchema[]  fields, // not struct schema self, so nodes like relations won't subscribe it's own data change
         string? path = null,
         string? root = null)
     {
@@ -79,5 +79,18 @@ public static class Struct
         if (!string.IsNullOrWhiteSpace(root))
             result = result.SkipWhile(r => (r.Entry?.Value.Length ?? 0) < root.Length).ToList();
         return result;
+    }
+
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public static async Task<string?> getaccessvaluetype(SchemaContext context, StructFieldSchema[] fields, string path)
+    {
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length == 0) return null;
+        var field = fields.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase));
+        if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;
+        Runtime.ValueType? valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
+        return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
     }
 }

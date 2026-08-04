@@ -28,6 +28,7 @@ namespace SchemaNode.Schema;
 [Meta<Attach>(SCHEMA_KIND_ARRAY)]
 [Meta<ArrayValue>]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessentries)}", $"@{nameof(Element)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessvaluetype)}", $"@{nameof(Element)}", NODE_SELF)]
 public sealed class ArraySchema: PropertyOwner
 {
     /// <summary>
