@@ -26,12 +26,15 @@ public static class Constant
 
     #region Relation
 
+    public const string NODE_SELF = "$self";
     public const string ARRAY_PREVIOUS = "$previous";
     public const string ARRAY_ELEMENT = "$element";
-    public const string NODE_SELF = "$self";
     public const string NODE_PARENT = "$parent";
     public const string NODE_TYPE = "$type";
     public const string ENTRY_ROOT = "$root";
+
+    public const string ENTRY_SOURCE = "$entrysource";
+    public const string ACCESS_TYPE = "$accesstype";
 
     #endregion
 
@@ -166,6 +169,7 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_REFLECT_ARRAY = $"{NS_SYSTEM_SCHEMA_REFLECT}.array";
     public const string NS_SYSTEM_SCHEMA_REFLECT_ENUM = $"{NS_SYSTEM_SCHEMA_REFLECT}.enum";
     public const string NS_SYSTEM_SCHEMA_REFLECT_STRUCT = $"{NS_SYSTEM_SCHEMA_REFLECT}.struct";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_PROPERTY = $"{NS_SYSTEM_SCHEMA_REFLECT}.prop";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isschemakind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_VALUE_KIND = $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isvaluekind)}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_IS_ARRAY_ELE = $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.isarrayele)}";

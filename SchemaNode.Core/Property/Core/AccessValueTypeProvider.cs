@@ -8,6 +8,7 @@ namespace SchemaNode.Property.Core;
 /// <summary>
 /// The access value type provider
 /// </summary>
+[Meta<Provider>(ACCESS_TYPE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(AccessValueTypeProvider)}")]
 [Meta<Static>(true)]

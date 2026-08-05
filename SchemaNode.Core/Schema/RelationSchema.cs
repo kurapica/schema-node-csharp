@@ -2,8 +2,10 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using RelationKind = SchemaNode.Enum.RelationKind;
@@ -27,13 +29,22 @@ public class RelationSchema : PropertyOwner
     [Meta<PrimaryIndex>(0)]
     [Meta<EntrySourceConsumer>(true)]
     public string Target { get; set; } = null!;
-
+    
     /// <summary>
     /// The property the relation applied to
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(SchemaPropertyType))]
+    [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.notstatic)}", NODE_SELF)]
     public string Property { get; set; } = null!;
+    
+    /// <summary>
+    /// The property value type
+    /// </summary>
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.getvaluetype)}", $"@{nameof(Property)}")]
+    public string? ValueType { get; set; }
 
     /// <summary>
     /// The stage of the relation been applied
@@ -47,23 +58,16 @@ public class RelationSchema : PropertyOwner
     public string Kind { get; set; } = null!;
     
     /// <summary>
-    /// The relation only works for the given schema kind(for property relation only)
-    /// </summary>
-    [Meta<SchemaType>(typeof(Enum.SchemaKind))]
-    public string? ForSchema { get; set; }
-
-    /// <summary>
     /// Equals check
     /// </summary>
     public bool Equals(PropertyOwner? other)
     {
         if (other is not RelationSchema otherRelation) return false;
         if (ReferenceEquals(this, otherRelation)) return true;
-        return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) && 
-               Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) && 
-               Stage == otherRelation.Stage && 
-               Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase) &&
-               ForSchema == otherRelation.ForSchema;
+        return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) &&
+               Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) &&
+               Stage == otherRelation.Stage &&
+               Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase);
     }
 }
 

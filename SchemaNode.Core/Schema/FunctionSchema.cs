@@ -187,11 +187,12 @@ public class CallArg: IEquatable<CallArg>
     public string? Source { get; set; }
     
     /// <summary>j
-    /// The const value
+    /// The const value, no complex struct value
     /// </summary>
     [Meta<SchemaType>(typeof(Object))]
     [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
     [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
+    [Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, "@type", true, SCHEMA_KIND_INT, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL, SCHEMA_KIND_ENUM)]
     public JsonNode? Value { get; set; }
     
     /// <summary>

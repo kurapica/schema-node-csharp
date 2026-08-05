@@ -62,16 +62,6 @@ public static class Type
     }
     
     /// <summary>
-    /// Gets the property value type
-    /// </summary>
-    public static async Task<string?> getpropertyvaluetype(SchemaContext context,
-        [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
-    {
-        var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
-        return prop?.ValueType?.Name;
-    }
-
-    /// <summary>
     /// Gets the sub entries of the value type
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,

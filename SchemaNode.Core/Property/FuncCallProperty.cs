@@ -1,9 +1,12 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Attribute;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
+using ValueType = SchemaNode.Schema.ValueType;
 
 namespace SchemaNode.Property;
 
@@ -56,10 +59,16 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(FuncCall)}")]
 public class FuncCall
 {
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string Return { get; set; } = string.Empty;
+    
     /// <summary>
     /// The function name
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(Return)}")]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>

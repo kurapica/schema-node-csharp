@@ -14,18 +14,20 @@ using RuntimeStructType = SchemaNode.Runtime.StructType;
 
 namespace SchemaNode.Schema;
 
-/// <summary>
-/// The struct schema
-/// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
-[Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<Append>(typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider))]
 [Meta<StructValue>]
+public sealed class StructKind;
+
+/// <summary>
+/// The struct schema
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
+[Meta<Attach>(SCHEMA_KIND_STRUCT)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF, ENTRY_ROOT)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessvaluetype)}", $"@{nameof(Fields)}", NODE_SELF)]
 public sealed class StructSchema : PropertyOwner

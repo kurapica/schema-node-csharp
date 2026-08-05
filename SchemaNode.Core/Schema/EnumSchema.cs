@@ -14,7 +14,6 @@ using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using RuntimeEnumType = SchemaNode.Runtime.EnumType;
-using SchemaNode.Function;
 using SchemaNode.Property.Presentation;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
@@ -22,17 +21,22 @@ using SchemaNode.Property.Presentation;
 namespace SchemaNode.Schema;
 
 /// <summary>
-/// The enum schema
+/// The enum kind
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ORDER_ENUM)]
 [Meta<NodeType>(typeof(RuntimeEnumType))]
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
-[Meta<Attach>(SCHEMA_KIND_ENUM)]
 [Meta<EnumValue>]
 [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+public sealed class EnumKind;
+
+/// <summary>
+/// The enum schema
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]
+[Meta<Attach>(SCHEMA_KIND_ENUM)]
 [Relation<Immutable, Relation.Assign>($"{nameof(Values)}.{nameof(Entry<string>.Value)}", true)]
 public sealed class EnumSchema : PropertyOwner
 {

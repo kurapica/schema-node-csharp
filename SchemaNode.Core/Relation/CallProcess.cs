@@ -1,7 +1,9 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -89,5 +91,5 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
 [Meta<Property.Record.RelationKind>("call", 1)]
 [Meta<RelationProcess>(typeof(CallProcess))]
 [Relation<Visible, Call>(nameof(Call), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "call")]
-[Relation<EntrySource, Call>($"{nameof(Call)}.{nameof(CallProcess.Args)}.{nameof(CallArg.Source)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_PARENT, NODE_SELF)]
+[Relation<Default, Call>($"{nameof(Call)}.{nameof(FuncCall.Return)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(RelationSchema.ValueType)}")]
 public class Call : FuncCallProperty;

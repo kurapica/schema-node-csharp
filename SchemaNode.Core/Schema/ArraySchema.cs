@@ -17,16 +17,21 @@ using SchemaNode.Struct;
 namespace SchemaNode.Schema;
 
 /// <summary>
-/// The array schema
+/// The array kind
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ORDER_ARRAY)]
 [Meta<NodeType>(typeof(RuntimeArrayType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Append>(typeof(Relations))]
-[Meta<Attach>(SCHEMA_KIND_ARRAY)]
 [Meta<ArrayValue>]
+public sealed class ArrayKind;
+
+/// <summary>
+/// The array schema
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
+[Meta<Attach>(SCHEMA_KIND_ARRAY)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessentries)}", $"@{nameof(Element)}", NODE_SELF, ENTRY_ROOT)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessvaluetype)}", $"@{nameof(Element)}", NODE_SELF)]
 public sealed class ArraySchema: PropertyOwner
