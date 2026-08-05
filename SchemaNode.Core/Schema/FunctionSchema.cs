@@ -16,6 +16,7 @@ using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
 using Object = SchemaNode.Scalar.Object;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
+using SchemaNode.Relation;
 
 namespace SchemaNode.Schema;
 
@@ -137,21 +138,31 @@ public sealed class FuncExp {
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// The call function
-    /// </summary>
-    [Meta<SchemaType>(typeof(FuncType))]
-    public string Func { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The calling type
-    /// </summary>
-    public ExpType Type { get; set; } = ExpType.Call;
-     
-    /// <summary>
     /// The expression type
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
     public string Return { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The calling type
+    /// </summary>
+    [Relation<WhiteList, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexptypes)}", $"@{nameof(Return)}")]
+    public ExpType Type { get; set; } = ExpType.Call;
+
+    /// <summary>
+    /// The expected function return type
+    /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string? FuncReturn { get; set;}
+     
+    /// <summary>
+    /// The call function
+    /// </summary>
+    [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(FuncReturn)}")]
+    public string Func { get; set; } = string.Empty;
 
     /// <summary>
     /// The argument list, should be exp name or argument name.
@@ -169,7 +180,7 @@ public class CallArg: IEquatable<CallArg>
     /// The argument label
     /// </summary>
     [Meta<DisplayOnly>(true)]
-    public LocaleString? Label { get; set; }
+    public LocaleString? Display { get; set; }
     
     /// <summary>
     /// The argument type
@@ -182,7 +193,7 @@ public class CallArg: IEquatable<CallArg>
     /// The argument data source, like field access path
     /// </summary>
     [Meta<EntrySourceConsumer>(true)]
-    [Meta<AccessValueTypeConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
+    [Meta<AccessEntryConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
     [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
     public string? Source { get; set; }
     

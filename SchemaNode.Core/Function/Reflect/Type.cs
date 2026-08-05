@@ -133,7 +133,7 @@ public static class Type
     /// <summary>
     /// Gets the schema kind of the schema node with the given name
     /// </summary>
-    public static async Task<string?> gettypekind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
+    public static async Task<string?> getschemakind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
     {
         var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
         return nodeType?.Kind;
@@ -161,5 +161,14 @@ public static class Type
         var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
         if (typeNode == null || targetNode == null) return false;
         return typeNode.IsAssignableTo(targetNode);
+    }
+
+    /// <summary>
+    /// The type is indexable
+    /// </summary>
+    public static async Task<bool> isindexable(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
+    {
+        var typeNode = string.IsNullOrWhiteSpace(type) ?  null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        return typeNode?.IsIndexable ?? false;
     }
 }

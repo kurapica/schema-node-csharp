@@ -1,9 +1,11 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Schema.ArrayType;
 using ValueType = SchemaNode.Schema.ValueType;
 
 namespace SchemaNode.Function.Reflect;
@@ -43,5 +45,31 @@ public static class Function
             if (funcType.Args[i].ValueType == null || !funcType.Args[i].ValueType!.IsAssignableTo(argType)) return false;
         }
         return true;
+    }
+    
+    /// <summary>
+    /// Gets the expression types for the given exp return type
+    /// </summary>
+    public static async Task<List<ExpType>> getexptypes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
+    {
+        var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (returnType == null) return [];
+        if (returnType is Runtime.ArrayType)
+        {
+            return [ExpType.Call, ExpType.Filter, ExpType.Map];
+        }
+        else if (returnType is Runtime.BoolType)
+        {
+            return [ExpType.Call, ExpType.All, ExpType.Any];
+        }
+        else if (returnType is Runtime.IntType)
+        {
+            return [ExpType.Call, ExpType.Count, ExpType.Reduce];
+        }
+        else if (returnType is Runtime.DecimalType)
+        {
+            return [ExpType.Call, ExpType.Reduce];
+        }
+        return [ExpType.Call, ExpType.First, ExpType.Last, ExpType.Reduce];
     }
 }

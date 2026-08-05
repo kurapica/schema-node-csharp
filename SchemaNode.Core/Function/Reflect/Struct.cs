@@ -1,6 +1,8 @@
+using System.Reflection.Metadata;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -92,5 +94,35 @@ public static class Struct
         if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;
         Runtime.ValueType? valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
         return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
+    }
+
+    /// <summary>
+    /// The field is indexable
+    /// </summary>
+    public static async Task<bool> isindexablefield(SchemaContext context, StructFieldSchema field)
+    {
+        var valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
+        if (valueType?.IsIndexable == true) return true;
+        return valueType is Runtime.StringType && field.GetProperty<UpLimitString>() is { HasValue: true, Value: <= PRIMARY_KEY_MAX_LEN };
+    }
+
+    /// <summary>
+    /// Gets indexable field entries
+    /// </summary>
+    public static async Task<Entry<string>[]> getindexablefields(SchemaContext context, [Meta<SchemaType>(typeof(Schema.StructType))]string type)
+    {
+        var structType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.StructType>(type) : null;
+        if (structType is null) return [];
+        List<Entry<string>> result = [];
+        foreach (var f in structType.GetFields())
+        {
+            if (f.Type?.IsIndexable == true || f.Type is Runtime.StringType && f.GetProperty<UpLimitString>() is { HasValue: true, Value: <= PRIMARY_KEY_MAX_LEN } )
+            {
+                var entry = new Entry<string> { Value = f.Name, HasChildren = false };
+                entry.SetProperty<Display, LocaleString>(f.GetProperty<Display>()?.GetValue<LocaleString>() ?? f.Name);
+                result.Add(entry);
+            }
+        }
+        return result.ToArray();
     }
 }

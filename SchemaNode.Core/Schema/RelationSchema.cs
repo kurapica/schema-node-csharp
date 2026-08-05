@@ -34,13 +34,16 @@ public class RelationSchema : PropertyOwner
     /// The schema type of the target type
     /// </summary>
     [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    [Meta<AccessValueTypeResolver>(nameof(Target))]
     public string? TargetType { get; set; }
 
     /// <summary>
     /// The schema kind of the target type
     /// </summary>
     [Meta<DisplayOnly>(true)]
-    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.gettypekind)}", $"@{nameof(TargetType)}")>]
+    [Meta<InVisible>(true)]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
     public string? TargetKind { get;set; }
     
     /// <summary>

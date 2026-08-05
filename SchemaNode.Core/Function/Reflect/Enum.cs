@@ -4,7 +4,9 @@ using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
 using SchemaNode.Struct;
+using EnumType = SchemaNode.Runtime.EnumType;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable InconsistentNaming
 
@@ -59,12 +61,12 @@ public static class Enum
     }
 
     /// <summary>
-    /// Checks if the enum type has cascades
+    /// Checks if the type has cascades
     /// </summary>
-    public static async Task<bool> hascascade(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type)
+    public static async Task<bool> hascascade(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string type)
     {
-        var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(type);
-        return enumType?.Cascade is { Length: > 0 };
+        var nodeType = await context.GetNodeTypeAsync(type);
+        return nodeType is EnumType enumType && enumType.Cascade is { Length: > 0 } || nodeType?.GetProperty<EntrySource>() is { HasValue: true };
     }
 
     /// <summary>
@@ -72,7 +74,7 @@ public static class Enum
     /// </summary>
     public static async Task<Entry<int>[]> getcascades(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type)
     {
-        var enumType = await context.GetNodeTypeAsync<Runtime.EnumType>(type);
+        var enumType = await context.GetNodeTypeAsync<EnumType>(type);
         return enumType?.Cascade?.Select((c, i) =>
         {
             var entry = new Entry<int>

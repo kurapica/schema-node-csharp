@@ -33,9 +33,6 @@ public static class Constant
     public const string NODE_TYPE = "$type";
     public const string ENTRY_ROOT = "$root";
 
-    public const string ENTRY_SOURCE = "$entrysource";
-    public const string ACCESS_TYPE = "$accesstype";
-
     #endregion
 
     #region Schema Kind
