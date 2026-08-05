@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
@@ -47,11 +48,19 @@ public static class Property
     /// <summary>
     /// Gets the property value type
     /// </summary>
-    public static async Task<string?> getvaluetype(SchemaContext context,
-        [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
+    public static async Task<string?> getvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
     {
         var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
         return prop?.ValueType?.Name;
+    }
+
+    /// <summary>
+    /// The property is for the schema kind, which means it can be used in the schema kind
+    /// </summary>
+    public static async Task<bool> forschema(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string name, [Meta<SchemaType>(typeof(SchemaKind))] string kind)
+    {
+        var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
+        return prop?.ForSchema(kind) ?? false;
     }
 
 }

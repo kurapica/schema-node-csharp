@@ -131,6 +131,15 @@ public static class Type
     }
 
     /// <summary>
+    /// Gets the schema kind of the schema node with the given name
+    /// </summary>
+    public static async Task<string?> gettypekind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)
+    {
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        return nodeType?.Kind;
+    }
+
+    /// <summary>
     /// Checks if the schema kind of the schema node with the given name is a value schema kind
     /// </summary>
     /// <param name="context"></param>

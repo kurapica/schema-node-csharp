@@ -13,7 +13,12 @@ public class PropertyType : NodeType
     /// The property
     /// </summary>
     public string Property => _property?.Property ?? string.Empty;
-    
+
+    /// <summary>
+    /// The schema kinds the property can be applied to
+    /// </summary>
+    public IEnumerable<string> ForSchemas => _property?.ForSchemas ?? Enumerable.Empty<string>();
+
     /// <summary>
     /// The property value type
     /// </summary>
@@ -29,6 +34,11 @@ public class PropertyType : NodeType
         if (ValueType == null)
             Error = ErrorCodes.NO_DEFINITION;
     }
+
+    /// <summary>
+    /// Checks if the property can be applied to the schema with the given kind
+    /// </summary>
+    public bool ForSchema(string kind) => _property?.ForSchemas?.Any(k => k.Equals(kind, StringComparison.OrdinalIgnoreCase)) ?? false;
 
     /// <inheritdoc/>
     public override IEnumerable<NodeType> GetReferenceTypes()
