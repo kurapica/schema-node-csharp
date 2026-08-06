@@ -143,9 +143,20 @@ public sealed class AppType : IValueTypeAccess
         _schemas?.TryRemove(name.ToString(), out _);
     }
     
+    /// <summary>
+    /// Gets the sub application schemas
+    /// </summary>
     internal IEnumerable<AppSchema> GetSubAppSchemas() => _schemas?.Values ?? [];
     
+    /// <summary>
+    /// Gets the sub applications
+    /// </summary>
     public IEnumerable<AppType> GetSubApps() => _subApps?.Values ?? [];
+    
+    /// <summary>
+    /// Has sub apps
+    /// </summary>
+    public bool HasSubApps => _schemas?.Count > 0;
     
     #endregion
     

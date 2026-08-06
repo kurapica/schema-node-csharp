@@ -4,6 +4,8 @@ using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Property.Common;
+using SchemaNode.Relation;
 
 namespace SchemaNode.Property.App;
 
@@ -33,11 +35,13 @@ public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
     /// <summary>
     /// The app target policy type
     /// </summary>
-    public AppScopeType Type { get; set; }
+    [Meta<Default>(AppScopeType.BusinessTarget)]
+    public AppScopeType Type { get; set; } = AppScopeType.BusinessTarget;
     
     /// <summary>
     /// The context maps for the context item mapping when the target policy is IsolationContext, can be used for multiple context items mapping
     /// </summary>
+    [Relation<Visible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Type)}", AppScopeType.IsolationContext)]
     public AppScopeContextMap[]? ContextMaps { get; set; }
     
     public bool Equals(AppScopePolicy? other)
@@ -61,6 +65,7 @@ public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
     /// The context item
     /// </summary>
     [Meta<PrimaryIndex>]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF, ENTRY_ROOT)]
     public required string ContextItem { get; set; }
 
     /// <summary>

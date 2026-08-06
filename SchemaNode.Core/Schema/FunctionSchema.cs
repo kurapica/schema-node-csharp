@@ -147,6 +147,7 @@ public sealed class FuncExp {
     /// The calling type
     /// </summary>
     [Relation<WhiteList, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexptypes)}", $"@{nameof(Return)}")]
+    [Meta<Require>(true)]
     public ExpType Type { get; set; } = ExpType.Call;
 
     /// <summary>
@@ -155,6 +156,7 @@ public sealed class FuncExp {
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
+    [Relation<Default, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexpectreturn)}", $"@{nameof(Return)}", $"@{nameof(Type)}")]
     public string? FuncReturn { get; set;}
      
     /// <summary>

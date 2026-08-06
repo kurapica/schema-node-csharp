@@ -72,4 +72,26 @@ public static class Function
         }
         return [ExpType.Call, ExpType.First, ExpType.Last, ExpType.Reduce];
     }
+
+    /// <summary>
+    /// Gets the expected function return type for the given exp return type
+    /// </summary>
+    public static async Task<string?> getexpectreturn(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, ExpType expType)
+    {
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        if (valueType == null) return null;
+        return expType switch
+        {
+            ExpType.Call => valueType.Name,
+            ExpType.Map => valueType is Runtime.ArrayType arr ? arr.Element?.Name : valueType.Name,
+            ExpType.Reduce => valueType.Name,
+            ExpType.First => NS_SYSTEM_BOOL,
+            ExpType.Last => NS_SYSTEM_BOOL,
+            ExpType.Filter => NS_SYSTEM_BOOL,
+            ExpType.Count => NS_SYSTEM_BOOL,
+            ExpType.All => NS_SYSTEM_BOOL,
+            ExpType.Any => NS_SYSTEM_BOOL,
+            _ => null,
+        };
+    }
 }

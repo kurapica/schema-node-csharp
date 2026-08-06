@@ -131,6 +131,27 @@ public static class Type
     }
 
     /// <summary>
+    /// Checks if value type of the give access from the type match the given schema kinds
+    /// </summary>
+    public static async Task<bool> isschemakindaccess(SchemaContext context,
+        [Meta<SchemaType>(typeof(AnyType))] string name,
+        string access,
+        bool matchArrayElement,
+        [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
+    {
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        nodeType = nodeType?.GetAccessValueType(access);
+        if (nodeType == null) return false;
+        foreach (var kind in kinds)
+        {
+            if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
+                matchArrayElement && nodeType is Runtime.ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Gets the schema kind of the schema node with the given name
     /// </summary>
     public static async Task<string?> getschemakind(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name)

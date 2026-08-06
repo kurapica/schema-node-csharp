@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
@@ -8,6 +7,14 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
+using SchemaNode.Scalar;
+using SchemaNode.Schema;
+using SchemaNode.Property.Common;
+using SchemaNode.Relation;
+using ArrayType = SchemaNode.Runtime.ArrayType;
+using StructType = SchemaNode.Runtime.StructType;
+using SchemaNode.Property.Constraint;
+
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -37,7 +44,7 @@ public class Filters : Property<FieldFilter[]>, ILoadableProperty, IErrorProvide
         {
             if (filter.Mode == FieldFilterMode.Filter)
             {
-                filter.FilterFunction = await context.GetNodeTypeAsync<FunctionType>(filter.Filter);
+                filter.FilterFunction = string.IsNullOrWhiteSpace(filter.FilterFunc) ? null : await context.GetNodeTypeAsync<FunctionType>(filter.FilterFunc);
                 if (filter.FilterFunction == null ||
                     filter.FilterFunction.Args.Length < 2 ||
                     filter.FilterFunction.Args[0].ValueType == null ||
@@ -73,12 +80,31 @@ public sealed class FieldFilter
     /// <summary>
     /// The field name or filter function
     /// </summary>
-    [StringLength(ENTITY_PRIMARY_KEY_MAX_LEN)]
+    [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<PrimaryIndex>(0)]
+    [Meta<Cascade>(1)]
+    [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL)]
+    [Relation<InVisible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
     public string Filter { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The filter function name
+    /// </summary>
+    [Meta<SchemaType>(typeof(FuncType))]
+    [Meta<PrimaryIndex>(1)]
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
+    [Relation<Visible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
+    public string? FilterFunc { get; set; }
+
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    [Meta<AccessValueTypeResolver>($"{nameof(Filter)}")]
+    public string? FilterType { get; set;}
     
-    /// <summary>h
+    /// <summary>
     /// The field filter resolve type, which defines how to resolve the filter when no contains found
     /// </summary>
+    [Relation<Visible, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.hascascade", $"{nameof(FilterType)}", true)]
     public FieldFilterResolve? Resolve { get; set; }
     
     [SchemaIgnore]

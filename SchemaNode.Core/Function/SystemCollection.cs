@@ -21,6 +21,11 @@ namespace SchemaNode.Function;
 public static class SystemCollection
 {
     /// <summary>
+    /// Creates a new array
+    /// </summary>
+    public static T[] newarray<T>(params T[] items) => items;
+
+    /// <summary>
     /// Gets the array length
     /// </summary>
     public static long length([Meta<SchemaType>(NS_SYSTEM_ARRAY)] object array)

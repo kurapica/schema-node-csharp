@@ -63,10 +63,11 @@ public static class Enum
     /// <summary>
     /// Checks if the type has cascades
     /// </summary>
-    public static async Task<bool> hascascade(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string type)
+    public static async Task<bool> hascascade(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string type, bool onlyEnum = false)
     {
         var nodeType = await context.GetNodeTypeAsync(type);
-        return nodeType is EnumType enumType && enumType.Cascade is { Length: > 0 } || nodeType?.GetProperty<EntrySource>() is { HasValue: true };
+        if (onlyEnum) return nodeType is EnumType e && e.Cascade is { Length: > 0 };
+        return nodeType is EnumType f && f.Cascade is { Length: > 0 } || nodeType?.GetProperty<EntrySource>() is { HasValue: true };
     }
 
     /// <summary>
