@@ -2,6 +2,7 @@ using Quartz;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Workflow;
 using static SchemaNode.Utility.AppConstant;
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -12,6 +13,7 @@ namespace SchemaNode.Workflow;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW_CONTROL}.scheduler")]
 [Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
+[Meta<Forkable>(true)]
 public class TimeScheduleWorkflow: BaseWorkflow,
     IWorkflowSession<JobKey>
 {

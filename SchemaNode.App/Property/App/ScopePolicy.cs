@@ -41,7 +41,7 @@ public sealed class AppScopePolicy: IEquatable<AppScopePolicy>
     /// <summary>
     /// The context maps for the context item mapping when the target policy is IsolationContext, can be used for multiple context items mapping
     /// </summary>
-    [Relation<Visible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Type)}", AppScopeType.IsolationContext)]
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Type)}", AppScopeType.IsolationContext)]
     public AppScopeContextMap[]? ContextMaps { get; set; }
     
     public bool Equals(AppScopePolicy? other)

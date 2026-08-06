@@ -176,9 +176,9 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                                 {
                                     if (properties.FirstOrDefault(x => x.Name.Equals(f.Name, StringComparison.OrdinalIgnoreCase)) is {} p)
                                     {
-                                        var combine = p.GetMetaProperty<SchemaNode.Property.App.DataCombine>();
+                                        var combine = p.GetMetaProperty<DataCombine>();
                                         if (combine is { HasValue: true })
-                                            combineRules.Add(new FieldCombine(f.Name, combine.Value));
+                                            combineRules.Add(new FieldCombine{ Field = f.Name, Type = combine.Value });
                                     }
                                 }
 

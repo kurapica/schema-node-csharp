@@ -84,7 +84,7 @@ public sealed class FieldFilter
     [Meta<PrimaryIndex>(0)]
     [Meta<Cascade>(1)]
     [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL)]
-    [Relation<InVisible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
+    [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
     public string Filter { get; set; } = string.Empty;
 
     /// <summary>
@@ -93,7 +93,7 @@ public sealed class FieldFilter
     [Meta<SchemaType>(typeof(FuncType))]
     [Meta<PrimaryIndex>(1)]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
-    [Relation<Visible, Call>(NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
     public string? FilterFunc { get; set; }
 
     [Meta<DisplayOnly>(true)]
@@ -104,7 +104,7 @@ public sealed class FieldFilter
     /// <summary>
     /// The field filter resolve type, which defines how to resolve the filter when no contains found
     /// </summary>
-    [Relation<Visible, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.hascascade", $"{nameof(FilterType)}", true)]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.hascascade", $"{nameof(FilterType)}", true)]
     public FieldFilterResolve? Resolve { get; set; }
     
     [SchemaIgnore]

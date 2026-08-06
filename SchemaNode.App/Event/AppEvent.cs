@@ -52,7 +52,7 @@ public abstract class AppFieldEvent(string app, string field, string? target = n
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.create")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldpayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
 public class AppFieldDataCreateEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
 
@@ -61,7 +61,7 @@ public class AppFieldDataCreateEvent(string app, string field, string? target = 
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.delete")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldpayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldpayload)}")]
 public class AppFieldDataDeleteEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldPayload>;
 
@@ -70,7 +70,7 @@ public class AppFieldDataDeleteEvent(string app, string field, string? target = 
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_EVENT)]
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.update")]
-[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemAppReflect.Event.getappfieldupdatepayload)}")]
+[Meta<PayloadEvaluator>($"{NS_SYSTEM_SCHEMA_REFLECT}.event.{nameof(SystemReflectEvent.getappfieldupdatepayload)}")]
 public class AppFieldDataUpdateEvent(string app, string field, string? target = null) 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload>;
 

@@ -37,6 +37,7 @@ public static class AppConstant
     public const string NS_SYSTEM_SCHEMA_EVENT = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_EVENT}";
     public const string NS_SYSTEM_SCHEMA_WORKFLOW = $"{NS_SYSTEM_SCHEMA}.{SCHEMA_KIND_WORKFLOW}";
     public const string NS_SYSTEM_SCHEMA_REFLECT_APP = $"{NS_SYSTEM_SCHEMA_REFLECT}.app";
+    public const string NS_SYSTEM_SCHEMA_REFLECT_WORKFLOW = $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow";
 
     public const string NS_SYSTEM_SCHEMA_PROPERTY_APP = $"{NS_SYSTEM_SCHEMA_PROPERTY}.app";
 

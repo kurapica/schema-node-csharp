@@ -1062,7 +1062,8 @@ public static class AppDataTransactionExtension
                     {
                         foreach (var combine in field.Combines!)
                         {
-                            joinMethodMap[combine.Field] = combine.Type;
+                            if (combine.Type != null)
+                                joinMethodMap[combine.Field] = combine.Type.Value;
                         }
                     }
 

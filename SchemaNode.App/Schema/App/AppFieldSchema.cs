@@ -1,19 +1,13 @@
-using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
-using SchemaNode.Data;
-using SchemaNode.Enum;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaNode.Property.Core;
 using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
-using SchemaNode.Function;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Runtime;
-using SchemaNode.Utility;
 using SchemaValueType = SchemaNode.Schema.ValueType;
+using SchemaNode.Property.Presentation;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
@@ -35,6 +29,8 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(0)]
     [Meta<SchemaType>(typeof(AppType))]
+    [Meta<ReadOnly>(true)]
+    [Meta<InVisible>(true)]
     public string App { get; set; } = string.Empty;
 
     /// <summary>
@@ -42,6 +38,7 @@ public sealed class AppFieldSchema: PropertyOwner, IErrorProvider
     /// </summary>
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
+    [Meta<Immutable>(true)]
     public string Name { get; set; } = default!;
 
     /// <summary>

@@ -112,8 +112,17 @@ public static class Type
     }
 
     /// <summary>
-    /// Checks if the schema kind of the schema node with the given name is the same as the given kind
+    /// Gets the access type of the value type
     /// </summary>
+    public static async Task<string> getaccesstype(SchemaContext context,
+        [Meta<SchemaType>(typeof(ValueType))] string name,
+        string access)
+    {
+        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
+        if (valueType == null) return "";
+        return valueType.GetAccessValueType(access)?.Name ?? "";
+    }
+
     public static async Task<bool> isschemakind(SchemaContext context,
         [Meta<SchemaType>(typeof(AnyType))] string name,
         bool matchArrayElement,

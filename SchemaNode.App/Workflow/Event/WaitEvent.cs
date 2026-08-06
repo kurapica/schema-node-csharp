@@ -6,6 +6,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Workflow;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
@@ -20,6 +21,7 @@ namespace SchemaNode.Workflow;
 [Meta<WorkflowKind>(WORKFLOW_KIND_EVENT)]
 [Meta<OfSchema>(SCHEMA_KIND_WORKFLOW)]
 [Meta<SchemaType>($"{NS_SYSTEM_WORKFLOW}.waitevent")]
+[Meta<Forkable>(true)]
 public class WaitEvent : BaseWorkflow, 
     IWorkflowPayload<Object>, 
     IWorkflowSession<IDisposable>
@@ -118,7 +120,7 @@ public class WaitEvent : BaseWorkflow,
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.workflow.event")]
-[Relation<Visible, Relation.Call>("event", $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemAppReflect.Workflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
+[Relation<Visible, Relation.Call>("event", $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_EVENT)]
 public class EventProperty : Property<EventDeclare>;
 
 /// <summary>

@@ -46,7 +46,7 @@ public sealed class FieldView
     /// <summary>
     /// The source field
     /// </summary>
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappforeignfields)}", $"@{nameof(App)}", $"@{nameof(Owner)}")]
     [Meta<SchemaType>(typeof(Identifier))]
     public string Field { get; set; } = string.Empty;
     
@@ -55,7 +55,7 @@ public sealed class FieldView
     /// </summary>
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}", $"@{nameof(App)}", $"@{nameof(Field)}", true)]
+    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}", $"@{nameof(App)}", $"@{nameof(Field)}", true)]
     public string? FieldType { get; set; }
 
     /// <summary>

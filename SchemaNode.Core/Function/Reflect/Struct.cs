@@ -125,4 +125,14 @@ public static class Struct
         }
         return result.ToArray();
     }
+
+    /// <summary>
+    /// The type has dynamic field
+    public static async Task<bool> hasdynamicfield(SchemaContext context, [Meta<SchemaType>(typeof(Schema.ValueType))]string type)
+    {
+        var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
+        valueType = (valueType as Runtime.ArrayType)?.Element ?? valueType;
+        if (valueType is not Runtime.StructType structType) return false;
+        return structType.GetFields().Any(f => f.Type is Runtime.ObjectType);    
+    }
 }

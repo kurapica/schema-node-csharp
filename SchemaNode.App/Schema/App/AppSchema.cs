@@ -17,12 +17,16 @@ using SchemaNode.Runtime;
 
 namespace SchemaNode.Schema;
 
+[Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
+[Meta<Append>(typeof(Display), typeof(Description), typeof(Relations))]
+public sealed class AppKind;
+
 /**
  * The application schema
  */
-[Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
-[Meta<Append>(typeof(Display), typeof(Description), typeof(Relations))]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}",  $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 public sealed class AppSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>
@@ -114,5 +118,5 @@ public sealed class AppSchema: PropertyOwner, IErrorProvider
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.type")]
 [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappentries)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappentries)}", NODE_SELF, ENTRY_ROOT)]
 public sealed class AppType : String;

@@ -14,6 +14,7 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaValueType = SchemaNode.Schema.ValueType;
+using SchemaNode.Relation;
 
 namespace SchemaNode.Property.App;
 
@@ -25,11 +26,10 @@ namespace SchemaNode.Property.App;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<Static>(true)]
 [Relation<Visible, Relation.Call>(nameof(DataDerive), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
-[Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfields)}", $"@{nameof(App)}")]
-[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemAppReflect.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
-[Relation<Valid, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Calc)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(AppFieldSchema.Type)}", true)]
-[Relation<InVisible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combine)}", NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
-[Relation<Visible, Relation.Call>($"{nameof(Derive)}.{nameof(Derive.Combines)}", NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Type)}", true, SCHEMA_KIND_STRUCT)]
+[Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(AppFieldSchema.App)}")]
+[Relation<BlackList, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.newarray)}", $"@{nameof(AppFieldSchema.Name)}")]
+[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
+[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.FieldType)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(AppFieldSchema.Type)}")]
 public class DataDerive : Property<Derive>
 {
     public override void SetValue<TValue>(TValue value)
@@ -64,8 +64,20 @@ public class Derive
     /// The input source field
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
-    public string? Source { get; set; }
+    [Meta<Require>(true)]
+    public string Source { get; set; } = string.Empty;
     
+    /// <summary>
+    /// The field type
+    /// </summary>
+    [Meta<SchemaType>(typeof(SchemaValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string? FieldType { get; set; }
+
+    /// <summary>
+    /// The source type
+    /// </summary>
     [Meta<SchemaType>(typeof(SchemaValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
@@ -76,17 +88,24 @@ public class Derive
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
     [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_ARGS, NODE_SELF, $"@{nameof(SourceType)}")]
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
-    public string? Calc { get; set; }
+    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(FieldType)}", true)]
+    [Meta<Require>(true)]
+    public string Calc { get; set; } = string.Empty;
     
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_BOOL, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE)]
+    [Relation<WhiteList, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinetype)}", $"@{nameof(FieldType)}")]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
+    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_STRUCT)]
+    [Relation<EntrySource, Relation.Assign>($"{nameof(Combines)}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
+    [Relation<BlackList, Relation.Call>($"{nameof(Combines)}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
+    [Relation<Default, Relation.Call>($"{nameof(Combines)}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccesstype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{nameof(FieldCombine.Field)}")]
     public FieldCombine[]? Combines { get; set; }
 }
 
@@ -95,9 +114,28 @@ public class Derive
 /// The data combine settings
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP_FIELD}.combine")]
-public sealed record FieldCombine(
-    [Meta<PrimaryIndex>][Meta<SchemaType>(typeof(Identifier))] string Field, 
-    DataCombineType Type = DataCombineType.Newest);
+public sealed class FieldCombine
+{
+    /// <summary>
+    /// The field name to combine
+    /// </summary>
+    [Meta<PrimaryIndex>][Meta<SchemaType>(typeof(Identifier))]
+    public required string Field { get; set; }
+
+    /// <summary>
+    /// The field type
+    /// </summary>
+    [Meta<SchemaType>(typeof(SchemaValueType))] 
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string? FieldType { get; set; }
+
+    /// <summary>
+    /// The combine rule
+    /// </summary>
+    [Relation<WhiteList, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinetype)}", $"@{nameof(FieldType)}")]
+    public DataCombineType? Type { get; set; }
+}
 
 /// <summary>
 /// CombineProperties the data nodes
