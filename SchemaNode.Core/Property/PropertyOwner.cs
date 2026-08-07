@@ -70,6 +70,16 @@ public abstract class PropertyOwner
         property.SetValue(value);
         return SetProperty(property);
     }
+    
+    /// <summary>
+    /// Clear the property value
+    /// </summary>
+    public PropertyOwner ClearProperty<T>() where T : class, IProperty
+    {
+        if (Extensions == null) return this;
+        Extensions.Remove(typeof(T).GetPropertyName());
+        return this;
+    }
 
     /// <summary>
     /// Sets the property with the given property type and value

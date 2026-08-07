@@ -2,6 +2,7 @@
 using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Event;
+using SchemaNode.Property;
 using SchemaNode.Property.App;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
@@ -17,6 +18,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveSchemaAsync(this SchemaContext context, NodeSchema schema)
     {
+        ClearPolicyFlags(schema);
         NodeType? node = await context.GetNodeTypeAsync(schema.FullName);
 
         // authorize
@@ -153,6 +155,7 @@ public static class SchemaStorageProviderExtension
     /// <returns></returns>
     public static async Task<bool> SaveAppSchemaAsync(this SchemaContext context, AppSchema app)
     {
+        ClearPolicyFlags(app);
         Runtime.AppType? node = await context.GetAppTypeAsync(app.FullName);
 
         // authorize
@@ -267,6 +270,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppFieldSchemaAsync(this SchemaContext context, string app, AppFieldSchema field)
     {
+        ClearPolicyFlags(field);
         var node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
         
@@ -369,6 +373,7 @@ public static class SchemaStorageProviderExtension
     /// </summary>
     public static async Task<bool> SaveAppWorkflowSchemaAsync(this SchemaContext context, string app, AppWorkflowSchema workflow, bool forActive = false)
     {
+        ClearPolicyFlags(workflow);
         Runtime.AppType? node = await context.GetAppTypeAsync(app);
         if (node == null) return false;
 
@@ -468,5 +473,17 @@ public static class SchemaStorageProviderExtension
                 return false;
             }
         }
+    }
+
+    static void ClearPolicyFlags(PropertyOwner schema)
+    {
+        schema.ClearProperty<SchemaCreate>();
+        schema.ClearProperty<SchemaRead>();
+        schema.ClearProperty<SchemaUpdate>();
+        schema.ClearProperty<SchemaDelete>();
+        schema.ClearProperty<DataCreate>();
+        schema.ClearProperty<DataRead>();
+        schema.ClearProperty<DataUpdate>();
+        schema.ClearProperty<DataDelete>();
     }
 }
