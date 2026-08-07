@@ -41,25 +41,6 @@ public class SchemaTools
     }
     
     [McpServerTool, Description(
-         "Load access control information for a specific enum value from a hierarchical enum schema type. " +
-         "Each returned item represents an access node in the enum hierarchy, describing which enum values are accessible. " +
-         "Sub-list access nodes may be included depending on the loading options. " +
-         "Each returned item is an instance of schema type: system.schema.enumvalueaccess. " +
-         "The structure and field meanings follow the schema type definition."
-    )]
-    public static async Task<EntryAccess<string>[]> GetEnumEntryAccess(
-        SchemaContext context,
-        [Description("Name of the hierarchical enumeration schema type.")] string name,
-        [Description("The enum value whose access scope should be evaluated.")] string? value,
-        [Description("The access path start enum value.")] string? start
-        )
-    {
-        EnumType? node = await context.GetNodeTypeAsync<EnumType>(name) ??
-            throw new InvalidOperationException($"Enum schema type '{name}' not found.");
-        return await node.GetEnumEntryAccessAsync(context, value, start);
-    }
-    
-    [McpServerTool, Description(
          "Invoke a function defined in the schema type system. " +
          "The function is identified by its schema type name and represents an executable semantic unit. " +
          "Input parameters must follow the function's schema-defined signature. " +

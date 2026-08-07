@@ -14,10 +14,10 @@ namespace SchemaNode.Api.Schema.Info;
 /// <summary>
 /// The LoadSchema api
 /// </summary>
-public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
+public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
 {
     /// <inheritdoc />
-    protected override async Task<LoadSchemaResponse?> ExecuteAsync(LoadSchemaRequest request,
+    protected override async Task<GetSchemaResponse?> ExecuteAsync(GetSchemaRequest request,
         CancellationToken cancellationToken)
     {
         Logger.LogDebug("[Api]LoadSchema [Request]{request}", request);
@@ -37,7 +37,7 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
             await GetNodeSchemas(node, true);
         }
 
-        return new LoadSchemaResponse
+        return new GetSchemaResponse
         {
             Schemas = root.Schemas
         };
@@ -63,7 +63,7 @@ public class GetSchemaApi : SchemaApi<LoadSchemaRequest, LoadSchemaResponse>
 /// <summary>
 /// The LoadSchema request
 /// </summary>
-public class LoadSchemaRequest : SchemaApiRequest
+public class GetSchemaRequest : SchemaApiRequest
 {
     /// <summary>
     /// The schema names
@@ -81,7 +81,7 @@ public class LoadSchemaRequest : SchemaApiRequest
 /// <summary>
 /// The LoadSchema response
 /// </summary>
-public class LoadSchemaResponse : SchemaApiResponse
+public class GetSchemaResponse : SchemaApiResponse
 {
     /// <summary>
     /// The node schemas
