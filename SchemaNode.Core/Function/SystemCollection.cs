@@ -4,9 +4,11 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
+using SchemaNode.Property.Constraint;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
+using SchemaNode.Relation;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
 
@@ -62,7 +64,12 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field value from the object
     /// </summary>
-    public static async Task<T?> getfield<T>(SchemaContext context, DataNode obj, string field, T? @default)
+    public static async Task<T?> getfield<T>(SchemaContext context,
+        DataNode obj,
+        [Meta<Valid>()]
+        [Relation<EntrySource, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{NODE_TYPE}")]
+        string field, 
+        T? @default)
     {
         DataNode? result = await GetFieldNode(context, obj, field);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
@@ -71,7 +78,7 @@ public static class SystemCollection
     /// <summary>
     /// Gets fields from the objects in the array to a new array
     /// </summary>
-    public static async Task<ArrayNode> getfields(SchemaContext context, ArrayNode array, string field)
+    public static async Task<List<T>> getfields<T>(SchemaContext context, ArrayNode array, string field)
     {
         if (array.ElementType is not StructType @struct) throw new InvalidOperationException("The array type is invalid");
         
@@ -79,11 +86,11 @@ public static class SystemCollection
         if (f.Type == null) throw new InvalidOperationException($"The field {field} type is null in the struct {@struct.Name}");
         var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
-        ArrayNode resultType = new (arrayNode);
+        List<T> resultType = [];
         foreach (DataNode item in array)
         {
             DataNode? fieldNode = await GetFieldNode(context, item, field);
-            if (fieldNode != null && !fieldNode.IsEmpty) resultType.Add(fieldNode);
+            if (fieldNode is { IsEmpty: false }) resultType.Add(fieldNode.GetValue<T>()!);
         }
         return resultType;
     }

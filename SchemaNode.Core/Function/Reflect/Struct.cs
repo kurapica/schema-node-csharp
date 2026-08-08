@@ -7,7 +7,6 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ValueType = System.ValueType;
 
 namespace SchemaNode.Function.Reflect;
 

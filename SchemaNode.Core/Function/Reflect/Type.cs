@@ -194,6 +194,20 @@ public static class Type
     }
 
     /// <summary>
+    /// Checks if the type is assignable to other value type
+    /// </summary>
+    public static async Task<bool> isaccessassignableto(SchemaContext context, 
+        [Meta<SchemaType>(typeof(ValueType))] string type, 
+        string path,
+        [Meta<SchemaType>(typeof(ValueType))] string target)
+    {
+        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+        if (typeNode == null || targetNode == null) return false;
+        return typeNode.GetAccessValueType(path)?.IsAssignableTo(targetNode) ?? false;
+    }
+
+    /// <summary>
     /// The type is indexable
     /// </summary>
     public static async Task<bool> isindexable(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)

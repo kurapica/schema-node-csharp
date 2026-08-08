@@ -10,7 +10,6 @@ using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Function;
-using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
@@ -21,14 +20,21 @@ using SchemaNode.Relation;
 namespace SchemaNode.Schema;
 
 /// <summary>
-/// The function schema
+/// The function schema kind
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
+public sealed class FunctionKind;
+
+/// <summary>
+/// The function schema
+/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_FUNCTION)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
 public sealed class FunctionSchema: PropertyOwner
 {
     /// <summary>
@@ -54,7 +60,7 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.func")]
-[Relation<Visible, Relation.Call>("func", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
+[Relation<Visible, Call>("func", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty : Property<FunctionSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -108,6 +114,7 @@ public class TypeFuncType : FuncType;
 [Meta<SchemaKind>(SCHEMA_KIND_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
 [Meta<Attach>(SCHEMA_KIND_FUNC_ARG)]
+[Meta<Append>(typeof(Relations))]
 public sealed class FuncArg : PropertyOwner
 {
     /// <summary>
@@ -179,12 +186,6 @@ public sealed class FuncExp {
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
-    /// The argument label
-    /// </summary>
-    [Meta<DisplayOnly>(true)]
-    public LocaleString? Display { get; set; }
-    
-    /// <summary>
     /// The argument type
     /// </summary>
     [Meta<SchemaType>(typeof(ValueType))]
@@ -194,18 +195,17 @@ public class CallArg: IEquatable<CallArg>
     /// <summary>
     /// The argument data source, like field access path
     /// </summary>
-    [Meta<EntrySourceConsumer>(true)]
     [Meta<AccessEntryConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
-    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
+    [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
     public string? Source { get; set; }
     
     /// <summary>j
     /// The const value, no complex struct value
     /// </summary>
     [Meta<SchemaType>(typeof(Object))]
-    [Relation<OverrideType, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
-    [Relation<InVisible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
-    [Relation<Visible, Relation.Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, "@type", true, SCHEMA_KIND_INT, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL, SCHEMA_KIND_ENUM)]
+    [Relation<OverrideType, Call>(NODE_SELF, $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $@"{nameof(Type)}")]
+    [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Source)}")]
+    [Relation<Visible, Call>(NODE_SELF, NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, "@type", true, SCHEMA_KIND_INT, SCHEMA_KIND_STRING, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL, SCHEMA_KIND_ENUM)]
     public JsonNode? Value { get; set; }
     
     /// <summary>
