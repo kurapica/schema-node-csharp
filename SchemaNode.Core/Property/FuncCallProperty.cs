@@ -56,7 +56,7 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
 /// <summary>
 /// The function call 
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{nameof(FuncCall)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(FuncCall)}")]
 public class FuncCall
 {
     [Meta<SchemaType>(typeof(ValueType))]
