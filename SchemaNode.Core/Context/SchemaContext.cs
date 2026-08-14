@@ -171,10 +171,26 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     string key = next.ToString();
 
                     // Convert <T1, T2> to [T1, T2]
+                    bool isTemplate = false;
                     while(genericReader.NextGenericParam())
                     {
-                        ReadOnlySpan<char> genericParam = genericReader.Current;
-                        NodeType? type = !genericParam.IsEmpty ? await GetNodeTypeAsync(genericParam.ToString(), generics, genParams) : null;
+                        string genericParam = genericReader.Current.ToString();
+                        if (string.IsNullOrWhiteSpace(genericParam)) return null;
+                        if (generics is { Count: > 0 })
+                        {
+                            int index = generics.FindIndex(g => genericParam.Equals(g.Name, StringComparison.OrdinalIgnoreCase));
+                            if (index >= 0)
+                            {
+                                isTemplate = true;
+                                if (genericParams != null && index < genericParams.Count)
+                                {
+                                    genParams.Add(genericParams[index]);
+                                    continue;
+                                }
+                            }
+                        }
+                        
+                        NodeType? type = await GetNodeTypeAsync(genericParam, generics, genericParams);
                         if (type == null) return null;
                         genParams.Add(type);
                     }
@@ -193,7 +209,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         return null;
                     }
                     await genType.LoadTypeAsync(this, node.GetNodeSchema(schemaRuntime)!, genParams.ToArray());
-                    node.SetGenericType(key, genType);
+                    if (!isTemplate)
+                        node.SetGenericType(key, genType);
                     return genType;
                 }
                 
