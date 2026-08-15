@@ -24,6 +24,7 @@ public static class Array
     /// </summary>
     public static string genarrayname([Meta<SchemaType>(typeof(ElementType))] string element)
     {
+        if (string.IsNullOrWhiteSpace(element)) return "";
         var split = element.Split('<')[0].Split('.');
         return $"{split[^1]}s";
     }
@@ -33,6 +34,7 @@ public static class Array
     /// </summary>
     public static string genarraydisplay([Meta<SchemaType>(typeof(ElementType))] string element)
     {
+        if (string.IsNullOrWhiteSpace(element)) return "";
         return $"{Locale.LIST_PREFIX}{{@{element}}}{Locale.LIST_SUFFIX}";
     }
     

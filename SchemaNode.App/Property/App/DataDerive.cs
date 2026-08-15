@@ -25,11 +25,11 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(DataDerive)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<Static>(true)]
-[Relation<Visible, Relation.Call>(nameof(DataDerive), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
-[Relation<EntrySource, Relation.Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(AppFieldSchema.App)}")]
-[Relation<BlackList, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.newarray)}", $"@{nameof(AppFieldSchema.Name)}")]
-[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
-[Relation<Default, Relation.Call>($"{nameof(DataDerive)}.{nameof(Derive.FieldType)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(AppFieldSchema.Type)}")]
+[Relation<Visible, Call>(nameof(DataDerive), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(EnableStorage)}")]
+[Relation<EntrySource, Assign>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfields)}", $"@{nameof(AppFieldSchema.App)}")]
+[Relation<BlackList, Call>($"{nameof(DataDerive)}.{nameof(Derive.Source)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.newarray)}", $"@{nameof(AppFieldSchema.Name)}")]
+[Relation<Default, Call>($"{nameof(DataDerive)}.{nameof(Derive.SourceType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappfieldtype)}",  $"@{nameof(App)}", $"@{nameof(DataDerive)}.{nameof(Derive.Source)}", true)]
+[Relation<Default, Call>($"{nameof(DataDerive)}.{nameof(Derive.FieldType)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}",  $"@{nameof(AppFieldSchema.Type)}")]
 public class DataDerive : Property<Derive>
 {
     public override void SetValue<TValue>(TValue value)
