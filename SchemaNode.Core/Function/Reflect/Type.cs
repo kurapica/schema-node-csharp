@@ -7,7 +7,9 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function.Reflect;
 
@@ -27,6 +29,7 @@ public static class Type
         if (ns == null) return [];
 
         List<EntryAccess<string>> result = [];
+        IOrderProperty[] types = typeof(NodeSchemaKind).GetRecordedValues().ToArray();
         while (ns != null)
         {
             var access = new EntryAccess<string>();
@@ -41,7 +44,7 @@ public static class Type
             }
             if (ns is Runtime.NamespaceType nt)
             {
-                access.Children = nt.GetNodeSchemas().Select(s =>
+                access.Children = nt.GetNodeSchemas().OrderBy(p => types.FirstOrDefault(t => p.Kind.Equals(t.GetValue<string>(), StringComparison.OrdinalIgnoreCase))?.Order ?? 99).Select(s =>
                 {
                     var entry = new Entry<string>
                     {

@@ -2,9 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
-using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
-using StringType = SchemaNode.Schema.StringType;
 
 namespace SchemaNode.Property.Constraint;
 

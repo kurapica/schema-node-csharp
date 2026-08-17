@@ -53,6 +53,7 @@ public class PropertySchema: PropertyOwner
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
+[Meta<ReadOnly>(true)]
 [Relation<Visible, Relation.Call>("property", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class PropertyProperty : Property<PropertySchema>
 {

@@ -134,6 +134,7 @@ public class Entry<T>: PropertyOwner where T: notnull
                 }
             }
             root.Children = current.Children;
+            if (root.Children is {  Length: > 0 }) root.HasChildren = true; // update
         }
 
         // update load state
