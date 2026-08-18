@@ -266,7 +266,7 @@
   "system.schema.namespace": "Namespace",
   "system.schema.namespace.type": "Namespace Type",
   "system.schema.node": "Node",
-  "system.schema.node.kind": "Node Schema Kind",
+  "system.schema.node.kind": "Type Kind",
   "system.schema.node.kind.namespace": "Namespace",
   "system.schema.node.kind.object": "Object",
   "system.schema.node.kind.bool": "Bool",

@@ -11,6 +11,7 @@ namespace SchemaNode.Property.Core;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT)]
 [Meta<ReadOnly>(true)]
 [Meta<Static>(true)]
+[Meta<InVisible>(true)]
 [Meta<PropertyValueType>(typeof(SchemaKind))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(Attach)}")]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
