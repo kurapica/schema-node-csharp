@@ -1,6 +1,6 @@
-# SchemaNode
+# SchemaNode C# 实现
 
-> 一种面向企业业务的语义共识（Semantic Consensus）与语义执行（Execution Layer）开发范式。
+>> 一种面向企业业务的语义共识（Semantic Consensus）与语义执行（Execution Layer）开发范式。
 
 ## 为什么需要 SchemaNode？
 

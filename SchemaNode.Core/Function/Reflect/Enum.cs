@@ -31,9 +31,9 @@ public static class Enum
         {
             case EnumValueType.Int:
             case EnumValueType.Flags:
-                return $"{NS_SYSTEM_ENTRYS}<${NS_SYSTEM_INT}";
+                return NS_SYSTEM_INT;
             default:
-                return $"{NS_SYSTEM_ENTRYS}<${NS_SYSTEM_STRING}";
+                return NS_SYSTEM_STRING;
         }
     }
 

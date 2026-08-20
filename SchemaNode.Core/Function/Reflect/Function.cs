@@ -7,8 +7,8 @@ using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
-using ArrayType = SchemaNode.Schema.ArrayType;
 using ValueType = SchemaNode.Schema.ValueType;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function.Reflect;
 

@@ -103,9 +103,9 @@ public class Derive
     /// The combine rule for struct or struct-array type
     /// </summary>
     [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_STRUCT)]
-    [Relation<EntrySource, Relation.Assign>($"{nameof(Combines)}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
-    [Relation<BlackList, Relation.Call>($"{nameof(Combines)}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
-    [Relation<Default, Relation.Call>($"{nameof(Combines)}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccesstype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{nameof(FieldCombine.Field)}")]
+    [Relation<EntrySource, Relation.Assign>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
+    [Relation<BlackList, Relation.Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
+    [Relation<Default, Relation.Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccesstype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}")]
     public FieldCombine[]? Combines { get; set; }
 }
 

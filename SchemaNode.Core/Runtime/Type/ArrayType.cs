@@ -109,7 +109,9 @@ public sealed class ArrayType: ValueType, IRelationProvider
     public override ValueType? GetAccessValueType(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
-        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? Element : Element?.GetAccessValueType(path);
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        if (paths[0] != ARRAY_ELEMENT) return null;
+        return paths.Length <= 1 ? Element : Element?.GetAccessValueType(paths[1]);
     }
 
     /// <inheritdoc />
@@ -121,10 +123,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
         if (Element == null) yield break;
         
         // element
-        yield return new Entry<string> { Value = ARRAY_ELEMENT };
-
-        foreach (Entry<string> entry in Element.GetAccessEntries())
-            yield return entry;
+        yield return new Entry<string> { Value = ARRAY_ELEMENT, HasChildren = Element?.HasAccessEntries };
     }
 
     /// <inheritdoc />

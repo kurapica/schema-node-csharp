@@ -26,7 +26,7 @@ public static class SchemaStorageProviderExtension
         if (node == null)
         {
             string name = schema.FullName.GetNamespace();
-            while (!string.IsNullOrEmpty(name) && (parent = await context.GetNodeTypeAsync(name)) is not {})
+            while (!string.IsNullOrEmpty(name) && (parent = await context.GetNodeTypeAsync(name)) is null)
                 name = name.GetNamespace();
             
             // parent if creation
@@ -41,9 +41,39 @@ public static class SchemaStorageProviderExtension
         // Gets storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
+        
+        // enum check
+        Queue<(string, Entry<string>[])>? enumValues = null;
+        if (schema.Kind == SCHEMA_KIND_ENUM)
+        {
+            EnumSchema? enumSchema = schema.GetProperty<EnumProperty>()?.Value;
+            if (enumSchema != null)
+            {
+                void ScanChildren(Entry<string>[] children, int cascade)
+                {
+                    foreach (Entry<string> child in children)
+                    {
+                        if (cascade > 1 && child.Children is { Length: > 0})
+                        {
+                            enumValues ??= [];
+                            enumValues.Enqueue((child.Value, child.Children));
+                            ScanChildren(child.Children, cascade - 1);
+                        }
+                        child.Children = null;
+                    }
+                }
+                ScanChildren(enumSchema.Values, enumSchema.Cascade?.Length ?? 1);
+                schema.SetProperty<EnumProperty, EnumSchema>(enumSchema);
+            }
+        }
 
         // save schema
         if (!await provider.SaveSchemaAsync(schema)) return false;
+        
+        // enum sub entries
+        if (enumValues is { Count: > 0 })
+            foreach ((string, Entry<string>[]) value in enumValues)
+                await provider.SaveEnumEntriesAsync(schema.FullName, value.Item1, value.Item2, false);
 
         // save runtime
         if (node == null)
@@ -111,41 +141,27 @@ public static class SchemaStorageProviderExtension
         NodeType? node = await context.GetNodeTypeAsync(name);
         if (node is not Runtime.EnumType { Cascade.Length: > 1 } @enum) return false;
 
+        EntryAccess<string>[] access = await @enum.GetEnumEntryAccessAsync(context, value);
+        if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return false;
+        
         // authorize
         await context.AuthorizeAsync(@enum, PolicyScope.SchemaUpdate);
 
         // gets storage provider
         IAppEntryStorageProvider? provider = context.GetService<IAppEntryStorageProvider>();
         if (provider == null) return false;
-                
-        // Need check the delete case when it has sub list, only delete the leaf node
-        await context.SaveSubEnumListWithoutNonLeafNodesDeleted(provider, @enum, value, values, append);
+
+        foreach (var entry in values)
+            entry.Children = null;
+        await provider.SaveEnumEntriesAsync(name, value, values, append);
 
         // Reload to avoid strange errors
         await context.GetNodeTypeAsync(@enum.Name, reload: true);
 
         // event
-        if (!noEvent)
-            context.RaiseEvent<SchemaChangeEvent, string>(node.Name);
+        if (!noEvent) context.RaiseEvent<SchemaChangeEvent, string>(node.Name);
         return true;
     }
-
-    static async Task SaveSubEnumListWithoutNonLeafNodesDeleted(this SchemaContext context, IAppEntryStorageProvider provider, Runtime.EnumType @enum, string value, Entry<string>[] values, bool append = false)
-    {
-        var access = await @enum.GetEnumEntryAccessAsync(context, value);
-        if (access.Length == 0 || string.IsNullOrWhiteSpace(access.Last().Entry?.Value)) return;
-        
-        if (!append)
-        {
-            var existSubList = access.Last().Children ?? [];
-            var appends = existSubList.Where(e => e.HasChildren == true && values.All(v => !v.Value.Equals(e.Value, StringComparison.OrdinalIgnoreCase))).ToArray();
-            values = appends.Length > 0 ? values.Concat(appends).ToArray() : values; // keep it simple
-        }
-
-        // Save
-        await provider.SaveEnumEntriesAsync(@enum.Name, value, values.Select(v => v.Clone()).ToArray(), append);
-    }
-
 
     /// <summary>
     /// Save the app schema

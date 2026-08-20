@@ -16,7 +16,7 @@ namespace SchemaNode.Property.Constraint;
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CONSTRAINT}.{nameof(Indexes)}")]
 [Relation<Visible, Call>(nameof(Indexes), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(ArraySchema.Element)}", SCHEMA_KIND_STRUCT)]
-[Relation<EntrySource, Assign>($"{nameof(Indexes)}.{nameof(DataIndex.Fields)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(SchemaNode.Function.Reflect.Struct.getindexablefields)}", $"@{nameof(ArraySchema.Element)}")]
+[Relation<EntrySource, Assign>($"{nameof(Indexes)}.{ARRAY_ELEMENT}.{nameof(DataIndex.Fields)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(SchemaNode.Function.Reflect.Struct.getindexablefields)}", $"@{nameof(ArraySchema.Element)}")]
 public class Indexes : Property<DataIndex[]>, IConstraintProperty;
 
 

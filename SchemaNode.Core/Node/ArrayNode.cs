@@ -206,18 +206,13 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
         }
         
         // previous array
-        IValueAccess? result;
         if (paths[0].Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) 
-            result = eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
-        else
-        {
-            // deep access
-            DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : node is null ? _elements.LastOrDefault() : null;
-            result = paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)
-                ? arrayEle
-                : arrayEle?.GetAccessValue(paths[0], node);
-        }
-        return paths.Length > 1 ? result?.GetAccessValue(paths[1]) : result;
+            return eleIndex >= 0 ? new ArrayNode(this, eleIndex) : node is null ? this : null;
+        if (!paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase)) return null;
+        
+        // deep access
+        DataNode? arrayEle = eleIndex >= 0 ? _elements[eleIndex] : null;
+        return paths.Length <= 1 ? arrayEle : arrayEle?.GetAccessValue(paths[1], node);
     }
 
     /// <inheritdoc/>
