@@ -77,19 +77,30 @@ public static class Enum
     /// <summary>
     /// Gets the cascades for the given enum type
     /// </summary>
-    public static async Task<Entry<int>[]> getcascades(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type)
+    public static async Task<EntryAccess<int>[]> getcascades(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type)
     {
         var enumType = await context.getEnumType(type);
-        return enumType?.Cascade?.Select((c, i) =>
-        {
-            var entry = new Entry<int>
+        return [ new EntryAccess<int> {
+            Children = enumType?.Cascade?.Select((c, i) =>
             {
-                Value = i + 1,
-                HasChildren = false
-            };
-            entry.SetProperty<Display, LocaleString>(c);
-            return entry;
-        })?.ToArray() ?? [];
+                var entry = new Entry<int>
+                {
+                    Value = i + 1,
+                    HasChildren = false
+                };
+                entry.SetProperty<Display, LocaleString>(c);
+                return entry;
+            })?.ToArray() ?? [] 
+        }];
+    }
+
+    /// <summary>
+    /// Gets the cascade level of the enum with offset
+    /// </summary>
+    public static async Task<int> getcascade(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string type, int cascade = 0, int offset = 0)
+    {
+        var enumType = await context.getEnumType(type);
+        return (cascade > 0 ? cascade : (enumType?.Cascade?.Length ?? 0)) + offset;
     }
 
     /// <summary>

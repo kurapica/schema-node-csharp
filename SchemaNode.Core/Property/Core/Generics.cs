@@ -10,6 +10,8 @@ namespace SchemaNode.Property.Core;
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ARRAY, SCHEMA_KIND_FUNCTION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<ReadOnly>(true)] // Can't be set in the designer, can only be generated from core types
+[Meta<Static>(true)]
+[Meta<InVisible>(true)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.{nameof(Generics)}")]
 public sealed class Generics : Property<GenericParameter[]>
 {
