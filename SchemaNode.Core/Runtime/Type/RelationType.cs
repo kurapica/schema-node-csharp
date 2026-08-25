@@ -30,11 +30,6 @@ public class RelationType(RelationSchema relation, IValueTypeAccess owner) : INo
     public PropertyType? Property  { get; private set; }
 
     /// <summary>
-    /// The stage of the relation been applied
-    /// </summary>
-    public RelationStage Stage { get; } = relation.Stage;
-
-    /// <summary>
     /// The relation kind
     /// </summary>
     public string Kind { get; } = relation.Kind;

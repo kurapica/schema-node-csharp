@@ -1,4 +1,3 @@
-using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -24,20 +23,13 @@ public interface IRelationAttribute
 public sealed class RelationAttribute<TP, TR> : System.Attribute, IRelationAttribute where TP: IProperty where TR: IProperty
 {
     private readonly string _target;
-    private readonly RelationStage  _stage;
     private readonly object[] _args;
     
     /// <summary>
     /// The call relation with target specified
     /// </summary>
-    public RelationAttribute(string target, params object[] args) : this(RelationStage.LoadInput, target, args){}
-    
-    /// <summary>
-    /// The call relation with target specified
-    /// </summary>
-    public RelationAttribute(RelationStage stage, string target, object[] args)
+    public RelationAttribute(string target, params object[] args)
     {
-        _stage = stage;
         _target = target;
         _args = args;
     }
@@ -54,7 +46,6 @@ public sealed class RelationAttribute<TP, TR> : System.Attribute, IRelationAttri
         {
             Target = string.IsNullOrWhiteSpace(_target) || _target.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) ? target : _target,
             Kind = kind,
-            Stage = _stage,
             Property = typeof(TP).GetSchemaType() ??
                        throw new Exception($"The {typeof(TP).Name} is not a valid property.")
         };

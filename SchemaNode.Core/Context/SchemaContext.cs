@@ -367,7 +367,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             {
                 case JsonValue jsonValue:
                 {
-                    var (v, t) = jsonValue.ParseValueAndType();
+                    var (_, t) = jsonValue.ParseValueAndType();
                     string? schemaType = t?.GetSchemaType();
                     expectedType = !string.IsNullOrEmpty(schemaType) ? await GetNodeTypeAsync<ValueType>(schemaType) : null;
                     break;
@@ -377,7 +377,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     break; // can't handle it without expected type
                 default:
                 {
-                    var cacheItem = GetSchemeCacheItem().TypeCache;
+                    ConcurrentDictionary<Type, ValueType> cacheItem = GetSchemeCacheItem().TypeCache;
                     Type valueType = value.GetType();
                     if (cacheItem.TryGetValue(valueType, out ValueType? cached))
                     {
@@ -389,7 +389,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                         if (!string.IsNullOrWhiteSpace(name))
                             expectedType = await GetNodeTypeAsync<ValueType>(name);
                         expectedType ??= new GenericType();
-                        cacheItem[valueType] = expectedType!;
+                        cacheItem[valueType] = expectedType;
                     }
                     break;
                 }
@@ -401,8 +401,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             try
             {
                 if (!onlyValid) return expectedType.From(value);
-                DataNode node = await expectedType.ValidateValueAsync(this, value);
-                return node.IsValid ? node : null;
+                DataNode? node = await expectedType.ValidateValueAsync(this, value);
+                return node?.IsValid == true ? node : null;
             }
             catch (Exception e)
             {
@@ -526,7 +526,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     #region Scheme Cache Item
 
     SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, ValueType>()));
-    record class SchemeCacheItem(ConcurrentDictionary<Type, ValueType> TypeCache);
+    record SchemeCacheItem(ConcurrentDictionary<Type, ValueType> TypeCache);
 
     #endregion
 }

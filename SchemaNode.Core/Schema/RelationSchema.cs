@@ -1,6 +1,5 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Constraint;
@@ -64,11 +63,6 @@ public class RelationSchema : PropertyOwner
     public string? ValueType { get; set; }
 
     /// <summary>
-    /// The stage of the relation been applied
-    /// </summary>
-    public RelationStage Stage { get; set; } = RelationStage.Load | RelationStage.Input;
-
-    /// <summary>
     /// The relation kind
     /// </summary>
     [Meta<SchemaType>(typeof(RelationKind))]
@@ -83,7 +77,6 @@ public class RelationSchema : PropertyOwner
         if (ReferenceEquals(this, otherRelation)) return true;
         return Target.Equals(otherRelation.Target, StringComparison.OrdinalIgnoreCase) &&
                Property.Equals(otherRelation.Property, StringComparison.OrdinalIgnoreCase) &&
-               Stage == otherRelation.Stage &&
                Kind.Equals(otherRelation.Kind, StringComparison.OrdinalIgnoreCase);
     }
 }
