@@ -5,6 +5,7 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -195,7 +196,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 {
                     varExp = new VariableExp(t.Name, await VisitSchemaExpAsync(
                         new FuncCallExp(callExp.Function, callExp.Args.Select(Inline).ToArray(), 
-                            callExp.ValueType, callExp.ExpType)));
+                            callExp.ValueType, callExp.ApplyMode)));
                     expMaps[varExp.Name] = varExp;
                     break;
                 }
@@ -369,12 +370,12 @@ public class CompileContext(SchemaContext context, FunctionType function)
 
             // Match types
             ValueType funcRetType = exp.ValueType; // func return type may not contains exp return type, require exp type check
-            bool isColExp = (exp.Type ?? ExpType.Call) != ExpType.Call;
+            bool isColExp = (exp.Mode ?? ApplyMode.Call) != ApplyMode.Call;
 
             // Check call type for return value, can't do it in visitor since we need generic type info
-            switch (exp.Type)
+            switch (exp.Mode)
             {
-                case ExpType.Map:
+                case ApplyMode.Map:
                 {
                     if (exp.ValueType is ArrayType { Element: not null } arrayType)
                     {
@@ -387,7 +388,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     }
                     break;
                 }
-                case ExpType.Reduce:
+                case ApplyMode.Reduce:
                 {
                     if (expFuncType.Args.Length is 0 or > 2)
                     {
@@ -396,8 +397,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     }
                     break;
                 }
-                case ExpType.First:
-                case ExpType.Last:
+                case ApplyMode.First:
+                case ApplyMode.Last:
                 {
                     if (exp.ValueType is ArrayType)
                     {
@@ -407,7 +408,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     funcRetType = System.Bool;
                     break;
                 }
-                case ExpType.Filter:
+                case ApplyMode.Filter:
                 {
                     if (exp.ValueType is ArrayType { Element: not null })
                     {
@@ -421,7 +422,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     funcRetType = System.Bool;
                     break;
                 }
-                case ExpType.Count:
+                case ApplyMode.Count:
                 {
                     if (exp.ValueType is not IntType)
                     {
@@ -431,8 +432,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     funcRetType = System.Bool;
                     break;
                 }
-                case ExpType.All:
-                case ExpType.Any:
+                case ApplyMode.All:
+                case ApplyMode.Any:
                 {
                     if (exp.ValueType is not BoolType)
                     {
@@ -542,7 +543,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // build function call expression
-            VariableExp callVarExp = new VariableExp(exp.Name, new FuncCallExp(expFuncType, args, exp.ValueType!, exp.Type ?? ExpType.Call));
+            VariableExp callVarExp = new VariableExp(exp.Name, new FuncCallExp(expFuncType, args, exp.ValueType!, exp.Mode ?? ApplyMode.Call));
 
             // Add to maps
             expMaps[exp.Name] = callVarExp;
@@ -656,14 +657,17 @@ public class CompileContext(SchemaContext context, FunctionType function)
                     int idx = typeInfo.IsGenericParameter
                         ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.CoreType == g.CoreType) 
                         : origin is GenericType go ? (expFuncType.Generics?.FindIndex(g => g.Name == go.Name) ?? -1) : -1;
-                    if (idx < 0 || genericTypes[idx] is not GenericType && genType != null && genType is not GenericType && !genType.IsAssignableTo(genericTypes[idx]))
+                    ValueType? rGenType = (genType as ArrayType)?.Element ?? genType;
+                    if (idx < 0 || genericTypes[idx] is not GenericType && rGenType != null && rGenType is not GenericType && !rGenType.IsAssignableTo(genericTypes[idx]))
                     {
                         exp.Status = isReturn ? ErrorCodes.FUNC_WRONG_RETURN : ErrorCodes.FUNC_EXP_WRONG_ARGS;
                         throw new FunctionVisitException(exp.Status);
                     }
-                    if (genType != null && genType is not GenericType && genericTypes[idx] is GenericType)
-                        genericTypes[idx] = genType;
-                    return genericTypes[idx];
+                    if (rGenType != null && rGenType is not GenericType && genericTypes[idx] is GenericType)
+                        genericTypes[idx] = rGenType;
+                    if (typeInfo.AnyArray && genType is ArrayType) return genType;
+                    if (genericTypes[idx] is GenericType) return genericTypes[idx];
+                    return typeInfo.AnyArray ? GetArrayType(genericTypes[idx]) : genericTypes[idx];
                 }
                 else
                 {
@@ -771,6 +775,11 @@ public class CompileContext(SchemaContext context, FunctionType function)
         return null;
     }
     
+    /// <summary>
+    /// Get schema type by name
+    /// </summary>
+    /// <param name="schemaName"></param>
+    /// <returns></returns>
     public Task<NodeType?> GetSchemaTypeAsync(string schemaName) => Context.GetNodeTypeAsync(schemaName);
     
     /// <summary>
@@ -882,7 +891,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         MethodInfo callMethod = callFuncInfo.Method!;
         // bool hasClosure = callFuncInfo.DynamicMethod != null && callFuncInfo.DynamicMethod.HasClosure();
         Type expReturnType = exp.ValueType.GetCsharpType((callFuncInfo.Sign & FunctionFlags.NullableRet) > 0)!;
-        Type expRetElement = funcCallExp.ExpType is ExpType.Map && exp.ValueType is ArrayType arr
+        Type expRetElement = funcCallExp.ApplyMode is ApplyMode.Map && exp.ValueType is ArrayType arr
             ? arr.Element!.GetCsharpType()!
             : expReturnType;
 
@@ -952,7 +961,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         #endregion
 
         // Direct call
-        if (funcCallExp.ExpType == ExpType.Call)
+        if (funcCallExp.ApplyMode == ApplyMode.Call)
         {
             // Reconcile arg types with actual callMethod parameter types.
             // For unconstrained generic T, 'T?' compiles to 'T' in IL, so

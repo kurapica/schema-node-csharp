@@ -47,16 +47,16 @@ public static class SystemCollection
     /// Whether the list contains the item
     /// </summary>
     [Meta<Logic>(LogicType.Contains)]
-    public static bool contains<T>(ArrayNode array, T value) where T: IComparable
+    public static bool contains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
-        return array.Any(item => EqualityComparer<T>.Default.Equals(item.GetValue<T>(), value));
+        return array.Any(item => EqualityComparer<T>.Default.Equals(item, value));
     }
 
     /// <summary>
     /// Whether the list not contains the item
     /// </summary>
     [Meta<Logic>(LogicType.NotContains)]
-    public static bool notcontains<T>(ArrayNode array, T value) where T: IComparable
+    public static bool notcontains<T>(IEnumerable<T> array, T value) where T: IComparable
     {
         return !contains(array, value);
     }

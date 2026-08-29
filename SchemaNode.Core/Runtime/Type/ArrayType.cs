@@ -1,6 +1,5 @@
 using SchemaNode.Context;
 using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;

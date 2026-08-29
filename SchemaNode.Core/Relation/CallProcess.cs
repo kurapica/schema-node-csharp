@@ -1,9 +1,9 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
+using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -22,6 +22,11 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
     public string Func { get; private set; } = null!;
+
+    /// <summary>
+    /// The apply mode
+    /// </summary>
+    public ApplyMode Mode { get; private set; } = ApplyMode.Call;
 
     /// <summary>
     /// The call arguments
@@ -47,6 +52,8 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             Error ??= ErrorCodes.RELATION_FUNC_NOT_EXIST;
             return;
         }
+
+        Mode = call.Mode;
         Func = call.Func;
         Args = call.Args;
         
@@ -71,7 +78,7 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
             if (string.IsNullOrWhiteSpace(a.Source)) return a.Value;
             var value = owner.GetAccessValue(a.Source, target);
             return value;
-        }).ToArray());
+        }).ToArray(), mode: Mode);
     }
 
     /// <inheritdoc/>

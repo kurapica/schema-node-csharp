@@ -10,6 +10,7 @@ namespace SchemaNode.Property.Function;
 /// </summary>
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
+[Meta<InVisible>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNCTION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_FUNC}.{nameof(ServerOnly)}")]

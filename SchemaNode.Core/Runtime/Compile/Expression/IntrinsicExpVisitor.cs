@@ -1,9 +1,9 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -87,7 +87,7 @@ public class IntrinsicExpVisitor : IExpVisitor
         await Task.Yield();
         
         // Atomic function call expression check
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call, Function:{ MethodInfo: { }} } callExp) return null;
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call, Function:{ MethodInfo: { }} } callExp) return null;
         
         // Constant expression
         if (callExp.Function.MethodInfo.GetCustomAttribute<ConstantAttribute>() is { } constAttr)

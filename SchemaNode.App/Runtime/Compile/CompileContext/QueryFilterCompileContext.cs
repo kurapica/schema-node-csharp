@@ -1,12 +1,12 @@
 ﻿using SchemaNode.Context;
 using System.Linq.Expressions;
 using SchemaNode.Data;
+using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Relation;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using ExpType = SchemaNode.Enum.ExpType;
 
 namespace SchemaNode.Runtime;
 
@@ -61,7 +61,7 @@ public class QueryFilterCompileContext : CompileContext
     /// </summary>
     public override async Task<SchemaExp> VisitSchemaExpAsync(SchemaExp exp)
     {
-        if (exp is FuncCallExp { ExpType: ExpType.Call } funcCallExp)
+        if (exp is FuncCallExp { ApplyMode: ApplyMode.Call } funcCallExp)
         {
             SchemaExp[] args = new SchemaExp[funcCallExp.Args.Length];
             bool changed = false;
@@ -128,7 +128,7 @@ public class QueryFilterCompileContext : CompileContext
                 }
             }
             if (changed)
-                exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.ValueType, funcCallExp.ExpType);
+                exp = new FuncCallExp(funcCallExp.Function, args, funcCallExp.ValueType, funcCallExp.ApplyMode);
         }
         SchemaExp result = await base.VisitSchemaExpAsync(exp);
         return (result is FieldAccessExp { Owner: ArgumentExp { Index: 0 } or 

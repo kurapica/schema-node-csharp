@@ -1,5 +1,5 @@
 ﻿using System.Linq.Expressions;
-using ExpressionType = SchemaNode.Enum.ExpType;
+using SchemaNode.Enum;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -74,5 +74,5 @@ public record StructResultExp(StructFieldExp[] Fields, ValueType ValueType) : Sc
 /// <param name="Args">An array of expressions representing the arguments to pass to the function. The order of expressions corresponds to
 /// the function's parameter order.</param>
 /// <param name="ValueType">The schema type that describes the result of the function call.</param>
-/// <param name="ExpType">The collection expression type</param>
-public record FuncCallExp(FunctionType Function, SchemaExp[] Args, ValueType ValueType, ExpressionType ExpType = ExpressionType.Call) : SchemaExp(ValueType);
+/// <param name="ApplyMode">The collection expression type</param>
+public record FuncCallExp(FunctionType Function, SchemaExp[] Args, ValueType ValueType, ApplyMode ApplyMode = ApplyMode.Call) : SchemaExp(ValueType);

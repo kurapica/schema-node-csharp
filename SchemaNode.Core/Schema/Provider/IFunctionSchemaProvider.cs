@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using SchemaNode.Enum;
 
 namespace SchemaNode.Schema.Provider;
 
@@ -13,6 +14,7 @@ public interface IFunctionSchemaProvider
     /// <param name="schemaName">The function schema name</param>
     /// <param name="args">The arguments</param>
     /// <param name="retType">The return type</param>
+    /// <param name="mode">The apply mode</param>
     /// <returns>The result</returns>
-    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null);
+    Task<JsonNode?> CallFunctionAsync(string schemaName, JsonArray args, string? retType = null, ApplyMode? mode = ApplyMode.Call);
 }

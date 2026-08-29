@@ -151,11 +151,33 @@ public sealed class FuncExp {
     public string Return { get; set; } = string.Empty;
 
     /// <summary>
-    /// The calling type
+    /// The call function settings
     /// </summary>
-    [Relation<WhiteList, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexptypes)}", $"@{nameof(Return)}")]
+    [Relation<Default, Call>($"{nameof(Call)}.{nameof(FuncCall.Return)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Return)}")]
+    public required FuncCall Call { get; set; }
+}
+
+/// <summary>
+/// The function call 
+/// </summary>
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(FuncCall)}")]
+[Relation<Valid, Assign>(nameof(Func), NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, $"@{nameof(Func)}", $"@{nameof(FuncReturn)}")]
+public class FuncCall
+{
+    /// <summary>
+    /// The expression type
+    /// </summary>
+    [Meta<SchemaType>(typeof(ValueType))]
+    [Meta<DisplayOnly>(true)]
+    [Meta<InVisible>(true)]
+    public string Return { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The apply mode
+    /// </summary>
+    [Relation<WhiteList, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getapplymodes)}", $"@{nameof(Return)}")]
     [Meta<Require>(true)]
-    public ExpType Type { get; set; } = ExpType.Call;
+    public ApplyMode Mode { get; set; } = ApplyMode.Call;
 
     /// <summary>
     /// The expected function return type
@@ -163,26 +185,28 @@ public sealed class FuncExp {
     [Meta<SchemaType>(typeof(ValueType))]
     [Meta<DisplayOnly>(true)]
     [Meta<InVisible>(true)]
-    [Relation<Default, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexpectreturn)}", $"@{nameof(Return)}", $"@{nameof(Type)}")]
+    [Relation<Default, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getexpectreturn)}", $"@{nameof(Return)}", $"@{nameof(Mode)}")]
     public string? FuncReturn { get; set;}
      
     /// <summary>
     /// The call function
     /// </summary>
     [Meta<SchemaType>(typeof(FuncType))]
-    [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(FuncReturn)}")]
+    [Relation<Visible, Call>(nameof(Args), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Mode)}")]
     public string Func { get; set; } = string.Empty;
 
     /// <summary>
-    /// The argument list, should be exp name or argument name.
+    /// The argument list
     /// </summary>
+    [Relation<Visible, Call>(nameof(Args), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Func)}")]
     public CallArg[] Args { get; set; } = [];
 }
 
 /// <summary>
 /// The function call arguments
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.callarg")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.{nameof(CallArg)}")]
+[Relation<AccessEntryConsumer, Assign>(nameof(Source), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", $"@{nameof(Type)}")]
 public class CallArg: IEquatable<CallArg>
 {
     /// <summary>
@@ -195,7 +219,7 @@ public class CallArg: IEquatable<CallArg>
     /// <summary>
     /// The argument data source, like field access path
     /// </summary>
-    [Meta<AccessEntryConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
+    //[Meta<AccessEntryConsumer>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.isassignableto)}", NODE_SELF, $"@{nameof(Type)}")]
     [Relation<InVisible, Call>(NODE_SELF, $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.notempty)}", $"@{nameof(Value)}")]
     public string? Source { get; set; }
     

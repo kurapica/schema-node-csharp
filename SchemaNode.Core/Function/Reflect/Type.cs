@@ -7,6 +7,7 @@ using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+using ArrayType = SchemaNode.Runtime.ArrayType;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using ValueType = SchemaNode.Schema.ValueType;
 // ReSharper disable InconsistentNaming
@@ -188,12 +189,16 @@ public static class Type
     /// <summary>
     /// Checks if the type is assignable to other value type
     /// </summary>
-    public static async Task<bool> isassignableto(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, [Meta<SchemaType>(typeof(ValueType))] string target)
+    public static async Task<bool> isassignableto(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, bool matchArrayElement, [Meta<SchemaType>(typeof(ValueType))] params string[] targets)
     {
         var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
-        var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
-        if (typeNode == null || targetNode == null) return false;
-        return typeNode.IsAssignableTo(targetNode);
+        if (typeNode == null) return false;
+        foreach (var target in targets)
+        {
+            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+            if (targetNode != null && (typeNode.IsAssignableTo(targetNode) || matchArrayElement && typeNode is ArrayType { Element: not null } arr && arr.Element.IsAssignableTo(targetNode))) return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -202,12 +207,18 @@ public static class Type
     public static async Task<bool> isaccessassignableto(SchemaContext context, 
         [Meta<SchemaType>(typeof(ValueType))] string type, 
         string path,
-        [Meta<SchemaType>(typeof(ValueType))] string target)
+        bool matchArrayElement, 
+        [Meta<SchemaType>(typeof(ValueType))] params string[] targets)
     {
         var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
-        var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
-        if (typeNode == null || targetNode == null) return false;
-        return typeNode.GetAccessValueType(path)?.IsAssignableTo(targetNode) ?? false;
+        typeNode = typeNode?.GetAccessValueType(path);
+        if (typeNode == null) return false;
+        foreach (var target in targets)
+        {
+            var targetNode = string.IsNullOrWhiteSpace(target) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(target);
+            if (targetNode != null && (typeNode.IsAssignableTo(targetNode) || matchArrayElement && typeNode is ArrayType { Element: not null } arr && arr.Element.IsAssignableTo(targetNode))) return true;
+        }
+        return false;
     }
 
     /// <summary>

@@ -151,49 +151,49 @@ public static class Function
 
     
     /// <summary>
-    /// Gets the expression types for the given exp return type
+    /// Gets the function apply modes for the given return type
     /// </summary>
-    public static async Task<List<ExpType>> getexptypes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
+    public static async Task<List<ApplyMode>> getapplymodes(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type)
     {
         var returnType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
         if (returnType == null) return [];
         if (returnType is Runtime.ArrayType)
         {
-            return [ExpType.Call, ExpType.Filter, ExpType.Map];
+            return [ApplyMode.Call, ApplyMode.Filter, ApplyMode.Map];
         }
         else if (returnType is Runtime.BoolType)
         {
-            return [ExpType.Call, ExpType.All, ExpType.Any];
+            return [ApplyMode.Call, ApplyMode.All, ApplyMode.Any];
         }
         else if (returnType is Runtime.IntType)
         {
-            return [ExpType.Call, ExpType.Count, ExpType.Reduce];
+            return [ApplyMode.Call, ApplyMode.Count, ApplyMode.Reduce];
         }
         else if (returnType is Runtime.DecimalType)
         {
-            return [ExpType.Call, ExpType.Reduce];
+            return [ApplyMode.Call, ApplyMode.Reduce];
         }
-        return [ExpType.Call, ExpType.First, ExpType.Last, ExpType.Reduce];
+        return [ApplyMode.Call, ApplyMode.First, ApplyMode.Last, ApplyMode.Reduce];
     }
 
     /// <summary>
     /// Gets the expected function return type for the given exp return type
     /// </summary>
-    public static async Task<string?> getexpectreturn(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, ExpType expType)
+    public static async Task<string?> getexpectreturn(SchemaContext context, [Meta<SchemaType>(typeof(ValueType))] string type, ApplyMode applyMode)
     {
         var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;
         if (valueType == null) return null;
-        return expType switch
+        return applyMode switch
         {
-            ExpType.Call => valueType.Name,
-            ExpType.Map => valueType is Runtime.ArrayType arr ? arr.Element?.Name : valueType.Name,
-            ExpType.Reduce => valueType.Name,
-            ExpType.First => NS_SYSTEM_BOOL,
-            ExpType.Last => NS_SYSTEM_BOOL,
-            ExpType.Filter => NS_SYSTEM_BOOL,
-            ExpType.Count => NS_SYSTEM_BOOL,
-            ExpType.All => NS_SYSTEM_BOOL,
-            ExpType.Any => NS_SYSTEM_BOOL,
+            ApplyMode.Call => valueType.Name,
+            ApplyMode.Map => valueType is Runtime.ArrayType arr ? arr.Element?.Name : valueType.Name,
+            ApplyMode.Reduce => valueType.Name,
+            ApplyMode.First => NS_SYSTEM_BOOL,
+            ApplyMode.Last => NS_SYSTEM_BOOL,
+            ApplyMode.Filter => NS_SYSTEM_BOOL,
+            ApplyMode.Count => NS_SYSTEM_BOOL,
+            ApplyMode.All => NS_SYSTEM_BOOL,
+            ApplyMode.Any => NS_SYSTEM_BOOL,
             _ => null,
         };
     }

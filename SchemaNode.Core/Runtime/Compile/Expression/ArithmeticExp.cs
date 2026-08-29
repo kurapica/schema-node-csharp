@@ -3,7 +3,6 @@ using System.Reflection;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -45,7 +44,7 @@ public class ArithmeticExpVisitor : IExpVisitor
     // <inheritdoc/>
     public Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call } callExp ||
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call } callExp ||
             callExp.Function.MethodInfo == null ||
             callExp.Function.MethodInfo.GetCustomAttribute<ArithmeticAttribute>() is not {} attr) 
             return Task.FromResult<SchemaExp?>(null);

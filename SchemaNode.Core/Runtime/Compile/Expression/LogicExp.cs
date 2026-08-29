@@ -5,7 +5,6 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
-using ExpressionType = SchemaNode.Enum.ExpType;
 
 // ReSharper disable NotAccessedPositionalProperty.Global
 
@@ -69,7 +68,7 @@ public class LogicExpVisitor : IExpVisitor
     public async Task<SchemaExp?> VisitExpAsync(CompileContext context, SchemaExp exp)
     {
         await Task.Yield();
-        if (exp is not FuncCallExp { ExpType: ExpressionType.Call, Function: { MethodInfo: { } method } } callExp) return null;
+        if (exp is not FuncCallExp { ApplyMode: ApplyMode.Call, Function: { MethodInfo: { } method } } callExp) return null;
         
         // v in [a, b) - special case
         if (callExp.Function.Name.Equals($"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.between)}", StringComparison.OrdinalIgnoreCase))

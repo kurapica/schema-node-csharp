@@ -149,7 +149,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                 {
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.getfield)}":
                     {
-                        if (funcCallExp.ExpType == ExpType.Call &&
+                        if (funcCallExp.ApplyMode == ApplyMode.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false } appExp &&
                             funcCallExp.Args[1] is ConstantExp { Value.IsEmpty: false } fieldExp &&
                             funcCallExp.Args[2] is ConstantExp { Value.IsEmpty: false } dataFieldExp
@@ -221,7 +221,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                     }
                     case $"{NS_SYSTEM_DATA}.{nameof(SystemAppData.get)}":
                     {
-                        if (funcCallExp.ExpType == ExpType.Call &&
+                        if (funcCallExp.ApplyMode == ApplyMode.Call &&
                             funcCallExp.Args[0] is ConstantExp { Value.IsEmpty: false }  appExp &&
                             funcCallExp.Args[1] is ConstantExp { Value.IsEmpty: false }  fieldExp
                            )

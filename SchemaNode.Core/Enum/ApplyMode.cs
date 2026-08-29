@@ -7,8 +7,8 @@ namespace SchemaNode.Enum;
 /// <summary>
 /// The expression call type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.exptype")]
-public enum ExpType
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.applymode")]
+public enum ApplyMode
 {
     /// <summary>
     /// Call directly

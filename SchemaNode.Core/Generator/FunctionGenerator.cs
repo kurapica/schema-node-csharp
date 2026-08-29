@@ -103,7 +103,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             funcSchema.SetProperty<Generics, GenericParameter[]>(
                 genInfos.Select(g => new GenericParameter (
                         typeResolver(g.CoreType, @namespace, genericArgs)!,
-                        g.Number ? [g.OnlyFloat ? NS_SYSTEM_DOUBLE : NS_SYSTEM_NUMBER] : null
+                        g.Number ? (g.OnlyFloat ? [NS_SYSTEM_NUMBER] : [NS_SYSTEM_NUMBER, NS_SYSTEM_INT]): null
                     )
                 ).ToArray());
 
