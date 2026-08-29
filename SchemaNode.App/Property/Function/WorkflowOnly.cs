@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
