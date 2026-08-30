@@ -85,9 +85,9 @@ public static class Struct
     /// <summary>
     /// Gets the access value type
     /// </summary>
-    public static async Task<string?> getaccessvaluetype(SchemaContext context, StructFieldSchema[] fields, string path)
+    public static async Task<string?> getaccessvaluetype(SchemaContext context, StructFieldSchema[] fields, string? path = null)
     {
-        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        string[] paths = (path ?? "").Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length == 0) return null;
         var field = fields.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase));
         if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;

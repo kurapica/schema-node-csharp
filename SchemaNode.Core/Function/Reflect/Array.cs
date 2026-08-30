@@ -134,7 +134,7 @@ public static class Array
     /// <summary>
     /// Gets the access value type
     /// </summary>
-    public static async Task<string?> getaccessvaluetype(SchemaContext context,  [Meta<SchemaType>(typeof(ValueType))] string element, string path)
+    public static async Task<string?> getaccessvaluetype(SchemaContext context,  [Meta<SchemaType>(typeof(ValueType))] string element, string? path = null)
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);

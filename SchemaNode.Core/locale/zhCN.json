@@ -1,6 +1,8 @@
 {
   "LIST.PREFIX": "",
   "LIST.SUFFIX": "数组",
+  "ARRAY_PREVIOUS": "之前元素集合",
+  "ARRAY_ELEMENT": "元素",
   "VALUE_NOT_VALID": "{0}必须提供有效值。",
   "system": "系统",
   "system.array": "数组",

@@ -1,6 +1,8 @@
 {
   "LIST.PREFIX": "",
   "LIST.SUFFIX": " Array",
+  "ARRAY_PREVIOUS": "Previous Elements",
+  "ARRAY_ELEMENT": "Element",
   "VALUE_NOT_VALID": "{0} must provide a valid value.",
   "system": "System",
   "system.array": "Array",

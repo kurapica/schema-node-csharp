@@ -34,12 +34,16 @@ public abstract class DataNode : IValueAccess
     #endregion
     
     #region Implementation
-    
+
     /// <summary>
     /// Gets the access value by path
     /// </summary>
     public virtual IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
-        => (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase))  ? this : null;
+    {
+        if (string.IsNullOrEmpty(path)) return this;
+        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
+        return null;
+    }
 
     /// <inheritdoc/>
     public void RecordConstraint(IConstraintProperty constraint, bool result)

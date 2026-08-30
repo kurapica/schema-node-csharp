@@ -28,22 +28,6 @@ public class RelationSchema : PropertyOwner
     [Meta<PrimaryIndex>(0)]
     [Meta<EntrySourceConsumer>(true)]
     public string Target { get; set; } = null!;
-
-    /// <summary>
-    /// The schema type of the target type
-    /// </summary>
-    [Meta<DisplayOnly>(true)]
-    [Meta<InVisible>(true)]
-    [Meta<AccessValueTypeResolver>(nameof(Target))]
-    public string? TargetType { get; set; }
-
-    /// <summary>
-    /// The schema kind of the target type
-    /// </summary>
-    [Meta<DisplayOnly>(true)]
-    [Meta<InVisible>(true)]
-    [Relation<Default, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getschemakind)}", $"@{nameof(TargetType)}")]
-    public string? TargetKind { get;set; }
     
     /// <summary>
     /// The property the relation applied to
@@ -51,7 +35,6 @@ public class RelationSchema : PropertyOwner
     [Meta<PrimaryIndex>(1)]
     [Meta<SchemaType>(typeof(SchemaPropertyType))]
     [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.notstatic)}", NODE_SELF)]
-    [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_PROPERTY}.{nameof(Function.Reflect.Property.forschema)}", NODE_SELF, $"@{nameof(TargetKind)}")]
     public string Property { get; set; } = null!;
     
     /// <summary>

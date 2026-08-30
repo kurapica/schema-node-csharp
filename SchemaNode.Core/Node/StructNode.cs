@@ -103,7 +103,8 @@ public class StructNode : DataNode
     /// </summary>
     public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        if (string.IsNullOrEmpty(path)) return this;
+        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
         string[] paths = path.Split('.', 2,  StringSplitOptions.RemoveEmptyEntries);
         DataNode? field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
         return paths.Length > 1 ? field?.GetAccessValue(paths[1], node) : field;

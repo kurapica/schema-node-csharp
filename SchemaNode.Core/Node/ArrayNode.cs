@@ -192,7 +192,8 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        if (string.IsNullOrEmpty(path)) return this;
+        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
         
         string[] paths = path.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
         int eleIndex = -1;
