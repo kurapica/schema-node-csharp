@@ -13,7 +13,7 @@ public sealed class IntType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc/>
-    public override DataNode Create(IValueAccess? parent = null) => new IntNode { Type = this, Parent = parent };
+    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new IntNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<IntProperty>()?.Value;

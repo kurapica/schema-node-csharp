@@ -14,15 +14,17 @@ public class StructNode : DataNode
 
     #region Constructor
 
-    public StructNode(StructType type, IValueAccess? parent = null)
+    public StructNode(StructType type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
         Type = type;
         Parent = parent;
+        PropertyProvider = propertyProvider ?? type;
+        
         // init fields
-        _fields = type.GetFields().Select(p => p.Type?.Create(this) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
+        _fields = type.GetFields().Select(p => p.Type?.Create(this, p) ?? throw new Exception($"The struct {type.Name}'s field {p.Name} has not valid value type")).ToArray();
     }
 
-    public StructNode(StructType type, object value, IValueAccess? parent = null): this(type, parent)
+    public StructNode(StructType type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
@@ -103,8 +105,7 @@ public class StructNode : DataNode
     /// </summary>
     public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (string.IsNullOrEmpty(path)) return this;
-        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
+        if (base.GetAccessValue(path, node) is { } v) return v;
         string[] paths = path.Split('.', 2,  StringSplitOptions.RemoveEmptyEntries);
         DataNode? field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
         return paths.Length > 1 ? field?.GetAccessValue(paths[1], node) : field;

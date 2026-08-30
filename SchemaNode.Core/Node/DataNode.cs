@@ -1,6 +1,7 @@
 ﻿using ValueType = SchemaNode.Runtime.ValueType;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 
 // ReSharper disable InconsistentNaming
@@ -25,6 +26,11 @@ public abstract class DataNode : IValueAccess
     /// The parent
     /// </summary>
     public IValueAccess? Parent { get; init; }
+    
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    public IPropertyProvider? PropertyProvider { get; init; }
 
     /// <summary>
     /// Violated Constraints
@@ -42,6 +48,15 @@ public abstract class DataNode : IValueAccess
     {
         if (string.IsNullOrEmpty(path)) return this;
         if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
+        if (path.Equals(NODE_TYPE, StringComparison.OrdinalIgnoreCase))
+        {
+            var access = node ?? this;
+            while (access != null && access.PropertyProvider?.GetProperty<TypeProvider>() is not
+                       { HasValue: true })
+                access = access.Parent;
+            if (access?.PropertyProvider?.GetProperty<TypeProvider>() is { HasValue: true } type)
+                return access.GetAccessValue(type.GetValue<string>()!, node);
+        }
         return null;
     }
 

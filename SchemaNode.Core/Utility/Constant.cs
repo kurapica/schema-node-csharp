@@ -42,17 +42,22 @@ public static class Constant
     public const string SCHEMA_KIND_OBJECT = "object";
     public const string SCHEMA_KIND_BOOL = "bool";
     public const string SCHEMA_KIND_INT = "int";
+    public const string SCHEMA_KIND_INT_DEFINE = "int.define";
     public const string SCHEMA_KIND_DECIMAL = "decimal";
+    public const string SCHEMA_KIND_DECIMAL_DEFINE = "decimal.define";
     public const string SCHEMA_KIND_STRING = "string";
+    public const string SCHEMA_KIND_STRING_DEFINE = "string.define";
     public const string SCHEMA_KIND_DATE = "date";
+    public const string SCHEMA_KIND_DATE_DEFINE = "date.define";
     public const string SCHEMA_KIND_ENUM = "enum";
+    public const string SCHEMA_KIND_ENUM_DEFINE = "enum.define";
     public const string SCHEMA_KIND_STRUCT = "struct";
     public const string SCHEMA_KIND_ARRAY = "array";
     public const string SCHEMA_KIND_FUNCTION = "function";
     public const string SCHEMA_KIND_PROPERTY = "property";
-    public const string SCHEMA_KIND_STRUCT_FIELD = "structfield";
+    public const string SCHEMA_KIND_STRUCT_FIELD = "struct.field";
     public const string SCHEMA_KIND_RELATION = "relation";
-    public const string SCHEMA_KIND_FUNC_ARG = "functionarg";
+    public const string SCHEMA_KIND_FUNC_ARG = "function.arg";
     public const string SCHEMA_KIND_ENTRY = "entry";
 
     internal const int SCHEMA_KIND_ORDER_NODE = 0;

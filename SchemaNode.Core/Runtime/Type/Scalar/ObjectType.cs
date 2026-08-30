@@ -10,7 +10,7 @@ namespace SchemaNode.Runtime;
 public sealed class ObjectType : ScalarType
 {
     /// <inheritdoc/>
-    public override DataNode Create(IValueAccess? parent = null) => new AnyNode { Type = this, Parent = parent };
+    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new AnyNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => null;

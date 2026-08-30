@@ -62,6 +62,11 @@ public interface IValueAccess
     /// The value parent
     /// </summary>
     IValueAccess? Parent { get; }
+    
+    /// <summary>
+    /// The property provider
+    /// </summary>
+    IPropertyProvider? PropertyProvider { get; }
 
     /// <summary>
     /// Record the constraint result

@@ -11,6 +11,12 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
 
+/// <summary>
+/// The date define kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_DATE_DEFINE, SCHEMA_KIND_ORDER_DATE)]
+public sealed class DateDefine;
+
 [Meta<SchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]

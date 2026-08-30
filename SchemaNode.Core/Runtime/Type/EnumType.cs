@@ -117,7 +117,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new EnumNode(this,  parent);
+    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;

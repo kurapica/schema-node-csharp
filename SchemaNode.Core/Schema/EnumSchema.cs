@@ -33,6 +33,12 @@ namespace SchemaNode.Schema;
 public sealed class EnumKind;
 
 /// <summary>
+/// The enum define kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_ENUM_DEFINE, SCHEMA_KIND_ORDER_ENUM)]
+public sealed class EnumDefine;
+
+/// <summary>
 /// The enum schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.schema")]

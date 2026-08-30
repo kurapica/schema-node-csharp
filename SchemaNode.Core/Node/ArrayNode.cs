@@ -2,6 +2,7 @@
 using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Transactions;
 using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using ArrayType = SchemaNode.Runtime.ArrayType;
@@ -16,15 +17,16 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
 {
     #region Constructors
     
-    public ArrayNode(ValueType type, IValueAccess? parent = null)
+    public ArrayNode(ValueType type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
         Type = type.ArrayType ?? type;
         Parent = parent;
         ElementType = (type is ArrayType arr ? arr.Element : type) ??
                       throw new Exception($"The type '{type.Name}' is not a valid array type.");
+        PropertyProvider = propertyProvider ?? type.ArrayType ?? type;
     }
 
-    public ArrayNode(ValueType type, object value, IValueAccess? parent = null): this(type, parent)
+    public ArrayNode(ValueType type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");
@@ -192,8 +194,7 @@ public class ArrayNode : DataNode, IEnumerable<DataNode>
     /// </summary>
     public override IValueAccess? GetAccessValue(string path, IValueAccess? node = null)
     {
-        if (string.IsNullOrEmpty(path)) return this;
-        if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
+        if (base.GetAccessValue(path, node) is { } v) return v;
         
         string[] paths = path.Split('.',2, StringSplitOptions.RemoveEmptyEntries);
         int eleIndex = -1;

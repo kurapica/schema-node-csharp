@@ -19,7 +19,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
-[Meta<Append>(typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider))]
+[Meta<Append>(typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider))]
 [Meta<StructValue>]
 public sealed class StructKind;
 
@@ -101,6 +101,7 @@ public class StructType: ValueType;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
+[Meta<TypeProvider>(nameof(Type))]
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>

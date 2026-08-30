@@ -11,6 +11,12 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
 
+/// <summary>
+/// The int define kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_INT_DEFINE, SCHEMA_KIND_ORDER_INT)]
+public sealed class IntDefine;
+
 [Meta<SchemaKind>(SCHEMA_KIND_INT, SCHEMA_KIND_ORDER_INT)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_INT, SCHEMA_KIND_ORDER_INT)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_INT, SCHEMA_KIND_ORDER_INT)]

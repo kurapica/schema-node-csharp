@@ -422,14 +422,14 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract DataNode Create(IValueAccess? parent = null);
+    public abstract DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
 
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    public DataNode From(object? value, IValueAccess? parent = null)
+    public DataNode From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
-        var node = Create(parent);
+        var node = Create(parent, propertyProvider);
         node.TrySetValue(value);
         return node;
     }

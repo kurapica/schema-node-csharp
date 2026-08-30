@@ -12,14 +12,15 @@ public class EnumNode : DataNode
 
     #region Constructors
     
-    public EnumNode(EnumType type, IValueAccess? parent = null)
+    public EnumNode(EnumType type, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
         Type = type;
         Parent = parent;
         _isString = type.Type == EnumValueType.String;
+        PropertyProvider = propertyProvider ?? type;
     }
     
-    public EnumNode(EnumType type, object value, IValueAccess? parent = null): this(type, parent)
+    public EnumNode(EnumType type, object value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null): this(type, parent, propertyProvider)
     {
         if (!TrySetValue(value))
             throw new InvalidCastException($"Failed to set value to schema type {type.Name}.");

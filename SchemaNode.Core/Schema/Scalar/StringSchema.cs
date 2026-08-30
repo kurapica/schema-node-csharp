@@ -11,6 +11,12 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
 
+/// <summary>
+/// The string define kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_STRING_DEFINE, SCHEMA_KIND_ORDER_STRING)]
+public sealed class StringDefine;
+
 [Meta<SchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRING, SCHEMA_KIND_ORDER_STRING)]

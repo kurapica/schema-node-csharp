@@ -11,6 +11,12 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 
 namespace SchemaNode.Schema;
 
+/// <summary>
+/// The decimal define kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_DECIMAL_DEFINE, SCHEMA_KIND_ORDER_DECIMAL)]
+public sealed class DecimalDefine;
+
 [Meta<SchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_ORDER_DECIMAL)]

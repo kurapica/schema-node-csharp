@@ -158,7 +158,7 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new StructNode(this, parent);
+    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StructNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
     public override IEnumerable<Entry<string>> GetAccessEntries()

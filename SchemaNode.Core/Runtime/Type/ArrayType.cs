@@ -137,7 +137,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null) => new ArrayNode(this, parent);
+    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
     public IEnumerable<RelationType> GetRelations() => _relations ?? [];
