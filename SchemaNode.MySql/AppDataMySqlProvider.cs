@@ -15,7 +15,7 @@ using System.Data.Common;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using SchemaNode.Property.Common;
+using SchemaNode.Property.Struct;
 using static SchemaNode.Utility.AppConstant;
 using static SchemaNode.Utility.Constant;
 using ArrayType = SchemaNode.Runtime.ArrayType;

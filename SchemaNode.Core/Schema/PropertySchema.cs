@@ -1,9 +1,9 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.String;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
@@ -49,12 +49,12 @@ public class PropertySchema: PropertyOwner
 /// <summary>
 /// Declare the "property" property for node schema
 /// </summary>
-[Meta<Alias>("property")]
+[Meta<Alias>(SCHEMA_KIND_PROPERTY)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.prop")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{SCHEMA_KIND_PROPERTY}")]
 [Meta<ReadOnly>(true)]
-[Relation<Visible, Relation.Call>("property", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
+[Relation<Visible, Relation.Call>(SCHEMA_KIND_PROPERTY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class PropertyProperty : Property<PropertySchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)

@@ -4,15 +4,14 @@ using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Presentation;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Serialization;
+using SchemaNode.Property.String;
 using static SchemaNode.Utility.Constant;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
@@ -28,6 +27,7 @@ namespace SchemaNode.Schema;
 [Meta<SchemaKind>(SCHEMA_KIND_NODE, SCHEMA_KIND_ORDER_NODE)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.schema")]
 [Meta<Attach>(SCHEMA_KIND_NODE)]
+[Meta<Append>(typeof(Display))]
 public sealed class NodeSchema: PropertyOwner, IErrorProvider
 {
     /// <summary>

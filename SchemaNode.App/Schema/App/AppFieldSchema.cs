@@ -7,7 +7,6 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property;
 using SchemaNode.Runtime;
 using SchemaValueType = SchemaNode.Schema.ValueType;
-using SchemaNode.Property.Presentation;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 

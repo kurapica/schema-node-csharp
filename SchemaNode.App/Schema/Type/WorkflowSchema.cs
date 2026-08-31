@@ -3,7 +3,6 @@ using SchemaNode.Enum;
 using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;

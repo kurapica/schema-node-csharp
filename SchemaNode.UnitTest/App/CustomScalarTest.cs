@@ -1,5 +1,6 @@
 using SchemaNode.Node;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;

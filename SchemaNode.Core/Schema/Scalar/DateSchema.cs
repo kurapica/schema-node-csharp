@@ -1,9 +1,11 @@
 using SchemaNode.Attribute;
+using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Date;
 using SchemaNode.Property.Record;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using NodeType = SchemaNode.Property.Core.NodeType;
@@ -12,17 +14,24 @@ using ValueSchemaKind = SchemaNode.Property.Record.ValueSchemaKind;
 namespace SchemaNode.Schema;
 
 /// <summary>
-/// The date define kind
+/// The date schema kind
 /// </summary>
-[Meta<SchemaKind>(SCHEMA_KIND_DATE_DEFINE, SCHEMA_KIND_ORDER_DATE)]
-public sealed class DateDefine;
-
 [Meta<SchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<NodeSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<NodeType>(typeof(Runtime.DateType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.schema")]
+[Meta<SchemaUsage>(typeof(DateUsage))]
+[Meta<Append>(typeof(AsSuggest), typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
 [Meta<DateValue>]
+public sealed class DateKind;
+
+/// <summary>
+/// The date define schema
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_DATE_DEFINE, SCHEMA_KIND_ORDER_DATE)]
+[Meta<Append>(typeof(Error), typeof(Valid))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.schema")]
+[Meta<Attach>(SCHEMA_KIND_DATE_DEFINE)]
 public sealed class DateSchema : ScalarSchema
 {
     /// <summary>
@@ -33,12 +42,24 @@ public sealed class DateSchema : ScalarSchema
 }
 
 /// <summary>
+/// The date usage
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_DATE_USAGE, SCHEMA_KIND_ORDER_DATE)]
+[Meta<Append>(typeof(AsSuggest), typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.usage")]
+[Meta<Attach>(SCHEMA_KIND_DATE_USAGE)]
+[Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]
+[Relation<BlackList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
+public sealed class DateUsage;
+
+/// <summary>
 /// Declare date property for node schema
 /// </summary>
+[Meta<Alias>(SCHEMA_KIND_DATE)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.date")]
-[Relation<Visible, Relation.Call>("date", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_DATE}.{SCHEMA_KIND_DATE}")]
+[Relation<Visible, Call>(SCHEMA_KIND_DATE, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
 public sealed class DateProperty : Property<DateSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)

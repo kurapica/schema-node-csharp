@@ -1,4 +1,5 @@
 using SchemaNode.Attribute;
+using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
@@ -16,4 +17,4 @@ namespace SchemaNode.Property.App;
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_APP}.{nameof(Topology)}")]
 [Relation<InVisible, Relation.Call>(nameof(Topology), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.not)}", $"@{nameof(EnableStorage)}")]
 [Relation<Visible, Relation.Call>(nameof(Topology), $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(SchemaNode.Function.Reflect.Struct.hasdynamicfield)}", $"@{nameof(AppFieldSchema.Type)}")]
-public class Topology : Property<Enum.FieldStorageTopology>;
+public class Topology : Property<FieldStorageTopology>;

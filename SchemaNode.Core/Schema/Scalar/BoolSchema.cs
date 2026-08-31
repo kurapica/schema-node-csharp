@@ -1,5 +1,6 @@
 using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Bool;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
@@ -15,8 +16,19 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_BOOL, SCHEMA_KIND_ORDER_BOOL)]
 [Meta<ValueSchemaKind>(SCHEMA_KIND_BOOL, SCHEMA_KIND_ORDER_BOOL)]
 [Meta<NodeType>(typeof(Runtime.BoolType))]
+[Meta<SchemaUsage>(typeof(BoolUsage))]
 [Meta<BoolValue>]
-public sealed class BoolSchema;
+[Meta<Append>(typeof(Default))]
+public sealed class BoolKind;
+
+/// <summary>
+/// The bool usage
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_BOOL_USAGE, SCHEMA_KIND_ORDER_BOOL)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.usage")]
+[Meta<Attach>(SCHEMA_KIND_BOOL_USAGE)]
+[Meta<Append>(typeof(Default))]
+public sealed class BoolUsage;
 
 /// <summary>
 /// Represents the bool scalar type

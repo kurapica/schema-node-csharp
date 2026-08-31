@@ -4,7 +4,6 @@ using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Core;
 
-
 /// <summary>
 /// The access value type provider
 /// </summary>

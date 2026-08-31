@@ -3,7 +3,7 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Array;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
 using Type = System.Type;

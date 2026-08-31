@@ -2,6 +2,7 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Property;
+using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
 using static SchemaNode.Utility.Constant;
@@ -14,6 +15,7 @@ namespace SchemaNode.Struct;
 [Meta<SchemaKind>(SCHEMA_KIND_ENTRY, SCHEMA_KIND_ORDER_ENTRY)]
 [Meta<SchemaType>(NS_SYSTEM_ENTRY)]
 [Meta<Attach>(SCHEMA_KIND_ENTRY)]
+[Meta<Append>(typeof(Disable), typeof(Display))]
 public class Entry<T>: PropertyOwner where T: notnull
 {
     /// <summary>

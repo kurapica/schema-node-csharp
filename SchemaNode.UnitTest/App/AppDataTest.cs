@@ -4,13 +4,15 @@ using SchemaNode.Attribute;
 using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using Application = SchemaNode.Property.App.App;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
 using SchemaNode.Function;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 using SchemaNode.Schema;
 using DataCombine = SchemaNode.Property.App.DataCombine;
 // ReSharper disable InconsistentNaming

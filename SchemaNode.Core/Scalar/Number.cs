@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Decimal;
+using SchemaNode.Property.Int;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 

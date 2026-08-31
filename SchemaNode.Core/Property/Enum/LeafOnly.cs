@@ -1,0 +1,26 @@
+using SchemaNode.Attribute;
+using SchemaNode.Context;
+using SchemaNode.Node;
+using SchemaNode.Property.Core;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
+using EnumType = SchemaNode.Runtime.EnumType;
+
+namespace SchemaNode.Property.Enum;
+
+/// <summary>
+/// Only allow leaf level enum values to be selected.
+/// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
+[Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ENUM}.{nameof(LeafOnly)}")]
+public class LeafOnly : Property<bool>, IConstraintProperty
+{
+    public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
+    {
+        if (!Value || node.IsEmpty) return null;
+        EntryAccess<string>[]? val = (node.Type as EnumType) is { } enumType ? await enumType.GetEnumEntryAccessAsync(context, null, node.GetValue<string>()) : null;
+        if (val is null || val.Length == 0) return null;
+        return val[0].Entry != null && val[0].Entry!.HasChildren != true;
+    }
+}

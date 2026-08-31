@@ -10,10 +10,9 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The display property, which is used to specify the display information
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_NODE, SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ENTRY, SCHEMA_KIND_FUNC_ARG)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Display)}")]
-public sealed class Display : Property<LocaleString>
+public class Display : Property<LocaleString>
 {
     /// <inheritdoc/>
     public override void SetValue<TValue>(TValue value)

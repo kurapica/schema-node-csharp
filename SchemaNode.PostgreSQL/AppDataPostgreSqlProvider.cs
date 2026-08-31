@@ -11,7 +11,7 @@ using SchemaNode.Data;
 using SchemaNode.Data.Sql;
 using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Property.Common;
+using SchemaNode.Property.Struct;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;

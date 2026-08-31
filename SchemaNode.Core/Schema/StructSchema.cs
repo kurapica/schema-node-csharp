@@ -1,9 +1,9 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
 using SchemaNode.Service;
@@ -19,15 +19,18 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_STRUCT, SCHEMA_KIND_ORDER_STRUCT)]
 [Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
-[Meta<Append>(typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider))]
+[Meta<SchemaUsage>(typeof(StructUsage))]
+[Meta<Append>(typeof(Generics), typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider), typeof(Valid))]
 [Meta<StructValue>]
 public sealed class StructKind;
 
 /// <summary>
 /// The struct schema
 /// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_DEFINE, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<Append>(typeof(Generics), typeof(Relations), typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
-[Meta<Attach>(SCHEMA_KIND_STRUCT)]
+[Meta<Attach>(SCHEMA_KIND_STRUCT_DEFINE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF, ENTRY_ROOT)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessvaluetype)}", $"@{nameof(Fields)}", NODE_SELF)]
 public sealed class StructSchema : PropertyOwner
@@ -39,12 +42,24 @@ public sealed class StructSchema : PropertyOwner
 }
 
 /// <summary>
+/// The struct usage
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_USAGE, SCHEMA_KIND_ORDER_STRUCT)]
+[Meta<Append>(typeof(Valid))]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.usage")]
+[Meta<Attach>(SCHEMA_KIND_STRUCT_USAGE)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccesstype)}", NODE_TYPE, NODE_SELF)]
+public sealed class StructUsage;
+
+/// <summary>
 /// Declare struct property for node schema
 /// </summary>
+[Meta<Alias>(SCHEMA_KIND_STRUCT)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.struct")]
-[Relation<Visible, Relation.Call>("struct", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRUCT}.{SCHEMA_KIND_STRUCT}")]
+[Relation<Visible, Relation.Call>(SCHEMA_KIND_STRUCT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty : Property<StructSchema>
 {
     /// <inheritdoc/>
@@ -102,6 +117,8 @@ public class StructType: ValueType;
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<TypeProvider>(nameof(Type))]
+[Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
+    typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType))]
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>

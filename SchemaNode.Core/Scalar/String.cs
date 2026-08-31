@@ -1,6 +1,6 @@
 using SchemaNode.Attribute;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 

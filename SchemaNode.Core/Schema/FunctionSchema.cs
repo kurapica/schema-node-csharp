@@ -2,7 +2,6 @@
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
@@ -10,6 +9,8 @@ using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using SchemaNode.Function;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 using static SchemaNode.Utility.Constant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
 using NodeType = SchemaNode.Property.Core.NodeType;
@@ -26,6 +27,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
+[Meta<Append>(typeof(Generics))]
 public sealed class FunctionKind;
 
 /// <summary>
@@ -57,10 +59,11 @@ public sealed class FunctionSchema: PropertyOwner
 /// <summary>
 /// Declare function property for node schema
 /// </summary>
+[Meta<Alias>(SCHEMA_KIND_FUNCTION)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.func")]
-[Relation<Visible, Call>("func", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_FUNC}.{SCHEMA_KIND_FUNCTION}")]
+[Relation<Visible, Call>(SCHEMA_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty : Property<FunctionSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
@@ -114,7 +117,8 @@ public class TypeFuncType : FuncType;
 [Meta<SchemaKind>(SCHEMA_KIND_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
 [Meta<Attach>(SCHEMA_KIND_FUNC_ARG)]
-[Meta<Append>(typeof(Relations))]
+[Meta<Append>(typeof(Relations), typeof(Display), typeof(Default), typeof(Require))]
+[Meta<TypeProvider>(nameof(Type))]
 public sealed class FuncArg : PropertyOwner
 {
     /// <summary>

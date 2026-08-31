@@ -1,8 +1,7 @@
 using System.Reflection;
 using SchemaNode.Attribute;
-using SchemaNode.Function;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using SchemaNode.Node;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Int;
+using SchemaNode.Property.String;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using static SchemaNode.Utility.Constant;

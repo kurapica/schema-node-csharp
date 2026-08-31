@@ -7,7 +7,7 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// Readonly property for node schema, indicates the node is readonly in presentation
 /// </summary>
-[Meta<ForSchema>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_PROPERTY)]
+[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(ReadOnly)}")]
 public class ReadOnly:  Property<bool>;

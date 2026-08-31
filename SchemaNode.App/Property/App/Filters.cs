@@ -13,7 +13,9 @@ using SchemaNode.Property.Common;
 using SchemaNode.Relation;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructType = SchemaNode.Runtime.StructType;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.Enum;
+using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 
 // ReSharper disable AutoPropertyCanBeMadeGetOnly.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global

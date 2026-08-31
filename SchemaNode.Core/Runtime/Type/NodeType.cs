@@ -154,7 +154,7 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
         int max = props.Count;
         for(int i = 0; i < max; i++)
         {
-            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind, StringComparison.OrdinalIgnoreCase)) continue;
+            if (props[i].GetValue<PropertyOwner>(true) is not { } s || !schema.Kind.Equals(s.SchemaKind?.Split('.', 2, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(), StringComparison.OrdinalIgnoreCase)) continue;
             props.AddRange(s.GetProperties(context.Runtime.GetSchemaKindPropertyTypes(schema.Kind)));
         }
 

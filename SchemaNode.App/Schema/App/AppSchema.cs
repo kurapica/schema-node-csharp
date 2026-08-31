@@ -10,7 +10,7 @@ using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
 using SchemaNode.Function;
 using SchemaNode.Property;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.String;
 using SchemaNode.Runtime;
 
 // ReSharper disable UnusedAutoPropertyAccessor.Global

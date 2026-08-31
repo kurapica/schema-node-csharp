@@ -1,6 +1,4 @@
 // ReSharper disable UnusedAutoPropertyAccessor.Global
-using SchemaNode.Property.Constraint;
-
 namespace SchemaNode.AI;
 
 /// <summary>

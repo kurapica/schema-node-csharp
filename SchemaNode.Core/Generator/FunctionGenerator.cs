@@ -5,7 +5,6 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
 using SchemaNode.Runtime;

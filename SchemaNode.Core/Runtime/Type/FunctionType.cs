@@ -8,7 +8,6 @@ using System.Text.Json.Nodes;
 using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Service;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;

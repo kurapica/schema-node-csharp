@@ -1,6 +1,5 @@
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Constraint;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using ValueType = SchemaNode.Runtime.ValueType;

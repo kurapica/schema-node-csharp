@@ -1,5 +1,5 @@
 using SchemaNode.Node;
-using SchemaNode.Property.Constraint;
+using SchemaNode.Property.String;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
 
