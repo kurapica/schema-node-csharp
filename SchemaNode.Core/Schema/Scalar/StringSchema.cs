@@ -55,6 +55,7 @@ public sealed class StringSchema : ScalarSchema
 [Relation<LeafOnly, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(LeafOnly)}")]
 [Relation<Root, Call>(nameof(BlackList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
 [Relation<Root, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
+[Relation<BlackList, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
 [Relation<Visible, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]
 [Relation<OverrideType, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getarrayelement)}", NODE_TYPE)]
 [Relation<Visible, Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]

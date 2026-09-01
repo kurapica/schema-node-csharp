@@ -22,7 +22,7 @@ public class MaxSize : Property<long>, IConstraintProperty
     public virtual bool? ValidateArray(SchemaContext context, ArrayNode node)
     {
         if (!HasValue) return null;
-        return node.Count <= Value ? true : false;
+        return node.Count <= Value;
     }
 
     /// <summary>

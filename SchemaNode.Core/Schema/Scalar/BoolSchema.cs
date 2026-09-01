@@ -25,9 +25,9 @@ public sealed class BoolKind;
 /// The bool usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_BOOL_USAGE, SCHEMA_KIND_ORDER_BOOL)]
+[Meta<Append>(typeof(Default))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_BOOL}.usage")]
 [Meta<Attach>(SCHEMA_KIND_BOOL_USAGE)]
-[Meta<Append>(typeof(Default))]
 public sealed class BoolUsage;
 
 /// <summary>

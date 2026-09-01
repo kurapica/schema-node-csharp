@@ -41,7 +41,7 @@ public sealed class ArrayKind;
 [Relation<Visible, Call>(nameof(Primary), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Element)}", SCHEMA_KIND_STRUCT)]
 [Relation<EntrySource, Assign>($"{nameof(Primary)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getindexablefields)}", $"@{nameof(Element)}")]
 [Relation<Visible, Call>(nameof(Indexes), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(ArraySchema.Element)}", SCHEMA_KIND_STRUCT)]
-[Relation<EntrySource, Assign>($"{nameof(Indexes)}.{ARRAY_ELEMENT}.{nameof(DataIndex.Fields)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(SchemaNode.Function.Reflect.Struct.getindexablefields)}", $"@{nameof(ArraySchema.Element)}")]
+[Relation<EntrySource, Assign>($"{nameof(Indexes)}.{ARRAY_ELEMENT}.{nameof(DataIndex.Fields)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(SchemaNode.Function.Reflect.Struct.getindexablefields)}", $"@{nameof(Element)}")]
 public sealed class ArraySchema: PropertyOwner
 {
     /// <summary>

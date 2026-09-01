@@ -7,7 +7,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.String;
 
 [Meta<Alias>("lowlimit")]
-[Meta<ForSchema>(SCHEMA_KIND_STRING)]
+[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRING_DEFINE, SCHEMA_KIND_STRING_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRING}.lowlimit")]
 public class LowLimitString : Property<long>, IConstraintProperty

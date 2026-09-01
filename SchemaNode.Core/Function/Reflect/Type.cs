@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
@@ -17,6 +18,16 @@ namespace SchemaNode.Function.Reflect;
 [Meta<SchemaType>(NS_SYSTEM_SCHEMA_REFLECT_TYPE)]
 public static class Type
 {
+    /// <summary>
+    /// Gets the usage schema type of the given type
+    /// </summary>
+    public static async Task<string?> getusagetype(SchemaContext context, [Meta<SchemaType>(typeof(AnyType))] string name, bool arrayElement = false)
+    {
+        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync(name);
+        if (arrayElement && nodeType is ArrayType arr) nodeType = arr.Element;
+        return nodeType != null ? (context.Runtime as SchemaRuntime)?.GetUsageSchema(nodeType.Kind) : null;
+    }
+    
     /// <summary>
     /// Gets the full names and labels of the schema nodes under the namespace with the given name
     /// </summary>
@@ -118,7 +129,7 @@ public static class Type
     /// <summary>
     /// Gets the access type of the value type
     /// </summary>
-    public static async Task<string> getaccesstype(SchemaContext context,
+    public static async Task<string> getaccessvaluetype(SchemaContext context,
         [Meta<SchemaType>(typeof(ValueType))] string name,
         string access)
     {

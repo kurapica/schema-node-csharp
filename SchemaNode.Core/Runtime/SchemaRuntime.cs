@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
+using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
@@ -50,6 +52,13 @@ public class SchemaRuntime : ISchemaRuntime
     public IEnumerable<T> GetSchemaKindProperties<T>(string kind) where T : IProperty
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>() ?? [];
+
+    /// <summary>
+    /// Gets the usage schema for the given schema kind, if any.
+    /// </summary>
+    /// <param name="kind"></param>
+    /// <returns></returns>
+    public string? GetUsageSchema(string kind) => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).schemaType?.GetMetaProperty<SchemaUsage>()?.Value;
 
     #endregion
 

@@ -49,7 +49,7 @@ public sealed class StructSchema : PropertyOwner
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.usage")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_USAGE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
-[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccesstype)}", NODE_TYPE, NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessvaluetype)}", NODE_TYPE, NODE_SELF)]
 public sealed class StructUsage;
 
 /// <summary>
