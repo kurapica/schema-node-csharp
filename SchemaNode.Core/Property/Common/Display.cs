@@ -11,7 +11,7 @@ namespace SchemaNode.Property.Common;
 /// The display property, which is used to specify the display information
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.{nameof(Display)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(Display)}")]
 public class Display : Property<LocaleString>
 {
     /// <inheritdoc/>

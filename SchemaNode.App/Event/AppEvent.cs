@@ -3,6 +3,7 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Event;
+using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 
@@ -97,7 +98,7 @@ public class AppFieldPayload
     /// The event data
     /// </summary>
     [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Data { get; set; }
+    public IValueAccess? Data { get; set; }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.updatepayload")]
@@ -123,11 +124,11 @@ public class AppFieldUpdatePayload
     /// The event data
     /// </summary>
     [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Data { get; set; }
+    public IValueAccess? Data { get; set; }
     
     /// <summary>
     ///  The origin data
     /// </summary>
     [Meta<SchemaType>(NS_GENERIC_TYPE)]
-    public DataNode? Origin { get; set; }
+    public IValueAccess? Origin { get; set; }
 }

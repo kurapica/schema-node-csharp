@@ -11,7 +11,6 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using EnumType = SchemaNode.Runtime.EnumType;
 using StructType = SchemaNode.Runtime.StructType;
-using ValueType = SchemaNode.Runtime.ValueType;
 // ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
 
 namespace SchemaNode.Data;
@@ -172,7 +171,7 @@ public static class AppSchemaDataFilterExtensions
                 // if a OP null, should use isnull(a) instead, so return false here
                 if (leftTransformed is AppSchemaDataFilterValue leftOp)
                 {
-                    if (leftOp.Value is null || (leftOp.Value is DataNode leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
+                    if (leftOp.Value is null || (leftOp.Value is IValueAccess leftNode ? leftNode.IsEmpty : leftOp.Value.GetType().IsArrayType()
                         ? SystemCollection.length(leftOp.Value) == 0
                         : string.IsNullOrWhiteSpace(leftOp.Value.ToString())))
                     {
@@ -183,7 +182,7 @@ public static class AppSchemaDataFilterExtensions
                 if (rightTransformed is AppSchemaDataFilterValue rightOp)
                 {
                     if (rightOp.Value is null || 
-                        (rightOp.Value is DataNode rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
+                        (rightOp.Value is IValueAccess rightNode ? rightNode.IsEmpty : rightOp.Value.GetType().IsArrayType()
                             ? SystemCollection.length(rightOp.Value) == 0
                             : string.IsNullOrWhiteSpace(rightOp.Value.ToString())))
                     {
@@ -445,18 +444,18 @@ public static class AppSchemaDataFilterExtensions
     /// <summary>
     /// Check if the struct node contains the filter
     /// </summary>
-    public static DataNode Test(this AppSchemaDataFilter filter, SchemaContext context, StructNode structNode, ValueType? expectType = null)
+    public static IValueAccess Test(this AppSchemaDataFilter filter, SchemaContext context, StructNode structNode, IValueTypeAccess? expectType = null)
     {
         switch (filter)
         {
             case AppSchemaDataFilterField access:
             {
                 // Check if the field is complex field
-                return structNode.GetAccessValue(access.Field) as DataNode ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
+                return structNode.GetAccessValue(access.Field) as IValueAccess ?? throw new NotSupportedException($"The field not found in struct node: {access.Field}");
             }
             case AppSchemaDataFilterUnary unary:
             {
-                DataNode result = unary.Operand.Test(context, structNode);
+                IValueAccess result = unary.Operand.Test(context, structNode);
                 switch (unary.Type)
                 {
                     case LogicType.IsNull:
@@ -477,8 +476,8 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.AndAlso:
                     case LogicType.OrElse:
                     {
-                        DataNode left = binary.Left.Test(context, structNode, context.System.Bool);
-                        DataNode right = binary.Right.Test(context, structNode, context.System.Bool);
+                        IValueAccess left = binary.Left.Test(context, structNode, context.System.Bool);
+                        IValueAccess right = binary.Right.Test(context, structNode, context.System.Bool);
                         return binary.Type switch
                         {
                             LogicType.AndAlso => context.System.Bool.From(left.GetValue<bool>() && right.GetValue<bool>()),
@@ -494,8 +493,8 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.LessThan:
                     case LogicType.LessEqual:
                     {
-                        DataNode? left;
-                        DataNode? right;
+                        IValueAccess? left;
+                        IValueAccess? right;
 
                         if (binary.Right is not AppSchemaDataFilterValue)
                         {
@@ -522,7 +521,7 @@ public static class AppSchemaDataFilterExtensions
                     case LogicType.Contains:
                     case LogicType.NotContains:
                     {
-                        DataNode val = binary.Right.Test(context, structNode);
+                        IValueAccess val = binary.Right.Test(context, structNode);
                         AppSchemaDataFilterValue? container = binary.Left as AppSchemaDataFilterValue;
                         if (container == null || container.Value is not IEnumerable<object> enums || val.IsEmpty || !val.GetType().IsSubclassOfGenericType(typeof(ScalarNode<>))) return context.System.Bool.From(false);
                         
@@ -564,8 +563,8 @@ public static class AppSchemaDataFilterExtensions
             }
             case AppSchemaDataFilterArith arith:
             {
-                DataNode? left;
-                DataNode? right;
+                IValueAccess? left;
+                IValueAccess? right;
                 
                 if(arith.Right is not AppSchemaDataFilterValue)
                 {
@@ -590,7 +589,7 @@ public static class AppSchemaDataFilterExtensions
 
             case AppSchemaDataFilterValue value:
             {
-                if (value.Value is DataNode n) return n;
+                if (value.Value is IValueAccess n) return n;
                 if (expectType != null) return expectType.From(value.Value) ?? throw new NotSupportedException($"The filter value is not valid as {expectType.Name}");
                 return context.System.String.From(value.Value.ToString() ?? "");
             }
@@ -599,7 +598,7 @@ public static class AppSchemaDataFilterExtensions
         throw new NotSupportedException("The expression type not supported");
     }
 
-    static DataNode CalcArith<T>(ArithmeticType type, DataNode left, DataNode right) where T : INumber<T>
+    static IValueAccess CalcArith<T>(ArithmeticType type, IValueAccess left, IValueAccess right) where T : INumber<T>
     {
         T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
         T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;
@@ -612,7 +611,7 @@ public static class AppSchemaDataFilterExtensions
         });
     }
 
-    static bool Compare<T>(LogicType type, DataNode left, DataNode right) where T : IComparable<T>
+    static bool Compare<T>(LogicType type, IValueAccess left, IValueAccess right) where T : IComparable<T>
     {
         T leftVal = (left.IsEmpty ? default(T) : left.GetValue<T>())!;
         T rightVal = (right.IsEmpty ? default(T) : right.GetValue<T>())!;

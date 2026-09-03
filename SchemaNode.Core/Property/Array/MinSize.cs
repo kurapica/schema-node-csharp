@@ -4,6 +4,7 @@ using SchemaNode.Function;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Int;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 
@@ -14,7 +15,7 @@ namespace SchemaNode.Property.Array;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ARRAY_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ARRAY}.{nameof(MinSize)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{nameof(MinSize)}")]
 [Meta<LowLimitInt>(0L)]
 [Relation<UpLimitInt, Call>($"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(MaxSize)}")]
 public class MinSize : Property<long>, IConstraintProperty

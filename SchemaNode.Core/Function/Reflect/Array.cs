@@ -4,6 +4,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
@@ -74,7 +75,8 @@ public static class Array
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
         [Meta<SchemaType>(typeof(ValueType))] string element,
-        string? path = null, string? root = null)
+        string? path = null,
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
@@ -95,7 +97,7 @@ public static class Array
         Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!.Skip(2)
             .FirstOrDefault(c => c.Value.Equals(path, StringComparison.OrdinalIgnoreCase) ||
                                  c.Value.StartsWith($"{path}.", StringComparison.OrdinalIgnoreCase)) : null;
-        Runtime.ValueType? valueType = curr != null ? elementType.GetAccessValueType(curr.Value) : null;
+        var valueType = curr != null ? elementType.GetAccessValueType(curr.Value) : null;
         
         while (valueType != null)
         {
@@ -109,7 +111,7 @@ public static class Array
             accessEntry.Children = accesses;
             
             // check next part
-            Runtime.ValueType? next = null;
+            IValueTypeAccess? next = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;

@@ -29,9 +29,7 @@ public static class Constant
     public const string NODE_SELF = "$self";
     public const string ARRAY_PREVIOUS = "$prev";
     public const string ARRAY_ELEMENT = "$ele";
-    public const string NODE_PARENT = "$parent";
-    public const string NODE_TYPE = "$type";
-    public const string ENTRY_ROOT = "$root";
+    public const string TYPE_PROVIDER = "$type";
 
     #endregion
 
@@ -154,19 +152,20 @@ public static class Constant
     public const string NS_SYSTEM_SCHEMA_ARRAY = $"{NS_SYSTEM_SCHEMA}.array";
     public const string NS_SYSTEM_SCHEMA_FUNC = $"{NS_SYSTEM_SCHEMA}.func";
     public const string NS_SYSTEM_SCHEMA_RELATION = $"{NS_SYSTEM_SCHEMA}.relation";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY = $"{NS_SYSTEM_SCHEMA}.prop";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_CORE = $"{NS_SYSTEM_SCHEMA_PROPERTY}.core";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_COMMON = $"{NS_SYSTEM_SCHEMA_PROPERTY}.common";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_FUNC = $"{NS_SYSTEM_SCHEMA_PROPERTY}.func";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_RELATION = $"{NS_SYSTEM_SCHEMA_PROPERTY}.relation";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_BOOL = $"{NS_SYSTEM_SCHEMA_PROPERTY}.bool";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_INT = $"{NS_SYSTEM_SCHEMA_PROPERTY}.int";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_DECIMAL = $"{NS_SYSTEM_SCHEMA_PROPERTY}.decimal";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_STRING = $"{NS_SYSTEM_SCHEMA_PROPERTY}.string";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_DATE = $"{NS_SYSTEM_SCHEMA_PROPERTY}.date";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_ENUM = $"{NS_SYSTEM_SCHEMA_PROPERTY}.enum";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_STRUCT = $"{NS_SYSTEM_SCHEMA_PROPERTY}.struct";
-    public const string NS_SYSTEM_SCHEMA_PROPERTY_ARRAY = $"{NS_SYSTEM_SCHEMA_PROPERTY}.array";
+    public const string NS_SYSTEM_SCHEMA_PROP = $"{NS_SYSTEM_SCHEMA}.prop";
+    public const string NS_SYSTEM_SCHEMA_PROP_CORE = $"{NS_SYSTEM_SCHEMA_PROP}.core";
+    public const string NS_SYSTEM_SCHEMA_PROP_COMMON = $"{NS_SYSTEM_SCHEMA_PROP}.common";
+    public const string NS_SYSTEM_SCHEMA_PROP_FUNC = $"{NS_SYSTEM_SCHEMA_PROP}.func";
+    public const string NS_SYSTEM_SCHEMA_PROP_RELATION = $"{NS_SYSTEM_SCHEMA_PROP}.relation";
+    public const string NS_SYSTEM_SCHEMA_PROP_BOOL = $"{NS_SYSTEM_SCHEMA_PROP}.bool";
+    public const string NS_SYSTEM_SCHEMA_PROP_INT = $"{NS_SYSTEM_SCHEMA_PROP}.int";
+    public const string NS_SYSTEM_SCHEMA_PROP_DECIMAL = $"{NS_SYSTEM_SCHEMA_PROP}.decimal";
+    public const string NS_SYSTEM_SCHEMA_PROP_STRING = $"{NS_SYSTEM_SCHEMA_PROP}.string";
+    public const string NS_SYSTEM_SCHEMA_PROP_DATE = $"{NS_SYSTEM_SCHEMA_PROP}.date";
+    public const string NS_SYSTEM_SCHEMA_PROP_ENUM = $"{NS_SYSTEM_SCHEMA_PROP}.enum";
+    public const string NS_SYSTEM_SCHEMA_PROP_STRUCT = $"{NS_SYSTEM_SCHEMA_PROP}.struct";
+    public const string NS_SYSTEM_SCHEMA_PROP_ARRAY = $"{NS_SYSTEM_SCHEMA_PROP}.array";
+    public const string NS_SYSTEM_SCHEMA_PROP_PROPERTY = $"{NS_SYSTEM_SCHEMA_PROP}.property";
 
     public const string NS_SYSTEM_SCHEMA_ERROR = $"{NS_SYSTEM_SCHEMA}.error";
 

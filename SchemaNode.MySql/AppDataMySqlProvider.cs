@@ -338,7 +338,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
     
     /// <inheritdoc />
-    public async Task<(DataNode? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, 
+    public async Task<(IValueAccess? result, int total)> QueryDynamicTableAsync(DynamicTableSchema schema, 
         AppSchemaDataResult type, AppSchemaDataFilter? filter = null, int skip = 0, int take = 0, bool desc = false, 
         AppSchemaDataOrder[]? orderBy = null, string? dataField = null, bool forUpdate = false)
     {
@@ -351,7 +351,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            DataNode? value = null;
+            IValueAccess? value = null;
             
             // Gets the data from the database
             if (schema.Fields.Last().Name.Equals(DYNAMIC_TABLE_VALUE_FIELD))
@@ -718,7 +718,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     while (await reader.ReadAsync())
                     {
-                        DataNode? pack = type == AppSchemaDataResult.Field
+                        var pack = type == AppSchemaDataResult.Field
                             ? schema.GetFieldPack(reader, dataField ?? "", !forUpdate)
                             : schema.GetFieldPack(reader, queryOnly: !forUpdate);
                         if (pack != null)
@@ -738,7 +738,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             await FillAttributeDataAsync(schema, value, forUpdate);
 
             if (type is AppSchemaDataResult.First or AppSchemaDataResult.Last)
-                return (value?.ElementAtOrDefault(0) as DataNode, value is { Count: > 0 } ? 1 : 0);
+                return (value?.ElementAtOrDefault(0) as IValueAccess, value is { Count: > 0 } ? 1 : 0);
             return (value, total > 0 ? total : (value?.Count ?? 0));
         }
     }
@@ -808,7 +808,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                         IEnumerable<StructNode> nodes = value.OfType<StructNode>();
                         foreach (DynamicTableField tableField in schema.Fields.Where(p => p.Primary))
                         {
-                            DataNode? val = tableField.FromReader(reader, offset++);
+                            var val = tableField.FromReader(reader, offset++);
                             if (val == null || val.IsEmpty) break;
                             nodes = nodes.Where(n => val.Equals(n.GetAccessValue(tableField.Name)!));
                         }
@@ -933,8 +933,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
     
     /// <inheritdoc />
-    public async Task<(bool result, DataNode? update, DataNode? origin)> SaveDynamicTableDataAsync(
-            DynamicTableSchema schema, DataNode? value = null, 
+    public async Task<(bool result, IValueAccess? update, IValueAccess? origin)> SaveDynamicTableDataAsync(
+            DynamicTableSchema schema, IValueAccess? value = null, 
             bool canAdd = true, bool onlyAdd = false, string[]? overrides = null)
     {
         await EnsureOpenConnectionAsync();
@@ -948,10 +948,10 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            if (value is ArrayNode arr) value = arr.FirstOrDefault() as DataNode;
+            if (value is ArrayNode arr) value = arr.FirstOrDefault();
             
             // Gets the origin value
-            (DataNode? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
+            (var origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.First);
 
             // Delete if null
             if (value == null || value.IsEmpty)
@@ -1046,7 +1046,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
                     // Body
                     bool preCond = false;
-                    foreach ((string fld, DataNode? val) in schema.GetFieldValues(pack))
+                    foreach ((string fld, var val) in schema.GetFieldValues(pack))
                     {
                         sb.Append($"{(preCond ? "," : "")}{sqlProvider.QuoteField(fld)}={sqlProvider.Literal(val)}");
                         preCond = true;
@@ -1090,7 +1090,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             // Query
-            DataNode? origin = await this.QueryOriginNodesAsync(schema, packs, forUpdate: true);
+            var origin = await this.QueryOriginNodesAsync(schema, packs, forUpdate: true);
             ArrayNode? oArr = origin as ArrayNode;
             if (!canAdd && (oArr == null || oArr.Count < packs.Length))
                 throw new UnauthorizedAccessException();
@@ -1104,7 +1104,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     keys.Clear();
                     bool fullFill = true;
-                    foreach ((_, DataNode? v) in schema.GetFieldValues(obj, true))
+                    foreach ((_, var v) in schema.GetFieldValues(obj, true))
                     {
                         // Check value
                         if (v == null || v.IsEmpty)
@@ -1130,7 +1130,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 keys.Clear();
                 sb.Clear();
                 sb.Append(wherePrefix);
-                foreach ((string fld, DataNode? v) in schema.GetFieldValues(pack, true))
+                foreach ((string fld, var v) in schema.GetFieldValues(pack, true))
                 {
                     // Check value
                     if (v == null || v.IsEmpty)
@@ -1189,7 +1189,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
                     // Body
                     bool preCond = false;
-                    foreach ((string fld, DataNode? v) in schema.GetFieldValues(pack, false, true))
+                    foreach ((string fld, var v) in schema.GetFieldValues(pack, false, true))
                     {
                         // Check override
                         if (overrides is { Length: > 0 } && !overrides.Contains(fld, StringComparer.OrdinalIgnoreCase))
@@ -1227,8 +1227,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                             : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
                         if (fields.Length == 0) continue;
 
-                        List<(string, DataNode v)> primaries = [];
-                        foreach ((string fld, DataNode? v) in schema.GetFieldValues(pack, true))
+                        List<(string, IValueAccess v)> primaries = [];
+                        foreach ((string fld, var v) in schema.GetFieldValues(pack, true))
                             primaries.Add((fld, v!));
 
                         await SaveAttributeBasedFieldAsync(schema.AppField.AttributeTableName, scopeItems, fields,
@@ -1241,7 +1241,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     }
 
     /// <inheritdoc />
-    public async Task<(bool result, DataNode? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
+    public async Task<(bool result, IValueAccess? origin)> DeleteDynamicTableDataAsync(DynamicTableSchema schema, AppSchemaDataFilter? filter)
     {
         await EnsureOpenConnectionAsync();
         string tableName = sqlProvider.QuoteTable(schema.AppField.DynamicTableName);        
@@ -1250,7 +1250,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         // single row
         if (schema.Single)
         {
-            (DataNode? origin, _) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.First, forUpdate: true);
+            (var origin, _) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.First, forUpdate: true);
             if (origin is null) return (false, null);
             
             await using DbCommand command = GetDbCommand();
@@ -1267,7 +1267,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             string sql = filter?.ToSql(sqlProvider, schema) ?? "";
             if (string.IsNullOrEmpty(sql)) return (false, null); // prevent full table delete
 
-            (DataNode? origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.List, filter, forUpdate: true);
+            var (origin, _) = await QueryDynamicTableAsync(schema, AppSchemaDataResult.List, filter, forUpdate: true);
             if (origin is not ArrayNode arr || arr.Count == 0) return (false, null);
                         
             await using DbCommand command = GetDbCommand();
@@ -1282,12 +1282,12 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <summary>
     /// Clear all dynamic table data
     /// </summary>
-    public async Task<(bool result, DataNode? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
+    public async Task<(bool result, IValueAccess? origin)> ClearDynamicTableDataAsync(DynamicTableSchema schema)
     {
         await EnsureOpenConnectionAsync();
         (string wherePrefix, _) = PrepareWhere(schema);
 
-        (DataNode? origin, _) = await QueryDynamicTableAsync(schema, schema.Single ? AppSchemaDataResult.First : AppSchemaDataResult.List, forUpdate: true);
+        var (origin, _) = await QueryDynamicTableAsync(schema, schema.Single ? AppSchemaDataResult.First : AppSchemaDataResult.List, forUpdate: true);
         if (origin is null || origin is ArrayNode { Count:0 }) return (false, null);
 
         {
@@ -1428,7 +1428,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     args[i] = node;
                 }
-                else if (_relationDataCache.TryGetValue(fieldName, out DataNode? cache) && cache != null)
+                else if (_relationDataCache.TryGetValue(fieldName, out var cache) && cache != null)
                 {
                     args[i] = cache;
                 }
@@ -1436,7 +1436,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                 {
                     var schema = appField.Application.GetField(fieldName)?.GetDynamicTableSchema(_context)
                         ?? throw new Exception($"The field {fieldName} not found in app {appField.Application.Name}");
-                    (DataNode? result, int total) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.List);
+                    (var result, int total) = await QueryDynamicTableAsync(schema,AppSchemaDataResult.List);
                     if (total > 50)
                         Logger.LogWarning($"The query result of field {fieldName} in app {appField.Application.Name} is too large, total {total}, relation function {call.Func} may not work properly");
                     
@@ -1573,7 +1573,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
     /// <summary>
     /// Save the attribute-based field value to the attribute table, the attr field is in format "structField_attrField"
     /// </summary>
-    async Task SaveAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema[] fields, JsonObject? value, string prev, List<(string k, DataNode v)> primaries)
+    async Task SaveAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema[] fields, JsonObject? value, string prev, List<(string k, IValueAccess v)> primaries)
     {
         string[] scopeKeys = scopeItems.Keys.ToArray();
         string tableRef = sqlProvider.QuoteTable(attrTable);
@@ -1610,15 +1610,15 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
             }
 
             // For one field value
-            DataNode? node = r != null ? type.From(r) : null;
+            var node = r != null ? type.From(r) : null;
             if (node is { IsEmpty: false })
             {
-                DataNode? intNode = null;
-                DataNode? strNode = null;
-                DataNode? datNode = null;
-                DataNode? dblNode = null;
-                DataNode? txtNode = null;
-                DataNode? jsonNode = null;
+                IValueAccess? intNode = null;
+                IValueAccess? strNode = null;
+                IValueAccess? datNode = null;
+                IValueAccess? dblNode = null;
+                IValueAccess? txtNode = null;
+                IValueAccess? jsonNode = null;
                 
                 if (node is ScalarNode scalar)
                 {
@@ -1686,7 +1686,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         }
     }
     
-    async Task DeleteAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, DataNode v)> primaries)
+    async Task DeleteAttributeBasedFieldAsync(string attrTable, Dictionary<string, string> scopeItems, StructFieldSchema field, string prev, List<(string k, IValueAccess v)> primaries)
     {
         string attrField = $"{prev}_{field.Name}";
         var type = await _context.GetNodeTypeAsync<RuntimeValueType>(field.Type);
@@ -1720,8 +1720,8 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
                     ? await GetStructFieldConfigs(schema.AppField, pack, dynamic.RelationType)
                     : await GetStructFieldConfigs(pack, dynamic.StructRelation!);
                 if (fields.Length == 0) continue;
-                List<(string, DataNode v)> primaries = [];
-                foreach ((string fld, DataNode? v) in schema.GetFieldValues(pack, true))
+                List<(string, IValueAccess v)> primaries = [];
+                foreach ((string fld, var v) in schema.GetFieldValues(pack, true))
                     primaries.Add((fld, v!));
 
                 foreach (StructFieldSchema field in fields)
@@ -1738,7 +1738,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
         if (!string.IsNullOrEmpty(prefix) && !prefix.EndsWith(".")) prefix += ".";
         
         // Prepare the scope items
-        foreach ((string item, DataNode? value)  in schema.GetScopeItems(_context))
+        foreach ((string item, var value)  in schema.GetScopeItems(_context))
         {
             if (value == null || value.IsEmpty)
                 throw new InvalidOperationException($"The scope field {item} is required for querying dynamic table data.");
@@ -1813,7 +1813,7 @@ public class AppDataMySqlProvider(MySqlConnection dbConn, IServiceProvider servi
 
     private readonly Lazy<ILogger> _loggerThunk = new (serviceProvider.GetRequiredService<ILogger<AppDataMySqlProvider>>);
     
-    private readonly ConcurrentDictionary<string, DataNode?> _relationDataCache = new (StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, IValueAccess?> _relationDataCache = new (StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, StructFieldSchema[]> _attrFields = new (StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, StructFieldSchema[]> _attrFieldsFromStruct = new (StringComparer.OrdinalIgnoreCase);
 

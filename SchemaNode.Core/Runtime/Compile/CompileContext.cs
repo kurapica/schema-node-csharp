@@ -5,7 +5,6 @@ using SchemaNode.Service;
 using SchemaNode.Utility;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -356,8 +355,8 @@ public class CompileContext(SchemaContext context, FunctionType function)
             #region Result Type & Generic
             
             // Generic types
-            ValueType[] genericTypes = expFuncType.Generics?.Select(
-                g => new GenericType{ Name = g.Name } as ValueType
+            IValueTypeAccess[] genericTypes = expFuncType.Generics?.Select(
+                g => new GenericType{ Name = g.Name } as IValueTypeAccess
             ).ToArray() ?? [];
 
             // Validate return value
@@ -571,7 +570,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
                 SchemaExp? argExp = chkArgExp;
                 
                 // Params type check
-                ValueType? argType = argDef.ValueType;
+                IValueTypeAccess? argType = argDef.ValueType;
                 if (argDef.Variadic == true && argType is ArrayType arrayType)
                     argType = arrayType.Element;
                 
@@ -650,14 +649,14 @@ public class CompileContext(SchemaContext context, FunctionType function)
             }
 
             // Sets generic type
-            ValueType? ParseGenericType(TypeDetail typeInfo, ValueType? origin = null, ValueType? genType = null, bool isReturn = false)
+            IValueTypeAccess? ParseGenericType(TypeDetail typeInfo, IValueTypeAccess? origin = null, IValueTypeAccess? genType = null, bool isReturn = false)
             {
                 if (typeInfo.IsGenericParameter || origin is GenericType)
                 {
                     int idx = typeInfo.IsGenericParameter
                         ? Array.FindIndex(expFuncInfo.Generics, g => typeInfo.CoreType == g.CoreType) 
                         : origin is GenericType go ? (expFuncType.Generics?.FindIndex(g => g.Name == go.Name) ?? -1) : -1;
-                    ValueType? rGenType = (genType as ArrayType)?.Element ?? genType;
+                    var rGenType = (genType as ArrayType)?.Element ?? genType;
                     if (idx < 0 || genericTypes[idx] is not GenericType && rGenType != null && rGenType is not GenericType && !rGenType.IsAssignableTo(genericTypes[idx]))
                     {
                         exp.Status = isReturn ? ErrorCodes.FUNC_WRONG_RETURN : ErrorCodes.FUNC_EXP_WRONG_ARGS;
@@ -792,7 +791,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public ArrayType? GetArrayType(ValueType elementType) => Context.GetArrayNodeTypeAsync(elementType).GetAwaiter().GetResult();
+    public ArrayType? GetArrayType(IValueTypeAccess elementType) => Context.GetArrayNodeTypeAsync(elementType).GetAwaiter().GetResult();
     
     /// <summary>
     /// Compile the schema expression to Expression
@@ -1053,7 +1052,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         Type notNullType = type.GetNotNullType();
         
         // convert csharp type to schema type node
-        if (type.IsAssignableTo(typeof(DataNode)))
+        if (type.IsAssignableTo(typeof(IValueAccess)))
         {
             string schema = (Context.Runtime as SchemaRuntime)?.GetTypeSchema(exp.Type) ?? throw new Exception($"The type {exp.Type.FullName} can't be converted to schema type node");
             NodeType nodeType = Context.GetNodeTypeAsync(schema).GetAwaiter().GetResult() ?? throw new Exception($"The schema type node {schema} not found");
@@ -1062,7 +1061,7 @@ public class CompileContext(SchemaContext context, FunctionType function)
         }
 
         // simple type conversion
-        if (!notNullExp.Type.IsAssignableTo(typeof(DataNode)))
+        if (!notNullExp.Type.IsAssignableTo(typeof(IValueAccess)))
         {
             resExp = Type.GetTypeCode(notNullType) switch
             {

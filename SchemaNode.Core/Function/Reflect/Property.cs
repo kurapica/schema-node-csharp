@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Function.Reflect;

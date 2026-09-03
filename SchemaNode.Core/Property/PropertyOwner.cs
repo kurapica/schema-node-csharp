@@ -5,6 +5,7 @@ using SchemaNode.Runtime;
 using SchemaNode.Utility;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using SchemaNode.Property.Struct;
 
 namespace SchemaNode.Property;
 

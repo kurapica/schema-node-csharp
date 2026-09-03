@@ -3,7 +3,6 @@ using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property.Function;
 using SchemaNode.Property.Core;
 using SchemaNode.Struct;
@@ -124,11 +123,6 @@ public class NodeType: INodeReferences, IDisposable, IErrorProvider, IPropertyPr
     /// </summary>
     public virtual Type? GetCsharpType() => Schema?.Type;
     
-    /// <summary>
-    /// Gets the csharp type with nullable modifier
-    /// </summary>
-    public Type? GetCsharpType(bool? nullable) => nullable == true ? GetCsharpType()?.GetNullableType() : GetCsharpType();
-
     #endregion
     
     #region Methods
@@ -319,7 +313,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
 {
     #region Fields
     
-    private ConcurrentDictionary<ValueType, FunctionType>? _isAssignableTo;
+    private ConcurrentDictionary<IValueTypeAccess, FunctionType>? _isAssignableTo;
 
     #endregion
     
@@ -382,14 +376,21 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     #endregion
 
     #region Methods
-    
+
+    /// <summary>
+    /// Gets the csharp type with nullable modifier
+    /// </summary>
+    public virtual Type? GetCsharpType(bool nullable = false) => nullable ? Schema?.Type?.GetNullableType() : Schema?.Type;
+
     /// <summary>
     /// Generate data node from object and validate the value
     /// </summary>
-    public async Task<DataNode?> ValidateValueAsync(SchemaContext context, object? value)
+    public async Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
     {
-        DataNode? result = null;
-        if (value is DataNode node)
+        if (context is not SchemaContext ctx) return null;
+        
+        IValueAccess? result = null;
+        if (value is IValueAccess node)
         {
             if (node.Type == this || IsAssignableTo(node.Type))
                 result = node;
@@ -408,7 +409,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
         // constraints
         foreach (IConstraintProperty constraint in Constraints.Where(c => c.HasValue))
         {
-            bool? valid = await constraint.ValidateAsync(context, result);
+            bool? valid = await constraint.ValidateAsync(ctx, result);
             if (valid.HasValue) result.RecordConstraint(constraint, valid.Value);
         }
         
@@ -422,12 +423,12 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Generate the data node from the node type
     /// </summary>
-    public abstract DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+    public abstract IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
 
     /// <summary>
     /// Generate the data node with given value
     /// </summary>
-    public DataNode From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
     {
         var node = Create(parent, propertyProvider);
         node.TrySetValue(value);
@@ -445,7 +446,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual ValueType? GetAccessValueType(string path) => string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) ? this : null;
+    public virtual IValueTypeAccess? GetAccessValueType(string path) => string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) ? this : null;
 
     /// <summary>
     /// Gets access entries
@@ -463,7 +464,7 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// The value type is assignable to other value type
     /// </summary>
-    public virtual bool IsAssignableTo(ValueType other)
+    public virtual bool IsAssignableTo(IValueTypeAccess other)
         => this == other || Name.Equals(other.Name) || 
            Kind.Equals(SCHEMA_KIND_OBJECT)  || 
            other.Kind.Equals(SCHEMA_KIND_OBJECT) ||

@@ -1,4 +1,4 @@
-﻿namespace SchemaNode.Property.Core;
+﻿namespace SchemaNode.Property.Property;
 
 /// <summary>
 /// The property alias name which is used to specify the property in the schema,

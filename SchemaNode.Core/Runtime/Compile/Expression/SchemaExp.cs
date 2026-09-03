@@ -8,7 +8,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The schema expression
 /// </summary>
-public abstract record SchemaExp(ValueType ValueType);
+public abstract record SchemaExp(IValueTypeAccess ValueType);
 
 /// <summary>
 /// The expression visitor interface
@@ -43,14 +43,14 @@ public record VariableExp(string Name, SchemaExp Value) : SchemaExp(Value.ValueT
 /// </summary>
 /// <param name="Index">The zero-based index of the argument within the containing context. Must be greater than or eq to 0.</param>
 /// <param name="ValueType">The scheme type associated with the argument. Determines the type information for the argument expression.</param>
-public record ArgumentExp(string Name, int Index, bool Require, ValueType ValueType) : SchemaExp(ValueType);
+public record ArgumentExp(string Name, int Index, bool Require, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The params expression type
 /// </summary>
 /// <param name="Exps"></param>
 /// <param name="ValueType"></param>
-public record ParamsExp(SchemaExp[] Exps, ValueType ValueType) : SchemaExp(ValueType);
+public record ParamsExp(SchemaExp[] Exps, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The struct field expression
@@ -64,7 +64,7 @@ public record StructFieldExp(string Name, SchemaExp Expression): SchemaExp(Expre
 /// </summary>
 /// <param name="Fields">The struct field members</param>
 /// <param name="ValueType">The struct schema type</param>
-public record StructResultExp(StructFieldExp[] Fields, ValueType ValueType) : SchemaExp(ValueType);
+public record StructResultExp(StructFieldExp[] Fields, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// Represents a function call expression with a specified function, argument expressions, and result type within a
@@ -75,4 +75,4 @@ public record StructResultExp(StructFieldExp[] Fields, ValueType ValueType) : Sc
 /// the function's parameter order.</param>
 /// <param name="ValueType">The schema type that describes the result of the function call.</param>
 /// <param name="ApplyMode">The collection expression type</param>
-public record FuncCallExp(FunctionType Function, SchemaExp[] Args, ValueType ValueType, ApplyMode ApplyMode = ApplyMode.Call) : SchemaExp(ValueType);
+public record FuncCallExp(FunctionType Function, SchemaExp[] Args, IValueTypeAccess ValueType, ApplyMode ApplyMode = ApplyMode.Call) : SchemaExp(ValueType);

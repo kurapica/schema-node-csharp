@@ -1,5 +1,4 @@
-﻿using ValueType = SchemaNode.Runtime.ValueType;
-using static SchemaNode.Utility.Constant;
+﻿using static SchemaNode.Utility.Constant;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
@@ -20,7 +19,7 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// The value type
     /// </summary>
-    public ValueType Type { get; init; } = null!;
+    public IValueTypeAccess Type { get; init; } = null!;
 
     /// <summary>
     /// The parent
@@ -48,7 +47,7 @@ public abstract class DataNode : IValueAccess
     {
         if (string.IsNullOrEmpty(path)) return this;
         if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return node ?? this;
-        if (path.Equals(NODE_TYPE, StringComparison.OrdinalIgnoreCase))
+        if (path.Equals(TYPE_PROVIDER, StringComparison.OrdinalIgnoreCase))
         {
             var access = node ?? this;
             while (access != null && access.PropertyProvider?.GetProperty<TypeProvider>() is not
@@ -144,7 +143,7 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// Clones the data node
     /// </summary>
-    public abstract DataNode Clone();
+    public abstract IValueAccess Clone();
     
     #endregion
 
@@ -153,12 +152,12 @@ public abstract class DataNode : IValueAccess
     /// <summary>
     /// The c# type representation
     /// </summary>
-    public virtual Type? CsharpType => Type.GetCsharpType();
+    public virtual Type? CsharpType => (Type as Runtime.ValueType)?.GetCsharpType();
     
     /// <summary>
     /// Equals check
     /// </summary>
-    public virtual bool Equals(DataNode? other) 
+    public virtual bool Equals(IValueAccess? other) 
         => other != null && 
            (ReferenceEquals(this, other) || 
             IsEmpty 

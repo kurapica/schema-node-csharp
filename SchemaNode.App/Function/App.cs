@@ -27,6 +27,7 @@ public static class SystemReflectApp
         [Meta<SchemaType>(typeof(AppType))] string container = "",
         [Meta<SchemaType>(typeof(Identifier))] string name = "",
         string? path = null,
+        [Meta<EntryRoot>(true)]
         string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
@@ -52,7 +53,7 @@ public static class SystemReflectApp
         Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!
             .FirstOrDefault(c => path.Equals(c.Value, StringComparison.OrdinalIgnoreCase) ||
                                  path.StartsWith($"{c.Value}.", StringComparison.OrdinalIgnoreCase)) : null;
-        Runtime.ValueType? valueType = curr != null 
+        IValueTypeAccess? valueType = curr != null 
             ? await context.GetNodeTypeAsync<Runtime.ValueType>(appType.GetFields().First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type) 
             : null;
         
@@ -68,7 +69,7 @@ public static class SystemReflectApp
             accessEntry.Children = accesses;
             
             // check next part
-            Runtime.ValueType? next = null;
+            IValueTypeAccess? next = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;
@@ -112,7 +113,8 @@ public static class SystemReflectApp
     /// Gets the application entries
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getappentries(SchemaContext context,
-        [Meta<SchemaType>(typeof(AppType))] string? name = null, string? root = null)
+        [Meta<SchemaType>(typeof(AppType))] string? name = null, 
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able

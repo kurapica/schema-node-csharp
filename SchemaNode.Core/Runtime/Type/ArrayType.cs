@@ -3,6 +3,7 @@ using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Immutable;
+using System.Transactions;
 using SchemaNode.Property.Array;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
@@ -39,7 +40,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     #region Implementation
 
     /// <inheritdoc />
-    public override Type GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(DataNode)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
+    public override Type GetCsharpType() => Element?.GetCsharpType() is { } type && !type.IsAssignableTo(typeof(IValueAccess)) ? typeof(List<>).MakeGenericType(type) : typeof(ArrayNode);
 
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
@@ -67,7 +68,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
@@ -105,7 +106,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(string path)
+    public override IValueTypeAccess? GetAccessValueType(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
@@ -129,7 +130,7 @@ public sealed class ArrayType: ValueType, IRelationProvider
     public override bool HasAccessEntries => Element?.HasAccessEntries ?? false;
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         if (base.IsAssignableTo(other)) return true;
         if (other is not ArrayType array) return false;
@@ -137,10 +138,21 @@ public sealed class ArrayType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new ArrayNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
     public IEnumerable<RelationType> GetRelations() => _relations ?? [];
+
+    /// <summary>
+    /// Gets the csharp type with nullable modifier
+    /// </summary>
+    public override Type? GetCsharpType(bool nullable = false)
+    {
+        Type type = base.GetCsharpType(false) ?? typeof(List<>);
+        Type? eleType = Element?.GetCsharpType(false) ?? typeof(object);
+        return type.IsGenericTypeDefinition ? type.MakeGenericType(eleType) : type;
+    }
+ 
 
     #endregion
 

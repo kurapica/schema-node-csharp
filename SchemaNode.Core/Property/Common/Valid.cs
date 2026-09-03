@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -13,12 +14,12 @@ namespace SchemaNode.Property.Common;
 /// The validation property
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_COMMON}.valid")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.valid")]
 [Meta<Stackable>(true)]
 [Relation<Valid, Relation.Assign>($"{nameof(Valid)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, NS_SYSTEM_BOOL)]
 public class Valid : FuncCallProperty, IConstraintProperty
 {
-    public async Task<bool?> ValidateAsync(SchemaContext context, DataNode node)
+    public async Task<bool?> ValidateAsync(SchemaContext context, IValueAccess node)
     {
         FunctionType? func = !string.IsNullOrWhiteSpace(Value?.Func)
             ? await context.GetNodeTypeAsync<FunctionType>(Value.Func)
@@ -36,7 +37,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
             
             if (!string.IsNullOrWhiteSpace(arg.Source))
             {
-                DataNode? value = node.GetAccessValue(arg.Source) as  DataNode;
+                var value = node.GetAccessValue(arg.Source);
                 args[i] = value;
                 if (value is ArrayNode && argInfo.ValueType is not ArrayType)
                 {
@@ -60,7 +61,7 @@ public class Valid : FuncCallProperty, IConstraintProperty
             if (arrayIndex >= 0)
             {
                 ArrayNode arrayNode = (args[arrayIndex] as ArrayNode)!;
-                foreach (DataNode dataNode in arrayNode)
+                foreach (var dataNode in arrayNode)
                 {
                     args[arrayIndex] = dataNode;
                     if (await func.CallAsync<bool?>(context, args) == false)

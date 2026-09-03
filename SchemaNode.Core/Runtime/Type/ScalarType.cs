@@ -54,7 +54,7 @@ public abstract class ScalarType : ValueType
     }
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
         => Kind.Equals(other.Kind,  StringComparison.OrdinalIgnoreCase) || base.IsAssignableTo(other);
 
     /// <inheritdoc />

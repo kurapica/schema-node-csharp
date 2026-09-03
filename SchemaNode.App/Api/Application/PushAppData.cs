@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Http;
-using SchemaNode.Node;
 using SchemaNode.Runtime;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Nodes;
@@ -53,7 +52,7 @@ public static class PushDataExtenstion
         if (string.IsNullOrWhiteSpace(app)) return (false, AppErrorCodes.APP_NOT_FOUND);
         if (data == null || data.Count == 0) return (false, AppErrorCodes.APP_PUSH_DATA_REQUIRED);
 
-        Runtime.AppType? appNode = await context.GetAppTypeAsync(app);
+        AppType? appNode = await context.GetAppTypeAsync(app);
         if (appNode == null) return (false, AppErrorCodes.APP_NOT_FOUND);
 
         // target is required for non-system-level apps
@@ -157,7 +156,7 @@ public static class PushDataExtenstion
                 // validate and save data
                 if (push.Data != null)
                 {
-                    DataNode? result = await appField.ValidateDataAsync(context, push.Data);
+                    var result = await appField.ValidateDataAsync(context, push.Data);
                     if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();
@@ -168,7 +167,7 @@ public static class PushDataExtenstion
 
                 if (push.Deletes is { Count: > 0 })
                 {
-                    DataNode? result = await appField.ValidateDataAsync(context, push.Deletes);
+                    var result = await appField.ValidateDataAsync(context, push.Deletes);
                     if (result is not { IsValid: true })
                     {
                         if (hasData) await context.RollbackTransactionAsync();

@@ -1,6 +1,4 @@
 using SchemaNode.Enum;
-using SchemaNode.Node;
-using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Struct;
@@ -37,7 +35,7 @@ public class CustomEnumTest : Base.AppTestBase
         var statusType = await Context.GetNodeTypeAsync<Runtime.EnumType>(schema.FullName);
         Assert.IsNotNull(statusType);
         
-        DataNode? node = await statusType.ValidateValueAsync(Context, "active");
+        var node = await statusType.ValidateValueAsync(Context, "active");
         Assert.IsNotNull(node);
         Assert.IsTrue(node.IsValid);
     }

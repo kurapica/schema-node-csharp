@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Bool;
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.Bool;
 [Meta<Alias>("bool")]
 [Meta<ForSchema>(SCHEMA_KIND_BOOL)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_BOOL}.valid")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_BOOL}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
 [Meta<Static>(true)]

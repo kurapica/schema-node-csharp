@@ -1,4 +1,5 @@
-﻿using SchemaNode.Utility;
+﻿using SchemaNode.Runtime;
+using SchemaNode.Utility;
 
 namespace SchemaNode.Node;
 
@@ -47,8 +48,8 @@ public abstract class ScalarNode<T> : ScalarNode
     public override void ClearValue() => Value = default(T?);
 
     /// <inheritdoc/>
-    public override bool Equals(DataNode? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
-                                                    other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
+    public override bool Equals(IValueAccess? other) => other is ScalarNode<T> scalarNode && Equals(Value, scalarNode.Value) ||
+                                                        other is EnumNode enumNode && enumNode.TryGetValue(out T? val) && Equals(Value, val);
 }
 
 /// <summary>
@@ -56,7 +57,7 @@ public abstract class ScalarNode<T> : ScalarNode
 /// </summary>
 public class AnyNode : ScalarNode<object>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new AnyNode
         {
@@ -71,7 +72,7 @@ public class AnyNode : ScalarNode<object>
 /// </summary>
 public class BoolNode : ScalarNode<bool>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new BoolNode()
         {
@@ -86,7 +87,7 @@ public class BoolNode : ScalarNode<bool>
 /// </summary>
 public class StringNode : ScalarNode<string>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new StringNode
         {
@@ -101,7 +102,7 @@ public class StringNode : ScalarNode<string>
 /// </summary>
 public class DecimalNode : ScalarNode<decimal>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new DecimalNode
         {
@@ -116,7 +117,7 @@ public class DecimalNode : ScalarNode<decimal>
 /// </summary>
 public class IntNode : ScalarNode<long>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new IntNode
         {
@@ -131,7 +132,7 @@ public class IntNode : ScalarNode<long>
 /// </summary>
 public class DateNode : ScalarNode<DateTimeOffset>
 {
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new DateNode
         {

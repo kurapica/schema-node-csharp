@@ -187,8 +187,8 @@ public sealed class FunctionType : NodeType
             {
                 foreach (var callArg in exp.Args)
                 {
-                    if (callArg.ValueType != null && callArg.ValueType is not GenericType)
-                        yield return callArg.ValueType;
+                    if (callArg.ValueType != null && callArg.ValueType is not GenericType && callArg.ValueType is ValueType v)
+                        yield return v;
                 }
             }
         }
@@ -427,7 +427,7 @@ public sealed class FunctionType : NodeType
             {
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                DataNode? argNode = argObj as DataNode;
+                IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -448,12 +448,12 @@ public sealed class FunctionType : NodeType
                     {
                         GetArgType(arg, gen ?? o.GetType());
                     }
-                    else if (eleType.IsAssignableTo(typeof(DataNode)))
+                    else if (eleType.IsAssignableTo(typeof(IValueAccess)))
                     {
                         GetArgType(arg, eleType);
                         if (argInfo.ValueType != null && argInfo.ValueType is not GenericType)
                         {
-                            DataNode node = argInfo.ValueType.Create();
+                            var node = argInfo.ValueType.Create();
                             if (!node.TrySetValue(argJson)) throw new Exception($"The {i + 1} argument must be provided and valid");
                             callArgs[i] = node;
                         }
@@ -464,7 +464,7 @@ public sealed class FunctionType : NodeType
                 // DataNode
                 else if (argNode != null)
                 {
-                    if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                    if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                         callArgs[i] = argNode;
                     else
                         callArgs[i] = eleType != null && argNode.TryGetValue(eleType, out var r) ? r : throw new Exception($"The {i + 1} argument must be provided and valid");
@@ -487,7 +487,7 @@ public sealed class FunctionType : NodeType
                 {
                     object? argObj = args.ElementAtOrDefault(j);
                     JsonNode? argJson = argObj as JsonNode;
-                    DataNode? argNode = argObj as DataNode;
+                    IValueAccess? argNode = argObj as IValueAccess;
 
                     if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true }) continue;
 
@@ -498,7 +498,7 @@ public sealed class FunctionType : NodeType
                         argObj = o ?? throw new Exception($"The {j + 1} argument not valid");
                         eleType ??= GetArgType(arg, gen ?? o.GetType());
 
-                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                         {
                             if (schemaType != null && schemaType is not GenericType)
                             {
@@ -513,7 +513,7 @@ public sealed class FunctionType : NodeType
                     // AnySchemaNode
                     else if (argNode != null)
                     {
-                        if (eleType != null && eleType.IsAssignableTo(typeof(DataNode)))
+                        if (eleType != null && eleType.IsAssignableTo(typeof(IValueAccess)))
                             argObj = argNode;
                         else
                         {
@@ -572,7 +572,7 @@ public sealed class FunctionType : NodeType
         {
             JsonArray cArgs = [];
             foreach (object? arg in args) 
-                cArgs.Add(arg is DataNode node ? node.ToJsonNode() : arg.ToJsonNode());
+                cArgs.Add(arg.ToJsonNode());
 
             result = Provider != null && context.GetRequiredService(Provider) is IFunctionSchemaProvider provider
                 ? await provider.CallFunctionAsync(Name, cArgs, rType, mode)
@@ -596,7 +596,7 @@ public sealed class FunctionType : NodeType
                 // validate argument
                 object? argObj = args.ElementAtOrDefault(i);
                 JsonNode? argJson = argObj as JsonNode;
-                DataNode? argNode = argObj as DataNode;
+                IValueAccess? argNode = argObj as IValueAccess;
 
                 // check null or empty
                 if (argObj == null || argJson != null && argJson.IsEmpty() || argNode is { IsEmpty: true })
@@ -622,7 +622,7 @@ public sealed class FunctionType : NodeType
                     {
                         if (eleType != null)
                         {
-                            if (eleType.IsAssignableTo(typeof(DataNode)))
+                            if (eleType.IsAssignableTo(typeof(IValueAccess)))
                             {
                                 var node = arg.ValueType.Create();
                                 if (!node.TrySetValue(value))
@@ -632,7 +632,7 @@ public sealed class FunctionType : NodeType
                             else
                             {
                                 // DataNode
-                                if (value is DataNode dataNode)
+                                if (value is IValueAccess dataNode)
                                 {
                                     maps[index++] = dataNode.TryGetValue(eleType, out var o)
                                         ? o!
@@ -659,7 +659,7 @@ public sealed class FunctionType : NodeType
                 }
                 else if (eleType != null)
                 {
-                    if (eleType.IsAssignableTo(typeof(DataNode)))
+                    if (eleType.IsAssignableTo(typeof(IValueAccess)))
                     {
                         var node = arg.ValueType.Create();
                         if (!node.TrySetValue(argObj))
@@ -746,7 +746,7 @@ public sealed class FunctionType : NodeType
 
                             if (results.Count > 0)
                             {
-                                if (results[0] is DataNode n)
+                                if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
                                         ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
@@ -780,7 +780,7 @@ public sealed class FunctionType : NodeType
 
                             if (results.Count > 0)
                             {
-                                if (results[0] is DataNode n)
+                                if (results[0] is IValueAccess n)
                                 {
                                     var arrayNode =
                                         ((await context.GetArrayNodeTypeAsync(n.Type))!.Create() as ArrayNode)!;
@@ -919,7 +919,7 @@ public sealed class FunctionType : NodeType
         // Parse the return type
         if (result == null) return default(T);
         if (result is T r) return r;
-        if (typeof(T).IsAssignableTo(typeof(DataNode)))
+        if (typeof(T).IsAssignableTo(typeof(IValueAccess)))
         {
             return await context.GetSchemaNodeAsync(result) is T rNode ? rNode : default(T?);
         }

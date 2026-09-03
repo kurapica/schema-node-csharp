@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Enum;
 using SchemaNode.Property.String;

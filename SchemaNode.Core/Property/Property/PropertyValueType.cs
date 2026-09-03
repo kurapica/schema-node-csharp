@@ -1,6 +1,6 @@
 using SchemaNode.Utility;
 
-namespace SchemaNode.Property.Core;
+namespace SchemaNode.Property.Property;
 
 /// <summary>
 /// The value type of the property

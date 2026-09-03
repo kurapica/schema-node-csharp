@@ -60,11 +60,11 @@ public static class SystemAppData
 
         // get the key type
         AppSchemaDataFilter? filter = null;
-        List<DataNode>[] keyValues = new List<DataNode>[keys.Count];
+        var keyValues = new List<IValueAccess>[keys.Count];
         for (int i = 0; i < keys.Count; i++)
         {
             var keyType = (arrType!.Element as StructType)?.GetField(keys[i])?.Type;
-            DataNode? valueNode = keyType?.From(args[i]);
+            var valueNode = keyType?.From(args[i]);
             if (valueNode == null || valueNode.IsEmpty) return default;
 
             if (keyType is EnumType { Cascade: { Length: > 1 } } enumType &&
@@ -97,8 +97,8 @@ public static class SystemAppData
                 : new AppSchemaDataFilterBinary(LogicType.AndAlso, filter, keyFilter);
         }
 
-        (DataNode? value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Count == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
-        DataNode? result = value;
+        var (value, _) = await context.GetAppFieldDataAsync(fieldType, keys.Count == 0 ? AppSchemaDataResult.First : AppSchemaDataResult.List, filter);
+        var result = value;
         if (keys.Count > 0)
         {
             if (value is not ArrayNode { Count: > 0 } arr) return default;
@@ -112,7 +112,7 @@ public static class SystemAppData
                 // contains the last
                 for (int j = keyValues[i].Count - 1; j >= 0; j--)
                 {
-                    DataNode key = keyValues[i][j];
+                    var key = keyValues[i][j];
                     if (!items.Any(n => n.GetAccessValue(keys[i]) is { } f && key.Equals(f))) continue;
                     items = items.Where(n => n.GetAccessValue(keys[i]) is { } f && key.Equals(f)).ToArray();
                     break;
@@ -137,7 +137,7 @@ public static class SystemAppData
         string dataField,
         params object?[] args)
     {
-        DataNode? result = await get<DataNode>(context, app, field, args);
+        var result = await get<IValueAccess>(context, app, field, args);
         var f = (result as StructNode)?.GetAccessValue(dataField);
         return f != null ? f.GetValue<T>() : default(T?);
     }
@@ -199,12 +199,12 @@ public static class SystemAppData
             || fieldType.ValueType is ArrayType a && (a.Element is not StructType || a.Primary == null || a.Primary.Count == 0)
             ) return null;
 
-        DataNode? dataNode = fieldType.ValueType?.From(data);
+        var dataNode = fieldType.ValueType?.From(data);
         if (dataNode == null || dataNode.IsEmpty) return null;
 
         using var stack = context.StackAccess(appType.Name, target);
         await context.BeginTransactionAsync();
-        DataNode? origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
+        var origin = await context.GetAppFieldDataAsync(fieldType, dataNode, forUpdate: true);
         if (origin == null) goto ROLLBACK;
 
         switch (fieldType.ValueType)
@@ -231,8 +231,8 @@ public static class SystemAppData
                     if (dataNode is not StructNode structData || origin is not StructNode originStruct) goto ROLLBACK;
                     foreach (var fld in @struct.GetFields())
                     {
-                        DataNode? orgFld = originStruct.GetAccessValue(fld.Name) as DataNode;
-                        DataNode? dataFld = structData.GetAccessValue(fld.Name) as DataNode;
+                        var orgFld = originStruct.GetAccessValue(fld.Name);
+                        var dataFld = structData.GetAccessValue(fld.Name);
 
                         if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                         {
@@ -272,8 +272,8 @@ public static class SystemAppData
                         {
                             foreach (var fld in arrStruct.GetFields())
                             {
-                                DataNode? orgFld = oitem.GetAccessValue(fld.Name) as  DataNode;
-                                DataNode? dataFld = ditem.GetAccessValue(fld.Name)  as DataNode;
+                                var orgFld = oitem.GetAccessValue(fld.Name);
+                                var dataFld = ditem.GetAccessValue(fld.Name);
 
                                 if (orgFld?.Type is DecimalType && dataFld?.Type is DecimalType)
                                 {
@@ -339,7 +339,7 @@ public static class SystemAppData
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
         
-        DataNode? dataNode = await fieldType.ValidateDataAsync(context, data);
+        var dataNode = await fieldType.ValidateDataAsync(context, data);
         if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
         
         using var stack = context.StackAccess(app, target);
@@ -382,7 +382,7 @@ public static class SystemAppData
         AppFieldType? fieldType = appType.GetField(field);
         if (fieldType == null) return false;
 
-        DataNode? dataNode = await fieldType.ValidateDataAsync(context, data);
+        var dataNode = await fieldType.ValidateDataAsync(context, data);
         if (dataNode == null || dataNode.IsEmpty || !dataNode.IsValid) return false;
 
         using var stack = context.StackAccess(app, target);

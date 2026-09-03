@@ -3,6 +3,7 @@ using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
 
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.Struct;
 [Meta<Alias>("struct")]
 [Meta<ForSchema>(SCHEMA_KIND_STRUCT)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRUCT}.valid")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
 [Meta<Static>(true)]

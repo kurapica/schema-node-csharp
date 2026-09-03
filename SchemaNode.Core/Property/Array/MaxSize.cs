@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Int;
 using static SchemaNode.Utility.Constant;
 
@@ -12,7 +13,7 @@ namespace SchemaNode.Property.Array;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY, SCHEMA_KIND_ARRAY_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ARRAY}.{nameof(MaxSize)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{nameof(MaxSize)}")]
 [Meta<LowLimitInt>(0L)]
 public class MaxSize : Property<long>, IConstraintProperty
 {

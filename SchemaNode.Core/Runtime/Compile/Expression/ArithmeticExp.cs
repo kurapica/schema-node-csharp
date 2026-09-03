@@ -24,12 +24,12 @@ public class ArithmeticAttribute(ArithmeticType type) : System.Attribute
 /// <summary>
 /// The arithmetic expression
 /// </summary>
-public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, ValueType ValueType) : SchemaExp(ValueType);
+public record ArithmeticExp(ArithmeticType Type, SchemaExp[] Args, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The transform arithmetic expression
 /// </summary>
-public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, ValueType ValueType) : ArithmeticExp(ArithmeticType.Transform, Args, ValueType);
+public record TransformArithmeticExp(MethodInfo Method, SchemaExp[] Args, IValueTypeAccess ValueType) : ArithmeticExp(ArithmeticType.Transform, Args, ValueType);
 
 #endregion
 

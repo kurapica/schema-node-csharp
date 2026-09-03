@@ -1,6 +1,6 @@
 using SchemaNode.Attribute;
 using SchemaNode.Enum;
-using SchemaNode.Function;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;

@@ -1,8 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Enum;
 using SchemaNode.Node;
-using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
@@ -13,7 +12,7 @@ namespace SchemaNode.Property.Enum;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ENUM}.{nameof(SingleFlag)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(SingleFlag)}")]
 public class SingleFlag : Property<bool>, IConstraintProperty
 {
     public bool? ValidateEnum(SchemaContext context, EnumNode node)

@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Function;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Relation;

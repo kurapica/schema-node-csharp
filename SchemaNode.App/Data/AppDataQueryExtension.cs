@@ -10,7 +10,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<(DataNode? value, int total)> GetAppFieldDataAsync(this SchemaContext context,
+    public static async Task<(IValueAccess? value, int total)> GetAppFieldDataAsync(this SchemaContext context,
         AppFieldType field, AppSchemaDataResult type, AppSchemaDataFilter? filter = null,
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null, 
         bool forUpdate = false, bool genDisplayOnly = false)
@@ -25,7 +25,7 @@ public static class AppDataQueryExtension
 
         try
         {
-            (DataNode? result, int total) = await dataProvider
+            (IValueAccess? result, int total) = await dataProvider
                 .QueryDynamicTableAsync(schema, type, filter, skip, take, desc, orderBy, dataField, forUpdate);
 
             // Generate display only fields
@@ -44,8 +44,8 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<DataNode?> GetAppFieldDataAsync(this SchemaContext context,
-        AppFieldType field, DataNode nodes, bool forUpdate = false, bool genDisplayOnly = false)
+    public static async Task<IValueAccess?> GetAppFieldDataAsync(this SchemaContext context,
+        AppFieldType field, IValueAccess nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
         if (!field.EnableDynamicTable) return null;
@@ -57,7 +57,7 @@ public static class AppDataQueryExtension
 
         try
         {
-            DataNode? result = null;
+            IValueAccess? result = null;
 
             if (field.ValueType is ArrayType { Primary: { Count: > 0 } } arrType)
             {
@@ -105,7 +105,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the field data
     /// </summary>
-    public static async Task<DataNode?> GetAppFieldDataAsync(this SchemaContext context,
+    public static async Task<IValueAccess?> GetAppFieldDataAsync(this SchemaContext context,
         AppFieldType field, IEnumerable<StructNode> nodes, bool forUpdate = false, bool genDisplayOnly = false)
     {
         // Front end only
@@ -118,7 +118,7 @@ public static class AppDataQueryExtension
 
         try
         {
-            DataNode? result = null;
+            IValueAccess? result = null;
 
             if (field.ValueType is ArrayType { Primary: { Count: > 0 } })
                 result = await dataProvider.QueryOriginNodesAsync(schema, nodes, forUpdate);
@@ -139,7 +139,7 @@ public static class AppDataQueryExtension
     /// <summary>
     /// Gets the filter field data for data source compile expression
     /// </summary>
-    public static async Task<DataNode?> GetSchemaDataAsync(
+    public static async Task<IValueAccess?> GetSchemaDataAsync(
         this SchemaContext context, string app, string field, string? target, AppSchemaDataResult type, AppSchemaDataFilter? filter = null, 
         int skip = 0, int take = 0, bool desc = false, AppSchemaDataOrder[]? orderBy = null, string? dataField = null)
     {
@@ -173,7 +173,7 @@ public static class AppDataQueryExtension
         };
         
         using var stack = context.StackAccess(app, target);
-        (DataNode? res, _) = await context.GetAppFieldDataAsync(appField, type, filter, skip, take, desc, orderBy, dataField);
+        (IValueAccess? res, _) = await context.GetAppFieldDataAsync(appField, type, filter, skip, take, desc, orderBy, dataField);
         return res;
     }
 }

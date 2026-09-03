@@ -57,7 +57,7 @@ public class StructTypeTest : Base.CoreTestBase
         Assert.IsNotNull(node);
 
         node["Name"] = "Alice";
-        Assert.AreEqual("Alice", (node.GetAccessValue("Name") as DataNode)?.GetValue<string>());
+        Assert.AreEqual("Alice", node.GetAccessValue("Name")?.GetValue<string>());
     }
 
     [TestMethod]
@@ -105,8 +105,8 @@ public class StructTypeTest : Base.CoreTestBase
 
         var cloned = original.Clone() as StructNode;
         Assert.IsNotNull(cloned);
-        Assert.AreEqual("Diana", (cloned!.GetAccessValue("Name") as DataNode)?.GetValue<string>());
-        Assert.AreEqual(25, (cloned.GetAccessValue("Age") as DataNode)?.GetValue<int>());
+        Assert.AreEqual("Diana", cloned!.GetAccessValue("Name")?.GetValue<string>());
+        Assert.AreEqual(25, cloned.GetAccessValue("Age")?.GetValue<int>());
         Assert.AreNotSame(original, cloned);
     }
 
@@ -124,9 +124,9 @@ public class StructTypeTest : Base.CoreTestBase
         node["Age"] = 28;
         node["Phone"] = "555-0100";
 
-        Assert.AreEqual("Eve", (node.GetAccessValue("Name") as DataNode)?.GetValue<string>());
-        Assert.AreEqual(28, (node.GetAccessValue("Age") as DataNode)?.GetValue<int>());
-        Assert.AreEqual("555-0100", (node.GetAccessValue("Phone") as DataNode)?.GetValue<string>());
+        Assert.AreEqual("Eve", node.GetAccessValue("Name")?.GetValue<string>());
+        Assert.AreEqual(28, node.GetAccessValue("Age")?.GetValue<int>());
+        Assert.AreEqual("555-0100", node.GetAccessValue("Phone")?.GetValue<string>());
     }
 
     [TestMethod]

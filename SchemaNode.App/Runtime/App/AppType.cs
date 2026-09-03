@@ -4,8 +4,6 @@ using SchemaNode.Property;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
 using System.Collections.Concurrent;
-using SchemaNode.Node;
-using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
 using SchemaNode.Struct;
@@ -51,6 +49,11 @@ public sealed class AppType : IValueTypeAccess
     /// The application name
     /// </summary>
     public string Name => _schema?.FullName ?? string.Empty;
+    
+    /// <summary>
+    /// The application kind
+    /// </summary>
+    public string Kind => SCHEMA_KIND_APP;
 
     /// <summary>
     /// The target policies, can only be changeable when no app & no fields or in debug mode
@@ -193,7 +196,7 @@ public sealed class AppType : IValueTypeAccess
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
@@ -229,7 +232,7 @@ public sealed class AppType : IValueTypeAccess
             if (context.Runtime.Stage == RuntimeStage.Activated)
                 await wf.LoadAsync(context);
             else
-                (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>()?.Enqueue(wf);
+                (context.Runtime as SchemaRuntime)?.GetOrAddRuntimeItem<AppWorkflowQueue>().Enqueue(wf);
         }
 
         // Add referenced by for fields, workflows and relations
@@ -244,6 +247,12 @@ public sealed class AppType : IValueTypeAccess
     {
         foreach (NodeType t in GetReferenceTypes())
             t.RemoveUsedBy(this);
+    }
+
+    /// <inheritdoc/>
+    public bool IsAssignableTo(IValueTypeAccess other)
+    {
+        return false;
     }
 
     public IEnumerable<NodeType> GetReferenceTypes()
@@ -354,7 +363,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the access value type
     /// </summary>
-    public ValueType? GetAccessValueType(string path)
+    public IValueTypeAccess? GetAccessValueType(string path)
     {
         if (_fields == null || _fields.Count == 0) return null;
         ReadOnlySpan<char> remain = null;
@@ -390,6 +399,30 @@ public sealed class AppType : IValueTypeAccess
     /// Whether has access entries
     /// </summary>
     public bool HasAccessEntries => _fields is { Count: > 0 };
+
+    /// <inheritdoc/>
+    public IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Type GetCsharpType(bool nullable = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    {
+        throw new NotImplementedException();
+    }
 
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
@@ -430,7 +463,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the scope context items for the application, which will be used for policy evaluation and data push
     /// </summary>
-    public IEnumerable<(string item, DataNode? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
+    public IEnumerable<(string item, IValueAccess? value, bool isTarget)> GetScopeContextItems(SchemaContext ctx)
     {
         if (ScopePolicy?.Type == AppScopeType.SystemLevel)
             yield break;

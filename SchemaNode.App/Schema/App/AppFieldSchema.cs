@@ -2,9 +2,11 @@ using SchemaNode.Attribute;
 using static SchemaNode.Utility.AppConstant;
 using SchemaKind = SchemaNode.Property.Record.SchemaKind;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Scalar;
 using SchemaNode.Property.Common;
 using SchemaNode.Property;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaValueType = SchemaNode.Schema.ValueType;
 

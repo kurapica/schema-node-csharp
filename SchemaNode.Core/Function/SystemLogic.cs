@@ -7,6 +7,7 @@ using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Function;
+using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using LogicType = SchemaNode.Enum.LogicType;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
@@ -71,7 +72,7 @@ public static class SystemLogic
         if (a is null) return true;
         switch (a)
         {
-            case DataNode n:
+            case IValueAccess n:
                 return n.IsEmpty;
             case JsonNode j:
                 return j.IsEmpty();

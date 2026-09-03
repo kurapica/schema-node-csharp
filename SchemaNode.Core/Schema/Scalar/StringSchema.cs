@@ -6,6 +6,8 @@ using SchemaNode.Property.Core;
 using SchemaNode.Property.Enum;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -56,9 +58,9 @@ public sealed class StringSchema : ScalarSchema
 [Relation<Root, Call>(nameof(BlackList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
 [Relation<Root, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
 [Relation<BlackList, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
-[Relation<Visible, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]
-[Relation<OverrideType, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getarrayelement)}", NODE_TYPE)]
-[Relation<Visible, Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]
+[Relation<Visible, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", TYPE_PROVIDER)]
+[Relation<OverrideType, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getarrayelement)}", TYPE_PROVIDER)]
+[Relation<Visible, Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", TYPE_PROVIDER)]
 public sealed class StringUsage;
 
 /// <summary>
@@ -67,7 +69,7 @@ public sealed class StringUsage;
 [Meta<Alias>(SCHEMA_KIND_STRING)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRING}.{SCHEMA_KIND_STRING}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{SCHEMA_KIND_STRING}")]
 [Relation<Visible, Call>(SCHEMA_KIND_STRING, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRING)]
 public sealed class StringProperty : Property<StringSchema>
 {

@@ -3,6 +3,7 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.Enum;
 [Meta<Alias>(SCHEMA_KIND_ENUM)]
 [Meta<ForSchema>(SCHEMA_KIND_ENUM)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ENUM}.valid")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
 [Meta<Static>(true)]

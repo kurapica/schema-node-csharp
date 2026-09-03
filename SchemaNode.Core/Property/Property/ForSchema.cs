@@ -1,4 +1,4 @@
-﻿namespace SchemaNode.Property.Core;
+﻿namespace SchemaNode.Property.Property;
 
 /// <summary>
 /// Declare what schema kinds the property is defined for

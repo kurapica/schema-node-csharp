@@ -2,6 +2,7 @@
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Enum;
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.Enum;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ENUM}.{nameof(Root)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(Root)}")]
 public class Root: Property<string>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)

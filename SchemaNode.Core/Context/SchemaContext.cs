@@ -351,13 +351,13 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// </summary>
     /// <param name="elementType"></param>
     /// <returns></returns>
-    public async Task<ArrayType?> GetArrayNodeTypeAsync(ValueType elementType)
-        => elementType as ArrayType ?? (elementType.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
+    public async Task<ArrayType?> GetArrayNodeTypeAsync(IValueTypeAccess elementType)
+        => elementType as ArrayType ?? ((elementType as ValueType)?.ArrayType ?? await GetNodeTypeAsync<ArrayType>((Runtime as SchemaRuntime)!.GetSystemArraySchema(elementType.Name)!));
     
     /// <summary>
     /// Gets the schema node from value
     /// </summary>
-    public async Task<DataNode?> GetSchemaNodeAsync(object? value, ValueType? expectedType = null, bool onlyValid = false)
+    public async Task<IValueAccess?> GetSchemaNodeAsync(object? value, IValueTypeAccess? expectedType = null, bool onlyValid = false)
     {
         if (value == null) return expectedType?.From(null);
 
@@ -377,9 +377,9 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
                     break; // can't handle it without expected type
                 default:
                 {
-                    ConcurrentDictionary<Type, ValueType> cacheItem = GetSchemeCacheItem().TypeCache;
+                    ConcurrentDictionary<Type, IValueTypeAccess> cacheItem = GetSchemeCacheItem().TypeCache;
                     Type valueType = value.GetType();
-                    if (cacheItem.TryGetValue(valueType, out ValueType? cached))
+                    if (cacheItem.TryGetValue(valueType, out IValueTypeAccess? cached))
                     {
                         expectedType = cached;
                     }
@@ -401,7 +401,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
             try
             {
                 if (!onlyValid) return expectedType.From(value);
-                DataNode? node = await expectedType.ValidateValueAsync(this, value);
+                var node = await expectedType.ValidateValueAsync(this, value);
                 return node?.IsValid == true ? node : null;
             }
             catch (Exception e)
@@ -464,21 +464,21 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the context item as data node
     /// </summary>
-    public DataNode? GetContextItem(Type type) => GetContextItemResult(type, true) as DataNode;
+    public IValueAccess? GetContextItem(Type type) => GetContextItemResult(type, true) as IValueAccess;
 
     /// <summary>
     /// Gets the context item
     /// </summary>
-    internal DataNode? GetContextItem(string contextItem)
+    internal IValueAccess? GetContextItem(string contextItem)
     {
         string[] split = contextItem.Split('.', 2);
         if (split.Length == 0) return null;
         (string SchemaType, Type ProviderType, Type ItemType)? info = GetRequiredService<SchemaContextItemProvider>().GetProviderType(split[0]);
         if (info == null) return null;
-        DataNode? result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
+        var result = GetService(info.Value.ProviderType) is ISchemaContextItemProvider { HasItem: true } provider && provider.TryGetItem(out object? item)
             ? GetNodeTypeAsync<ValueType>(info.Value.SchemaType).GetAwaiter().GetResult()?.From(item)
             : null;
-        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) as DataNode : result;
+        return result != null && split.Length > 1 ? result.GetAccessValue(split[1]) : result;
     }
     
     /// <summary>
@@ -525,8 +525,8 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
 
     #region Scheme Cache Item
 
-    SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, ValueType>()));
-    record SchemeCacheItem(ConcurrentDictionary<Type, ValueType> TypeCache);
+    SchemeCacheItem GetSchemeCacheItem() => GetOrAddContextItem(() => new SchemeCacheItem(new ConcurrentDictionary<Type, IValueTypeAccess>()));
+    record SchemeCacheItem(ConcurrentDictionary<Type, IValueTypeAccess> TypeCache);
 
     #endregion
 }

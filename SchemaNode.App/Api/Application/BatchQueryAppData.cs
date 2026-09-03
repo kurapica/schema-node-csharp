@@ -100,7 +100,7 @@ public static class BatchQueryExtension
             {
                 foreach (AppFieldType field in fields)
                 {
-                    DataNode? result = null;
+                    IValueAccess? result = null;
                     int total = 0;
 
                     // prepare field query
@@ -324,7 +324,7 @@ public static class BatchQueryExtension
         return (results.ToArray(), root.Schemas);
     }
 
-    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, NodeType type, HashSet<string> enumsKeys, DataNode? value)
+    static async Task ScanEnumAccess(SchemaContext context, NodeSchema root, NodeType type, HashSet<string> enumsKeys, IValueAccess? value)
     {
         switch (type)
         {
@@ -366,7 +366,7 @@ public static class BatchQueryExtension
                 {
                     foreach (StructFieldType f in @struct.GetFields())
                     {
-                        if (obj.GetAccessValue(f.Name) is DataNode { IsEmpty: false } v)
+                        if (obj.GetAccessValue(f.Name) is { IsEmpty: false } v)
                             await ScanEnumAccess(context, root, f.Type!, enumsKeys, v);
                     }
                 }
@@ -379,7 +379,7 @@ public static class BatchQueryExtension
                 {
                     case StructType eleStruct:
                     {
-                        foreach (DataNode v in arr)
+                        foreach (var v in arr)
                         {
                             if (v is StructNode)
                                 await ScanEnumAccess(context, root, eleStruct, enumsKeys, v);
@@ -389,7 +389,7 @@ public static class BatchQueryExtension
                     }
                     case EnumType eleEnum:
                     {
-                        foreach (DataNode v in arr)
+                        foreach (var v in arr)
                         {
                             if (v is EnumNode)
                                 await ScanEnumAccess(context, root, eleEnum, enumsKeys, v);

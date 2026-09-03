@@ -10,6 +10,7 @@ using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Scalar;
 using SchemaNode.Schema;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using ArrayType = SchemaNode.Runtime.ArrayType;
 using StructType = SchemaNode.Runtime.StructType;

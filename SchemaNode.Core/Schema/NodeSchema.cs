@@ -5,6 +5,7 @@ using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
@@ -12,6 +13,7 @@ using SchemaNode.Struct;
 using SchemaNode.Utility;
 using System.Text.Json.Serialization;
 using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 using static SchemaNode.Utility.Constant;
 using SchemaKind =  SchemaNode.Property.Record.SchemaKind;
 using String = SchemaNode.Scalar.String;
@@ -157,7 +159,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NODE}.type")]
 [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.gettypeentries)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.gettypeentries)}", NODE_SELF)]
 public class AnyType: String;
 
 /// <summary>

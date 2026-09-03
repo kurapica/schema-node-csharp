@@ -96,7 +96,7 @@ public class DynamicTableField
     /// <summary>
     /// Get JToken from reader
     /// </summary>
-    public DataNode? FromReader(DbDataReader reader, int col = 0)
+    public IValueAccess? FromReader(DbDataReader reader, int col = 0)
     {
         if (reader.IsDBNull(col)) return null;
         object? data;
@@ -139,7 +139,7 @@ public class DynamicTableField
     /// <summary>
     /// Gets the string of the JToken value
     /// </summary>
-    public string? ToString(DataNode? value)
+    public string? ToString(IValueAccess? value)
     {
         if (value == null || value.IsEmpty) return null;
 

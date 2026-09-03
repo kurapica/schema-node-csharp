@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Schema;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.String;
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.String;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_STRING)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRING}.{nameof(AccessEntryConsumer)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{nameof(AccessEntryConsumer)}")]
 [Meta<Static>(true)]
 [Meta<ReadOnly>(true)]
 [Meta<InVisible>(true)]

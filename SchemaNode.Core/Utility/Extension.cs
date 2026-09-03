@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Xml;
 using SchemaNode.Attribute;
-using SchemaNode.Property;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
@@ -71,7 +71,7 @@ internal static class Extension
     internal static string ToJson<T>(this T value)
         => value is JsonNode json 
             ? json.ToString() 
-            : value is DataNode node 
+            : value is IValueAccess node 
                 ? (node.TryGetValue(out JsonNode? jnode) 
                     ? jnode!.ToString() 
                     : "") 
@@ -82,7 +82,7 @@ internal static class Extension
         try
         {
             if (value == null) return null;
-            if (value is DataNode node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
+            if (value is IValueAccess node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
             if (value is JsonNode) return (JsonNode?)(object)value;
             return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
         }
@@ -482,7 +482,7 @@ internal static class Extension
                 result = null;
 
                 // for data node
-                if (value is DataNode node)
+                if (value is IValueAccess node)
                 {
                     if (node.TryGetValue(out object? nv))
                         value = nv;

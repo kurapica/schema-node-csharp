@@ -55,7 +55,7 @@ public static class InteractionExtensions
             ?? throw new Exception(AppErrorCodes.APP_WORKFLOW_NODE_NOT_FOUND);
 
         // build the payload
-        DataNode payload = node.PayloadType?.From(request.Data) ?? throw new Exception(AppErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID);
+        var payload = node.PayloadType?.From(request.Data) ?? throw new Exception(AppErrorCodes.WORKFLOW_NODE_PAYLOAD_NOT_VALID);
         
         // Start a new workflow
         if (request.WorkflowId == null)

@@ -3,7 +3,6 @@ using SchemaNode.Enum;
 using SchemaNode.Node;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
-using SchemaNode.Property;
 using SchemaNode.Struct;
 using SchemaNode.Schema.Provider;
 
@@ -105,7 +104,7 @@ public sealed class EnumType: ValueType
         => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         return base.IsAssignableTo(other) || other is ScalarType scalar && _enumSchema?.Type switch
         {
@@ -117,7 +116,7 @@ public sealed class EnumType: ValueType
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new EnumNode(this,  parent, propertyProvider);
 
     /// <inheritdoc />
     public override bool IsIndexable => true;

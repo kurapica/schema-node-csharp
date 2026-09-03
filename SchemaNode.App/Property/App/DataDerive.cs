@@ -4,6 +4,7 @@ using SchemaNode.Data;
 using SchemaNode.Enum;
 using SchemaNode.Function;
 using SchemaNode.Node;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Struct;
@@ -95,17 +96,17 @@ public class Derive
     /// <summary>
     /// The combine rule for scalar/enum type
     /// </summary>
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_BOOL, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE)]
-    [Relation<WhiteList, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinetype)}", $"@{nameof(FieldType)}")]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_ENUM, SCHEMA_KIND_BOOL, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE)]
+    [Relation<WhiteList, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinetype)}", $"@{nameof(FieldType)}")]
     public DataCombineType? Combine { get; set; }
     
     /// <summary>
     /// The combine rule for struct or struct-array type
     /// </summary>
-    [Relation<Visible, Relation.Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_STRUCT)]
-    [Relation<EntrySource, Relation.Assign>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
-    [Relation<BlackList, Relation.Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
-    [Relation<Default, Relation.Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessvaluetype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}")]
+    [Relation<Visible, Call>(NODE_SELF, $"{NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND}", $"@{nameof(FieldType)}", true, SCHEMA_KIND_STRUCT)]
+    [Relation<EntrySource, Assign>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getcombinefields)}", $"@{nameof(FieldType)}")]
+    [Relation<BlackList, Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}", $"{NS_SYSTEM_COLLECTION}.{nameof(SystemCollection.getfields)}", $"@{nameof(Combines)}.{ARRAY_PREVIOUS}", $"{nameof(FieldCombine.Field)}")]
+    [Relation<Default, Call>($"{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.FieldType)}", $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessvaluetype)}", $"@{nameof(FieldType)}", $"@{nameof(Combines)}.{ARRAY_ELEMENT}.{nameof(FieldCombine.Field)}")]
     public FieldCombine[]? Combines { get; set; }
 }
 
@@ -147,7 +148,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to scalar
     /// </summary>
-    internal static DataNode? GroupJoin(DataNode? value, DataCombineType method)
+    internal static IValueAccess? GroupJoin(IValueAccess? value, DataCombineType method)
     {
         return method switch
         {
@@ -160,7 +161,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to scalar
     /// </summary>
-    internal static DataNode? GroupJoin(this ScalarType type, DataNode? value, DataCombineType method)
+    internal static IValueAccess? GroupJoin(this ScalarType type, IValueAccess? value, DataCombineType method)
     {
         return method switch
         {
@@ -175,7 +176,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to struct
     /// </summary>
-    internal static DataNode? GroupJoin(this Runtime.StructType type, DataNode? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
+    internal static IValueAccess? GroupJoin(this Runtime.StructType type, IValueAccess? value, IReadOnlyDictionary<string, DataCombineType> joinMethodMap)
     {
         if (value == null || value.IsEmpty) return null;
         switch (value)
@@ -233,7 +234,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static Dictionary<string, StructNode> GroupJoinObjectMap(Runtime.ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static Dictionary<string, StructNode> GroupJoinObjectMap(Runtime.ArrayType type, IValueAccess? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (value == null || value.IsEmpty) return new Dictionary<string, StructNode>();
 
@@ -276,23 +277,23 @@ internal static class DataDeriveExtensions
                                 {
                                     case DataCombineType.Newest:
                                         {
-                                            if (obj[s] is DataNode { IsEmpty: false } sp)
+                                            if (obj[s] is IValueAccess { IsEmpty: false } sp)
                                                 total[s] = sp;
                                             break;
                                         }
 
                                     case DataCombineType.Oldest:
-                                        if (!(total[s] is DataNode { IsEmpty: false }) && obj[s] is DataNode { IsEmpty: false } c)
+                                        if (!(total[s] is IValueAccess { IsEmpty: false }) && obj[s] is IValueAccess { IsEmpty: false } c)
                                             total[s] = c;
                                         break;
 
                                     case DataCombineType.Sum:
-                                        total[s] = (total[s] is DataNode { IsEmpty: false } t ? t.GetValue<decimal>() : 0) +
-                                                              (obj[s] is DataNode { IsEmpty: false } n ? n.GetValue<decimal>() : 0);
+                                        total[s] = (total[s] is IValueAccess { IsEmpty: false } t ? t.GetValue<decimal>() : 0) +
+                                                              (obj[s] is IValueAccess { IsEmpty: false } n ? n.GetValue<decimal>() : 0);
                                         break;
 
                                     case DataCombineType.Count:
-                                        total[s] = (total[s] is DataNode { IsEmpty: false } d ? d.GetValue<int>() : 0) + 1;
+                                        total[s] = (total[s] is IValueAccess { IsEmpty: false } d ? d.GetValue<int>() : 0) + 1;
                                         break;
                                     default:
                                         throw new ArgumentOutOfRangeException();
@@ -338,7 +339,7 @@ internal static class DataDeriveExtensions
     /// <summary>
     /// Join to array
     /// </summary>
-    internal static ArrayNode? GroupJoin(this Runtime.ArrayType type, DataNode? value, Dictionary<string, DataCombineType> joinMethodMap)
+    internal static ArrayNode? GroupJoin(this Runtime.ArrayType type, IValueAccess? value, Dictionary<string, DataCombineType> joinMethodMap)
     {
         if (type.Element is not Runtime.StructType structNode || type.Primary == null) return null;
         Dictionary<string, Runtime.ValueType?> primaryNodes = structNode.GetFields().Where(fieldType => type.Primary.Contains(fieldType.Name)).ToDictionary(fieldType => fieldType.Name, fieldType => fieldType.Type);

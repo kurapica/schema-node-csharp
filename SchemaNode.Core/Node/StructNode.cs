@@ -3,13 +3,12 @@ using System.Text.Json.Nodes;
 using SchemaNode.Context;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
-using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Node;
 
 public class StructNode : DataNode
 {
-    private readonly DataNode[] _fields;
+    private readonly IValueAccess[] _fields;
     private object? _csharpObject;
 
     #region Constructor
@@ -57,7 +56,7 @@ public class StructNode : DataNode
     /// <param name="context"></param>
     /// <param name="fieldName"></param>
     /// <returns></returns>
-    public Task<DataNode?> GetFieldValueAsync(SchemaContext context, string fieldName)
+    public Task<IValueAccess?> GetFieldValueAsync(SchemaContext context, string fieldName)
         => (Type as StructType)!.GetFieldValueAsync(context, this, fieldName);
 
     /// <summary>
@@ -68,7 +67,7 @@ public class StructNode : DataNode
     /// <summary>
     /// Gets the field type and values
     /// </summary>
-    public IEnumerable<(StructFieldType field, DataNode value)> GetFields()
+    public IEnumerable<(StructFieldType field, IValueAccess value)> GetFields()
     {
         int i = 0;
         foreach (var field in (Type as StructType)!.GetFields())
@@ -80,7 +79,7 @@ public class StructNode : DataNode
     /// </summary>
     public bool TrySetFieldValue(string fieldName, object? value)
     {
-        if (GetAccessValue(fieldName) is not DataNode field || !field.TrySetValue(value)) return false;
+        if (GetAccessValue(fieldName) is not {} field || !field.TrySetValue(value)) return false;
         // assign back
         if (_csharpObject == null) return true;
         try
@@ -107,12 +106,12 @@ public class StructNode : DataNode
     {
         if (base.GetAccessValue(path, node) is { } v) return v;
         string[] paths = path.Split('.', 2,  StringSplitOptions.RemoveEmptyEntries);
-        DataNode? field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
+        var field = _fields.ElementAtOrDefault((Type as StructType)?.GetIndex(paths[0]) ?? -1);
         return paths.Length > 1 ? field?.GetAccessValue(paths[1], node) : field;
     }
 
     /// <inheritdoc/>
-    public override bool Equals(DataNode? other)
+    public override bool Equals(IValueAccess? other)
     {
         if (this == other) return true;
         if (other is not StructNode otherStruct || !Type.IsAssignableTo(otherStruct.Type)) return false;
@@ -149,7 +148,7 @@ public class StructNode : DataNode
             // copy
             case StructNode @struct:
             {
-                foreach ((StructFieldType f, DataNode v) in GetFields())
+                foreach ((StructFieldType f, var v) in GetFields())
                 {
                     var otherValue = @struct.GetAccessValue(f.Name);
                     if (otherValue != null) v.TrySetValue(otherValue);
@@ -159,9 +158,9 @@ public class StructNode : DataNode
             }
             case JsonObject obj:
             {
-                Dictionary<string, DataNode> fieldMap = new (StringComparer.OrdinalIgnoreCase);
-                DataNode? unpackNode = null;
-                foreach ((StructFieldType f, DataNode v)  in GetFields())
+                Dictionary<string, IValueAccess> fieldMap = new (StringComparer.OrdinalIgnoreCase);
+                IValueAccess? unpackNode = null;
+                foreach ((StructFieldType f, var v)  in GetFields())
                 {
                     fieldMap.Add(f.Name, v);
                     if (f.Unpack ?? false)
@@ -171,7 +170,7 @@ public class StructNode : DataNode
                 JsonObject? packData = unpackNode != null ? new JsonObject() : null;
                 foreach ((string key, JsonNode? val) in obj)
                 {
-                    if (fieldMap.TryGetValue(key.ToLower(), out DataNode? field))
+                    if (fieldMap.TryGetValue(key.ToLower(), out var field))
                     {
                         if (!field.TrySetValue(val)) return false;
                     }
@@ -193,7 +192,7 @@ public class StructNode : DataNode
                     int i = 0;
                     foreach (var field in (Type as StructType)!.GetFields())
                     {
-                        DataNode f = _fields[i];
+                        var f = _fields[i];
                         if (field.Property == null || field.DisplayOnly == true)
                             f.ClearValue();
                         else
@@ -201,7 +200,7 @@ public class StructNode : DataNode
                             object? v = field.Property.GetValue(_csharpObject);
                             if (v != null)
                             {
-                                if (f is AnyNode && v is DataNode vNode)
+                                if (f is AnyNode && v is IValueAccess vNode)
                                 {
                                     _fields[i] = vNode;
                                 }
@@ -229,7 +228,7 @@ public class StructNode : DataNode
         if (type == typeof(JsonObject) || type == typeof(JsonNode))
         {
             JsonObject result = [];
-            foreach ((StructFieldType f, DataNode v) in GetFields())
+            foreach ((StructFieldType f, var v) in GetFields())
             {
                 if (v.IsEmpty) continue;
                 if (f.Unpack ?? false)
@@ -285,12 +284,12 @@ public class StructNode : DataNode
     public override void ClearValue()
     {
         _csharpObject = null;
-        foreach (DataNode field in _fields)
+        foreach (var field in _fields)
             field.ClearValue();
     }
 
     /// <inheritdoc/>
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         StructNode clone = new((StructType)Type);
         int i = 0;

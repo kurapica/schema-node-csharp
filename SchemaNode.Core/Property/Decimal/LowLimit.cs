@@ -2,6 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Decimal;
@@ -9,7 +10,7 @@ namespace SchemaNode.Property.Decimal;
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DECIMAL_DEFINE, SCHEMA_KIND_DECIMAL_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_DECIMAL}.lowlimit")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.lowlimit")]
 public class LowLimitNumber : Property<decimal>, IConstraintProperty
 {
     public bool? ValidateNumeric(SchemaContext context, DecimalNode node)

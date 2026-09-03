@@ -4,6 +4,7 @@ using SchemaNode.Function;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;
@@ -40,7 +41,7 @@ public class AssignProcess : IRelationProcess
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_RELATION)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_RELATION}.assign")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_RELATION}.assign")]
 [Meta<Property.Record.RelationKind>("assign", 0)]
 [Meta<RelationProcess>(typeof(AssignProcess))]
 [Relation<Visible, Call>(nameof(Assign), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "assign")]

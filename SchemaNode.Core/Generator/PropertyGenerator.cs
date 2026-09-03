@@ -1,7 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -38,7 +38,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
                 throw new Exception($"Type '{valueType}' can't be resolved as schema type."),
 
             // ForSchemas
-            ForSchemas = type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
+            ForSchemas = runtime.GetPropertyForSchemas(type).ToArray() is { Length: > 0 } r ? r :  type.GetMetaProperty<ForSchema>()?.GetValue<string[]>() ?? [],
         };
                 
         // Relations

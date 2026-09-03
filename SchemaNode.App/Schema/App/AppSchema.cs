@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Scalar;
 using System.Text.Json.Serialization;
 using static SchemaNode.Utility.Constant;
@@ -25,7 +26,7 @@ public sealed class AppKind;
  * The application schema
  */
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}",  $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 public sealed class AppSchema: PropertyOwner, IErrorProvider
 {
@@ -118,5 +119,5 @@ public sealed class AppSchema: PropertyOwner, IErrorProvider
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.type")]
 [Meta<UpLimitString>(PRIMARY_KEY_MAX_LEN)]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappentries)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getappentries)}", NODE_SELF)]
 public sealed class AppType : String;

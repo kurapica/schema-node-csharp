@@ -44,25 +44,25 @@ public record BreakExp(BreakExpType Type, SchemaExp Cond, SchemaExp Value) : Sch
 /// <param name="Condition">The condition</param>
 /// <param name="TrueExp">The true value</param>
 /// <param name="FalseExp">The false value</param>
-public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, ValueType ValueType) : SchemaExp(ValueType);
+public record ConditionalExp(SchemaExp Condition, SchemaExp TrueExp, SchemaExp FalseExp, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// Represents a schema expression that evaluates to a constant value.
 /// </summary>
 /// <param name="Value">The schema node representing the constant value for this expression. Cannot be null.</param>
-public record ConstantExp(Node.DataNode Value) : SchemaExp(Value.Type);
+public record ConstantExp(IValueAccess Value) : SchemaExp(Value.Type);
 
 /// <summary>
 /// The default expression
 /// </summary>
 /// <param name="Inner"></param>
 /// <param name="Default"></param>
-public record DefaultExp(SchemaExp Inner, Node.DataNode Default) : SchemaExp(Default.Type);
+public record DefaultExp(SchemaExp Inner, IValueAccess Default) : SchemaExp(Default.Type);
 
 /// <summary>
 /// The null expression
 /// </summary>
-public record NullExp(ValueType ValueType) : SchemaExp(ValueType);
+public record NullExp(IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The field access expression
@@ -70,7 +70,7 @@ public record NullExp(ValueType ValueType) : SchemaExp(ValueType);
 /// <param name="Owner">The field owner</param>
 /// <param name="FieldName">The field name</param>
 /// <param name="ValueType">The schema type</param>
-public record FieldAccessExp(SchemaExp Owner, string FieldName, ValueType ValueType, ConstantExp? Default = null) : SchemaExp(ValueType);
+public record FieldAccessExp(SchemaExp Owner, string FieldName, IValueTypeAccess ValueType, ConstantExp? Default = null) : SchemaExp(ValueType);
 
 #endregion
 

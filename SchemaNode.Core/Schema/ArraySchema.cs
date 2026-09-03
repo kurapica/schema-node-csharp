@@ -4,6 +4,8 @@ using SchemaNode.Property.Array;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -36,7 +38,7 @@ public sealed class ArrayKind;
 [Meta<Append>(typeof(Generics), typeof(Relations))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ARRAY_DEFINE)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessentries)}", $"@{nameof(Element)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessentries)}", $"@{nameof(Element)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessvaluetype)}", $"@{nameof(Element)}", NODE_SELF)]
 [Relation<Visible, Call>(nameof(Primary), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Element)}", SCHEMA_KIND_STRUCT)]
 [Relation<EntrySource, Assign>($"{nameof(Primary)}.{ARRAY_ELEMENT}", $"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getindexablefields)}", $"@{nameof(Element)}")]
@@ -65,7 +67,7 @@ public sealed class ArrayUsage;
 [Meta<Alias>(SCHEMA_KIND_ARRAY)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ARRAY}.{SCHEMA_KIND_ARRAY}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.{SCHEMA_KIND_ARRAY}")]
 [Relation<Visible, Call>(SCHEMA_KIND_ARRAY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ARRAY)]
 [Relation<Default, Call>($"@{nameof(NodeSchema.Name)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarrayname", $"@array.{nameof(ArraySchema.Element)}")]
 [Relation<Default, Call>($"@{nameof(Display)}.{nameof(LocaleString.Key)}", $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.genarraydisplay", $"@array.{nameof(ArraySchema.Element)}")]

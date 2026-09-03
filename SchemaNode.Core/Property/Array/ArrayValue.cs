@@ -2,6 +2,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -11,7 +12,7 @@ namespace SchemaNode.Property.Array;
 [Meta<Alias>("array")]
 [Meta<ForSchema>(SCHEMA_KIND_ARRAY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ARRAY}.valid")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ARRAY}.valid")]
 [Meta<Default>(true)]
 [Meta<InVisible>(true)] // root only
 public class ArrayValue: Property<bool>, IConstraintProperty

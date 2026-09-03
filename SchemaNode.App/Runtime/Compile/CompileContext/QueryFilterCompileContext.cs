@@ -2,7 +2,6 @@
 using System.Linq.Expressions;
 using SchemaNode.Data;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property.Common;
 using SchemaNode.Relation;
 using SchemaNode.Schema;
@@ -31,7 +30,7 @@ public class QueryFilterCompileContext : CompileContext
     /// <summary>
     /// The field query access expression
     /// </summary>
-    record QueryFieldAccessExpression(string FieldName, ValueType ValueType) : SchemaExp(ValueType);
+    record QueryFieldAccessExpression(string FieldName, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
     /// <summary>
     /// Transform the last logic expression to filter expression
@@ -105,7 +104,7 @@ public class QueryFilterCompileContext : CompileContext
                                 }
                                 else
                                 {
-                                    DataNode valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
+                                    var valueNode = await Context.GetSchemaNodeAsync(a.Value, a.ValueType ?? call.FuncType.Args[j].ValueType, true)
                                         ?? throw new FunctionVisitException(AppErrorCodes.FUNC_IS_NOT_POLICY_FILTER);
                                     replaceArgs[j] = new ConstantExp(valueNode);
                                 }

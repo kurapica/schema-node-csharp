@@ -34,7 +34,7 @@ public class LogicAttribute(LogicType type, bool includeMethod = false): System.
 /// </summary>
 /// <param name="Type">The logic exp type</param>
 /// <param name="ValueType">The result type(bool only)</param>
-public abstract record LogicExp(LogicType Type, ValueType ValueType) : SchemaExp(ValueType);
+public abstract record LogicExp(LogicType Type, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The unary logic expression
@@ -43,7 +43,7 @@ public abstract record LogicExp(LogicType Type, ValueType ValueType) : SchemaExp
 /// <param name="Inner">The inner exp</param>
 /// <param name="ValueType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record UnaryLogicExp(LogicType Type, SchemaExp Inner, ValueType ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
+public record UnaryLogicExp(LogicType Type, SchemaExp Inner, IValueTypeAccess ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
 
 /// <summary>
 /// The binary logic expression
@@ -53,7 +53,7 @@ public record UnaryLogicExp(LogicType Type, SchemaExp Inner, ValueType ValueType
 /// <param name="Right">The right exp</param>
 /// <param name="ValueType">The result type(bool only)</param>
 /// <param name="Method">The method if require</param>
-public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, ValueType ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
+public record BinaryLogicExp(LogicType Type, SchemaExp Left, SchemaExp Right, IValueTypeAccess ValueType, FunctionType? Method = null) : LogicExp(Type, ValueType);
 
 #endregion
 

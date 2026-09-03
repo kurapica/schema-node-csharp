@@ -4,6 +4,7 @@ using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;
@@ -55,7 +56,7 @@ public class Call: BaseWorkflow,
     
         try
         {
-            SetPayload(context, await _function.CallAsync<DataNode>(context,
+            SetPayload(context, await _function.CallAsync<IValueAccess>(context,
                 _args?.Select<CallArg, object?>(callArg => string.IsNullOrEmpty(callArg.Source)
                     ? callArg.Value?.DeepClone()
                     : context.GetWorkflowPayload(callArg.Source)).ToArray() ?? [], PayloadType?.Name));
@@ -69,7 +70,7 @@ public class Call: BaseWorkflow,
 
 [Meta<ForSchema>(SCHEMA_KIND_APP_WORKFLOW_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.workflow.call")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.workflow.call")]
 [Relation<Visible, Relation.Call>(nameof(Call), $"{NS_SYSTEM_SCHEMA_REFLECT}.workflow.{nameof(SystemReflectWorkflow.iskind)}", $"@{nameof(AppWorkflowNodeSchema.Type)}", WORKFLOW_KIND_CALL)]
 [Relation<Valid, Relation.Assign>($"{nameof(Call)}.{nameof(FuncCall.Func)}", NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"@{nameof(AppWorkflowNodeSchema.Type)}")]
 public class CallProperty : Property<FuncCall>;

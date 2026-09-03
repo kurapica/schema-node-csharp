@@ -69,7 +69,7 @@ public class RelationSchema : PropertyOwner
 /// The relation property for data schemas
 /// </summary>
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.relations")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.relations")]
 //[Relation<EntrySource, Relation.Call>($"{nameof(Relations)}.{nameof(RelationSchema.Target)}", NS_SYSTEM_SCHEMA_REFLECT_GET_ACCESS_ENTRIES, NODE_SELF, $"@{nameof(Relations)}.{nameof(RelationSchema.Target)}")]
 public class Relations : Property<RelationSchema[]>
 {

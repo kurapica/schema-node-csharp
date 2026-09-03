@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using SchemaNode.Attribute;
 using SchemaNode.Function;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Core;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;

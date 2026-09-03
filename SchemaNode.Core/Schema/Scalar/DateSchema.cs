@@ -5,6 +5,8 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Date;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -21,7 +23,7 @@ namespace SchemaNode.Schema;
 [Meta<ValueSchemaKind>(SCHEMA_KIND_DATE, SCHEMA_KIND_ORDER_DATE)]
 [Meta<NodeType>(typeof(Runtime.DateType))]
 [Meta<SchemaUsage>(typeof(DateUsage))]
-[Meta<Append>(typeof(AsSuggest), typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
+[Meta<Append>(typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
 [Meta<DateValue>]
 public sealed class DateKind;
 
@@ -45,7 +47,7 @@ public sealed class DateSchema : ScalarSchema
 /// The date usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_DATE_USAGE, SCHEMA_KIND_ORDER_DATE)]
-[Meta<Append>(typeof(AsSuggest), typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
+[Meta<Append>(typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.usage")]
 [Meta<Attach>(SCHEMA_KIND_DATE_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]
@@ -58,7 +60,7 @@ public sealed class DateUsage;
 [Meta<Alias>(SCHEMA_KIND_DATE)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_DATE}.{SCHEMA_KIND_DATE}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DATE}.{SCHEMA_KIND_DATE}")]
 [Relation<Visible, Call>(SCHEMA_KIND_DATE, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DATE)]
 public sealed class DateProperty : Property<DateSchema>
 {

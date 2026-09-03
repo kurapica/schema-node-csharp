@@ -3,6 +3,7 @@ using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using SchemaNode.Utility;
@@ -35,7 +36,7 @@ public sealed class FunctionKind;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.schema")]
 [Meta<Attach>(SCHEMA_KIND_FUNCTION)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
 public sealed class FunctionSchema: PropertyOwner
 {
@@ -62,7 +63,7 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<Alias>(SCHEMA_KIND_FUNCTION)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_FUNC}.{SCHEMA_KIND_FUNCTION}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{SCHEMA_KIND_FUNCTION}")]
 [Relation<Visible, Call>(SCHEMA_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
 public sealed class FuncProperty : Property<FunctionSchema>
 {
@@ -241,7 +242,7 @@ public class CallArg: IEquatable<CallArg>
     /// </summary>
     [SchemaIgnore] 
     [JsonIgnore] 
-    public Runtime.ValueType? ValueType { get; set; }
+    public IValueTypeAccess? ValueType { get; set; }
 
     public bool Equals(CallArg? other)
     {

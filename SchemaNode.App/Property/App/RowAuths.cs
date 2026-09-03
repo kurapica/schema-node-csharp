@@ -3,6 +3,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Utility;

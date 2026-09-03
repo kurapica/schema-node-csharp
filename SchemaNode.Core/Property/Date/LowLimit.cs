@@ -2,6 +2,7 @@ using SchemaNode.Context;
 using SchemaNode.Attribute;
 using SchemaNode.Node;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Date;
@@ -9,7 +10,7 @@ namespace SchemaNode.Property.Date;
 [Meta<Alias>("lowlimit")]
 [Meta<ForSchema>(SCHEMA_KIND_DATE, SCHEMA_KIND_DATE_DEFINE, SCHEMA_KIND_DATE_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_DATE}.lowlimit")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DATE}.lowlimit")]
 public class LowLimitDate : Property<DateTimeOffset>, IConstraintProperty
 {
     public bool? ValidateDate(SchemaContext context, DateNode node)

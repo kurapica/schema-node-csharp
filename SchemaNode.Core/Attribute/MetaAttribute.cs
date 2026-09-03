@@ -1,6 +1,6 @@
 ﻿using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 
 namespace SchemaNode.Attribute;
 

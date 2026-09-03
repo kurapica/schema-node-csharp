@@ -5,6 +5,7 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Enum;
 using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Schema;
 using static SchemaNode.Utility.Constant;

@@ -44,6 +44,16 @@ public class SchemaRuntime : ISchemaRuntime
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).propertyTypes ?? [];
 
     /// <inheritdoc/>
+    public IEnumerable<string> GetPropertyForSchemas(Type propertyType)
+    {
+        foreach (var item in _schemaKinds)
+        {
+            if (item.propertyTypes != null && item.propertyTypes.Contains(propertyType))
+                yield return item.kind;
+        }
+    }
+
+    /// <inheritdoc/>
     public T? GetSchemaKindProperty<T>(string kind) where T : class, IProperty
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>().FirstOrDefault();

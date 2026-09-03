@@ -3,9 +3,11 @@ using SchemaNode.Context;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.String;
+using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using static SchemaNode.Utility.Constant;
+// ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function.Reflect;
 
@@ -22,7 +24,7 @@ public static class Struct
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
         StructFieldSchema[]  fields, // not struct schema self, so nodes like relations won't subscribe it's own data change
         string? path = null,
-        string? root = null)
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
@@ -43,7 +45,7 @@ public static class Struct
         Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!
             .FirstOrDefault(c => path.Equals(c.Value, StringComparison.OrdinalIgnoreCase) ||
                                  path.StartsWith($"{c.Value}.", StringComparison.OrdinalIgnoreCase)) : null;
-        Runtime.ValueType? valueType = curr != null 
+        IValueTypeAccess? valueType = curr != null 
             ? await context.GetNodeTypeAsync<Runtime.ValueType>(fields.First(f => f.Name.Equals(curr.Value, StringComparison.OrdinalIgnoreCase)).Type) 
             : null;
         
@@ -59,7 +61,7 @@ public static class Struct
             accessEntry.Children = accesses;
             
             // check next part
-            Runtime.ValueType? next = null;
+            IValueTypeAccess? next = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;
@@ -126,6 +128,7 @@ public static class Struct
 
     /// <summary>
     /// The type has dynamic field
+    /// </summary>
     public static async Task<bool> hasdynamicfield(SchemaContext context, [Meta<SchemaType>(typeof(Schema.ValueType))]string type)
     {
         var valueType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.ValueType>(type) : null;

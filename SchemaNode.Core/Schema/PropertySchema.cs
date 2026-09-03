@@ -2,8 +2,10 @@ using SchemaNode.Attribute;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.String;
+using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Service;
 using static SchemaNode.Utility.Constant;
@@ -22,7 +24,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_PROPERTY, SCHEMA_KIND_ORDER_PROP)]
 [Meta<SchemaGenerator>(typeof(PropertyGenerator))]
 [Meta<NodeType>(typeof(Runtime.PropertyType))]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.schema")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.schema")]
 [Meta<Attach>(SCHEMA_KIND_PROPERTY)]
 [Meta<Append>(typeof(Relations))]
 public class PropertySchema: PropertyOwner
@@ -52,7 +54,7 @@ public class PropertySchema: PropertyOwner
 [Meta<Alias>(SCHEMA_KIND_PROPERTY)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.{SCHEMA_KIND_PROPERTY}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_PROPERTY}.{SCHEMA_KIND_PROPERTY}")]
 [Meta<ReadOnly>(true)]
 [Relation<Visible, Relation.Call>(SCHEMA_KIND_PROPERTY, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_PROPERTY)]
 public sealed class PropertyProperty : Property<PropertySchema>
@@ -74,6 +76,6 @@ public sealed class PropertyProperty : Property<PropertySchema>
 /// <summary>
 /// Represents the property type
 /// </summary>
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY}.type")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.type")]
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_PROPERTY)]
 public class PropertyType: AnyType;

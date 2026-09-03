@@ -1,4 +1,5 @@
-﻿using SchemaNode.Property;
+﻿using SchemaNode.Context;
+using SchemaNode.Property;
 using SchemaNode.Struct;
 
 namespace SchemaNode.Runtime;
@@ -9,9 +10,19 @@ namespace SchemaNode.Runtime;
 public interface IValueTypeAccess
 {
     /// <summary>
+    /// The type name
+    /// </summary>
+    string Name { get; }
+    
+    /// <summary>
+    /// The type kind
+    /// </summary>
+    string Kind { get; }
+    
+    /// <summary>
     /// Gets the access value type
     /// </summary>
-    ValueType? GetAccessValueType(string path);
+    IValueTypeAccess? GetAccessValueType(string path);
 
     /// <summary>
     /// Gets the access entries
@@ -19,10 +30,38 @@ public interface IValueTypeAccess
     IEnumerable<Entry<string>> GetAccessEntries();
 
     /// <summary>
+    /// Is assignable to the other value type access
+    /// </summary>
+    bool IsAssignableTo(IValueTypeAccess other);
+
+    /// <summary>
     /// Whether has access entries
     /// </summary>
     /// <returns></returns>
     bool HasAccessEntries { get; }
+
+    /// <summary>
+    /// Create the value access for the given parent and property provider
+    /// </summary>
+    /// <param name="parent"></param>
+    /// <param name="propertyProvider"></param>
+    /// <returns></returns>
+    IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+
+    /// <summary>
+    /// Generate the data node with given value
+    /// </summary>
+    IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null);
+
+    /// <summary>
+    /// Gets the match C# type
+    /// </summary>
+    Type? GetCsharpType(bool nullable = false);
+
+    /// <summary>
+    /// Validate value and return the access wrap
+    /// </summary>
+    Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value);
 }
 
 /// <summary>
@@ -30,6 +69,11 @@ public interface IValueTypeAccess
 /// </summary>
 public interface IValueAccess
 {
+    /// <summary>
+    /// The value access type
+    /// </summary>
+    IValueTypeAccess Type { get;  }
+    
     /// <summary>
     /// Gets the access value
     /// </summary>
@@ -49,10 +93,25 @@ public interface IValueAccess
     bool TryGetValue<T>(out T? value);
 
     /// <summary>
+    /// Try get the value as the given type
+    /// </summary>
+    bool TryGetValue(Type type, out object? value); 
+    
+    /// <summary>
     /// Gets the value
     /// </summary>
     public T? GetValue<T>() => TryGetValue<T>(out T? value) ? value : default(T?);
 
+    /// <summary>
+    /// Gets the value
+    /// </summary>
+    public object? GetValue(Type type) => TryGetValue(type, out object? value) ? value : null;
+    
+    /// <summary>
+    /// Clear the value
+    /// </summary>
+    void ClearValue();
+    
     /// <summary>
     /// Whether the value is empty
     /// </summary>
@@ -79,7 +138,12 @@ public interface IValueAccess
     IEnumerable<IConstraintProperty> GetViolatedConstraints();
 
     /// <summary>
+    /// Clone the value access
+    /// </summary>
+    IValueAccess Clone();
+
+    /// <summary>
     /// The value is valid
     /// </summary>
-    public virtual bool IsValid => !GetViolatedConstraints().Any();
+    bool IsValid { get; } 
 }

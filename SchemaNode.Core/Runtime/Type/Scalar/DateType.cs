@@ -12,7 +12,7 @@ public sealed class DateType : ScalarType
     public override bool IsIndexable => true;
 
     /// <inheritdoc/>
-    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new DateNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new DateNode { Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
     
     /// <inheritdoc />
     protected override ScalarSchema? GetScalarSchema() => GetProperty<DateProperty>()?.Value;

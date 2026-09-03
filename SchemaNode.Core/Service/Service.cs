@@ -6,7 +6,7 @@ using SchemaNode.Attribute;
 using SchemaNode.Context;
 using SchemaNode.Property;
 using SchemaNode.Property.Record;
-using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
@@ -192,8 +192,8 @@ public static partial class SchemaNodeExtensions
                     
                     // Prototype Properties
                     IProperty[] properties = type.GetMetaProperties<IProperty>().Where(p =>
-                        p.GetType().GetMetaProperty<ForSchema>() is { HasValue: true } f &&
-                        f.Value!.Contains(asSchemaKind.Value, StringComparer.OrdinalIgnoreCase)).ToArray();
+                        schemaProperties.ContainsKey(asSchemaKind.Value!) && schemaProperties[asSchemaKind.Value!].TryGetValue(p.Name, out Type? pType) && p.GetType() == pType || 
+                        p.GetType().GetMetaProperty<ForSchema>() is { HasValue: true } f && f.Value!.Contains(asSchemaKind.Value, StringComparer.OrdinalIgnoreCase)).ToArray();
                     if (properties.Length > 0)
                         kindProperties[asSchemaKind.Value!] = properties;
                 }

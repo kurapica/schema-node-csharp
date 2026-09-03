@@ -11,6 +11,7 @@ using SchemaNode.Property.Function;
 using SchemaNode.Relation;
 using StructType = SchemaNode.Runtime.StructType;
 using SchemaNode.Runtime;
+using SchemaNode.Schema;
 
 // ReSharper disable InconsistentNaming
 
@@ -65,13 +66,13 @@ public static class SystemCollection
     /// Gets the field value from the object
     /// </summary>
     public static async Task<T?> getfield<T>(SchemaContext context,
-        DataNode obj,
+        IValueAccess obj,
         [Meta<Valid>()]
-        [Relation<EntrySource, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{NODE_TYPE}")]
+        [Relation<EntrySource, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{nameof(CallArg.Type)}")]
         string field, 
         T? @default)
     {
-        DataNode? result = await GetFieldNode(context, obj, field);
+        IValueAccess? result = await GetFieldNode(context, obj, field);
         return result is { IsEmpty: false } ? result.GetValue<T>() : (@default ?? default);
     }
 
@@ -87,9 +88,9 @@ public static class SystemCollection
         var arrayNode = await context.GetArrayNodeTypeAsync(f.Type) ?? throw new InvalidOperationException($"The field {field} type {f.Type} has no array type");
 
         List<T> resultType = [];
-        foreach (DataNode item in array)
+        foreach (var item in array)
         {
-            DataNode? fieldNode = await GetFieldNode(context, item, field);
+            var fieldNode = await GetFieldNode(context, item, field);
             if (fieldNode is { IsEmpty: false }) resultType.Add(fieldNode.GetValue<T>()!);
         }
         return resultType;
@@ -143,6 +144,6 @@ public static class SystemCollection
     /// <summary>
     /// Gets the field node from object
     /// </summary>
-    static async Task<DataNode?> GetFieldNode(SchemaContext context, DataNode? obj, string path)
-        => obj is not StructNode s ? obj?.GetAccessValue(path) as DataNode : await s.GetFieldValueAsync(context, path);
+    static async Task<IValueAccess?> GetFieldNode(SchemaContext context, IValueAccess? obj, string path)
+        => obj is not StructNode s ? obj?.GetAccessValue(path) : await s.GetFieldValueAsync(context, path);
 }

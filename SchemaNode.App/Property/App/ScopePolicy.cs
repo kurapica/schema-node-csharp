@@ -5,6 +5,7 @@ using SchemaNode.Scalar;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 
 namespace SchemaNode.Property.App;
@@ -65,7 +66,7 @@ public sealed class AppScopeContextMap: IEquatable<AppScopeContextMap>
     /// The context item
     /// </summary>
     [Meta<PrimaryIndex>]
-    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF, ENTRY_ROOT)]
+    [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF)]
     public required string ContextItem { get; set; }
 
     /// <summary>

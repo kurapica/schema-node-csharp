@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using SchemaNode.Context;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Schema;
@@ -254,11 +253,11 @@ public sealed class AppFieldType
         Derive? derive = GetProperty<DataDerive>()?.Value;
         if (!string.IsNullOrWhiteSpace(derive?.Source))
         {
-            if (await context.GetNodeTypeAsync<FunctionType>(derive?.Calc ?? string.Empty) is { Args.Length: 1 } funcNode)
+            if (await context.GetNodeTypeAsync<FunctionType>(derive.Calc) is { Args.Length: 1 } funcNode)
             {
                 PushFunc = funcNode;
                 
-                AppFieldType? pushSource = Application.GetField(derive!.Source);
+                AppFieldType? pushSource = Application.GetField(derive.Source);
                 if (pushSource == null || (pushSource.ValueType ?? await context.GetNodeTypeAsync<ValueType>(pushSource.Type))
                     is not ArrayType { Element: not null, Primary: { Count: > 0}} array ||
                     funcNode.Args[0].ValueType != null && funcNode.Args[0].ValueType is not GenericType && 
@@ -506,7 +505,7 @@ public sealed class AppFieldType
     /// <summary>
     /// Validate field by DynamicTableSchema and return nullable
     /// </summary>
-    public async Task<DataNode?> ValidateDataAsync(SchemaContext context, object? value)
+    public async Task<IValueAccess?> ValidateDataAsync(SchemaContext context, object? value)
         => await ValueType!.ValidateValueAsync(context, value);
 
     /// <summary>

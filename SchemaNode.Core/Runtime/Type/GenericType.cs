@@ -16,5 +16,5 @@ internal sealed class GenericType: ValueType
     /// <summary>
     /// Use any node directly
     /// </summary>
-    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new AnyNode{ Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new AnyNode{ Type = this, Parent = parent, PropertyProvider = propertyProvider ?? this };
 }

@@ -1,4 +1,4 @@
-namespace SchemaNode.Property.Core;
+namespace SchemaNode.Property.Property;
 
 /// <summary>
 /// Append properties to the given schema kind

@@ -3,6 +3,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Property.Struct;
 using SchemaNode.Runtime;
 using SchemaNode.Scalar;
@@ -31,7 +32,7 @@ public sealed class StructKind;
 [Meta<Append>(typeof(Generics), typeof(Relations), typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.schema")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_DEFINE)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF, ENTRY_ROOT)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessvaluetype)}", $"@{nameof(Fields)}", NODE_SELF)]
 public sealed class StructSchema : PropertyOwner
 {
@@ -48,8 +49,8 @@ public sealed class StructSchema : PropertyOwner
 [Meta<Append>(typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.usage")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_USAGE)]
-[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
-[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessvaluetype)}", NODE_TYPE, NODE_SELF)]
+[Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", TYPE_PROVIDER, NODE_SELF)]
+[Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessvaluetype)}", TYPE_PROVIDER, NODE_SELF)]
 public sealed class StructUsage;
 
 /// <summary>
@@ -58,7 +59,7 @@ public sealed class StructUsage;
 [Meta<Alias>(SCHEMA_KIND_STRUCT)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_STRUCT}.{SCHEMA_KIND_STRUCT}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRUCT}.{SCHEMA_KIND_STRUCT}")]
 [Relation<Visible, Relation.Call>(SCHEMA_KIND_STRUCT, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_STRUCT)]
 public sealed class StructProperty : Property<StructSchema>
 {

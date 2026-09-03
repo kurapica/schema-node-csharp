@@ -5,6 +5,8 @@ using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Decimal;
 using SchemaNode.Property.Record;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Runtime;
 using static SchemaNode.Utility.Constant;
@@ -58,7 +60,7 @@ public sealed class DecimalUsage;
 [Meta<Alias>(SCHEMA_KIND_DECIMAL)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_DECIMAL}.{SCHEMA_KIND_DECIMAL}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_DECIMAL}.{SCHEMA_KIND_DECIMAL}")]
 [Relation<Visible, Call>(SCHEMA_KIND_DECIMAL, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_DECIMAL)]
 public sealed class DecimalProperty : Property<DecimalSchema>
 {

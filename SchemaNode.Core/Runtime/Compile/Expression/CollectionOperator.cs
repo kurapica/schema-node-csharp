@@ -13,89 +13,89 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The iterator expression represents an iteration over an array within a schema expression tree.
 /// </summary>
-public record CollectionRootExp(SchemaExp Collection, ValueType ValueType) : SchemaExp(ValueType);
+public record CollectionRootExp(SchemaExp Collection, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The loop argument exp used to replace the collection source in the function call
 /// </summary>
-public record CollectionItemExp(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
+public record CollectionItemExp(CollectionRootExp Root, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection result expression
 /// </summary>
-public abstract record CollectionResult(CollectionRootExp Root, ValueType ValueType) : SchemaExp(ValueType);
+public abstract record CollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The collection expression
 /// </summary>
-public abstract record CollectionOperator(CollectionRootExp Root, ValueType ValueType): CollectionRootExp(Root, ValueType);
+public abstract record CollectionOperator(CollectionRootExp Root, IValueTypeAccess ValueType): CollectionRootExp(Root, ValueType);
 
 /// <summary>
 /// The predicate collection expression
 /// </summary>
-public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record PredicateCollectionOperator(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Predicate, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// Order by collection expression
 /// </summary>
-public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record OrderByCollectionOperator(CollectionRootExp Root,  string OrderField, bool Descending, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The take collection expression
 /// </summary>
-public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record TakeCollectionOperator(CollectionRootExp Root, SchemaExp Take, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
 /// <summary>
 /// The skip collection expression
 /// </summary>
-public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, ValueType ValueType) : CollectionOperator(Root, ValueType);
+public record SkipCollectionOperator(CollectionRootExp Root, SchemaExp Skip, IValueTypeAccess ValueType) : CollectionOperator(Root, ValueType);
 
-public abstract record PredicateCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : CollectionResult(Root, ValueType);
+public abstract record PredicateCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The count collection expression
 /// </summary>
-public record CountCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record CountCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The any collection expression
 /// </summary>
-public record AnyCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record AnyCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The all collection expression
 /// </summary>
-public record AllCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record AllCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The first collection expression
 /// </summary>
-public record FirstCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record FirstCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The last collection expression
 /// </summary>
-public record LastCollectionResult(CollectionRootExp Root, ValueType ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
+public record LastCollectionResult(CollectionRootExp Root, IValueTypeAccess ValueType, CollectionItemExp? Item = null, SchemaExp? Predicate = null) : PredicateCollectionResult(Root, ValueType, Item, Predicate);
 
 /// <summary>
 /// The fields collection expression
 /// </summary>
-public record FieldsCollectionResult(CollectionRootExp Root, string Field, ValueType ValueType): CollectionResult(Root, ValueType);
+public record FieldsCollectionResult(CollectionRootExp Root, string Field, IValueTypeAccess ValueType): CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The reduce sum argument expression to be used as the accumulator in reduce expression
 /// </summary>
-public record ReduceSumExp(SchemaExp Init, ValueType ValueType) : SchemaExp(ValueType);
+public record ReduceSumExp(SchemaExp Init, IValueTypeAccess ValueType) : SchemaExp(ValueType);
 
 /// <summary>
 /// The reduce collection expression
 /// </summary>
-public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
+public record ReduceCollectionResult(CollectionRootExp Root, CollectionItemExp Item, ReduceSumExp Sum, SchemaExp Expression, IValueTypeAccess ValueType) : CollectionResult(Root, ValueType);
 
 /// <summary>
 /// The map collection expression
 /// </summary>
-public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, ValueType ValueType) : CollectionResult(Root, ValueType);
+public record MapCollectionResult(CollectionRootExp Root, CollectionItemExp Item, SchemaExp Expression, IValueTypeAccess ValueType) : CollectionResult(Root, ValueType);
 
 #endregion
 
@@ -795,7 +795,7 @@ public class CollectionExpVisitor : IExpVisitor
     public static void AddIfNotEmpty(IList result, object? item)
     {
         if (item == null) return;
-        if (item is DataNode { IsEmpty: true }) return;
+        if (item is IValueAccess { IsEmpty: true }) return;
         result.Add(item);
     }
 
@@ -808,7 +808,7 @@ public class CollectionExpVisitor : IExpVisitor
         foreach (var item in items)
         {
             if (item == null) continue;
-            if (item is DataNode { IsEmpty: true }) continue;
+            if (item is IValueAccess { IsEmpty: true }) continue;
             result.Add(item);
         }
     }

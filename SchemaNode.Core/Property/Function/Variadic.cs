@@ -1,6 +1,7 @@
 using SchemaNode.Attribute;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 
 namespace SchemaNode.Property.Function;
@@ -12,5 +13,5 @@ namespace SchemaNode.Property.Function;
 [Meta<ReadOnly>(true)]
 [Meta<ForSchema>(SCHEMA_KIND_FUNC_ARG)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_FUNC}.{nameof(Variadic)}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{nameof(Variadic)}")]
 public class Variadic : Property<bool>;

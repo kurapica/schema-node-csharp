@@ -54,7 +54,8 @@ public static class Function
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context, 
         FuncArg[] args, FuncExp[] exps,
-        string? path = null, string? root = null)
+        string? path = null, 
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
@@ -62,7 +63,7 @@ public static class Function
         path ??= root;
 
         List<Entry<string>> first = [];
-        Runtime.ValueType? valueType = null;
+        IValueTypeAccess? valueType = null;
         Entry<string>? curr = null;
         foreach (FuncArg arg in args)
         {
@@ -114,7 +115,7 @@ public static class Function
             accessEntry.Children = accesses;
             
             // check next part
-            Runtime.ValueType? next = null;
+            IValueTypeAccess? next = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;

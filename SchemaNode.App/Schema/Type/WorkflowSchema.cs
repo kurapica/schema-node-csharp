@@ -4,6 +4,8 @@ using SchemaNode.Generator;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using NodeSchemaKind = SchemaNode.Property.Record.NodeSchemaKind;
@@ -61,7 +63,7 @@ public sealed class WorkflowSchema: PropertyOwner
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_CORE}.workflow")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_CORE}.workflow")]
 [Meta<ReadOnly>(true)] // only system workflow schema allowed
 [Relation<Visible, Relation.Call>("workflow", NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_WORKFLOW)]
 public sealed class WorkflowProperty: Property<WorkflowSchema>;

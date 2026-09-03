@@ -71,7 +71,7 @@ public sealed class StructType: ValueType, IRelationProvider
             foreach (RelationSchema relation in relations)
             {
                 // Gets the target type
-                ValueType? currentType = GetAccessValueType(relation.Target);
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
                 if (currentType == null) continue;
                 
                 // Gets the property type
@@ -125,7 +125,7 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override ValueType? GetAccessValueType(string path)
+    public override IValueTypeAccess? GetAccessValueType(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
         
@@ -145,7 +145,7 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override bool IsAssignableTo(ValueType other)
+    public override bool IsAssignableTo(IValueTypeAccess other)
     {
         if (base.IsAssignableTo(other)) return true;
         if (other is not StructType @struct) return false;
@@ -158,7 +158,7 @@ public sealed class StructType: ValueType, IRelationProvider
     }
 
     /// <inheritdoc />
-    public override DataNode Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StructNode(this, parent, propertyProvider);
+    public override IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null) => new StructNode(this, parent, propertyProvider);
 
     /// <inheritdoc />
     public override IEnumerable<Entry<string>> GetAccessEntries()
@@ -201,15 +201,15 @@ public sealed class StructType: ValueType, IRelationProvider
     /// <summary>
     /// Gets or calc the field value
     /// </summary>
-    public async Task<DataNode?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
+    public async Task<IValueAccess?> GetFieldValueAsync(SchemaContext context, StructNode node, string fieldName)
     {
         string[] paths = fieldName.Split('.', 2);
         StructFieldType? fieldType = GetField(paths[0]);
         if (fieldType == null) return null;
         
-        var value = node.GetAccessValue(paths[0]) as DataNode;
+        var value = node.GetAccessValue(paths[0]);
         if (value == null) return null;
-        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
+        if (!value.IsEmpty || fieldType.DisplayOnly != true) return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
         
         // check relations
         RelationType? r = _relations?.FirstOrDefault(rel => rel.Target.Equals(fieldName, StringComparison.OrdinalIgnoreCase) && rel.ForProperty<Default>() );
@@ -218,7 +218,7 @@ public sealed class StructType: ValueType, IRelationProvider
         // process relations
         IProperty? def = await r.ProcessAsync(context, node, value);
         value.TrySetValue(def?.GetValue<object>());
-        return paths.Length > 1 ? value.GetAccessValue(paths[1]) as DataNode : null;
+        return paths.Length > 1 ? value.GetAccessValue(paths[1]) : null;
     }
     
     /// <summary>
@@ -301,7 +301,7 @@ public class StructFieldType : INodeReferences, IPropertyProvider
     /// <summary>
     /// The default value of the node.
     /// </summary>
-    public DataNode? Default { get; private set; }
+    public IValueAccess? Default { get; private set; }
 
     /// <summary>
     /// Load struct field schema

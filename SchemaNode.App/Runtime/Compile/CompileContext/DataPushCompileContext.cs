@@ -1,7 +1,6 @@
 using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Function;
-using SchemaNode.Node;
 using SchemaNode.Utility;
 using static SchemaNode.Utility.Constant;
 // ReSharper disable NotAccessedPositionalProperty.Global
@@ -362,6 +361,6 @@ public record DataPushThirdFieldInfo(ArgumentExp Arg, string Field, DataPushPrim
 
 public abstract record DataPushPrimaryMap(string Key);
 
-public record DataPushPrimaryConstant(string Key, DataNode Value) : DataPushPrimaryMap(Key);
+public record DataPushPrimaryConstant(string Key, IValueAccess Value) : DataPushPrimaryMap(Key);
 
 public record DataPushPrimaryFieldAccess(string Key, string? AppField, int ArgIndex, string DataField) : DataPushPrimaryMap(Key);

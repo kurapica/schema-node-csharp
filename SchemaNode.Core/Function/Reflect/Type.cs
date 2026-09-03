@@ -32,7 +32,8 @@ public static class Type
     /// Gets the full names and labels of the schema nodes under the namespace with the given name
     /// </summary>
     public static async Task<List<EntryAccess<string>>> gettypeentries(SchemaContext context,
-        [Meta<SchemaType>(typeof(AnyType))] string? name = null, string? root = null)
+        [Meta<SchemaType>(typeof(AnyType))] string? name = null, 
+        [Meta<EntryRoot>(true)] string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(name) && !name.Equals(root, StringComparison.OrdinalIgnoreCase) && !name.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
@@ -81,13 +82,15 @@ public static class Type
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
         [Meta<SchemaType>(typeof(ValueType))] string name,
-        string? path = null, string? root = null)
+        string? path = null, 
+        [Meta<EntryRoot>(true)]
+        string? root = null)
     {
         if (!string.IsNullOrWhiteSpace(root) && !string.IsNullOrWhiteSpace(path) && !path.Equals(root, StringComparison.OrdinalIgnoreCase) && !path.StartsWith($"{root}.", StringComparison.OrdinalIgnoreCase))
             return []; // not access-able
         path ??= root;
         
-        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
+        IValueTypeAccess? valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
         if (valueType == null) return [];
 
         List<EntryAccess<string>> result = [];
@@ -104,7 +107,7 @@ public static class Type
             accessEntry.Children = accesses;
             
             // check next part
-            Runtime.ValueType? next = null;
+            IValueTypeAccess? next = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;
@@ -163,7 +166,7 @@ public static class Type
         bool matchArrayElement,
         [Meta<SchemaType>(typeof(SchemaKind))] params string[] kinds)
     {
-        var nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
+        IValueTypeAccess? nodeType = string.IsNullOrWhiteSpace(name) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(name);
         nodeType = nodeType?.GetAccessValueType(access);
         if (nodeType == null) return false;
         foreach (var kind in kinds)
@@ -221,7 +224,7 @@ public static class Type
         bool matchArrayElement, 
         [Meta<SchemaType>(typeof(ValueType))] params string[] targets)
     {
-        var typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
+        IValueTypeAccess? typeNode = string.IsNullOrWhiteSpace(type) ? null : await context.GetNodeTypeAsync<Runtime.ValueType>(type);
         typeNode = typeNode?.GetAccessValueType(path);
         if (typeNode == null) return false;
         foreach (var target in targets)

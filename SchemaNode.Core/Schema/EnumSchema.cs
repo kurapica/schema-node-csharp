@@ -5,6 +5,8 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
 using SchemaNode.Property.Enum;
+using SchemaNode.Property.Struct;
+using SchemaNode.Property.Property;
 using SchemaNode.Relation;
 using SchemaNode.Service;
 using SchemaNode.Struct;
@@ -32,7 +34,6 @@ namespace SchemaNode.Schema;
 [Meta<SchemaGenerator>(typeof(EnumGenerator))]
 [Meta<Append>(typeof(EntrySource), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Valid))]
 [Meta<EnumValue>]
-[Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getenumaccess)}", NODE_TYPE, NODE_SELF, ENTRY_ROOT)]
 public sealed class EnumKind;
 
 /// <summary>
@@ -81,13 +82,13 @@ public sealed class EnumSchema : PropertyOwner
 [Relation<BlackList, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(BlackList)}")]
 [Relation<Root, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Root)}")]
 [Relation<Cascade, Call>(nameof(WhiteList), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(Cascade)}")]
-[Relation<Visible, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]
+[Relation<Visible, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", TYPE_PROVIDER)]
 [Relation<InVisible, Call>(nameof(Root), $"{NS_SYSTEM_LOGIC}.{nameof(SystemLogic.le)}", $"@{nameof(Cascade)}", 1L)]
-[Relation<OverrideType, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getarrayelement)}", NODE_TYPE)]
-[Relation<Cascade, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getcascade)}", NODE_TYPE, $"@{nameof(Cascade)}", -1L)]
-[Relation<EntrySource, Assign>(nameof(Cascade), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getcascades)}", NODE_TYPE)]
-[Relation<Visible, Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", NODE_TYPE)]
-[Relation<Visible, Call>(nameof(SingleFlag), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(SchemaNode.Function.Reflect.Enum.isenumvaluetype)}", NODE_TYPE, EnumValueType.Flags)]
+[Relation<OverrideType, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getarrayelement)}", TYPE_PROVIDER)]
+[Relation<Cascade, Call>(nameof(Root), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getcascade)}", TYPE_PROVIDER, $"@{nameof(Cascade)}", -1L)]
+[Relation<EntrySource, Assign>(nameof(Cascade), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.getcascades)}", TYPE_PROVIDER)]
+[Relation<Visible, Call>(nameof(LeafOnly), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.hascascade)}", TYPE_PROVIDER)]
+[Relation<Visible, Call>(nameof(SingleFlag), $"{NS_SYSTEM_SCHEMA_REFLECT_ENUM}.{nameof(Function.Reflect.Enum.isenumvaluetype)}", TYPE_PROVIDER, EnumValueType.Flags)]
 public sealed class EnumUsage;
 
 /// <summary>
@@ -96,7 +97,7 @@ public sealed class EnumUsage;
 [Meta<Alias>(SCHEMA_KIND_ENUM)]
 [Meta<ForSchema>(SCHEMA_KIND_NODE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROPERTY_ENUM}.{SCHEMA_KIND_ENUM}")]
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{SCHEMA_KIND_ENUM}")]
 [Relation<Visible, Call>(SCHEMA_KIND_ENUM, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_ENUM)]
 public sealed class EnumProperty : Property<EnumSchema>
 {

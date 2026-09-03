@@ -95,7 +95,7 @@ public class EnumNode : DataNode
     }
 
     /// <inheritdoc/>
-    public override bool Equals(DataNode? other)
+    public override bool Equals(IValueAccess? other)
     {
         if (other == null) return IsEmpty;
         if (_isString)
@@ -122,7 +122,7 @@ public class EnumNode : DataNode
     }
 
     /// <inheritdoc/>
-    public override DataNode Clone()
+    public override IValueAccess Clone()
     {
         return new EnumNode((Type as EnumType)!)
         {
