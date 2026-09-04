@@ -49,10 +49,13 @@ public static class Property
     /// <summary>
     /// Gets the property value type
     /// </summary>
-    public static async Task<string?> getvaluetype(SchemaContext context, [Meta<SchemaType>(typeof(Schema.PropertyType))] string name)
+    public static async Task<string?> getvaluetype(SchemaContext context, 
+        [Meta<SchemaType>(typeof(Schema.PropertyType))] string name,
+        [Meta<SchemaType>(typeof(Schema.ValueType))] string? ownerType = null)
     {
         var prop = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.PropertyType>(name) : null;
-        return prop?.ValueType?.Name;
+        var typeName = prop?.ValueType?.Name;
+        return typeName == NS_SYSTEM_OBJECT && !string.IsNullOrWhiteSpace(ownerType) ? ownerType : typeName;
     }
 
     /// <summary>

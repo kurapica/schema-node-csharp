@@ -85,7 +85,7 @@ public sealed class FieldFilter
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<PrimaryIndex>(0)]
-    [Meta<Cascade>(1)]
+    [Meta<CascadeDepth>(1)]
     [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_ENUM, SCHEMA_KIND_STRING, SCHEMA_KIND_INT, SCHEMA_KIND_DECIMAL, SCHEMA_KIND_DATE, SCHEMA_KIND_BOOL)]
     [Relation<InVisible, Call>(NODE_SELF, NS_SYSTEM_LOGIC_EQ, $"{nameof(Mode)}", FieldFilterMode.Filter)]
     public string Filter { get; set; } = string.Empty;

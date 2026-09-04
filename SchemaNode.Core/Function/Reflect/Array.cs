@@ -82,22 +82,21 @@ public static class Array
             return []; // not access-able
         path ??= root;
         
+        var eleType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
+        if (eleType is null) return [];
+        
         // the first entry list
         List<Entry<string>> first = [
             new Entry<string> { Value = ARRAY_PREVIOUS },
-            new Entry<string> { Value = ARRAY_ELEMENT }
+            new Entry<string> { Value = ARRAY_ELEMENT, HasChildren = eleType.HasAccessEntries }
         ];
-        var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
-        if (elementType == null) return [];
-        foreach (Entry<string> a in elementType.GetAccessEntries())
-            first.Add(a);
         
         // build the access entries
         List<EntryAccess<string>> result = [new (){ Children = first.ToArray() }];
-        Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!.Skip(2)
+        Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!
             .FirstOrDefault(c => c.Value.Equals(path, StringComparison.OrdinalIgnoreCase) ||
                                  c.Value.StartsWith($"{path}.", StringComparison.OrdinalIgnoreCase)) : null;
-        var valueType = curr != null ? elementType.GetAccessValueType(curr.Value) : null;
+        IValueTypeAccess? valueType = curr?.Value == ARRAY_ELEMENT ? eleType : await context.GetArrayNodeTypeAsync(eleType);
         
         while (valueType != null)
         {
@@ -142,6 +141,7 @@ public static class Array
         var elementType = await context.GetNodeTypeAsync<Runtime.ValueType>(element);
         if (elementType is null) return null;
         if (path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return $"{NS_SYSTEM_LIST}<{elementType.Name}>";
-        return path.Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? elementType.Name : elementType.GetAccessValueType(path)?.Name;
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        return paths[0].Equals(ARRAY_ELEMENT, StringComparison.OrdinalIgnoreCase) ? paths.Length > 1 ? elementType.GetAccessValueType(paths[1])?.Name : elementType.Name : null;
     }
 }

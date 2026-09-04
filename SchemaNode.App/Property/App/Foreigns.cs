@@ -41,7 +41,7 @@ public sealed class Foreign
     /// The field refer to the other app target
     /// </summary>
     [Meta<AccessEntryConsumer>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_STRING)]
-    [Meta<Cascade>(1)]
+    [Meta<CascadeDepth>(1)]
     [Meta<SchemaType>(typeof(Identifier))]
     public string Field { get; set; } = string.Empty;
     

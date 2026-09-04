@@ -14,8 +14,8 @@ namespace SchemaNode.Property.Enum;
 /// </summary>
 [Meta<ForSchema>(SCHEMA_KIND_ENUM, SCHEMA_KIND_ENUM_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
-[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(Cascade)}")]
-public class Cascade : Property<long>, IConstraintProperty
+[Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_ENUM}.{nameof(CascadeDepth)}")]
+public class CascadeDepth : Property<long>, IConstraintProperty
 {
     public async Task<bool?> ValidateEnumAsync(SchemaContext context, EnumNode node)
     {

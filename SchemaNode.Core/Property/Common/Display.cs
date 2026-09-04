@@ -1,5 +1,6 @@
 ﻿using SchemaNode.Attribute;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Struct;
 using SchemaNode.Utility;
@@ -10,6 +11,7 @@ namespace SchemaNode.Property.Common;
 /// <summary>
 /// The display property, which is used to specify the display information
 /// </summary>
+[Meta<ForSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_COMMON}.{nameof(Display)}")]
 public class Display : Property<LocaleString>

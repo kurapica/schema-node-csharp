@@ -65,7 +65,7 @@ public sealed class FieldView
     /// </summary>
     [Meta<SchemaType>(typeof(Identifier))]
     [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.gettypeentries)}", $"@{nameof(FieldType)}")]
-    [Meta<Cascade>(1)]
+    [Meta<CascadeDepth>(1)]
     [Meta<Valid>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(SchemaNode.Function.Reflect.Type.isschemakindaccess)}", $"@{nameof(FieldType)}", NODE_SELF, false, SCHEMA_KIND_STRING)]
     public string Map { get; set; } = string.Empty;
 

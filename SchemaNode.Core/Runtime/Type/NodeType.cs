@@ -446,7 +446,21 @@ public abstract class ValueType : NodeType, IValueTypeAccess
     /// <summary>
     /// Gets value type through path reader
     /// </summary>
-    public virtual IValueTypeAccess? GetAccessValueType(string path) => string.IsNullOrWhiteSpace(path) || path.SequenceEqual(NODE_SELF) ? this : null;
+    public virtual IValueTypeAccess? GetAccessValueType(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return this;
+        string[] parts = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+        IEnumerable<IValueAccessPathHandler> handlers = (Runtime as SchemaRuntime)?.GetRuntimeItem(typeof(IValueAccessPathHandler)) as IEnumerable<IValueAccessPathHandler> ?? [];
+        foreach (var handler in handlers)
+        {
+            if (handler.Path.Equals(parts[0], StringComparison.OrdinalIgnoreCase))
+            {
+                IValueTypeAccess? type = handler.GetAccessValueType(this);
+                return parts?.Length > 1 ? type?.GetAccessValueType(parts[1]) : type;
+            }
+        }
+        return null;
+    }
 
     /// <summary>
     /// Gets access entries

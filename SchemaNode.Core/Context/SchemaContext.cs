@@ -4,7 +4,6 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SchemaNode.Enum;
-using SchemaNode.Node;
 using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
@@ -343,7 +342,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
     /// <summary>
     /// Gets the schema node of specific type
     /// </summary>
-    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : NodeType
+    public async Task<T?> GetNodeTypeAsync<T>(string schemaName, IReadOnlyList<GenericParameter>? generics = null, IReadOnlyList<NodeType>? genericParams = null, bool reload = false) where T : class
         => await GetNodeTypeAsync(schemaName, generics, genericParams, reload) as T;
     
     /// <summary>

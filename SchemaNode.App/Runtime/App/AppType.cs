@@ -322,7 +322,7 @@ public sealed class AppType : IValueTypeAccess
     /// <summary>
     /// Gets the constraints
     /// </summary>
-    public IEnumerable<T> GetProperties<T>() => _props?.OfType<T>() ?? [];
+    public IEnumerable<T> GetProperties<T>() where T: IProperty => _props?.OfType<T>() ?? [];
     
     /// <summary>
     /// Gets the property by property name

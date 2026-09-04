@@ -185,7 +185,7 @@ public static partial class SchemaNodeExtensions
                             }
                             
                             string propName = propType.GetPropertyName();
-                            if (!propertyTypes.TryAdd(propName, propType))
+                            if (!propertyTypes.TryAdd(propName, propType) && propertyTypes[propName] != propType)
                                 throw new Exception($"Duplicate property name '{propName}' found for schema kind '{asSchemaKind.Value}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                         }
                     }

@@ -143,6 +143,8 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         
         #region Auto Scan
 
+        HashSet<Type> accessPathHandlers = [];
+
         // Scan and register system schemas
         foreach (Assembly assembly in assemblies)
         {
@@ -164,6 +166,9 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // scalar type first because the schema type is not the type declare it
             foreach (Type type in assembly.GetTypes())
             {
+                if (type is { IsClass: true, IsAbstract: false } && type.IsAssignableTo(typeof(IValueAccessPathHandler)))
+                    accessPathHandlers.Add(type);
+                
                 if (type.GetMetaProperty<SchemaType>() == null) continue;
                 
                 if (type.IsSubclassOfGenericType(typeof(IScalarType<>)))
@@ -237,6 +242,22 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
         access.Int = (await schemaContext.GetNodeTypeAsync<Runtime.IntType>(NS_SYSTEM_INT))!;
         access.Date = (await schemaContext.GetNodeTypeAsync<Runtime.DateType>(NS_SYSTEM_DATE))!;
         access.Context = (await schemaContext.GetNodeTypeAsync<Runtime.StructType>(NS_SYSTEM_CONTEXT))!;
+        
+        // Loading all access path handlers
+        if (accessPathHandlers.Count > 0)
+        {
+            List<IValueAccessPathHandler> handlers = [];
+            foreach (Type handlerType in accessPathHandlers)
+            {
+                IValueAccessPathHandler handler = (IValueAccessPathHandler)ActivatorUtilities.CreateInstance(context.Services, handlerType);
+                await handler.LoadAsync(context);
+                handlers.Add(handler);
+            }
+            
+            // keep it simple for now, I may move the access path as schema kind or property in the future, so it can be resolved by schema generator
+            if (handlers.Count > 0)
+                runtime.SetRuntimeItem(typeof(IValueAccessPathHandler), handlers);
+        }
         
         #endregion
         

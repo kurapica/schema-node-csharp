@@ -7,7 +7,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The value type access interface, which indicates that the node has access to other value types
 /// </summary>
-public interface IValueTypeAccess
+public interface IValueTypeAccess : IPropertyProvider
 {
     /// <summary>
     /// The type name
@@ -146,4 +146,36 @@ public interface IValueAccess
     /// The value is valid
     /// </summary>
     bool IsValid { get; } 
+}
+
+/// <summary>
+/// The global value access path handler interface
+/// </summary>
+public interface IValueAccessPathHandler
+{
+    /// <summary>
+    /// Load the access path handler with the given schema context
+    /// </summary>
+    Task LoadAsync(ISchemaContext context);
+    
+    /// <summary>
+    /// The value access path
+    /// </summary>
+    public string Path { get; }
+    
+    /// <summary>
+    /// The value access path display
+    /// </summary>
+    public LocaleString Display { get; }
+    
+    /// <summary>
+    /// Gets the access value type
+    /// </summary>
+    public abstract IValueTypeAccess? GetAccessValueType(IValueTypeAccess owner);
+    
+    /// <summary>
+    /// Gets the access value
+    /// </summary>
+    public abstract IValueAccess? GetAccessValue(IValueAccess owner, IValueAccess? node = null);
+
 }

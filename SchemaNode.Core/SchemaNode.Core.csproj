@@ -23,4 +23,8 @@
     <EmbeddedResource Include="locale\*.json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Property\Object\" />
+  </ItemGroup>
+
 </Project>

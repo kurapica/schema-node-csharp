@@ -108,7 +108,10 @@ public sealed class ArrayType: ValueType, IRelationProvider
     /// <inheritdoc />
     public override IValueTypeAccess? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase) || path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
+        IValueTypeAccess? g = base.GetAccessValueType(path);
+        if (g != null) return g;
+        
+        if (path.Equals(ARRAY_PREVIOUS, StringComparison.OrdinalIgnoreCase)) return this;
         string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         if (paths[0] != ARRAY_ELEMENT) return null;
         return paths.Length <= 1 ? Element : Element?.GetAccessValueType(paths[1]);

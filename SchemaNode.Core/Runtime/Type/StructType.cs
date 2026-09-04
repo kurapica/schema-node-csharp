@@ -127,7 +127,8 @@ public sealed class StructType: ValueType, IRelationProvider
     /// <inheritdoc />
     public override IValueTypeAccess? GetAccessValueType(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || path.Equals(NODE_SELF, StringComparison.OrdinalIgnoreCase)) return this;
+        IValueTypeAccess? g = base.GetAccessValueType(path);
+        if (g != null) return g;
         
         ReadOnlySpan<char> remain = null;
         int index = path.IndexOf('.');
