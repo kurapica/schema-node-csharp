@@ -212,7 +212,7 @@ public static partial class SchemaNodeExtensions
                             schemaProperties[kind] = propertyTypes;
                         }
 
-                        if (!propertyTypes.TryAdd(propName, type))
+                        if (!propertyTypes.TryAdd(propName, type) && propertyTypes[propName] != type)
                             throw new Exception($"Duplicate property name '{propName}' found for schema kind '{kind}' in type '{type.FullName}' and '{propertyTypes[propName].FullName}'");
                     }
                 }

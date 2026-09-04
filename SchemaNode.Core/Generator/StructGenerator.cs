@@ -259,11 +259,11 @@ internal sealed class StructGenerator : INodeSchemaGenerator
             string[]? fields = BuildFields(index.Fields);
             if (fields == null || fields.Length == 0) continue;
 
-            dataIndexes.Add(new DataIndex(
-                Name : index.Name,
-                Fields : fields,
-                IsUnique : index.IsUnique
-            ));
+            dataIndexes.Add(new DataIndex{
+                Name = index.Name,
+                Fields = fields,
+                IsUnique = index.IsUnique
+            });
         }
 
         return dataIndexes.Count > 0 ? dataIndexes.ToArray() : null;

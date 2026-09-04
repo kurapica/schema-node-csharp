@@ -109,7 +109,7 @@ public static class Struct
     /// <summary>
     /// Gets indexable field entries
     /// </summary>
-    public static async Task<Entry<string>[]> getindexablefields(SchemaContext context, [Meta<SchemaType>(typeof(Schema.StructType))]string type)
+    public static async Task<EntryAccess<string>[]> getindexablefields(SchemaContext context, [Meta<SchemaType>(typeof(Schema.StructType))]string type)
     {
         var structType = !string.IsNullOrWhiteSpace(type) ? await context.GetNodeTypeAsync<Runtime.StructType>(type) : null;
         if (structType is null) return [];
@@ -123,7 +123,7 @@ public static class Struct
                 result.Add(entry);
             }
         }
-        return result.ToArray();
+        return [new (){ Children = result.ToArray() }];
     }
 
     /// <summary>

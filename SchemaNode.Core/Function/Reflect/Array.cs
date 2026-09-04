@@ -96,17 +96,20 @@ public static class Array
         Entry<string>? curr = !string.IsNullOrWhiteSpace(path) ? result[0].Children!
             .FirstOrDefault(c => c.Value.Equals(path, StringComparison.OrdinalIgnoreCase) ||
                                  c.Value.StartsWith($"{path}.", StringComparison.OrdinalIgnoreCase)) : null;
-        IValueTypeAccess? valueType = curr?.Value == ARRAY_ELEMENT ? eleType : await context.GetArrayNodeTypeAsync(eleType);
+        IValueTypeAccess? valueType = curr?.Value == ARRAY_ELEMENT ? eleType : null;
         
-        while (valueType != null)
+        while (valueType != null && curr?.HasChildren == true)
         {
-            var accessEntry = new EntryAccess<string>();
-            Entry<string>[] accesses = valueType.GetAccessEntries().ToArray();
-            if (curr != null)
+            var accessEntry = new EntryAccess<string>
             {
-                accessEntry.Entry = new Entry<string> { Value = curr.Value, HasChildren = accesses.Length > 0 };
-                accessEntry.Entry.SetProperty<Display, LocaleString>(curr.GetProperty<Display>()?.Value ?? curr.Value);
-            }
+                Entry = new Entry<string> { Value = curr.Value, HasChildren = valueType.HasAccessEntries }
+            };
+            accessEntry.Entry.SetProperty<Display, LocaleString>(curr.GetProperty<Display>()?.Value ?? curr.Value);
+            result.Add(accessEntry);
+            if (accessEntry.Entry?.HasChildren != true) break;
+            
+            // children
+            Entry<string>[] accesses = valueType.GetAccessEntries().ToArray();
             accessEntry.Children = accesses;
             
             // check next part
@@ -122,7 +125,6 @@ public static class Array
                     curr = a;
                 }
             }
-            result.Add(accessEntry);
             valueType = next;
         } 
 
