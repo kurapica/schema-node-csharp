@@ -114,6 +114,7 @@ public static class Array
             
             // check next part
             IValueTypeAccess? next = null;
+            Entry<string>? nextCurr = null;
             foreach (var a in accesses)
             {
                 string n = a.Value;
@@ -122,9 +123,10 @@ public static class Array
                                                          path.StartsWith($"{a.Value}.", StringComparison.OrdinalIgnoreCase)))
                 {
                     next = valueType.GetAccessValueType(n);
-                    curr = a;
+                    nextCurr = a;
                 }
             }
+            curr = nextCurr;
             valueType = next;
         } 
 

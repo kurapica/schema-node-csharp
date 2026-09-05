@@ -21,7 +21,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeType>(typeof(RuntimeStructType))]
 [Meta<SchemaGenerator>(typeof(StructGenerator))]
 [Meta<SchemaUsage>(typeof(StructUsage))]
-[Meta<Append>(typeof(Generics), typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider), typeof(Valid))]
+[Meta<Append>(typeof(Generics), typeof(Relations), typeof(EntrySourceProvider), typeof(AccessValueTypeProvider), typeof(TypeProvider), typeof(KindProvider), typeof(Valid))]
 [Meta<StructValue>]
 public sealed class StructKind;
 
@@ -118,6 +118,7 @@ public class StructType: ValueType;
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<TypeProvider>(nameof(Type))]
+[Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
     typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType))]
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider

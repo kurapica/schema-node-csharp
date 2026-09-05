@@ -477,6 +477,8 @@
   "system.schema.relation.schema": "Relation Schema",
   "system.schema.relation.schema.target": "Target",
   "system.schema.relation.schema.targettype": "Target Type",
+  "system.schema.relation.schema.targetkind": "Target Kind",
+  "system.schema.relation.schema.ownerkind": "Owner Kind",
   "system.schema.relation.schema.valuetype": "Value Type",
   "system.schema.relation.schema.kind": "Kind",
   "system.schema.relation.schema.property": "Property",
