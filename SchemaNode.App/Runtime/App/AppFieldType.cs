@@ -121,7 +121,7 @@ public sealed class AppFieldType
     /// <summary>
     /// The third-party push field info
     /// </summary>
-    public DataPushThirdFieldInfo[]? ThirdPushFields { get; private set; }
+    public DataDeriveThirdFieldInfo[]? ThirdPushFields { get; private set; }
 
     /// <summary>
     /// The combine rule for scalar/enum type
@@ -272,16 +272,16 @@ public sealed class AppFieldType
                     PushSource = pushSource;
         
                     // Compile with data push compile context
-                    funcNode.ClearRuntimeFuncCache<DataPushCompileContext>(); // must reset the field reference
-                    DataPushCompileContext compileContext = new DataPushCompileContext(context, funcNode);
+                    funcNode.ClearRuntimeFuncCache<DataDeriveCompileContext>(); // must reset the field reference
+                    DataDeriveCompileContext compileContext = new DataDeriveCompileContext(context, funcNode);
                     try
                     {
                         FunctionTypeSchema pushSchema = await compileContext.VisitFunctionType();
-                        DataPushThirdFieldInfo[] pushField = compileContext.ThirdFields;
+                        DataDeriveThirdFieldInfo[] pushField = compileContext.ThirdFields;
                         if (pushField.Length > 0)
                         {
                             ThirdPushFields = compileContext.ThirdFields;
-                            foreach (DataPushThirdFieldInfo push in pushField)
+                            foreach (DataDeriveThirdFieldInfo push in pushField)
                                 Application.GetField(push.Field)?.AddObserver(this);
                         }
                         PushFuncSchema = pushSchema;

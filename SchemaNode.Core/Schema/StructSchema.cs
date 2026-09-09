@@ -46,7 +46,6 @@ public sealed class StructSchema : PropertyOwner
 /// The struct usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_USAGE, SCHEMA_KIND_ORDER_STRUCT)]
-[Meta<Append>(typeof(Valid))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.usage")]
 [Meta<Attach>(SCHEMA_KIND_STRUCT_USAGE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Function.Reflect.Type.getaccessentries)}", TYPE_PROVIDER, NODE_SELF)]
@@ -116,7 +115,6 @@ public class StructType: ValueType;
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
 [Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
-[Meta<Attach>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<TypeProvider>(nameof(Type))]
 [Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 

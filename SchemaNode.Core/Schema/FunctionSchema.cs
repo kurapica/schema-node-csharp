@@ -65,11 +65,11 @@ public sealed class FunctionSchema: PropertyOwner
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_FUNC}.{SCHEMA_KIND_FUNCTION}")]
 [Relation<Visible, Call>(SCHEMA_KIND_FUNCTION, NS_SYSTEM_LOGIC_EQ, $"@{nameof(NodeSchema.Kind)}", SCHEMA_KIND_FUNCTION)]
-public sealed class FuncProperty : Property<FunctionSchema>
+public sealed class FunctionProperty : Property<FunctionSchema>
 {
     public override bool Combine(IProperty other, ISchemaRuntime? runtime = null)
     {
-        if (other is not FuncProperty { Value: {} otherSchema })  return false;
+        if (other is not FunctionProperty { Value: {} otherSchema })  return false;
         if (Value is not { } schema)
         {
             SetValue(otherSchema);

@@ -4,6 +4,7 @@ using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;

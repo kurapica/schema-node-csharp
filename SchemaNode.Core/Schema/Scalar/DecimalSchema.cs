@@ -47,7 +47,7 @@ public sealed class DecimalSchema : ScalarSchema
 /// The decimal usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_DECIMAL_USAGE, SCHEMA_KIND_ORDER_DECIMAL)]
-[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit), typeof(Valid))]
+[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DECIMAL}.usage")]
 [Meta<Attach>(SCHEMA_KIND_DECIMAL_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]

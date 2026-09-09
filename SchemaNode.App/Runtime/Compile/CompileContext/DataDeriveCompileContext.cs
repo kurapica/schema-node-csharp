@@ -8,18 +8,18 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Runtime;
 
 /// <summary>
-/// The data push compile context
+/// The data derive compile context
 /// </summary>
-public class DataPushCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
+public class DataDeriveCompileContext(SchemaContext context, FunctionType function) : CompileContext(context, function)
 {
-    #region Push Info
+    #region Data Derive Info
     
-    private readonly List<DataPushThirdFieldInfo> _thirdFields = [];
+    private readonly List<DataDeriveThirdFieldInfo> _thirdFields = [];
     
     /// <summary>
-    /// The data push third fields
+    /// The data derive third fields
     /// </summary>
-    public DataPushThirdFieldInfo[] ThirdFields => _thirdFields.ToArray();
+    public DataDeriveThirdFieldInfo[] ThirdFields => _thirdFields.ToArray();
 
     /// <summary>
     /// The application type
@@ -33,7 +33,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
     // <inheritdoc/>
     public override async Task<FunctionTypeSchema> VisitFunctionType()
     {
-        if (Function.TryGetRuntimeFuncCache<DataPushCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
+        if (Function.TryGetRuntimeFuncCache<DataDeriveCompileContext, FunctionTypeSchema>(out FunctionTypeSchema? schema))
             return schema!;
         
         schema = await base.VisitFunctionType();
@@ -78,7 +78,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                                     // Record the thrid field's push key for later compare
                                     if (argExp.Index > 0)
                                     {
-                                        DataPushThirdFieldInfo fldInfo = _thirdFields.First(a => a.Arg == argExp);
+                                        DataDeriveThirdFieldInfo fldInfo = _thirdFields.First(a => a.Arg == argExp);
                                         if (!fldInfo.PushKeys.Contains(fieldAccessExp.FieldName))
                                             fldInfo.PushKeys.Add(fieldAccessExp.FieldName);
                                     }
@@ -120,7 +120,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
         }
 
         // Return new function type schema, adjusted arguments
-        return Function.SetRuntimeFuncCache<DataPushCompileContext, FunctionTypeSchema>(schema)!;
+        return Function.SetRuntimeFuncCache<DataDeriveCompileContext, FunctionTypeSchema>(schema)!;
     }
 
     /// <summary>
@@ -161,7 +161,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             var dataField = arrayStruct.GetField(dataFieldExp.Value.GetValue<string>()!);
                             if (dataField == null) break;
                             
-                            DataPushThirdFieldInfo? thirdFieldInfo = _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);
+                            DataDeriveThirdFieldInfo? thirdFieldInfo = _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);
 
                             // CombineProperties the third field query
                             if (thirdFieldInfo == null)
@@ -208,7 +208,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
                                 // Create new argument expression for the third field data
                                 ArgumentExp newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
-                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(),[dataField.Name]);
+                                thirdFieldInfo = new DataDeriveThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(),[dataField.Name]);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
@@ -230,7 +230,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
                             var thirdField = _appType.GetField(fieldExp.Value.GetValue<string>() ?? string.Empty);
                             if (thirdField?.ValueType is not ArrayType { Element: StructType arrayStruct, Primary: { Count: > 0 } } arrayType) break;
                             
-                            DataPushThirdFieldInfo? thirdFieldInfo =
+                            DataDeriveThirdFieldInfo? thirdFieldInfo =
                                 _thirdFields.FirstOrDefault(a => a.Field == thirdField.Name);
 
                             // CombineProperties the third field query
@@ -278,7 +278,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 
                                 // Create new argument expression for the third field data
                                 ArgumentExp newArgExp = new($"__third_{thirdField.Name}", _thirdFields.Count + 1, true, arrayStruct);
-                                thirdFieldInfo = new DataPushThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(), []);
+                                thirdFieldInfo = new DataDeriveThirdFieldInfo(newArgExp, thirdField.Name, primaryMap.ToArray(), []);
                                 _thirdFields.Add(thirdFieldInfo);
                             }
 
@@ -304,7 +304,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
             // Record the thrid field's push key for later compare
             if (argExp.Index > 0)
             {
-                DataPushThirdFieldInfo fldInfo = _thirdFields.First(a => a.Arg == argExp);
+                DataDeriveThirdFieldInfo fldInfo = _thirdFields.First(a => a.Arg == argExp);
                 if (!fldInfo.PushKeys.Contains(fieldAccessExp.FieldName))
                     fldInfo.PushKeys.Add(fieldAccessExp.FieldName);
             }
@@ -357,7 +357,7 @@ public class DataPushCompileContext(SchemaContext context, FunctionType function
 /// <summary>
 /// The third field info 
 /// </summary>
-public record DataPushThirdFieldInfo(ArgumentExp Arg, string Field, DataPushPrimaryMap[] PrimaryMap, List<string> PushKeys);
+public record DataDeriveThirdFieldInfo(ArgumentExp Arg, string Field, DataPushPrimaryMap[] PrimaryMap, List<string> PushKeys);
 
 public abstract record DataPushPrimaryMap(string Key);
 

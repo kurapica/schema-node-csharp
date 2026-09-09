@@ -30,7 +30,7 @@ public class GetSchemaApi : SchemaApi<GetSchemaRequest, GetSchemaResponse>
         };
         HashSet<string> types = [];
 
-        foreach (string t in request.Names)
+        foreach (string t in request.Names) 
         {
             cancellationToken.ThrowIfCancellationRequested();
             NodeType? node = await SchemaContext.GetNodeTypeAsync(t);

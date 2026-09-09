@@ -82,7 +82,7 @@ public static class SchemaStorageProviderExtension
             if (parent is Runtime.NamespaceType ns)
                 ns.SaveNodeSchema(schema);
         }
-        await context.GetNodeTypeAsync(schema.Name, reload: true); // force reload
+        await context.GetNodeTypeAsync(schema.FullName, reload: true); // force reload
         
         // check sub schemas
         if (schema is { Kind: SCHEMA_KIND_NAMESPACE, Schemas.Length: > 0 })

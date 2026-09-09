@@ -93,7 +93,7 @@ public sealed class FunctionType : NodeType
     /// <inheritdoc />
     public override async Task LoadAsync(SchemaContext context)
     {
-        FunctionSchema? func = GetProperty<FuncProperty>()?.Value;
+        FunctionSchema? func = GetProperty<FunctionProperty>()?.Value;
         
         // Status
         if (func == null)

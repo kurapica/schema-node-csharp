@@ -219,8 +219,8 @@ public static class AppSchemaContextExtension
             if (includeUsedBy)
                 schema.UsedBy = nodeType.GetUsedBy().Select(p => p.Name).ToArray();
 
-            if (parent.Schemas == null ||
-                !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase)))
+            if (!string.IsNullOrEmpty(schema.FullName) && (parent.Schemas == null ||
+                !parent.Schemas.Any(s => s.FullName.Equals(schema.FullName, StringComparison.OrdinalIgnoreCase))))
             {
                 parent.Schemas ??= [];
                 parent.Schemas = parent.Schemas.Append(schema).ToArray();

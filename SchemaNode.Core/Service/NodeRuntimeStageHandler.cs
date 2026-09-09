@@ -7,6 +7,7 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
+using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -92,10 +93,11 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 runtime.RegisterNodeType(schemaKind.Value!, runtimeType);
                         
             // Gets the match node schema property type
-            nodeSchemaTypes.Add((kind, type,
-    runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
-                FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.
-                GetGenericArguments().ElementAtOrDefault(0) == type)));
+            nodeSchemaTypes.Add((kind, type, runtime.GetSchemaKindPropertyTypes(SCHEMA_KIND_NODE).
+                FirstOrDefault(p => p.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0) is {} etype 
+                                    && (etype == type || etype.GetMetaProperty<SchemaKind>()?.Value is {} k && 
+                                    (k.Equals(kind, StringComparison.OrdinalIgnoreCase) || 
+                                     k.StartsWith($"{kind}.", StringComparison.OrdinalIgnoreCase))))));
             
             // Load schema generators
             if (type.GetMetaProperty<SchemaGenerator>()?.Value is { } schemaGenerator)

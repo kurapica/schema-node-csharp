@@ -68,7 +68,7 @@ public sealed class EnumSchema : PropertyOwner
 /// The enum use setting
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_ENUM_USAGE, SCHEMA_KIND_ORDER_ENUM)]
-[Meta<Append>(typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Valid))]
+[Meta<Append>(typeof(Default), typeof(BlackList), typeof(WhiteList))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ENUM}.usage")]
 [Meta<Attach>(SCHEMA_KIND_ENUM_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]

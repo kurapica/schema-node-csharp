@@ -47,7 +47,7 @@ public sealed class DateSchema : ScalarSchema
 /// The date usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_DATE_USAGE, SCHEMA_KIND_ORDER_DATE)]
-[Meta<Append>(typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error), typeof(Valid))]
+[Meta<Append>(typeof(Default),  typeof(BlackList), typeof(WhiteList), typeof(Error))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_DATE}.usage")]
 [Meta<Attach>(SCHEMA_KIND_DATE_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]

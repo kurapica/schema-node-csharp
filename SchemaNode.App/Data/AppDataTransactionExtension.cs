@@ -422,14 +422,14 @@ public static class AppDataTransactionExtension
                 using var stack = context.StackAccess(field.App, target);
                 
                 // Gather the field change infos
-                Dictionary<AppFieldType, (DataPushThirdFieldInfo? ThirdInfo, 
+                Dictionary<AppFieldType, (DataDeriveThirdFieldInfo? ThirdInfo, 
                     Dictionary<string, StructNode> Origins, 
                     Dictionary<string, StructNode> Updates, 
                     Dictionary<string, StructNode> UnChanged)> fieldChangeInfos = [];
 
                 if (field.ThirdPushFields is { Length: > 0 })
                 {
-                    foreach (DataPushThirdFieldInfo thirdInfo in field.ThirdPushFields)
+                    foreach (DataDeriveThirdFieldInfo thirdInfo in field.ThirdPushFields)
                     {
                         // No push key, skip for now, @TODO: need full push if meet this case
                         if (thirdInfo.PushKeys.Count == 0)
@@ -451,7 +451,7 @@ public static class AppDataTransactionExtension
                 // Fetch effect data from third app fields
                 for (int i = (field.ThirdPushFields?.Length ?? 0) - 1; i >= 0; i--)
                 {
-                    DataPushThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
+                    DataDeriveThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
                     AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
                     if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var changeInfos) || 
                         changeInfos.Origins.Count == 0 && changeInfos.Updates.Count == 0 && changeInfos.UnChanged.Count == 0) continue;
@@ -598,7 +598,7 @@ public static class AppDataTransactionExtension
                     ArrayNode result = new ArrayNode(field.ValueType!);
                     foreach (object?[] args in pushData)
                     {
-                        IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataPushCompileContext>(context, args);
+                        IValueAccess? ret = await field.PushFunc!.CallAsync<IValueAccess, DataDeriveCompileContext>(context, args);
                         if (ret is ArrayNode arr)
                             result.AddRange(arr);
                         else if(ret is not null)
@@ -612,7 +612,7 @@ public static class AppDataTransactionExtension
                 {
                     for (int i = 0; i < (field.ThirdPushFields?.Length ?? 0); i++)
                     {
-                        DataPushThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
+                        DataDeriveThirdFieldInfo thirdInfo = field.ThirdPushFields![i];
                         AppFieldType? thirdAppField = field.Application.GetField(thirdInfo.Field);
                         if (thirdAppField == null || !fieldChangeInfos.TryGetValue(thirdAppField, out var thirdChangeInfos)) continue;
                         DynamicTableSchema schema = thirdAppField.GetDynamicTableSchema(context);
@@ -751,7 +751,7 @@ public static class AppDataTransactionExtension
                     return pushData;
                 }
 
-                ArrayNode? CombineField((DataPushThirdFieldInfo? ThirdInfo,
+                ArrayNode? CombineField((DataDeriveThirdFieldInfo? ThirdInfo,
                     Dictionary<string, StructNode> Origins,
                     Dictionary<string, StructNode> Updates,
                     Dictionary<string, StructNode> UnChanged) changeInfo, string keyField)
@@ -777,10 +777,10 @@ public static class AppDataTransactionExtension
                     return keysNode;
                 }
 
-                (DataPushThirdFieldInfo? ThirdInfo, 
+                (DataDeriveThirdFieldInfo? ThirdInfo, 
                     Dictionary<string, StructNode> Origins, 
                     Dictionary<string, StructNode> Updates, 
-                    Dictionary<string, StructNode> UnChanged) GatherFieldChangeInfos(AppFieldType appField, DataPushThirdFieldInfo? thirdInfo = null)
+                    Dictionary<string, StructNode> UnChanged) GatherFieldChangeInfos(AppFieldType appField, DataDeriveThirdFieldInfo? thirdInfo = null)
                 {
                     List<FieldDataChangeData>? changes = changeData.Changes.GetValueOrDefault(appField);
                     DynamicTableSchema schema = appField.GetDynamicTableSchema(context);

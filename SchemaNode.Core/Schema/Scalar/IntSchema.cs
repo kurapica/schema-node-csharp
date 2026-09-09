@@ -47,7 +47,7 @@ public sealed class IntSchema : ScalarSchema
 /// The int usage
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_INT_USAGE, SCHEMA_KIND_ORDER_INT)]
-[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit), typeof(Valid))]
+[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Unit), typeof(Error), typeof(StackUpLimit))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_INT}.usage")]
 [Meta<Attach>(SCHEMA_KIND_INT_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]

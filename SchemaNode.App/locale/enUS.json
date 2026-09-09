@@ -109,6 +109,7 @@
   "system.schema.app.scopecontextmap": "App Scope Context Map",
   "system.schema.app.scopecontextmap.mapkey": "Map Key",
   "system.schema.app.scopepolicy": "App Scope Policy",
+  "system.schema.app.scopepolicy.type": "App Scope Policy Type",
   "system.schema.app.type": "App Type",
   "system.schema.app.workflow": "App Workflow",
   "system.schema.app.workflow.node": "App Workflow Node Definition",

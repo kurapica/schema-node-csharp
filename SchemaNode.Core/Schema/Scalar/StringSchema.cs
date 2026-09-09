@@ -48,7 +48,7 @@ public sealed class StringSchema : ScalarSchema
 /// The string use settings
 /// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_STRING_USAGE, SCHEMA_KIND_ORDER_STRING)]
-[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Root), typeof(LeafOnly), typeof(Unit), typeof(Error), typeof(Valid))]
+[Meta<Append>(typeof(AsSuggest), typeof(Default), typeof(BlackList), typeof(WhiteList), typeof(Root), typeof(LeafOnly), typeof(Unit), typeof(Error))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRING}.usage")]
 [Meta<Attach>(SCHEMA_KIND_STRING_USAGE)]
 [Relation<WhiteList, Call>(nameof(Default), $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(WhiteList)}")]

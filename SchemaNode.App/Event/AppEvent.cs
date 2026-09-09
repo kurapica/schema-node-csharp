@@ -76,7 +76,6 @@ public class AppFieldDataUpdateEvent(string app, string field, string? target = 
     : AppFieldEvent(app, field, target), IEventPayload<AppFieldUpdatePayload>;
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.payload")]
-[Meta<Generics>(NS_GENERIC_TYPE)]
 public class AppFieldPayload
 {
     /// <summary>
@@ -97,12 +96,11 @@ public class AppFieldPayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
     public IValueAccess? Data { get; set; }
 }
 
 [Meta<SchemaType>($"{NS_SYSTEM_EVENT}.app.data.updatepayload")]
-[Meta<Generics>(NS_GENERIC_TYPE)]
 public class AppFieldUpdatePayload
 {
     /// <summary>
@@ -123,12 +121,12 @@ public class AppFieldUpdatePayload
     /// <summary>
     /// The event data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
     public IValueAccess? Data { get; set; }
     
     /// <summary>
     ///  The origin data
     /// </summary>
-    [Meta<SchemaType>(NS_GENERIC_TYPE)]
+    [Meta<SchemaType>(NS_SYSTEM_OBJECT)]
     public IValueAccess? Origin { get; set; }
 }

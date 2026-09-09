@@ -9,7 +9,7 @@ using static SchemaNode.Utility.Constant;
 namespace SchemaNode.Property.String;
 
 [Meta<Alias>("csregex")]
-[Meta<ForSchema>(SCHEMA_KIND_STRING)]
+[Meta<ForSchema>(SCHEMA_KIND_STRING, SCHEMA_KIND_STRING_DEFINE, SCHEMA_KIND_STRING_USAGE)]
 [Meta<OfSchema>(SCHEMA_KIND_PROPERTY)]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP_STRING}.{nameof(CsRegex)}")]
 public class CsRegex: Property<string>, IConstraintProperty

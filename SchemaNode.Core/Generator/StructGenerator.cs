@@ -110,7 +110,7 @@ internal sealed class StructGenerator : INodeSchemaGenerator
                 field.SetProperty(property);
             
             // Require Check
-            if (!p.PropertyType.GetTypeDetail().Nullable)
+            if (!p.PropertyType.GetTypeDetail().Nullable && p.GetCustomAttribute<System.Runtime.CompilerServices.NullableAttribute>() is null)
                 field.SetProperty<Require, bool>(true);
 
             // field type && property

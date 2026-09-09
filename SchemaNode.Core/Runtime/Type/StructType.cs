@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Security.Principal;
 using SchemaNode.Context;
 using SchemaNode.Node;
 using SchemaNode.Property;
@@ -113,8 +114,11 @@ public sealed class StructType: ValueType, IRelationProvider
     /// <inheritdoc />
     public override IEnumerable<NodeType> GetReferenceTypes()
     {
-        foreach (NodeType node in _fields.SelectMany(f => f.GetReferenceTypes()))
-            yield return node;
+        foreach (StructFieldType node in _fields.ToArray())
+        {
+            foreach (NodeType nodeType in node.GetReferenceTypes())
+                yield return nodeType;
+        }
 
         if (_relations != null)
             foreach (NodeType node in _relations.OfType<INodeReferences>().SelectMany(n => n.GetReferenceTypes()))

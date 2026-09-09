@@ -38,6 +38,7 @@ public sealed class ArrayKind;
 [Meta<Append>(typeof(Generics), typeof(Relations))]
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_ARRAY}.schema")]
 [Meta<Attach>(SCHEMA_KIND_ARRAY_DEFINE)]
+[Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessentries)}", $"@{nameof(Element)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_ARRAY}.{nameof(Function.Reflect.Array.getaccessvaluetype)}", $"@{nameof(Element)}", NODE_SELF)]
 [Relation<Visible, Call>(nameof(Primary), NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, $"@{nameof(Element)}", SCHEMA_KIND_STRUCT)]

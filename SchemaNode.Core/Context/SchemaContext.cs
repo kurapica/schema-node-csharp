@@ -264,7 +264,7 @@ public class SchemaContext(IServiceProvider services, ISchemaRuntime runtime): I
         {
             // get loaded schema from namespace if not in reload mode
             NodeSchema? schema = reload ? null : @namespace?.GetNodeSchema(name);
-            if (schema != null) return schema;
+            if (schema != null && schema.Kind != SCHEMA_KIND_NAMESPACE) return schema;
             
             // system schema
             string schemaName = $"{@namespace?.Name}.{name}".Trim('.');

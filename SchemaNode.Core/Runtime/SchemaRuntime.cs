@@ -141,6 +141,9 @@ public class SchemaRuntime : ISchemaRuntime
         if (schema.Kind == SCHEMA_KIND_ARRAY && schema.GetProperty<ArrayProperty>()?.Value is {} arraySchema)
             _arrayCache[arraySchema.Element] = schema.FullName;
 
+        // mark the schema as system-defined
+        schema.SetProperty<SystemDefined, bool>(true);
+        
         string schemaName = schema.FullName.ToLowerInvariant();
         NodeSchema root = _rootSchema;
         string fullPath = "";
@@ -170,6 +173,7 @@ public class SchemaRuntime : ISchemaRuntime
                         Kind = SCHEMA_KIND_NAMESPACE,
                         Schemas = [],
                     };
+                    node.SetProperty<SystemDefined, bool>(true);
                     node.SetProperty<Display, LocaleString>(node.FullName);
                     root.Schemas = root.Schemas != null ? root.Schemas.Concat([node]).ToArray() : [node];
                     root = node;

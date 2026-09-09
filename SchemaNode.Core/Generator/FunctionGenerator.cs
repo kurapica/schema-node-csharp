@@ -180,7 +180,7 @@ internal sealed class FunctionGenerator : INodeSchemaGenerator
             Return = retInfo
         });
 
-        schema.SetProperty<FuncProperty, FunctionSchema>(funcSchema);
+        schema.SetProperty<FunctionProperty, FunctionSchema>(funcSchema);
         return schema;
     }
 }

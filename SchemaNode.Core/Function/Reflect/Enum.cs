@@ -3,18 +3,16 @@ using SchemaNode.Context;
 using SchemaNode.Enum;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using SchemaNode.Runtime;
+using SchemaNode.Property.Function;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
 using EnumType = SchemaNode.Runtime.EnumType;
 using static SchemaNode.Utility.Constant;
-using ArrayType = SchemaNode.Schema.ArrayType;
 using ValueType = SchemaNode.Runtime.ValueType;
 
 // ReSharper disable InconsistentNaming
 
 namespace SchemaNode.Function.Reflect;
-
 
 /// <summary>
 /// The reflection helpers for the schema enums
@@ -106,6 +104,8 @@ public static class Enum
     /// <summary>
     /// Gets the enum entry access list
     /// </summary>
+    [Meta<ServerOnly>(true)]
+    [Meta<NoCache>(true)]
     public static async Task<EntryAccess<string>[]> getenumaccess(SchemaContext context, [Meta<SchemaType>(typeof(Schema.EnumType))] string @enum, string? value, string? root)
     {
         // Check with value access

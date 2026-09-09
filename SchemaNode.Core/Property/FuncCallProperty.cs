@@ -19,7 +19,11 @@ public abstract class FuncCallProperty : Property<FuncCall>, ITypeRefProperty
     /// <inheritdoc/>
     public override void SetValue<TValue>(TValue value)
     {
-        switch (value)
+        object? val = value as object;
+        if (val is JsonArray arr)
+            val = arr.TryConvertTo<string[]>(out string[]? res) ? res : throw new InvalidOperationException($"Cannot convert JsonArray to string[] for FuncCallProperty: {arr}");
+        
+        switch (val)
         {
             case string func when !string.IsNullOrEmpty(func):
                 base.SetValue(new FuncCall { Func = func });
