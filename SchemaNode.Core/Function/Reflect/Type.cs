@@ -4,7 +4,6 @@ using SchemaNode.Enum;
 using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Function;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -47,7 +46,7 @@ public static class Type
         while (ns != null)
         {
             var access = new EntryAccess<string>();
-            if (ns.Namespace != null)
+            if (!string.IsNullOrWhiteSpace(ns.Name))
             {
                 access.Entry = new Entry<string>()
                 {
@@ -82,7 +81,7 @@ public static class Type
     /// Gets the sub entries of the value type
     /// </summary>
     public static async Task<List<EntryAccess<string>>> getaccessentries(SchemaContext context,
-        [Meta<SchemaType>(typeof(ValueType))] string name,
+        [Meta<SchemaType>(typeof(AnyType))] string name,
         string? path = null, 
         [Meta<EntryRoot>(true)]
         string? root = null)
@@ -91,7 +90,7 @@ public static class Type
             return []; // not access-able
         path ??= root;
         
-        IValueTypeAccess? valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
+        IValueTypeAccess? valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name) : null;
         if (valueType == null) return [];
 
         List<EntryAccess<string>> result = [];
@@ -134,10 +133,10 @@ public static class Type
     /// Gets the access type of the value type
     /// </summary>
     public static async Task<string> getaccessvaluetype(SchemaContext context,
-        [Meta<SchemaType>(typeof(ValueType))] string name,
+        [Meta<SchemaType>(typeof(AnyType))] string name,
         string access)
     {
-        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<Runtime.ValueType>(name) : null;
+        var valueType = !string.IsNullOrWhiteSpace(name) ? await context.GetNodeTypeAsync<IValueTypeAccess>(name) : null;
         if (valueType == null) return "";
         return valueType.GetAccessValueType(access)?.Name ?? "";
     }
@@ -152,7 +151,7 @@ public static class Type
         foreach (var kind in kinds)
         {
             if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
-                matchArrayElement && nodeType is Runtime.ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
+                matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
                 return true;
         }
         return false;
@@ -173,7 +172,7 @@ public static class Type
         foreach (var kind in kinds)
         {
             if (nodeType.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) ||
-                matchArrayElement && nodeType is Runtime.ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
+                matchArrayElement && nodeType is ArrayType arr && arr.Element?.Kind.Equals(kind, StringComparison.OrdinalIgnoreCase) == true) 
                 return true;
         }
         return false;

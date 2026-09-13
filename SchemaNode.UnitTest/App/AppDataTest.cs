@@ -219,7 +219,7 @@ public class AppDataTest : Base.AppTestBase
         }]);
         
         Assert.IsTrue(result.Result.Length == 1);
-        JsonArray? data =  result.Result[0].Results?[ToCamelCase(nameof(Meeting))] as  JsonArray;
+        JsonArray? data = result.Result[0].Results?[ToCamelCase(nameof(Meeting))] as JsonArray;
         Assert.IsNotNull(data);
         Assert.AreEqual(1, data.Count);
         Assert.AreEqual("Meeting 1", data[0]![ToCamelCase(nameof(Meeting.Name))]!.GetValue<string>());

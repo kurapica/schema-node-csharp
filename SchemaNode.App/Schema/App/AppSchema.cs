@@ -19,12 +19,12 @@ using SchemaNode.Runtime;
 namespace SchemaNode.Schema;
 
 [Meta<SchemaKind>(SCHEMA_KIND_APP, SCHEMA_KIND_ORDER_APP)]
-[Meta<Append>(typeof(Display), typeof(Description), typeof(Relations))]
+[Meta<Append>(typeof(Display), typeof(Description), typeof(Relations), typeof(SystemDefined))]
 public sealed class AppKind;
 
-/**
- * The application schema
- */
+/// <summary>
+/// The application schema
+/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_APP}.schema")]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessentries)}", $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_APP}.{nameof(SystemReflectApp.getaccessvaluetype)}",  $"@{nameof(Container)}", $"@{nameof(Name)}", NODE_SELF)]

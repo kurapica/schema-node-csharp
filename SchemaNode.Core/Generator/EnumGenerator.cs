@@ -24,7 +24,7 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
         if (!type.IsEnum) yield break;
 
         // Build node schema (NodeSchema.Create applies node-level meta-properties and uses XML doc as default display)
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ENUM, @namespace, name, type);
+        NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_ENUM, @namespace, name, type);
         if (typeResolver == null)
         {
             yield return schema;
@@ -64,7 +64,7 @@ internal sealed class EnumGenerator : INodeSchemaGenerator
             valueSchema.SetProperty<Display, LocaleString>(type.GetSummaryFromXmlDoc(f) ?? $"{schema.FullName}.{f.Name.ToLowerInvariant()}");
             
             // properties
-            foreach (IProperty prop in f.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_ENTRY))
+            foreach (IProperty prop in f.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_ENTRY))
                 valueSchema.SetProperty(prop);
             return valueSchema;
         }).ToArray();

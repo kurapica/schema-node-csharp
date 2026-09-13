@@ -77,5 +77,5 @@ public sealed class PropertyProperty : Property<PropertySchema>
 /// Represents the property type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_PROP}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_PROPERTY)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_PROPERTY)]
 public class PropertyType: AnyType;

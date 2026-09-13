@@ -20,5 +20,5 @@ public sealed class NamespaceSchema;
 /// Represents the namespace type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_NS}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_NAMESPACE)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_NAMESPACE)]
 public class NamespaceType: AnyType;

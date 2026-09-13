@@ -54,6 +54,10 @@ public class SchemaRuntime : ISchemaRuntime
     }
 
     /// <inheritdoc/>
+    public bool IsPropertyForSchema(Type propertyType, string kind)
+        => GetSchemaKindPropertyTypes(kind).Contains(propertyType);
+
+    /// <inheritdoc/>
     public T? GetSchemaKindProperty<T>(string kind) where T : class, IProperty
         => _schemaKinds.FirstOrDefault(k => k.kind.Equals(kind, StringComparison.OrdinalIgnoreCase)).properties
             ?.OfType<T>().FirstOrDefault();

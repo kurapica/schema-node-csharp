@@ -127,7 +127,7 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     string appName = app.Value!.ToLowerInvariant();
 
                     // Check application properties
-                    var appProperties = type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP).ToArray();
+                    var appProperties = type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_APP).ToArray();
                     if (appProperties.Length > 0)
                     {
                         AppSchema appSchema = new AppSchema
@@ -153,11 +153,11 @@ public class AppRuntimeStageHandler : IRuntimeStageHandler
                     };
 
                     // app field property
-                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_APP_FIELD))
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_APP_FIELD))
                         field.SetProperty(property);
 
                     // schema type property
-                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(typeSchema.Kind))
+                    foreach (IProperty property in type.GetMetaPropertiesForSchema<IProperty>(runtime, typeSchema.Kind))
                         field.SetProperty(property);
 
                     // data derive

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -29,6 +30,7 @@ public class AppSchemaRuntime : SchemaRuntime
         string schemaName = schema.FullName.ToLowerInvariant();
         AppSchema root = _rootAppSchema;
         string fullPath = "";
+        schema.SetProperty<SystemDefined, bool>(true);
 
         SpanReader reader = schemaName;
         while(reader.NextNamespace())
@@ -56,6 +58,7 @@ public class AppSchemaRuntime : SchemaRuntime
                         Container = container
                     };
                     node.SetProperty<Display, LocaleString>(node.FullName);
+                    node.SetProperty<SystemDefined, bool>(true);
                     
                     root.Apps = root.Apps != null ? root.Apps.Concat([node]).ToArray() : [node];
                     root = node;
@@ -133,6 +136,7 @@ public class AppSchemaRuntime : SchemaRuntime
                     Container = node.FullName
                 };
                 curr.SetProperty<Display, LocaleString>(curr.FullName);
+                curr.SetProperty<SystemDefined, bool>(true);
                 node.Apps = node.Apps != null ? node.Apps.Concat([curr]).ToArray() : [curr];
             }
             node = curr;

@@ -12,6 +12,8 @@ using SchemaNode.Service;
 using JsonNode = System.Text.Json.Nodes.JsonNode;
 using SchemaNode.Property.Function;
 using SchemaNode.Schema.Provider;
+using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Local
@@ -23,7 +25,7 @@ namespace SchemaNode.Runtime;
 /// <summary>
 /// The in-memory function schema representation
 /// </summary>
-public sealed class FunctionType : NodeType
+public sealed class FunctionType : NodeType, IValueTypeAccess, IRelationProvider
 {
     #region Properties
 
@@ -67,6 +69,11 @@ public sealed class FunctionType : NodeType
     /// </summary>
     internal SchemaFuncInfo? FuncInfo { get; private set; }
     
+    /// <summary>
+    /// The relations between the fields
+    /// </summary>
+    private List<RelationType>? _relations;
+    
     #endregion
     
     #region Methods
@@ -94,6 +101,7 @@ public sealed class FunctionType : NodeType
     public override async Task LoadAsync(SchemaContext context)
     {
         FunctionSchema? func = GetProperty<FunctionProperty>()?.Value;
+        _relations = null;
         
         // Status
         if (func == null)
@@ -104,7 +112,7 @@ public sealed class FunctionType : NodeType
 
         // Return type
         ValueType? retType = !string.IsNullOrWhiteSpace(func.Return)
-            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics)
+            ? await context.GetNodeTypeAsync<ValueType>(func.Return, Generics, GenericParams)
             : null;
         if (retType == null || retType is GenericType && !IsSystemCall)
         {
@@ -118,7 +126,7 @@ public sealed class FunctionType : NodeType
         Exps = func.Exps.Select(e => (FunctionNodeExpression)e).ToArray();
 
         Converter = func.GetProperty<Converter>()?.Value;
-        FuncInfo = FunctionGenerator.GetSystemFuncInfo(Name);
+        FuncInfo = FunctionGenerator.GetSystemFuncInfo(GenericParams is { Count: > 0 } ? Name.Split('<', 2, StringSplitOptions.RemoveEmptyEntries).First() : Name);
 
         // Argument types
         HashSet<string> existNames = [];
@@ -146,6 +154,31 @@ public sealed class FunctionType : NodeType
             }
         }
         
+        // Load Relation
+        if (func.GetProperty<Relations>()?.Value is { Length: > 0 } relations)
+        {
+            foreach (RelationSchema relation in relations)
+            {
+                // Gets the target type
+                IValueTypeAccess? currentType = GetAccessValueType(relation.Target);
+                if (currentType == null) continue;
+                
+                // Gets the property type
+                PropertyType? prop = await context.GetNodeTypeAsync<PropertyType>(relation.Property);
+                if (prop == null) continue;
+                
+                // Only work for constraint properties
+                Type? propType = prop.GetCsharpType();
+                if (propType == null) continue;
+                
+                var relationType = await relation.LoadAsync(context, this);
+                Error ??= relationType.Error;
+
+                _relations ??= [];
+                _relations.Add(relationType);
+            }
+        }
+    
         // Generate the exp trees
         await PreCompileAsync(context);
     }
@@ -209,6 +242,78 @@ public sealed class FunctionType : NodeType
     public override IEnumerable<T> GetProperties<T>()
         => this.JoinProperties(base.GetProperties<T>(), Runtime?.GetSchemaKindProperties<T>(Kind));
 
+    /// <summary>
+    /// Gets relations
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+    
+    /// <inheritdoc/>
+    public IValueTypeAccess? GetAccessValueType(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        string[] paths = path.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        var type = paths[0].Equals(FUNC_RETURN)
+            ? Return
+            : Args.FirstOrDefault(a => paths[0].Equals(a.Name, StringComparison.OrdinalIgnoreCase))?.ValueType;
+
+        return paths.Length == 1 ? type : type?.GetAccessValueType(paths[1]);
+    }
+
+    /// <inheritdoc/>
+    public IEnumerable<Entry<string>> GetAccessEntries()
+    {
+        yield return new Entry<string>
+        {
+            Value = FUNC_RETURN,
+            HasChildren = Return.HasAccessEntries
+        };
+        foreach (FunctionNodeArgument a in Args)
+        {
+            var entry = new Entry<string>
+            {
+                Value = a.Name,
+                HasChildren = a.ValueType?.HasAccessEntries ?? false
+            };
+            var display = a.GetProperty<Display>();
+            if (display != null) entry.SetProperty(display);
+            yield return entry;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool IsAssignableTo(IValueTypeAccess other)
+    {
+        return false;
+    }
+
+    /// <inheritdoc/>
+    public bool HasAccessEntries => true;
+    
+    /// <inheritdoc/>
+    public IValueAccess Create(IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public IValueAccess From(object? value, IValueAccess? parent = null, IPropertyProvider? propertyProvider = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    /// <inheritdoc/>
+    public Type? GetCsharpType(bool nullable = false)
+    {
+        return null;
+    }
+
+    /// <inheritdoc/>
+    public Task<IValueAccess?> ValidateValueAsync(ISchemaContext context, object? value)
+    {
+        return Task.FromResult<IValueAccess?>(null);
+    }
+    
     #endregion
 
     #region Cache Management

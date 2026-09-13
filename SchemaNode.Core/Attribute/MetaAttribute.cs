@@ -1,6 +1,6 @@
 ﻿using SchemaNode.Property;
 using SchemaNode.Property.Common;
-using SchemaNode.Property.Property;
+using SchemaNode.Runtime;
 
 namespace SchemaNode.Attribute;
 
@@ -73,13 +73,9 @@ public static class MetaExtension
             if (attr.Property is T p) yield return p;
     }
 
-    static IEnumerable<IProperty> ForSchema(IEnumerable<IProperty> properties, string kind)
+    static IEnumerable<IProperty> ForSchema(ISchemaRuntime runtime, IEnumerable<IProperty> properties, string kind)
     {
-        return properties.Where(p =>
-        {
-            var metaProperty = p.GetType().GetMetaProperty<ForSchema>();
-            return metaProperty?.Value != null && metaProperty.Value.Contains(kind, StringComparer.OrdinalIgnoreCase);
-        });
+        return properties.Where(p => runtime.IsPropertyForSchema(p.GetType(), kind));
     }
 
     /// <summary>
@@ -193,52 +189,52 @@ public static class MetaExtension
     /// <summary>
     /// Gets the meta attribute for the given property type from the type
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this Type type, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(type.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this Type type, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(type.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the member
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.MemberInfo member, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(member.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.MemberInfo member, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(member.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the parameter
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.ParameterInfo parameter, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(parameter.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.ParameterInfo parameter, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(parameter.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the assembly
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.Assembly assembly, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(assembly.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.Assembly assembly, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(assembly.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the module
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.Module module, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(module.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.Module module, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(module.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the event
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.EventInfo eventInfo, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(eventInfo.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.EventInfo eventInfo, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(eventInfo.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the field
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.FieldInfo fieldInfo, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(fieldInfo.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.FieldInfo fieldInfo, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(fieldInfo.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the constructor
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.ConstructorInfo constructorInfo, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(constructorInfo.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.ConstructorInfo constructorInfo, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(constructorInfo.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the method
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.MethodInfo methodInfo, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(methodInfo.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.MethodInfo methodInfo, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(methodInfo.GetMetaProperties()), kind);
 
     /// <summary>
     /// Gets the meta attribute for the given property type from the property
     /// </summary>
-    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.PropertyInfo propertyInfo, string kind) where T : class, IProperty => ForSchema(FilterBy<T>(propertyInfo.GetMetaProperties()), kind);
+    public static IEnumerable<IProperty> GetMetaPropertiesForSchema<T>(this System.Reflection.PropertyInfo propertyInfo, ISchemaRuntime runtime, string kind) where T : class, IProperty => ForSchema(runtime, FilterBy<T>(propertyInfo.GetMetaProperties()), kind);
     
     #endregion
     

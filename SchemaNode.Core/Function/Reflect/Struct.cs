@@ -92,7 +92,7 @@ public static class Struct
         if (paths.Length == 0) return null;
         var field = fields.FirstOrDefault(f => f.Name.Equals(paths[0], StringComparison.OrdinalIgnoreCase));
         if (field == null || string.IsNullOrWhiteSpace(field.Type)) return null;
-        Runtime.ValueType? valueType = await context.GetNodeTypeAsync<Runtime.ValueType>(field.Type);
+        var valueType = await context.GetNodeTypeAsync<IValueTypeAccess>(field.Type);
         return paths.Length > 1 ? valueType?.GetAccessValueType(paths[1])?.Name : valueType?.Name;
     }
 

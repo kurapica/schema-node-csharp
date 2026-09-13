@@ -93,7 +93,7 @@ public class Relations : Property<RelationSchema[]>
 /// Represents the relation type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_RELATION}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_RELATION)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_RELATION)]
 public class RelationType: AnyType;
 
 /// <summary>

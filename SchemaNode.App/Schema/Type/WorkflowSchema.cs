@@ -72,5 +72,5 @@ public sealed class WorkflowProperty: Property<WorkflowSchema>;
 /// Represents the event type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_WORKFLOW}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_WORKFLOW)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_WORKFLOW)]
 public class WorkflowType: AnyType;

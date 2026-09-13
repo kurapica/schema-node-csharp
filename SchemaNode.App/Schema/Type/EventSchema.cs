@@ -51,5 +51,5 @@ public sealed class EventProperty: Property<EventSchema>;
 /// Represents the event type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_EVENT}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_EVENT)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_EVENT)]
 public class EventType: AnyType;

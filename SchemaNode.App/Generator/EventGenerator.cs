@@ -20,12 +20,12 @@ public class EventGenerator: INodeSchemaGenerator
 
     public IEnumerable<NodeSchema> GenerateSchema(SchemaRuntime runtime, Type type, string @namespace, string name, Func<Type, string, Type[]?, string?>? typeResolver = null)
     {
-        if (!type.IsAssignableTo(typeof(Event.BaseEvent))) yield break;
+        if (!type.IsAssignableTo(typeof(BaseEvent))) yield break;
         
         if (type.GetGenericArguments() is {  Length: > 0 })
             throw new Exception($"BaseEvent type {type.FullName} can't be generic");
         
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_EVENT, @namespace, name, type);
+        NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_EVENT, @namespace, name, type);
         if (typeResolver == null)
         {
             yield return schema;
@@ -76,7 +76,7 @@ public class EventGenerator: INodeSchemaGenerator
                         arg.SetProperty<Default, object>(defaultProp.Value);
                     
                     // Extension Properties
-                    foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNC_ARG))
+                    foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_FUNC_ARG))
                         arg.SetProperty(property);
 
                     // Params

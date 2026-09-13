@@ -12,15 +12,5 @@ public class UserInfo
     /// <summary>
     /// User ID
     /// </summary>
-    public string? UserId { get; set; }
-
-    /// <summary>
-    /// User Name
-    /// </summary>
-    public string? UserName { get; set; } = "Test";
-    
-    /// <summary>
-    /// As Admin
-    /// </summary>
-    public bool IsAdmin { get; set; }
+    public string? Id { get; set; }
 }

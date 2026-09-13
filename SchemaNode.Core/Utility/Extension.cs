@@ -83,7 +83,7 @@ internal static class Extension
         {
             if (value == null) return null;
             if (value is IValueAccess node) return node.TryGetValue(out JsonNode? jsonNode) ? jsonNode : null;
-            if (value is JsonNode) return (JsonNode?)(object)value;
+            if (value is JsonNode) return ((JsonNode?)(object)value)?.DeepClone();
             return JsonSerializer.SerializeToNode(value, DefaultJsonOptions);
         }
         catch 
@@ -94,7 +94,7 @@ internal static class Extension
         }
     }
     
-    internal static T? ConvertTo<T>(this object? value) => typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
+    internal static T? ConvertTo<T>(this object? value) => value is not null && typeof(T).TryConvert(value, out object? result) ? (T?)result : default(T?);
 
     internal static bool TryConvertTo<T>(this object? value, out T? result)
     {

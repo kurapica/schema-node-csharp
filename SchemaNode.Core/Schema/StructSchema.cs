@@ -34,6 +34,7 @@ public sealed class StructKind;
 [Meta<Attach>(SCHEMA_KIND_STRUCT_DEFINE)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessentries)}", $"@{nameof(Fields)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_STRUCT}.{nameof(Function.Reflect.Struct.getaccessvaluetype)}", $"@{nameof(Fields)}", NODE_SELF)]
+[Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
 public sealed class StructSchema : PropertyOwner
 {
     /// <summary>
@@ -107,18 +108,22 @@ public sealed class StructProperty : Property<StructSchema>
 /// Represents the struct type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_STRUCT)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_STRUCT)]
 public class StructType: ValueType;
+
+/// <summary>
+/// The struct field kind
+/// </summary>
+[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
+[Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
+    typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType))]
+public sealed class StructFieldKind;
 
 /// <summary>
 /// The struct field schema
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_STRUCT}.field")]
-[Meta<SchemaKind>(SCHEMA_KIND_STRUCT_FIELD, SCHEMA_KIND_ORDER_STRUCT_FIELD)]
 [Meta<TypeProvider>(nameof(Type))]
-[Meta<KindProvider>(SCHEMA_KIND_STRUCT_FIELD)]
-[Meta<Append>(typeof(Disable), typeof(Display), typeof(Description), typeof(Visible), typeof(InVisible), 
-    typeof(Immutable), typeof(ReadOnly), typeof(Require), typeof(OverrideType))]
 public sealed class StructFieldSchema : PropertyOwner, IErrorProvider
 {
     /// <summary>

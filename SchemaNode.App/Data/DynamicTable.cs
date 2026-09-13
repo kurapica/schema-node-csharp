@@ -859,8 +859,8 @@ public class DynamicTableSchema
                                     string pkey = string.Join(":", keys);
 
                                     // get data node
-                                    var IValueAccess = resultStruct.GetAccessValue(dataField);
-                                    if (IValueAccess == null || IValueAccess.IsEmpty) continue;
+                                    var dataValue = resultStruct.GetAccessValue(dataField);
+                                    if (dataValue == null || dataValue.IsEmpty) continue;
 
                                     // set value
                                     if (!keyMap.TryGetValue(pkey, out List<IValueAccess>? packs)) continue;
@@ -871,7 +871,7 @@ public class DynamicTableSchema
                                         if (fld is not { IsEmpty: true }) continue;
 
                                         // set value
-                                        fld.TrySetValue(IValueAccess);
+                                        fld.TrySetValue(dataValue);
                                     }
                                 }
 
@@ -880,8 +880,8 @@ public class DynamicTableSchema
                             case 0 when value is StructNode resultStruct:
                             {
                                 // single key
-                                var IValueAccess = resultStruct.GetAccessValue(dataField);
-                                if (IValueAccess == null || IValueAccess.IsEmpty) continue;
+                                var dataValue = resultStruct.GetAccessValue(dataField);
+                                if (dataValue == null || dataValue.IsEmpty) continue;
 
                                 foreach (IValueAccess row in array)
                                 {
@@ -890,7 +890,7 @@ public class DynamicTableSchema
                                     if (fld is not { IsEmpty: true }) continue;
 
                                     // set value
-                                    fld.TrySetValue(IValueAccess);
+                                    fld.TrySetValue(dataValue);
                                 }
 
                                 break;

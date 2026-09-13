@@ -30,6 +30,7 @@ public static class Constant
     public const string ARRAY_PREVIOUS = "$prev";
     public const string ARRAY_ELEMENT = "$ele";
     public const string TYPE_PROVIDER = "$type";
+    public const string FUNC_RETURN = "return";
 
     #endregion
 

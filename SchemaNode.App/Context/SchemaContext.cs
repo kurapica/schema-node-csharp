@@ -1,6 +1,7 @@
 using SchemaNode.Schema;
 using SchemaNode.Enum;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
 using SchemaNode.Runtime;
 using SchemaNode.Schema.Provider;
 using SchemaNode.Utility;
@@ -9,6 +10,7 @@ using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
 using AppType = SchemaNode.Schema.AppType;
 using NamespaceType = SchemaNode.Runtime.NamespaceType;
+using NodeType = SchemaNode.Runtime.NodeType;
 
 namespace SchemaNode.Context;
 
@@ -159,10 +161,11 @@ public static class AppSchemaContextExtension
             NodeSchema schema = type.GetNodeSchema(context.Runtime)!;
             bool canRead = await context.AuthorizeAsync(type, PolicyScope.SchemaRead, true);
             if (!canRead) return null;
+            bool isSystem = type.GetProperty<SystemDefined>()?.Value == true;
             schema.SetProperty<SchemaRead, bool>(canRead);
-            schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
-            schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
-            schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
+            schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaCreate, true));
+            schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaUpdate, true));
+            schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(type, PolicyScope.SchemaDelete, true));
             return schema;
         }
 

@@ -181,6 +181,11 @@ public sealed class StructType: ValueType, IRelationProvider
         });
     }
 
+    /// <summary>
+    /// Gets relations
+    /// </summary>
+    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
+
     #endregion
 
     #region Methods
@@ -238,11 +243,6 @@ public sealed class StructType: ValueType, IRelationProvider
         }
         return -1;
     }
-    
-    /// <summary>
-    /// Gets relations
-    /// </summary>
-    public IEnumerable<RelationType> GetRelations() => _relations?.AsEnumerable() ?? [];
     
     /// <summary>
     /// Gets relations for the given field name

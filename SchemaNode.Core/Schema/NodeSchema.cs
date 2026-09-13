@@ -124,6 +124,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
             Namespace = Namespace,
             Kind = Kind,
             Type = Type,
+            LoadState = LoadState,
         };
         nodeSchema.CombineProperties(this, runtime, SCHEMA_KIND_NODE);
 
@@ -133,7 +134,7 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
     }
     
     // Create Node Schema with full name
-    internal static NodeSchema Create(string kind, string name, Type? type = null, string? display = null)
+    internal static NodeSchema Create(ISchemaRuntime runtime, string kind, string name, Type? type = null, string? display = null)
     {
         NodeSchema nodeSchema = new()
         {
@@ -144,14 +145,14 @@ public sealed class NodeSchema: PropertyOwner, IErrorProvider
         };
         nodeSchema.SetProperty<Display, LocaleString>(display ?? type?.GetSummaryFromXmlDoc() ?? name);
         if (type is not null)
-            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_NODE))
+            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NODE))
                 nodeSchema.SetProperty(prop);
         return nodeSchema;
     }
 
     // Create Node Schema with split namespace and name
-    internal static NodeSchema Create(string kind, string @namespace, string name, Type? type = null, string? display = null)
-        => Create(kind, $"{@namespace}.{name}".Trim('.'), type, display);
+    internal static NodeSchema Create(ISchemaRuntime runtime, string kind, string @namespace, string name, Type? type = null, string? display = null)
+        => Create(runtime, kind, $"{@namespace}.{name}".Trim('.'), type, display);
 }
 
 /// <summary>

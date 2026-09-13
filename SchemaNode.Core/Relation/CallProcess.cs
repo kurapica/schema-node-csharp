@@ -99,5 +99,15 @@ public class CallProcess : IRelationProcess, INodeReferences, IErrorProvider
 [Meta<Property.Record.RelationKind>("call", 1)]
 [Meta<RelationProcess>(typeof(CallProcess))]
 [Relation<Visible, Call>(nameof(Call), NS_SYSTEM_LOGIC_EQ, $"@{nameof(RelationSchema.Kind)}", "call")]
-[Relation<Default, Call>($"{nameof(Call)}.{nameof(FuncCall.Return)}", $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(RelationSchema.ValueType)}")]
-public class Call : FuncCallProperty;
+[Relation<Default, Call>($"{nameof(Call)}.{nameof(FuncCall.Return)}",
+    $"{NS_SYSTEM_INTRINSIC}.{nameof(SystemIntrinsic.assign)}", $"@{nameof(RelationSchema.ValueType)}")]
+public class Call : FuncCallProperty
+{
+    public override void SetValue<TValue>(TValue value)
+    {
+        if (value is object[] { Length: 2 } objs && objs[0] is Type)
+            base.SetValue(objs[1]);
+        else
+            base.SetValue(value);
+    }
+}

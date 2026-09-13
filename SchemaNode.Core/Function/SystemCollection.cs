@@ -67,8 +67,6 @@ public static class SystemCollection
     /// </summary>
     public static async Task<T?> getfield<T>(SchemaContext context,
         IValueAccess obj,
-        [Meta<Valid>()]
-        [Relation<EntrySource, Call>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", $"@{nameof(obj)}.{nameof(CallArg.Type)}")]
         string field, 
         T? @default)
     {

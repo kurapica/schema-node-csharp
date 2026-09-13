@@ -28,7 +28,7 @@ namespace SchemaNode.Schema;
 [Meta<NodeSchemaKind>(SCHEMA_KIND_FUNCTION, SCHEMA_KIND_ORDER_FUNC)]
 [Meta<NodeType>(typeof(FunctionType))]
 [Meta<SchemaGenerator>(typeof(FunctionGenerator))]
-[Meta<Append>(typeof(Generics))]
+[Meta<Append>(typeof(Generics), typeof(Relations))]
 public sealed class FunctionKind;
 
 /// <summary>
@@ -38,6 +38,7 @@ public sealed class FunctionKind;
 [Meta<Attach>(SCHEMA_KIND_FUNCTION)]
 [Meta<EntrySourceProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessentries)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
 [Meta<AccessValueTypeProvider>($"{NS_SYSTEM_SCHEMA_REFLECT_FUNC}.{nameof(Function.Reflect.Function.getaccessvaluetype)}", $"@{nameof(Args)}", $"@{nameof(Exps)}", NODE_SELF)]
+[Meta<KindProvider>(SCHEMA_KIND_FUNC_ARG)]
 public sealed class FunctionSchema: PropertyOwner
 {
     /// <summary>
@@ -95,7 +96,7 @@ public sealed class FunctionProperty : Property<FunctionSchema>
 /// Represents the function type
 /// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.type")]
-[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, SCHEMA_KIND_FUNCTION)]
+[Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_IS_SCHEMA_KIND, NODE_SELF, false, SCHEMA_KIND_FUNCTION)]
 public class FuncType: AnyType;
 
 /// <summary>
@@ -112,13 +113,17 @@ public class ValidFuncType: FuncType;
 [Meta<Valid>(NS_SYSTEM_SCHEMA_REFLECT_FUNC_WITH_RETURN, NODE_SELF, $"{NS_SYSTEM_SCHEMA_NODE}.valuetype")]
 public class TypeFuncType : FuncType;
 
-/**
- * The function argument information
- */
+/// <summary>
+/// The function argument kind
+/// </summary>
 [Meta<SchemaKind>(SCHEMA_KIND_FUNC_ARG, SCHEMA_KIND_ORDER_FUNC_ARG)]
+[Meta<Append>(typeof(Display), typeof(Require))]
+public sealed class FuncArgKind;
+
+/// <summary>
+/// The function argument information
+/// </summary>
 [Meta<SchemaType>($"{NS_SYSTEM_SCHEMA_FUNC}.arg")]
-[Meta<Attach>(SCHEMA_KIND_FUNC_ARG)]
-[Meta<Append>(typeof(Relations), typeof(Display), typeof(Default), typeof(Require))]
 [Meta<TypeProvider>(nameof(Type))]
 public sealed class FuncArg : PropertyOwner
 {

@@ -25,7 +25,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
     {
         if (!type.IsAssignableTo(typeof(BaseWorkflow))) yield break;
         
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_WORKFLOW, @namespace, name, type);
+        NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_WORKFLOW, @namespace, name, type);
         if (typeResolver == null)
         {
             yield return schema;
@@ -117,7 +117,7 @@ public class WorkflowGenerator : INodeSchemaGenerator
                     arg.SetProperty<Default, object>(defaultProp.Value);
                     
                 // Extension Properties
-                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_FUNC_ARG))
+                foreach (IProperty property in p.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_FUNC_ARG))
                     arg.SetProperty(property);
 
                 // Params

@@ -8,6 +8,8 @@ using static SchemaNode.Utility.AppConstant;
 using SchemaNode.Property.App;
 using SchemaNode.Struct;
 using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace SchemaNode.Runtime;
@@ -286,16 +288,17 @@ public sealed class AppType : IValueTypeAccess
         if (_schema == null) return new AppSchema();
         AppSchema schema = new AppSchema
         {
-            Name = Name,
+            Name = _schema.Name,
             Container = _schema.Container
         };
         schema.CombineProperties(_schema);
         
         // The auth properties
-        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+        bool isSystem = GetProperty<SystemDefined>()?.Value == true;
+        schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
         schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
 
         if (_fields is { Count: > 0 })
         {

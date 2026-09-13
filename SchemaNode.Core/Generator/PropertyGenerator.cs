@@ -21,7 +21,7 @@ internal class PropertyGenerator : INodeSchemaGenerator
         Type? valueType = type.GetGenericBaseType(typeof(Property<>))?.GetGenericArguments().ElementAtOrDefault(0);
         if (valueType == null) yield break;
         
-        NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_PROPERTY, @namespace, name, type);
+        NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_PROPERTY, @namespace, name, type);
         if (typeResolver == null)
         {
             yield return schema; // take place no details

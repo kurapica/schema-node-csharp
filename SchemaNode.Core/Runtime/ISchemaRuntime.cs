@@ -38,6 +38,14 @@ public interface ISchemaRuntime
     /// <param name="propertyType"></param>
     /// <returns></returns>
     IEnumerable<string> GetPropertyForSchemas(Type propertyType);
+
+    /// <summary>
+    /// Whether the property work for the given schema kind
+    /// </summary>
+    /// <param name="propertyType"></param>
+    /// <param name="kind"></param>
+    /// <returns></returns>
+    bool IsPropertyForSchema(Type propertyType, string kind);
     
     /// <summary>
     /// Gets schema kind property

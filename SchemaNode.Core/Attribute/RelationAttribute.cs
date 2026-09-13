@@ -37,7 +37,7 @@ public sealed class RelationAttribute<TP, TR> : System.Attribute, IRelationAttri
     public RelationSchema GetRelationSchema(string target)
     {
         TR prop = Activator.CreateInstance<TR>();
-        prop.SetValue(_args.Length == 1 ? _args[0] : _args);
+        prop.SetValue(new object[] {typeof(TP), _args.Length == 1 ? _args[0] : _args});
 
         string kind = typeof(TR).GetMetaProperty<RelationKind>()?.GetValue<string>()
                       ?? throw new Exception($"The {typeof(TR).Name} can't be used as relation process.");

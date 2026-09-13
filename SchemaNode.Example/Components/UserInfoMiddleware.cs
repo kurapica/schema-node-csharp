@@ -14,10 +14,9 @@ public class UserInfoMiddleware(RequestDelegate next)
     /// <returns></returns>
     public async Task Invoke(HttpContext context, UserInfo user)
     {
-        if (context.Request.Headers.TryGetValue("accountId", out var accountId))
+        if (context.Request.Headers.TryGetValue("userid", out var userid))
         {
-            user.UserId = accountId;
-            user.IsAdmin = accountId == "admin";
+            user.Id = userid;
         }
         await next(context);
     }

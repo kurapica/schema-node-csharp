@@ -9,6 +9,7 @@ using SchemaNode.Utility;
 using System.Text.RegularExpressions;
 using SchemaNode.Function;
 using SchemaNode.Property.App;
+using SchemaNode.Property.Core;
 using SchemaNode.Relation;
 using static SchemaNode.Utility.Constant;
 using static SchemaNode.Utility.AppConstant;
@@ -422,10 +423,11 @@ public sealed class AppFieldType
         schema.CombineProperties(_appFieldSchema);
         
         // The auth properties
-        schema.SetProperty<SchemaCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
+        bool isSystem = Application.GetProperty<SystemDefined>()?.Value == true;
+        schema.SetProperty<SchemaCreate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaCreate, true));
         schema.SetProperty<SchemaRead, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaRead, true));
-        schema.SetProperty<SchemaUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
-        schema.SetProperty<SchemaDelete, bool>(await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
+        schema.SetProperty<SchemaUpdate, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaUpdate, true));
+        schema.SetProperty<SchemaDelete, bool>(!isSystem && await context.AuthorizeAsync(this, PolicyScope.SchemaDelete, true));
         schema.SetProperty<DataCreate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataCreate, true));
         schema.SetProperty<DataRead, bool>(await context.AuthorizeAsync(this, PolicyScope.DataRead, true));
         schema.SetProperty<DataUpdate, bool>(await context.AuthorizeAsync(this, PolicyScope.DataUpdate, true));

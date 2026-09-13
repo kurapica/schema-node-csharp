@@ -1,12 +1,12 @@
 using SchemaNode.Attribute;
 using SchemaNode.Context;
-using SchemaNode.Node;
+using SchemaNode.Property.Common;
+using SchemaNode.Property.Core;
+using SchemaNode.Property.String;
+using SchemaNode.Relation;
 using SchemaNode.Runtime;
-using SchemaNode.Schema;
-using static SchemaNode.Utility.Constant;
 using SchemaType = SchemaNode.Property.Core.SchemaType;
-using EnumType = SchemaNode.Runtime.EnumType;
-using SchemaNode.Struct;
+using static SchemaNode.Utility.Constant;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedMember.Global
@@ -22,5 +22,14 @@ public static class SystemData
     /// <summary>
     /// Gets the context item
     /// </summary>
-    public static IValueAccess? getcontext(SchemaContext context, string access) => context.GetContextItem(access);
+    [Relation<Valid, Assign>(nameof(access), $"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.isaccessassignableto)}", NS_SYSTEM_CONTEXT, NODE_SELF, false, $"@{FUNC_RETURN}")]
+    public static T? getcontext<T>(
+        SchemaContext context,
+        
+        [Meta<EntrySource>($"{NS_SYSTEM_SCHEMA_REFLECT_TYPE}.{nameof(Reflect.Type.getaccessentries)}", NS_SYSTEM_CONTEXT, NODE_SELF)] 
+        string access)
+    {
+        IValueAccess? item = context.GetContextItem(access);
+        return item != null ? item.GetValue<T>() : default(T?);
+    }
 }

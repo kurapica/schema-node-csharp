@@ -7,7 +7,6 @@ using SchemaNode.Property;
 using SchemaNode.Property.Common;
 using SchemaNode.Property.Record;
 using SchemaNode.Property.Core;
-using SchemaNode.Property.Property;
 using SchemaNode.Runtime;
 using SchemaNode.Schema;
 using SchemaNode.Struct;
@@ -127,14 +126,14 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
 
         // system.array
         {
-            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
+            NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_ARRAY, NS_SYSTEM_ARRAY, typeof(ArrayNode));
             schema.SetProperty<ArrayProperty, ArraySchema>(new ArraySchema{ Element = NS_SYSTEM_OBJECT });
             runtime.SaveSystemSchema(schema);
         }
 
         // system.list<T>
         {
-            NodeSchema schema = NodeSchema.Create(SCHEMA_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
+            NodeSchema schema = NodeSchema.Create(runtime, SCHEMA_KIND_ARRAY, NS_SYSTEM_LIST, typeof(List<>));
             ArraySchema arraySchema = new ArraySchema{ Element = NS_GENERIC_TYPE };
             arraySchema.SetProperty<Generics, GenericParameter[]>([new GenericParameter(NS_GENERIC_TYPE)]);
             schema.SetProperty<ArrayProperty, ArraySchema>(arraySchema);
@@ -155,10 +154,10 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                                ?? throw new Exception($"Failed to get default namespace for assembly '{assembly.FullName}'");
 
             // Check if we need create the namespace schema manually
-            IProperty[] props = assembly.GetMetaPropertiesForSchema<IProperty>(SCHEMA_KIND_NAMESPACE).ToArray();
+            IProperty[] props = assembly.GetMetaPropertiesForSchema<IProperty>(runtime, SCHEMA_KIND_NAMESPACE).ToArray();
             if (props.Length > 0)
             {
-                NodeSchema nsSchema = NodeSchema.Create(SCHEMA_KIND_NAMESPACE, defaultNs);
+                NodeSchema nsSchema = NodeSchema.Create(runtime, SCHEMA_KIND_NAMESPACE, defaultNs);
                 foreach (IProperty prop in props) nsSchema.SetProperty(prop);
                 runtime.SaveSystemSchema(nsSchema);
             }
@@ -219,7 +218,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // cache
             provider.BindSchemaContextItemProvider(field.Name, schemaType, providerType, itemType);
         }
-        NodeSchema contextSchema = NodeSchema.Create(SCHEMA_KIND_STRUCT, NS_SYSTEM_CONTEXT);
+        NodeSchema contextSchema = NodeSchema.Create(runtime, SCHEMA_KIND_STRUCT, NS_SYSTEM_CONTEXT);
         contextSchema.SetProperty<StructProperty, StructSchema>(new StructSchema { Fields = fieldTypes.ToArray() });
         runtime.SaveSystemSchema(contextSchema);
         
@@ -286,7 +285,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             // but belong to a different kind) are not incorrectly categorized by their C# base class.
             if (type.GetMetaProperty<OfSchema>() is { HasValue: true } ofSchema && valType != null)
             {
-                schema = NodeSchema.Create(ofSchema.GetValue<string>()!, name, valType);
+                schema = NodeSchema.Create(runtime, ofSchema.GetValue<string>()!, name, valType);
             }
             else if (type.BaseType?.IsSubclassOfGenericType(typeof(IScalarType<>)) == true)
             {
@@ -294,7 +293,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
                 string baseTypeName = ResolveScalarSchema(type.BaseType, defaultNs);
                 baseSchema = runtime.GetSystemSchema(baseTypeName) 
                              ?? throw new Exception($"Failed to resolve schema for type '{baseTypeName}'");
-                schema = NodeSchema.Create(baseSchema.Kind, name, valType ?? baseSchema.Type);
+                schema = NodeSchema.Create(runtime, baseSchema.Kind, name, valType ?? baseSchema.Type);
             }
             else
             {
@@ -404,7 +403,7 @@ internal sealed class NodeRuntimeStageHandler : IRuntimeStageHandler
             PropertyOwner? schema = property.GetValue<PropertyOwner>();
             if (schema == null) return nodeSchema;
             
-            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(nodeSchema.Kind))
+            foreach (IProperty prop in type.GetMetaPropertiesForSchema<IProperty>(runtime, nodeSchema.Kind))
                 schema.SetProperty(prop);
             
             // save back
